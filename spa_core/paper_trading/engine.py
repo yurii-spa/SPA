@@ -1,6 +1,6 @@
 """
 SPA Paper Trading Engine — M2
-Виртуальный портфель $100. Все операции проходят через Risk Policy.
+Виртуальный портфель $100K. Все операции проходят через Risk Policy.
 
 ПРАВИЛА:
   - RiskPolicy.check_new_position() вызывается ДО каждой сделки
@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 # ─── Константы ────────────────────────────────────────────────────────────────
 
 STRATEGY_ID = "paper-v1"
-INITIAL_CAPITAL = 100.0             # виртуальный стартовый капитал ($100 paper trading)
+INITIAL_CAPITAL = 100_000.0          # виртуальный стартовый капитал ($100K paper trading)
 MIN_PAPER_WEEKS = 8                  # минимум paper trading перед live
 SHARPE_RISK_FREE_RATE = 0.05         # 5% годовых безрисковая ставка (proxy)
 
@@ -261,7 +261,7 @@ class PaperTrader:
                 break  # кэш исчерпан
 
             amount = self.policy.max_safe_position_size(state, key, tier)
-            if amount < 0.50:  # минимальная позиция $0.50
+            if amount < 10.0:  # минимальная позиция $10
                 log.debug(f"auto_allocate: {key} max_safe_size=${amount:.2f} too small, skip")
                 continue
 
