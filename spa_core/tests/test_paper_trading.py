@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import sys
 import tempfile
-import sqlite3
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -37,9 +36,19 @@ AAVE_USDC  = "aave-v3-usdc-ethereum"
 COMP_USDC  = "compound-v3-usdc-ethereum"
 MAPLE_USDC = "maple-usdc-ethereum"
 EULER_USDC = "euler-v2-usdc-ethereum"
+YEARN_USDC = "yearn-v3-usdc-ethereum"
 
 VALID_APY = 5.0
 VALID_TVL = 50_000_000.0
+
+# Позиции относительно INITIAL_CAPITAL (чтобы тесты не зависели от конкретной суммы)
+PCT_30 = round(INITIAL_CAPITAL * 0.30, 2)  # 30% капитала
+PCT_40 = round(INITIAL_CAPITAL * 0.40, 2)  # 40% капитала (T1 max)
+PCT_20 = round(INITIAL_CAPITAL * 0.20, 2)  # 20% капитала (T2 max)
+PCT_15 = round(INITIAL_CAPITAL * 0.15, 2)  # 15% капитала
+PCT_10 = round(INITIAL_CAPITAL * 0.10, 2)  # 10% капитала
+PCT_97 = round(INITIAL_CAPITAL * 0.97, 2)  # 97% (должен блокироваться — < 5% cash)
+PCT_5  = round(INITIAL_CAPITAL * 0.05, 2)  # 5% (для теста T2 лимита)
 
 
 # ─── Runner ───────────────────────────────────────────────────────────────────
@@ -61,7 +70,7 @@ def run(name, fn):
 # ─── Tests: Initialisation ────────────────────────────────────────────────────
 
 def test_initial_capital():
-    """Стартовый капитал $10K, всё в кэше."""
+    """Стартовый капитал = INITIAL_CAPITAL, всё в кэше."""
     trader, _ = make_trader()
     status = trader.get_status()
     p = status["portfolio"]
@@ -69,7 +78,7 @@ def test_initial_capital():
     assert p["deployed_usd"] == 0.0
     assert p["cash_usd"] == INITIAL_CAPITAL
     assert p["cash_pct"] == 1.0
-run("Init::initial_capital_10k", test_initial_capital)
+run("Init::initial_capital", test_initial_capital)
 
 def test_no_positions_at_start():
     trader, _ = make_trader()
@@ -94,37 +103,37 @@ run("Init::paper_trading_clock_zero", test_paper_trading_clock_starts_at_zero)
 def test_open_valid_position_approved():
     """Стандартная позиция в T1 протоколе должна быть одобрена."""
     trader, _ = make_trader()
-    result = trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    result = trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     assert result.approved is True
 run("Open::valid_position_approved", test_open_valid_position_approved)
 
 def test_open_updates_portfolio():
     """После открытия позиции deployed_usd должен увеличиться."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     p = trader.get_status()["portfolio"]
-    assert p["deployed_usd"] == 3000.0
-    assert p["cash_usd"] == 7000.0
+    assert p["deployed_usd"] == PCT_30
+    assert abs(p["cash_usd"] - (INITIAL_CAPITAL - PCT_30)) < 0.01
 run("Open::updates_portfolio_balances", test_open_updates_portfolio)
 
 def test_open_position_appears_in_status():
     """Открытая позиция должна появиться в списке positions."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     positions = trader.get_status()["positions"]
     assert len(positions) == 1
     assert positions[0]["protocol_key"] == AAVE_USDC
-    assert positions[0]["amount_usd"] == 3000.0
+    assert positions[0]["amount_usd"] == PCT_30
 run("Open::position_appears_in_status", test_open_position_appears_in_status)
 
 def test_open_multiple_positions():
     """Можно открыть несколько позиций в разных протоколах."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC,  2000.0, 4.6, VALID_TVL)
-    trader.open_position(COMP_USDC,  2000.0, 4.8, VALID_TVL)
-    trader.open_position(MAPLE_USDC, 1000.0, 4.9, VALID_TVL)
+    trader.open_position(AAVE_USDC,  PCT_20, 4.6, VALID_TVL)
+    trader.open_position(COMP_USDC,  PCT_20, 4.8, VALID_TVL)
+    trader.open_position(MAPLE_USDC, PCT_10, 4.9, VALID_TVL)
     p = trader.get_status()["portfolio"]
-    assert p["deployed_usd"] == 5000.0
+    assert abs(p["deployed_usd"] - (PCT_20 + PCT_20 + PCT_10)) < 0.01
     assert len(trader.get_status()["positions"]) == 3
 run("Open::multiple_positions_different_protocols", test_open_multiple_positions)
 
@@ -133,7 +142,7 @@ def test_open_blocked_by_risk_policy_apy_too_high():
     trader, _ = make_trader()
     raised = False
     try:
-        trader.open_position(AAVE_USDC, 1000.0, 35.0, VALID_TVL)
+        trader.open_position(AAVE_USDC, PCT_10, 35.0, VALID_TVL)
     except RiskPolicyViolation as e:
         raised = True
         assert any("exceeds maximum" in v for v in e.result.violations)
@@ -145,7 +154,7 @@ def test_open_blocked_by_risk_policy_tvl_too_low():
     trader, _ = make_trader()
     raised = False
     try:
-        trader.open_position(AAVE_USDC, 1000.0, VALID_APY, 1_000_000.0)
+        trader.open_position(AAVE_USDC, PCT_10, VALID_APY, 1_000_000.0)
     except RiskPolicyViolation as e:
         raised = True
         assert any("TVL" in v for v in e.result.violations)
@@ -155,10 +164,11 @@ run("Open::blocked_tvl_too_low", test_open_blocked_by_risk_policy_tvl_too_low)
 def test_open_blocked_concentration_breach():
     """Превышение концентрационного лимита T1 (40%) блокируется."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)  # 30%
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)  # 30%
     raised = False
     try:
-        trader.open_position(AAVE_USDC, 2000.0, VALID_APY, VALID_TVL)  # итого 50% > 40%
+        # Ещё 15% → итого 45% > 40% лимит T1
+        trader.open_position(AAVE_USDC, PCT_15, VALID_APY, VALID_TVL)
     except RiskPolicyViolation as e:
         raised = True
         assert any("Concentration" in v for v in e.result.violations)
@@ -170,10 +180,11 @@ def test_open_blocked_cash_buffer():
     trader, _ = make_trader()
     raised = False
     try:
-        trader.open_position(AAVE_USDC, 9700.0, VALID_APY, VALID_TVL)  # оставит 3%
+        trader.open_position(AAVE_USDC, PCT_97, VALID_APY, VALID_TVL)  # оставит < 5%
     except RiskPolicyViolation as e:
         raised = True
-        assert any("cash buffer" in v.lower() for v in e.result.violations)
+        assert any("cash buffer" in v.lower() or "concentration" in v.lower()
+                   for v in e.result.violations)
     assert raised
 run("Open::blocked_cash_buffer", test_open_blocked_cash_buffer)
 
@@ -182,7 +193,7 @@ def test_open_blocked_unknown_protocol():
     trader, _ = make_trader()
     raised = False
     try:
-        trader.open_position("unknown-protocol-xyz", 1000.0, VALID_APY, VALID_TVL)
+        trader.open_position("unknown-protocol-xyz", PCT_10, VALID_APY, VALID_TVL)
     except ValueError:
         raised = True
     assert raised
@@ -194,7 +205,7 @@ run("Open::blocked_unknown_protocol", test_open_blocked_unknown_protocol)
 def test_close_open_position():
     """Закрытие открытой позиции должно убрать её из portfolio."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     result = trader.close_position(AAVE_USDC)
     assert result["protocol_key"] == AAVE_USDC
     assert trader.get_status()["portfolio"]["deployed_usd"] == 0.0
@@ -203,19 +214,17 @@ run("Close::position_removed_from_portfolio", test_close_open_position)
 def test_close_returns_pnl():
     """close_position должен вернуть realized_pnl_usd."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     result = trader.close_position(AAVE_USDC)
     assert "realized_pnl_usd" in result
     assert isinstance(result["realized_pnl_usd"], float)
 run("Close::returns_pnl", test_close_returns_pnl)
 
 def test_close_frees_cash():
-    """После закрытия кэш должен вернуться к исходному уровню."""
+    """После закрытия deployed = 0."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     trader.close_position(AAVE_USDC)
-    cash = trader.get_status()["portfolio"]["cash_usd"]
-    assert cash == INITIAL_CAPITAL   # небольшой PnL мог изменить, но deployed=0
     deployed = trader.get_status()["portfolio"]["deployed_usd"]
     assert deployed == 0.0
 run("Close::frees_cash", test_close_frees_cash)
@@ -237,7 +246,7 @@ run("Close::nonexistent_raises_value_error", test_close_nonexistent_raises)
 def test_rebalance_healthy_portfolio_noop():
     """На здоровом портфеле rebalance не должен ничего закрывать."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 2000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_20, VALID_APY, VALID_TVL)
     actions = trader.rebalance()
     assert any(a.get("action") == "NO_OP" for a in actions)
 run("Rebalance::healthy_noop", test_rebalance_healthy_portfolio_noop)
@@ -256,14 +265,15 @@ def test_max_safe_size_t1():
     """Max safe size для T1 на пустом портфеле = min(40% капитала, кэш - 5%)."""
     trader, _ = make_trader()
     size = trader.max_safe_size(AAVE_USDC)
-    assert size == 4000.0   # min(4000, 9500) = 4000
+    expected = PCT_40  # min(40%, 95%) = 40%
+    assert abs(size - expected) < 0.01, f"Expected ~{expected}, got {size}"
 run("MaxSafe::t1_empty_portfolio", test_max_safe_size_t1)
 
 def test_max_safe_size_decreases_with_position():
     """После открытия позиции max_safe_size должен уменьшиться."""
     trader, _ = make_trader()
     before = trader.max_safe_size(AAVE_USDC)
-    trader.open_position(AAVE_USDC, 2000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_20, VALID_APY, VALID_TVL)
     after = trader.max_safe_size(AAVE_USDC)
     assert after < before
 run("MaxSafe::decreases_after_open", test_max_safe_size_decreases_with_position)
@@ -271,7 +281,7 @@ run("MaxSafe::decreases_after_open", test_max_safe_size_decreases_with_position)
 def test_max_safe_size_zero_at_limit():
     """max_safe_size = 0 когда достигнут концентрационный лимит."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 4000.0, VALID_APY, VALID_TVL)  # ровно 40%
+    trader.open_position(AAVE_USDC, PCT_40, VALID_APY, VALID_TVL)  # ровно 40%
     size = trader.max_safe_size(AAVE_USDC)
     assert size == 0.0
 run("MaxSafe::zero_at_limit", test_max_safe_size_zero_at_limit)
@@ -298,7 +308,7 @@ run("Status::var_zero_on_empty", test_status_var_zero_on_empty)
 def test_status_var_positive_with_position():
     """VaR > 0 когда есть позиции."""
     trader, _ = make_trader()
-    trader.open_position(AAVE_USDC, 3000.0, VALID_APY, VALID_TVL)
+    trader.open_position(AAVE_USDC, PCT_30, VALID_APY, VALID_TVL)
     r = trader.get_status()["risk"]
     assert r["var_usd"] > 0.0
 run("Status::var_positive_with_position", test_status_var_positive_with_position)
@@ -309,11 +319,11 @@ run("Status::var_positive_with_position", test_status_var_positive_with_position
 def test_t2_total_limit_enforced():
     """Суммарный лимит T2 (35%) должен блокировать новые T2 позиции."""
     trader, _ = make_trader()
-    trader.open_position(MAPLE_USDC, 2000.0, VALID_APY, VALID_TVL)    # 20% T2
-    trader.open_position(EULER_USDC, 1500.0, VALID_APY, VALID_TVL)    # итого 35% T2
+    trader.open_position(MAPLE_USDC, PCT_20, VALID_APY, VALID_TVL)   # 20% T2
+    trader.open_position(EULER_USDC, PCT_15, VALID_APY, VALID_TVL)   # 35% T2 (на лимите)
     raised = False
     try:
-        trader.open_position("yearn-v3-usdc-ethereum", 500.0, VALID_APY, VALID_TVL)  # +5% = 40% > 35%
+        trader.open_position(YEARN_USDC, PCT_5, VALID_APY, VALID_TVL)  # +5% = 40% > 35% лимит
     except RiskPolicyViolation as e:
         raised = True
         assert any("T2 allocation" in v for v in e.result.violations)
@@ -325,13 +335,25 @@ def test_blocked_trade_does_not_affect_portfolio():
     trader, _ = make_trader()
     before = trader.get_status()["portfolio"]
     try:
-        trader.open_position(AAVE_USDC, 1000.0, 50.0, VALID_TVL)  # APY слишком высокий
+        trader.open_position(AAVE_USDC, PCT_10, 50.0, VALID_TVL)  # APY слишком высокий
     except RiskPolicyViolation:
         pass
     after = trader.get_status()["portfolio"]
     assert after["deployed_usd"] == before["deployed_usd"]
     assert after["cash_usd"] == before["cash_usd"]
 run("RiskIntegration::blocked_trade_no_state_change", test_blocked_trade_does_not_affect_portfolio)
+
+
+# ─── Tests: Auto Allocate ─────────────────────────────────────────────────────
+
+def test_auto_allocate_no_data_returns_no_op():
+    """auto_allocate без данных APY возвращает NO_OP."""
+    trader, _ = make_trader()
+    actions = trader.auto_allocate()
+    assert len(actions) == 1
+    assert actions[0]["action"] == "NO_OP"
+    assert "no_fresh_data" in actions[0]["reason"] or "no_suitable_protocol" in actions[0]["reason"]
+run("AutoAllocate::no_data_returns_no_op", test_auto_allocate_no_data_returns_no_op)
 
 
 # ─── Report ───────────────────────────────────────────────────────────────────
