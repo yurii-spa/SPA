@@ -1,0 +1,27 @@
+name: SPA — Run & Export
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-and-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: cd spa_core && python export_data.py --fetch
+      - run: |
+          git config user.name "SPA Bot"
+          git config user.email "spa-bot@users.noreply.github.com"
+          git add data/ spa_core/database/spa.db
+          git diff --staged --quiet && echo "No changes" || (git commit -m "data: SPA export $(date -u '+%Y-%m-%d %H:%M UTC')" && git push)
