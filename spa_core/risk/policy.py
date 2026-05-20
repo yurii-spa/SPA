@@ -1,0 +1,412 @@
+"""
+SPA Risk Policy — детерминированный код (без LLM)
+Фаза 0B: все риск-проверки до любого действия с капиталом.
+
+КРИТИЧЕСКИ ВАЖНО: этот файл содержит только детерминированный код.
+LLM-агенты не имеют права изменять результаты этих проверок.
+Любое изменение правил — только через ADR + код-ревью Owner.
+
+Использование:
+    from risk.policy import RiskPolicy, Position, PortfolioState
+
+    policy = RiskPolicy()
+    state = PortfolioState(total_capital_usd=10000.0, positions=[...])
+    result = policy.check_new_position(state, "aave-v3-usdc-ethereum", 3000.0, apy=5.5)
+    if result.approved:
+        execute_trade(...)
+"""
+
+from __future__ import annotations
+
+import math
+import logging
+from dataclasses import dataclass, field
+from typing import Optional
+
+log = logging.getLogger(__name__)
+
+# ─── Конфигурация риск-политики ──────────────────────────────────────────────
+
+@dataclass
+class RiskConfig:
+    """Параметры риск-политики. Изменять только через ADR."""
+
+    # Концентрационные лимиты — максимум % портфеля в один протокол
+    max_concentration_t1: float = 0.40   # T1: макс 40%
+    max_concentration_t2: float = 0.20   # T2: макс 20%
+    max_single_protocol:  float = 0.40   # абсолютный макс на любой протокол
+
+    # Лимиты по категориям
+    max_total_t2_allocation: float = 0.35  # T2 совокупно не более 35%
+
+    # Circuit breakers — автостоп
+    max_apy_for_new_position: float = 30.0   # % — не входим если APY > 30% (слишком высокий риск)
+    min_apy_for_new_position: float = 1.0    # % — не входим если APY < 1% (неинтересно)
+    min_tvl_usd: float = 5_000_000          # $5M — минимальный TVL для входа
+    max_drawdown_stop: float = 0.05          # 5% — kill switch всего портфеля
+    max_single_position_drawdown: float = 0.03  # 3% — закрыть позицию
+
+    # VaR параметры (исторический, 95% confidence, 7-дневный горизонт)
+    var_confidence: float = 0.95
+    var_horizon_days: int = 7
+    max_var_pct: float = 0.05               # VaR не более 5% от портфеля
+
+    # Минимальный денежный буфер
+    min_cash_pct: float = 0.05              # 5% всегда в кэше
+
+
+# ─── Модели данных ───────────────────────────────────────────────────────────
+
+@dataclass
+class Position:
+    """Открытая позиция в paper trading."""
+    protocol_key: str
+    tier: str                    # "T1" | "T2"
+    asset: str
+    amount_usd: float
+    apy_at_open: float           # % при входе
+    current_apy: float           # % сейчас
+    unrealized_pnl_usd: float = 0.0
+    days_held: float = 0.0
+
+    @property
+    def unrealized_pnl_pct(self) -> float:
+        if self.amount_usd == 0:
+            return 0.0
+        return self.unrealized_pnl_usd / self.amount_usd
+
+
+@dataclass
+class PortfolioState:
+    """Текущее состояние портфеля."""
+    total_capital_usd: float
+    positions: list[Position] = field(default_factory=list)
+
+    @property
+    def deployed_usd(self) -> float:
+        return sum(p.amount_usd for p in self.positions)
+
+    @property
+    def cash_usd(self) -> float:
+        return self.total_capital_usd - self.deployed_usd
+
+    @property
+    def cash_pct(self) -> float:
+        if self.total_capital_usd == 0:
+            return 0.0
+        return self.cash_usd / self.total_capital_usd
+
+    @property
+    def total_pnl_usd(self) -> float:
+        return sum(p.unrealized_pnl_usd for p in self.positions)
+
+    @property
+    def total_drawdown_pct(self) -> float:
+        if self.total_capital_usd == 0:
+            return 0.0
+        return max(0.0, -self.total_pnl_usd / self.total_capital_usd)
+
+    def concentration_pct(self, protocol_key: str) -> float:
+        """Процент портфеля в конкретном протоколе."""
+        if self.total_capital_usd == 0:
+            return 0.0
+        total_in_protocol = sum(
+            p.amount_usd for p in self.positions if p.protocol_key == protocol_key
+        )
+        return total_in_protocol / self.total_capital_usd
+
+    def t2_allocation_pct(self) -> float:
+        """Суммарный процент T2 протоколов."""
+        if self.total_capital_usd == 0:
+            return 0.0
+        t2_total = sum(p.amount_usd for p in self.positions if p.tier == "T2")
+        return t2_total / self.total_capital_usd
+
+
+@dataclass
+class RiskCheckResult:
+    """Результат риск-проверки."""
+    approved: bool
+    violations: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    check_name: str = ""
+
+    def __str__(self) -> str:
+        status = "APPROVED" if self.approved else "REJECTED"
+        parts = [f"[{status}] {self.check_name}"]
+        for v in self.violations:
+            parts.append(f"  ✗ {v}")
+        for w in self.warnings:
+            parts.append(f"  ⚠ {w}")
+        return "\n".join(parts)
+
+
+# ─── Risk Policy ─────────────────────────────────────────────────────────────
+
+class RiskPolicy:
+    """
+    Детерминированный риск-контроль SPA.
+
+    Все методы возвращают RiskCheckResult.
+    approved=False означает ЗАПРЕТ на действие.
+    Этот запрет не может быть переопределён агентами.
+    """
+
+    def __init__(self, config: RiskConfig = None):
+        self.config = config or RiskConfig()
+
+    # ── Основные проверки ─────────────────────────────────────────────────────
+
+    def check_new_position(
+        self,
+        state: PortfolioState,
+        protocol_key: str,
+        tier: str,
+        amount_usd: float,
+        current_apy: float,
+        tvl_usd: float,
+    ) -> RiskCheckResult:
+        """
+        Проверить возможность открытия новой позиции.
+        Запускать ПЕРЕД каждой сделкой без исключений.
+        """
+        violations = []
+        warnings = []
+
+        # 1. Circuit breaker: портфельный drawdown
+        if state.total_drawdown_pct >= self.config.max_drawdown_stop:
+            violations.append(
+                f"Portfolio drawdown {state.total_drawdown_pct:.1%} ≥ "
+                f"kill switch threshold {self.config.max_drawdown_stop:.1%}"
+            )
+
+        # 2. APY в допустимом диапазоне
+        if current_apy > self.config.max_apy_for_new_position:
+            violations.append(
+                f"APY {current_apy:.1f}% exceeds maximum allowed "
+                f"{self.config.max_apy_for_new_position:.1f}% (risk too high)"
+            )
+        elif current_apy < self.config.min_apy_for_new_position:
+            violations.append(
+                f"APY {current_apy:.1f}% below minimum "
+                f"{self.config.min_apy_for_new_position:.1f}% (not attractive)"
+            )
+
+        # 3. Минимальный TVL
+        if tvl_usd < self.config.min_tvl_usd:
+            violations.append(
+                f"TVL ${tvl_usd:,.0f} below minimum ${self.config.min_tvl_usd:,.0f}"
+            )
+
+        # 4. Достаточно кэша для позиции
+        if amount_usd > state.cash_usd:
+            violations.append(
+                f"Insufficient cash: need ${amount_usd:,.0f}, available ${state.cash_usd:,.0f}"
+            )
+
+        # 5. После сделки сохранится минимальный кэш-буфер
+        remaining_cash = state.cash_usd - amount_usd
+        remaining_cash_pct = remaining_cash / state.total_capital_usd if state.total_capital_usd > 0 else 0
+        if remaining_cash_pct < self.config.min_cash_pct:
+            violations.append(
+                f"After trade, cash buffer {remaining_cash_pct:.1%} < "
+                f"minimum {self.config.min_cash_pct:.1%}"
+            )
+
+        # 6. Концентрационный лимит по протоколу
+        current_conc = state.concentration_pct(protocol_key)
+        new_conc = (state.concentration_pct(protocol_key) * state.total_capital_usd + amount_usd) / state.total_capital_usd
+        max_conc = (
+            self.config.max_concentration_t1 if tier == "T1"
+            else self.config.max_concentration_t2
+        )
+        if new_conc > max_conc:
+            violations.append(
+                f"Concentration after trade {new_conc:.1%} exceeds "
+                f"{tier} limit {max_conc:.1%} for {protocol_key}"
+            )
+        elif new_conc > max_conc * 0.85:
+            warnings.append(
+                f"Concentration {new_conc:.1%} approaching {tier} limit {max_conc:.1%}"
+            )
+
+        # 7. Абсолютный максимум на протокол
+        if new_conc > self.config.max_single_protocol:
+            violations.append(
+                f"Exceeds absolute protocol cap {self.config.max_single_protocol:.1%}: {new_conc:.1%}"
+            )
+
+        # 8. Лимит T2 совокупно
+        if tier == "T2":
+            new_t2 = state.t2_allocation_pct() + (amount_usd / state.total_capital_usd)
+            if new_t2 > self.config.max_total_t2_allocation:
+                violations.append(
+                    f"Total T2 allocation {new_t2:.1%} would exceed "
+                    f"limit {self.config.max_total_t2_allocation:.1%}"
+                )
+
+        approved = len(violations) == 0
+        result = RiskCheckResult(
+            approved=approved,
+            violations=violations,
+            warnings=warnings,
+            check_name=f"new_position({protocol_key}, ${amount_usd:,.0f})",
+        )
+        self._log_result(result)
+        return result
+
+    def check_portfolio_health(self, state: PortfolioState) -> RiskCheckResult:
+        """
+        Общая проверка здоровья портфеля.
+        Запускать при каждом обновлении данных.
+        """
+        violations = []
+        warnings = []
+
+        # Kill switch — полный drawdown
+        if state.total_drawdown_pct >= self.config.max_drawdown_stop:
+            violations.append(
+                f"KILL SWITCH TRIGGERED: portfolio drawdown {state.total_drawdown_pct:.1%} "
+                f"≥ {self.config.max_drawdown_stop:.1%}. Close all positions."
+            )
+
+        # Предупреждение при приближении к лимиту
+        elif state.total_drawdown_pct >= self.config.max_drawdown_stop * 0.75:
+            warnings.append(
+                f"Drawdown {state.total_drawdown_pct:.1%} approaching kill switch "
+                f"{self.config.max_drawdown_stop:.1%}"
+            )
+
+        # Проверка концентрации всех позиций
+        seen_protocols: set[str] = set()
+        for pos in state.positions:
+            if pos.protocol_key in seen_protocols:
+                continue
+            seen_protocols.add(pos.protocol_key)
+
+            conc = state.concentration_pct(pos.protocol_key)
+            max_conc = (
+                self.config.max_concentration_t1 if pos.tier == "T1"
+                else self.config.max_concentration_t2
+            )
+            if conc > max_conc:
+                violations.append(
+                    f"Concentration breach: {pos.protocol_key} at {conc:.1%} > {max_conc:.1%}"
+                )
+
+        # Проверка отдельных позиций на drawdown
+        for pos in state.positions:
+            if pos.unrealized_pnl_pct < -self.config.max_single_position_drawdown:
+                warnings.append(
+                    f"Position {pos.protocol_key} at {pos.unrealized_pnl_pct:.1%} loss "
+                    f"(threshold: {-self.config.max_single_position_drawdown:.1%})"
+                )
+
+        # Кэш-буфер
+        if state.cash_pct < self.config.min_cash_pct:
+            warnings.append(
+                f"Cash buffer {state.cash_pct:.1%} below minimum {self.config.min_cash_pct:.1%}"
+            )
+
+        approved = len(violations) == 0
+        result = RiskCheckResult(
+            approved=approved,
+            violations=violations,
+            warnings=warnings,
+            check_name="portfolio_health",
+        )
+        self._log_result(result)
+        return result
+
+    def calculate_var(
+        self,
+        state: PortfolioState,
+        apy_std_pct: float = 2.0,  # стандартное отклонение APY в % (дефолт)
+    ) -> dict:
+        """
+        Исторический VaR (параметрический proxy).
+
+        Для paper trading используем упрощённый расчёт:
+        - предполагаем нормальное распределение доходности
+        - используем std APY как прокси волатильности
+
+        Returns dict с VaR значениями.
+        """
+        if not state.positions or state.deployed_usd == 0:
+            return {
+                "var_usd": 0.0,
+                "var_pct": 0.0,
+                "confidence": self.config.var_confidence,
+                "horizon_days": self.config.var_horizon_days,
+                "breach": False,
+            }
+
+        # z-score для 95% confidence (одностороннее)
+        z = 1.645
+
+        # Портфельная волатильность (упрощённо — без корреляций)
+        # σ_daily = σ_annual / sqrt(365)
+        daily_std = (apy_std_pct / 100) / math.sqrt(365)
+        horizon_std = daily_std * math.sqrt(self.config.var_horizon_days)
+
+        var_pct = z * horizon_std
+        var_usd = var_pct * state.deployed_usd
+
+        breach = var_pct > self.config.max_var_pct
+
+        return {
+            "var_usd": round(var_usd, 2),
+            "var_pct": round(var_pct, 6),
+            "confidence": self.config.var_confidence,
+            "horizon_days": self.config.var_horizon_days,
+            "breach": breach,
+            "max_var_pct": self.config.max_var_pct,
+        }
+
+    def max_safe_position_size(
+        self,
+        state: PortfolioState,
+        protocol_key: str,
+        tier: str,
+    ) -> float:
+        """
+        Вычислить максимальный безопасный размер позиции
+        с учётом всех лимитов.
+        """
+        capital = state.total_capital_usd
+
+        # Ограничение по концентрации
+        max_conc = (
+            self.config.max_concentration_t1 if tier == "T1"
+            else self.config.max_concentration_t2
+        )
+        max_by_concentration = max_conc * capital - (
+            state.concentration_pct(protocol_key) * capital
+        )
+
+        # Ограничение по кэшу (оставить минимальный буфер)
+        max_by_cash = state.cash_usd - (self.config.min_cash_pct * capital)
+
+        # Ограничение T2
+        max_by_t2 = float("inf")
+        if tier == "T2":
+            remaining_t2 = self.config.max_total_t2_allocation - state.t2_allocation_pct()
+            max_by_t2 = max(0.0, remaining_t2 * capital)
+
+        result = max(0.0, min(max_by_concentration, max_by_cash, max_by_t2))
+        return round(result, 2)
+
+    # ── Утилиты ───────────────────────────────────────────────────────────────
+
+    def _log_result(self, result: RiskCheckResult) -> None:
+        if result.approved:
+            if result.warnings:
+                log.warning(f"Risk check APPROVED with warnings: {result.check_name}")
+                for w in result.warnings:
+                    log.warning(f"  ⚠ {w}")
+            else:
+                log.debug(f"Risk check APPROVED: {result.check_name}")
+        else:
+            log.error(f"Risk check REJECTED: {result.check_name}")
+            for v in result.violations:
+                log.error(f"  ✗ {v}")
