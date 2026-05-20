@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-05-20T19:48:12.699838+00:00",
+  "timestamp": "2026-05-20T20:31:18.809152+00:00",
   "portfolio": {
-    "total_capital_usd": 10000.0,
+    "total_capital_usd": 100.0,
     "deployed_usd": 0,
-    "cash_usd": 10000.0,
+    "cash_usd": 100.0,
     "cash_pct": 1.0,
     "total_pnl_usd": 0,
     "total_drawdown_pct": 0.0
@@ -25,12 +25,12 @@
     "first_trade": null
   },
   "strategy": {
-    "id": 1,
+    "id": 3,
     "strategy_id": "paper-v1",
-    "timestamp": "2026-05-20 19:48:12",
-    "total_capital_usd": 10000.0,
+    "timestamp": "2026-05-20 20:03:16",
+    "total_capital_usd": 100.0,
     "deployed_capital_usd": 0.0,
-    "cash_usd": 10000.0,
+    "cash_usd": 100.0,
     "total_pnl_usd": 0.0,
     "total_pnl_pct": 0.0,
     "current_apy": null,
