@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "trade_id": "PT-20260520203842-E390D7",
+    "strategy_id": "paper-v1",
+    "timestamp_open": "2026-05-20T20:38:42.329807+00:00",
+    "timestamp_close": null,
+    "protocol_key": "compound-v3-usdc-ethereum",
+    "asset": "USDC",
+    "action": "OPEN",
+    "amount_usd": 35.0,
+    "apy_at_open": 4.01881,
+    "net_apy_annualized": 4.01881,
+    "pnl_usd": null,
+    "reason": null
+  },
+  {
+    "trade_id": "PT-20260520203842-198CD0",
+    "strategy_id": "paper-v1",
+    "timestamp_open": "2026-05-20T20:38:42.324785+00:00",
+    "timestamp_close": null,
+    "protocol_key": "aave-v3-usdc-ethereum",
+    "asset": "USDC",
+    "action": "OPEN",
+    "amount_usd": 40.0,
+    "apy_at_open": 4.28818,
+    "net_apy_annualized": 4.28818,
+    "pnl_usd": null,
+    "reason": null
+  },
+  {
+    "trade_id": "PT-20260520203842-BEFA10",
+    "strategy_id": "paper-v1",
+    "timestamp_open": "2026-05-20T20:38:42.319566+00:00",
+    "timestamp_close": null,
+    "protocol_key": "maple-usdc-ethereum",
+    "asset": "USDC",
+    "action": "OPEN",
+    "amount_usd": 20.0,
+    "apy_at_open": 4.79941,
+    "net_apy_annualized": 4.79941,
+    "pnl_usd": null,
+    "reason": null
+  }
+]
