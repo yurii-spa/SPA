@@ -1,6 +1,6 @@
 """
 SPA Paper Trading Engine — M2
-Виртуальный портфель $10K. Все операции проходят через Risk Policy.
+Виртуальный портфель $100. Все операции проходят через Risk Policy.
 
 ПРАВИЛА:
   - RiskPolicy.check_new_position() вызывается ДО каждой сделки
@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 # ─── Константы ────────────────────────────────────────────────────────────────
 
 STRATEGY_ID = "paper-v1"
-INITIAL_CAPITAL = 10_000.0          # виртуальный стартовый капитал
+INITIAL_CAPITAL = 100.0             # виртуальный стартовый капитал ($100 paper trading)
 MIN_PAPER_WEEKS = 8                  # минимум paper trading перед live
 SHARPE_RISK_FREE_RATE = 0.05         # 5% годовых безрисковая ставка (proxy)
 
@@ -195,6 +195,111 @@ class PaperTrader:
             "total_amount_usd": total_amount,
             "reason": reason,
         }
+
+
+    def auto_allocate(self) -> list[dict]:
+        """
+        Strategy v1_passive: автоматическое размещение свободного кэша.
+
+        Логика:
+        1. Взять свежие APY-данные из БД (последние 8 часов)
+        2. Отсортировать по APY desc
+        3. Открыть позиции в лучших протоколах в порядке убывания APY,
+           пока есть кэш (≥10% портфеля)
+
+        Не открывает повторные позиции в протоколах, где уже открыта позиция.
+        """
+        actions = []
+        state = self._load_portfolio_state()
+
+        min_cash_threshold = state.total_capital_usd * 0.10
+        if state.cash_usd < min_cash_threshold:
+            log.info(
+                f"auto_allocate: cash ${state.cash_usd:.2f} < "
+                f"threshold ${min_cash_threshold:.2f} (10%), skipping"
+            )
+            return [{"action": "NO_OP", "reason": "insufficient_cash",
+                     "cash_usd": round(state.cash_usd, 2)}]
+
+        # Свежие APY данные (не старше 8 часов, валидные)
+        with get_connection(self.db_path) as conn:
+            rows = conn.execute("""
+                SELECT s.protocol_key, s.apy_total, s.tvl_usd, p.tier
+                FROM apy_snapshots s
+                JOIN protocols p ON p.key = s.protocol_key
+                WHERE s.is_valid = 1
+                  AND s.timestamp >= datetime('now', '-8 hours')
+                  AND p.is_active = 1
+                  AND s.id IN (
+                      SELECT MAX(id) FROM apy_snapshots
+                      WHERE is_valid = 1
+                        AND timestamp >= datetime('now', '-8 hours')
+                      GROUP BY protocol_key
+                  )
+                ORDER BY s.apy_total DESC
+            """).fetchall()
+
+        if not rows:
+            log.info("auto_allocate: no fresh APY data (< 8h) — fetch first")
+            return [{"action": "NO_OP", "reason": "no_fresh_data"}]
+
+        # Протоколы с уже открытыми позициями
+        open_protocols = {p.protocol_key for p in state.positions}
+
+        for row in rows:
+            key      = row["protocol_key"]
+            apy      = row["apy_total"]
+            tvl      = row["tvl_usd"]
+            tier     = row["tier"]
+
+            if key in open_protocols:
+                continue  # уже инвестировали
+
+            # Обновить state для корректного расчёта лимитов
+            state = self._load_portfolio_state()
+            if state.cash_usd < min_cash_threshold:
+                break  # кэш исчерпан
+
+            amount = self.policy.max_safe_position_size(state, key, tier)
+            if amount < 0.50:  # минимальная позиция $0.50
+                log.debug(f"auto_allocate: {key} max_safe_size=${amount:.2f} too small, skip")
+                continue
+
+            try:
+                result = self.open_position(key, amount, apy, tvl)
+                actions.append({
+                    "action":     "OPEN",
+                    "protocol":   key,
+                    "amount_usd": round(amount, 2),
+                    "apy":        round(apy, 4),
+                    "tier":       tier,
+                    "approved":   result.approved,
+                    "warnings":   result.warnings,
+                })
+                open_protocols.add(key)
+                log.info(
+                    f"auto_allocate: opened {key} "
+                    f"${amount:.2f} @ APY {apy:.2f}%"
+                )
+            except RiskPolicyViolation as exc:
+                log.warning(f"auto_allocate: {key} blocked by risk policy: {exc}")
+                actions.append({
+                    "action":   "BLOCKED",
+                    "protocol": key,
+                    "reason":   str(exc),
+                })
+            except Exception as exc:
+                log.error(f"auto_allocate: unexpected error for {key}: {exc}", exc_info=True)
+                actions.append({
+                    "action":   "ERROR",
+                    "protocol": key,
+                    "reason":   str(exc),
+                })
+
+        if not actions:
+            actions.append({"action": "NO_OP", "reason": "no_suitable_protocol"})
+
+        return actions
 
     def rebalance(self) -> list[dict]:
         """
@@ -468,10 +573,11 @@ class PaperTrader:
 
     def _ensure_strategy_state(self) -> None:
         with get_connection(self.db_path) as conn:
-            exists = conn.execute(
-                "SELECT 1 FROM strategy_state WHERE strategy_id = ?", (STRATEGY_ID,)
+            existing = conn.execute(
+                "SELECT id, total_capital_usd FROM strategy_state WHERE strategy_id = ? ORDER BY id DESC LIMIT 1",
+                (STRATEGY_ID,)
             ).fetchone()
-            if not exists:
+            if not existing:
                 conn.execute("""
                     INSERT INTO strategy_state
                         (strategy_id, total_capital_usd, deployed_capital_usd,
@@ -480,7 +586,27 @@ class PaperTrader:
                     VALUES (?, ?, 0, ?, 0, 0, 0, 0)
                 """, (STRATEGY_ID, INITIAL_CAPITAL, INITIAL_CAPITAL))
                 conn.commit()
-                log.info(f"Strategy state initialised: {STRATEGY_ID}, capital=${INITIAL_CAPITAL:,.0f}")
+                log.info(f"Strategy state initialised: {STRATEGY_ID}, capital=${INITIAL_CAPITAL:,.2f}")
+            elif existing["total_capital_usd"] != INITIAL_CAPITAL:
+                # Капитал изменился — безопасно мигрировать если нет сделок
+                trade_count = conn.execute(
+                    "SELECT COUNT(*) FROM paper_trades WHERE strategy_id = ?", (STRATEGY_ID,)
+                ).fetchone()[0]
+                if trade_count == 0:
+                    conn.execute("""
+                        UPDATE strategy_state SET
+                            total_capital_usd = ?,
+                            cash_usd = ?,
+                            deployed_capital_usd = 0,
+                            total_pnl_usd = 0
+                        WHERE strategy_id = ?
+                    """, (INITIAL_CAPITAL, INITIAL_CAPITAL, STRATEGY_ID))
+                    conn.commit()
+                    old_cap = existing["total_capital_usd"]
+                    log.info(f"Capital migrated: ${old_cap:,.2f} → ${INITIAL_CAPITAL:,.2f}")
+                else:
+                    log.warning(f"Capital mismatch (${existing['total_capital_usd']} vs ${INITIAL_CAPITAL}) "
+                                f"but {trade_count} trades exist — keeping existing capital")
 
     def _update_strategy_state(self, conn) -> None:
         """Пересчитать и сохранить strategy_state (вызывать внутри транзакции)."""
