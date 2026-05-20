@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-05-20T20:38:42.335595+00:00",
+  "timestamp": "2026-05-20T21:44:55.235113+00:00",
   "portfolio": {
-    "total_capital_usd": 100.0,
-    "deployed_usd": 95.0,
-    "cash_usd": 5.0,
+    "total_capital_usd": 100000.0,
+    "deployed_usd": 95000.0,
+    "cash_usd": 5000.0,
     "cash_pct": 0.05,
     "total_pnl_usd": 0.0,
     "total_drawdown_pct": 0.0
@@ -12,7 +12,7 @@
     {
       "protocol_key": "maple-usdc-ethereum",
       "tier": "T2",
-      "amount_usd": 20.0,
+      "amount_usd": 20000.0,
       "current_apy": 4.79941,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
@@ -21,8 +21,8 @@
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
-      "amount_usd": 40.0,
-      "current_apy": 4.28818,
+      "amount_usd": 40000.0,
+      "current_apy": 4.23161,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
@@ -30,8 +30,8 @@
     {
       "protocol_key": "compound-v3-usdc-ethereum",
       "tier": "T1",
-      "amount_usd": 35.0,
-      "current_apy": 4.01881,
+      "amount_usd": 35000.0,
+      "current_apy": 4.01844,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
@@ -41,7 +41,7 @@
     "health_approved": true,
     "violations": [],
     "warnings": [],
-    "var_usd": 0.43,
+    "var_usd": 432.83,
     "var_pct": 0.456,
     "var_breach": false
   },
@@ -56,15 +56,15 @@
     "id": 3,
     "strategy_id": "paper-v1",
     "timestamp": "2026-05-20 20:03:16",
-    "total_capital_usd": 100.0,
-    "deployed_capital_usd": 60.0,
-    "cash_usd": 40.0,
+    "total_capital_usd": 100000.0,
+    "deployed_capital_usd": 60000.0,
+    "cash_usd": 40000.0,
     "total_pnl_usd": 0.0,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -1.7847,
+    "sharpe_to_date": -1.7066,
     "max_drawdown_pct": 0.0,
-    "trade_count": 3,
+    "trade_count": 6,
     "state_json": null
   }
 }
