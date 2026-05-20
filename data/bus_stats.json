@@ -1,1 +1,32 @@
-{"MARKET_DATA":{"pending":0,"consumed":8,"acked":8,"dead":0},"HEALTH_ALERT":{"pending":0,"consumed":8,"acked":8,"dead":0},"STRATEGY_SIGNAL":{"pending":0,"consumed":8,"acked":8,"dead":0},"TRADE_DECISION":{"pending":0,"consumed":8,"acked":8,"dead":0},"EXECUTION_RESULT":{"pending":0,"consumed":8,"acked":8,"dead":0}}
+{
+  "MARKET_DATA": {
+    "pending": 0,
+    "consumed": 0,
+    "acked": 0,
+    "dead": 0
+  },
+  "HEALTH_ALERT": {
+    "pending": 0,
+    "consumed": 0,
+    "acked": 0,
+    "dead": 0
+  },
+  "STRATEGY_SIGNAL": {
+    "pending": 0,
+    "consumed": 0,
+    "acked": 0,
+    "dead": 0
+  },
+  "TRADE_DECISION": {
+    "pending": 0,
+    "consumed": 0,
+    "acked": 0,
+    "dead": 0
+  },
+  "EXECUTION_RESULT": {
+    "pending": 0,
+    "consumed": 0,
+    "acked": 0,
+    "dead": 0
+  }
+}

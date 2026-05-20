@@ -1,22 +1,42 @@
 {
-  "timestamp": "2026-05-20T15:53:39.859921+00:00",
+  "timestamp": "2026-05-20T19:48:12.699838+00:00",
   "portfolio": {
     "total_capital_usd": 10000.0,
-    "deployed_usd": 9500.0,
-    "cash_usd": 500.0,
-    "cash_pct": 0.05,
-    "total_pnl_usd": 0.05,
+    "deployed_usd": 0,
+    "cash_usd": 10000.0,
+    "cash_pct": 1.0,
+    "total_pnl_usd": 0,
     "total_drawdown_pct": 0.0
   },
-  "positions": [
-    {"protocol_key": "maple-usdc-ethereum", "tier": "T1", "amount_usd": 1000.0, "current_apy": 4.8, "unrealized_pnl_usd": 0.01, "unrealized_pnl_pct": 0.0, "days_held": 0.1},
-    {"protocol_key": "compound-v3-usdc-ethereum", "tier": "T1", "amount_usd": 1000.0, "current_apy": 4.79, "unrealized_pnl_usd": 0.01, "unrealized_pnl_pct": 0.0, "days_held": 0.1},
-    {"protocol_key": "aave-v3-usdc-ethereum", "tier": "T1", "amount_usd": 1000.0, "current_apy": 4.65, "unrealized_pnl_usd": 0.01, "unrealized_pnl_pct": 0.0, "days_held": 0.1},
-    {"protocol_key": "yearn-v3-usdc-ethereum", "tier": "T2", "amount_usd": 1000.0, "current_apy": 3.4, "unrealized_pnl_usd": 0.01, "unrealized_pnl_pct": 0.0, "days_held": 0.1},
-    {"protocol_key": "morpho-usdc-ethereum", "tier": "T1", "amount_usd": 1000.0, "current_apy": 3.06, "unrealized_pnl_usd": 0.0, "unrealized_pnl_pct": 0.0, "days_held": 0.1},
-    {"protocol_key": "aave-v3-usdt-ethereum", "tier": "T1", "amount_usd": 4500.0, "current_apy": 4.2, "unrealized_pnl_usd": 0.01, "unrealized_pnl_pct": 0.0, "days_held": 0.1}
-  ],
-  "risk": {"health_approved": true, "violations": [], "warnings": [], "var_usd": 142.5, "var_pct": 1.425, "var_breach": false},
-  "paper_trading": {"days_elapsed": 0, "weeks_elapsed": 0.0, "min_weeks_required": 8, "go_live_ready": false, "first_trade": "2026-05-20T13:26:16+00:00"},
-  "strategy": {}
+  "positions": [],
+  "risk": {
+    "health_approved": true,
+    "violations": [],
+    "warnings": [],
+    "var_usd": 0.0,
+    "var_pct": 0.0,
+    "var_breach": false
+  },
+  "paper_trading": {
+    "days_elapsed": 0,
+    "weeks_elapsed": 0.0,
+    "min_weeks_required": 8,
+    "go_live_ready": false,
+    "first_trade": null
+  },
+  "strategy": {
+    "id": 1,
+    "strategy_id": "paper-v1",
+    "timestamp": "2026-05-20 19:48:12",
+    "total_capital_usd": 10000.0,
+    "deployed_capital_usd": 0.0,
+    "cash_usd": 10000.0,
+    "total_pnl_usd": 0.0,
+    "total_pnl_pct": 0.0,
+    "current_apy": null,
+    "sharpe_to_date": 0.0,
+    "max_drawdown_pct": 0.0,
+    "trade_count": 0,
+    "state_json": null
+  }
 }
