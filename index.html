@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPA — Канбан доска</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f4f0;
+    color: #1a1a1a;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #1a1a1a;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 28px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: #888;
+    margin-bottom: 12px;
+  }
+
+  /* Milestones */
+  .milestones {
+    display: flex;
+    align-items: flex-start;
+    position: relative;
+    margin-bottom: 36px;
+    gap: 0;
+  }
+  .ms-line {
+    position: absolute;
+    top: 13px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: #ddd;
+    z-index: 0;
+  }
+  .ms-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 1;
+    cursor: default;
+  }
+  .ms-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    border: 2px solid #ccc;
+    background: #fff;
+    color: #888;
+  }
+  .ms-dot.active {
+    border-color: #185FA5;
+    color: #185FA5;
+    background: #E6F1FB;
+  }
+  .ms-dot.blocked {
+    border-color: #BA7517;
+    color: #BA7517;
+    background: #FAEEDA;
+  }
+  .ms-name {
+    font-size: 11px;
+    color: #333;
+    text-align: center;
+    line-height: 1.35;
+    max-width: 90px;
+  }
+  .ms-status {
+    font-size: 10px;
+    color: #aaa;
+    text-align: center;
+  }
+  .ms-status.active { color: #185FA5; font-weight: 500; }
+  .ms-status.blocked { color: #BA7517; font-weight: 500; }
+
+  /* Board */
+  .kb-board {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1.4fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .kb-col {
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .kb-col.backlog  { background: #EFEDE6; }
+  .kb-col.inprog   { background: #E2EDF7; }
+  .kb-col.review   { background: #F5ECD8; }
+  .kb-col.done     { background: #E4F0D8; }
+
+  .kb-col-header {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: #666;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .kb-count {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 10px;
+    color: #777;
+  }
+  .kb-card {
+    background: #fff;
+    border: 0.5px solid #ddd;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    cursor: default;
+  }
+  .kb-card:hover {
+    border-color: #aaa;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .kb-card:last-child { margin-bottom: 0; }
+  .kb-title {
+    font-size: 12.5px;
+    color: #1a1a1a;
+    line-height: 1.4;
+    margin-bottom: 5px;
+  }
+  .kb-title.strikethrough {
+    color: #999;
+    text-decoration: line-through;
+    text-decoration-color: #ccc;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  .tag-infra   { background: #dceffe; color: #0a3d6b; }
+  .tag-agent   { background: #e9e8fd; color: #2e2775; }
+  .tag-ui      { background: #d8f3e7; color: #065030; }
+  .tag-strat   { background: #fde8c0; color: #5a3200; }
+  .tag-doc     { background: #eeece5; color: #3a3933; }
+  .tag-adr     { background: #fde0d4; color: #5c2209; }
+  .tag-data    { background: #e2f0d4; color: #254c09; }
+  .tag-wl      { background: #fde2e2; color: #6b1616; }
+  .tag-paper   { background: #e9e8fd; color: #2e2775; }
+
+  .group-sep {
+    font-size: 9.5px;
+    color: #bbb;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 10px 0 5px;
+    padding-bottom: 4px;
+    border-bottom: 0.5px solid #ddd;
+  }
+  .group-sep:first-child { margin-top: 0; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 28px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+
+<h1>Smart Passive Aggregator — SPA</h1>
+<p class="subtitle">Канбан доска проекта · Обновлено 2026-05-20</p>
+
+<!-- MILESTONES -->
+<p class="section-label">ВЕХИ</p>
+<div class="milestones">
+  <div class="ms-line"></div>
+
+  <div class="ms-item">
+    <div class="ms-dot active">M1</div>
+    <span class="ms-name">Инфраструктура</span>
+    <span class="ms-status active">Текущий этап</span>
+  </div>
+  <div class="ms-item">
+    <div class="ms-dot">M2</div>
+    <span class="ms-name">Paper Trading старт</span>
+    <span class="ms-status">Планируется</span>
+  </div>
+  <div class="ms-item">
+    <div class="ms-dot">M3</div>
+    <span class="ms-name">Strategy Sandbox</span>
+    <span class="ms-status">Планируется</span>
+  </div>
+  <div class="ms-item">
+    <div class="ms-dot">M4</div>
+    <span class="ms-name">8-недельный ревью</span>
+    <span class="ms-status">Планируется</span>
+  </div>
+  <div class="ms-item">
+    <div class="ms-dot blocked">M5</div>
+    <span class="ms-name">Go-Live</span>
+    <span class="ms-status blocked">Требует ADR</span>
+  </div>
+</div>
+
+<!-- KANBAN BOARD -->
+<div class="kb-board">
+
+  <!-- БЭКЛОГ -->
+  <div class="kb-col backlog">
+    <div class="kb-col-header">БЭКЛОГ <span class="kb-count">18</span></div>
+
+    <div class="group-sep">Инфраструктура</div>
+    <div class="kb-card">
+      <div class="kb-title">Redis Message Bus</div>
+      <span class="tag tag-infra">Инфраструктура</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">LangGraph оркестратор</div>
+      <span class="tag tag-infra">Инфраструктура</span>
+    </div>
+
+    <div class="group-sep">Агенты</div>
+    <div class="kb-card">
+      <div class="kb-title">CEO Agent · Claude Sonnet 4.6</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Data Agent · Gemini Flash-Lite</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Risk Agent · детерм. код</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Strategy Agent · Gemini Flash</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Execution Agent · детерм. код</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Monitoring Agent · Claude Haiku</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Memory &amp; Knowledge Agent</div>
+      <span class="tag tag-agent">Агент</span>
+    </div>
+
+    <div class="group-sep">Dashboard</div>
+    <div class="kb-card">
+      <div class="kb-title">Dashboard: вкладка TEAM</div>
+      <span class="tag tag-ui">UI</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Dashboard: вкладка METRICS</div>
+      <span class="tag tag-ui">UI</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Голосовой интерфейс (OpenAI Realtime)</div>
+      <span class="tag tag-ui">UI</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">browser-use — интеграция DEX</div>
+      <span class="tag tag-ui">UI</span>
+    </div>
+
+    <div class="group-sep">Стратегии и данные</div>
+    <div class="kb-card">
+      <div class="kb-title">v2_aggressive.yaml</div>
+      <span class="tag tag-strat">Стратегия</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">v3_pendle_focused.yaml</div>
+      <span class="tag tag-strat">Стратегия</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Backtest Engine</div>
+      <span class="tag tag-data">Данные</span>
+    </div>
+
+    <div class="group-sep">Позже</div>
+    <div class="kb-card">
+      <div class="kb-title">PostgreSQL миграция</div>
+      <span class="tag tag-infra">Инфраструктура</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">ADR: Live-режим</div>
+      <span class="tag tag-adr">ADR</span>
+    </div>
+  </div>
+
+  <!-- В РАБОТЕ -->
+  <div class="kb-col inprog">
+    <div class="kb-col-header">В РАБОТЕ <span class="kb-count">2</span></div>
+    <div class="kb-card">
+      <div class="kb-title">Реализация агентов — старт</div>
+      <span class="tag tag-infra">Инфраструктура</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Документация v1.0</div>
+      <span class="tag tag-doc">Документация</span>
+    </div>
+  </div>
+
+  <!-- НА ПРОВЕРКУ -->
+  <div class="kb-col review">
+    <div class="kb-col-header">НА ПРОВЕРКУ <span class="kb-count">4</span></div>
+    <div class="kb-card">
+      <div class="kb-title">Документы 19–22 (drafts)</div>
+      <span class="tag tag-doc">Документация</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Week 0 Baseline (2026-05-02)</div>
+      <span class="tag tag-paper">Paper Trading</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Sky/sUSDS 48h GSM</div>
+      <span class="tag tag-wl">Whitelist</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Docs Index — обновление</div>
+      <span class="tag tag-doc">Документация</span>
+    </div>
+  </div>
+
+  <!-- ГОТОВО -->
+  <div class="kb-col done">
+    <div class="kb-col-header">ГОТОВО <span class="kb-count">9</span></div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Документация v0.3 (17 файлов)</div>
+      <span class="tag tag-doc">Документация</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">ADR-001 — ADR-009</div>
+      <span class="tag tag-adr">ADR</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Risk Policy v0.3</div>
+      <span class="tag tag-adr">Политика</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Whitelist v0.4.5</div>
+      <span class="tag tag-adr">Политика</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Agent Architecture v0.3</div>
+      <span class="tag tag-agent">Архитектура</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Strategy Passport v1_passive</div>
+      <span class="tag tag-strat">Стратегия</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Paper Trading Plan v0.3</div>
+      <span class="tag tag-strat">Paper Trading</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">LLM Stack выбран</div>
+      <span class="tag tag-infra">Инфраструктура</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">README.md SPA_Claude</div>
+      <span class="tag tag-doc">Документация</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><span class="tag tag-infra">Инфраструктура</span></div>
+  <div class="legend-item"><span class="tag tag-agent">Агент</span></div>
+  <div class="legend-item"><span class="tag tag-ui">UI</span></div>
+  <div class="legend-item"><span class="tag tag-strat">Стратегия</span></div>
+  <div class="legend-item"><span class="tag tag-data">Данные</span></div>
+  <div class="legend-item"><span class="tag tag-doc">Документация</span></div>
+  <div class="legend-item"><span class="tag tag-adr">ADR / Политика</span></div>
+  <div class="legend-item"><span class="tag tag-wl">Whitelist</span></div>
+</div>
+
+</body>
+</html>
