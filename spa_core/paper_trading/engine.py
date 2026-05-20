@@ -592,21 +592,23 @@ class PaperTrader:
                 trade_count = conn.execute(
                     "SELECT COUNT(*) FROM paper_trades WHERE strategy_id = ?", (STRATEGY_ID,)
                 ).fetchone()[0]
-                if trade_count == 0:
-                    conn.execute("""
-                        UPDATE strategy_state SET
-                            total_capital_usd = ?,
-                            cash_usd = ?,
-                            deployed_capital_usd = 0,
-                            total_pnl_usd = 0
-                        WHERE strategy_id = ?
-                    """, (INITIAL_CAPITAL, INITIAL_CAPITAL, STRATEGY_ID))
-                    conn.commit()
-                    old_cap = existing["total_capital_usd"]
-                    log.info(f"Capital migrated: ${old_cap:,.2f} → ${INITIAL_CAPITAL:,.2f}")
-                else:
-                    log.warning(f"Capital mismatch (${existing['total_capital_usd']} vs ${INITIAL_CAPITAL}) "
-                                f"but {trade_count} trades exist — keeping existing capital")
+                # Закрываем все открытые позиции и мигрируем капитал
+                old_cap = existing["total_capital_usd"]
+                conn.execute(
+                    "UPDATE paper_trades SET timestamp_close = datetime('now') "
+                    "WHERE strategy_id = ? AND timestamp_close IS NULL",
+                    (STRATEGY_ID,)
+                )
+                conn.execute("""
+                    UPDATE strategy_state SET
+                        total_capital_usd = ?,
+                        cash_usd = ?,
+                        deployed_capital_usd = 0,
+                        total_pnl_usd = 0
+                    WHERE strategy_id = ?
+                """, (INITIAL_CAPITAL, INITIAL_CAPITAL, STRATEGY_ID))
+                conn.commit()
+                log.info(f"Capital migrated: ${old_cap:,.2f} → ${INITIAL_CAPITAL:,.2f} (old positions closed)")
 
     def _update_strategy_state(self, conn) -> None:
         """Пересчитать и сохранить strategy_state (вызывать внутри транзакции)."""
