@@ -86,7 +86,7 @@
     color: #333;
     text-align: center;
     line-height: 1.35;
-    max-width: 90px;
+    max-width: 80px;
   }
   .ms-status {
     font-size: 10px;
@@ -172,6 +172,7 @@
   .tag-data    { background: #e2f0d4; color: #254c09; }
   .tag-wl      { background: #fde2e2; color: #6b1616; }
   .tag-paper   { background: #e9e8fd; color: #2e2775; }
+  .tag-risk    { background: #fde8c0; color: #5a3200; }
 
   .group-sep {
     font-size: 9.5px;
@@ -202,7 +203,7 @@
 <body>
 
 <h1>Smart Passive Aggregator — SPA</h1>
-<p class="subtitle">Канбан доска проекта · Обновлено 2026-05-20</p>
+<p class="subtitle">Канбан доска проекта · Обновлено 2026-05-20 · Стратегия v1.0</p>
 
 <!-- MILESTONES -->
 <p class="section-label">ВЕХИ</p>
@@ -211,26 +212,31 @@
 
   <div class="ms-item">
     <div class="ms-dot active">M1</div>
-    <span class="ms-name">Инфраструктура</span>
-    <span class="ms-status active">Текущий этап</span>
+    <span class="ms-name">Data Pipeline + Risk Policy</span>
+    <span class="ms-status active">В работе</span>
   </div>
   <div class="ms-item">
     <div class="ms-dot">M2</div>
     <span class="ms-name">Paper Trading старт</span>
-    <span class="ms-status">Планируется</span>
+    <span class="ms-status">8-нед. отсчёт</span>
   </div>
   <div class="ms-item">
     <div class="ms-dot">M3</div>
-    <span class="ms-name">Strategy Sandbox</span>
+    <span class="ms-name">Dashboard + Alerting + Sandbox</span>
     <span class="ms-status">Планируется</span>
   </div>
   <div class="ms-item">
     <div class="ms-dot">M4</div>
-    <span class="ms-name">8-недельный ревью</span>
-    <span class="ms-status">Планируется</span>
+    <span class="ms-name">LLM Агенты</span>
+    <span class="ms-status">После M2 stable</span>
   </div>
   <div class="ms-item">
-    <div class="ms-dot blocked">M5</div>
+    <div class="ms-dot">M5</div>
+    <span class="ms-name">React Dashboard</span>
+    <span class="ms-status">После M4</span>
+  </div>
+  <div class="ms-item">
+    <div class="ms-dot blocked">M6</div>
     <span class="ms-name">Go-Live</span>
     <span class="ms-status blocked">Требует ADR</span>
   </div>
@@ -241,21 +247,43 @@
 
   <!-- БЭКЛОГ -->
   <div class="kb-col backlog">
-    <div class="kb-col-header">БЭКЛОГ <span class="kb-count">18</span></div>
+    <div class="kb-col-header">БЭКЛОГ <span class="kb-count">21</span></div>
 
-    <div class="group-sep">Инфраструктура</div>
+    <div class="group-sep">M2 — Paper Trading Engine</div>
     <div class="kb-card">
-      <div class="kb-title">Redis Message Bus</div>
+      <div class="kb-title">Strategy v1_passive — логика выбора</div>
+      <span class="tag tag-strat">Стратегия</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Paper Trading Engine (виртуальные сделки)</div>
+      <span class="tag tag-paper">Paper Trading</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">CLI дашборд: python show_status.py</div>
+      <span class="tag tag-infra">Инфраструктура</span>
+    </div>
+
+    <div class="group-sep">M3 — Наблюдаемость</div>
+    <div class="kb-card">
+      <div class="kb-title">FastAPI backend + HTML/JS Dashboard</div>
+      <span class="tag tag-ui">UI</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Alerting: heartbeat + аномалии данных</div>
       <span class="tag tag-infra">Инфраструктура</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">LangGraph оркестратор</div>
-      <span class="tag tag-infra">Инфраструктура</span>
+      <div class="kb-title">Backtest Engine (DeFiLlama history 2022+)</div>
+      <span class="tag tag-data">Данные</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Strategy Sandbox: v2_aggressive + v3_pendle</div>
+      <span class="tag tag-strat">Стратегия</span>
     </div>
 
-    <div class="group-sep">Агенты</div>
+    <div class="group-sep">M4 — LLM Агенты (по очереди)</div>
     <div class="kb-card">
-      <div class="kb-title">CEO Agent · Claude Sonnet 4.6</div>
+      <div class="kb-title">Monitoring Agent · Claude Haiku</div>
       <span class="tag tag-agent">Агент</span>
     </div>
     <div class="kb-card">
@@ -263,7 +291,7 @@
       <span class="tag tag-agent">Агент</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">Risk Agent · детерм. код</div>
+      <div class="kb-title">CEO Agent · Claude Sonnet 4.6</div>
       <span class="tag tag-agent">Агент</span>
     </div>
     <div class="kb-card">
@@ -271,25 +299,17 @@
       <span class="tag tag-agent">Агент</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">Execution Agent · детерм. код</div>
-      <span class="tag tag-agent">Агент</span>
-    </div>
-    <div class="kb-card">
-      <div class="kb-title">Monitoring Agent · Claude Haiku</div>
-      <span class="tag tag-agent">Агент</span>
-    </div>
-    <div class="kb-card">
-      <div class="kb-title">Memory &amp; Knowledge Agent</div>
-      <span class="tag tag-agent">Агент</span>
+      <div class="kb-title">Message Bus + LangGraph оркестратор</div>
+      <span class="tag tag-infra">Инфраструктура</span>
     </div>
 
-    <div class="group-sep">Dashboard</div>
+    <div class="group-sep">M5 — React Dashboard</div>
     <div class="kb-card">
-      <div class="kb-title">Dashboard: вкладка TEAM</div>
+      <div class="kb-title">React + TypeScript + AG-UI (CopilotKit)</div>
       <span class="tag tag-ui">UI</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">Dashboard: вкладка METRICS</div>
+      <div class="kb-title">WebSocket AgentStream: live статус агентов</div>
       <span class="tag tag-ui">UI</span>
     </div>
     <div class="kb-card">
@@ -301,68 +321,69 @@
       <span class="tag tag-ui">UI</span>
     </div>
 
-    <div class="group-sep">Стратегии и данные</div>
-    <div class="kb-card">
-      <div class="kb-title">v2_aggressive.yaml</div>
-      <span class="tag tag-strat">Стратегия</span>
-    </div>
-    <div class="kb-card">
-      <div class="kb-title">v3_pendle_focused.yaml</div>
-      <span class="tag tag-strat">Стратегия</span>
-    </div>
-    <div class="kb-card">
-      <div class="kb-title">Backtest Engine</div>
-      <span class="tag tag-data">Данные</span>
-    </div>
-
-    <div class="group-sep">Позже</div>
+    <div class="group-sep">M6 — Go-Live</div>
     <div class="kb-card">
       <div class="kb-title">PostgreSQL миграция</div>
       <span class="tag tag-infra">Инфраструктура</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">ADR: Live-режим</div>
+      <div class="kb-title">Security audit + VPN + Kill Switch тест</div>
       <span class="tag tag-adr">ADR</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">ADR: Go-Live решение</div>
+      <span class="tag tag-adr">ADR</span>
+    </div>
+
+    <div class="group-sep">Данные</div>
+    <div class="kb-card">
+      <div class="kb-title">The Graph: on-chain события (liquidations, rates)</div>
+      <span class="tag tag-data">Данные</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">Scheduler: сбор данных каждые 4 часа</div>
+      <span class="tag tag-data">Данные</span>
     </div>
   </div>
 
   <!-- В РАБОТЕ -->
   <div class="kb-col inprog">
-    <div class="kb-col-header">В РАБОТЕ <span class="kb-count">2</span></div>
+    <div class="kb-col-header">В РАБОТЕ <span class="kb-count">3</span></div>
+
     <div class="kb-card">
-      <div class="kb-title">Реализация агентов — старт</div>
+      <div class="kb-title">DeFiLlama API: APY/TVL для 7 протоколов</div>
+      <span class="tag tag-data">Данные</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title">SQLite схема: protocols, apySnapshots, paperTrades, riskEvents</div>
       <span class="tag tag-infra">Инфраструктура</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">Документация v1.0</div>
-      <span class="tag tag-doc">Документация</span>
+      <div class="kb-title">Risk Policy: VaR, лимиты, circuit breakers + тесты</div>
+      <span class="tag tag-risk">Риск</span>
     </div>
   </div>
 
   <!-- НА ПРОВЕРКУ -->
   <div class="kb-col review">
-    <div class="kb-col-header">НА ПРОВЕРКУ <span class="kb-count">4</span></div>
+    <div class="kb-col-header">НА ПРОВЕРКУ <span class="kb-count">3</span></div>
     <div class="kb-card">
-      <div class="kb-title">Документы 19–22 (drafts)</div>
+      <div class="kb-title">DEV_STRATEGY_v1.0.md</div>
       <span class="tag tag-doc">Документация</span>
-    </div>
-    <div class="kb-card">
-      <div class="kb-title">Week 0 Baseline (2026-05-02)</div>
-      <span class="tag tag-paper">Paper Trading</span>
     </div>
     <div class="kb-card">
       <div class="kb-title">Sky/sUSDS 48h GSM</div>
       <span class="tag tag-wl">Whitelist</span>
     </div>
     <div class="kb-card">
-      <div class="kb-title">Docs Index — обновление</div>
-      <span class="tag tag-doc">Документация</span>
+      <div class="kb-title">Week 0 Baseline (2026-05-02)</div>
+      <span class="tag tag-paper">Paper Trading</span>
     </div>
   </div>
 
   <!-- ГОТОВО -->
   <div class="kb-col done">
-    <div class="kb-col-header">ГОТОВО <span class="kb-count">9</span></div>
+    <div class="kb-col-header">ГОТОВО <span class="kb-count">11</span></div>
     <div class="kb-card">
       <div class="kb-title strikethrough">Документация v0.3 (17 файлов)</div>
       <span class="tag tag-doc">Документация</span>
@@ -399,6 +420,14 @@
       <div class="kb-title strikethrough">README.md SPA_Claude</div>
       <span class="tag tag-doc">Документация</span>
     </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">DEV_STRATEGY_v1.0 написана</div>
+      <span class="tag tag-doc">Документация</span>
+    </div>
+    <div class="kb-card">
+      <div class="kb-title strikethrough">Канбан доска (GitHub Pages)</div>
+      <span class="tag tag-ui">UI</span>
+    </div>
   </div>
 
 </div>
@@ -413,6 +442,8 @@
   <div class="legend-item"><span class="tag tag-doc">Документация</span></div>
   <div class="legend-item"><span class="tag tag-adr">ADR / Политика</span></div>
   <div class="legend-item"><span class="tag tag-wl">Whitelist</span></div>
+  <div class="legend-item"><span class="tag tag-risk">Риск</span></div>
+  <div class="legend-item"><span class="tag tag-paper">Paper Trading</span></div>
 </div>
 
 </body>
