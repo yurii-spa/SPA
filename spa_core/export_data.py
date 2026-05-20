@@ -56,8 +56,13 @@ def run_export(fetch: bool = False) -> None:
         except Exception as e:
             log.error(f"DeFiLlama fetch failed (using cached): {e}")
 
-    # 3. status.json
+    # 3. Paper Trader: обновить PnL → попробовать открыть позиции → экспорт статуса
     trader = PaperTrader(db_path=db_path)
+    updated = trader.update_prices()
+    if updated:
+        log.info(f"Updated PnL for {updated} open positions")
+    alloc_actions = trader.auto_allocate()
+    log.info(f"auto_allocate: {alloc_actions}")
     write_json("status.json", trader.get_status())
 
     # 4. protocols.json
