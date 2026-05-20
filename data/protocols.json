@@ -1,29 +1,29 @@
 [
   {
-    "key": "aave-v3-usdc-ethereum",
-    "protocol": "Aave V3",
-    "asset": "USDC",
-    "chain": "Ethereum",
-    "tier": "T1",
-    "is_active": 1,
-    "apy_total": 4.23161,
-    "apy_base": 4.23161,
-    "apy_reward": 0.0,
-    "tvl_usd": 145182365.0,
-    "last_snapshot": "2026-05-20T22:17:44.288014+00:00"
-  },
-  {
     "key": "compound-v3-usdc-ethereum",
     "protocol": "Compound V3",
     "asset": "USDC",
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 4.01844,
-    "apy_base": 3.88175,
-    "apy_reward": 0.13669,
-    "tvl_usd": 32493897.0,
-    "last_snapshot": "2026-05-20T22:17:44.291750+00:00"
+    "apy_total": 4.45788,
+    "apy_base": 4.32054,
+    "apy_reward": 0.13734,
+    "tvl_usd": 31989632.0,
+    "last_snapshot": "2026-05-20T23:58:16.174271+00:00"
+  },
+  {
+    "key": "aave-v3-usdc-ethereum",
+    "protocol": "Aave V3",
+    "asset": "USDC",
+    "chain": "Ethereum",
+    "tier": "T1",
+    "is_active": 1,
+    "apy_total": 4.41613,
+    "apy_base": 4.41613,
+    "apy_reward": 0.0,
+    "tvl_usd": 141650238.0,
+    "last_snapshot": "2026-05-20T23:58:16.171104+00:00"
   },
   {
     "key": "morpho-usdc-ethereum",
@@ -32,11 +32,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.14454,
-    "apy_base": 3.14454,
+    "apy_total": 3.15523,
+    "apy_base": 3.15523,
     "apy_reward": 0.0,
-    "tvl_usd": 114483981.0,
-    "last_snapshot": "2026-05-20T22:17:44.292379+00:00"
+    "tvl_usd": 114483258.0,
+    "last_snapshot": "2026-05-20T23:58:16.175040+00:00"
   },
   {
     "key": "aave-v3-usdt-ethereum",
@@ -45,11 +45,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 2.81299,
-    "apy_base": 2.81299,
+    "apy_total": 2.80659,
+    "apy_base": 2.80659,
     "apy_reward": 0.0,
-    "tvl_usd": 352298334.0,
-    "last_snapshot": "2026-05-20T22:17:44.291090+00:00"
+    "tvl_usd": 354857282.0,
+    "last_snapshot": "2026-05-20T23:58:16.173514+00:00"
   },
   {
     "key": "maple-usdc-ethereum",
@@ -61,8 +61,8 @@
     "apy_total": 4.79941,
     "apy_base": 4.79941,
     "apy_reward": 0.0,
-    "tvl_usd": 3301772932.0,
-    "last_snapshot": "2026-05-20T22:17:44.293776+00:00"
+    "tvl_usd": 3296458239.0,
+    "last_snapshot": "2026-05-20T23:58:16.176501+00:00"
   },
   {
     "key": "yearn-v3-usdc-ethereum",
@@ -75,7 +75,7 @@
     "apy_base": 3.40179,
     "apy_reward": 0.0,
     "tvl_usd": 28214976.0,
-    "last_snapshot": "2026-05-20T22:17:44.293098+00:00"
+    "last_snapshot": "2026-05-20T23:58:16.175760+00:00"
   },
   {
     "key": "euler-v2-usdc-ethereum",
@@ -87,7 +87,7 @@
     "apy_total": 1.84947,
     "apy_base": 1.84947,
     "apy_reward": 0.0,
-    "tvl_usd": 34507437.0,
-    "last_snapshot": "2026-05-20T22:17:44.294372+00:00"
+    "tvl_usd": 34506295.0,
+    "last_snapshot": "2026-05-20T23:58:16.177394+00:00"
   }
 ]
