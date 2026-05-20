@@ -1,0 +1,14 @@
+# SPA Core — зависимости
+# Установка: pip install -r requirements.txt
+
+# HTTP-запросы к DeFiLlama API
+requests>=2.31.0
+
+# Тесты
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# M5: REST API Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
