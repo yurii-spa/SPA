@@ -18,8 +18,10 @@ log = logging.getLogger(__name__)
 DB_PATH = Path(__file__).parent / "spa.db"
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
-# Whitelist для начального заполнения таблицы protocols
+# Whitelist для заполнения таблицы protocols (v2.0.0 — M4 expansion: 7 → 15)
+# INSERT OR IGNORE позволяет добавлять новые записи в существующую БД
 INITIAL_PROTOCOLS = [
+    # ── T1: Blue-chip lending ──────────────────────────────────────────────────
     {
         "key":      "aave-v3-usdc-ethereum",
         "protocol": "Aave V3",
@@ -27,7 +29,7 @@ INITIAL_PROTOCOLS = [
         "chain":    "Ethereum",
         "tier":     "T1",
         "pool_id":  "aa70268e-4b52-42bf-a116-608b370f9501",
-        "notes":    "Основной T1 протокол. Лимит 40% портфеля.",
+        "notes":    "T1. Лимит 40% портфеля.",
     },
     {
         "key":      "aave-v3-usdt-ethereum",
@@ -37,6 +39,24 @@ INITIAL_PROTOCOLS = [
         "tier":     "T1",
         "pool_id":  "f981a304-bb6c-45b8-b0c5-fd2f515ad23a",
         "notes":    "T1. Лимит 30% портфеля.",
+    },
+    {
+        "key":      "aave-v3-usdc-base",
+        "protocol": "Aave V3",
+        "asset":    "USDC",
+        "chain":    "Base",
+        "tier":     "T1",
+        "pool_id":  "7e0661bf-8cf3-45e6-9424-31916d4c7b84",
+        "notes":    "T1. Aave V3 на Base. TVL $35M.",
+    },
+    {
+        "key":      "aave-v3-usdc-arbitrum",
+        "protocol": "Aave V3",
+        "asset":    "USDC",
+        "chain":    "Arbitrum",
+        "tier":     "T1",
+        "pool_id":  "d9fa8e14-0447-4207-9ae8-7810199dfa1f",
+        "notes":    "T1. Aave V3 на Arbitrum. TVL $21M.",
     },
     {
         "key":      "compound-v3-usdc-ethereum",
@@ -54,7 +74,62 @@ INITIAL_PROTOCOLS = [
         "chain":    "Ethereum",
         "tier":     "T1",
         "pool_id":  "b55f43a8-f444-4cd8-a3a4-0a4e786ba566",
-        "notes":    "T1 агрегатор. Pool: morpho-blue/STEAKUSDC (highest TVL USDC vault).",
+        "notes":    "T1 агрегатор. morpho-blue/STEAKUSDC. TVL $114M.",
+    },
+    {
+        "key":      "spark-usdc-ethereum",
+        "protocol": "Spark",
+        "asset":    "USDC",
+        "chain":    "Ethereum",
+        "tier":     "T1",
+        "pool_id":  "c5c74dd1-995c-4445-9d84-3e710bad7d52",
+        "notes":    "T1. spark-savings USDC. TVL $404M.",
+    },
+    {
+        "key":      "spark-usdt-ethereum",
+        "protocol": "Spark",
+        "asset":    "USDT",
+        "chain":    "Ethereum",
+        "tier":     "T1",
+        "pool_id":  "a5d67f7e-5b51-4a9d-969d-caf051a7f5a4",
+        "notes":    "T1. spark-savings USDT. TVL $905M.",
+    },
+    {
+        "key":      "sky-susds-ethereum",
+        "protocol": "Sky",
+        "asset":    "sUSDS",
+        "chain":    "Ethereum",
+        "tier":     "T1",
+        "pool_id":  "d8c4eff5-c8a9-46fc-a888-057c4c668e72",
+        "notes":    "T1. Sky (MakerDAO) sUSDS vault. TVL $5.8B.",
+    },
+    # ── T2: Higher yield ───────────────────────────────────────────────────────
+    {
+        "key":      "fluid-usdc-ethereum",
+        "protocol": "Fluid",
+        "asset":    "USDC",
+        "chain":    "Ethereum",
+        "tier":     "T2",
+        "pool_id":  "4438dabc-7f0c-430b-8136-2722711ae663",
+        "notes":    "T2. fluid-lending USDC. TVL $200M.",
+    },
+    {
+        "key":      "fluid-usdt-ethereum",
+        "protocol": "Fluid",
+        "asset":    "USDT",
+        "chain":    "Ethereum",
+        "tier":     "T2",
+        "pool_id":  "4e8cc592-c8d5-4824-8155-128ba521e903",
+        "notes":    "T2. fluid-lending USDT. TVL $131M.",
+    },
+    {
+        "key":      "ethena-susde-ethereum",
+        "protocol": "Ethena",
+        "asset":    "sUSDe",
+        "chain":    "Ethereum",
+        "tier":     "T2",
+        "pool_id":  "66985a81-9c51-46ca-9977-42b4fe7bc6df",
+        "notes":    "T2. Ethena sUSDe yield vault. TVL $1.8B.",
     },
     {
         "key":      "yearn-v3-usdc-ethereum",
@@ -63,7 +138,7 @@ INITIAL_PROTOCOLS = [
         "chain":    "Ethereum",
         "tier":     "T2",
         "pool_id":  "7d89af7a-24c9-4292-aa38-7c71b05fbd6d",
-        "notes":    "T2. Лимит 20% портфеля. Pool: yearn-finance highest TVL USDC.",
+        "notes":    "T2. Лимит 20% портфеля. TVL $28M.",
     },
     {
         "key":      "maple-usdc-ethereum",
@@ -128,15 +203,14 @@ def init_database(db_path: Path = None, reset: bool = False) -> None:
 
 
 def _seed_protocols(conn: sqlite3.Connection) -> None:
-    """Заполнить таблицу protocols начальными данными (если пусто)."""
+    """
+    Upsert протоколов из INITIAL_PROTOCOLS.
+    INSERT OR IGNORE — существующие записи не трогаются, новые добавляются.
+    Позволяет безопасно расширять whitelist без сброса БД.
+    """
     cursor = conn.cursor()
-    count = cursor.execute("SELECT COUNT(*) FROM protocols").fetchone()[0]
+    before = cursor.execute("SELECT COUNT(*) FROM protocols").fetchone()[0]
 
-    if count > 0:
-        log.info(f"Protocols table already has {count} entries, skipping seed.")
-        return
-
-    log.info("Seeding protocols table...")
     for p in INITIAL_PROTOCOLS:
         cursor.execute("""
             INSERT OR IGNORE INTO protocols
@@ -146,7 +220,12 @@ def _seed_protocols(conn: sqlite3.Connection) -> None:
               p["tier"], p.get("pool_id"), p.get("notes")))
 
     conn.commit()
-    log.info(f"Seeded {len(INITIAL_PROTOCOLS)} protocols.")
+    after = cursor.execute("SELECT COUNT(*) FROM protocols").fetchone()[0]
+    added = after - before
+    if added:
+        log.info(f"Protocols: added {added} new entries (total {after}).")
+    else:
+        log.info(f"Protocols: {after} entries, no new ones.")
 
 
 def check_database(db_path: Path = None) -> dict:
