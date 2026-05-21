@@ -6,6 +6,17 @@ SPA Risk Policy — детерминированный код (без LLM)
 LLM-агенты не имеют права изменять результаты этих проверок.
 Любое изменение правил — только через ADR + код-ревью Owner.
 
+GOVERNANCE:
+  Active version: v1.0 (2026-05-20)
+  Change process:
+    1) Create ADR in docs/adr/
+    2) Get owner approval (Yurii)
+    3) Snapshot current RiskConfig to spa_core/risk/versions/<vX_Y_name>.py
+    4) Paper test new policy for ≥ 2 weeks
+    5) Owner sign-off → merge to main
+  Rollback: load RiskConfig from spa_core/risk/versions/<old_version>.py
+  Enforcement: approved=False from RiskPolicy CANNOT be overridden by any agent.
+
 Использование:
     from risk.policy import RiskPolicy, Position, PortfolioState
 
@@ -29,7 +40,25 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class RiskConfig:
-    """Параметры риск-политики. Изменять только через ADR."""
+    """
+    Параметры риск-политики. Изменять только через ADR + Owner approval.
+
+    Governance rules:
+    - Agents MUST follow the active policy — they cannot override approved=False.
+    - Any parameter change requires: ADR → owner approval → snapshot → paper test → merge.
+    - Every change gets a new version number so we can rollback.
+    - New policies must be paper-tested for ≥ 2 weeks before any live capital deployment.
+
+    See: docs/adr/ADR_001_initial_risk_policy.md for rationale of current values.
+    See: spa_core/risk/versions/ for historical snapshots (rollback targets).
+    """
+
+    # ── Version metadata ──────────────────────────────────────────────────────
+    version: str = "v1.0"
+    version_date: str = "2026-05-20"
+    changelog: str = (
+        "Initial policy: T1/T2 concentration limits, 5% drawdown kill switch, 5% cash buffer"
+    )
 
     # Концентрационные лимиты — максимум % портфеля в один протокол
     max_concentration_t1: float = 0.40   # T1: макс 40%
@@ -54,6 +83,12 @@ class RiskConfig:
     # Минимальный денежный буфер
     min_cash_pct: float = 0.05              # 5% всегда в кэше
 
+    # ── Multi-chain limits ────────────────────────────────────────────────────
+    # Ethereum can hold Aave(40%) + Compound(15%) + Morpho(15%) = 70% maximum
+    max_single_chain_allocation: float = 0.70    # max 70% on any single chain
+    max_l2_total_allocation: float = 0.50        # L2s combined max 50% (Arbitrum+Base only)
+    preferred_chains: list = field(default_factory=lambda: ["ethereum", "arbitrum", "base"])
+
 
 # ─── Модели данных ───────────────────────────────────────────────────────────
 
@@ -68,6 +103,7 @@ class Position:
     current_apy: float           # % сейчас
     unrealized_pnl_usd: float = 0.0
     days_held: float = 0.0
+    chain: str = "ethereum"      # chain name (lowercase); default for backward compat
 
     @property
     def unrealized_pnl_pct(self) -> float:
@@ -122,6 +158,27 @@ class PortfolioState:
         t2_total = sum(p.amount_usd for p in self.positions if p.tier == "T2")
         return t2_total / self.total_capital_usd
 
+    def chain_allocation_pct(self, chain: str) -> float:
+        """Percent of portfolio deployed on a specific chain."""
+        if self.total_capital_usd == 0:
+            return 0.0
+        chain_total = sum(
+            p.amount_usd for p in self.positions
+            if (p.chain or "ethereum").lower() == chain.lower()
+        )
+        return chain_total / self.total_capital_usd
+
+    def l2_allocation_pct(self) -> float:
+        """Percent of portfolio deployed on L2 chains (Arbitrum+Base+Optimism+Polygon)."""
+        L2_CHAINS = {"arbitrum", "base"}
+        if self.total_capital_usd == 0:
+            return 0.0
+        l2_total = sum(
+            p.amount_usd for p in self.positions
+            if (p.chain or "ethereum").lower() in L2_CHAINS
+        )
+        return l2_total / self.total_capital_usd
+
 
 @dataclass
 class RiskCheckResult:
@@ -165,6 +222,7 @@ class RiskPolicy:
         amount_usd: float,
         current_apy: float,
         tvl_usd: float,
+        chain: str = "ethereum",
     ) -> RiskCheckResult:
         """
         Проверить возможность открытия новой позиции.
@@ -243,6 +301,30 @@ class RiskPolicy:
                 violations.append(
                     f"Total T2 allocation {new_t2:.1%} would exceed "
                     f"limit {self.config.max_total_t2_allocation:.1%}"
+                )
+
+        # 9. Single-chain concentration limit
+        if state.total_capital_usd > 0:
+            new_chain_alloc = state.chain_allocation_pct(chain) + (amount_usd / state.total_capital_usd)
+            if new_chain_alloc > self.config.max_single_chain_allocation:
+                violations.append(
+                    f"Chain concentration on {chain} after trade {new_chain_alloc:.1%} exceeds "
+                    f"single-chain limit {self.config.max_single_chain_allocation:.1%}"
+                )
+            elif new_chain_alloc > self.config.max_single_chain_allocation * 0.85:
+                warnings.append(
+                    f"Chain concentration on {chain} {new_chain_alloc:.1%} approaching "
+                    f"limit {self.config.max_single_chain_allocation:.1%}"
+                )
+
+        # 10. L2 total allocation limit
+        L2_CHAINS = {"arbitrum", "base"}
+        if chain.lower() in L2_CHAINS and state.total_capital_usd > 0:
+            new_l2 = state.l2_allocation_pct() + (amount_usd / state.total_capital_usd)
+            if new_l2 > self.config.max_l2_total_allocation:
+                violations.append(
+                    f"Total L2 allocation {new_l2:.1%} would exceed "
+                    f"L2 combined limit {self.config.max_l2_total_allocation:.1%}"
                 )
 
         approved = len(violations) == 0
