@@ -1,29 +1,29 @@
 [
   {
-    "key": "aave-v3-usdc-ethereum",
-    "protocol": "Aave V3",
-    "asset": "USDC",
-    "chain": "Ethereum",
-    "tier": "T1",
-    "is_active": 1,
-    "apy_total": 4.46298,
-    "apy_base": 4.46298,
-    "apy_reward": 0.0,
-    "tvl_usd": 140716320.0,
-    "last_snapshot": "2026-05-21T08:14:58.165804+00:00"
-  },
-  {
     "key": "compound-v3-usdc-ethereum",
     "protocol": "Compound V3",
     "asset": "USDC",
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 4.44718,
-    "apy_base": 4.30838,
-    "apy_reward": 0.1388,
-    "tvl_usd": 31998520.0,
-    "last_snapshot": "2026-05-21T08:14:58.170479+00:00"
+    "apy_total": 4.60925,
+    "apy_base": 4.47246,
+    "apy_reward": 0.13679,
+    "tvl_usd": 31817318.0,
+    "last_snapshot": "2026-05-21T11:56:56.591485+00:00"
+  },
+  {
+    "key": "aave-v3-usdc-ethereum",
+    "protocol": "Aave V3",
+    "asset": "USDC",
+    "chain": "Ethereum",
+    "tier": "T1",
+    "is_active": 1,
+    "apy_total": 4.59781,
+    "apy_base": 4.59781,
+    "apy_reward": 0.0,
+    "tvl_usd": 138197651.0,
+    "last_snapshot": "2026-05-21T11:56:56.586144+00:00"
   },
   {
     "key": "spark-usdc-ethereum",
@@ -35,8 +35,8 @@
     "apy_total": 3.65,
     "apy_base": 3.65,
     "apy_reward": 0.0,
-    "tvl_usd": 403855265.0,
-    "last_snapshot": "2026-05-21T08:14:58.171939+00:00"
+    "tvl_usd": 403864869.0,
+    "last_snapshot": "2026-05-21T11:56:56.592869+00:00"
   },
   {
     "key": "sky-susds-ethereum",
@@ -48,8 +48,8 @@
     "apy_total": 3.65,
     "apy_base": 3.65,
     "apy_reward": 0.0,
-    "tvl_usd": 5817612115.0,
-    "last_snapshot": "2026-05-21T08:14:58.173627+00:00"
+    "tvl_usd": 5687937053.0,
+    "last_snapshot": "2026-05-21T11:56:56.594322+00:00"
   },
   {
     "key": "morpho-usdc-ethereum",
@@ -58,11 +58,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.20972,
-    "apy_base": 3.20972,
+    "apy_total": 3.23552,
+    "apy_base": 3.23552,
     "apy_reward": 0.0,
-    "tvl_usd": 112349348.0,
-    "last_snapshot": "2026-05-21T08:14:58.171277+00:00"
+    "tvl_usd": 112236815.0,
+    "last_snapshot": "2026-05-21T11:56:56.592170+00:00"
   },
   {
     "key": "aave-v3-usdc-arbitrum",
@@ -71,11 +71,11 @@
     "chain": "Arbitrum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.02481,
-    "apy_base": 3.02481,
+    "apy_total": 3.01091,
+    "apy_base": 3.01091,
     "apy_reward": 0.0,
-    "tvl_usd": 21434946.0,
-    "last_snapshot": "2026-05-21T08:14:58.169801+00:00"
+    "tvl_usd": 21775877.0,
+    "last_snapshot": "2026-05-21T11:56:56.590483+00:00"
   },
   {
     "key": "aave-v3-usdc-base",
@@ -84,11 +84,11 @@
     "chain": "Base",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 2.93266,
-    "apy_base": 2.93266,
+    "apy_total": 2.95044,
+    "apy_base": 2.95044,
     "apy_reward": 0.0,
-    "tvl_usd": 35140661.0,
-    "last_snapshot": "2026-05-21T08:14:58.169130+00:00"
+    "tvl_usd": 34707223.0,
+    "last_snapshot": "2026-05-21T11:56:56.589686+00:00"
   },
   {
     "key": "aave-v3-usdt-ethereum",
@@ -97,11 +97,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 2.81422,
-    "apy_base": 2.81422,
+    "apy_total": 2.68993,
+    "apy_base": 2.68993,
     "apy_reward": 0.0,
-    "tvl_usd": 351590887.0,
-    "last_snapshot": "2026-05-21T08:14:58.168344+00:00"
+    "tvl_usd": 404396613.0,
+    "last_snapshot": "2026-05-21T11:56:56.588749+00:00"
   },
   {
     "key": "spark-usdt-ethereum",
@@ -113,8 +113,8 @@
     "apy_total": 2.5,
     "apy_base": 2.5,
     "apy_reward": 0.0,
-    "tvl_usd": 904669459.0,
-    "last_snapshot": "2026-05-21T08:14:58.172624+00:00"
+    "tvl_usd": 774665270.0,
+    "last_snapshot": "2026-05-21T11:56:56.593637+00:00"
   },
   {
     "key": "fluid-usdc-ethereum",
@@ -123,11 +123,11 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 4.95,
-    "apy_base": 3.95,
+    "apy_total": 5.07,
+    "apy_base": 4.07,
     "apy_reward": 1.0,
-    "tvl_usd": 199817701.0,
-    "last_snapshot": "2026-05-21T08:14:58.175575+00:00"
+    "tvl_usd": 199663339.0,
+    "last_snapshot": "2026-05-21T11:56:56.595007+00:00"
   },
   {
     "key": "maple-usdc-ethereum",
@@ -136,11 +136,11 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 4.79941,
-    "apy_base": 4.79941,
+    "apy_total": 4.76575,
+    "apy_base": 4.76575,
     "apy_reward": 0.0,
-    "tvl_usd": 3300676758.0,
-    "last_snapshot": "2026-05-21T08:14:58.179673+00:00"
+    "tvl_usd": 3293734227.0,
+    "last_snapshot": "2026-05-21T11:56:56.597586+00:00"
   },
   {
     "key": "ethena-susde-ethereum",
@@ -149,11 +149,11 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 4.29318,
-    "apy_base": 4.29318,
+    "apy_total": 4.29381,
+    "apy_base": 4.29381,
     "apy_reward": 0.0,
-    "tvl_usd": 1785320440.0,
-    "last_snapshot": "2026-05-21T08:14:58.177624+00:00"
+    "tvl_usd": 1785060139.0,
+    "last_snapshot": "2026-05-21T11:56:56.596290+00:00"
   },
   {
     "key": "fluid-usdt-ethereum",
@@ -162,11 +162,11 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 3.79,
-    "apy_base": 2.27,
-    "apy_reward": 1.52,
-    "tvl_usd": 131255811.0,
-    "last_snapshot": "2026-05-21T08:14:58.176563+00:00"
+    "apy_total": 3.82,
+    "apy_base": 2.29,
+    "apy_reward": 1.53,
+    "tvl_usd": 130796049.0,
+    "last_snapshot": "2026-05-21T11:56:56.595644+00:00"
   },
   {
     "key": "yearn-v3-usdc-ethereum",
@@ -175,11 +175,11 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 3.40347,
-    "apy_base": 3.40347,
+    "apy_total": 3.4046,
+    "apy_base": 3.4046,
     "apy_reward": 0.0,
-    "tvl_usd": 28213251.0,
-    "last_snapshot": "2026-05-21T08:14:58.178740+00:00"
+    "tvl_usd": 28216987.0,
+    "last_snapshot": "2026-05-21T11:56:56.596965+00:00"
   },
   {
     "key": "euler-v2-usdc-ethereum",
@@ -191,7 +191,7 @@
     "apy_total": 1.84944,
     "apy_base": 1.84944,
     "apy_reward": 0.0,
-    "tvl_usd": 34501173.0,
-    "last_snapshot": "2026-05-21T08:14:58.180727+00:00"
+    "tvl_usd": 34504834.0,
+    "last_snapshot": "2026-05-21T11:56:56.598805+00:00"
   }
 ]
