@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-05-21T07:36:05.382390+00:00",
+  "count": 1,
+  "alerts": [
+    {
+      "severity": "CRITICAL",
+      "event_type": "APY_DROP",
+      "protocol_key": "aave-v3-usdc-ethereum",
+      "message": "APY dropped 62.1%: 11.78% \u2192 4.46%",
+      "details": {
+        "prev_apy": 11.77839,
+        "cur_apy": 4.46298,
+        "drop_pct": 62.11
+      },
+      "timestamp": "2026-05-21T07:36:05.382357+00:00"
+    }
+  ]
+}
