@@ -37,14 +37,31 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.init_db import get_connection, get_db_path
 from risk.policy import RiskPolicy, RiskConfig, Position, PortfolioState, RiskCheckResult
 
+# Pendle PT strategy (imported lazily where needed to avoid heavy deps at startup)
+# from paper_trading.pendle_strategy import PendlePosition, pendle_allocation_size, build_pendle_position
+
+# Optional — imported lazily to avoid circular deps; will be None if unavailable
+try:
+    from agents.decision_logger import DecisionLogger as _DecisionLogger
+except Exception:
+    _DecisionLogger = None  # type: ignore
+
 log = logging.getLogger(__name__)
 
 # ─── Константы ────────────────────────────────────────────────────────────────
 
-STRATEGY_ID = "paper-v1"
+STRATEGY_ID = "paper-v1"             # default strategy id (backward compat)
 INITIAL_CAPITAL = 100_000.0          # виртуальный стартовый капитал ($100K paper trading)
 MIN_PAPER_WEEKS = 8                  # минимум paper trading перед live
 SHARPE_RISK_FREE_RATE = 0.05         # 5% годовых безрисковая ставка (proxy)
+
+# ── v2 Aggressive strategy constants ──────────────────────────────────────────
+_V2_T1_CAP      = 0.30   # max 30% of portfolio per T1 protocol
+_V2_T2_CAP      = 0.15   # max 15% of portfolio per T2 protocol
+_V2_CASH_BUFFER = 0.03   # keep 3% cash buffer
+_V2_MAX_POS     = 8      # up to 8 simultaneous positions
+_V2_APY_MIN     = 3.0    # min target APY
+_V2_APY_MAX     = 20.0   # max target APY
 
 
 # ─── Исключения ───────────────────────────────────────────────────────────────
@@ -75,9 +92,28 @@ class PaperTrader:
         4. rebalance()      — проверить все позиции, закрыть/открыть по стратегии
     """
 
-    def __init__(self, db_path: Path = None, config: RiskConfig = None):
+    def __init__(
+        self,
+        db_path: Path = None,
+        config: RiskConfig = None,
+        strategy_id: str = STRATEGY_ID,
+        decision_logger=None,
+    ):
         self.db_path = db_path or get_db_path()
         self.policy = RiskPolicy(config=config)
+        self.strategy_id = strategy_id
+        # Accept an injected DecisionLogger, or create one automatically if
+        # the class is available (backwards-compatible: stays None otherwise).
+        if decision_logger is not None:
+            self._dlog = decision_logger
+        elif _DecisionLogger is not None:
+            self._dlog = _DecisionLogger(
+                db_path=self.db_path,
+                agent_name="TraderAgent",
+                strategy_id=self.strategy_id,
+            )
+        else:
+            self._dlog = None
         self._ensure_strategy_state()
 
     # ── Основные операции ─────────────────────────────────────────────────────
@@ -126,7 +162,7 @@ class PaperTrader:
                      amount_usd, apy_at_open, net_apy_annualized,
                      risk_check_passed)
                 VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, 1)
-            """, (trade_id, STRATEGY_ID, ts, protocol_key, proto["asset"],
+            """, (trade_id, self.strategy_id, ts, protocol_key, proto["asset"],
                   amount_usd, current_apy, current_apy))
 
             # Обновляем strategy_state
@@ -224,7 +260,8 @@ class PaperTrader:
         # Свежие APY данные (не старше 8 часов, валидные)
         with get_connection(self.db_path) as conn:
             rows = conn.execute("""
-                SELECT s.protocol_key, s.apy_total, s.tvl_usd, p.tier
+                SELECT s.protocol_key, s.apy_total, s.tvl_usd, p.tier,
+                       COALESCE(p.chain, 'ethereum') AS chain
                 FROM apy_snapshots s
                 JOIN protocols p ON p.key = s.protocol_key
                 WHERE s.is_valid = 1
@@ -251,6 +288,7 @@ class PaperTrader:
             apy      = row["apy_total"]
             tvl      = row["tvl_usd"]
             tier     = row["tier"]
+            chain    = (row["chain"] or "ethereum").lower()
 
             if key in open_protocols:
                 continue  # уже инвестировали
@@ -263,6 +301,13 @@ class PaperTrader:
             amount = self.policy.max_safe_position_size(state, key, tier)
             if amount < 10.0:  # минимальная позиция $10
                 log.debug(f"auto_allocate: {key} max_safe_size=${amount:.2f} too small, skip")
+                if self._dlog:
+                    self._dlog.log_pass(
+                        key,
+                        f"{key} skipped: max safe position ${amount:.2f} below $10 minimum",
+                        apy=apy,
+                        data={"tvl_usd": tvl, "tier": tier},
+                    )
                 continue
 
             try:
@@ -273,31 +318,316 @@ class PaperTrader:
                     "amount_usd": round(amount, 2),
                     "apy":        round(apy, 4),
                     "tier":       tier,
+                    "chain":      chain,
                     "approved":   result.approved,
                     "warnings":   result.warnings,
                 })
                 open_protocols.add(key)
                 log.info(
-                    f"auto_allocate: opened {key} "
+                    f"auto_allocate: opened {key} [{chain}] "
                     f"${amount:.2f} @ APY {apy:.2f}%"
                 )
+                if self._dlog:
+                    conc_pct = state.concentration_pct(key) * 100
+                    reasoning = (
+                        f"{key} selected: APY {apy:.2f}% within target range, "
+                        f"TVL ${tvl/1e6:.1f}M, {tier} tier, chain={chain}, "
+                        f"concentration {conc_pct:.0f}%, RiskPolicy APPROVED"
+                    )
+                    if result.warnings:
+                        reasoning += f"; warnings: {'; '.join(result.warnings)}"
+                    self._dlog.log_allocate(
+                        key, amount, apy, tier, reasoning, risk_approved=True
+                    )
             except RiskPolicyViolation as exc:
                 log.warning(f"auto_allocate: {key} blocked by risk policy: {exc}")
                 actions.append({
                     "action":   "BLOCKED",
                     "protocol": key,
+                    "chain":    chain,
                     "reason":   str(exc),
                 })
+                if self._dlog:
+                    violations = "; ".join(exc.result.violations)
+                    self._dlog.log_pass(
+                        key,
+                        f"{key} blocked by RiskPolicy: {violations}",
+                        apy=apy,
+                        data={"tvl_usd": tvl, "tier": tier, "chain": chain,
+                              "violations": exc.result.violations},
+                    )
             except Exception as exc:
                 log.error(f"auto_allocate: unexpected error for {key}: {exc}", exc_info=True)
                 actions.append({
                     "action":   "ERROR",
                     "protocol": key,
+                    "chain":    chain,
                     "reason":   str(exc),
                 })
 
+        # ── Pendle PT allocation (T2, fixed-rate) ────────────────────────────
+        # After T1/T2 lending pools, check if any Pendle PT pools are available.
+        # Pendle positions use fixed APY locked at entry — modelled separately
+        # from variable-rate lending positions.
+        # ADR-002 PROPOSED: paper test only until owner approves go-live.
+        try:
+            state = self._load_portfolio_state()
+            # Only proceed if we have meaningful cash left (≥ $1,000 or 1% of capital)
+            min_pendle_cash = max(1_000.0, state.total_capital_usd * 0.01)
+            if state.cash_usd >= min_pendle_cash:
+                from data_pipeline.pendle_fetcher import PendleFetcher
+                from paper_trading.pendle_strategy import pendle_allocation_size, build_pendle_position
+
+                best_pt = PendleFetcher().get_best_pt()
+                if best_pt:
+                    # Compute T2 allocation size based on APY premium over T1 baseline
+                    # T1 baseline approximated from current positions or 4% default
+                    t1_positions = [p for p in state.positions if p.tier == "T1"]
+                    t1_baseline = (
+                        sum(p.current_apy for p in t1_positions) / len(t1_positions)
+                        if t1_positions else 4.0
+                    )
+                    # Total T2 already deployed (% of capital)
+                    t2_deployed_usd = sum(
+                        p.amount_usd for p in state.positions if p.tier == "T2"
+                    )
+                    t2_cap_usd = state.total_capital_usd * 0.20  # 20% T2 limit
+                    t2_headroom = max(0.0, t2_cap_usd - t2_deployed_usd)
+
+                    pendle_size = pendle_allocation_size(
+                        capital=state.total_capital_usd,
+                        current_apy=best_pt["apy"],
+                        t1_baseline_apy=t1_baseline,
+                        max_t2_pct=0.20,
+                    )
+                    # Constrain to actual T2 headroom and available cash
+                    pendle_size = min(pendle_size, t2_headroom, state.cash_usd - min_pendle_cash)
+                    pendle_size = round(pendle_size, 2)
+
+                    if pendle_size >= 100.0:  # minimum meaningful Pendle position
+                        position = build_pendle_position(best_pt, pendle_size)
+                        actions.append({
+                            "action":           "OPEN_PENDLE_PT",
+                            "protocol":         f"pendle-pt-{best_pt.get('symbol', 'unknown').lower()}",
+                            "symbol":           best_pt.get("symbol"),
+                            "chain":            best_pt.get("chain", "arbitrum"),
+                            "amount_usd":       pendle_size,
+                            "apy":              best_pt["apy"],
+                            "tier":             "T2",
+                            "special":          "fixed_rate",
+                            "maturity_date":    best_pt.get("maturity_date"),
+                            "days_to_maturity": best_pt.get("days_to_maturity"),
+                            "t1_baseline_apy":  round(t1_baseline, 4),
+                            "apy_premium":      round(best_pt["apy"] - t1_baseline, 4),
+                            "approved":         True,
+                            "note":             "ADR-002 PROPOSED — paper only",
+                        })
+                        log.info(
+                            f"auto_allocate: Pendle PT {best_pt.get('symbol')} "
+                            f"${pendle_size:,.2f} @ {best_pt['apy']:.2f}% APY "
+                            f"(premium +{best_pt['apy'] - t1_baseline:.2f}% over T1 baseline)"
+                        )
+                    else:
+                        log.info(
+                            f"auto_allocate: Pendle PT skipped — "
+                            f"size ${pendle_size:.2f} < $100 minimum "
+                            f"(T2 headroom=${t2_headroom:.0f}, cash=${state.cash_usd:.0f})"
+                        )
+                else:
+                    log.debug("auto_allocate: no eligible Pendle PT pools available")
+        except Exception as exc:
+            log.warning(f"auto_allocate: Pendle PT allocation failed (non-fatal): {exc}")
+
         if not actions:
             actions.append({"action": "NO_OP", "reason": "no_suitable_protocol"})
+
+        return actions
+
+    def auto_allocate_v2(self, pools: list[dict] | None = None) -> list[dict]:
+        """
+        Strategy v2_aggressive: агрессивное размещение — T1 + T2, выше APY.
+
+        Параметры стратегии:
+          - T1 cap: 30% на протокол (vs 40% в v1)
+          - T2 cap: 15% на протокол (vs 20% в v1)
+          - Cash buffer: 3% (vs 5% в v1)
+          - До 8 позиций (vs 5 в v1)
+          - APY диапазон: 3–20%
+
+        Args:
+            pools: Опциональный список пулов [{protocol_key, apy_total, tvl_usd, tier}].
+                   Если None — данные читаются из БД (не старше 8 часов).
+
+        Returns:
+            Список действий в том же формате что и auto_allocate().
+        """
+        actions = []
+        state = self._load_portfolio_state()
+
+        min_cash_threshold = state.total_capital_usd * _V2_CASH_BUFFER
+        if state.cash_usd < min_cash_threshold:
+            log.info(
+                f"auto_allocate_v2: cash ${state.cash_usd:.2f} < "
+                f"threshold ${min_cash_threshold:.2f} ({_V2_CASH_BUFFER:.0%}), skipping"
+            )
+            return [{"action": "NO_OP", "reason": "insufficient_cash",
+                     "cash_usd": round(state.cash_usd, 2)}]
+
+        # Если пулы не переданы — читаем из БД (T1 + T2, не старше 8 часов)
+        if pools is None:
+            with get_connection(self.db_path) as conn:
+                rows = conn.execute("""
+                    SELECT s.protocol_key, s.apy_total, s.tvl_usd, p.tier,
+                           COALESCE(p.chain, 'ethereum') AS chain
+                    FROM apy_snapshots s
+                    JOIN protocols p ON p.key = s.protocol_key
+                    WHERE s.is_valid = 1
+                      AND s.timestamp >= datetime('now', '-8 hours')
+                      AND p.is_active = 1
+                      AND p.tier IN ('T1', 'T2')
+                      AND s.id IN (
+                          SELECT MAX(id) FROM apy_snapshots
+                          WHERE is_valid = 1
+                            AND timestamp >= datetime('now', '-8 hours')
+                          GROUP BY protocol_key
+                      )
+                    ORDER BY s.apy_total DESC
+                """).fetchall()
+            pools = [dict(r) for r in rows]
+
+        if not pools:
+            log.info("auto_allocate_v2: no fresh APY data (< 8h) — fetch first")
+            return [{"action": "NO_OP", "reason": "no_fresh_data"}]
+
+        # Протоколы с уже открытыми позициями
+        open_protocols = {p.protocol_key for p in state.positions}
+
+        _V2_L2_CHAINS = {"arbitrum", "base", "optimism", "polygon"}
+        _V2_CHAIN_CAP = 0.60   # max 60% on any single chain (mirrors RiskConfig default)
+        _V2_L2_CAP    = 0.50   # max 50% total on L2s
+
+        for row in pools:
+            key   = row["protocol_key"]
+            apy   = row["apy_total"]
+            tvl   = row["tvl_usd"]
+            tier  = row["tier"]
+            chain = (row.get("chain") or "ethereum").lower()
+
+            # Только APY в целевом диапазоне стратегии
+            if not (_V2_APY_MIN <= apy <= _V2_APY_MAX):
+                if self._dlog:
+                    self._dlog.log_pass(
+                        key,
+                        f"{key} skipped: APY {apy:.2f}% outside v2 target range "
+                        f"[{_V2_APY_MIN}–{_V2_APY_MAX}%]",
+                        apy=apy,
+                        data={"tvl_usd": tvl, "tier": tier, "chain": chain},
+                    )
+                continue
+
+            if key in open_protocols:
+                continue  # уже инвестировали
+
+            # Лимит позиций
+            if len(open_protocols) >= _V2_MAX_POS:
+                log.info(f"auto_allocate_v2: max positions ({_V2_MAX_POS}) reached")
+                break
+
+            # Обновить state для актуальных расчётов
+            state = self._load_portfolio_state()
+            if state.cash_usd < min_cash_threshold:
+                break
+
+            capital = state.total_capital_usd
+
+            # v2 concentration caps (tighter than risk policy defaults)
+            conc_cap = _V2_T1_CAP if tier == "T1" else _V2_T2_CAP
+            max_by_conc = conc_cap * capital - state.concentration_pct(key) * capital
+            max_by_cash = state.cash_usd - _V2_CASH_BUFFER * capital
+
+            # Chain limits for v2 (cross-L2 allocation)
+            chain_remaining = _V2_CHAIN_CAP * capital - state.chain_allocation_pct(chain) * capital
+            l2_remaining = float("inf")
+            if chain.lower() in _V2_L2_CHAINS:
+                l2_remaining = _V2_L2_CAP * capital - state.l2_allocation_pct() * capital
+            max_by_chain = min(chain_remaining, l2_remaining)
+
+            amount = round(max(0.0, min(max_by_conc, max_by_cash, max_by_chain)), 2)
+
+            if amount < 10.0:
+                log.debug(f"auto_allocate_v2: {key} max_size=${amount:.2f} too small, skip")
+                if self._dlog:
+                    conc_pct = state.concentration_pct(key) * 100
+                    self._dlog.log_pass(
+                        key,
+                        f"{key} skipped: {tier} concentration {conc_pct:.1f}% would exceed "
+                        f"{conc_cap*100:.0f}% v2 limit, or cash/chain limit exhausted",
+                        apy=apy,
+                        data={"tvl_usd": tvl, "tier": tier, "chain": chain,
+                              "max_by_conc": max_by_conc, "max_by_cash": max_by_cash,
+                              "max_by_chain": max_by_chain},
+                    )
+                continue
+
+            try:
+                result = self.open_position(key, amount, apy, tvl)
+                actions.append({
+                    "action":     "OPEN",
+                    "protocol":   key,
+                    "amount_usd": amount,
+                    "apy":        round(apy, 4),
+                    "tier":       tier,
+                    "chain":      chain,
+                    "approved":   result.approved,
+                    "warnings":   result.warnings,
+                    "strategy":   "v2_aggressive",
+                })
+                open_protocols.add(key)
+                log.info(f"auto_allocate_v2: opened {key} [{chain}] ${amount:.2f} @ APY {apy:.2f}%")
+                if self._dlog:
+                    conc_pct = state.concentration_pct(key) * 100
+                    reasoning = (
+                        f"{key} selected [v2_aggressive]: APY {apy:.2f}% in range "
+                        f"[{_V2_APY_MIN}–{_V2_APY_MAX}%], TVL ${tvl/1e6:.1f}M, "
+                        f"{tier} tier, chain={chain}, concentration {conc_pct:.0f}%, "
+                        f"RiskPolicy APPROVED"
+                    )
+                    if result.warnings:
+                        reasoning += f"; warnings: {'; '.join(result.warnings)}"
+                    self._dlog.log_allocate(
+                        key, amount, apy, tier, reasoning, risk_approved=True
+                    )
+            except RiskPolicyViolation as exc:
+                log.warning(f"auto_allocate_v2: {key} blocked by risk policy: {exc}")
+                actions.append({
+                    "action":   "BLOCKED",
+                    "protocol": key,
+                    "chain":    chain,
+                    "reason":   str(exc),
+                    "strategy": "v2_aggressive",
+                })
+                if self._dlog:
+                    violations = "; ".join(exc.result.violations)
+                    self._dlog.log_pass(
+                        key,
+                        f"{key} blocked by RiskPolicy [v2_aggressive]: {violations}",
+                        apy=apy,
+                        data={"tvl_usd": tvl, "tier": tier, "chain": chain,
+                              "violations": exc.result.violations},
+                    )
+            except Exception as exc:
+                log.error(f"auto_allocate_v2: unexpected error for {key}: {exc}", exc_info=True)
+                actions.append({
+                    "action":   "ERROR",
+                    "protocol": key,
+                    "chain":    chain,
+                    "reason":   str(exc),
+                    "strategy": "v2_aggressive",
+                })
+
+        if not actions:
+            actions.append({"action": "NO_OP", "reason": "no_suitable_protocol",
+                            "strategy": "v2_aggressive"})
 
         return actions
 
@@ -354,7 +684,7 @@ class PaperTrader:
                        t.net_apy_annualized, t.timestamp_open
                 FROM paper_trades t
                 WHERE t.strategy_id = ? AND t.timestamp_close IS NULL
-            """, (STRATEGY_ID,)).fetchall()
+            """, (self.strategy_id,)).fetchall()
 
             for trade in open_trades:
                 # Последний APY из снапшотов
@@ -509,19 +839,20 @@ class PaperTrader:
                 SELECT total_capital_usd FROM strategy_state
                 WHERE strategy_id = ?
                 ORDER BY id DESC LIMIT 1
-            """, (STRATEGY_ID,)).fetchone()
+            """, (self.strategy_id,)).fetchone()
 
             total_capital = strategy["total_capital_usd"] if strategy else INITIAL_CAPITAL
 
             open_trades = conn.execute("""
                 SELECT t.trade_id, t.protocol_key, t.amount_usd,
                        t.net_apy_annualized, t.pnl_usd, t.timestamp_open,
-                       p.tier, p.asset
+                       p.tier, p.asset,
+                       COALESCE(p.chain, 'ethereum') AS chain
                 FROM paper_trades t
                 JOIN protocols p ON t.protocol_key = p.key
                 WHERE t.strategy_id = ? AND t.timestamp_close IS NULL
                 ORDER BY t.timestamp_open
-            """, (STRATEGY_ID,)).fetchall()
+            """, (self.strategy_id,)).fetchall()
 
             positions = []
             for t in open_trades:
@@ -543,6 +874,7 @@ class PaperTrader:
                     protocol_key=t["protocol_key"],
                     tier=t["tier"],
                     asset=t["asset"],
+                    chain=(t["chain"] or "ethereum").lower(),
                     amount_usd=t["amount_usd"],
                     apy_at_open=t["net_apy_annualized"] or current_apy,
                     current_apy=current_apy,
@@ -560,7 +892,7 @@ class PaperTrader:
                 FROM paper_trades
                 WHERE strategy_id = ? AND protocol_key = ?
                   AND timestamp_close IS NULL
-            """, (STRATEGY_ID, protocol_key)).fetchall()
+            """, (self.strategy_id, protocol_key)).fetchall()
 
     def _get_protocol(self, protocol_key: str) -> dict:
         with get_connection(self.db_path) as conn:
@@ -575,7 +907,7 @@ class PaperTrader:
         with get_connection(self.db_path) as conn:
             existing = conn.execute(
                 "SELECT id, total_capital_usd FROM strategy_state WHERE strategy_id = ? ORDER BY id DESC LIMIT 1",
-                (STRATEGY_ID,)
+                (self.strategy_id,)
             ).fetchone()
             if not existing:
                 conn.execute("""
@@ -584,31 +916,29 @@ class PaperTrader:
                          cash_usd, total_pnl_usd, max_drawdown_pct,
                          sharpe_to_date, trade_count)
                     VALUES (?, ?, 0, ?, 0, 0, 0, 0)
-                """, (STRATEGY_ID, INITIAL_CAPITAL, INITIAL_CAPITAL))
+                """, (self.strategy_id, INITIAL_CAPITAL, INITIAL_CAPITAL))
                 conn.commit()
-                log.info(f"Strategy state initialised: {STRATEGY_ID}, capital=${INITIAL_CAPITAL:,.2f}")
+                log.info(f"Strategy state initialised: {self.strategy_id}, capital=${INITIAL_CAPITAL:,.2f}")
             elif existing["total_capital_usd"] != INITIAL_CAPITAL:
                 # Капитал изменился — безопасно мигрировать если нет сделок
                 trade_count = conn.execute(
-                    "SELECT COUNT(*) FROM paper_trades WHERE strategy_id = ?", (STRATEGY_ID,)
+                    "SELECT COUNT(*) FROM paper_trades WHERE strategy_id = ?", (self.strategy_id,)
                 ).fetchone()[0]
-                # Закрываем все открытые позиции и мигрируем капитал
-                old_cap = existing["total_capital_usd"]
-                conn.execute(
-                    "UPDATE paper_trades SET timestamp_close = datetime('now') "
-                    "WHERE strategy_id = ? AND timestamp_close IS NULL",
-                    (STRATEGY_ID,)
-                )
-                conn.execute("""
-                    UPDATE strategy_state SET
-                        total_capital_usd = ?,
-                        cash_usd = ?,
-                        deployed_capital_usd = 0,
-                        total_pnl_usd = 0
-                    WHERE strategy_id = ?
-                """, (INITIAL_CAPITAL, INITIAL_CAPITAL, STRATEGY_ID))
-                conn.commit()
-                log.info(f"Capital migrated: ${old_cap:,.2f} → ${INITIAL_CAPITAL:,.2f} (old positions closed)")
+                if trade_count == 0:
+                    conn.execute("""
+                        UPDATE strategy_state SET
+                            total_capital_usd = ?,
+                            cash_usd = ?,
+                            deployed_capital_usd = 0,
+                            total_pnl_usd = 0
+                        WHERE strategy_id = ?
+                    """, (INITIAL_CAPITAL, INITIAL_CAPITAL, self.strategy_id))
+                    conn.commit()
+                    old_cap = existing["total_capital_usd"]
+                    log.info(f"Capital migrated: ${old_cap:,.2f} → ${INITIAL_CAPITAL:,.2f}")
+                else:
+                    log.warning(f"Capital mismatch (${existing['total_capital_usd']} vs ${INITIAL_CAPITAL}) "
+                                f"but {trade_count} trades exist — keeping existing capital")
 
     def _update_strategy_state(self, conn) -> None:
         """Пересчитать и сохранить strategy_state (вызывать внутри транзакции)."""
@@ -624,7 +954,7 @@ class PaperTrader:
             sharpe = 0.0
 
         trade_count = conn.execute(
-            "SELECT COUNT(*) FROM paper_trades WHERE strategy_id = ?", (STRATEGY_ID,)
+            "SELECT COUNT(*) FROM paper_trades WHERE strategy_id = ?", (self.strategy_id,)
         ).fetchone()[0]
 
         conn.execute("""
@@ -643,13 +973,13 @@ class PaperTrader:
             state.total_drawdown_pct,
             round(sharpe, 4),
             trade_count,
-            STRATEGY_ID,
+            self.strategy_id,
         ))
 
     def _get_strategy_state(self):
         with get_connection(self.db_path) as conn:
             return conn.execute(
-                "SELECT * FROM strategy_state WHERE strategy_id = ?", (STRATEGY_ID,)
+                "SELECT * FROM strategy_state WHERE strategy_id = ?", (self.strategy_id,)
             ).fetchone()
 
     def _get_first_trade_ts(self) -> Optional[datetime]:
@@ -657,7 +987,7 @@ class PaperTrader:
             row = conn.execute("""
                 SELECT MIN(timestamp_open) FROM paper_trades
                 WHERE strategy_id = ?
-            """, (STRATEGY_ID,)).fetchone()
+            """, (self.strategy_id,)).fetchone()
         if row and row[0]:
             return datetime.fromisoformat(row[0])
         return None
