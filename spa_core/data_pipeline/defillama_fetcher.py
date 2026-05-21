@@ -1,6 +1,6 @@
 """
 DeFiLlama API Fetcher — SPA Data Pipeline
-Фаза 0A: получение APY, TVL, utilization rate для 7 протоколов whitelist.
+Фаза M4: получение APY, TVL, utilization rate для 15 протоколов whitelist.
 
 Запуск вручную:   python defillama_fetcher.py
 Запуск планировщика: python defillama_fetcher.py --daemon
@@ -17,29 +17,44 @@ from pathlib import Path
 
 # ─── Конфигурация ───────────────────────────────────────────────────────────────
 
-# Whitelist протоколов v1.0.0
-# pool_id — верифицированные ID пулов из DeFiLlama /pools (проверено 2026-05-20)
+# Whitelist протоколов v2.0.0 (M4 expansion: 7 → 15 протоколов)
+# pool_id — верифицированные ID пулов из DeFiLlama /pools (проверено 2026-05-21)
 WHITELIST = {
+    # ── T1: Blue-chip lending ──────────────────────────────────────────────────
     "aave-v3-usdc-ethereum": {
         "protocol":   "Aave V3",
         "asset":      "USDC",
         "chain":      "Ethereum",
         "tier":       "T1",
-        "pool_id":    "aa70268e-4b52-42bf-a116-608b370f9501",  # Aave v3 ETH USDC, TVL $138M
+        "pool_id":    "aa70268e-4b52-42bf-a116-608b370f9501",  # TVL $138M
     },
     "aave-v3-usdt-ethereum": {
         "protocol":   "Aave V3",
         "asset":      "USDT",
         "chain":      "Ethereum",
         "tier":       "T1",
-        "pool_id":    "f981a304-bb6c-45b8-b0c5-fd2f515ad23a",  # Aave v3 ETH USDT, TVL $335M
+        "pool_id":    "f981a304-bb6c-45b8-b0c5-fd2f515ad23a",  # TVL $335M
+    },
+    "aave-v3-usdc-base": {
+        "protocol":   "Aave V3",
+        "asset":      "USDC",
+        "chain":      "Base",
+        "tier":       "T1",
+        "pool_id":    "7e0661bf-8cf3-45e6-9424-31916d4c7b84",  # TVL $35M
+    },
+    "aave-v3-usdc-arbitrum": {
+        "protocol":   "Aave V3",
+        "asset":      "USDC",
+        "chain":      "Arbitrum",
+        "tier":       "T1",
+        "pool_id":    "d9fa8e14-0447-4207-9ae8-7810199dfa1f",  # TVL $21M
     },
     "compound-v3-usdc-ethereum": {
         "protocol":   "Compound V3",
         "asset":      "USDC",
         "chain":      "Ethereum",
         "tier":       "T1",
-        "pool_id":    "7da72d09-56ca-4ec5-a45f-59114353e487",  # Compound v3 ETH USDC, TVL $32M
+        "pool_id":    "7da72d09-56ca-4ec5-a45f-59114353e487",  # TVL $32M
     },
     "morpho-usdc-ethereum": {
         "protocol":   "Morpho",
@@ -48,26 +63,69 @@ WHITELIST = {
         "tier":       "T1",
         "pool_id":    "b55f43a8-f444-4cd8-a3a4-0a4e786ba566",  # morpho-blue STEAKUSDC, TVL $114M
     },
+    "spark-usdc-ethereum": {
+        "protocol":   "Spark",
+        "asset":      "USDC",
+        "chain":      "Ethereum",
+        "tier":       "T1",
+        "pool_id":    "c5c74dd1-995c-4445-9d84-3e710bad7d52",  # spark-savings USDC, TVL $404M
+    },
+    "spark-usdt-ethereum": {
+        "protocol":   "Spark",
+        "asset":      "USDT",
+        "chain":      "Ethereum",
+        "tier":       "T1",
+        "pool_id":    "a5d67f7e-5b51-4a9d-969d-caf051a7f5a4",  # spark-savings USDT, TVL $905M
+    },
+    "sky-susds-ethereum": {
+        "protocol":   "Sky",
+        "asset":      "sUSDS",
+        "chain":      "Ethereum",
+        "tier":       "T1",
+        "pool_id":    "d8c4eff5-c8a9-46fc-a888-057c4c668e72",  # sky-lending sUSDS, TVL $5.8B
+    },
+    # ── T2: Higher yield ───────────────────────────────────────────────────────
+    "fluid-usdc-ethereum": {
+        "protocol":   "Fluid",
+        "asset":      "USDC",
+        "chain":      "Ethereum",
+        "tier":       "T2",
+        "pool_id":    "4438dabc-7f0c-430b-8136-2722711ae663",  # fluid-lending USDC, TVL $200M
+    },
+    "fluid-usdt-ethereum": {
+        "protocol":   "Fluid",
+        "asset":      "USDT",
+        "chain":      "Ethereum",
+        "tier":       "T2",
+        "pool_id":    "4e8cc592-c8d5-4824-8155-128ba521e903",  # fluid-lending USDT, TVL $131M
+    },
+    "ethena-susde-ethereum": {
+        "protocol":   "Ethena",
+        "asset":      "sUSDe",
+        "chain":      "Ethereum",
+        "tier":       "T2",
+        "pool_id":    "66985a81-9c51-46ca-9977-42b4fe7bc6df",  # ethena-usde sUSDe, TVL $1.8B
+    },
     "yearn-v3-usdc-ethereum": {
         "protocol":   "Yearn V3",
         "asset":      "USDC",
         "chain":      "Ethereum",
         "tier":       "T2",
-        "pool_id":    "7d89af7a-24c9-4292-aa38-7c71b05fbd6d",  # yearn-finance USDC highest TVL $28M
+        "pool_id":    "7d89af7a-24c9-4292-aa38-7c71b05fbd6d",  # TVL $28M
     },
     "maple-usdc-ethereum": {
         "protocol":   "Maple",
         "asset":      "USDC",
         "chain":      "Ethereum",
         "tier":       "T2",
-        "pool_id":    "43641cf5-a92e-416b-bce9-27113d3c0db6",  # Maple USDC, TVL $3.3B
+        "pool_id":    "43641cf5-a92e-416b-bce9-27113d3c0db6",  # TVL $3.3B
     },
     "euler-v2-usdc-ethereum": {
         "protocol":   "Euler V2",
         "asset":      "USDC",
         "chain":      "Ethereum",
         "tier":       "T2",
-        "pool_id":    "31a0cd94-b781-4e0d-a9f1-1702bc2c238f",  # Euler v2 USDC, TVL $30M
+        "pool_id":    "31a0cd94-b781-4e0d-a9f1-1702bc2c238f",  # TVL $30M
     },
 }
 
