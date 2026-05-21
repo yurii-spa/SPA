@@ -116,6 +116,14 @@
   .alert-msg { flex: 1; color: #333; line-height: 1.4; }
   .alert-proto { font-size: 11px; color: #888; margin-top: 2px; }
   .alerts-clear { text-align: center; padding: 20px 0; color: #3B6D11; font-size: 13px; }
+  .trades-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .trades-table th { color: #999; font-weight: 500; text-align: left; padding: 4px 6px; border-bottom: 1px solid #eee; }
+  .trades-table td { padding: 6px 6px; border-bottom: 0.5px solid #f5f5f5; vertical-align: middle; }
+  .trades-table tr:last-child td { border-bottom: none; }
+  .trade-open { color: #185FA5; font-weight: 600; font-size: 11px; }
+  .trade-closed { color: #888; font-size: 11px; }
+  .trade-reason { font-size: 10.5px; color: #bbb; }
+  .trades-empty { text-align: center; padding: 20px 0; color: #aaa; font-size: 13px; }
   .conc-row { margin-bottom: 12px; }
   .conc-row:last-child { margin-bottom: 0; }
   .conc-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
@@ -415,6 +423,17 @@
     </div>
   </div>
 
+  <!-- Trades history panel -->
+  <div class="db-full">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📋 история сделок</span>
+      <span id="trades-badge" style="font-size:11px;color:#888"></span>
+    </div>
+    <div id="trades-body">
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+    </div>
+  </div>
+
   <div class="db-footer">SPA Paper Trading v0.4 · данные реальные, капитал виртуальный · обновляется каждые 4ч · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
 
 </div><!-- /tab-dashboard -->
@@ -528,16 +547,18 @@ async function loadDashboard() {
   if (spinner) spinner.style.display = 'inline-block';
   try {
     const ts = Date.now();
-    const [status, protocols, stratState, meta, alertsData] = await Promise.all([
+    const [status, protocols, stratState, meta, alertsData, tradesData] = await Promise.all([
       fetch(BASE + '/status.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/protocols.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/strategy_state.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/meta.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/alerts.json?_=' + ts).then(r => r.json()).catch(() => ({ count: 0, alerts: [] })),
+      fetch(BASE + '/trades.json?_=' + ts).then(r => r.json()).catch(() => []),
     ]);
     _loadedOnce = true;
     renderDashboard(status, protocols, stratState, meta);
     renderAlerts(alertsData);
+    renderTrades(tradesData);
   } catch(e) {
     document.getElementById('health-badge').className = 'status-err';
     document.getElementById('health-badge').textContent = '⚠ Нет данных';
@@ -688,6 +709,53 @@ function renderAlerts(data) {
 }
 
 // ─── Портфельный chart ────────────────────────────────────────────────────────
+// ─── Trades ───────────────────────────────────────────────────────────────────
+function renderTrades(trades) {
+  const body = document.getElementById('trades-body');
+  const badge = document.getElementById('trades-badge');
+  if (!body) return;
+  if (!trades || trades.length === 0) {
+    body.innerHTML = '<div class="trades-empty">Сделок пока нет</div>';
+    if (badge) badge.textContent = '0 сделок';
+    return;
+  }
+  const openCount = trades.filter(t => !t.timestamp_close).length;
+  const closedCount = trades.filter(t => t.timestamp_close).length;
+  if (badge) {
+    badge.textContent = openCount + ' открытых · ' + closedCount + ' закрытых';
+  }
+  const fmtDate = s => s ? s.slice(0, 16).replace('T', ' ') : '—';
+  const fmtProto = s => s ? s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
+  body.innerHTML = `<table class="trades-table">
+    <thead><tr>
+      <th>Протокол</th>
+      <th>Открыта</th>
+      <th>Закрыта</th>
+      <th style="text-align:right">Сумма</th>
+      <th style="text-align:right">APY</th>
+      <th style="text-align:right">PnL</th>
+      <th>Причина</th>
+    </tr></thead>
+    <tbody>` +
+    trades.map(t => {
+      const isOpen = !t.timestamp_close;
+      const pnlCls = (t.pnl_usd || 0) >= 0 ? 'green' : 'red';
+      const pnlStr = t.pnl_usd != null
+        ? ((t.pnl_usd >= 0 ? '+' : '') + '$' + Number(t.pnl_usd).toFixed(2))
+        : (isOpen ? '<span class="gray">live</span>' : '—');
+      return `<tr>
+        <td>${fmtProto(t.protocol_key)}</td>
+        <td class="trade-closed">${fmtDate(t.timestamp_open)}</td>
+        <td>${isOpen ? '<span class="trade-open">● ОТКРЫТА</span>' : '<span class="trade-closed">' + fmtDate(t.timestamp_close) + '</span>'}</td>
+        <td style="text-align:right">$${Number(t.amount_usd || 0).toLocaleString('en-US', {maximumFractionDigits:0})}</td>
+        <td style="text-align:right" class="green">${t.apy_at_open != null ? t.apy_at_open.toFixed(2) + '%' : '—'}</td>
+        <td style="text-align:right" class="${isOpen ? '' : pnlCls}">${pnlStr}</td>
+        <td class="trade-reason">${t.reason || '—'}</td>
+      </tr>`;
+    }).join('') +
+    '</tbody></table>';
+}
+
 function buildPortfolioChart(stratState) {
   const ctx = document.getElementById('portfolioChart');
   if (!ctx) return;
