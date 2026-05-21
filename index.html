@@ -151,7 +151,47 @@
   .flow-node.data   { background: #e2f0d4; border-color: #3B6D11; color: #254c09; }
   .flow-node.risk   { background: #fde8c0; border-color: #BA7517; color: #5a3200; }
   .flow-arrow { font-size: 18px; color: #bbb; padding: 0 6px; }
-  .pixel-bot { display: inline-block; font-size: 32px; line-height: 1; }
+  /* ── Pixel Art Bots v0.4.5 ─────────────────────────────────────────────── */
+  .pixel-bot {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    width: 64px;
+    height: 88px;
+    display: block;
+    margin: 0 auto 14px;
+  }
+  @keyframes bot-float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-5px); }
+  }
+  @keyframes bot-glow-b {
+    0%,100% { filter: drop-shadow(0 2px 3px rgba(59,130,246,.25)); }
+    50%      { filter: drop-shadow(0 4px 14px rgba(59,130,246,.85)); }
+  }
+  @keyframes bot-glow-g {
+    0%,100% { filter: drop-shadow(0 2px 3px rgba(16,185,129,.25)); }
+    50%      { filter: drop-shadow(0 4px 14px rgba(16,185,129,.85)); }
+  }
+  @keyframes bot-glow-p {
+    0%,100% { filter: drop-shadow(0 2px 3px rgba(139,92,246,.25)); }
+    50%      { filter: drop-shadow(0 4px 14px rgba(139,92,246,.85)); }
+  }
+  @keyframes bot-glow-k {
+    0%,100% { filter: drop-shadow(0 2px 3px rgba(156,163,175,.2)); }
+    50%      { filter: drop-shadow(0 4px 10px rgba(156,163,175,.65)); }
+  }
+  @keyframes ant-blink {
+    0%,40%,60%,100% { opacity:1; }
+    50%              { opacity:0.05; }
+  }
+  .bot-data     { animation: bot-float 2.6s ease-in-out infinite,     bot-glow-b 2.6s ease-in-out infinite; }
+  .bot-strategy { animation: bot-float 3.1s ease-in-out infinite .5s, bot-glow-g 3.1s ease-in-out infinite .5s; }
+  .bot-monitor  { animation: bot-float 2.3s ease-in-out infinite .9s, bot-glow-p 2.3s ease-in-out infinite .9s; }
+  .bot-ceo      { animation: bot-float 3.5s ease-in-out infinite .2s, bot-glow-k 3.5s ease-in-out infinite .2s; }
+  .ant-data     { animation: ant-blink 2.0s ease-in-out infinite; }
+  .ant-strategy { animation: ant-blink 1.3s ease-in-out infinite .4s; }
+  .ant-monitor  { animation: ant-blink 0.6s ease-in-out infinite; }
+  .ant-ceo      { animation: ant-blink 4.0s ease-in-out infinite 1.2s; }
   .team-stack { background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 20px; }
   .stack-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 0.5px solid #eee; font-size: 13px; }
   .stack-row:last-child { border-bottom: none; }
@@ -442,32 +482,98 @@
 <!-- ══════════════════ TAB: КОМАНДА ══════════════════ -->
 <div id="tab-team" class="tab-pane">
 
-  <p class="section-label">АГЕНТ-КОМАНДА — архитектура v0.3</p>
+  <p class="section-label">АГЕНТ-КОМАНДА — архитектура v0.4.5</p>
 
   <div class="team-grid">
     <div class="agent-card">
-      <span class="agent-avatar">🤖</span>
+      <!-- DataBot: синий, собирает данные, антенна мигает медленно -->
+      <svg class="pixel-bot bot-data" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="0" width="2" height="1" fill="#93C5FD" class="ant-data"/>
+        <rect x="1" y="1" width="6" height="4" fill="#1e3a8a"/>
+        <rect x="2" y="2" width="1" height="1" fill="#BFDBFE"/>
+        <rect x="5" y="2" width="1" height="1" fill="#BFDBFE"/>
+        <rect x="3" y="3" width="2" height="1" fill="#3B82F6"/>
+        <rect x="3" y="5" width="2" height="1" fill="#1e3a8a"/>
+        <rect x="0" y="6" width="1" height="3" fill="#1e3a8a"/>
+        <rect x="7" y="6" width="1" height="3" fill="#1e3a8a"/>
+        <rect x="2" y="6" width="4" height="3" fill="#1D4ED8"/>
+        <rect x="3" y="7" width="2" height="1" fill="#60A5FA"/>
+        <rect x="2" y="9" width="1" height="1" fill="#1e3a8a"/>
+        <rect x="5" y="9" width="1" height="1" fill="#1e3a8a"/>
+        <rect x="1" y="10" width="2" height="1" fill="#1e3a8a"/>
+        <rect x="5" y="10" width="2" height="1" fill="#1e3a8a"/>
+      </svg>
       <div class="agent-name">Data Agent</div>
-      <div class="agent-role">DeFiLlama · 7 протоколов</div>
+      <div class="agent-role">DeFiLlama · 15 протоколов</div>
       <span class="agent-status running">● работает</span>
       <div class="agent-tasks">Каждые 4ч fetch APY/TVL<br>Сохраняет снапшоты в SQLite<br>→ MessageBus: data_fetched</div>
     </div>
     <div class="agent-card">
-      <span class="agent-avatar">📈</span>
+      <!-- StrategyBot: зелёный, торгует, антенна мигает средне -->
+      <svg class="pixel-bot bot-strategy" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="0" width="2" height="1" fill="#34D399" class="ant-strategy"/>
+        <rect x="1" y="1" width="6" height="4" fill="#064e3b"/>
+        <rect x="2" y="2" width="1" height="1" fill="#A7F3D0"/>
+        <rect x="5" y="2" width="1" height="1" fill="#A7F3D0"/>
+        <rect x="3" y="3" width="2" height="1" fill="#10B981"/>
+        <rect x="3" y="5" width="2" height="1" fill="#064e3b"/>
+        <rect x="0" y="6" width="1" height="3" fill="#064e3b"/>
+        <rect x="7" y="6" width="1" height="3" fill="#064e3b"/>
+        <rect x="2" y="6" width="4" height="3" fill="#065F46"/>
+        <rect x="3" y="7" width="2" height="1" fill="#34D399"/>
+        <rect x="2" y="9" width="1" height="1" fill="#064e3b"/>
+        <rect x="5" y="9" width="1" height="1" fill="#064e3b"/>
+        <rect x="1" y="10" width="2" height="1" fill="#064e3b"/>
+        <rect x="5" y="10" width="2" height="1" fill="#064e3b"/>
+      </svg>
       <div class="agent-name">Strategy Agent</div>
       <div class="agent-role">v1_passive · auto_allocate</div>
       <span class="agent-status running">● работает</span>
       <div class="agent-tasks">Читает APY → ранжирует<br>auto_allocate() по бюджету<br>→ MessageBus: trade_opened</div>
     </div>
     <div class="agent-card">
-      <span class="agent-avatar">🔍</span>
+      <!-- MonitorBot: фиолетовый, следит за рисками, антенна мигает быстро -->
+      <svg class="pixel-bot bot-monitor" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="0" width="2" height="1" fill="#C4B5FD" class="ant-monitor"/>
+        <rect x="1" y="1" width="6" height="4" fill="#3B0764"/>
+        <rect x="2" y="2" width="1" height="1" fill="#DDD6FE"/>
+        <rect x="5" y="2" width="1" height="1" fill="#DDD6FE"/>
+        <rect x="3" y="3" width="2" height="1" fill="#8B5CF6"/>
+        <rect x="3" y="5" width="2" height="1" fill="#3B0764"/>
+        <rect x="0" y="6" width="1" height="3" fill="#3B0764"/>
+        <rect x="7" y="6" width="1" height="3" fill="#3B0764"/>
+        <rect x="2" y="6" width="4" height="3" fill="#6D28D9"/>
+        <rect x="3" y="7" width="2" height="1" fill="#C4B5FD"/>
+        <rect x="2" y="9" width="1" height="1" fill="#3B0764"/>
+        <rect x="5" y="9" width="1" height="1" fill="#3B0764"/>
+        <rect x="1" y="10" width="2" height="1" fill="#3B0764"/>
+        <rect x="5" y="10" width="2" height="1" fill="#3B0764"/>
+      </svg>
       <div class="agent-name">Monitor Agent</div>
       <div class="agent-role">HealthCheck · AlertEngine</div>
       <span class="agent-status running">● работает</span>
       <div class="agent-tasks">Проверяет VaR / drawdown<br>Alert при нарушении риска<br>→ MessageBus: alert_fired</div>
     </div>
     <div class="agent-card">
-      <span class="agent-avatar">👔</span>
+      <!-- CEOBot: тёмный с красным галстуком, одобряет сделки, антенна редко мигает -->
+      <svg class="pixel-bot bot-ceo" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="0" width="2" height="1" fill="#F9FAFB" class="ant-ceo"/>
+        <rect x="1" y="1" width="6" height="4" fill="#1F2937"/>
+        <rect x="2" y="2" width="1" height="1" fill="#E5E7EB"/>
+        <rect x="5" y="2" width="1" height="1" fill="#E5E7EB"/>
+        <rect x="3" y="3" width="2" height="1" fill="#6B7280"/>
+        <rect x="2" y="5" width="1" height="1" fill="#E5E7EB"/>
+        <rect x="3" y="5" width="2" height="1" fill="#1F2937"/>
+        <rect x="5" y="5" width="1" height="1" fill="#E5E7EB"/>
+        <rect x="0" y="6" width="1" height="3" fill="#1F2937"/>
+        <rect x="7" y="6" width="1" height="3" fill="#1F2937"/>
+        <rect x="2" y="6" width="4" height="3" fill="#374151"/>
+        <rect x="4" y="6" width="1" height="3" fill="#B91C1C"/>
+        <rect x="2" y="9" width="1" height="1" fill="#1F2937"/>
+        <rect x="5" y="9" width="1" height="1" fill="#1F2937"/>
+        <rect x="1" y="10" width="2" height="1" fill="#1F2937"/>
+        <rect x="5" y="10" width="2" height="1" fill="#1F2937"/>
+      </svg>
       <div class="agent-name">CEO Agent</div>
       <div class="agent-role">Approve / HOLD / REJECT</div>
       <span class="agent-status running">● работает</span>
@@ -502,14 +608,14 @@
       <div class="stack-row"><span class="stack-label">База данных</span><span class="stack-value">SQLite + WAL</span></div>
       <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama API</span></div>
       <div class="stack-row"><span class="stack-label">CI/CD</span><span class="stack-value">GitHub Actions (4h)</span></div>
-      <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages + Chart.js</span></div>
+      <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · React + Vite</span></div>
       <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скоро</span></span></div>
     </div>
     <div class="team-stack">
       <div class="flow-title">дорожная карта</div>
       <div class="stack-row"><span class="stack-label">v0.3 ✓</span><span class="stack-value">Pipeline + Paper Trading $100K</span></div>
-      <div class="stack-row"><span class="stack-label">v0.4 ●</span><span class="stack-value">Live Dashboard (сейчас)</span></div>
-      <div class="stack-row"><span class="stack-label">v0.4.5</span><span class="stack-value">Pixel Art боты + TEAM аним.</span></div>
+      <div class="stack-row"><span class="stack-label">v0.4 ✓</span><span class="stack-value">Live Dashboard + React Trades</span></div>
+      <div class="stack-row"><span class="stack-label">v0.4.5 ●</span><span class="stack-value">Pixel Art боты (сейчас)</span></div>
       <div class="stack-row"><span class="stack-label">v0.5</span><span class="stack-value">CopilotKit / AG-UI стриминг</span></div>
       <div class="stack-row"><span class="stack-label">v1.0</span><span class="stack-value">Go-Live ~2026-07-15</span></div>
       <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный</span></div>
