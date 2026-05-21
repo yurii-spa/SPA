@@ -107,6 +107,15 @@
   .bar-bg { background: #eee; border-radius: 4px; height: 5px; margin-top: 4px; overflow: hidden; }
   .bar-fill-t1 { background: #1D9E75; height: 100%; transition: width 0.5s; }
   .bar-fill-t2 { background: #7F77DD; height: 100%; transition: width 0.5s; }
+  .alert-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid #f0f0f0; font-size: 13px; }
+  .alert-row:last-child { border-bottom: none; }
+  .alert-sev { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; margin-top: 1px; }
+  .sev-info     { background: #E6F1FB; color: #185FA5; }
+  .sev-warning  { background: #FAEEDA; color: #BA7517; }
+  .sev-critical { background: #fee2e2; color: #B91C1C; }
+  .alert-msg { flex: 1; color: #333; line-height: 1.4; }
+  .alert-proto { font-size: 11px; color: #888; margin-top: 2px; }
+  .alerts-clear { text-align: center; padding: 20px 0; color: #3B6D11; font-size: 13px; }
   .conc-row { margin-bottom: 12px; }
   .conc-row:last-child { margin-bottom: 0; }
   .conc-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
@@ -395,6 +404,17 @@
     </div>
   </div>
 
+  <!-- Alerts panel -->
+  <div class="db-full">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🔔 мониторинг аномалий</span>
+      <span id="alerts-badge" style="font-size:11px;color:#888"></span>
+    </div>
+    <div id="alerts-body">
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+    </div>
+  </div>
+
   <div class="db-footer">SPA Paper Trading v0.4 · данные реальные, капитал виртуальный · обновляется каждые 4ч · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
 
 </div><!-- /tab-dashboard -->
@@ -508,14 +528,16 @@ async function loadDashboard() {
   if (spinner) spinner.style.display = 'inline-block';
   try {
     const ts = Date.now();
-    const [status, protocols, stratState, meta] = await Promise.all([
+    const [status, protocols, stratState, meta, alertsData] = await Promise.all([
       fetch(BASE + '/status.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/protocols.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/strategy_state.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/meta.json?_=' + ts).then(r => r.json()),
+      fetch(BASE + '/alerts.json?_=' + ts).then(r => r.json()).catch(() => ({ count: 0, alerts: [] })),
     ]);
     _loadedOnce = true;
     renderDashboard(status, protocols, stratState, meta);
+    renderAlerts(alertsData);
   } catch(e) {
     document.getElementById('health-badge').className = 'status-err';
     document.getElementById('health-badge').textContent = '⚠ Нет данных';
@@ -628,6 +650,41 @@ function renderDashboard(status, protocols, stratState, meta) {
 
   // APY chart
   buildApyChart(protocols, positions);
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+function renderAlerts(data) {
+  const body = document.getElementById('alerts-body');
+  const badge = document.getElementById('alerts-badge');
+  if (!body) return;
+  const alerts = (data && data.alerts) ? data.alerts : [];
+  if (alerts.length === 0) {
+    body.innerHTML = '<div class="alerts-clear">✓ аномалий не обнаружено</div>';
+    if (badge) badge.textContent = '0 событий';
+    return;
+  }
+  const critCount = alerts.filter(a => a.severity === 'CRITICAL').length;
+  const warnCount = alerts.filter(a => a.severity === 'WARNING').length;
+  if (badge) {
+    const parts = [];
+    if (critCount) parts.push(critCount + ' критических');
+    if (warnCount) parts.push(warnCount + ' предупреждений');
+    badge.textContent = parts.join(', ');
+    badge.style.color = critCount > 0 ? '#B91C1C' : '#BA7517';
+  }
+  const sevClass = { 'CRITICAL': 'sev-critical', 'WARNING': 'sev-warning', 'INFO': 'sev-info' };
+  body.innerHTML = alerts.map(a => {
+    const sev = a.severity || 'INFO';
+    const proto = a.protocol_key ? a.protocol_key.replace(/-/g, ' ') : 'pipeline';
+    const ts = a.timestamp ? a.timestamp.slice(0, 16).replace('T', ' ') + ' UTC' : '';
+    return `<div class="alert-row">
+      <span class="alert-sev ${sevClass[sev] || 'sev-info'}">${sev}</span>
+      <div class="alert-msg">
+        ${a.message}
+        <div class="alert-proto">${proto} · ${ts}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── Портфельный chart ────────────────────────────────────────────────────────
