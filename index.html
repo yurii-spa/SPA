@@ -171,7 +171,7 @@
       <span class="ms-name">Paper Trading $100K</span>
       <span class="ms-status done">✓ Готово</span>
     </div>
-  2 <div class="ms-item">
+    <div class="ms-item">
       <div class="ms-dot done">M3</div>
       <span class="ms-name">Monitor + Alerting</span>
       <span class="ms-status done">✓ Готово</span>
@@ -250,7 +250,7 @@
       <div class="kb-col-header">ГОТОВО <span class="kb-count">24</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Капитал $100K + авто-миграция позиций</div><span class="tag tag-paper">Paper Trading</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">DeFiLlama fetcher — 7 протоколов</div><span class="tag tag-data">Данные</span></div>
-    2 <div class="kb-card"><div class="kb-title strikethrough">SQLite schema + init_db</div><span class="tag tag-infra">Инфраструктура</span></div>
+      <div class="kb-card"><div class="kb-title strikethrough">SQLite schema + init_db</div><span class="tag tag-infra">Инфраструктура</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Risk Policy — 8 checks, 100% тесты</div><span class="tag tag-risk">Риск</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Paper Trading Engine (open/close/rebalance)</div><span class="tag tag-paper">Paper Trading</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Monitor + AlertEngine (M3)</div><span class="tag tag-infra">Инфраструктура</span></div>
@@ -271,7 +271,7 @@
       <div class="kb-card"><div class="kb-title strikethrough">README.md SPA_Claude</div><span class="tag tag-doc">Документация</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">DEV_STRATEGY_v1.0 написана</div><span class="tag tag-doc">Документация</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">GitHub Actions: cron каждые 4ч</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Первый 3 позиции открыты (live)</div><span class="tag tag-paper">Paper Trading</span></div>
+      <div class="kb-card"><div class="kb-title strikethrough">Первые 3 позиции открыты (live)</div><span class="tag tag-paper">Paper Trading</span></div>
     </div>
 
   </div>
@@ -411,7 +411,7 @@
       <div class="agent-name">Data Agent</div>
       <div class="agent-role">DeFiLlama · 7 протоколов</div>
       <span class="agent-status running">● работает</span>
-      <div class="agent-tasks">Каждый 4ч fetch APY/TVL<br>Сохраняет снапшоты в SQLite<br>→ MessageBus: data_fetched</div>
+      <div class="agent-tasks">Каждые 4ч fetch APY/TVL<br>Сохраняет снапшоты в SQLite<br>→ MessageBus: data_fetched</div>
     </div>
     <div class="agent-card">
       <span class="agent-avatar">📈</span>
@@ -727,7 +727,7 @@ function buildApyChart(protocols, positions) {
       }]
     },
     options: {
-  2   responsive: true,
+      responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
