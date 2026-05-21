@@ -198,6 +198,10 @@
   .stack-label { color: #888; font-size: 12px; }
   .stack-value { font-weight: 500; }
   .coming-soon { display: inline-block; font-size: 10px; background: #f3f0ff; color: #4c1d95; padding: 2px 7px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
+
+  /* ── Pixel Office v0.4.5 ── */
+  .office-wrap { background: #0d0d1a; border-radius: 12px; overflow: hidden; margin-bottom: 22px; border: 1px solid rgba(255,255,255,0.07); }
+  #spa-office { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
 </style>
 </head>
 <body>
@@ -482,11 +486,15 @@
 <!-- ══════════════════ TAB: КОМАНДА ══════════════════ -->
 <div id="tab-team" class="tab-pane">
 
-  <p class="section-label">АГЕНТ-КОМАНДА — архитектура v0.4.5</p>
+  <p class="section-label">АГЕНТ-КОМАНДА — офис v0.4.5</p>
 
-  <div class="team-grid">
+  <div class="office-wrap">
+    <canvas id="spa-office" width="640" height="400"></canvas>
+  </div>
+
+  <!-- HIDDEN legacy bot SVGs (kept for CSS animations, not shown) -->
+  <div style="display:none">
     <div class="agent-card">
-      <!-- DataBot: синий, собирает данные, антенна мигает медленно -->
       <svg class="pixel-bot bot-data" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="0" width="2" height="1" fill="#93C5FD" class="ant-data"/>
         <rect x="1" y="1" width="6" height="4" fill="#1e3a8a"/>
@@ -580,24 +588,7 @@
       <div class="agent-tasks">RiskPolicy.check_new_position<br>Финальное одобрение сделок<br>→ блокирует при нарушении</div>
     </div>
   </div>
-
-  <!-- Flow diagram -->
-  <div class="flow-diagram">
-    <div class="flow-title">поток данных — каждые 4 часа</div>
-    <div class="flow-row">
-      <div class="flow-node data">DeFiLlama<br><small>APY / TVL</small></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node active">Data Agent<br><small>fetch + store</small></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node active">Strategy Agent<br><small>rank + allocate</small></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node risk">CEO Agent<br><small>Risk Policy</small></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node active">PaperTrader<br><small>open/close</small></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node data">SQLite DB<br><small>+ JSON export</small></div>
-    </div>
-  </div>
+  </div><!-- /hidden legacy -->
 
   <!-- Stack -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -676,6 +667,7 @@ async function loadDashboard() {
 
 // ─── Рендер ───────────────────────────────────────────────────────────────────
 function renderDashboard(status, protocols, stratState, meta) {
+  window._spa_status = status; // exposed for office simulation
   const p = status.portfolio;
   const pt = status.paper_trading;
   const risk = status.risk;
@@ -978,6 +970,229 @@ document.getElementById('ts-subtitle').textContent = 'Проект · ' + nowStr
 
 // Авто-загрузка при открытии таба Dashboard
 // (данные грузятся только при переходе на таб, не при старте)
+
+// ─── Pixel Office simulation ─────────────────────────────────────────────────
+function initOffice() {
+  const canvas = document.getElementById('spa-office');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const CW = 640, CH = 400, T = 20;
+  let frame = 0;
+
+  const ACFG = {
+    data:     { col:'#3B82F6', dark:'#1e3a8a', light:'#93C5FD', name:'DataAgent' },
+    strategy: { col:'#10B981', dark:'#064e3b', light:'#34D399', name:'StrategyAgent' },
+    monitor:  { col:'#8B5CF6', dark:'#3B0764', light:'#C4B5FD', name:'MonitorAgent' },
+    ceo:      { col:'#F59E0B', dark:'#78350f', light:'#FCD34D', name:'CEOAgent' },
+  };
+  const DESKS = {
+    data:     { tx:2,  ty:2  }, strategy:{ tx:17, ty:2  },
+    monitor:  { tx:2,  ty:12 }, ceo:     { tx:17, ty:12 },
+  };
+  const SEATS = {
+    data:     { x:5*T,  y:8*T  }, strategy:{ x:20*T, y:8*T  },
+    monitor:  { x:5*T,  y:16*T }, ceo:     { x:20*T, y:16*T },
+  };
+  const SRV = { x:27*T, y:2*T };
+
+  const agents = {};
+  for (const id of ['data','strategy','monitor','ceo']) {
+    agents[id] = { id, x:SEATS[id].x, y:SEATS[id].y, tx:SEATS[id].x, ty:SEATS[id].y,
+      state:'idle', dir:'down', legPhase:0, stepTimer:0, bubble:'', onArrive:null };
+  }
+  const packets = [];
+
+  function refreshBubbles() {
+    try {
+      const s = window._spa_status || {};
+      const pf = s.portfolio || {}, rk = s.risk || {}, pts = s.positions || [];
+      const val = Math.round((pf.total_capital_usd||95000)/1000);
+      const pnl = Math.abs(Math.round(pf.total_pnl_usd||124));
+      const best = pts.length ? pts.reduce((m,p)=>p.current_apy>m?p.current_apy:m,0).toFixed(2) : '4.80';
+      agents.data.bubble     = '15 protos · best ' + best + '%';
+      agents.strategy.bubble = 'paper-v1 · ' + (pts.length||3) + ' positions';
+      agents.monitor.bubble  = 'VaR $' + Math.round(rk.var_usd||847) + ' · ' + (rk.health_approved!==false?'OK ✓':'WARN ⚠');
+      agents.ceo.bubble      = '$' + val + 'K · PnL +$' + pnl;
+    } catch(e) {
+      agents.data.bubble='15 protos · best 4.80%'; agents.strategy.bubble='paper-v1 · 3 positions';
+      agents.monitor.bubble='VaR $847 · OK ✓'; agents.ceo.bubble='$95K · PnL +$124';
+    }
+  }
+
+  function drawFloor() {
+    for (let r=1;r<19;r++) for (let c=1;c<31;c++) {
+      ctx.fillStyle = (r+c)%2===0 ? '#1a1a2e' : '#1d1d36';
+      ctx.fillRect(c*T, r*T, T, T);
+    }
+    // Carpet patches under desks
+    ctx.fillStyle = 'rgba(50,35,15,0.13)';
+    for (const {tx,ty} of Object.values(DESKS))
+      ctx.fillRect((tx-1)*T, ty*T, 8*T, 8*T);
+  }
+
+  function drawWalls() {
+    ctx.fillStyle = '#0c0c1a';
+    ctx.fillRect(0,0,CW,T); ctx.fillRect(0,19*T,CW,CH-19*T);
+    ctx.fillRect(0,0,T,CH); ctx.fillRect(31*T,0,CW-31*T,CH);
+    ctx.fillStyle='#1a1a38';
+    ctx.fillRect(T,T,30*T,2); ctx.fillRect(T,T,2,18*T);
+    ctx.fillRect(T,19*T-2,30*T,2); ctx.fillRect(31*T-2,T,2,18*T);
+  }
+
+  function drawDesk(id) {
+    const {tx,ty}=DESKS[id], x=tx*T, y=ty*T, dw=4*T, dh=2*T;
+    ctx.fillStyle='#3d2b1f'; ctx.fillRect(x,y,dw,dh);
+    ctx.fillStyle='#5c3d28'; ctx.fillRect(x+2,y+2,dw-4,dh/2);
+    ctx.fillStyle='#0d1f3c'; ctx.fillRect(x+dw/2-15,y-16,30,19);
+    ctx.fillStyle='#060a10'; ctx.fillRect(x+dw/2-13,y-14,26,15);
+    const sf=Math.floor(frame/25)%3;
+    ctx.fillStyle='#22c55e';
+    ctx.fillRect(x+dw/2-11,y-12,9+sf*3,2);
+    ctx.fillRect(x+dw/2-11,y-8,7,2);
+    ctx.fillRect(x+dw/2-11,y-4,11,2);
+    ctx.fillStyle='#1a1a1a'; ctx.fillRect(x+dw/2-5,y+1,10,3);
+    ctx.fillStyle='#2a2a2a'; ctx.fillRect(x+dw/2-10,y+dh-5,20,5);
+    ctx.fillStyle='#2a1a0f'; ctx.fillRect(x+2,y+dh,4,4); ctx.fillRect(x+dw-6,y+dh,4,4);
+  }
+
+  function drawServer() {
+    const x=SRV.x, y=SRV.y, sw=2*T, sh=4*T;
+    ctx.fillStyle='#111118'; ctx.fillRect(x,y,sw,sh);
+    ctx.fillStyle='#1c1c2a'; ctx.fillRect(x+2,y+2,sw-4,sh-4);
+    for (let i=0;i<7;i++) {
+      ctx.fillStyle='#2a2a38'; ctx.fillRect(x+3,y+3+i*8,sw-6,6);
+      ctx.fillStyle=(frame+i*13)%55<38?'#22c55e':'#0a1f10';
+      ctx.fillRect(x+sw-7,y+5+i*8,3,3);
+    }
+    ctx.font='6px monospace'; ctx.fillStyle='#4a4a6a'; ctx.textAlign='center';
+    ctx.fillText('DeFiLlama',x+sw/2,y+sh+9); ctx.textAlign='left';
+  }
+
+  function rrect(x,y,w,h,r){
+    ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+    ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h-r);
+    ctx.arcTo(x+w,y+h,x+w-r,y+h,r); ctx.lineTo(x+r,y+h);
+    ctx.arcTo(x,y+h,x,y+h-r,r); ctx.lineTo(x,y+r);
+    ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+  }
+
+  function drawBubble(cx,cy,text,acol) {
+    ctx.font='7px monospace';
+    const tw=ctx.measureText(text).width, bw=tw+12, bh=16;
+    let bx=Math.round(cx-bw/2), by=Math.round(cy-bh-7);
+    bx=Math.max(T+3,Math.min(CW-T-bw-3,bx)); by=Math.max(T+3,by);
+    ctx.fillStyle='rgba(8,8,22,0.93)'; ctx.strokeStyle=acol; ctx.lineWidth=1;
+    rrect(bx,by,bw,bh,3); ctx.fill(); ctx.stroke();
+    const tipX=Math.min(Math.max(cx,bx+8),bx+bw-8);
+    ctx.fillStyle='rgba(8,8,22,0.93)';
+    ctx.beginPath(); ctx.moveTo(tipX-4,by+bh); ctx.lineTo(tipX+4,by+bh); ctx.lineTo(tipX,by+bh+7); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=acol; ctx.lineWidth=0.7; ctx.stroke();
+    ctx.fillStyle='#d1d5db'; ctx.textAlign='left'; ctx.fillText(text,bx+6,by+11);
+  }
+
+  function drawAgent(ag) {
+    const ax=Math.round(ag.x), ay=Math.round(ag.y);
+    const {col,dark,light,name}=ACFG[ag.id];
+    const walk=ag.state==='walking', work=ag.state==='working';
+    ctx.save(); ctx.globalAlpha=0.28; ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.ellipse(ax,ay+9,7,3,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+    ctx.fillStyle=dark;
+    if (walk) {
+      ctx.fillRect(ax-4,ay+4+(ag.legPhase%2?2:0),4,6);
+      ctx.fillRect(ax+1,ay+4+(ag.legPhase%2?0:2),4,6);
+    } else { ctx.fillRect(ax-4,ay+5,4,5); ctx.fillRect(ax+1,ay+5,4,5); }
+    ctx.fillStyle=col; ctx.fillRect(ax-5,ay-2,10,8);
+    ctx.fillStyle=dark; ctx.fillRect(ax-4,ay-10,8,9);
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    if(ag.dir==='down'){ctx.fillRect(ax-3,ay-6,2,2);ctx.fillRect(ax+1,ay-6,2,2);}
+    else if(ag.dir==='up'){ctx.fillRect(ax-3,ay-9,2,2);ctx.fillRect(ax+1,ay-9,2,2);}
+    else if(ag.dir==='right'){ctx.fillRect(ax+2,ay-7,2,2);}
+    else{ctx.fillRect(ax-3,ay-7,2,2);}
+    const bo={data:0,strategy:13,monitor:26,ceo:39}[ag.id];
+    ctx.fillStyle=dark; ctx.fillRect(ax-1,ay-14,2,4);
+    ctx.fillStyle=(frame+bo)%45<30?light:'#1a1a1a'; ctx.fillRect(ax-1,ay-15,2,2);
+    if (work) { const tf=Math.floor(frame/5)%3; ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.fillRect(ax-5+tf,ay+3,9,2); }
+    const nlw=name.length*4.4+8;
+    ctx.fillStyle='rgba(5,5,20,0.82)'; ctx.fillRect(ax-nlw/2,ay+11,nlw,11);
+    ctx.fillStyle=col; ctx.font='7px monospace'; ctx.textAlign='center'; ctx.fillText(name,ax,ay+20); ctx.textAlign='left';
+    if (ag.bubble && ag.state!=='walking') drawBubble(ax,ay-17,ag.bubble,col);
+  }
+
+  function drawPacket(pkt) {
+    const dx=pkt.tx-pkt.x, dy=pkt.ty-pkt.y, dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<2){pkt.done=true;return;}
+    pkt.x+=(dx/dist)*2.5; pkt.y+=(dy/dist)*2.5;
+    const px=Math.round(pkt.x), py=Math.round(pkt.y);
+    ctx.save(); ctx.shadowColor=pkt.col; ctx.shadowBlur=10;
+    ctx.fillStyle=pkt.col; ctx.fillRect(px-5,py-5,10,10); ctx.restore();
+    ctx.fillStyle='#fff'; ctx.fillRect(px-2,py-2,4,4);
+  }
+
+  function walkTo(ag,tx,ty,cb){ag.tx=tx;ag.ty=ty;ag.state='walking';ag.onArrive=cb||null;}
+
+  function updateAgent(ag) {
+    if(ag.state!=='walking')return;
+    const dx=ag.tx-ag.x, dy=ag.ty-ag.y, dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<2){
+      ag.x=ag.tx;ag.y=ag.ty;ag.dir='down';ag.state='idle';
+      const cb=ag.onArrive;ag.onArrive=null;if(cb)cb();
+    } else {
+      ag.x+=(dx/dist)*1.6;ag.y+=(dy/dist)*1.6;
+      ag.stepTimer++;if(ag.stepTimer%8===0)ag.legPhase=(ag.legPhase+1)%4;
+      ag.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
+    }
+  }
+
+  function spawnPacket(a,b){packets.push({x:agents[a].x,y:agents[a].y,tx:agents[b].x,ty:agents[b].y,col:ACFG[a].col,done:false});}
+
+  function runCycle() {
+    const da=agents.data,sa=agents.strategy,ceo=agents.ceo;
+    if(da.state!=='idle')return;
+    walkTo(da,SRV.x+T,SRV.y+2*T,()=>{
+      da.state='working';
+      setTimeout(()=>{
+        walkTo(da,SEATS.data.x,SEATS.data.y,()=>{
+          da.state='working';
+          setTimeout(()=>{
+            spawnPacket('data','strategy'); da.state='idle';
+            sa.state='working';
+            setTimeout(()=>{
+              spawnPacket('strategy','ceo'); sa.state='idle';
+              ceo.state='working';
+              setTimeout(()=>{ceo.state='idle';},2500);
+            },3500);
+          },2000);
+        });
+      },1200);
+    });
+  }
+
+  function patrol() {
+    const mo=agents.monitor;
+    if(mo.state!=='idle'){setTimeout(patrol,900);return;}
+    const sp=[{x:10*T,y:10*T},{x:16*T,y:10*T},{x:13*T,y:6*T},{x:13*T,y:15*T},{x:8*T,y:13*T},{x:19*T,y:7*T},SEATS.monitor];
+    const s=sp[Math.floor(Math.random()*sp.length)];
+    walkTo(mo,s.x,s.y,()=>{mo.state='idle';setTimeout(patrol,1200+Math.random()*2500);});
+  }
+
+  function render() {
+    ctx.fillStyle='#0d0d1a'; ctx.fillRect(0,0,CW,CH);
+    drawFloor(); drawWalls();
+    for(const id of['data','strategy','monitor','ceo'])drawDesk(id);
+    drawServer();
+    for(const ag of Object.values(agents))updateAgent(ag);
+    const sorted=Object.values(agents).sort((a,b)=>a.y-b.y);
+    for(const ag of sorted)drawAgent(ag);
+    for(let i=packets.length-1;i>=0;i--){drawPacket(packets[i]);if(packets[i].done)packets.splice(i,1);}
+    frame++; requestAnimationFrame(render);
+  }
+
+  refreshBubbles(); setInterval(refreshBubbles,10000);
+  agents.strategy.state='working'; agents.ceo.state='working';
+  setTimeout(()=>{runCycle();setInterval(runCycle,18000);},2000);
+  patrol(); render();
+}
+initOffice();
 </script>
 </body>
 </html>
