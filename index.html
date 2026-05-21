@@ -568,7 +568,7 @@ function renderDashboard(status, protocols, stratState, meta) {
     posBody.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Нет открытых позиций</div>';
   } else {
     posBody.innerHTML = positions.map(pos => {
-      const tierBadge = pos.tier === 1
+      const tierBadge = pos.tier === 'T1'
         ? '<span class="badge-t1">T1</span>'
         : '<span class="badge-t2">T2</span>';
       const proto = pos.protocol_key.replace(/-/g,' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -607,17 +607,17 @@ function renderDashboard(status, protocols, stratState, meta) {
   if (positions.length > 0 && total > 0) {
     const concHtml = positions.map(pos => {
       const pct = ((pos.amount_usd / total) * 100);
-      const limitPct = pos.tier === 1 ? 40 : 20;
+      const limitPct = pos.tier === 'T1' ? 40 : 20;
       const barPct = Math.min(100, (pct / limitPct) * 100);
-      const tierBadge = pos.tier === 1 ? '<span class="badge-t1">T1</span>' : '<span class="badge-t2">T2</span>';
+      const tierBadge = pos.tier === 'T1' ? '<span class="badge-t1">T1</span>' : '<span class="badge-t2">T2</span>';
       const proto = pos.protocol_key.replace(/-/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-      const fillClass = pos.tier === 1 ? 'bar-fill-t1' : 'bar-fill-t2';
+      const fillClass = pos.tier === 'T1' ? 'bar-fill-t1' : 'bar-fill-t2';
       return `<div class="conc-row">
         <div class="conc-label"><span>${proto} ${tierBadge}</span><span>${pct.toFixed(1)}% <span class="gray">/ лимит ${limitPct}%</span></span></div>
         <div class="bar-bg"><div class="${fillClass}" style="width:${barPct}%"></div></div>
       </div>`;
     }).join('');
-    const t2total = positions.filter(p=>p.tier===2).reduce((s,p)=>s+p.amount_usd,0);
+    const t2total = positions.filter(p=>p.tier==='T2').reduce((s,p)=>s+p.amount_usd,0);
     const t2pct = ((t2total/total)*100).toFixed(1);
     const cashPctNum = ((p.cash_usd/total)*100).toFixed(1);
     document.getElementById('conc-body').innerHTML = concHtml + `<div style="font-size:12px;color:#888;margin-top:8px">T2 совокупно: ${t2pct}% / лимит 35% · cash: ${cashPctNum}% / min 5%</div>`;
@@ -712,7 +712,7 @@ function buildApyChart(protocols, positions) {
     return name.length > 18 ? name.slice(0, 16) + '…' : name;
   });
   const apys = active.map(p => p.apy_total);
-  const colors = active.map(p => openKeys.has(p.key) ? '#F0997B' : p.tier === 1 ? '#5DCAA5' : '#AFA9EC');
+  const colors = active.map(p => openKeys.has(p.key) ? '#F0997B' : p.tier === 'T1' ? '#5DCAA5' : '#AFA9EC');
 
   _apyChartInst = new Chart(ctx, {
     type: 'bar',
