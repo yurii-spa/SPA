@@ -14,6 +14,9 @@ import json
 import sys
 import argparse
 import logging
+import threading
+import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,6 +32,41 @@ log = logging.getLogger("spa.export")
 # data/ живёт рядом с index.html в корне репо (на уровень выше spa_core/)
 OUTPUT_DIR = Path(__file__).parent.parent / "data"
 
+_SPA_API = "http://localhost:8765"
+
+
+def _push_thought(
+    agent: str,
+    message: str,
+    event_type: str = "agent_thought",
+    data: dict | None = None,
+) -> None:
+    """
+    Fire-and-forget POST of an agent thought to the FastAPI SSE endpoint.
+
+    Non-blocking: runs in a daemon thread with a 2s timeout.
+    Silent on failure so export_data.py never breaks when server is down.
+    """
+    def _send() -> None:
+        try:
+            payload = json.dumps({
+                "agent":   agent,
+                "message": message,
+                "type":    event_type,
+                "data":    data or {},
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{_SPA_API}/api/agent/thought",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=2)
+        except Exception:
+            pass  # server not running — silent fail
+
+    threading.Thread(target=_send, daemon=True).start()
+
 
 def write_json(filename: str, data) -> None:
     path = OUTPUT_DIR / filename
@@ -40,9 +78,47 @@ def run_export(fetch: bool = False) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     db_path = get_db_path()
 
+    # ── Pipeline health tracking ──────────────────────────────────────────────
+    _export_start = time.time()
+    _health: dict = {
+        "timestamp":             datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "sections_run":          0,
+        "sections_ok":           0,
+        "sections_failed":       0,
+        "failed_sections":       [],
+        "total_pools_fetched":   0,
+        "pendle_pools_found":    0,
+        "export_duration_seconds": 0.0,
+        "next_run_eta":          "4h",
+    }
+
+    def _section_ok(name: str) -> None:
+        _health["sections_run"]   += 1
+        _health["sections_ok"]    += 1
+        log.debug(f"[health] section OK: {name}")
+
+    def _section_fail(name: str) -> None:
+        _health["sections_run"]    += 1
+        _health["sections_failed"] += 1
+        _health["failed_sections"].append(name)
+        log.debug(f"[health] section FAIL: {name}")
+
     # 1. Init DB (идемпотентно)
     init_database(db_path)
     log.info(f"DB: {db_path}")
+
+    # Start / confirm agent-stability clock (idempotent — no-op if already started)
+    try:
+        from paper_trading.stability_tracker import StabilityTracker
+        just_started = StabilityTracker().start_tracking()
+        if just_started:
+            log.info("StabilityTracker: clock started (first run)")
+        else:
+            log.debug("StabilityTracker: clock confirmed running")
+    except Exception as _st_exc:
+        log.warning(f"StabilityTracker: could not update ({_st_exc})")
+
+    _push_thought("DataAgent", "Export cycle starting… reading from SQLite DB")
 
     # 2. Опционально — свежие данные из DeFiLlama (включая Pendle PT)
     if fetch:
@@ -50,22 +126,34 @@ def run_export(fetch: bool = False) -> None:
         try:
             from data_pipeline.defillama_fetcher import DeFiLlamaFetcher
             fetcher = DeFiLlamaFetcher(db_path=db_path)
-            # Use fetch_with_pendle() so Pendle PT pools appear in the pool list
-            result = fetcher.fetch_with_pendle()
-            fetched      = len(result.get("pools", {}))
-            skipped      = len(result.get("skipped", []))
-            pendle_count = result.get("pendle_count", 0)
+            # Use fetch_pools_concurrent() — whitelist + Pendle run in parallel threads
+            t0 = time.time()
+            pools = fetcher.fetch_pools_concurrent()
+            print(f"[PERF] Fetched {len(pools)} pools in {time.time()-t0:.2f}s")
+            fetched      = len(pools)
+            pendle_count = sum(1 for p in pools if p.get("special") == "fixed_rate")
+            skipped      = 0
+            _health["total_pools_fetched"] = fetched
+            _health["pendle_pools_found"]  = pendle_count
             log.info(
                 f"DeFiLlama: {fetched} pools fetched "
                 f"({pendle_count} Pendle PT), {skipped} skipped"
+            )
+            _push_thought(
+                "DataAgent",
+                f"Fetching APY data from DeFiLlama… found {fetched} pools"
+                + (f" ({pendle_count} Pendle PT)" if pendle_count else ""),
+                data={"fetched": fetched, "pendle_count": pendle_count, "skipped": skipped},
             )
             # Also run the full SQLite ingestion cycle
             db_result = fetcher.fetch_all()
             errors = db_result.get("errors", 0)
             if errors:
                 log.warning(f"DeFiLlama DB ingestion: {errors} error(s)")
+            _section_ok("defillama_fetch")
         except Exception as e:
             log.error(f"DeFiLlama fetch failed (using cached): {e}")
+            _section_fail("defillama_fetch")
 
     # 3. Paper Trader: обновить PnL → ребалансировка → открыть позиции → экспорт статуса
     trader_logger = DecisionLogger(db_path, 'TraderAgent', strategy_id='paper-v1')
@@ -77,6 +165,11 @@ def run_export(fetch: bool = False) -> None:
     log.info(f"rebalance: {rebal_actions}")
     alloc_actions = trader.auto_allocate()
     log.info(f"auto_allocate: {alloc_actions}")
+    _push_thought(
+        "TraderAgent",
+        f"Running auto_allocate()… proposing {len(alloc_actions)} action(s)",
+        data={"actions": len(alloc_actions), "rebalance": len(rebal_actions)},
+    )
 
     # Pendle PT positions summary (from auto_allocate actions)
     pendle_actions = [a for a in alloc_actions if a.get("special") == "fixed_rate"
@@ -103,7 +196,88 @@ def run_export(fetch: bool = False) -> None:
             f"avg APY: {_avg_apy:.2f}%"
         )
 
+    # pendle_positions.json — fixed-rate PT positions with accrual detail
+    try:
+        from paper_trading.pendle_strategy import PendlePosition, build_pendle_position
+        pendle_records = []
+        for action in alloc_actions:
+            if action.get("action") != "OPEN_PENDLE_PT":
+                continue
+            # Reconstruct a PendlePosition from the action to get computed properties
+            pos = PendlePosition(
+                pool_id=action.get("protocol", "unknown"),
+                symbol=action.get("symbol") or "PT-STABLE",
+                chain=action.get("chain", "arbitrum"),
+                amount_usd=action.get("amount_usd", 0.0),
+                entry_apy=action.get("apy", 0.0),
+                entry_date=datetime.now(timezone.utc).date().isoformat(),
+                maturity_date=action.get("maturity_date"),
+                days_to_maturity=action.get("days_to_maturity") or 90,
+            )
+            pendle_records.append({
+                "pool_name":          pos.symbol,
+                "protocol":           action.get("protocol"),
+                "chain":              pos.chain,
+                "entry_apy":          round(pos.entry_apy, 4),
+                "amount_usd":         round(pos.amount_usd, 2),
+                "days_held":          pos.days_held,
+                "accrued_return_usd": round(pos.accrued_return_usd, 4),
+                "days_remaining":     pos.days_remaining,
+                "maturity_date":      pos.maturity_date,
+                "current_value_usd":  round(pos.current_value_usd, 4),
+                "is_near_maturity":   pos.is_near_maturity,
+                "t1_baseline_apy":    action.get("t1_baseline_apy"),
+                "apy_premium":        action.get("apy_premium"),
+                "tier":               "T2",
+                "special":            "fixed_rate",
+                "note":               action.get("note", "ADR-002 PROPOSED — paper only"),
+            })
+        write_json("pendle_positions.json", {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "count": len(pendle_records),
+            "positions": pendle_records,
+        })
+        log.info(f"pendle_positions.json: {len(pendle_records)} position(s)")
+        _section_ok("pendle_positions")
+    except Exception as e:
+        log.error(f"pendle_positions export failed: {e}", exc_info=True)
+        _section_fail("pendle_positions")
+        write_json("pendle_positions.json", {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "count": 0,
+            "positions": [],
+            "error": str(e),
+        })
+
     write_json("status.json", trader.get_status())
+    _section_ok("paper_trader")
+
+    # 3b. drift_report.json — portfolio allocation drift analysis
+    try:
+        _drift_state = trader._load_portfolio_state()
+        _drift_positions = [
+            {"protocol": p.protocol_key, "amount_usd": p.amount_usd}
+            for p in _drift_state.positions
+        ]
+        drift = trader.calculate_drift(_drift_positions, _drift_state.total_capital_usd)
+        needs_rebalance = trader.should_rebalance(_drift_positions, _drift_state.total_capital_usd)
+        with open(str(OUTPUT_DIR / "drift_report.json"), "w") as f:
+            json.dump({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "needs_rebalance": needs_rebalance,
+                "positions": drift,
+            }, f, indent=2)
+        log.info(f"drift_report.json: {len(drift)} positions, needs_rebalance={needs_rebalance}")
+        _section_ok("drift_report")
+    except Exception as e:
+        log.error(f"drift_report export failed: {e}", exc_info=True)
+        _section_fail("drift_report")
+        write_json("drift_report.json", {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "needs_rebalance": False,
+            "positions": [],
+            "error": str(e),
+        })
 
     # 4. protocols.json
     with get_connection(db_path) as conn:
@@ -125,6 +299,29 @@ def run_export(fetch: bool = False) -> None:
         """).fetchall()
     protocols_list = [dict(r) for r in rows]
     write_json("protocols.json", protocols_list)
+    _section_ok("protocols")
+
+    # 4a. APY history tracking
+    try:
+        from spa_core.analytics.apy_tracker import APYTracker
+        tracker = APYTracker()
+        try:
+            _pools_for_tracker = pools  # type: ignore[name-defined]
+        except NameError:
+            _pools_for_tracker = []
+        if _pools_for_tracker:
+            tracker.record_snapshot(_pools_for_tracker)
+        trends = tracker.all_trends(days=7)
+        with open(str(OUTPUT_DIR / "apy_trends.json"), "w") as f:
+            json.dump({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "trends": trends,
+                "protocols_tracked": len(trends),
+            }, f, indent=2)
+        _section_ok("apy_tracking")
+    except Exception as e:
+        _section_fail("apy_tracking")
+        log.error(f"apy_tracking export failed: {e}")
 
     # 4b. pools_by_chain.json + chains_status.json
     try:
@@ -173,8 +370,10 @@ def run_export(fetch: bool = False) -> None:
         })
         log.info(f"pools_by_chain.json + chains_status.json: {len(chain_stats)} chains, "
                  f"{sum(len(v) for v in pools_by_chain.values())} total pools")
+        _section_ok("pools_by_chain")
     except Exception as e:
         log.error(f"pools_by_chain/chains_status export failed: {e}", exc_info=True)
+        _section_fail("pools_by_chain")
         write_json("pools_by_chain.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_pools": 0, "chains": {}, "error": str(e),
@@ -185,65 +384,121 @@ def run_export(fetch: bool = False) -> None:
         })
 
     # 5. bus_stats.json
-    bus = MessageBus(db_path=db_path)
-    write_json("bus_stats.json", bus.stats())
+    try:
+        bus = MessageBus(db_path=db_path)
+        write_json("bus_stats.json", bus.stats())
+        _section_ok("bus_stats")
+    except Exception as e:
+        log.error(f"bus_stats export failed: {e}")
+        _section_fail("bus_stats")
+        write_json("bus_stats.json", {"generated_at": datetime.now(timezone.utc).isoformat(), "error": str(e)})
 
     # 6. strategy_state.json  (хронологический порядок для графиков)
-    with get_connection(db_path) as conn:
-        rows = conn.execute("""
-            SELECT timestamp, total_capital_usd, deployed_capital_usd,
-                   cash_usd, total_pnl_usd, total_pnl_pct,
-                   current_apy, trade_count
-            FROM strategy_state
-            WHERE strategy_id = 'paper-v1'
-            ORDER BY timestamp DESC LIMIT 48
-        """).fetchall()
-    write_json("strategy_state.json", list(reversed([dict(r) for r in rows])))
+    try:
+        with get_connection(db_path) as conn:
+            rows = conn.execute("""
+                SELECT timestamp, total_capital_usd, deployed_capital_usd,
+                       cash_usd, total_pnl_usd, total_pnl_pct,
+                       current_apy, trade_count
+                FROM strategy_state
+                WHERE strategy_id = 'paper-v1'
+                ORDER BY timestamp DESC LIMIT 48
+            """).fetchall()
+        write_json("strategy_state.json", list(reversed([dict(r) for r in rows])))
+        _section_ok("strategy_state")
+    except Exception as e:
+        log.error(f"strategy_state export failed: {e}")
+        _section_fail("strategy_state")
+        write_json("strategy_state.json", [])
 
     # 7. trades.json (последние 30 сделок)
-    with get_connection(db_path) as conn:
-        rows = conn.execute("""
-            SELECT trade_id, strategy_id, timestamp_open, timestamp_close,
-                   protocol_key, asset, action, amount_usd,
-                   apy_at_open, net_apy_annualized, pnl_usd, reason
-            FROM paper_trades
-            WHERE strategy_id = 'paper-v1'
-            ORDER BY timestamp_open DESC LIMIT 30
-        """).fetchall()
-    write_json("trades.json", [dict(r) for r in rows])
+    try:
+        with get_connection(db_path) as conn:
+            rows = conn.execute("""
+                SELECT trade_id, strategy_id, timestamp_open, timestamp_close,
+                       protocol_key, asset, action, amount_usd,
+                       apy_at_open, net_apy_annualized, pnl_usd, reason
+                FROM paper_trades
+                WHERE strategy_id = 'paper-v1'
+                ORDER BY timestamp_open DESC LIMIT 30
+            """).fetchall()
+        write_json("trades.json", [dict(r) for r in rows])
+        _section_ok("trades")
+    except Exception as e:
+        log.error(f"trades export failed: {e}")
+        _section_fail("trades")
+        write_json("trades.json", [])
 
     # 7b. pnl_history.json — полная кривая капитала (для графика за всё время)
-    with get_connection(db_path) as conn:
-        rows = conn.execute("""
-            SELECT timestamp, total_capital_usd, deployed_capital_usd,
-                   cash_usd, total_pnl_usd, total_pnl_pct,
-                   current_apy, trade_count
-            FROM strategy_state
-            WHERE strategy_id = 'paper-v1'
-            ORDER BY timestamp ASC
-        """).fetchall()
-    write_json("pnl_history.json", [dict(r) for r in rows])
+    try:
+        with get_connection(db_path) as conn:
+            rows = conn.execute("""
+                SELECT timestamp, total_capital_usd, deployed_capital_usd,
+                       cash_usd, total_pnl_usd, total_pnl_pct,
+                       current_apy, trade_count
+                FROM strategy_state
+                WHERE strategy_id = 'paper-v1'
+                ORDER BY timestamp ASC
+            """).fetchall()
+        write_json("pnl_history.json", [dict(r) for r in rows])
+        _section_ok("pnl_history")
+    except Exception as e:
+        log.error(f"pnl_history export failed: {e}")
+        _section_fail("pnl_history")
+        write_json("pnl_history.json", [])
 
     # 8. meta.json — время обновления
-    write_json("meta.json", {
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-        "version": "1.0.0",
-        "source": "github-actions" if fetch else "local",
-    })
-
-    # 8c. watch_list_status.json — Watch List protocol eligibility (Sky/sUSDS etc.)
     try:
-        from data_pipeline.sky_monitor import get_watch_list_status
+        write_json("meta.json", {
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "version": "1.0.0",
+            "source": "github-actions" if fetch else "local",
+        })
+        _section_ok("meta")
+    except Exception as e:
+        log.error(f"meta export failed: {e}")
+        _section_fail("meta")
+
+    # 8c. watch_list_status.json + sky_status.json — Watch List protocol eligibility
+    try:
+        from data_pipeline.sky_monitor import (
+            check_sky_status_live,
+            get_sky_allocation_pct,
+            export_sky_status_json,
+            get_watch_list_status,
+        )
+
+        # Live check (on-chain → API → manual fallback)
+        sky_live = check_sky_status_live()
+
+        # Export dedicated sky_status.json (includes gsm_hours, source, etc.)
+        export_sky_status_json(sky_live)
+        log.info(
+            f"sky_status.json: status={sky_live['status']}, "
+            f"gsm_hours={sky_live.get('gsm_hours')}, source={sky_live.get('source')}"
+        )
+
+        # Also write the legacy watch_list_status.json for dashboard compatibility
         write_json("watch_list_status.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "protocols": get_watch_list_status(),
+            "sky_live": sky_live,
+            "sky_allocation_pct": get_sky_allocation_pct(sky_live),
         })
         log.info("watch_list_status.json: written")
+        _section_ok("sky_status")
     except Exception as e:
-        log.error(f"watch_list_status export failed: {e}")
+        log.error(f"watch_list_status/sky_status export failed: {e}")
+        _section_fail("sky_status")
         write_json("watch_list_status.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "protocols": [],
+            "error": str(e),
+        })
+        write_json("sky_status.json", {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "status": "PENDING",
+            "source": "error",
             "error": str(e),
         })
 
@@ -274,8 +529,10 @@ def run_export(fetch: bool = False) -> None:
             f"Sharpe={result.metrics['sharpe_ratio']:.2f}, "
             f"source={data_source}"
         )
+        _section_ok("backtest_results")
     except Exception as e:
         log.error(f"backtest export failed: {e}", exc_info=True)
+        _section_fail("backtest_results")
         write_json("backtest_results.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "data_source": "error",
@@ -343,6 +600,7 @@ def run_export(fetch: bool = False) -> None:
         "protocols": protocols_hist,
     })
     log.info(f"historical_apy.json: {len(protocols_hist)} protocols, source={hist_source}")
+    _section_ok("historical_apy")
 
     # 8b. risk_alerts.json — RiskAgent: концентрация + просадка портфеля
     try:
@@ -413,8 +671,29 @@ def run_export(fetch: bool = False) -> None:
             "alerts": risk_alerts,
         })
         log.info(f"RiskAgent: {len(risk_alerts)} alerts (status={risk_alerts and risk_alerts[0]['severity'] or 'ok'})")
+        # Pull Sharpe / MaxDD from backtest if available for the thought message
+        try:
+            _bt = json.load(open(OUTPUT_DIR / "backtest_results.json"))
+            _sharpe = _bt.get("metrics", {}).get("sharpe_ratio", 0.0)
+            _maxdd  = _bt.get("metrics", {}).get("max_drawdown_pct", 0.0)
+            _push_thought(
+                "RiskAgent",
+                f"Checking portfolio health… Sharpe={_sharpe:.2f}, MaxDD={_maxdd:.1f}%"
+                + (f" · {len(risk_alerts)} alert(s)" if risk_alerts else " · all clear ✓"),
+                event_type="risk_alert" if risk_alerts else "agent_thought",
+                data={"alert_count": len(risk_alerts), "sharpe": _sharpe, "max_dd": _maxdd},
+            )
+        except Exception:
+            _push_thought(
+                "RiskAgent",
+                f"Checking portfolio health… {len(risk_alerts)} alert(s)",
+                event_type="risk_alert" if risk_alerts else "agent_thought",
+                data={"alert_count": len(risk_alerts)},
+            )
+        _section_ok("risk_alerts")
     except Exception as e:
         log.error(f"risk_alerts export failed: {e}")
+        _section_fail("risk_alerts")
         write_json("risk_alerts.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "count": 0, "status": "ok", "alerts": [], "error": str(e),
@@ -457,8 +736,10 @@ def run_export(fetch: bool = False) -> None:
                 for a in all_alerts
             ],
         })
+        _section_ok("alerts")
     except Exception as e:
         log.error(f"alerts export failed: {e}")
+        _section_fail("alerts")
         write_json("alerts.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "count": 0,
@@ -497,25 +778,58 @@ def run_export(fetch: bool = False) -> None:
     # 10b. Telegram alerts
     try:
         from alerts.telegram_sender import TelegramSender
+        from alerts.daily_report import DailyReportBuilder
+        from alerts.risk_monitor import RiskMonitor
+
         tg = TelegramSender()
-        if tg.available:
-            risk_data      = json.load(open(OUTPUT_DIR / "risk_alerts.json"))
+
+        # ── Immediate risk monitor (every run, fires alert if breach) ──────
+        try:
             portfolio_data = json.load(open(OUTPUT_DIR / "status.json"))
-            positions_data = portfolio_data.get("positions", [])
+            pnl_hist_data  = json.load(open(OUTPUT_DIR / "pnl_history.json"))
             portfolio_info = portfolio_data.get("portfolio", {})
+            positions_data = portfolio_data.get("positions", [])
 
-            if risk_data.get("count", 0) > 0:
-                ok = tg.send_risk_alert(risk_data["alerts"], portfolio_info)
-                log.info(f"Telegram risk alert: {'sent' if ok else 'failed'}")
+            monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+            fired = monitor.check_and_alert(portfolio_data, pnl_hist_data, tg)
+            log.info(f"RiskMonitor: {len(fired)} alert(s) checked/fired")
+        except Exception as e:
+            log.error(f"RiskMonitor failed: {e}")
+            portfolio_data = {}
+            portfolio_info = {}
+            positions_data = []
 
-            ok = tg.send_cycle_summary(portfolio_info, positions_data)
-            log.info(f"Telegram cycle summary: {'sent' if ok else 'failed'}")
+        if tg.available:
+            # ── 4h cycle summary (every run) ───────────────────────────────
+            try:
+                ok = tg.send_cycle_summary(portfolio_info, positions_data)
+                log.info(f"Telegram cycle summary: {'sent' if ok else 'failed'}")
+            except Exception as e:
+                log.error(f"Telegram cycle summary failed: {e}")
 
-            # Weekly go-live update (every Monday, first 4 hours UTC)
-            if datetime.now(timezone.utc).weekday() == 0 and datetime.now(timezone.utc).hour < 4:
-                golive = json.load(open(OUTPUT_DIR / "golive_readiness.json"))
-                ok = tg.send_golive_update(golive)
-                log.info(f"Telegram go-live update: {'sent' if ok else 'failed'}")
+            # ── Daily digest (once per UTC day) ────────────────────────────
+            try:
+                builder = DailyReportBuilder(data_dir=OUTPUT_DIR)
+                if builder.should_send_daily():
+                    msg = builder.build_report()
+                    ok  = tg.send(msg)
+                    log.info(f"Telegram daily report: {'sent' if ok else 'failed'}")
+                    if ok:
+                        builder.mark_sent()
+                else:
+                    log.info("Telegram daily report: already sent today, skipping")
+            except Exception as e:
+                log.error(f"Telegram daily report failed: {e}")
+
+            # ── Weekly go-live update (every Monday, first 4 hours UTC) ────
+            try:
+                now_utc = datetime.now(timezone.utc)
+                if now_utc.weekday() == 0 and now_utc.hour < 4:
+                    golive = json.load(open(OUTPUT_DIR / "golive_readiness.json"))
+                    ok = tg.send_golive_update(golive)
+                    log.info(f"Telegram go-live update: {'sent' if ok else 'failed'}")
+            except Exception as e:
+                log.error(f"Telegram go-live update failed: {e}")
 
     except Exception as e:
         log.error(f"Telegram alerts failed: {e}")
@@ -553,8 +867,10 @@ def run_export(fetch: bool = False) -> None:
             "paper_trading": status_v2.get("paper_trading", {}),
         })
         log.info(f"strategy_v2: {len(status_v2.get('positions', []))} positions")
+        _section_ok("strategy_v2")
     except Exception as e:
         log.error(f"strategy_v2 export failed: {e}", exc_info=True)
+        _section_fail("strategy_v2")
         write_json("strategy_v2.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "strategy_id": "paper-v2",
@@ -592,8 +908,10 @@ def run_export(fetch: bool = False) -> None:
             },
         })
         log.info("strategy_comparison: written")
+        _section_ok("strategy_comparison")
     except Exception as e:
         log.error(f"strategy_comparison export failed: {e}", exc_info=True)
+        _section_fail("strategy_comparison")
         write_json("strategy_comparison.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "strategies": {
@@ -664,10 +982,12 @@ def run_export(fetch: bool = False) -> None:
             f"optimization: {len(opt_result['recommendations'])} candidates, "
             f"{approved_count} approved by RiskPolicy, "
             f"expected_return={opt_result['portfolio_expected_return']:.2f}%, "
-            f"sharpe={opt_result['portfolio_sharpe']:.2f}"
+            f"sharpe={opt_resultK'portfolio_sharpe']:.2f}"
         )
+        _section_ok("optimization_recommendations")
     except Exception as e:
         log.error(f"optimization_recommendations export failed: {e}", exc_info=True)
+        _section_fail("optimization_recommendations")
         write_json("optimization_recommendations.json", {
             "generated_at":    datetime.now(timezone.utc).isoformat(),
             "policy_version":  "v1.0",
@@ -684,8 +1004,10 @@ def run_export(fetch: bool = False) -> None:
         pdf_path = generate_latest_report(str(OUTPUT_DIR), str(OUTPUT_DIR))
         log.info(f"PDF report: {pdf_path}")
         print(f"PDF report: {pdf_path}")
+        _section_ok("pdf_report")
     except Exception as e:
         log.error(f"PDF report generation failed: {e}", exc_info=True)
+        _section_fail("pdf_report")
 
     # 15. decision_log.json — agent decision audit trail
     try:
@@ -731,8 +1053,15 @@ def run_export(fetch: bool = False) -> None:
             "decisions": decisions_out,
         })
         log.info(f"decision_log.json: {len(decisions_out)} decisions")
+        _push_thought(
+            "ReportAgent",
+            f"Exporting JSON files… building daily report ({len(files_written)} files written)",
+            data={"files_written": len(files_written), "decisions": len(decisions_out)},
+        )
+        _section_ok("decision_log")
     except Exception as e:
         log.error(f"decision_log export failed: {e}", exc_info=True)
+        _section_fail("decision_log")
         write_json("decision_log.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_decisions": 0,
@@ -740,27 +1069,40 @@ def run_export(fetch: bool = False) -> None:
             "error": str(e),
         })
 
-    # 16. golive_readiness.json — automated go-live pre-flight check
+    # 16. golive_readiness.json — daily go-live pre-flight check
+    #     Delegates to daily_check.run_daily_golive_check() which:
+    #       • runs all 11 criteria via run_full_check()
+    #       • writes golive_readiness.json with criteria_passed / blocking_criteria
+    #       • prints the ASCII report card (visible in GitHub Actions log)
+    #       • sends a Telegram alert if the verdict has changed since last run
     try:
-        from golive.checklist import run_full_check
-        from golive.report_card import generate_report_card
-        golive = run_full_check(str(OUTPUT_DIR))
-        write_json("golive_readiness.json", golive)
-        print(generate_report_card(golive))   # visible in GitHub Actions log
-        log.info(f"golive_readiness: verdict={golive['verdict']} "
-                 f"({golive['summary']})")
+        from golive.daily_check import run_daily_golive_check
+        golive = run_daily_golive_check(str(OUTPUT_DIR))
+        log.info(
+            f"golive_readiness: verdict={golive['verdict']} "
+            f"({golive.get('criteria_passed', '?')}/{golive.get('criteria_total', '?')} criteria)"
+        )
+        _section_ok("golive_readiness")
     except Exception as e:
         log.error(f"golive_readiness export failed: {e}", exc_info=True)
+        _section_fail("golive_readiness")
+        from datetime import timedelta as _td
         write_json("golive_readiness.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "verdict":      "NOT_READY",
-            "verdict_emoji": "🔴",
-            "error":        str(e),
+            "generated_at":      datetime.now(timezone.utc).isoformat(),
+            "verdict":           "NOT_READY",
+            "verdict_emoji":     "🔴",
+            "criteria_passed":   0,
+            "criteria_total":    11,
+            "blocking_criteria": [],
+            "next_check_date":   (
+                datetime.now(timezone.utc).date() + _td(days=1)
+            ).isoformat(),
+            "error": str(e),
         })
 
     # 17. agent_summaries.json — LLM-generated portfolio commentary
     try:
-        from agents.llm_agent import TRADER_AGENT, RISK_AGENT
+        from agents.llm_agent import TRADE_AGENT, RISK_AGENT
         from agents.chat_handler import ChatHandler
         handler = ChatHandler(db_path=str(db_path), data_dir=str(OUTPUT_DIR))
         summaries = {
@@ -777,8 +1119,10 @@ def run_export(fetch: bool = False) -> None:
         log.info(
             f"agent_summaries.json written (used_llm={summaries['used_llm']})"
         )
+        _section_ok("agent_summaries")
     except Exception as e:
         log.error(f"agent_summaries export failed: {e}", exc_info=True)
+        _section_fail("agent_summaries")
         write_json("agent_summaries.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "used_llm": False,
@@ -787,7 +1131,7 @@ def run_export(fetch: bool = False) -> None:
             "error": str(e),
         })
 
-    # 18. tournament_results.json — strategy tournament (v1 vs v2 on same data)
+    # 18. tournament_results.json ℔ strategy tournament (v1 vs v2 on same data)
     try:
         from backtesting.tournament import StrategyTournament
         from backtesting.data_loader import load_from_defillama_api, generate_synthetic_history
@@ -812,8 +1156,10 @@ def run_export(fetch: bool = False) -> None:
             f"confidence={t_result.confidence} "
             f"scores={t_result.scores}"
         )
+        _section_ok("tournament_results")
     except Exception as e:
         log.error(f"tournament_results export failed: {e}", exc_info=True)
+        _section_fail("tournament_results")
         write_json("tournament_results.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "winner": "v1_passive",
@@ -841,7 +1187,7 @@ def run_export(fetch: bool = False) -> None:
 
         if len(equity_curve) >= 5:
             summary = portfolio_summary(equity_curve)
-            rolling = rolling_metrics(equity_curve, window=min(30, len(equity_curve)))
+            rolling = rolling_metrics(equity_curve, window=min 30, len(equity_curve)))
             write_json("advanced_analytics.json", {
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "summary": summary,
@@ -862,15 +1208,91 @@ def run_export(fetch: bool = False) -> None:
                 "note": "Insufficient data (< 5 points)",
             })
             log.info("advanced_analytics: insufficient data points")
+        _section_ok("advanced_analytics")
     except Exception as e:
         log.error(f"advanced_analytics export failed: {e}", exc_info=True)
+        _section_fail("advanced_analytics")
         write_json("advanced_analytics.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "summary": {},
-            "rolling_metrics": [],
+            "rolling_metrics":  [],
             "data_points": 0,
             "error": str(e),
         })
+
+    # 20. backtest_comparison.json — side-by-side v1_passive vs v2_aggressive (30d)
+    try:
+        from backtesting.scenario_runner import compare_scenarios
+
+        comparison = compare_scenarios(days=30)
+        write_json("backtest_comparison.json", {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "days": comparison["days"],
+            "seed": comparison["seed"],
+            "initial_capital": comparison["initial_capital"],
+            "winner": comparison["winner"],
+            "winner_metric": comparison["winner_metric"],
+            "delta": comparison["delta"],
+            "strategies": {
+                "v1_passive": {
+                    k: v for k, v in comparison["v1_passive"].items()
+                    if k != "equity_curve"
+                },
+                "v2_aggressive": {
+                    k: v for k, v in comparison["v2_aggressive"].items()
+                    if k != "equity_curve"
+                },
+            },
+            # Include last 10 days of each equity curve (keep JSON small)
+            "equity_curves": {
+                "v1_passive":    comparison["v1_passive"]["equity_curve"][-10:],
+                "v2_aggressive": comparison["v2_aggressive"]["equity_curve"][-10:],
+            },
+        })
+        log.info(
+            f"backtest_comparison: winner={comparison['winner']}, "
+            f"Δreturn={comparison['delta']['total_return']:+.2f}%, "
+            f"Δsharpe={comparison['delta']['sharpe']:+.4f}"
+        )
+        _section_ok("backtest_comparison")
+    except Exception as e:
+        log.error(f"backtest_comparison export failed: {e}", exc_info=True)
+        _section_fail("backtest_comparison")
+        write_json("backtest_comparison.json", {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "days": 30,
+            "winner": "v1_passive",
+            "winner_metric": "sharpe_ratio",
+            "delta": {},
+            "strategies": {},
+            "equity_curves": {},
+            "error": str(e),
+        })
+
+    # ── Pipeline health file ──────────────────────────────────────────────────
+    _health["export_duration_seconds"] = round(time.time() - _export_start, 2)
+    _health["timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        write_json("pipeline_health.json", _health)
+        log.info(
+            f"pipeline_health.json: {_health['sections_ok']} ok, "
+            f"{_health['sections_failed']} failed, "
+            f"pools={_health['total_pools_fetched']}, "
+            f"duration={_health['export_duration_seconds']}s"
+        )
+    except Exception as _he:
+        log.error(f"pipeline_health write failed: {_he}")
+
+    # ── Pipeline failure alert (if health shows problems) ─────────────────────
+    try:
+        if _health["sections_failed"] > 2 or _health["total_pools_fetched"] == 0:
+            from alerts.risk_monitor import RiskMonitor
+            from alerts.telegram_sender import TelegramSender
+            _monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+            _tg = TelegramSender()
+            _monitor.alert_pipeline_failure(_health, sender=_tg)
+    except Exception as _ae:
+        log.error(f"Pipeline failure alert dispatch failed: {_ae}")
 
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
