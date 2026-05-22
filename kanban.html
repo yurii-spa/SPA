@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPA Kanban Board</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #656d76;
+    --accent: #58a6ff;
+
+    --col-ideas: #a371f7;
+    --col-features: #388bfd;
+    --col-backlog: #656d76;
+    --col-in-progress: #e3b341;
+    --col-review: #d29922;
+    --col-done: #3fb950;
+
+    --tag-backend: #1f6feb;
+    --tag-frontend: #0d7377;
+    --tag-testing: #9e6a03;
+    --tag-docs: #444c56;
+    --tag-infra: #b62324;
+
+    --pri-high: #f85149;
+    --pri-med: #e3b341;
+    --pri-low: #656d76;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-title span.logo {
+    font-size: 18px;
+  }
+  .header-updated {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  /* ── Search ── */
+  .search-wrap {
+    flex: 1;
+    max-width: 320px;
+  }
+  .search-wrap input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap input::placeholder { color: var(--text-dim); }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 20px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stat .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .stat .count {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* ── Board ── */
+  .board {
+    display: flex;
+    gap: 12px;
+    padding: 16px 16px 40px;
+    overflow-x: auto;
+    align-items: flex-start;
+    min-height: calc(100vh - 100px);
+  }
+
+  /* ── Column ── */
+  .column {
+    flex: 0 0 280px;
+    min-width: 280px;
+    background: var(--surface);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 120px);
+  }
+  .col-header {
+    padding: 10px 14px;
+    border-radius: 9px 9px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .col-header .col-name {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .col-badge {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* column accent colors */
+  .col-ideas    .col-header { background: linear-gradient(135deg, #6e40c9 0%, #a371f7 100%); }
+  .col-features .col-header { background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%); }
+  .col-backlog  .col-header { background: linear-gradient(135deg, #3d444d 0%, #656d76 100%); }
+  .col-in-progress .col-header { background: linear-gradient(135deg, #9e6a03 0%, #e3b341 100%); }
+  .col-review   .col-header { background: linear-gradient(135deg, #9e6a03 0%, #d29922 100%); }
+  .col-done     .col-header { background: linear-gradient(135deg, #196c2e 0%, #3fb950 100%); }
+
+  /* pulsing dot for in-progress */
+  .col-in-progress .col-header::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    margin-right: 6px;
+    animation: pulse 1.5s ease-in-out infinite;
+    display: inline-block;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .4; transform: scale(.8); }
+  }
+
+  .col-cards {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 12px;
+    cursor: default;
+    transition: border-color .15s, transform .1s, box-shadow .15s;
+  }
+  .card:hover {
+    border-color: #484f58;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  }
+  .card.hidden { display: none; }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .card-title {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .card-estimate {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+  }
+
+  .card-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  /* Priority dot */
+  .pri-dot {
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Tags */
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    padding: 1px 5px;
+    letter-spacing: .02em;
+  }
+  .tag-backend  { background: rgba(31,111,235,.25); color: #58a6ff; }
+  .tag-frontend { background: rgba(13,115,119,.25); color: #39d353; }
+  .tag-testing  { background: rgba(158,106,3,.25);  color: #e3b341; }
+  .tag-docs     { background: rgba(68,76,86,.35);   color: #8b949e; }
+  .tag-infra    { background: rgba(182,35,36,.25);  color: #f85149; }
+
+  /* card ID */
+  .card-id {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 11px;
+    padding: 20px 10px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+  }
+
+  /* ── No results ── */
+  .no-results {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: none;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">
+    <span class="logo">⬡</span> SPA Kanban Board
+  </div>
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="Search cards by title or tag…" autocomplete="off">
+  </div>
+  <div class="header-updated" id="updated-label">Loading…</div>
+</div>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="stat"><span class="dot" style="background:var(--col-done)"></span><span class="count" id="cnt-done">–</span> Done</div>
+  <div class="stat"><span class="dot" style="background:var(--col-in-progress)"></span><span class="count" id="cnt-in-progress">–</span> In Progress</div>
+  <div class="stat"><span class="dot" style="background:var(--col-review)"></span><span class="count" id="cnt-review">–</span> Review</div>
+  <div class="stat"><span class="dot" style="background:var(--col-backlog)"></span><span class="count" id="cnt-backlog">–</span> Backlog</div>
+  <div class="stat"><span class="dot" style="background:var(--col-features)"></span><span class="count" id="cnt-features">–</span> Features</div>
+  <div class="stat"><span class="dot" style="background:var(--col-ideas)"></span><span class="count" id="cnt-ideas">–</span> Ideas</div>
+  <div class="stat" style="margin-left:auto;color:var(--text-dim);font-size:11px;" id="total-label"></div>
+</div>
+
+<div class="board" id="board"></div>
+<div class="no-results" id="no-results">No cards match your search</div>
+
+<script>
+const COLUMNS = [
+  { key: 'in_progress', label: 'In Progress', cls: 'col-in-progress' },
+  { key: 'review',      label: 'Review',      cls: 'col-review'      },
+  { key: 'backlog',     label: 'Backlog',     cls: 'col-backlog'     },
+  { key: 'features',    label: 'Features',    cls: 'col-features'    },
+  { key: 'ideas',       label: 'Ideas',       cls: 'col-ideas'       },
+  { key: 'done',        label: 'Done',        cls: 'col-done'        },
+];
+
+const PRI_DOT = { HIGH: '🔴', MEDIUM: '🟡', LOW: '⚪' };
+
+function timeAgo(isoStr) {
+  const ms = Date.now() - new Date(isoStr).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return m <= 1 ? 'just now' : `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function buildCard(item) {
+  const tags = (item.tags || [])
+    .map(t => `<span class="tag tag-${t}">${t}</span>`)
+    .join('');
+
+  return `
+    <div class="card"
+         data-title="${(item.title || '').toLowerCase()}"
+         data-tags="${(item.tags || []).join(' ').toLowerCase()}">
+      <div class="card-top">
+        <div class="card-title">${item.title || ''}</div>
+        <div class="card-estimate">${item.estimate || ''}</div>
+      </div>
+      <div class="card-desc">${item.description || ''}</div>
+      <div class="card-footer">
+        <span class="pri-dot" title="Priority: ${item.priority}">${PRI_DOT[item.priority] || '⚪'}</span>
+        ${tags}
+        <span class="card-id">${item.id}</span>
+      </div>
+    </div>`;
+}
+
+function buildColumn(col, items) {
+  const cards = items.length
+    ? items.map(buildCard).join('')
+    : `<div class="empty-state">No cards</div>`;
+
+  const pulseDot = col.key === 'in_progress'
+    ? ''
+    : '';
+
+  return `
+    <div class="column ${col.cls}" data-col="${col.key}">
+      <div class="col-header">
+        <span class="col-name">${col.label}</span>
+        <span class="col-badge" id="badge-${col.key}">${items.length}</span>
+      </div>
+      <div class="col-cards">${cards}</div>
+    </div>`;
+}
+
+function renderBoard(data) {
+  const board = document.getElementById('board');
+  board.innerHTML = COLUMNS
+    .map(col => buildColumn(col, data.columns[col.key] || []))
+    .join('');
+
+  // Stats bar
+  let total = 0;
+  COLUMNS.forEach(col => {
+    const n = (data.columns[col.key] || []).length;
+    total += n;
+    const el = document.getElementById(`cnt-${col.key}`);
+    if (el) el.textContent = n;
+  });
+  document.getElementById('total-label').textContent = `${total} total cards`;
+
+  // Updated label
+  document.getElementById('updated-label').textContent =
+    `Updated ${timeAgo(data.last_updated)} · by ${data.updated_by}`;
+}
+
+function applySearch(query) {
+  const q = query.trim().toLowerCase();
+  const cards = document.querySelectorAll('.card');
+  let visible = 0;
+
+  cards.forEach(card => {
+    if (!q) {
+      card.classList.remove('hidden');
+      visible++;
+      return;
+    }
+    const title = card.dataset.title || '';
+    const tags  = card.dataset.tags  || '';
+    if (title.includes(q) || tags.includes(q)) {
+      card.classList.remove('hidden');
+      visible++;
+    } else {
+      card.classList.add('hidden');
+    }
+  });
+
+  // Update badge counts while searching
+  document.querySelectorAll('.column').forEach(colEl => {
+    const key = colEl.dataset.col;
+    const visCount = colEl.querySelectorAll('.card:not(.hidden)').length;
+    const badge = document.getElementById(`badge-${key}`);
+    if (badge) badge.textContent = q ? visCount : (colEl.querySelectorAll('.card').length);
+  });
+
+  const noResults = document.getElementById('no-results');
+  noResults.style.display = (visible === 0 && q) ? 'block' : 'none';
+}
+
+// ── Init ──
+async function init() {
+  try {
+    const resp = await fetch('KANBAN.json?' + Date.now());
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    renderBoard(data);
+  } catch (err) {
+    document.getElementById('board').innerHTML =
+      `<div style="padding:40px;color:var(--text-muted);font-size:13px;">
+        ⚠️ Could not load KANBAN.json — ${err.message}<br>
+        <small style="color:var(--text-dim)">Make sure KANBAN.json is in the same directory as this file.</small>
+       </div>`;
+    document.getElementById('updated-label').textContent = 'Load failed';
+  }
+
+  document.getElementById('search').addEventListener('input', e => {
+    applySearch(e.target.value);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
