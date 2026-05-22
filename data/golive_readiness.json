@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-05-22T10:38:01.067251+00:00",
+  "generated_at": "2026-05-22T11:03:48.156067+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
   "days_remaining": 53,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
-  "summary": "6/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 2 failing (Strategy Sharpe, Agent Stability); 2 warning (Strategy Tournament, APY Gap)",
+  "summary": "6/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 3 failing (Strategy Sharpe, Strategy Tournament, Agent Stability); 1 warning (APY Gap)",
   "criteria": [
     {
       "name": "Paper Duration",
@@ -18,9 +18,9 @@
     {
       "name": "PnL Positive",
       "status": "PASS",
-      "value": 16.03,
+      "value": 16.22,
       "threshold": 0,
-      "note": "+$16.03 (+0.02%)"
+      "note": "+$16.22 (+0.02%)"
     },
     {
       "name": "No Critical Alerts",
@@ -79,10 +79,14 @@
     },
     {
       "name": "Strategy Tournament",
-      "status": "WARN",
-      "value": "unavailable",
+      "status": "FAIL",
+      "value": {
+        "winner": "v2_aggressive",
+        "v1_score": 0.15,
+        "v2_score": 0.85
+      },
       "threshold": "v1_passive winning or tied",
-      "note": "Tournament data unavailable \u2014 cannot evaluate"
+      "note": "v1_passive LOSING to v2_aggressive (scores: v1=0.150 vs v2=0.850, confidence: HIGH)"
     },
     {
       "name": "APY Gap",

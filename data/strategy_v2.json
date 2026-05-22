@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-22T10:38:01.047950+00:00",
+  "generated_at": "2026-05-22T11:03:48.137357+00:00",
   "strategy_id": "paper-v2",
   "strategy_name": "v2 \u2014 Growth Aggressive",
   "portfolio": {
@@ -7,7 +7,7 @@
     "deployed_usd": 60000.0,
     "cash_usd": 40000.0,
     "cash_pct": 0.4,
-    "total_pnl_usd": 0.0,
+    "total_pnl_usd": 0.13,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -16,7 +16,7 @@
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 5.11,
-      "unrealized_pnl_usd": 0.0,
+      "unrealized_pnl_usd": 0.04,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
     },
@@ -25,7 +25,7 @@
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 0.0,
+      "unrealized_pnl_usd": 0.04,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
     },
@@ -34,7 +34,7 @@
       "tier": "T1",
       "amount_usd": 30000.0,
       "current_apy": 4.0189,
-      "unrealized_pnl_usd": 0.0,
+      "unrealized_pnl_usd": 0.06,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
     }
@@ -51,7 +51,7 @@
       "amount_usd": 30000.0,
       "apy_at_open": 4.0189,
       "net_apy_annualized": 4.0189,
-      "pnl_usd": null,
+      "pnl_usd": 0.059147632351817914,
       "reason": null
     },
     {
@@ -65,7 +65,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 4.79533,
       "net_apy_annualized": 4.79533,
-      "pnl_usd": null,
+      "pnl_usd": 0.03528761762210721,
       "reason": null
     },
     {
@@ -79,7 +79,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 5.11,
       "net_apy_annualized": 5.11,
-      "pnl_usd": null,
+      "pnl_usd": 0.03760542177777779,
       "reason": null
     }
   ],
