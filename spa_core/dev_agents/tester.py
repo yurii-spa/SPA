@@ -109,7 +109,7 @@ class SpaTester:
             msg += f" · {summary['failed']} failed"
         if summary["errors"]:
             msg += f" · {summary['errors']} errors"
-        msg += f"\n⏵ {summary['duration_seconds']}s\n"
+        msg += f"\n⏱ {summary['duration_seconds']}s\n"
 
         if summary["failed_tests"]:
             msg += "\n<b>Failed:</b>\n"
