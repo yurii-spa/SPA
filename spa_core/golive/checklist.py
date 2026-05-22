@@ -4,21 +4,24 @@ All criteria must PASS before go-live is recommended.
 Owner (Yurii) makes final decision — this is advisory only.
 
 Criteria evaluated:
-  1. Paper trading duration  ≥ 50 days
-  2. PnL positive            total_pnl_usd > 0
-  3. No critical alerts      0 CRITICAL severity alerts
-  4. Strategy Sharpe ≥ 1.0   backtest sharpe_ratio
-  5. Policy unchanged        RiskConfig.version == "v1.0"
-  6. Max drawdown < 3%       portfolio total_drawdown_pct
-  7. Diversification         ≥ 2 protocols, none > 45%
-  8. Data freshness          last export < 6h ago
-  9. Wallet ready            Gnosis Safe + hot wallet setup (manual — always PENDING)
+  1.  Paper trading duration  ≥ 50 days
+  2.  PnL positive            total_pnl_usd > 0
+  3.  No critical alerts      0 CRITICAL severity alerts
+  4.  Strategy Sharpe ≥ 1.0   backtest sharpe_ratio
+  5.  Policy unchanged        RiskConfig.version == "v1.0"
+  6.  Max drawdown < 3%       portfolio total_drawdown_pct
+  7.  Diversification         ≥ 2 protocols, none > 45%
+  8.  Data freshness          last export < 6h ago
+  9.  Wallet ready            Gnosis Safe + hot wallet setup (manual — always PENDING)
+  10. Strategy tournament      v1_passive must be WINNING or TIED vs v2_aggressive
+  11. APY gap                  current APY within 2% of 7.3% target
+  12. Agent stability          ≥ 28 consecutive days of stable agent operation
 
 Verdict logic:
   READY        — all performance criteria PASS (or at most 1 WARN, no FAIL/PENDING
-                 on criteria 1–8); criterion 9 PENDING is acceptable for READY verdict
-  ALMOST_READY — ≤2 WARN on criteria 1–8, no FAIL, no PENDING on criteria 1–8
-  NOT_READY    — any FAIL or any PENDING on criteria 1–8
+                 on criteria 1–8, 10–12); criterion 9 PENDING is acceptable for READY verdict
+  ALMOST_READY — ≤2 WARN on performance criteria, no FAIL, no PENDING
+  NOT_READY    — any FAIL or any PENDING on performance criteria
   BLOCKED      — critical alerts OR negative PnL
 """
 
@@ -32,9 +35,11 @@ from typing import Any
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-GO_LIVE_DATE    = "2026-07-15"
+GO_LIVE_DATE     = "2026-07-15"
 PAPER_START_DATE = "2026-05-20"
-MIN_PAPER_DAYS  = 50   # minimum days of paper trading required
+MIN_PAPER_DAYS   = 56    # minimum days of paper trading required (8 weeks)
+APY_TARGET       = 7.3   # target annualised APY (%)
+APY_GAP_MAX      = 2.0   # maximum allowed deviation from APY_TARGET (%)
 
 _STATUS   = "status"
 _PASS     = "PASS"
@@ -77,17 +82,26 @@ def _parse_iso(ts: str) -> datetime:
 
 # ── Individual criteria ───────────────────────────────────────────────────────
 
+def days_remaining() -> int:
+    """Return days remaining until go-live target date (2026-07-15). Never negative."""
+    go_live_dt = datetime.fromisoformat(GO_LIVE_DATE).replace(tzinfo=timezone.utc)
+    return max(0, (go_live_dt - _today()).days)
+
+
 def check_paper_duration() -> dict:
-    """Days of paper trading elapsed ≥ MIN_PAPER_DAYS."""
+    """Days of paper trading elapsed ≥ MIN_PAPER_DAYS.
+
+    Start date is hardcoded as PAPER_START_DATE (2026-05-20) and requires
+    ≥ MIN_PAPER_DAYS (50) days of paper trading before PASS.
+    Any count below 50 is PENDING — never a hard FAIL, because being early
+    in the paper-trading period is expected, not a deployment blocker.
+    """
     start = datetime.fromisoformat(PAPER_START_DATE).replace(tzinfo=timezone.utc)
     elapsed = (_today() - start).days
 
     if elapsed >= MIN_PAPER_DAYS:
         status = _PASS
         note   = f"{elapsed} days elapsed ≥ {MIN_PAPER_DAYS}-day minimum"
-    elif elapsed < 14:
-        status = _FAIL
-        note   = f"Only {elapsed} days elapsed — too early to evaluate (< 14 days)"
     else:
         status = _PENDING
         note   = f"{elapsed}/{MIN_PAPER_DAYS} days elapsed — keep paper trading"
@@ -150,8 +164,11 @@ def check_no_critical_alerts(risk_data: dict) -> dict:
     )
 
 
+MIN_SHARPE = 2.0  # DEV_STRATEGY_v1.0 requires Sharpe ≥ 2.0 for go-live
+
+
 def check_strategy_performance(backtest_data: dict) -> dict:
-    """Backtest Sharpe ratio ≥ 1.0."""
+    """Backtest Sharpe ratio ≥ 2.0 (DEV_STRATEGY_v1.0 requirement)."""
     metrics = backtest_data.get("metrics", {})
     sharpe  = metrics.get("sharpe_ratio", None)
 
@@ -160,27 +177,27 @@ def check_strategy_performance(backtest_data: dict) -> dict:
             name      = "Strategy Sharpe",
             status    = _WARN,
             value     = None,
-            threshold = 1.0,
+            threshold = MIN_SHARPE,
             note      = "Backtest data unavailable — cannot evaluate Sharpe ratio",
         )
 
     sharpe = float(sharpe)
 
-    if sharpe >= 1.0:
+    if sharpe >= MIN_SHARPE:
         status = _PASS
-        note   = f"Sharpe: {sharpe:.2f} ≥ 1.0"
-    elif sharpe >= 0.5:
+        note   = f"Sharpe: {sharpe:.2f} ≥ {MIN_SHARPE}"
+    elif sharpe >= 1.0:
         status = _WARN
-        note   = f"Sharpe: {sharpe:.2f} — marginal (0.5 ≤ sharpe < 1.0)"
+        note   = f"Sharpe: {sharpe:.2f} — marginal (1.0 ≤ sharpe < {MIN_SHARPE})"
     else:
         status = _FAIL
-        note   = f"Sharpe: {sharpe:.2f} — below minimum 0.5"
+        note   = f"Sharpe: {sharpe:.2f} — below minimum {MIN_SHARPE}"
 
     return _criterion(
         name      = "Strategy Sharpe",
         status    = status,
         value     = round(sharpe, 4),
-        threshold = 1.0,
+        threshold = MIN_SHARPE,
         note      = note,
     )
 
@@ -221,7 +238,24 @@ def check_policy_unchanged() -> dict:
 
 
 def check_drawdown_acceptable(portfolio: dict) -> dict:
-    """Max drawdown must be < 3% (WARN 3-4%, FAIL > 4%)."""
+    """Max drawdown must be < 3% (WARN 3–5%, FAIL > 5%).
+
+    The FAIL threshold of 5% is aligned with RiskConfig.max_drawdown_stop — the
+    same value that triggers the kill switch in the live risk policy.  Using the
+    RiskConfig as single source of truth prevents the go-live check from using a
+    different (harder-coded) threshold than the engine's own circuit breaker.
+    """
+    # Read the kill-switch threshold from RiskConfig so there is one source of truth.
+    try:
+        import sys as _sys
+        _spa_core = str(Path(__file__).parent.parent)
+        if _spa_core not in _sys.path:
+            _sys.path.insert(0, _spa_core)
+        from risk.policy import RiskConfig as _RiskConfig
+        _max_drawdown_stop = _RiskConfig().max_drawdown_stop  # e.g. 0.05
+    except Exception:
+        _max_drawdown_stop = 0.05  # fallback if import fails
+
     drawdown = portfolio.get("total_drawdown_pct", 0.0) or 0.0
     drawdown = float(drawdown)
     pct_str  = f"{drawdown * 100:.2f}%"
@@ -229,24 +263,34 @@ def check_drawdown_acceptable(portfolio: dict) -> dict:
     if drawdown <= 0.03:
         status = _PASS
         note   = f"{pct_str} ≤ 3.0% threshold"
-    elif drawdown <= 0.04:
+    elif drawdown <= _max_drawdown_stop:
         status = _WARN
-        note   = f"{pct_str} — elevated (3.0–4.0% zone), monitor closely"
+        note   = (f"{pct_str} — elevated (3.0–{_max_drawdown_stop*100:.0f}% zone), "
+                  f"monitor closely (kill switch fires at {_max_drawdown_stop*100:.0f}%)")
     else:
         status = _FAIL
-        note   = f"{pct_str} exceeds 4.0% hard limit"
+        note   = (f"{pct_str} exceeds {_max_drawdown_stop*100:.0f}% hard limit "
+                  f"(RiskConfig.max_drawdown_stop)")
 
     return _criterion(
         name      = "Max Drawdown",
         status    = status,
         value     = round(drawdown, 6),
-        threshold = 0.03,
+        threshold = _max_drawdown_stop,
         note      = note,
     )
 
 
-def check_diversification(positions: list) -> dict:
-    """At least 2 protocols, no single protocol > 45% of portfolio."""
+def check_diversification(positions: list, total_capital: float = 0.0) -> dict:
+    """At least 2 protocols, no single protocol > 45% of total portfolio capital.
+
+    Args:
+        positions:      list of position dicts (each with protocol_key/protocol, amount_usd).
+        total_capital:  total portfolio capital in USD (deployed + cash).  When > 0
+                        concentration is measured against total capital — the correct
+                        denominator.  Falls back to deployed-only sum when omitted so
+                        callers that don't have total_capital still get a usable result.
+    """
     # Build per-protocol totals
     protocol_totals: dict[str, float] = {}
     total_deployed = 0.0
@@ -256,13 +300,18 @@ def check_diversification(positions: list) -> dict:
         protocol_totals[key] = protocol_totals.get(key, 0.0) + amt
         total_deployed += amt
 
+    # Use total_capital as denominator when available (fixes bug: concentration was
+    # measured against deployed-only capital, inflating percentages when cash is held).
+    # E.g. $30K in one protocol out of $100K total = 30%, not 30/40 = 75%.
+    denominator = total_capital if total_capital > 0 else total_deployed
+
     n_protocols = len(protocol_totals)
     max_conc_pct = 0.0
     max_conc_proto = "—"
 
-    if total_deployed > 0:
+    if denominator > 0:
         for proto, amt in protocol_totals.items():
-            frac = amt / total_deployed
+            frac = amt / denominator
             if frac > max_conc_pct:
                 max_conc_pct = frac
                 max_conc_proto = proto
@@ -288,13 +337,166 @@ def check_diversification(positions: list) -> dict:
     )
 
 
-def check_wallet_ready() -> dict:
+def check_tournament_winner(tournament_data: dict) -> dict:
+    """Criterion 10: strategy tournament — v1_passive must be WINNING or TIED.
+
+    Reads from data/tournament_results.json (written by export_data.py section 18).
+    Ties are defined as scores within 0.001 of each other.
+    """
+    winner     = tournament_data.get("winner")
+    scores     = tournament_data.get("scores", {})
+    confidence = tournament_data.get("confidence", "UNKNOWN")
+
+    if not winner:
+        return _criterion(
+            name      = "Strategy Tournament",
+            status    = _WARN,
+            value     = "unavailable",
+            threshold = "v1_passive winning or tied",
+            note      = "Tournament data unavailable — cannot evaluate",
+        )
+
+    v1_score = float(scores.get("v1_passive", 0.0) or 0.0)
+    v2_score = float(scores.get("v2_aggressive", 0.0) or 0.0)
+    tied     = abs(v1_score - v2_score) < 0.001
+
+    if winner == "v1_passive" or tied:
+        status = _PASS
+        result_str = "TIED" if tied else "WINNING"
+        note   = (
+            f"v1_passive {result_str} "
+            f"(scores: v1={v1_score:.3f} vs v2={v2_score:.3f}, "
+            f"confidence: {confidence})"
+        )
+    else:
+        status = _FAIL
+        note   = (
+            f"v1_passive LOSING to {winner} "
+            f"(scores: v1={v1_score:.3f} vs v2={v2_score:.3f}, "
+            f"confidence: {confidence})"
+        )
+
+    return _criterion(
+        name      = "Strategy Tournament",
+        status    = status,
+        value     = {"winner": winner, "v1_score": round(v1_score, 4),
+                     "v2_score": round(v2_score, 4)},
+        threshold = "v1_passive winning or tied",
+        note      = note,
+    )
+
+
+def check_apy_gap(analytics_data: dict, portfolio: dict) -> dict:
+    """Criterion 11: APY gap — current APY must be within APY_GAP_MAX (2%) of APY_TARGET (7.3%).
+
+    Prefers annualised_return_pct from advanced_analytics.json summary;
+    falls back to current_apy from portfolio (status.json).
+
+    PASS  — gap ≤ 2.0 pp
+    WARN  — gap 2.0–3.0 pp
+    FAIL  — gap > 3.0 pp
+    """
+    # Prefer annualised return from advanced analytics
+    summary     = analytics_data.get("summary", {}) if analytics_data else {}
+    current_apy = summary.get("annualised_return_pct")
+    source      = "annualised_return"
+
+    # Fall back to portfolio current_apy
+    if current_apy is None:
+        current_apy = portfolio.get("current_apy")
+        source      = "portfolio_current_apy"
+
+    if current_apy is None:
+        return _criterion(
+            name      = "APY Gap",
+            status    = _WARN,
+            value     = None,
+            threshold = f"within {APY_GAP_MAX}% of {APY_TARGET}% target",
+            note      = "APY data unavailable — cannot evaluate (no analytics or portfolio data)",
+        )
+
+    current_apy = float(current_apy)
+    gap         = abs(current_apy - APY_TARGET)
+    gap_sign    = "above" if current_apy > APY_TARGET else "below"
+
+    if gap <= APY_GAP_MAX:
+        status = _PASS
+        note   = (
+            f"APY {current_apy:.2f}% — {gap:.2f}pp {gap_sign} "
+            f"{APY_TARGET}% target (source: {source})"
+        )
+    elif gap <= 3.0:
+        status = _WARN
+        note   = (
+            f"APY {current_apy:.2f}% — {gap:.2f}pp {gap_sign} "
+            f"{APY_TARGET}% target (limit: {APY_GAP_MAX}pp, source: {source})"
+        )
+    else:
+        status = _FAIL
+        note   = (
+            f"APY {current_apy:.2f}% — {gap:.2f}pp {gap_sign} "
+            f"{APY_TARGET}% target (limit: {APY_GAP_MAX}pp, source: {source})"
+        )
+
+    return _criterion(
+        name      = "APY Gap",
+        status    = status,
+        value     = round(current_apy, 4),
+        threshold = f"within {APY_GAP_MAX}% of {APY_TARGET}%",
+        note      = note,
+    )
+
+
+
+def check_agent_stability(data_dir: str | None = None) -> dict:
+    """Criterion 12: \u2265 28 consecutive days of stable agent operation.
+
+    Reads from data/stability_tracking.json via StabilityTracker.
+    Clock starts on first successful export run (or at paper-trading start).
+
+    PASS  \u2014 days >= 28
+    WARN  \u2014 14 <= days < 28
+    FAIL  \u2014 days < 14 (or tracking not started)
+    """
+    try:
+        import sys as _sys
+        _spa_core = str(Path(__file__).parent.parent)
+        if _spa_core not in _sys.path:
+            _sys.path.insert(0, _spa_core)
+        from paper_trading.stability_tracker import StabilityTracker
+
+        state_file = (
+            Path(data_dir) / "stability_tracking.json"
+            if data_dir
+            else None
+        )
+        result = StabilityTracker(state_file=state_file).check_criterion()
+        return _criterion(
+            name      = "Agent Stability",
+            status    = result["status"],
+            value     = result["days"],
+            threshold = result["target"],
+            note      = result["message"],
+        )
+    except Exception as exc:
+        return _criterion(
+            name      = "Agent Stability",
+            status    = _WARN,
+            value     = None,
+            threshold = 28,
+            note      = f"Could not evaluate agent stability: {exc}",
+        )
+
+_WALLET_SENTINEL = Path(__file__).parent.parent.parent / "data" / "wallet_ready.sentinel"
+
+
+def check_wallet_ready(data_dir: str | None = None) -> dict:
     """
     Criterion 9: Gnosis Safe and hot wallet infrastructure is set up.
 
-    This criterion is ALWAYS PENDING — it is a manual setup task that cannot
-    be auto-verified by reading data files. Yurii must complete all items in
-    docs/v2_activation_checklist.md (Section B) and manually confirm readiness.
+    Returns PASS if data/wallet_ready.sentinel exists (written by activate.py
+    after the owner types "I CONFIRM LIVE TRADING" and all 11 criteria pass).
+    Returns PENDING otherwise — manual setup required.
 
     Severity: WARN (not FAIL) — wallet setup is a deployment prerequisite, not
     a performance criterion. It does NOT block the READY verdict on its own.
@@ -307,8 +509,21 @@ def check_wallet_ready() -> dict:
       - Private key NOT in git history
 
     Returns:
-        Criterion dict with status=PENDING and note pointing to the checklist.
+        Criterion dict with status=PASS (sentinel exists) or PENDING (not yet).
     """
+    sentinel = (
+        Path(data_dir) / "wallet_ready.sentinel"
+        if data_dir
+        else _WALLET_SENTINEL
+    )
+    if sentinel.exists():
+        return _criterion(
+            name      = "Wallet Ready",
+            status    = _PASS,
+            value     = "verified",
+            threshold = "manual_setup",
+            note      = "wallet_ready.sentinel present — wallet infrastructure confirmed by owner",
+        )
     return _criterion(
         name      = "Wallet Ready",
         status    = _PENDING,
@@ -364,9 +579,10 @@ def _compute_verdict(criteria: list[dict]) -> tuple[str, str]:
 
     Criterion 9 (Wallet Ready) is a WARN-class criterion — its PENDING status
     does NOT trigger NOT_READY on its own. It is excluded from the
-    performance-based verdict evaluation (criteria 1–8).
+    performance-based verdict evaluation.
+    Criteria 1–8, 10, 11 are all performance criteria and ARE evaluated.
     """
-    # Split criteria: performance criteria (1–8) vs setup criteria (9+)
+    # Split criteria: performance criteria (1–8, 10, 11) vs setup criteria (9)
     SETUP_CRITERIA = {"Wallet Ready"}
     perf_criteria  = [c for c in criteria if c["name"] not in SETUP_CRITERIA]
 
@@ -416,12 +632,11 @@ def _build_summary(criteria: list[dict]) -> str:
 def _build_recommendation(verdict: str, criteria: list[dict]) -> tuple[str, bool]:
     """Return (recommendation_text, owner_action_required)."""
     today      = _today()
-    go_live_dt = datetime.fromisoformat(GO_LIVE_DATE).replace(tzinfo=timezone.utc)
     start_dt   = datetime.fromisoformat(PAPER_START_DATE).replace(tzinfo=timezone.utc)
     elapsed    = (today - start_dt).days
 
     # When will duration criterion pass?
-    duration_pass_dt = start_dt + timedelta(days=MIN_PAPER_DAYS)
+    duration_pass_dt  = start_dt + timedelta(days=MIN_PAPER_DAYS)
     duration_pass_str = duration_pass_dt.strftime("%Y-%m-%d")
 
     if verdict == "READY":
@@ -466,9 +681,9 @@ def _build_recommendation(verdict: str, criteria: list[dict]) -> tuple[str, bool
 
 def run_full_check(data_dir: str) -> dict:
     """
-    Run all 9 go-live readiness criteria against JSON data files in data_dir.
+    Run all 12 go-live readiness criteria against JSON data files in data_dir.
 
-    Criteria 1–8 are performance-based and auto-verified from data files.
+    Criteria 1–8, 10–12 are performance-based and auto-verified from data files.
     Criterion 9 (Wallet Ready) is a manual setup task — always PENDING.
     Criterion 9 PENDING does NOT block the READY verdict; it is advisory.
 
@@ -478,25 +693,33 @@ def run_full_check(data_dir: str) -> dict:
     now = _today()
 
     # ── Load data files (all optional — degrade gracefully) ──────────────────
-    status_data   = _load_json(data_dir, "status.json")   or {}
-    alerts_data   = _load_json(data_dir, "risk_alerts.json") or {}
-    backtest_data = _load_json(data_dir, "backtest_results.json") or {}
+    status_data      = _load_json(data_dir, "status.json")            or {}
+    alerts_data      = _load_json(data_dir, "risk_alerts.json")       or {}
+    backtest_data    = _load_json(data_dir, "backtest_results.json")  or {}
+    tournament_data  = _load_json(data_dir, "tournament_results.json") or {}
+    analytics_data   = _load_json(data_dir, "advanced_analytics.json") or {}
 
-    portfolio  = status_data.get("portfolio", {})
-    positions  = status_data.get("positions", [])
+    portfolio    = status_data.get("portfolio", {})
+    positions    = status_data.get("positions", [])
     generated_at = status_data.get("timestamp") or now.isoformat()
 
-    # ── Run all 9 criteria ───────────────────────────────────────────────────
+    # ── Run all 11 criteria ──────────────────────────────────────────────────
     criteria = [
-        check_paper_duration(),
-        check_pnl_positive(portfolio),
-        check_no_critical_alerts(alerts_data),
-        check_strategy_performance(backtest_data),
-        check_policy_unchanged(),
-        check_drawdown_acceptable(portfolio),
-        check_diversification(positions),
-        check_data_freshness(generated_at),
-        check_wallet_ready(),             # Criterion 9 — manual, always PENDING
+        check_paper_duration(),                           # 1
+        check_pnl_positive(portfolio),                    # 2
+        check_no_critical_alerts(alerts_data),            # 3
+        check_strategy_performance(backtest_data),        # 4
+        check_policy_unchanged(),                         # 5
+        check_drawdown_acceptable(portfolio),             # 6
+        check_diversification(                            # 7
+            positions,
+            total_capital=float(portfolio.get("total_capital_usd", 0.0) or 0.0),
+        ),
+        check_data_freshness(generated_at),               # 8
+        check_wallet_ready(),                             # 9 — manual, always PENDING
+        check_tournament_winner(tournament_data),         # 10
+        check_apy_gap(analytics_data, portfolio),         # 11
+        check_agent_stability(data_dir),                  # 12
     ]
 
     # ── Verdict ──────────────────────────────────────────────────────────────
@@ -505,14 +728,13 @@ def run_full_check(data_dir: str) -> dict:
     recommendation, owner_action = _build_recommendation(verdict, criteria)
 
     # ── Days remaining until go-live ─────────────────────────────────────────
-    go_live_dt     = datetime.fromisoformat(GO_LIVE_DATE).replace(tzinfo=timezone.utc)
-    days_remaining = max(0, (go_live_dt - now).days)
+    dr = days_remaining()
 
     return {
         "generated_at":          now.isoformat(),
         "verdict":               verdict,
         "verdict_emoji":         verdict_emoji,
-        "days_remaining":        days_remaining,
+        "days_remaining":        dr,
         "go_live_date":          GO_LIVE_DATE,
         "paper_start_date":      PAPER_START_DATE,
         "min_paper_days":        MIN_PAPER_DAYS,
