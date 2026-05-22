@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-05-22T10:38:00.641269+00:00",
+  "count": 1,
+  "status": "warning",
+  "alerts": [
+    {
+      "severity": "warning",
+      "type": "concentration",
+      "protocol": "aave-v3-usdc-ethereum",
+      "message": "\u041a\u043e\u043d\u0446\u0435\u043d\u0442\u0440\u0430\u0446\u0438\u044f 40.0% \u043f\u0440\u0438\u0431\u043b\u0438\u0436\u0430\u0435\u0442\u0441\u044f \u043a \u043b\u0438\u043c\u0438\u0442\u0443 45%",
+      "amount_usd": 40000.0,
+      "pct": 40.0
+    }
+  ]
+}

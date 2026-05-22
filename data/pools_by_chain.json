@@ -1,0 +1,120 @@
+{
+  "generated_at": "2026-05-22T10:37:57.234870+00:00",
+  "total_pools": 12,
+  "chains": {
+    "ethereum": [
+      {
+        "key": "aave-v3-usdc-ethereum",
+        "protocol": "Aave V3",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "ethereum",
+        "apy_total": 4.0189,
+        "tvl_usd": 149345454.0
+      },
+      {
+        "key": "compound-v3-usdc-ethereum",
+        "protocol": "Compound V3",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "ethereum",
+        "apy_total": 3.54622,
+        "tvl_usd": 33171769.0
+      },
+      {
+        "key": "morpho-usdc-ethereum",
+        "protocol": "Morpho",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "ethereum",
+        "apy_total": 3.76385,
+        "tvl_usd": 111661216.0
+      },
+      {
+        "key": "yearn-v3-usdc-ethereum",
+        "protocol": "Yearn V3",
+        "asset": "USDC",
+        "tier": "T2",
+        "chain": "ethereum",
+        "apy_total": 3.41104,
+        "tvl_usd": 27825507.0
+      },
+      {
+        "key": "maple-usdc-ethereum",
+        "protocol": "Maple Finance",
+        "asset": "USDC",
+        "tier": "T2",
+        "chain": "ethereum",
+        "apy_total": 4.79533,
+        "tvl_usd": 3300162496.0
+      },
+      {
+        "key": "euler-v2-usdc-ethereum",
+        "protocol": "Euler V2",
+        "asset": "USDC",
+        "tier": "T2",
+        "chain": "ethereum",
+        "apy_total": 2.15079,
+        "tvl_usd": 28875770.0
+      },
+      {
+        "key": "sky-susds-ethereum",
+        "protocol": "Sky/sUSDS",
+        "asset": "USDS",
+        "tier": "WL",
+        "chain": "ethereum",
+        "apy_total": 3.65,
+        "tvl_usd": 5681017851.0
+      }
+    ],
+    "arbitrum": [
+      {
+        "key": "aave-v3-usdc-arbitrum",
+        "protocol": "Aave V3",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "arbitrum",
+        "apy_total": 2.98484,
+        "tvl_usd": 22431684.0
+      },
+      {
+        "key": "compound-v3-usdc-arbitrum",
+        "protocol": "Compound V3",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "arbitrum",
+        "apy_total": null,
+        "tvl_usd": null
+      },
+      {
+        "key": "pendle-pt-usdc-arbitrum",
+        "protocol": "Pendle PT",
+        "asset": "PT-USDC",
+        "tier": "T2",
+        "chain": "arbitrum",
+        "apy_total": null,
+        "tvl_usd": null
+      }
+    ],
+    "base": [
+      {
+        "key": "aave-v3-usdc-base",
+        "protocol": "Aave V3",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "base",
+        "apy_total": 3.12683,
+        "tvl_usd": 29671526.0
+      },
+      {
+        "key": "morpho-usdc-base",
+        "protocol": "Morpho",
+        "asset": "USDC",
+        "tier": "T1",
+        "chain": "base",
+        "apy_total": null,
+        "tvl_usd": null
+      }
+    ]
+  }
+}

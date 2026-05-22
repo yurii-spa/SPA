@@ -1,0 +1,104 @@
+{
+  "generated_at": "2026-05-22T10:38:01.067251+00:00",
+  "verdict": "NOT_READY",
+  "verdict_emoji": "\ud83d\udd34",
+  "days_remaining": 53,
+  "go_live_date": "2026-07-15",
+  "paper_start_date": "2026-05-20",
+  "min_paper_days": 56,
+  "summary": "6/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 2 failing (Strategy Sharpe, Agent Stability); 2 warning (Strategy Tournament, APY Gap)",
+  "criteria": [
+    {
+      "name": "Paper Duration",
+      "status": "PENDING",
+      "value": 2,
+      "threshold": 56,
+      "note": "2/56 days elapsed \u2014 keep paper trading"
+    },
+    {
+      "name": "PnL Positive",
+      "status": "PASS",
+      "value": 16.03,
+      "threshold": 0,
+      "note": "+$16.03 (+0.02%)"
+    },
+    {
+      "name": "No Critical Alerts",
+      "status": "PASS",
+      "value": 0,
+      "threshold": 0,
+      "note": "0 critical alerts (1 warnings)"
+    },
+    {
+      "name": "Strategy Sharpe",
+      "status": "FAIL",
+      "value": -18.7241,
+      "threshold": 2.0,
+      "note": "Sharpe: -18.72 \u2014 below minimum 2.0"
+    },
+    {
+      "name": "Policy v1.0",
+      "status": "PASS",
+      "value": "v1.0",
+      "threshold": "v1.0",
+      "note": "RiskConfig v1.0 active \u2014 no unapproved changes"
+    },
+    {
+      "name": "Max Drawdown",
+      "status": "PASS",
+      "value": 0.0,
+      "threshold": 0.05,
+      "note": "0.00% \u2264 3.0% threshold"
+    },
+    {
+      "name": "Diversification",
+      "status": "PASS",
+      "value": {
+        "protocols": 3,
+        "max_concentration": 0.4
+      },
+      "threshold": {
+        "min_protocols": 2,
+        "max_single_pct": 0.45
+      },
+      "note": "3 protocols, max concentration 40% (aave-v3-usdc-ethereum)"
+    },
+    {
+      "name": "Data Freshness",
+      "status": "PASS",
+      "value": "0.0h ago",
+      "threshold": "< 6h",
+      "note": "Updated 0.0h ago"
+    },
+    {
+      "name": "Wallet Ready",
+      "status": "PENDING",
+      "value": "not_verified",
+      "threshold": "manual_setup",
+      "note": "Manual setup required \u2014 cannot auto-verify. Complete Section B of docs/v2_activation_checklist.md: Gnosis Safe creation, hot wallet setup, Safe delegate configuration, and GitHub Secrets (SAFE_ADDRESS, WALLET_ADDRESS)."
+    },
+    {
+      "name": "Strategy Tournament",
+      "status": "WARN",
+      "value": "unavailable",
+      "threshold": "v1_passive winning or tied",
+      "note": "Tournament data unavailable \u2014 cannot evaluate"
+    },
+    {
+      "name": "APY Gap",
+      "status": "WARN",
+      "value": null,
+      "threshold": "within 2.0% of 7.3% target",
+      "note": "APY data unavailable \u2014 cannot evaluate (no analytics or portfolio data)"
+    },
+    {
+      "name": "Agent Stability",
+      "status": "FAIL",
+      "value": 0.0,
+      "threshold": 28,
+      "note": "Stability tracking not yet started \u2014 call start_tracking()"
+    }
+  ],
+  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (54 days away). Review again after 2026-07-15.",
+  "owner_action_required": false
+}

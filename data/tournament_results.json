@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-05-22T10:38:01.385004+00:00",
+  "winner": "v2_aggressive",
+  "confidence": "HIGH",
+  "recommendation": "v2_aggressive recommended: superior Sharpe (-11.94 vs -18.72); higher return (0.82% vs 0.74%)",
+  "scores": {
+    "v1_passive": 0.15,
+    "v2_aggressive": 0.85
+  },
+  "metrics": {
+    "v1_passive": {
+      "sharpe_ratio": -18.7241,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.7449,
+      "annualised_return_pct": 3.0555,
+      "win_rate": 1.0,
+      "total_trades": 7,
+      "avg_position_size_usd": 27956.11,
+      "initial_capital_usd": 100000,
+      "final_capital_usd": 100744.88,
+      "total_interest_usd": 744.88,
+      "backtest_days": 90
+    },
+    "v2_aggressive": {
+      "sharpe_ratio": -11.9385,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.821,
+      "annualised_return_pct": 3.3716,
+      "win_rate": 1.0,
+      "total_trades": 7,
+      "avg_position_size_usd": 27219.13,
+      "initial_capital_usd": 100000,
+      "final_capital_usd": 100820.99,
+      "total_interest_usd": 820.99,
+      "backtest_days": 90
+    }
+  }
+}
