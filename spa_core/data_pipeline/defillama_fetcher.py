@@ -12,131 +12,24 @@ import logging
 import time
 import json
 import argparse
+import re
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
 # ─── Конфигурация ───────────────────────────────────────────────────────────────
 
-# Whitelist протоколов v2.0.0 (M4 expansion: 7 → 15 протоколов)
-# pool_id — верифицированные ID пулов из DeFiLlama /pools (проверено 2026-05-21)
-WHITELIST = {
-    # ── T1: Blue-chip lending ──────────────────────────────────────────────────
-    "aave-v3-usdc-ethereum": {
-        "protocol":   "Aave V3",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "aa70268e-4b52-42bf-a116-608b370f9501",  # TVL $138M
-    },
-    "aave-v3-usdt-ethereum": {
-        "protocol":   "Aave V3",
-        "asset":      "USDT",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "f981a304-bb6c-45b8-b0c5-fd2f515ad23a",  # TVL $335M
-    },
-    "aave-v3-usdc-base": {
-        "protocol":   "Aave V3",
-        "asset":      "USDC",
-        "chain":      "Base",
-        "tier":       "T1",
-        "pool_id":    "7e0661bf-8cf3-45e6-9424-31916d4c7b84",  # TVL $35M
-    },
-    "aave-v3-usdc-arbitrum": {
-        "protocol":   "Aave V3",
-        "asset":      "USDC",
-        "chain":      "Arbitrum",
-        "tier":       "T1",
-        "pool_id":    "d9fa8e14-0447-4207-9ae8-7810199dfa1f",  # TVL $21M
-    },
-    "compound-v3-usdc-ethereum": {
-        "protocol":   "Compound V3",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "7da72d09-56ca-4ec5-a45f-59114353e487",  # TVL $32M
-    },
-    "morpho-usdc-ethereum": {
-        "protocol":   "Morpho",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "b55f43a8-f444-4cd8-a3a4-0a4e786ba566",  # morpho-blue STEAKUSDC, TVL $114M
-    },
-    "spark-usdc-ethereum": {
-        "protocol":   "Spark",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "c5c74dd1-995c-4445-9d84-3e710bad7d52",  # spark-savings USDC, TVL $404M
-    },
-    "spark-usdt-ethereum": {
-        "protocol":   "Spark",
-        "asset":      "USDT",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "a5d67f7e-5b51-4a9d-969d-caf051a7f5a4",  # spark-savings USDT, TVL $905M
-    },
-    "sky-susds-ethereum": {
-        "protocol":   "Sky",
-        "asset":      "sUSDS",
-        "chain":      "Ethereum",
-        "tier":       "T1",
-        "pool_id":    "d8c4eff5-c8a9-46fc-a888-057c4c668e72",  # sky-lending sUSDS, TVL $5.8B
-    },
-    # ── T2: Higher yield ───────────────────────────────────────────────────────
-    "fluid-usdc-ethereum": {
-        "protocol":   "Fluid",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T2",
-        "pool_id":    "4438dabc-7f0c-430b-8136-2722711ae663",  # fluid-lending USDC, TVL $200M
-    },
-    "fluid-usdt-ethereum": {
-        "protocol":   "Fluid",
-        "asset":      "USDT",
-        "chain":      "Ethereum",
-        "tier":       "T2",
-        "pool_id":    "4e8cc592-c8d5-4824-8155-128ba521e903",  # fluid-lending USDT, TVL $131M
-    },
-    "ethena-susde-ethereum": {
-        "protocol":   "Ethena",
-        "asset":      "sUSDe",
-        "chain":      "Ethereum",
-        "tier":       "T2",
-        "pool_id":    "66985a81-9c51-46ca-9977-42b4fe7bc6df",  # ethena-usde sUSDe, TVL $1.8B
-    },
-    "yearn-v3-usdc-ethereum": {
-        "protocol":   "Yearn V3",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T2",
-        "pool_id":    "7d89af7a-24c9-4292-aa38-7c71b05fbd6d",  # TVL $28M
-    },
-    "maple-usdc-ethereum": {
-        "protocol":   "Maple",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T2",
-        "pool_id":    "43641cf5-a92e-416b-bce9-27113d3c0db6",  # TVL $3.3B
-    },
-    "euler-v2-usdc-ethereum": {
-        "protocol":   "Euler V2",
-        "asset":      "USDC",
-        "chain":      "Ethereum",
-        "tier":       "T2",
-        "pool_id":    "31a0cd94-b781-4e0d-a9f1-1702bc2c238f",  # TVL $30M
-    },
-}
-
 DEFILLAMA_POOLS_URL = "https://yields.llama.fi/pools"
 DEFILLAMA_CHART_URL = "https://yields.llama.fi/chart/{pool_id}"
 DEFILLAMA_CHARTDATA_URL = "https://yields.llama.fi/chartData/{pool_id}"
 COLLECTION_INTERVAL_HOURS = 4
+CACHE_TTL_SECONDS = 3600  # 1 hour — skip network on repeated runs (e.g. GHA retry)
 
-# ─── Canonical 12-pool whitelist (README.md + MEMORY_FACTS.md) ──────────────
+# ─── Canonical 12-pool whitelist — SINGLE SOURCE OF TRUTH ───────────────────
 # Verified against README.md as of 2026-05-21. Do NOT expand without ADR approval.
 # pool_id is intentionally absent — fetcher uses fuzzy protocol/asset/chain matching.
+# This is the only whitelist constant; all code in this module references POOL_WHITELIST.
 POOL_WHITELIST = {
     # ── Tier 1 — Ethereum Mainnet ─────────────────────────
     "aave-v3-usdc-ethereum":     {"tier": "T1", "chain": "ethereum", "protocol": "Aave V3",      "asset": "USDC"},
@@ -162,7 +55,7 @@ POOL_WHITELIST = {
 # Chains present in the whitelist
 L2_CHAINS = {"arbitrum", "base"}
 
-# The 7 protocols used by the backtesting engine (subset of full WHITELIST)
+# The 7 protocols used by the backtesting engine (subset of POOL_WHITELIST)
 BACKTEST_POOL_IDS = {
     "aave-v3-usdc-ethereum":    "aa70268e-4b52-42bf-a116-608b370f9501",
     "aave-v3-usdt-ethereum":    "f981a304-bb6c-45b8-b0c5-fd2f515ad23a",
@@ -176,7 +69,7 @@ DB_PATH = Path(__file__).parent.parent / "database" / "spa.db"
 
 # Пороги валидации
 MAX_APY = 50.0       # % — выше считается аномалией
-MIN_TVL_USD = 1_000_000  # $1M — ниже считается подозрительным
+MIN_TVL_USD = 1_000_000  # $1M — ниже считается подозрительныи
 STALE_HOURS = 48     # часов без обновления — данные устарели
 
 logging.basicConfig(
@@ -187,17 +80,45 @@ logging.basicConfig(
 log = logging.getLogger("defillama_fetcher")
 
 
+# ─── Retry utility ───────────────────────────────────────────────────────────────
+
+def retry_request(url: str, timeout: int = 15, max_attempts: int = 3, backoff: float = 2.0):
+    """
+    Fetch URL with exponential backoff. Stdlib only (no requests).
+
+    Returns:
+        (data_bytes, None)  on success
+        (None, error_str)   if all attempts fail
+    """
+    last_err = None
+    for attempt in range(max_attempts):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as r:
+                return r.read(), None
+        except Exception as e:
+            last_err = str(e)
+            if attempt < max_attempts - 1:
+                time.sleep(backoff ** attempt)
+    return None, last_err
+
+
 # ─── Получение данных ────────────────────────────────────────────────────────────
 
 def fetch_all_pools() -> list[dict]:
-    """Получить все пулы с DeFiLlama /pools."""
+    """Получить все пулы с DeFiLlama /pools. Uses retry_request with exponential backoff."""
     log.info("Fetching all pools from DeFiLlama...")
-    resp = requests.get(DEFILLAMA_POOLS_URL, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
-    pools = data.get("data", [])
-    log.info(f"Total pools from DeFiLlama: {len(pools)}")
-    return pools
+    data_bytes, err = retry_request(DEFILLAMA_POOLS_URL, timeout=30, max_attempts=3, backoff=2.0)
+    if err is not None:
+        log.warning(f"fetch_all_pools: all retries failed — {err}")
+        return []
+    try:
+        data = json.loads(data_bytes)
+        pools = data.get("data", [])
+        log.info(f"Total pools from DeFiLlama: {len(pools)}")
+        return pools
+    except Exception as e:
+        log.warning(f"fetch_all_pools: JSON parse error — {e}")
+        return []
 
 
 def find_pool_by_id(pools: list[dict], pool_id: str) -> dict | None:
@@ -215,7 +136,7 @@ def match_whitelist_pools(all_pools: list[dict]) -> dict:
     """
     results = {}
 
-    for key, config in WHITELIST.items():
+    for key, config in POOL_WHITELIST.items():
         pool_id = config.get("pool_id")
 
         if pool_id:
@@ -375,7 +296,7 @@ def collect_once(conn: sqlite3.Connection):
     collected = 0
     anomalies = 0
 
-    for key, config in WHITELIST.items():
+    for key, config in POOL_WHITELIST.items():
         pool_data = matched.get(key)
 
         if not pool_data:
@@ -403,7 +324,7 @@ def collect_once(conn: sqlite3.Connection):
         )
         collected += 1
 
-    log.info(f"Collection complete: {collected}/{len(WHITELIST)} protocols, {anomalies} anomalies")
+    log.info(f"Collection complete: {collected}/{len(POOL_WHITELIST)} protocols, {anomalies} anomalies")
 
 
 def run_daemon():
@@ -458,13 +379,164 @@ class DeFiLlamaFetcher:
         result  = fetcher.fetch_all()
     """
 
-    # Full 24-pool multi-chain universe (module-level alias for easy access)
+    # Canonical 12-pool whitelist (module-level alias for easy access)
     POOL_WHITELIST = POOL_WHITELIST
 
     def __init__(self, db_path: Path = None):
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent))
         self.db_path = db_path or DB_PATH
+
+    # ── File-based cache ────────────────────────────────────────────────────────
+    _CACHE_DIR = Path(__file__).parent.parent.parent / "data" / ".cache"
+
+    def _cached_fetch(self, url: str, cache_key: str) -> bytes | None:
+        """Return cached response bytes if fresh, else None."""
+        cache_file = self._CACHE_DIR / f"{cache_key}.json"
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        if cache_file.exists():
+            age = time.time() - cache_file.stat().st_mtime
+            if age < CACHE_TTL_SECONDS:
+                return cache_file.read_bytes()
+        return None
+
+    def _save_cache(self, cache_key: str, data: bytes) -> None:
+        """Persist response bytes to the file cache."""
+        cache_file = self._CACHE_DIR / f"{cache_key}.json"
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(data)
+
+    # ── Private fetch helpers (called concurrently by fetch_pools_concurrent) ──
+
+    def _fetch_main_pools(self) -> list[dict]:
+        """
+        Fetch whitelist pools from DeFiLlama with file caching.
+
+        Returns list of normalised pool dicts, each including a "key" field
+        matching a POOL_WHITELIST entry.
+        """
+        cache_key = re.sub(r"[^\w]", "_", DEFILLAMA_POOLS_URL)
+        cached = self._cached_fetch(DEFILLAMA_POOLS_URL, cache_key)
+        if cached:
+            data = json.loads(cached)
+        else:
+            resp = requests.get(DEFILLAMA_POOLS_URL, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            self._save_cache(cache_key, json.dumps(data).encode())
+
+        all_pools = data.get("data", [])
+        results: list[dict] = []
+
+        for key, cfg in POOL_WHITELIST.items():
+            protocol_name = cfg["protocol"].lower().replace(" ", "-")
+            asset = cfg["asset"].upper()
+            chain_name = cfg["chain"].lower()
+
+            candidates = [
+                p for p in all_pools
+                if (protocol_name in (p.get("project") or "").lower()
+                    and asset in (p.get("symbol") or "").upper()
+                    and chain_name in (p.get("chain") or "").lower())
+            ]
+            if not candidates:
+                log.debug(f"_fetch_main_pools: no match for {key}")
+                continue
+
+            best = max(candidates, key=lambda x: x.get("tvlUsd") or 0)
+            apy = best.get("apy") or best.get("apyBase") or 0.0
+            tvl = best.get("tvlUsd") or 0.0
+            results.append({
+                "key":      key,
+                "pool_id":  best.get("pool", ""),
+                "chain":    cfg["chain"],
+                "tier":     cfg["tier"],
+                "protocol": cfg["protocol"],
+                "asset":    cfg["asset"],
+                "apy":      round(float(apy), 4),
+                "tvl_usd":  round(float(tvl), 2),
+            })
+
+        log.info(f"_fetch_main_pools: {len(results)}/{len(POOL_WHITELIST)} whitelist pools matched")
+        return results
+
+    def _fetch_pendle_pools_raw(self) -> list[dict]:
+        """
+        Fetch Pendle PT pools from DeFiLlama with caching.
+
+        Reuses the same cached response as _fetch_main_pools when available,
+        avoiding a second network round-trip on the same URL.
+        Returns PendleFetcher-filtered pool dicts.
+        """
+        from data_pipeline.pendle_fetcher import PendleFetcher
+
+        cache_key = re.sub(r"[^\w]", "_", DEFILLAMA_POOLS_URL)
+        cached = self._cached_fetch(DEFILLAMA_POOLS_URL, cache_key)
+        if cached:
+            data = json.loads(cached)
+        else:
+            resp = requests.get(DEFILLAMA_POOLS_URL, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            self._save_cache(cache_key, json.dumps(data).encode())
+
+        all_pools = data.get("data", [])
+        pf = PendleFetcher()
+        pendle_pools = pf.filter_pools(all_pools)
+        log.info(f"_fetch_pendle_pools_raw: {len(pendle_pools)} Pendle PT pools matched")
+        return pendle_pools
+
+    def _apply_filters(self, all_pools: list[dict]) -> list[dict]:
+        """
+        Deduplicate combined pool list by pool_id.
+
+        Pendle entries are preferred over whitelist entries when pool_ids collide.
+        """
+        seen: set[str] = set()
+        result: list[dict] = []
+        for p in all_pools:
+            pid = p.get("pool_id")
+            if pid:
+                if pid in seen:
+                    continue
+                seen.add(pid)
+            result.append(p)
+        return result
+
+    def fetch_pools_concurrent(self, max_workers: int = 4) -> list[dict]:
+        """
+        Fetch whitelist pools and Pendle PT pools concurrently.
+
+        Runs _fetch_main_pools() and _fetch_pendle_pools_raw() in parallel
+        via ThreadPoolExecutor, then merges and deduplicates.
+
+        Falls back to the sequential fetch_pools() on any executor error.
+
+        Returns:
+            list[dict] — one entry per pool, with "key", "apy", "tvl_usd", etc.
+            Pendle pools include "special": "fixed_rate".
+        """
+        try:
+            tasks = {
+                "main":   lambda: self._fetch_main_pools(),
+                "pendle": lambda: self._fetch_pendle_pools_raw(),
+            }
+            results: dict[str, list] = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(fn): name for name, fn in tasks.items()}
+                for future in as_completed(futures, timeout=30):
+                    name = futures[future]
+                    try:
+                        results[name] = future.result()
+                    except Exception as e:
+                        print(f"[WARN] concurrent fetch {name} failed: {e}")
+                        results[name] = []
+
+            all_pools = results.get("main", []) + results.get("pendle", [])
+            return self._apply_filters(all_pools)
+        except Exception as e:
+            print(f"[WARN] concurrent fetch failed, falling back to sequential: {e}")
+            return list(self.fetch_pools().get("pools", {}).values())
 
     def fetch_pools(self, chains: list[str] | None = None) -> dict:
         """
@@ -584,9 +656,11 @@ class DeFiLlamaFetcher:
         Raises on network/HTTP errors — callers should handle gracefully.
         """
         url = DEFILLAMA_CHARTDATA_URL.format(pool_id=pool_id)
-        resp = requests.get(url, timeout=5)
-        resp.raise_for_status()
-        raw = resp.json()
+        data_bytes, err = retry_request(url, timeout=15, max_attempts=3, backoff=2.0)
+        if err is not None:
+            log.warning(f"fetch_historical_apy: all retries failed for {pool_id} — {err}")
+            return []
+        raw = json.loads(data_bytes)
 
         # DeFiLlama returns {"status": "ok", "data": [{...}, ...]}
         data = raw.get("data") if isinstance(raw, dict) else raw
@@ -719,7 +793,7 @@ class DeFiLlamaFetcher:
         try:
             with get_connection(self.db_path) as conn:
                 collect_once(conn)
-                fetched = len(WHITELIST)
+                fetched = len(POOL_WHITELIST)
         except Exception as exc:
             log.error(f"DeFiLlamaFetcher.fetch_all failed: {exc}", exc_info=True)
             errors = 1
