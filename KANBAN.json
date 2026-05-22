@@ -210,7 +210,7 @@
       {
         "id": "SPA-B009",
         "title": "LOGIC: check_drawdown_acceptable() FAIL threshold (4%) inconsistent with RiskPolicy kill switch (5%)",
-        "description": "golive/checklist.py FAIL at drawdown >4%. RiskPolicy max_drawdown_stop=5%. DEV_STRATEGY says '≤5%'. A portfolio with 4.5% drawdown would: (a) pass RiskPolicy health check, (b) still be running, but (c) FAIL the go-live checker. This could incorrectly block go-live when the system is actually healthy. Fix: align go-live FAIL threshold with RiskPolicy.kill switch at 5%. Suggest: PASS ≤3%, WARN 3–4.5%, FAIL >5% (= kill switch triggers).",
+        "description": "golive/checklist.py FAIL at drawdown >4%. RiskPolicy max_drawdown_stop=5%. DEV_STRATEGY says '≤5%'. A portfolio with 4.5% drawdown would: (a) pass RiskPolicy health check, (b) still be running, but (c) FAIL the go-live checker. This could incorrectly block go-live when the system is actually healthy. Fix: align go-live FAIL threshold with RiskPolicy kill switch at 5%. Suggest: PASS ≤3%, WARN 3–4.5%, FAIL >5% (= kill switch triggers).",
         "priority": "MEDIUM",
         "estimate": "0.5h",
         "tags": ["bug", "golive"],
@@ -239,7 +239,7 @@
       },
       {
         "id": "SPA-F001",
-        "title": "MISSING: Agent stability tracking — no code measures 'agents stable ≥ 4 weeks'",
+        "title": "MISSING: Agent stability tracking — code measures 'agents stable ≥ 4 weeks'",
         "description": "DEV_STRATEGY go-live requirement: 'All agents stable ≥4 weeks'. The go-live checklist has 11 criteria but NONE of them track agent stability duration. There is no mechanism to record when agents became stable, check uptime history, or fail on instability. Fix: add Criterion 12 to golive/checklist.py: 'Agent Stability — continuous stable operation ≥28 days'. Read from a new data/agent_stability.json that records first-stable timestamp and any restarts. Export from export_data.py.",
         "priority": "HIGH",
         "estimate": "4h",
@@ -413,7 +413,7 @@
       {
         "id": "REV-002",
         "title": "Push Core Python Modules (20+ files)",
-        "description": "All spa_core modules. Done locally.",
+        "description": "All spa_core modules: paper_trading, risk, data_pipeline, backtesting, optimization, golive, analytics, agents, alerts, execution, message_bus, orchestrator, monitor. Done locally.",
         "priority": "HIGH",
         "estimate": "0.2h",
         "tags": ["backend"],
@@ -423,7 +423,7 @@
       {
         "id": "REV-003",
         "title": "Push Test Suites (~140 tests, 20+ files)",
-        "description": "All test files. Done locally.",
+        "description": "All test files: conftest, test_optimization, test_backtesting, test_golive, test_email, test_alerts, test_pendle, test_analytics, test_api, test_paper_trading, test_replay, test_risk, test_sky, test_tournament, test_retry_logic, test_concurrent_fetch, test_rebalancing, test_e2e, test_apy_tracker.",
         "priority": "HIGH",
         "estimate": "0.2h",
         "tags": ["testing"],
@@ -433,7 +433,7 @@
       {
         "id": "REV-004",
         "title": "Push Documentation Suite (10+ files)",
-        "description": "docs/ and ADRs. Done locally.",
+        "description": "docs/api_reference.md, docs/data_schema.md, docs/architecture.md, docs/paper_trading_guide.md, docs/operator_runbook.md, ADR-001, ADR-002, ADR-003, setup guides.",
         "priority": "MEDIUM",
         "estimate": "0.2h",
         "tags": ["docs"],
@@ -443,7 +443,7 @@
       {
         "id": "REV-005",
         "title": "Push GitHub Actions Workflow (workflow scope)",
-        "description": ".github/workflows/spa-run.yml + deploy-pages.yml. Requires workflow-scope token.",
+        "description": ".github/workflows/spa-run.yml + deploy-pages.yml. Requires workflow-scope token. Use push_workflow.command. Last blocker before full CI is live on GitHub.",
         "priority": "HIGH",
         "estimate": "0.2h",
         "tags": ["infra"],
@@ -453,7 +453,7 @@
       {
         "id": "REV-006",
         "title": "Push KANBAN.json + kanban.html",
-        "description": "New kanban board state file and HTML dashboard.",
+        "description": "New kanban board state file and HTML dashboard. Created in this session. Commit: feat: live kanban board state / feat: kanban board dashboard.",
         "priority": "MEDIUM",
         "estimate": "0.1h",
         "tags": ["frontend", "docs"],
@@ -474,20 +474,6 @@
       },
       {
         "id": "SPA-002",
-        "title": "Paper Trading Engine v1",
-        "description": "Full paper trading engine with RiskPolicy: Kelly criterion position sizing, concentration limits (max % per protocol), cash buffer management, kill-switch circuit breaker.",
-        "priority": "HIGH",
-        "estimate": "8h",
-        "tags": ["backend"],
-        "sprint": "v0.2",
-        "added": "2026-05-20"
-      },
-      {
-        "id": "SPA-003",
-        "title": "Agent Architecture + Message Bus",
-        "description": "CEO, Data, Strategy, Monitoring agents. SQLite-backed pub/sub message bus. Base agent class, decision routing, agent thought-bubble activity log.",
-        "priority": "HIGH",
-        "estimate    "id": "SPA-002",
         "title": "Paper Trading Engine v1",
         "description": "Full paper trading engine with RiskPolicy: Kelly criterion position sizing, concentration limits (max % per protocol), cash buffer management, kill-switch circuit breaker.",
         "priority": "HIGH",
@@ -869,7 +855,7 @@
       {
         "id": "SPA-040",
         "title": "E2E Integration Test Suite",
-        "description": "tests/test_integration_e2e.py: full pipeline mock tests — data fetch → risk policy ₂ paper trade → export ₂ API response. Validates the entire system end-to-end with mocked external APIs.",
+        "description": "tests/test_integration_e2e.py: full pipeline mock tests — data fetch → risk policy → paper trade → export → API response. Validates the entire system end-to-end with mocked external APIs.",
         "priority": "HIGH",
         "estimate": "5h",
         "tags": ["testing"],
