@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-26T21:00:00Z",
-  "updated_by": "claude-agent (v2.3 sprint)",
+  "last_updated": "2026-05-27T08:30:00Z",
+  "updated_by": "claude-agent (v2.4 sprint, BL-002 done)",
   "columns": {
     "ideas": [
       {
@@ -52,19 +52,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "IDEA-006",
-        "title": "v3_pendle_focused Tournament Entry",
-        "description": "Run v3_pendle_focused in the StrategyTournament alongside v1_passive and v2_aggressive. Compare Sharpe, drawdown, and APY over the full paper trading period. Add v3 to go-live criterion #10.",
-        "priority": "HIGH",
-        "estimate": "4h",
-        "tags": [
-          "backend",
-          "testing"
-        ],
-        "sprint": null,
-        "added": "2026-05-26"
       }
     ],
     "features": [
@@ -165,18 +152,6 @@
         "estimate": "4h",
         "tags": [
           "infra"
-        ],
-        "sprint": null,
-        "added": "2026-05-22"
-      },
-      {
-        "id": "BL-002",
-        "title": "Architect Agent Implementation",
-        "description": "Claude Sonnet agent that reads KANBAN.json, analyses project state, proposes next sprint tasks, and updates the board. Triggered via `/architect` chat command.",
-        "priority": "HIGH",
-        "estimate": "12h",
-        "tags": [
-          "backend"
         ],
         "sprint": null,
         "added": "2026-05-22"
@@ -1184,6 +1159,37 @@
         "sprint_completed": "v2.1",
         "completed": "2026-05-26",
         "implementation": "Created spa_core/golive/approve_wallet.py CLI (run: python -m spa_core.golive.approve_wallet). Creates data/wallet_ready_approved.json with {\"approved\": true, ...}. Updated checklist.py check_wallet_ready() to read JSON approval flag (primary) or sentinel (legacy). Updated activate.py to also write approval JSON on full activation."
+      },
+      {
+        "id": "IDEA-006",
+        "title": "v3_pendle_focused Tournament Entry",
+        "description": "Run v3_pendle_focused in the StrategyTournament alongside v1_passive and v2_aggressive. Compare Sharpe, drawdown, and APY over the full paper trading period. Add v3 to go-live criterion #10.",
+        "priority": "HIGH",
+        "estimate": "4h",
+        "tags": [
+          "backend",
+          "testing"
+        ],
+        "sprint": "v2.3",
+        "added": "2026-05-26",
+        "status": "done",
+        "completed": "2026-05-26",
+        "implementation": "1) spa_core/backtesting/tournament.py — added 'v3_pendle_focused' to _STRATEGY_CONFIGS (max_single_protocol=0.40, min_apy_for_new_position=6.0, max_total_t2_allocation=0.20) and default strategies list (now 3-way: v1_passive + v2_aggressive + v3_pendle_focused). _build_recommendation() now handles 3+ strategies (top runner-up + 'also ahead of' tail). 2) spa_core/golive/checklist.py — check_tournament_winner() expanded for 3-way: PASS if winner in {v1_passive, v3_pendle_focused} or top-two tied; WARN if v2 wins with LOW confidence; FAIL if v2 wins with MEDIUM/HIGH confidence. Backwards-compatible with legacy v1+v2 only tournament_results.json. Criterion 10 docstring updated. 3) spa_core/export_data.py — section 18 fallback scores dict includes v3_pendle_focused. 4) spa_core/tests/test_tournament.py — added TestV3Integration (3 tests) + TestCheckTournamentWinner (7 tests). All 25 tournament tests PASS; 7 existing test_golive_extended.py::TestCheckTournamentWinner tests PASS (backwards compat verified)."
+      },
+      {
+        "id": "BL-002",
+        "title": "Architect Agent Implementation",
+        "description": "Pure-Python ArchitectAgent (no LLM call yet). Reads KANBAN.json, analyses project state, proposes next sprint tasks under hour-budget, publishes 'architect.proposal' to message bus, dumps to data/architect_proposal.json. 7 deterministic tests in test_architect_agent.py.",
+        "priority": "HIGH",
+        "estimate": "12h",
+        "tags": [
+          "backend"
+        ],
+        "sprint": "v2.4",
+        "added": "2026-05-22",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/agents/architect_agent.py (ArchitectAgent class). Tests: spa_core/tests/test_architect_agent.py."
       }
     ]
   }
