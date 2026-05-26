@@ -1,12 +1,12 @@
 {
-  "last_updated": "2026-05-26T18:10:57Z",
-  "updated_by": "Claude (sprint v2.1 — SPA-F001 + SPA-F003 done)",
+  "last_updated": "2026-05-26T19:35:53Z",
+  "updated_by": "claude-agent (v1.7 sprint)",
   "columns": {
     "ideas": [
       {
         "id": "IDEA-001",
         "title": "Mac Mini Local Server",
-        "description": "Run SPA on a dedicated Mac Mini instead of GitHub Actions — persistent process, no cron cold-start latency, local SQLite with faster I/O.",
+        "description": "Run SPA on a dedicated Mac Mini instead of GitHub Actions â persistent process, no cron cold-start latency, local SQLite with faster I/O.",
         "priority": "MEDIUM",
         "estimate": "8h",
         "tags": [
@@ -30,7 +30,7 @@
       {
         "id": "IDEA-003",
         "title": "Discord Bot Integration",
-        "description": "Deliver daily digest, risk alerts, and agent Q&A replies via a Discord bot in a private server — alternative to Telegram.",
+        "description": "Deliver daily digest, risk alerts, and agent Q&A replies via a Discord bot in a private server â alternative to Telegram.",
         "priority": "LOW",
         "estimate": "6h",
         "tags": [
@@ -43,7 +43,7 @@
       {
         "id": "IDEA-004",
         "title": "Multi-User Portfolio Support",
-        "description": "Allow multiple owners each with their own capital allocation, risk limits, and PnL tracking — enabling future fund-like structure.",
+        "description": "Allow multiple owners each with their own capital allocation, risk limits, and PnL tracking â enabling future fund-like structure.",
         "priority": "LOW",
         "estimate": "20h",
         "tags": [
@@ -158,46 +158,6 @@
     ],
     "backlog": [
       {
-        "id": "SPA-B002",
-        "title": "BUG: CI workflow never fetches fresh data — missing --fetch flag",
-        "description": ".github/workflows/spa-run.yml line 43 runs `python spa_core/export_data.py` WITHOUT the `--fetch` flag. This means the export reads from whatever APY snapshots are already in SQLite and never calls DeFiLlama API. Fresh APY data never enters the DB via GHA. Fix: change to `python spa_core/export_data.py --fetch`. This is the #1 reason paper trading data may be stale.",
-        "priority": "HIGH",
-        "estimate": "0.2h",
-        "tags": [
-          "bug",
-          "infra"
-        ],
-        "sprint": "v1.7",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "SPA-F002",
-        "title": "MISSING: CI pytest doesn't run top-level tests/ directory",
-        "description": "spa-run.yml line 31: `python -m pytest spa_core/tests/ -q`. This misses all tests in the top-level `tests/` directory: test_retry_logic.py, test_concurrent_fetch.py, test_rebalancing.py, test_seed_demo.py, test_integration_e2e.py, test_apy_tracker.py, test_dev_agents.py (~40+ tests). Fix: change to `python -m pytest spa_core/tests/ tests/ -q` or add `testpaths = spa_core/tests tests` to pytest.ini.",
-        "priority": "HIGH",
-        "estimate": "0.3h",
-        "tags": [
-          "feature",
-          "infra",
-          "testing"
-        ],
-        "sprint": "v1.7",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "SPA-D003",
-        "title": "DEBT: Tests split across two directories — spa_core/tests/ and tests/ — confusing and incomplete CI",
-        "description": "Tests exist in two places: spa_core/tests/ (~100 tests, covered by CI) and tests/ (~40 tests, NOT covered by CI). The split was created during v1.6 sprint but never resolved. Recommend: move all tests to spa_core/tests/ OR configure pytest.ini to discover both. Update CI command to cover both paths (linked to SPA-F002).",
-        "priority": "LOW",
-        "estimate": "2h",
-        "tags": [
-          "debt",
-          "testing"
-        ],
-        "sprint": null,
-        "added": "2026-05-22"
-      },
-      {
         "id": "BL-001",
         "title": "Mac Mini Server Setup",
         "description": "Configure Mac Mini as persistent SPA server post go-live. Install Python env, clone repo, set up launchd plist for auto-restart, configure VPN access.",
@@ -237,7 +197,7 @@
       {
         "id": "BL-004",
         "title": "Enable GitHub Pages (User Action)",
-        "description": "One-time manual step: Settings → Pages → Source: GitHub Actions. Enables https://yurii-spa.github.io/SPA/ for dashboard and kanban.html.",
+        "description": "One-time manual step: Settings â Pages â Source: GitHub Actions. Enables https://yurii-spa.github.io/SPA/ for dashboard and kanban.html.",
         "priority": "HIGH",
         "estimate": "0.1h",
         "tags": [
@@ -273,7 +233,7 @@
       {
         "id": "BL-007",
         "title": "Sky/sUSDS T1 Upgrade (Conditional)",
-        "description": "When GSM Pause Delay on-chain confirmation ≥48h is detected by sky_monitor.py, promote Sky to T1 at 30% weight per ADR-006/007. Expected Q3 2026.",
+        "description": "When GSM Pause Delay on-chain confirmation â¥48h is detected by sky_monitor.py, promote Sky to T1 at 30% weight per ADR-006/007. Expected Q3 2026.",
         "priority": "MEDIUM",
         "estimate": "2h",
         "tags": [
@@ -374,6 +334,49 @@
     ],
     "done": [
       {
+        "id": "SPA-B002",
+        "title": "BUG: CI workflow never fetches fresh data â missing --fetch flag",
+        "description": ".github/workflows/spa-run.yml line 43 runs `python spa_core/export_data.py` WITHOUT the `--fetch` flag. This means the export reads from whatever APY snapshots are already in SQLite and never calls DeFiLlama API. Fresh APY data never enters the DB via GHA. Fix: change to `python spa_core/export_data.py --fetch`. This is the #1 reason paper trading data may be stale.",
+        "priority": "HIGH",
+        "estimate": "0.2h",
+        "tags": [
+          "bug",
+          "infra"
+        ],
+        "sprint": "v1.7",
+        "added": "2026-05-22",
+        "completed": "2026-05-26"
+      },
+      {
+        "id": "SPA-F002",
+        "title": "MISSING: CI pytest doesn't run top-level tests/ directory",
+        "description": "spa-run.yml line 31: `python -m pytest spa_core/tests/ -q`. This misses all tests in the top-level `tests/` directory: test_retry_logic.py, test_concurrent_fetch.py, test_rebalancing.py, test_seed_demo.py, test_integration_e2e.py, test_apy_tracker.py, test_dev_agents.py (~40+ tests). Fix: change to `python -m pytest spa_core/tests/ tests/ -q` or add `testpaths = spa_core/tests tests` to pytest.ini.",
+        "priority": "HIGH",
+        "estimate": "0.3h",
+        "tags": [
+          "feature",
+          "infra",
+          "testing"
+        ],
+        "sprint": "v1.7",
+        "added": "2026-05-22",
+        "completed": "2026-05-26"
+      },
+      {
+        "id": "SPA-D003",
+        "title": "DEBT: Tests split across two directories â spa_core/tests/ and tests/ â confusing and incomplete CI",
+        "description": "Tests exist in two places: spa_core/tests/ (~100 tests, covered by CI) and tests/ (~40 tests, NOT covered by CI). The split was created during v1.6 sprint but never resolved. Recommend: move all tests to spa_core/tests/ OR configure pytest.ini to discover both. Update CI command to cover both paths (linked to SPA-F002).",
+        "priority": "LOW",
+        "estimate": "2h",
+        "tags": [
+          "debt",
+          "testing"
+        ],
+        "sprint": "v1.7",
+        "added": "2026-05-22",
+        "completed": "2026-05-26"
+      },
+      {
         "id": "SPA-001",
         "title": "Project Scaffolding + SQLite Schema",
         "description": "Initial project structure, SQLite database schema (protocols, apySnapshots, paperTrades, riskEvents), protocol whitelist (7 protocols: Aave V3, Compound V3, Morpho, Yearn V3, Maple, Euler V2).",
@@ -451,7 +454,7 @@
       {
         "id": "SPA-007",
         "title": "Synthetic APY Data Generator",
-        "description": "generate_synthetic_history() using mean-reverting Ornstein-Uhlenbeck process. 7 protocols × N days, seeded for reproducibility. Fallback when DeFiLlama is unavailable.",
+        "description": "generate_synthetic_history() using mean-reverting Ornstein-Uhlenbeck process. 7 protocols Ã N days, seeded for reproducibility. Fallback when DeFiLlama is unavailable.",
         "priority": "MEDIUM",
         "estimate": "3h",
         "tags": [
@@ -562,7 +565,7 @@
       {
         "id": "SPA-016",
         "title": "Go-Live Readiness Checker",
-        "description": "golive/checklist.py: 8 automated criteria (paper duration ≥56d, Sharpe ≥2.0, drawdown ≤5%, alerts live, policy versioned, diversification, data freshness). ASCII report card. golive_readiness.json export. Verdict: READY/ALMOST_READY/NOT_READY/BLOCKED.",
+        "description": "golive/checklist.py: 8 automated criteria (paper duration â¥56d, Sharpe â¥2.0, drawdown â¤5%, alerts live, policy versioned, diversification, data freshness). ASCII report card. golive_readiness.json export. Verdict: READY/ALMOST_READY/NOT_READY/BLOCKED.",
         "priority": "HIGH",
         "estimate": "5h",
         "tags": [
@@ -573,7 +576,7 @@
       },
       {
         "id": "SPA-017",
-        "title": "Dashboard v1.0 — 5-Tab Integration",
+        "title": "Dashboard v1.0 â 5-Tab Integration",
         "description": "Full 5-tab dashboard: Portfolio, Strategy, Optimization, Decision Log, Go-Live. Live mode toggle with 30s auto-refresh. Optimization panel (Kelly fractions, Markowitz weights, efficient frontier). Go-Live criteria checklist with progress bars.",
         "priority": "HIGH",
         "estimate": "8h",
@@ -624,7 +627,7 @@
       {
         "id": "SPA-021",
         "title": "Pendle PT Fetcher (7 Quality Gates)",
-        "description": "pendle_fetcher.py: PT pool fetcher with 7 quality gates (maturity ≥30d, liquidity ≥$500K, underlying asset whitelist, TVL floor, APY sanity ≤50%, chain whitelist, oracle freshness). Pendle pools as T2 allocations.",
+        "description": "pendle_fetcher.py: PT pool fetcher with 7 quality gates (maturity â¥30d, liquidity â¥$500K, underlying asset whitelist, TVL floor, APY sanity â¤50%, chain whitelist, oracle freshness). Pendle pools as T2 allocations.",
         "priority": "HIGH",
         "estimate": "5h",
         "tags": [
@@ -697,7 +700,7 @@
       {
         "id": "SPA-027",
         "title": "Sky/sUSDS GSM Monitor (3 RPC Fallbacks)",
-        "description": "sky_monitor.py: on-chain GSM Pause Delay checker with 3 fallback RPC sources (primary Alchemy + 2 backups). Resolves flaky monitoring when single RPC is unresponsive. Sky remains at 0% until ≥48h timelock confirmed.",
+        "description": "sky_monitor.py: on-chain GSM Pause Delay checker with 3 fallback RPC sources (primary Alchemy + 2 backups). Resolves flaky monitoring when single RPC is unresponsive. Sky remains at 0% until â¥48h timelock confirmed.",
         "priority": "HIGH",
         "estimate": "3h",
         "tags": [
@@ -709,7 +712,7 @@
       {
         "id": "SPA-028",
         "title": "Agent Model Config Registry",
-        "description": "agents/model_config.py: pluggable model assignment config decoupling agent roles from hardcoded model strings. CEO → Claude Sonnet 4.6, Monitoring → Claude Haiku 4.5, Data → Gemini Flash-Lite.",
+        "description": "agents/model_config.py: pluggable model assignment config decoupling agent roles from hardcoded model strings. CEO â Claude Sonnet 4.6, Monitoring â Claude Haiku 4.5, Data â Gemini Flash-Lite.",
         "priority": "MEDIUM",
         "estimate": "2h",
         "tags": [
@@ -721,7 +724,7 @@
       {
         "id": "SPA-029",
         "title": "Dashboard v1.5 (APY Gap + Pendle + Day Counter)",
-        "description": "Dashboard upgrade: APY Gap Tracker panel (4.2% vs 7.3% target), Pendle PT panel with quality gate badges, Day X/56 paper trading counter, 📡 Live badge (amber if data stale >15min). Dashboard v1.5.",
+        "description": "Dashboard upgrade: APY Gap Tracker panel (4.2% vs 7.3% target), Pendle PT panel with quality gate badges, Day X/56 paper trading counter, ð¡ Live badge (amber if data stale >15min). Dashboard v1.5.",
         "priority": "HIGH",
         "estimate": "5h",
         "tags": [
@@ -733,7 +736,7 @@
       {
         "id": "SPA-030",
         "title": "Backtesting Replay UI",
-        "description": "📈 Backtesting Replay card on Analytics tab. Chart.js two-line equity chart (v1_passive blue, v2_aggressive orange). ⏱ Replay Mode slider by day, 500ms auto-play, syncs Paper Trading tab values. Strategy comparison table with winner highlighting.",
+        "description": "ð Backtesting Replay card on Analytics tab. Chart.js two-line equity chart (v1_passive blue, v2_aggressive orange). â± Replay Mode slider by day, 500ms auto-play, syncs Paper Trading tab values. Strategy comparison table with winner highlighting.",
         "priority": "MEDIUM",
         "estimate": "5h",
         "tags": [
@@ -769,8 +772,8 @@
       },
       {
         "id": "SPA-033",
-        "title": "Dashboard v1.6 — System Health Tab (6th Tab)",
-        "description": "New ⚙️ System tab (hotkey 6) with 4 cards: Pipeline Health (🟢/🟡/🔴), Data Freshness (color-coded by age), Paper Trading Clock (countdown to next 4h cycle), Go-Live Countdown (Day X/56 progress bar). Auto-refreshes every 60s.",
+        "title": "Dashboard v1.6 â System Health Tab (6th Tab)",
+        "description": "New âï¸ System tab (hotkey 6) with 4 cards: Pipeline Health (ð¢/ð¡/ð´), Data Freshness (color-coded by age), Paper Trading Clock (countdown to next 4h cycle), Go-Live Countdown (Day X/56 progress bar). Auto-refreshes every 60s.",
         "priority": "MEDIUM",
         "estimate": "4h",
         "tags": [
@@ -831,7 +834,7 @@
       {
         "id": "SPA-038",
         "title": "Portfolio Drift Rebalancing",
-        "description": "tests/test_rebalancing.py covering drift detection, rebalance trigger thresholds, and allocation correction logic. Ensures portfolio weights stay within ±5% of target across all active protocols.",
+        "description": "tests/test_rebalancing.py covering drift detection, rebalance trigger thresholds, and allocation correction logic. Ensures portfolio weights stay within Â±5% of target across all active protocols.",
         "priority": "MEDIUM",
         "estimate": "3h",
         "tags": [
@@ -856,7 +859,7 @@
       {
         "id": "SPA-040",
         "title": "E2E Integration Test Suite",
-        "description": "tests/test_integration_e2e.py: full pipeline mock tests — data fetch → risk policy → paper trade → export → API response. Validates the entire system end-to-end with mocked external APIs.",
+        "description": "tests/test_integration_e2e.py: full pipeline mock tests â data fetch â risk policy â paper trade â export â API response. Validates the entire system end-to-end with mocked external APIs.",
         "priority": "HIGH",
         "estimate": "5h",
         "tags": [
@@ -892,7 +895,7 @@
       {
         "id": "SPA-043",
         "title": "Paper Trading Go-Live (Day 1 of 56)",
-        "description": "Paper trading activated 2026-05-20. v1_passive running live. Current APY: ~4.2%. 8-week test period ends 2026-07-15. Go-live decision gate: Sharpe ≥2.0, drawdown ≤5%, N≥15 trades, all agents stable ≥4 weeks.",
+        "description": "Paper trading activated 2026-05-20. v1_passive running live. Current APY: ~4.2%. 8-week test period ends 2026-07-15. Go-live decision gate: Sharpe â¥2.0, drawdown â¤5%, Nâ¥15 trades, all agents stable â¥4 weeks.",
         "priority": "HIGH",
         "estimate": "1h",
         "tags": [
@@ -903,8 +906,8 @@
       },
       {
         "id": "SPA-B005",
-        "title": "BUG: WHITELIST (15 pools) vs POOL_WHITELIST (12 pools) — dual whitelist inconsistency in defillama_fetcher.py",
-        "description": "defillama_fetcher.py has two whitelists: (1) WHITELIST (line 25, 15 pools, has pool_ids) used by collect_once() → fetch_all() → SQLite ingestion. (2) POOL_WHITELIST (line 144, 12 pools) used by DeFiLlamaFetcher.fetch_pools() → export/display. WHITELIST includes Spark USDC/USDT, Sky sUSDS, Fluid USDC/USDT, Ethena sUSDe which are NOT in POOL_WHITELIST. POOL_WHITELIST includes Compound V3 Arbitrum and Morpho Base which are NOT in WHITELIST. Result: different protocols get stored vs exported — APY data shown in dashboard doesn't match what's in the DB. Fix: unify into one source-of-truth whitelist.",
+        "title": "BUG: WHITELIST (15 pools) vs POOL_WHITELIST (12 pools) â dual whitelist inconsistency in defillama_fetcher.py",
+        "description": "defillama_fetcher.py has two whitelists: (1) WHITELIST (line 25, 15 pools, has pool_ids) used by collect_once() â fetch_all() â SQLite ingestion. (2) POOL_WHITELIST (line 144, 12 pools) used by DeFiLlamaFetcher.fetch_pools() â export/display. WHITELIST includes Spark USDC/USDT, Sky sUSDS, Fluid USDC/USDT, Ethena sUSDe which are NOT in POOL_WHITELIST. POOL_WHITELIST includes Compound V3 Arbitrum and Morpho Base which are NOT in WHITELIST. Result: different protocols get stored vs exported â APY data shown in dashboard doesn't match what's in the DB. Fix: unify into one source-of-truth whitelist.",
         "priority": "HIGH",
         "estimate": "3h",
         "tags": [
@@ -918,7 +921,7 @@
       },
       {
         "id": "SPA-B006",
-        "title": "BUG: export_data.py import path error — `from spa_core.analytics.apy_tracker import APYTracker`",
+        "title": "BUG: export_data.py import path error â `from spa_core.analytics.apy_tracker import APYTracker`",
         "description": "export_data.py line ~295: `from spa_core.analytics.apy_tracker import APYTracker`. Since sys.path.insert(0, spa_core_dir) is done at the top, the correct import is `from analytics.apy_tracker import APYTracker`. The `spa_core.` prefix causes ImportError at runtime unless the parent of spa_core/ is also on sys.path. This section is wrapped in try/except so it silently fails, but apy_tracker never runs. Fix: change to `from analytics.apy_tracker import APYTracker`.",
         "priority": "MEDIUM",
         "estimate": "0.2h",
@@ -948,7 +951,7 @@
       },
       {
         "id": "SPA-B001",
-        "title": "BUG: activate.py always blocked — check_wallet_ready() returns PENDING permanently",
+        "title": "BUG: activate.py always blocked â check_wallet_ready() returns PENDING permanently",
         "description": "golive/activate.py line 101: `all_pass = all(c['status'] == 'PASS' for c in criteria)`. Since check_wallet_ready() always returns PENDING (hardcoded, cannot auto-verify), the activation script WILL NEVER SUCCEED. This blocks the entire go-live path. Fix: either (a) add a manual-override flag/env var `SPA_WALLET_READY=1` that flips wallet criterion to PASS, or (b) exclude Wallet Ready from the `all_pass` check in activate.py the same way checklist.py excludes it from the verdict. Option (b) is simpler and consistent with checklist logic.",
         "priority": "HIGH",
         "estimate": "1h",
@@ -964,7 +967,7 @@
       {
         "id": "SPA-B003",
         "title": "BUG: MIN_PAPER_DAYS=50 contradicts DEV_STRATEGY 8-week (56-day) requirement",
-        "description": "golive/checklist.py line 39: `MIN_PAPER_DAYS = 50`. DEV_STRATEGY says '8+ weeks' = 56 days. engine.py uses `MIN_PAPER_WEEKS = 8` = 56 days. If checklist.py passes at 50 days, go-live could be unlocked 6 days early (Jul 9 instead of Jul 15). SPA-016 done card also specifies '≥56d'. Fix: change MIN_PAPER_DAYS to 56 in checklist.py.",
+        "description": "golive/checklist.py line 39: `MIN_PAPER_DAYS = 50`. DEV_STRATEGY says '8+ weeks' = 56 days. engine.py uses `MIN_PAPER_WEEKS = 8` = 56 days. If checklist.py passes at 50 days, go-live could be unlocked 6 days early (Jul 9 instead of Jul 15). SPA-016 done card also specifies 'â¥56d'. Fix: change MIN_PAPER_DAYS to 56 in checklist.py.",
         "priority": "HIGH",
         "estimate": "0.1h",
         "tags": [
@@ -978,7 +981,7 @@
       },
       {
         "id": "SPA-B011",
-        "title": "LOGIC: _update_strategy_state() calls _load_portfolio_state() inside open DB transaction — read-before-commit",
+        "title": "LOGIC: _update_strategy_state() calls _load_portfolio_state() inside open DB transaction â read-before-commit",
         "description": "engine.py _update_strategy_state(conn) at line 1127 calls self._load_portfolio_state() which opens its OWN new DB connection. This is called while the caller already holds a write transaction (e.g., after INSERT paper_trade). In SQLite WAL mode, the inner read may see the pre-INSERT state, so strategy_state gets updated with stale position counts. The Sharpe stored in strategy_state may lag by one trade. Fix: pass the already-loaded state as a parameter to _update_strategy_state() instead of re-loading from DB.",
         "priority": "MEDIUM",
         "estimate": "1h",
@@ -993,7 +996,7 @@
       },
       {
         "id": "SPA-D001",
-        "title": "DEBT: Dead code — avg_days variable in close_position() (engine.py line 225)",
+        "title": "DEBT: Dead code â avg_days variable in close_position() (engine.py line 225)",
         "description": "engine.py line 225: `avg_days = total_pnl / (total_amount * 0.0001 + 1)  # approx`. This variable is computed but never used or returned. The formula is also mathematically meaningless (PnL / fraction_of_amount). Remove this line to avoid confusion about what it calculates.",
         "priority": "LOW",
         "estimate": "0.1h",
@@ -1008,8 +1011,8 @@
       },
       {
         "id": "SPA-D002",
-        "title": "DEBT: Redundant check #7 in check_new_position() — T1 absolute cap equals T1 concentration limit",
-        "description": "risk/policy.py: Check #6 enforces max_concentration_t1=40%. Check #7 enforces max_single_protocol=40%. For T1 protocols these are identical — check #7 can never trigger without check #6 already triggering. For T2 protocols, max_concentration_t2=20% means check #6 fires well before check #7 (40% cap). The absolute single-protocol check is effectively dead code. Consider either removing check #7 or changing max_single_protocol to a meaningful lower threshold (e.g., 35%).",
+        "title": "DEBT: Redundant check #7 in check_new_position() â T1 absolute cap equals T1 concentration limit",
+        "description": "risk/policy.py: Check #6 enforces max_concentration_t1=40%. Check #7 enforces max_single_protocol=40%. For T1 protocols these are identical â check #7 can never trigger without check #6 already triggering. For T2 protocols, max_concentration_t2=20% means check #6 fires well before check #7 (40% cap). The absolute single-protocol check is effectively dead code. Consider either removing check #7 or changing max_single_protocol to a meaningful lower threshold (e.g., 35%).",
         "priority": "LOW",
         "estimate": "0.5h",
         "tags": [
@@ -1023,8 +1026,8 @@
       },
       {
         "id": "SPA-B004",
-        "title": "BUG: Sharpe threshold mismatch — checklist uses ≥1.0, DEV_STRATEGY requires ≥2.0",
-        "description": "golive/checklist.py check_strategy_performance() line 182: PASS when sharpe >= 1.0. DEV_STRATEGY v1.0 go-live criteria: 'Sharpe ≥ 2.0'. This means the automated checker could give a green light at Sharpe=1.1 when the stated go-live bar is 2.0. Decision needed: (a) keep ≥1.0 in code and update DEV_STRATEGY, or (b) raise code threshold to 2.0. Recommend (b): set threshold=2.0 consistent with DEV_STRATEGY. WARN range: 1.0–2.0. FAIL: <1.0.",
+        "title": "BUG: Sharpe threshold mismatch â checklist uses â¥1.0, DEV_STRATEGY requires â¥2.0",
+        "description": "golive/checklist.py check_strategy_performance() line 182: PASS when sharpe >= 1.0. DEV_STRATEGY v1.0 go-live criteria: 'Sharpe â¥ 2.0'. This means the automated checker could give a green light at Sharpe=1.1 when the stated go-live bar is 2.0. Decision needed: (a) keep â¥1.0 in code and update DEV_STRATEGY, or (b) raise code threshold to 2.0. Recommend (b): set threshold=2.0 consistent with DEV_STRATEGY. WARN range: 1.0â2.0. FAIL: <1.0.",
         "priority": "HIGH",
         "estimate": "0.5h",
         "tags": [
@@ -1039,8 +1042,8 @@
       },
       {
         "id": "SPA-B007",
-        "title": "BUG: daily_report.py max_dd display — fallback uses raw fraction (0.01) but formats as percent",
-        "description": "alerts/daily_report.py lines 176-177: fallback `max_dd = portfolio.get('total_drawdown_pct', None) or 0.0`. status.json stores total_drawdown_pct as a decimal fraction (0.012 = 1.2%). Then line 222: `f'MaxDD: {max_dd:.1f}%'` formats without ×100, showing '0.0%' instead of '1.2%'. This only triggers when advanced_analytics.json is unavailable. Fix: multiply by 100 when falling back: `max_dd = (portfolio.get('total_drawdown_pct') or 0.0) * 100`.",
+        "title": "BUG: daily_report.py max_dd display â fallback uses raw fraction (0.01) but formats as percent",
+        "description": "alerts/daily_report.py lines 176-177: fallback `max_dd = portfolio.get('total_drawdown_pct', None) or 0.0`. status.json stores total_drawdown_pct as a decimal fraction (0.012 = 1.2%). Then line 222: `f'MaxDD: {max_dd:.1f}%'` formats without Ã100, showing '0.0%' instead of '1.2%'. This only triggers when advanced_analytics.json is unavailable. Fix: multiply by 100 when falling back: `max_dd = (portfolio.get('total_drawdown_pct') or 0.0) * 100`.",
         "priority": "MEDIUM",
         "estimate": "0.3h",
         "tags": [
@@ -1056,7 +1059,7 @@
       {
         "id": "SPA-B008",
         "title": "LOGIC: check_diversification() uses deployed-only denominator, inconsistent with RiskPolicy",
-        "description": "golive/checklist.py check_diversification() line 275: `frac = amt / total_deployed` (cash excluded). RiskPolicy.concentration_pct() uses `total / total_capital_usd` (cash included). Result: go-live checker sees higher concentration than RiskPolicy would, potentially blocking go-live when actual risk policy is fine. Example: 1 protocol, $30K in Aave, $70K cash → checker shows 100% concentration (FAIL), RiskPolicy shows 30% (OK). Fix: use `total_capital` as denominator in check_diversification().",
+        "description": "golive/checklist.py check_diversification() line 275: `frac = amt / total_deployed` (cash excluded). RiskPolicy.concentration_pct() uses `total / total_capital_usd` (cash included). Result: go-live checker sees higher concentration than RiskPolicy would, potentially blocking go-live when actual risk policy is fine. Example: 1 protocol, $30K in Aave, $70K cash â checker shows 100% concentration (FAIL), RiskPolicy shows 30% (OK). Fix: use `total_capital` as denominator in check_diversification().",
         "priority": "MEDIUM",
         "estimate": "0.5h",
         "tags": [
@@ -1072,7 +1075,7 @@
       {
         "id": "SPA-B009",
         "title": "LOGIC: check_drawdown_acceptable() FAIL threshold (4%) inconsistent with RiskPolicy kill switch (5%)",
-        "description": "golive/checklist.py FAIL at drawdown >4%. RiskPolicy max_drawdown_stop=5%. DEV_STRATEGY says '≤5%'. A portfolio with 4.5% drawdown would: (a) pass RiskPolicy health check, (b) still be running, but (c) FAIL the go-live checker. This could incorrectly block go-live when the system is actually healthy. Fix: align go-live FAIL threshold with RiskPolicy kill switch at 5%. Suggest: PASS ≤3%, WARN 3–4.5%, FAIL >5% (= kill switch triggers).",
+        "description": "golive/checklist.py FAIL at drawdown >4%. RiskPolicy max_drawdown_stop=5%. DEV_STRATEGY says 'â¤5%'. A portfolio with 4.5% drawdown would: (a) pass RiskPolicy health check, (b) still be running, but (c) FAIL the go-live checker. This could incorrectly block go-live when the system is actually healthy. Fix: align go-live FAIL threshold with RiskPolicy kill switch at 5%. Suggest: PASS â¤3%, WARN 3â4.5%, FAIL >5% (= kill switch triggers).",
         "priority": "MEDIUM",
         "estimate": "0.5h",
         "tags": [
@@ -1087,8 +1090,8 @@
       },
       {
         "id": "SPA-D004",
-        "title": "DEBT: collect_once() / fetch_all() use old module-level WHITELIST — should use POOL_WHITELIST",
-        "description": "defillama_fetcher.py: collect_once() iterates over module-level WHITELIST (15 pools, with pool_ids). DeFiLlamaFetcher.fetch_pools() iterates over POOL_WHITELIST (12 pools, fuzzy match). The fetch_all() → collect_once() path writes to SQLite using the old whitelist. This creates a mismatch between DB contents and what fetch_pools() would return. Resolve the dual-whitelist issue (SPA-B005) first, then deprecate collect_once() in favor of the class-based interface.",
+        "title": "DEBT: collect_once() / fetch_all() use old module-level WHITELIST â should use POOL_WHITELIST",
+        "description": "defillama_fetcher.py: collect_once() iterates over module-level WHITELIST (15 pools, with pool_ids). DeFiLlamaFetcher.fetch_pools() iterates over POOL_WHITELIST (12 pools, fuzzy match). The fetch_all() â collect_once() path writes to SQLite using the old whitelist. This creates a mismatch between DB contents and what fetch_pools() would return. Resolve the dual-whitelist issue (SPA-B005) first, then deprecate collect_once() in favor of the class-based interface.",
         "priority": "LOW",
         "estimate": "2h",
         "tags": [
@@ -1103,8 +1106,8 @@
       },
       {
         "id": "SPA-F004",
-        "title": "MISSING: Sky T1 promotion automation — sky_monitor.py has no auto-upgrade trigger",
-        "description": "sky_monitor.py checks the on-chain GSM Pause Delay, but there is no code to automatically promote Sky to T1 when ≥48h is confirmed. The monitor logs the check but doesn't update the whitelist, notify via a risk event, or flag for human review. Fix: when sky_monitor.py confirms ≥48h, write a data/sky_upgrade_trigger.json sentinel, send Telegram alert, and update the operator runbook with the manual upgrade steps.",
+        "title": "MISSING: Sky T1 promotion automation â sky_monitor.py has no auto-upgrade trigger",
+        "description": "sky_monitor.py checks the on-chain GSM Pause Delay, but there is no code to automatically promote Sky to T1 when â¥48h is confirmed. The monitor logs the check but doesn't update the whitelist, notify via a risk event, or flag for human review. Fix: when sky_monitor.py confirms â¥48h, write a data/sky_upgrade_trigger.json sentinel, send Telegram alert, and update the operator runbook with the manual upgrade steps.",
         "priority": "MEDIUM",
         "estimate": "2h",
         "tags": [
@@ -1119,8 +1122,8 @@
       },
       {
         "id": "SPA-F001",
-        "title": "MISSING: Agent stability tracking — no code measures 'agents stable ≥ 4 weeks'",
-        "description": "DEV_STRATEGY go-live requirement: 'All agents stable ≥4 weeks'. The go-live checklist has 11 criteria but NONE of them track agent stability duration. There is no mechanism to record when agents became stable, check uptime history, or fail on instability. Fix: add Criterion 12 to golive/checklist.py: 'Agent Stability — continuous stable operation ≥28 days'. Read from a new data/agent_stability.json that records first-stable timestamp and any restarts. Export from export_data.py.",
+        "title": "MISSING: Agent stability tracking â no code measures 'agents stable â¥ 4 weeks'",
+        "description": "DEV_STRATEGY go-live requirement: 'All agents stable â¥4 weeks'. The go-live checklist has 11 criteria but NONE of them track agent stability duration. There is no mechanism to record when agents became stable, check uptime history, or fail on instability. Fix: add Criterion 12 to golive/checklist.py: 'Agent Stability â continuous stable operation â¥28 days'. Read from a new data/agent_stability.json that records first-stable timestamp and any restarts. Export from export_data.py.",
         "priority": "HIGH",
         "estimate": "4h",
         "tags": [
