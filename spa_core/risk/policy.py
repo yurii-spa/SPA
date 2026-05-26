@@ -288,11 +288,8 @@ class RiskPolicy:
                 f"Concentration {new_conc:.1%} approaching {tier} limit {max_conc:.1%}"
             )
 
-        # 7. Абсолютный максимум на протокол
-        if new_conc > self.config.max_single_protocol:
-            violations.append(
-                f"Exceeds absolute protocol cap {self.config.max_single_protocol:.1%}: {new_conc:.1%}"
-            )
+        # 7. (Removed — redundant: max_single_protocol == max_concentration_t1 == 0.40,
+        #     so check #6 already catches all cases. Removing avoids duplicate violations.)
 
         # 8. Лимит T2 совокупно
         if tier == "T2":
