@@ -466,6 +466,7 @@ def run_export(fetch: bool = False) -> None:
             get_sky_allocation_pct,
             export_sky_status_json,
             get_watch_list_status,
+            check_and_emit_upgrade_signal,
         )
 
         # Live check (on-chain → API → manual fallback)
@@ -478,12 +479,36 @@ def run_export(fetch: bool = False) -> None:
             f"gsm_hours={sky_live.get('gsm_hours')}, source={sky_live.get('source')}"
         )
 
+        # F004: Auto-upgrade trigger — write sky_upgrade_needed.json if ELIGIBLE
+        upgrade_signal = check_and_emit_upgrade_signal(sky_live)
+        if upgrade_signal["eligible"]:
+            level = "NEW" if upgrade_signal["first_eligible"] else "ONGOING"
+            log.warning(
+                f"[SKY-T1-UPGRADE {level}] Sky/sUSDS ELIGIBLE for T1 promotion. "
+                f"Action: {upgrade_signal['action']}"
+            )
+            # Inject into risk_alerts so dashboard highlights this immediately
+            _pending_sky_alert = {
+                "severity":    "warning",
+                "type":        "sky_t1_promotion_required",
+                "message":     (
+                    f"Sky/sUSDS is ELIGIBLE for T1 (GSM delay ≥ 48 h). "
+                    f"Promote sky-susds to T1 in POOL_WHITELIST. "
+                    f"Action: {upgrade_signal['action']}"
+                ),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "first_eligible": upgrade_signal["first_eligible"],
+            }
+        else:
+            _pending_sky_alert = None
+
         # Also write the legacy watch_list_status.json for dashboard compatibility
         write_json("watch_list_status.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "protocols": get_watch_list_status(),
-            "sky_live": sky_live,
+            "generated_at":    datetime.now(timezone.utc).isoformat(),
+            "protocols":       get_watch_list_status(),
+            "sky_live":        sky_live,
             "sky_allocation_pct": get_sky_allocation_pct(sky_live),
+            "upgrade_signal":  upgrade_signal,
         })
         log.info("watch_list_status.json: written")
         _section_ok("sky_status")
@@ -662,6 +687,13 @@ def run_export(fetch: bool = False) -> None:
                 "message": f"Кэш-буфер {cash_pct:.1f}% ниже минимума 2%",
                 "pct": round(cash_pct, 2),
             })
+
+        # F004: Inject Sky T1 upgrade signal into risk_alerts if ELIGIBLE
+        try:
+            if _pending_sky_alert is not None:
+                risk_alerts.append(_pending_sky_alert)
+        except NameError:
+            pass  # sky section not yet run (e.g. partial failure); skip
 
         write_json("risk_alerts.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -981,8 +1013,8 @@ def run_export(fetch: bool = False) -> None:
         log.info(
             f"optimization: {len(opt_result['recommendations'])} candidates, "
             f"{approved_count} approved by RiskPolicy, "
-            f"expected_return={opt_result['portfolio_expected_return']:.2f}%, "
-            f"sharpe={opt_resultK'portfolio_sharpe']:.2f}"
+            f"expected_return={opt_resultK'portfolio_expected_return']:.2f}%, "
+            f"sharpe={opt_result['portfolio_sharpe']:.2f}"
         )
         _section_ok("optimization_recommendations")
     except Exception as e:
@@ -1102,7 +1134,7 @@ def run_export(fetch: bool = False) -> None:
 
     # 17. agent_summaries.json — LLM-generated portfolio commentary
     try:
-        from agents.llm_agent import TRADE_AGENT, RISK_AGENT
+        from agents.llm_agent import TRADER_AGENT, RISK_AGENT
         from agents.chat_handler import ChatHandler
         handler = ChatHandler(db_path=str(db_path), data_dir=str(OUTPUT_DIR))
         summaries = {
@@ -1131,7 +1163,7 @@ def run_export(fetch: bool = False) -> None:
             "error": str(e),
         })
 
-    # 18. tournament_results.json ℔ strategy tournament (v1 vs v2 on same data)
+    # 18. tournament_results.json — strategy tournament (v1 vs v2 on same data)
     try:
         from backtesting.tournament import StrategyTournament
         from backtesting.data_loader import load_from_defillama_api, generate_synthetic_history
@@ -1187,7 +1219,7 @@ def run_export(fetch: bool = False) -> None:
 
         if len(equity_curve) >= 5:
             summary = portfolio_summary(equity_curve)
-            rolling = rolling_metrics(equity_curve, window=min 30, len(equity_curve)))
+            rolling = rolling_metrics(equity_curve, window=min(30, len(equity_curve)))
             write_json("advanced_analytics.json", {
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "summary": summary,
@@ -1215,7 +1247,7 @@ def run_export(fetch: bool = False) -> None:
         write_json("advanced_analytics.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "summary": {},
-            "rolling_metrics":  [],
+            "rolling_metrics": [],
             "data_points": 0,
             "error": str(e),
         })
