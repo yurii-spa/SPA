@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-05-26T23:49:33.834797+00:00",
+  "needs_rebalance": false,
+  "positions": [
+    {
+      "protocol": "maple-usdc-ethereum",
+      "current_pct": 20.0,
+      "target_pct": 20.0,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "action": "OK",
+      "urgency": "LOW"
+    },
+    {
+      "protocol": "aave-v3-usdc-ethereum",
+      "current_pct": 40.0,
+      "target_pct": 40.0,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "action": "OK",
+      "urgency": "LOW"
+    },
+    {
+      "protocol": "compound-v3-usdc-ethereum",
+      "current_pct": 35.0,
+      "target_pct": 35.0,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "action": "OK",
+      "urgency": "LOW"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "protocol": "Sky/sUSDS",
+  "watch_condition": "GSM Pause Delay >= 48h",
+  "gsm_min_hours": 48.0,
+  "status": "PENDING",
+  "eligible_for_t1": false,
+  "allocation_pct": 0.0,
+  "gsm_hours": null,
+  "source": "manual",
+  "last_checked": "2026-05-22",
+  "note": "Upon ELIGIBLE: Sky \u2192 T1, 30% allocation per policy ADR. See MEMORY_FACTS.md."
+}

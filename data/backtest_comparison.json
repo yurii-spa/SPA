@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-05-26T23:50:43.805956+00:00",
+  "days": 30,
+  "winner": "v1_passive",
+  "winner_metric": "sharpe_ratio",
+  "delta": {},
+  "strategies": {},
+  "equity_curves": {},
+  "error": "No module named 'backtesting.scenario_runner'"
+}
