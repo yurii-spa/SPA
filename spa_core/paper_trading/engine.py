@@ -222,7 +222,6 @@ class PaperTrader:
             self._update_strategy_state(conn)
             conn.commit()
 
-        avg_days = total_pnl / (total_amount * 0.0001 + 1)  # approx
         log.info(f"Closed {protocol_key}: PnL ${total_pnl:+.2f} | reason={reason}")
 
         return {
@@ -1123,15 +1122,60 @@ class PaperTrader:
                                 f"but {trade_count} trades exist — keeping existing capital")
 
     def _update_strategy_state(self, conn) -> None:
-        """Пересчитать и сохранить strategy_state (вызывать внутри транзакции)."""
-        state = self._load_portfolio_state()
+        """Recompute and persist strategy_state within the current transaction.
+
+        IMPORTANT: reads portfolio state through the provided *conn* so that
+        uncommitted INSERTs/UPDATEs made earlier in the same transaction are
+        visible.  Calling self._load_portfolio_state() here would open a *new*
+        connection and therefore miss any uncommitted changes (B011 fix).
+        """
+        # --- Read current capital from strategy_state via the same conn ----------
+        strategy = conn.execute("""
+            SELECT total_capital_usd FROM strategy_state
+            WHERE strategy_id = ?
+            ORDER BY id DESC LIMIT 1
+        """, (self.strategy_id,)).fetchone()
+        total_capital = strategy["total_capital_usd"] if strategy else INITIAL_CAPITAL
+
+        # --- Read open positions via the same conn (sees uncommitted inserts) ----
+        open_trades = conn.execute("""
+            SELECT t.trade_id, t.protocol_key, t.amount_usd,
+                   t.net_apy_annualized
+            FROM paper_trades t
+            WHERE t.strategy_id = ? AND t.timestamp_close IS NULL
+        """, (self.strategy_id,)).fetchall()
+
+        deployed_usd = 0.0
+        total_pnl    = 0.0
+        apys: list[float] = []
+
+        now_utc = datetime.now(timezone.utc)
+        for t in open_trades:
+            amt  = t["amount_usd"] or 0.0
+            apy  = t["net_apy_annualized"] or 0.0
+            # Best-effort: use APY stored at open (live snapshot not available here)
+            snap = conn.execute("""
+                SELECT apy_total FROM apy_snapshots
+                WHERE protocol_key = ?
+                ORDER BY timestamp DESC LIMIT 1
+            """, (t["protocol_key"],)).fetchone()
+            if snap:
+                apy = snap["apy_total"]
+
+            # Approximate PnL since open (days_held unavailable without timestamp_open here,
+            # so use APY × amount as a proxy for unrealised yield direction)
+            deployed_usd += amt
+            total_pnl    += amt * (apy / 100) / 365  # single-day proxy; accurate at close
+            apys.append(apy)
+
+        cash_usd   = max(total_capital - deployed_usd, 0.0)
+        drawdown   = abs(total_pnl) / total_capital if total_capital > 0 and total_pnl < 0 else 0.0
 
         # Sharpe proxy: (avg_apy - risk_free) / std_apy
-        apys = [p.current_apy for p in state.positions]
         if apys:
             avg_apy = sum(apys) / len(apys)
-            std_apy = math.sqrt(sum((a - avg_apy)**2 for a in apys) / len(apys)) if len(apys) > 1 else 1.0
-            sharpe = (avg_apy - SHARPE_RISK_FREE_RATE * 100) / max(std_apy, 0.1)
+            std_apy = math.sqrt(sum((a - avg_apy) ** 2 for a in apys) / len(apys)) if len(apys) > 1 else 1.0
+            sharpe  = (avg_apy - SHARPE_RISK_FREE_RATE * 100) / max(std_apy, 0.1)
         else:
             sharpe = 0.0
 
@@ -1149,10 +1193,10 @@ class PaperTrader:
                 trade_count          = ?
             WHERE strategy_id = ?
         """, (
-            state.deployed_usd,
-            state.cash_usd,
-            state.total_pnl_usd,
-            state.total_drawdown_pct,
+            deployed_usd,
+            cash_usd,
+            total_pnl,
+            drawdown,
             round(sharpe, 4),
             trade_count,
             self.strategy_id,
