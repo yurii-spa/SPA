@@ -269,7 +269,7 @@ class TestRunFullCheck:
         result = run_full_check(temp_data_dir)
         assert "criteria" in result
         assert isinstance(result["criteria"], list)
-        assert len(result["criteria"]) == 8  # 8 criteria defined
+        assert len(result["criteria"]) == 12  # 12 criteria: paper duration, PnL, alerts, sharpe, policy, drawdown, diversification, freshness, wallet, tournament, APY gap, agent stability
 
     def test_returns_required_keys(self, temp_data_dir):
         """All required top-level keys must be present."""
