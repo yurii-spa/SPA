@@ -85,20 +85,23 @@ def check_all_criteria_pass(data_dir: str | None = None) -> tuple[bool, dict]:
     """
     Run the full go-live checklist and return (all_pass, check_result).
 
-    'all_pass' is True only when every criterion (including Wallet Ready) has
-    status PASS — no WARN, no PENDING, no FAIL is tolerated for live activation.
+    'all_pass' is True when the checklist verdict is READY — i.e. all performance
+    criteria PASS and Wallet Ready (criterion 9) may be PENDING.  A PENDING on
+    Wallet Ready does not block activation; it is advisory and must be confirmed
+    separately by the owner typing the confirmation phrase.
 
     Returns:
-        (True, check_result)  if all 11 criteria PASS
-        (False, check_result) otherwise
+        (True, check_result)  if verdict is READY
+        (False, check_result) otherwise (ALMOST_READY or NOT_READY)
     """
     _setup_path()
     from golive.checklist import run_full_check
 
     data_path = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
     result    = run_full_check(str(data_path))
-    criteria  = result.get("criteria", [])
-    all_pass  = all(c["status"] == "PASS" for c in criteria)
+    # Use the checklist's own READY verdict so wallet_ready PENDING is acceptable
+    # per the checklist definition (criterion 9 is advisory, not a hard blocker).
+    all_pass  = result.get("verdict") == "READY"
     return all_pass, result
 
 
@@ -169,7 +172,7 @@ def run_activation(data_dir: str | None = None, _auto_confirm: str | None = None
             f"  • {c['name']} [{c['status']}]: {c.get('note', '')}"
             for c in criteria if c["status"] != "PASS"
         ]
-        print("❌ Activation BLOCKED — requires all criteria PASS:\n")
+        print("❌ Activation BLOCKED — not all criteria PASS:\n")
         print("\n".join(failing))
         print(
             "\nResolve the above issues and re-run this script.\n"
@@ -183,7 +186,7 @@ def run_activation(data_dir: str | None = None, _auto_confirm: str | None = None
     print("\n[2/3] Owner confirmation required.")
     print(
         "\n⚠️  WARNING: After activation, SPAWallet.execute() will be able to\n"
-        "    submit REAL on-chainsactions that move REAL capital.\n"
+        "    submit REAL on-chain transactions that move REAL capital.\n"
         "    Every transaction still passes through PreExecutionSafety,\n"
         "    but the NotImplementedError hard-block will be removed.\n"
     )
