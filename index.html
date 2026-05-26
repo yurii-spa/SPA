@@ -297,6 +297,44 @@
     from { opacity: 0; transform: translateY(3px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  /* ── Agent Stream Log panel (below canvas) v0.8 ── */
+  .agent-stream-log {
+    background: rgba(6,8,20,0.97);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .agent-stream-log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: #60a5fa;
+    background: rgba(0,0,0,0.25);
+  }
+  .agent-stream-entries {
+    height: 140px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+  .agent-stream-entries::-webkit-scrollbar { width: 3px; }
+  .agent-stream-entries::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  .agent-stream-empty {
+    padding: 28px 12px;
+    text-align: center;
+    font-size: 11px;
+    color: #3a3a5a;
+  }
+  @keyframes fadeInRow {
+    from { opacity: 0; background: rgba(255,255,255,0.04); }
+    to   { opacity: 1; background: transparent; }
+  }
   .log-entry-user {
     background: rgba(24,95,165,0.12);
     border-radius: 4px;
@@ -362,7 +400,7 @@
   /* ── Correlation Matrix (B3) ── */
   .corr-table { width:100%; border-collapse:collapse; font-size:10px; }
   .corr-table th { padding:4px 6px; color:#999; font-weight:500; text-align:center; white-space:nowrap; font-size:9px; }
-  .corr-table td { padding:4px 6px; text-align:center; border-radius:3px; font-size:10px; font-weight:500; }
+  .corr-table td { padding:4px 6px; text-align:center; border-radius:3�x; font-size:10px; font-weight:500; }
   .corr-high { background:#d1fae5; color:#065f46; }
   .corr-med  { background:#fef9c3; color:#713f12; }
   .corr-low  { background:#f3f4f6; color:#6b7280; }
@@ -414,6 +452,69 @@
     canvas { display:none; }
     .db-footer { display:none; }
   }
+
+  /* ── APY Gap Tracker ── */
+  .apy-gap-bar-wrap { position:relative; background:#eee; border-radius:6px; height:10px; margin:10px 0 4px; overflow:hidden; }
+  .apy-gap-bar-fill { background:#1D9E75; height:100%; border-radius:6px; transition:width .5s; }
+  .apy-gap-bar-target { position:absolute; top:-1px; bottom:-1px; width:2.5px; background:#185FA5; border-radius:1px; }
+  .apy-gap-summary { display:flex; align-items:center; gap:6px; font-size:13px; margin:6px 0 10px; flex-wrap:wrap; }
+  .apy-gap-summary .sep { color:#ddd; }
+  .apy-lever { display:flex; align-items:center; justify-content:space-between; font-size:12.5px; padding:5px 10px; border-radius:6px; margin-top:6px; }
+  .apy-lever-green { background:#eaf3de; color:#3B6D11; }
+  .apy-lever-gray  { background:#f3f4f6; color:#888; }
+  .apy-lever-label { font-weight:500; }
+
+  /* ── Pendle PT Positions ── */
+  .pendle-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .pendle-table th { color:#999; font-weight:500; text-align:left; padding:5px 8px; border-bottom:1px solid #eee; font-size:11px; }
+  .pendle-table td { padding:7px 8px; border-bottom:.5px solid #f5f5f5; vertical-align:middle; }
+  .pendle-table tr:last-child td { border-bottom:none; }
+  .pendle-empty { text-align:center; padding:22px 12px; color:#aaa; font-size:13px; line-height:1.55; }
+
+  /* ── Backtesting Replay ── */
+  .bt-run-btn {
+    background: #185FA5; color: #fff; border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: background .15s; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .bt-run-btn:hover { background: #1a6fc4; }
+  .bt-run-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .bt-replay-btn {
+    background: none; border: 1px solid #ddd; border-radius: 6px;
+    padding: 6px 14px; font-size: 12px; color: #888; cursor: pointer;
+    transition: all .15s; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .bt-replay-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+  .bt-replay-btn.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  .bt-replay-controls {
+    background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .bt-play-btn {
+    background: #3b82f6; color: #fff; border: none; border-radius: 6px;
+    padding: 5px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
+    white-space: nowrap; transition: background .15s;
+  }
+  .bt-play-btn:hover { background: #2563eb; }
+  .bt-day-slider {
+    flex: 1; min-width: 100px; max-width: 320px;
+    accent-color: #3b82f6; cursor: pointer;
+  }
+  .bt-day-label { font-size: 12px; color: #374151; font-weight: 600; white-space: nowrap; }
+  .bt-replay-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 20px;
+    padding: 2px 10px; font-size: 11px; font-weight: 600; color: #1d4ed8;
+  }
+  body.night .bt-replay-controls { background: #1a1a30; border-color: #252550; }
+  body.night .bt-day-label { color: #c8ccda; }
+
+  /* ── Day progress (Go-Live) ── */
+  .day-progress-wrap { margin:10px 0 4px; }
+  .day-progress-bar-bg { background:#eee; border-radius:6px; height:8px; overflow:hidden; margin:5px 0 3px; }
+  .day-progress-bar-fill { background:linear-gradient(90deg,#16a34a,#185FA5); height:100%; border-radius:6px; transition:width .6s ease; }
+  .day-progress-label { display:flex; justify-content:space-between; font-size:11px; color:#aaa; }
 
   /* ── Loading Skeletons ── */
   .skeleton { background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:4px; }
@@ -532,14 +633,40 @@
   body.night #mobileSummaryBar { background: #131328; border-top-color: #252540; }
   @media (max-width: 768px) { #mobileSummaryBar { display: flex !important; } }
   @media (min-width: 769px) { #mobileSummaryBar { display: none !important; } }
+
+  /* ── System Health Tab ── */
+  .health-badge { padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 13px; }
+  .health-healthy { background: #1a3a1a; color: #4caf50; }
+  .health-degraded { background: #3a2a00; color: #ff9800; }
+  .health-failing  { background: #3a0000; color: #f44336; }
+  .health-unknown  { background: #1a1a2e; color: #9ca3af; }
+  .freshness-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+  .freshness-row:last-child { border-bottom: none; }
+  .fresh-ok    { color: #4caf50; font-weight: 500; }
+  .fresh-warn  { color: #ff9800; font-weight: 500; }
+  .fresh-stale { color: #f44336; font-weight: 500; }
+  .sys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .sys-card { background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 16px 20px; }
+  .sys-section { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: #888; margin-bottom: 12px; text-transform: uppercase; }
+  .sys-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+  .sys-row span:first-child { color: #888; }
+  .countdown-big { font-size: 26px; font-weight: 600; color: #185FA5; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+  .countdown-warn { color: #d97706; }
+  .countdown-overdue { color: #dc2626; }
+  body.night .sys-card { background: #13132a; border-color: #252540; }
+  body.night .freshness-row { border-bottom-color: #252540; }
+  @media (max-width: 768px) { .sys-grid { grid-template-columns: 1fr !important; } }
 </style>
 </head>
 <body>
 
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
   <h1>Smart Passive Aggregator — SPA</h1>
-  <div id="live-indicator" style="font-size:11px;color:#9ca3af;padding:4px 10px;background:#f5f4f0;border:1px solid #eee;border-radius:20px;cursor:default;flex-shrink:0" title="Using static JSON files">
-    <span style="color:#9ca3af">●</span> Static
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <div id="data-freshness-badge" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default;color:#888" title="Checking data freshness…">⏳ Checking…</div>
+    <div id="live-indicator" style="font-size:11px;color:#9ca3af;padding:4px 10px;background:#f5f4f0;border:1px solid #eee;border-radius:20px;cursor:default" title="Using static JSON files">
+      <span style="color:#9ca3af">●</span> Static
+    </div>
   </div>
 </div>
 <p class="subtitle" id="ts-subtitle">Проект · Загрузка данных... · Стратегия v1.0</p>
@@ -551,6 +678,7 @@
   <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Аналітика <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"        onclick="showTab('team', this)">👾 Команда</button>
   <button class="tab-btn"        onclick="showTab('golive', this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"        onclick="showTab('system', this)">⚙️ System</button>
 </div>
 
 <!-- Agent popup modal -->
@@ -617,8 +745,7 @@
       <div class="group-sep">M6 — Go-Live</div>
       <div class="kb-card"><div class="kb-title">PostgreSQL миграция</div><span class="tag tag-infra">Инфраструктура</span></div>
       <div class="kb-card"><div class="kb-title">Security audit + VPN + Kill Switch тест</div><span class="tag tag-adr">ADR</span></div>
-      <div class="kb-card"><div class="kb-title">ADR: Go-Live решение</div><span class="tag tag-adr">ADR</span></div>
-
+      <div class="kb-card"><div class="kb-title">ADR8o Go-Live решение</div><span class="tag tag-adr">ADR</span></div>
       <div class="group-sep">Данные</div>
       <div class="kb-card"><div class="kb-title">The Graph: on-chain события (liquidations, rates)</div><span class="tag tag-data">Данные</span></div>
       <div class="kb-card"><div class="kb-title">Backtest Engine (DeFiLlama history 2022+)</div><span class="tag tag-data">Данные</span></div>
@@ -667,7 +794,7 @@
       <div class="kb-card"><div class="kb-title strikethrough">Документация v0.3 (17 файлов)</div><span class="tag tag-doc">Документация</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">ADR-001 — ADR-009</div><span class="tag tag-adr">ADR</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Risk Policy v0.3 + Whitelist v0.4.5</div><span class="tag tag-adr">Политика</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Agent Architecture v0.3</div><span class="tag tag-agent">Архитектура</span></div>
+      <div class="kb-card"><div class="kb-title strikethrough">Agent Architecture v0.3</div><span class="tag tag-agent">Аршитектура</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Strategy Passport v1_passive</div><span class="tag tag-strat">Стратегия</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Message Bus (SQLite WAL) + 19 тестов</div><span class="tag tag-infra">Инфраструктура</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Monitoring Agent (HealthCheck wrapper)</div><span class="tag tag-agent">Агент</span></div>
@@ -776,6 +903,30 @@
     </div>
   </div>
 
+  <!-- APY Gap Tracker -->
+  <div class="db-full" id="apy-gap-card">
+    <div class="db-section">📈 APY Gap Tracker — target 7.30%</div>
+    <div class="apy-gap-bar-wrap">
+      <div class="apy-gap-bar-fill" id="apy-gap-fill" style="width:0%"></div>
+      <div class="apy-gap-bar-target" id="apy-gap-target-line" style="left:100%"></div>
+    </div>
+    <div class="apy-gap-summary">
+      <span>Current: <strong id="apy-gap-current" class="green">—</strong></span>
+      <span class="sep">→</span>
+      <span>Target: <strong style="color:#185FA5">7.30%</strong></span>
+      <span class="sep">→</span>
+      <span>Gap: <strong id="apy-gap-delta" class="red">—</strong></span>
+    </div>
+    <div class="apy-lever apy-lever-green">
+      <span class="apy-lever-label">🌿 Pendle PT</span>
+      <span id="apy-lever-pendle">+X.X% available</span>
+    </div>
+    <div class="apy-lever apy-lever-gray">
+      <span class="apy-lever-label">🔵 Sky / sUSDS</span>
+      <span>+0.6% <span style="font-size:10px;font-weight:600;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;margin-left:4px">PENDING</span></span>
+    </div>
+  </div>
+
   <!-- Portfolio Chart -->
   <div class="db-full">
     <div class="db-section">портфель — динамика капитала</div>
@@ -826,6 +977,9 @@
       <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
     </div>
   </div>
+
+  <!-- APY Trends (7d) -->
+  <div id="apy-trends-container"></div>
 
   <div class="db-footer">SPA Paper Trading v0.4 · данные реальные, капитал виртуальный · обновляется каждые 4ч · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
 
@@ -939,7 +1093,7 @@
       <div class="agent-tasks">Читает APY → ранжирует<br>auto_allocate() по бюджету<br>→ MessageBus: trade_opened</div>
     </div>
     <div class="agent-card">
-      <!-- MonitorBot: фиолетовый, следит за рисками, антенна мигает быстро -->
+      <!-- MonitorBot: фиолетовый, следит за рисками, антенна мигает быстрп -->
       <svg class="pixel-bot bot-monitor" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="0" width="2" height="1" fill="#C4B5FD" class="ant-monitor"/>
         <rect x="1" y="1" width="6" height="4" fill="#3B0764"/>
@@ -948,8 +1102,6 @@
         <rect x="3" y="3" width="2" height="1" fill="#8B5CF6"/>
         <rect x="3" y="5" width="2" height="1" fill="#3B0764"/>
         <rect x="0" y="6" width="1" height="3" fill="#3B0764"/>
-        <rect x="7" y="6" width="1" height="3" fill="#3B0764"/>
-        <rect x="2" y="6" width="4" height="3" fill="#6D28D9"/>
         <rect x="3" y="7" width="2" height="1" fill="#C4B5FD"/>
         <rect x="2" y="9" width="1" height="1" fill="#3B0764"/>
         <rect x="5" y="9" width="1" height="1" fill="#3B0764"/>
@@ -986,7 +1138,6 @@
       <span class="agent-status running">● работает</span>
       <div class="agent-tasks">RiskPolicy.check_new_position<br>Финальное одобрение сделок<br>→ блокирует при нарушении</div>
     </div>
-  </div>
   </div><!-- /hidden legacy -->
 
   <!-- Stack -->
@@ -999,7 +1150,7 @@
       <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama API</span></div>
       <div class="stack-row"><span class="stack-label">CI/CD</span><span class="stack-value">GitHub Actions (4h)</span></div>
       <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · React + Vite</span></div>
-      <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скоро</span></span></div>
+      <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скорп</span></span></div>
     </div>
     <div class="team-stack">
       <div class="flow-title">дорожная карта</div>
@@ -1009,6 +1160,19 @@
       <div class="stack-row"><span class="stack-label">v0.5</span><span class="stack-value">CopilotKit / AG-UI стриминг</span></div>
       <div class="stack-row"><span class="stack-label">v1.0</span><span class="stack-value">Go-Live ~2026-07-15</span></div>
       <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный</span></div>
+    </div>
+  </div>
+
+  <!-- ── Agent Activity Stream Log (SSE real-time feed) v0.8 ── -->
+  <div class="agent-stream-log">
+    <div class="agent-stream-log-header">
+      <span id="agent-stream-log-hdr" style="transition:color .4s">📡 STREAM АГЕНТОВ — РЕАЛЬНОЕ ВРЕМЯ</span>
+      <span id="agent-stream-status" style="font-weight:400;color:#4b5563;font-size:9px;letter-spacing:.04em">Ожидание событик…</span>
+    </div>
+    <div id="agent-stream-log-entries" class="agent-stream-entries">
+      <div class="agent-stream-empty" id="agent-stream-empty-msg">
+        Нет событий · запустите <code style="font-size:10px">uvicorn spa_core.api.server:app --port 8765</code> и <code style="font-size:10px">python spa_core/export_data.py</code>
+      </div>
     </div>
   </div>
 
@@ -1153,9 +1317,9 @@
     <div id="strat-panel-v1" class="strat-panel">
       <div class="strat-kpi-grid" id="strat-v1-kpis">
         <div class="strat-kpi"><div class="strat-kpi-label">Доходність</div><div class="strat-kpi-value" id="v1-kpi-ret">—</div></div>
-        <div class="strat-kpi"><div class="strat-kpi-label">Поточний APY</div><div class="strat-kpi-value" id="v1-kpi-apy">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Поточний ЕФ�</div><div class="strat-kpi-value" id="v1-kpi-apy">—</div></div>
         <div class="strat-kpi"><div class="strat-kpi-label">Позицій</div><div class="strat-kpi-value" id="v1-kpi-pos">—</div></div>
-        <div class="strat-kpi"><div class="strat-kpi-label">Кеш</div><div class="strat-kpi-value" id="v1-kpi-cash">—</div></div>
+        <div class="strat-kpidiv class="strat-kpi-label">Кеш</div><div class="strat-kpi-value" id="v1-kpi-cash">—</div></div>
       </div>
       <div style="overflow-x:auto;margin-top:12px">
         <table class="proto-table">
@@ -1214,7 +1378,7 @@
   <div class="an-card" style="margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div class="an-title" style="margin-bottom:0">💡 AI Recommendations — Kelly·Markowitz Optimizer</div>
-      <span id="opt-improvement-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:#d1fae5;color:#065f46;font-weight:600"></span>
+      <span id="opt-improvement-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:#d1fae5;color:#065f46;pont-weight:600"></span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
       <div class="strat-kpi"><div class="strat-kpi-label">Policy</div><div class="strat-kpi-value" id="opt-policy" style="font-size:13px">—</div></div>
@@ -1276,6 +1440,71 @@
     </div>
   </div>
 
+  <!-- ══ Pendle PT Positions ══ -->
+  <div class="an-card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="an-title" style="margin-bottom:0">🌿 Pendle PT Positions</div>
+      <span id="pendle-badge" style="font-size:11px;color:#888"></span>
+    </div>
+    <div id="pendle-body">
+      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>
+    </div>
+  </div>
+
+
+  <!-- ══ Backtesting Replay ══ -->
+  <div class="an-card" style="margin-top:16px" id="backtest-replay-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="an-title" style="margin-bottom:0">📈 Backtesting Replay</div>
+        <span id="bt-replay-badge" class="bt-replay-badge" style="display:none">⏪ REPLAY MODE</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="bt-run-btn" class="bt-run-btn" onclick="runBacktest()">▷ Run Backtest</button>
+        <button id="bt-replay-toggle" class="bt-replay-btn" onclick="toggleReplayMode()">⏱ Replay Mode</button>
+      </div>
+    </div>
+
+    <!-- Replay controls bar (hidden until Replay Mode is on) -->
+    <div id="bt-replay-controls" class="bt-replay-controls" style="display:none">
+      <button id="bt-play-btn" class="bt-play-btn" onclick="btPlayPause()">▶ Play</button>
+      <span class="bt-day-label" id="bt-day-label">Day: 0/56</span>
+      <input type="range" id="bt-day-slider" class="bt-day-slider" min="0" max="56" value="0"
+             oninput="btSeekDay(this.value)" />
+      <span style="font-size:11px;color:#6b7280">Drag to scrub · updates Paper Trading tab</span>
+    </div>
+
+    <!-- Equity curve chart -->
+    <div style="position:relative;height:280px;margin-bottom:16px">
+      <canvas id="bt-equity-chart"></canvas>
+    </div>
+    <div style="font-size:10px;color:#bbb;margin-bottom:16px">
+      Blue = v1_passive &nbsp;·&nbsp; Orange = v2_aggressive &nbsp;·&nbsp; Hover for day, value &amp; daily PnL
+    </div>
+
+    <!-- Metrics comparison table -->
+    <div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:#888;text-transform:uppercase;margin-bottom:8px">
+      Strategy Comparison Metrics
+    </div>
+    <div style="overflow-x:auto">
+      <table class="compare-table" style="margin-bottom:0">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th style="text-align:center;color:#3b82f6">v1_passive</th>
+            <th style="text-align:center;color:#f97316">v2_aggressive</th>
+            <th style="text-align:center">Winner</th>
+          </tr>
+        </thead>
+        <tbody id="bt-cmp-tbody">
+          <tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">
+            Click <strong>▷ Run Backtest</strong> to load equity curves &amp; metrics…
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div><!-- /tab-analytics -->
 
 
@@ -1296,7 +1525,18 @@
       <div id="golive-verdict" style="font-size:22px;font-weight:700;margin-bottom:8px">
         <div class="skeleton skel-line" style="width:40%;height:36px"></div>
       </div>
-      <div id="golive-countdown" style="font-size:14px;color:#888"></div>
+      <div id="golive-countdown" style="font-size:14px;color:#888;margin-bottom:10px"></div>
+      <div class="day-progress-wrap" id="golive-day-progress-wrap">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:3px"><span id="golive-day-label">Day — of 56</span></div>
+        <div class="day-progress-bar-bg">
+          <div class="day-progress-bar-fill" id="golive-day-fill" style="width:0%"></div>
+        </div>
+        <div class="day-progress-label">
+          <span>2026-05-20</span>
+          <span id="golive-day-today"></span>
+          <span>2026-07-15</span>
+        </div>
+      </div>
       <div id="golive-rec" style="margin-top:14px;padding:12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#555;border-left:3px solid #ddd;display:none"></div>
     </div>
     <div style="width:140px;flex-shrink:0">
@@ -1360,6 +1600,56 @@
 
 </div><!-- /tab-golive -->
 
+
+<!-- ══════════════════ TAB: SYSTEM HEALTH ══════════════════ -->
+<div id="tab-system" class="tab-pane">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:500">System Health Monitor</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Pipeline · Data Freshness · Pipeline Clock · Go-Live</div>
+    </div>
+    <button class="refresh-btn" onclick="loadSystemHealth()">↻ Refresh</button>
+  </div>
+
+  <div class="sys-grid">
+    <!-- Card 1: Pipeline Health -->
+    <div class="sys-card">
+      <div class="sys-section">⚡ Pipeline Health</div>
+      <div id="sys-pipeline-body">
+        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Card 2: Data Freshness -->
+    <div class="sys-card">
+      <div class="sys-section">🗂 Data Freshness</div>
+      <div id="sys-freshness-body">
+        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Card 3: Paper Trading Clock -->
+    <div class="sys-card">
+      <div class="sys-section">⏱ Paper Trading Clock</div>
+      <div id="sys-clock-body">
+        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Card 4: Go-Live Countdown -->
+    <div class="sys-card">
+      <div class="sys-section">🎯 Go-Live Countdown</div>
+      <div id="sys-golive-body">
+        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:#bbb;text-align:center;margin-top:8px" id="sys-last-refresh">Auto-refreshes every 60s while tab is active</div>
+
+</div><!-- /tab-system -->
+
 <script>
 // ─── Конфиг ───────────────────────────────────────────────────────────────────
 let BASE = location.hostname === 'localhost' && location.port !== '8765'
@@ -1382,6 +1672,7 @@ async function detectLiveMode() {
       BASE = LIVE_BASE;
       updateLiveIndicator(true);
       connectLiveWs();
+      connectSSE();   // parallel SSE for structured agent thought events
     } else { updateLiveIndicator(false); }
   } catch(e) { updateLiveIndicator(false); }
 }
@@ -1395,15 +1686,231 @@ function updateLiveIndicator(live) {
   dot.title = live ? 'Connected to FastAPI server at localhost:8765' : 'Using static JSON files';
 }
 
+// ─── Data freshness badge (meta.json updated within 5h = GitHub Actions running) ─
+function updateDataFreshnessBadge(meta) {
+  const el = document.getElementById('data-freshness-badge');
+  if (!el) return;
+  if (!meta || !meta.updated_at) {
+    el.textContent = '📴 Offline';
+    el.style.background = '#fee2e2';
+    el.style.borderColor = '#fca5a5';
+    el.style.color = '#B91C1C';
+    el.title = 'meta.json has no timestamp';
+    return;
+  }
+  const updatedMs = new Date(meta.updated_at).getTime();
+  const ageHours = (Date.now() - updatedMs) / 3600000;
+  const ageStr = ageHours < 1
+    ? Math.round(ageHours * 60) + 'm ago'
+    : ageHours.toFixed(1) + 'h ago';
+  if (ageHours <= 5) {
+    el.innerHTML = '📡 <strong>Live</strong>';
+    el.style.background = '#eaf3de';
+    el.style.borderColor = '#c6e5a0';
+    el.style.color = '#3B6D11';
+    el.title = 'GitHub Actions ran ' + ageStr + ' · data is fresh';
+  } else {
+    el.innerHTML = '📴 Offline';
+    el.style.background = '#fee2e2';
+    el.style.borderColor = '#fca5a5';
+    el.style.color = '#B91C1C';
+    el.title = 'Last update ' + ageStr + ' · GitHub Actions may be stopped';
+  }
+}
+
+// ─── APY Gap Tracker ─────────────────────────────────────────────────────────
+function renderApyGapTracker(status, portfolioStatus) {
+  const TARGET = 7.30;
+
+  // Try portfolio_status.json weighted_apy first, fall back to calculating from positions
+  let currentApy = null;
+  if (portfolioStatus && portfolioStatus.weighted_apy != null) {
+    currentApy = Number(portfolioStatus.weighted_apy);
+  } else if (status) {
+    const positions = status.positions || [];
+    const open = positions.filter(p => p.amount_usd > 0);
+    if (open.length > 0) {
+      const totalAmt = open.reduce((s, p) => s + p.amount_usd, 0);
+      if (totalAmt > 0) {
+        currentApy = open.reduce((s, p) => s + (p.current_apy || 0) * p.amount_usd, 0) / totalAmt;
+      }
+    }
+  }
+
+  if (currentApy == null) currentApy = 0;
+
+  const gap = currentApy - TARGET;
+  const fillPct = Math.min(100, (currentApy / TARGET) * 100);
+  const targetLinePct = 100; // target is always at 100% of the bar scale
+
+  const fillEl   = document.getElementById('apy-gap-fill');
+  const curEl    = document.getElementById('apy-gap-current');
+  const deltaEl  = document.getElementById('apy-gap-delta');
+  const pendleEl = document.getElementById('apy-lever-pendle');
+
+  if (fillEl)  fillEl.style.width = fillPct.toFixed(1) + '%';
+  if (curEl)  { curEl.textContent = currentApy.toFixed(2) + '%'; curEl.className = currentApy >= TARGET ? 'green' : 'red'; }
+  if (deltaEl){ deltaEl.textContent = (gap >= 0 ? '+' : '') + gap.toFixed(2) + '%'; deltaEl.className = gap >= 0 ? 'green' : 'red'; }
+
+  // Pendle lever: show gap remaining rounded to 1 decimal
+  const pendleAvailable = Math.max(0, -(gap)).toFixed(1);
+  if (pendleEl) pendleEl.textContent = '+' + pendleAvailable + '% available';
+}
+
+// ─── Pendle PT Positions ─────────────────────────────────────────────────────
+async function renderPendlePositions() {
+  const bodyEl  = document.getElementById('pendle-body');
+  const badgeEl = document.getElementById('pendle-badge');
+  if (!bodyEl) return;
+
+  let data = null;
+  try {
+    const ts = Date.now();
+    data = await fetch(BASE + '/pendle_positions.json?_=' + ts).then(r => {
+      if (!r.ok) throw new Error('not found');
+      return r.json();
+    });
+  } catch(_) { data = null; }
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    bodyEl.innerHTML = '<div class="pendle-empty">No Pendle PT positions yet — will allocate when DeFiLlama pool data is live</div>';
+    if (badgeEl) badgeEl.textContent = '0 positions';
+    return;
+  }
+
+  if (badgeEl) badgeEl.textContent = data.length + ' position' + (data.length !== 1 ? 's' : '');
+
+  const today = Date.now();
+  const rows = data.map(p => {
+    const daysHeld    = p.days_held != null ? p.days_held : (p.entry_date ? Math.floor((today - new Date(p.entry_date).getTime()) / 86400000) : '—');
+    const maturity    = p.maturity_date ? new Date(p.maturity_date) : null;
+    const daysLeft    = maturity ? Math.max(0, Math.ceil((maturity - today) / 86400000)) : (p.days_remaining != null ? p.days_remaining : '—');
+    const accrued     = p.accrued_return_usd != null ? '$' + Number(p.accrued_return_usd).toFixed(2) : '—';
+    const capital     = p.amount_usd != null ? '$' + Number(p.amount_usd).toLocaleString('en-US', {maximumFractionDigits:0}) : '—';
+    const entryApy    = p.entry_apy != null ? Number(p.entry_apy).toFixed(2) + '%' : '—';
+    const pool        = p.pool || p.protocol || '—';
+    return `<tr>
+      <td style="font-weight:500">${pool}</td>
+      <td class="green">${entryApy}</td>
+      <td>${capital}</td>
+      <td>${daysHeld}</td>
+      <td class="green">${accrued}</td>
+      <td style="color:#888">${daysLeft}</td>
+    </tr>`;
+  }).join('');
+
+  bodyEl.innerHTML = `<div style="overflow-x:auto">
+    <table class="pendle-table">
+      <thead><tr>
+        <th>Pool</th>
+        <th>Entry APY (fixed)</th>
+        <th>Capital</th>
+        <th>Days Held</th>
+        <th>Accrued Return</th>
+        <th>Days Remaining</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 function connectLiveWs() {
   if (_liveWs) return;
   try {
     _liveWs = new WebSocket('ws://localhost:8765/ws/agents');
     _liveWs.onmessage = e => {
-      try { const d = JSON.parse(e.data); if (d.agent && d.message) logActivity(d.agent, d.message); } catch(_) {}
+      try {
+        const d = JSON.parse(e.data);
+        if (d.agent && d.message) {
+          const agId = _SSE_AGENT_MAP[d.agent] || d.agent.toLowerCase().replace('agent','');
+          _handleAgentEvent(agId, d.message, d.type || 'activity');
+        }
+      } catch(_) {}
     };
-    _liveWs.onerror = () => { _liveWs = null; };
+    _liveWs.onerror = () => { _liveWs = null; setTimeout(connectSSE, 800); };
     _liveWs.onclose  = () => { _liveWs = null; };
+  } catch(_) { setTimeout(connectSSE, 800); }
+}
+
+// ── SSE real-time agent thought streaming (v0.8 — fallback/parallel) ─────────
+let _sseConn = null;
+const _SSE_AGENT_MAP = {
+  'DataAgent':'data', 'TraderAgent':'strategy',
+  'RiskAgent':'monitor', 'ReportAgent':'ceo',
+  // also accept lowercase variants
+  'dataagent':'data', 'traderagent':'strategy',
+  'riskagent':'monitor', 'reportagent':'ceo',
+};
+window._spa_agentLastEvent = {};   // agentId → timestamp ms, for status dots
+
+function _handleAgentEvent(agId, message, evtType) {
+  // Update last-active timestamp for status dot
+  window._spa_agentLastEvent[agId] = Date.now();
+  // Inject live thought bubble into canvas agent
+  const ag = window._spa_agents && window._spa_agents[agId];
+  if (ag && message) {
+    ag.bubbleMsg   = message;
+    ag.bubbleAlpha = 0;
+    ag.bubbleTick  = 0;
+    ag.bubblePhase = 'show';
+  }
+  // Log to existing activity panel (uses agId key like 'data', 'strategy'…)
+  logActivity(agId, message);
+  // Append to new stream-log panel
+  _appendStreamLog(agId, message, evtType);
+}
+
+function _appendStreamLog(agId, message, evtType) {
+  const panel = document.getElementById('agent-stream-log-entries');
+  if (!panel) return;
+  const COL   = {data:'#3B82F6', strategy:'#10B981', monitor:'#8B5CF6', ceo:'#F59E0B'};
+  const NAMES = {data:'DataAgent', strategy:'TraderAgent', monitor:'RiskAgent', ceo:'ReportAgent'};
+  const ICONS = {agent_thought:'💭', agent_action:'⚡', risk_alert:'🚨', portfolio_update:'📊', activity:'🔵'};
+  const col  = COL[agId]   || '#aaaaaa';
+  const name = NAMES[agId] || agId;
+  const icon = ICONS[evtType] || '💬';
+  const ts   = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const row  = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;align-items:baseline;animation:fadeInRow .3s ease';
+  row.innerHTML =
+    `<span style="color:#4b5563;flex-shrink:0">${ts}</span>` +
+    `<span style="color:${col};font-weight:600;flex-shrink:0">${icon} ${name}</span>` +
+    `<span style="color:#c8cfe0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${message}</span>`;
+  // Hide empty-state placeholder
+  const empty = document.getElementById('agent-stream-empty-msg');
+  if (empty) empty.style.display = 'none';
+  // Update status badge
+  const st = document.getElementById('agent-stream-status');
+  if (st) st.textContent = `Последнее: ${ts}`;
+  panel.appendChild(row);
+  // Keep last 10 rows
+  while (panel.children.length > 10) panel.removeChild(panel.firstChild);
+  panel.scrollTop = panel.scrollHeight;
+  // Flash the stream log header
+  const hdr = document.getElementById('agent-stream-log-hdr');
+  if (hdr) { hdr.style.color = col; setTimeout(() => { if(hdr) hdr.style.color = ''; }, 1500); }
+}
+
+function connectSSE() {
+  if (_sseConn) return;
+  try {
+    _sseConn = new EventSource('http://localhost:8765/api/events');
+    _sseConn.onopen = () => { updateLiveIndicator(true); };
+    _sseConn.onmessage = e => {
+      try {
+        if (!e.data || e.data.startsWith(':')) return;   // keepalive comment
+        const d = JSON.parse(e.data);
+        if (!d.agent || !d.message) return;
+        const agId = _SSE_AGENT_MAP[d.agent] || _SSE_AGENT_MAP[d.agent.toLowerCase()] || d.agent.toLowerCase().replace('agent','');
+        _handleAgentEvent(agId, d.message, d.type || 'agent_thought');
+      } catch(_) {}
+    };
+    _sseConn.onerror = () => {
+      _sseConn.close();
+      _sseConn = null;
+      // Retry after 10s
+      setTimeout(connectSSE, 10000);
+    };
   } catch(_) {}
 }
 
@@ -1417,6 +1924,8 @@ const fmtPct = n => n == null ? '—' : Number(n).toFixed(2) + '%';
 const fmtSign = n => n == null ? '—' : (n >= 0 ? '+' : '') + fmt(n);
 
 function showTab(id, btn) {
+  // Deactivate system tab timer if leaving it
+  if (id !== 'system') onSystemTabDeactivated();
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
@@ -1425,6 +1934,7 @@ function showTab(id, btn) {
   if (id === 'analytics') loadAnalytics();
   if (id === 'golive') loadGoLive();
   if (id === 'team') loadAgentCommentary();
+  if (id === 'system') onSystemTabActivated();
 }
 
 // ─── Загрузка данных ──────────────────────────────────────────────────────────
@@ -1433,18 +1943,22 @@ async function loadDashboard() {
   if (spinner) spinner.style.display = 'inline-block';
   try {
     const ts = Date.now();
-    const [status, protocols, stratState, meta, alertsData, tradesData] = await Promise.all([
+    const [status, protocols, stratState, meta, alertsData, tradesData, portfolioStatus] = await Promise.all([
       fetch(BASE + '/status.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/protocols.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/strategy_state.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/meta.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/alerts.json?_=' + ts).then(r => r.json()).catch(() => ({ count: 0, alerts: [] })),
       fetch(BASE + '/trades.json?_=' + ts).then(r => r.json()).catch(() => []),
+      fetch(BASE + '/portfolio_status.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     _loadedOnce = true;
     renderDashboard(status, protocols, stratState, meta);
     renderAlerts(alertsData);
     renderTrades(tradesData);
+    updateDataFreshnessBadge(meta);
+    renderApyGapTracker(status, portfolioStatus);
+    renderApyTrends();
   } catch(e) {
     document.getElementById('health-badge').className = 'status-err';
     document.getElementById('health-badge').textContent = '⚠ Нет данных';
@@ -1452,6 +1966,18 @@ async function loadDashboard() {
   } finally {
     if (spinner) spinner.style.display = 'none';
   }
+}
+
+// ─── APY Trends ÊR�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R )��幌��չ�ѥ���ɕ������Qɕ��̠���(����Ё�ɕ��̀�ձ��(�������ɕ��̀�݅�Ё��э�)M=8�1%Y}	M���������ɕ��̜��􁍅э�������(��������ɕ��̤�������ɕ��̀�݅�Ё��э�)M=8�	M��������}�ɕ��̹�ͽ����􁍅э��������(��������ɕ��́�����ɕ��̹�ɕ��̤�ɕ��ɸ�((������Ё���х���Ȁ􁑽�յ��й���������	�%�������ɕ��̵���х���Ȝ��(����������х���Ȥ�ɕ��ɸ�((������Ёɽ�̀�=����й���ɥ�̡�ɕ��̹�ɕ��̤������m��䰁�t������(��������Ё��ɽ܀�й�ɕ������U@������D : t.trend === 'DOWN' ? '↓' : '→';
+    const color = t.trend === 'UP' ? '#4caf50' : t.trend === 'DOWN' ? '#f44336' : '#9e9e9e';
+    return `<div class="trend-row" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
+      <span class="trend-name" style="color:#444;font-weight:500">${key.split(':')[0]}</span>
+      <span class="trend-apy" style="color:#185FA5;font-weight:600">${t.avg_apy != null ? t.avg_apy.toFixed(2) : '—'}%</span>
+      <span class="trend-arrow" style="color:${color};font-weight:600;min-width:90px;text-align:right">${arrow} ${t.change_7d_bps !== undefined ? (t.change_7d_bps > 0 ? '+' : '') + t.change_7d_bps + ' bps' : ''}</span>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `<div class="db-full"><div class="db-section">📊 APY Trends (7d)</div>${rows || '<p style="opacity:.5;font-size:13px;padding:8px 0">No trend data yet — will populate after first fetch run</p>'}</div>`;
 }
 
 // ─── Рендер ───────────────────────────────────────────────────────────────────
@@ -1819,7 +2345,7 @@ setInterval(checkNightMode, 60000);
 // ─── Agent Click Popup ────────────────────────────────────────────────────────
 const AGENT_INFO = {
   data:     { name:'DataAgent 🤖',     role:'Сбор данных · DeFiLlama · 15 протоколов',  color:'#3B82F6' },
-  strategy: { name:'StrategyAgent 📈', role:'v1_passive · APY-скоринг · авто-аллокация', color:'#10B981' },
+  strategy: { name:'StrategyAgent 📈', role:'v1_passive · APY-скоринг · автп-аллокация', color:'#10B981' },
   monitor:  { name:'MonitorAgent 🔍',  role:'HealthCheck · AlertEngine · патруль',        color:'#8B5CF6' },
   ceo:      { name:'CEOAgent 👔',       role:'RiskPolicy · Approve/HOLD/REJECT',           color:'#F59E0B' },
 };
@@ -1880,8 +2406,8 @@ function closeAgentModal() {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabIds = ['kanban','dashboard','analytics','team','golive'];
-  if (e.key >= '1' && e.key <= '5') {
+  const tabIds = ['kanban','dashboard','analytics','team','golive','system'];
+  if (e.key >= '1' && e.key <= '6') {
     const idx = parseInt(e.key) - 1;
     if (tabIds[idx] && tabBtns[idx]) showTab(tabIds[idx], tabBtns[idx]);
   }
@@ -1927,6 +2453,8 @@ async function loadAnalytics() {
     renderTournament(tournamentData);
     renderAdvancedStats(advancedData);
     loadOptimization();
+    renderPendlePositions();
+    runBacktest();
   } catch(e) {
     console.error('Analytics load error:', e);
   }
@@ -2414,6 +2942,36 @@ function renderApyHistoryChart(data) {
   if (_apyHistChart) { _apyHistChart.destroy(); _apyHistChart = null; }
 
   if (!data || !data.protocols) {
+    ctx.parentElement.innerHTML = '<div class="an-title">APY History by Protocol</div><div style="color:#bbb;font-size:12px;padding:20px 0">Нет данных (historical_apy.json gнедоступен)</div>';
+    return;
+  }
+
+  // Take last 30 data-points per protocol (data already sorted ASC)
+  const SHOW_DAYS = 30;
+  const protocols = Object.keys(data.protocols);
+  let allDates = new Set();
+  const sliced = {};
+  protocols.forEach(key => {
+    const arr = (data.protocols[key] || []).slice(-SHOW_DAYS);
+    sliced[key] = arr;
+    arr.forEach(e => allDates.add(e.date));
+  });
+  const labels = Array.from(allDates).sort();
+
+  const isDark = document.body.classList.contains('night') || windart = null;
+
+// Protocol colour palette — matches existing T1/T2 colours where possible
+const APY_HIST_COLORS = [
+  '#1D9E75', '#7F77DD', '#F59E0B', '#EF4444',
+  '#3B82F6', '#10B981', '#EC4899',
+];
+
+function renderApyHistoryChart(data) {
+  const ctx = document.getElementById('apy-history-chart');
+  if (!ctx) return;
+  if (_apyHistChart) { _apyHistChart.destroy(); _apyHistChart = null; }
+
+  if (!data || !data.protocols) {
     ctx.parentElement.innerHTML = '<div class="an-title">APY History by Protocol</div><div style="color:#bbb;font-size:12px;padding:20px 0">Нет данных (historical_apy.json недоступен)</div>';
     return;
   }
@@ -2434,7 +2992,7 @@ function renderApyHistoryChart(data) {
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
   const tickColor = '#888';
 
-  const datasets = protocols.map((key, idx) => {
+  const datasets = protocols.map(hkey, idx) => {
     const color = APY_HIST_COLORS[idx % APY_HIST_COLORS.length];
     // Build a map for fast lookup
     const byDate = {};
@@ -2699,7 +3257,7 @@ function renderCompareTable(comp) {
 
   const rows = [
     { label: 'Загальна доходність', v1val: v1.total_return_pct, v2val: v2.total_return_pct, fmt: v => (v != null ? (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
-    { label: 'Поточний APY',        v1val: v1.current_apy,      v2val: v2.current_apy,      fmt: v => (v != null ? Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
+    { label: 'Поточний АПЯ',        v1val: v1.current_apy,      v2val: v2.current_apy,      fmt: v => (v != nu? Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
     { label: 'Кількість позицій',   v1val: v1.positions_count,  v2val: v2.positions_count,  fmt: v => (v != null ? v : '—'), higherIsBetter: null },
     { label: 'Кеш-буфер',           v1val: v1.cash_pct,         v2val: v2.cash_pct,         fmt: v => (v != null ? (Number(v)*100).toFixed(1) + '%' : '—'), higherIsBetter: null },
     { label: 'PnL ($)',             v1val: v1.total_pnl_usd,    v2val: v2.total_pnl_usd,    fmt: v => (v != null ? (v >= 0 ? '+' : '') + '$' + Math.abs(Number(v)).toFixed(2) : '—'), higherIsBetter: true },
@@ -2902,33 +3460,7 @@ function renderActivityLog() {
   container.innerHTML = _actLog.map((entry, i) => {
     const isUser = entry.agentId === '_user';
     const col  = isUser ? '#6b7280' : (LOG_AGENT_COLORS[entry.agentId] || '#aaa');
-    const name = isUser ? 'You' : (LOG_AGENT_NAMES[entry.agentId] || entry.agentId);
-    const msg  = isUser ? entry.message.replace(/^You: /,'') : entry.message;
-    const isLast = i === _actLog.length - 1;
-    return `<div class="log-entry${isUser?' log-entry-user':''}${isLast?' log-entry-new':''}">
-      <span class="log-ts">${entry.ts}</span>
-      <span class="log-agent-name" style="color:${col}">${name}</span>
-      <span class="log-msg">${msg}</span>
-    </div>`;
-  }).join('');
-  container.scrollTop = container.scrollHeight;
-}
-
-function toggleActivityLog() {
-  const panel = document.getElementById('activity-log-panel');
-  const btn   = document.getElementById('log-toggle-btn');
-  if (!panel) return;
-  panel.classList.toggle('open');
-  if (panel.classList.contains('open')) {
-    btn && btn.classList.remove('has-new');
-    renderActivityLog();
-  }
-}
-
-// Pre-defined chat responses
-const CHAT_RESPONSES = [
-  { keys:['why maple','maple'],      agent:'strategy', msg:'Maple offers 4.80% with T2 risk tier. Max allowed allocation is 20%. Current: 20%. No room to increase.' },
-  { keys:['drawdown','risk'],        agent:'monitor',  msg:'Portfolio drawdown is 0.0%. Kill switch triggers at 5%. All positions within concentration limits.' },
+    cons:'monitor',  msg:'Portfolio drawdown is 0.0%. Kill switch triggers at 5%. All positions within concentration limits.' },
   { keys:['apy','rate','yield'],     agent:'data',     msg:'Best current APY: Maple 4.80%, Aave V3 4.23%, Compound 4.02%. Data refreshed every 4h.' },
   { keys:['cash','buffer'],          agent:'strategy', msg:'Cash buffer: $5,000 (5% of $100,000). Minimum required: 5%.' },
   { keys:['status','health'],        agent:'monitor',  msg:'All systems nominal. Portfolio health: approved. 0 active violations.' },
@@ -3045,7 +3577,7 @@ function renderGoLiveVerdict(data) {
     if (countdownEl) countdownEl.textContent = 'golive_readiness.json not found — will show data when generated';
     return;
   }
-  const vraw = (data.verdict || '').toUpperCase();
+  const vraw = (data.verdict || '').toUpperCASE();
   const isReady  = vraw === 'READY';
   const isAlmost = vraw.includes('ALMOST');
   const isBlocked= vraw.includes('BLOCKED');
@@ -3140,9 +3672,19 @@ function renderGoLiveTimeline() {
   const today = new Date();
   const start = new Date('2026-05-20');
   const end   = new Date('2026-07-15');
+  const totalDays = Math.round((end - start) / 86400000);           // 56
+  const dayNum    = Math.min(totalDays, Math.max(0, Math.round((today - start) / 86400000)));
   const pct = Math.min(100, Math.max(0, (today - start) / (end - start) * 100));
   if (todayDate) todayDate.textContent = today.toISOString().slice(0,10);
   if (fill) fill.style.width = pct.toFixed(1) + '%';
+
+  // Day X of 56 progress bar
+  const dayLabelEl = document.getElementById('golive-day-label');
+  const dayFillEl  = document.getElementById('golive-day-fill');
+  const dayTodayEl = document.getElementById('golive-day-today');
+  if (dayLabelEl) dayLabelEl.textContent = 'Day ' + dayNum + ' of ' + totalDays;
+  if (dayFillEl)  dayFillEl.style.width  = pct.toFixed(1) + '%';
+  if (dayTodayEl) dayTodayEl.textContent = today.toISOString().slice(0,10);
 }
 
 function updateGoLiveTabBadge(data) {
@@ -3324,6 +3866,310 @@ function toggleDecisionLog() {
   if (_decLogOpen && !_decisionLog.length) loadDecisionLog();
 }
 
+// ─── Backtesting Replay ────────────────────────────────────────────────────────
+let _btEquityChart   = null;
+let _btCompareData   = null;
+let _btReplayData    = null;
+let _btReplayInterval = null;
+let _btReplayActive  = false;
+let _btCurrentDay    = 0;
+
+async function runBacktest() {
+  const btn = document.getElementById('bt-run-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading…'; }
+  try {
+    let data = null;
+    // Try FastAPI first if live mode
+    if (LIVE_MODE) {
+      try {
+        const r = await fetch(LIVE_BASE + '/backtest/compare', { signal: AbortSignal.timeout(3000) });
+        if (r.ok) data = await r.json();
+      } catch(e) { /* fall through */ }
+    }
+    // Fall back to static JSON
+    if (!data) {
+      const ts = Date.now();
+      data = await fetch(BASE + '/backtest_comparison.json?_=' + ts).then(r => r.json()).catch(() => null);
+    }
+    if (!data) throw new Error('No backtest data');
+    _btCompareData = data;
+    renderBtEquityChart(data);
+    renderBtCmpTable(data);
+  } catch(e) {
+    console.warn('Backtest load failed:', e);
+    const tbody = document.getElementById('bt-cmp-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#dc2626;padding:20px">⚠ Could not load backtest_comparison.json. Run export_data.py first.</td></tr>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '▷ Run Backtest'; }
+  }
+}
+
+function renderBtEquityChart(data) {
+  const ctx = document.getElementById('bt-equity-chart');
+  if (!ctx) return;
+  if (_btEquityChart) { _btEquityChart.destroy(); _btEquityChart = null; }
+
+  // Prefer pre-built equity_curves; otherwise synthesise linear growth from final metrics
+  let v1 = [], v2 = [];
+  if (data.equity_curves) {
+    v1 = data.equity_curves.v1_passive    || [];
+    v2 = data.equity_curves.v2_aggressive || [];
+  } else if (data.metrics) {
+    const m1  = data.metrics.v1_passive    || {};
+    const m2  = data.metrics.v2_aggressive || {};
+    const days = 90, base = 100000;
+    const ret1 = (m1.total_return_pct || 0) / 100;
+    const ret2 = (m2.total_return_pct || 0) / 100;
+    for (let i = 0; i <= days; i++) {
+      v1.push(+(base * (1 + ret1 * i / days)).toFixed(2));
+      v2.push(+(base * (1 + ret2 * i / days)).toFixed(2));
+    }
+  }
+
+  const n = Math.max(v1.length, v2.length, 1);
+  const labels = Array.from({length: n}, (_, i) => i);
+
+  _btEquityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'v1_passive',
+          data: v1,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.06)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'v2_aggressive',
+          data: v2,
+          borderColor: '#f97316',
+          backgroundColor: 'rgba(249,115,22,0.06)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.35,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 }, usePointStyle: true } },
+        tooltip: {
+          callbacks: {
+            title: items => 'Day ' + items[0].label,
+            label: item => {
+              const val  = item.raw;
+              const prev = item.dataIndex > 0 ? (item.dataset.data[item.dataIndex - 1] || val) : val;
+              const pnl  = val - prev;
+              const pnlStr = (pnl >= 0 ? '+$' : '−$') + Math.abs(pnl).toLocaleString('en-US', {maximumFractionDigits: 0});
+              return `${item.dataset.label}: $${Number(val).toLocaleString('en-US', {maximumFractionDigits:0})}  (Daily PnL: ${pnlStr})`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Day (0–90)', font: { size: 10 }, color: '#aaa' },
+          ticks: { font: { size: 10 }, color: '#aaa', maxTicksLimit: 10 },
+          grid:  { color: 'rgba(0,0,0,0.04)' },
+        },
+        y: {
+          title: { display: true, text: 'Portfolio Value ($)', font: { size: 10 }, color: '#aaa' },
+          ticks: {
+            font: { size: 10 }, color: '#aaa',
+            callback: v => '$' + (v / 1000).toFixed(0) + 'K',
+          },
+          grid: { color: 'rgba(0,0,0,0.04)' },
+        },
+      },
+    },
+  });
+}
+
+function renderBtCmpTable(data) {
+  const tbody = document.getElementById('bt-cmp-tbody');
+  if (!tbody) return;
+  const m1 = (data.metrics || {}).v1_passive    || {};
+  const m2 = (data.metrics || {}).v2_aggressive || {};
+
+  const ROWS = [
+    { label:'Total Return',  v1: m1.total_return_pct, v2: m2.total_return_pct, fmt: v => v != null ? v.toFixed(2)+'%' : '—',         hi: true },
+    { label:'Sharpe Ratio',  v1: m1.sharpe_ratio,     v2: m2.sharpe_ratio,     fmt: v => v != null ? v.toFixed(2) : '—',              hi: true },
+    { label:'Max Drawdown',  v1: m1.max_drawdown_pct, v2: m2.max_drawdown_pct, fmt: v => v != null ? v.toFixed(2)+'%' : '—',         hi: false },
+    { label:'Win Rate',      v1: m1.win_rate,         v2: m2.win_rate,         fmt: v => v != null ? (v*100).toFixed(1)+'%' : '—',   hi: true },
+    { label:'Calmar',        v1: m1.calmar_ratio,     v2: m2.calmar_ratio,     fmt: v => v != null ? v.toFixed(2) : '—',              hi: true },
+  ];
+
+  tbody.innerHTML = ROWS.map(row => {
+    let cls1 = '', cls2 = '', winnerHTML = '<span style="color:#aaa">—</span>';
+    if (row.v1 != null && row.v2 != null) {
+      const v1wins = row.hi ? row.v1 > row.v2 : row.v1 < row.v2;
+      cls1 = v1wins ? 'winner' : 'loser';
+      cls2 = v1wins ? 'loser'  : 'winner';
+      winnerHTML = v1wins
+        ? '<span style="color:#16a34a;font-weight:700">v1_passive</span>'
+        : '<span style="color:#16a34a;font-weight:700">v2_aggressive</span>';
+    }
+    return `<tr>
+      <td style="font-weight:500">${row.label}</td>
+      <td class="${cls1}" style="text-align:center">${row.fmt(row.v1)}</td>
+      <td class="${cls2}" style="text-align:center">${row.fmt(row.v2)}</td>
+      <td style="text-align:center">${winnerHTML}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Replay Mode ───────────────────────────────────────────────────────────────
+async function toggleReplayMode() {
+  _btReplayActive = !_btReplayActive;
+  const toggleBtn  = document.getElementById('bt-replay-toggle');
+  const controls   = document.getElementById('bt-replay-controls');
+  const badge      = document.getElementById('bt-replay-badge');
+
+  if (_btReplayActive) {
+    if (toggleBtn) toggleBtn.classList.add('active');
+    if (toggleBtn) toggleBtn.textContent = '⏱ Replay: ON';
+    if (controls) controls.style.display = 'flex';
+    if (badge)    badge.style.display    = 'inline-flex';
+    // Load pnl_history for scrubbing
+    if (!_btReplayData) await _loadBtReplayData();
+    btSeekDay(0);
+  } else {
+    if (toggleBtn) toggleBtn.classList.remove('active');
+    if (toggleBtn) toggleBtn.textContent = '⏱ Replay Mode';
+    if (controls) controls.style.display = 'none';
+    if (badge)    badge.style.display    = 'none';
+    _btStopPlay();
+    // Reload live dashboard to restore actual values
+    if (_loadedOnce) loadDashboard();
+    const dashTs = document.getElementById('dash-ts');
+    if (dashTs) dashTs.textContent = 'Restoring live data…';
+  }
+}
+
+async function _loadBtReplayData() {
+  try {
+    let data = null;
+    if (LIVE_MODE) {
+      try {
+        const r = await fetch(LIVE_BASE + '/backtest/replay?days=90', { signal: AbortSignal.timeout(3000) });
+        if (r.ok) data = await r.json();
+      } catch(e) { /* fall through */ }
+    }
+    if (!data) {
+      const ts = Date.now();
+      data = await fetch(BASE + '/pnl_history.json?_=' + ts).then(r => r.json()).catch(() => []);
+    }
+    _btReplayData = Array.isArray(data) ? data : (data.history || data.data || []);
+    // Update slider bounds
+    const slider = document.getElementById('bt-day-slider');
+    const total  = Math.max(0, _btReplayData.length - 1);
+    if (slider) { slider.max = total; slider.value = 0; }
+    _btUpdateDayLabel(0, total);
+  } catch(e) {
+    console.warn('Replay data load failed:', e);
+    _btReplayData = [];
+  }
+}
+
+function btSeekDay(rawDay) {
+  _btCurrentDay = parseInt(rawDay, 10);
+  const total = _btReplayData ? Math.max(0, _btReplayData.length - 1) : 90;
+  _btCurrentDay = Math.min(_btCurrentDay, total);
+
+  // Sync slider
+  const slider = document.getElementById('bt-day-slider');
+  if (slider) slider.value = _btCurrentDay;
+  _btUpdateDayLabel(_btCurrentDay, total);
+
+  // Update equity chart: add/move a red dot marker on v1_passive curve
+  if (_btEquityChart) {
+    const ds = _btEquityChart.data.datasets;
+    // Remove old replay marker
+    const mi = ds.findIndex(d => d._replayMarker);
+    if (mi >= 0) ds.splice(mi, 1);
+    const markerVal = ds[0] && ds[0].data[_btCurrentDay];
+    if (markerVal != null) {
+      ds.push({
+        _replayMarker: true,
+        label: '',
+        data: ds[0].data.map((_, i) => i === _btCurrentDay ? markerVal : null),
+        borderColor: 'transparent',
+        backgroundColor: '#ef4444',
+        pointBackgroundColor: '#ef4444',
+        pointRadius: ds[0].data.map((_, i) => i === _btCurrentDay ? 7 : 0),
+        pointHoverRadius: ds[0].data.map((_, i) => i === _btCurrentDay ? 9 : 0),
+        showLine: false,
+      });
+    }
+    _btEquityChart.update('none');
+  }
+
+  // Update Paper Trading tab display
+  if (!_btReplayData || !_btReplayData[_btCurrentDay]) return;
+  const row = _btReplayData[_btCurrentDay];
+  const cap     = row.portfolio_value ?? row.total_value ?? row.capital ?? null;
+  const pnl     = row.unrealized_pnl  ?? row.pnl        ?? row.cumulative_pnl ?? null;
+  const deployed = row.deployed       ?? row.invested    ?? null;
+  const cash     = row.cash           ?? row.cash_buffer ?? null;
+
+  const elCap  = document.getElementById('m-capital');
+  const elPnl  = document.getElementById('m-pnl');
+  const elDep  = document.getElementById('m-deployed');
+  const elCash = document.getElementById('m-cash');
+  const elTs   = document.getElementById('dash-ts');
+
+  if (elCap  && cap  != null) elCap.textContent  = '$' + Number(cap).toLocaleString('en-US', {maximumFractionDigits:0});
+  if (elDep  && deployed != null) elDep.textContent = '$' + Number(deployed).toLocaleString('en-US', {maximumFractionDigits:0});
+  if (elCash && cash != null) elCash.textContent  = '$' + Number(cash).toLocaleString('en-US', {maximumFractionDigits:0});
+  if (elPnl  && pnl  != null) {
+    const sign = pnl >= 0;
+    elPnl.textContent = (sign ? '+$' : '−$') + Math.abs(pnl).toLocaleString('en-US', {maximumFractionDigits:0});
+    elPnl.style.color = sign ? '#3B6D11' : '#B91C1C';
+  }
+  if (elTs) {
+    const label = row.timestamp ? row.timestamp.slice(0, 10) : ('Day ' + _btCurrentDay);
+    elTs.textContent = '⏪ REPLAY MODE · ' + label;
+    elTs.style.color = '#1d4ed8';
+  }
+}
+
+function _btUpdateDayLabel(day, total) {
+  const label = document.getElementById('bt-day-label');
+  if (label) label.textContent = 'Day: ' + day + '/' + total;
+}
+
+function btPlayPause() {
+  const btn = document.getElementById('bt-play-btn');
+  if (_btReplayInterval) {
+    _btStopPlay();
+    if (btn) btn.textContent = '▶ Play';
+  } else {
+    if (btn) btn.textContent = '⏸ Pause';
+    const total = _btReplayData ? Math.max(0, _btReplayData.length - 1) : 90;
+    _btReplayInterval = setInterval(() => {
+      if (_btCurrentDay >= total) {
+        _btStopPlay();
+        if (btn) btn.textContent = '▶ Play';
+        return;
+      }
+      btSeekDay(_btCurrentDay + 1);
+    }, 500);
+  }
+}
+
+function _btStopPlay() {
+  if (_btReplayInterval) { clearInterval(_btReplayInterval); _btReplayInterval = null; }
+}
+
 // ─── Pixel Office simulation v0.6 (pixel-agents style) ───────────────────────
 function initOffice() {
   const canvas = document.getElementById('spa-office');
@@ -3396,6 +4242,9 @@ function initOffice() {
       bubblePause:BUBBLE_STAGGER[id]||0,
       bubblePhase:'wait',bubbleMsgIdx:-1};
   }
+  // Expose agents globally so SSE handler can inject live thought bubbles
+  window._spa_agents = agents;
+  if (!window._spa_agentLastEvent) window._spa_agentLastEvent = {};
   const pkts=[];
   const SPEED=1.8;
 
@@ -3688,6 +4537,35 @@ function initOffice() {
     if(hit) openAgentModal(hit.id);
   });
 
+  function drawStatusDots(){
+    // Draw SSE live-activity dots: green = event in last 10s, gray = idle
+    const now = Date.now();
+    for(const ag of Object.values(agents)){
+      const lastEvt = window._spa_agentLastEvent && window._spa_agentLastEvent[ag.id];
+      const isActive = lastEvt && (now - lastEvt) < 10000;
+      const ax = Math.round(ag.x), ay = Math.round(ag.y);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(ax + 13, ay - 44, 4, 0, Math.PI * 2);
+      ctx.fillStyle = isActive ? '#22c55e' : '#374151';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Pulse ring when active
+      if(isActive){
+        const age = (now - lastEvt) / 10000;   // 0→1 over 10s
+        const ringAlpha = Math.max(0, 0.6 * (1 - age));
+        ctx.beginPath();
+        ctx.arc(ax + 13, ay - 44, 4 + age * 6, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(34,197,94,${ringAlpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
   function render(){
     ctx.fillStyle='#0a0a18';ctx.fillRect(0,0,CW,CH);
     drawFloor();drawWalls();
@@ -3695,6 +4573,7 @@ function initOffice() {
     drawServer();
     for(const ag of Object.values(agents))updateAgent(ag);
     Object.values(agents).sort((a,b)=>a.y-b.y).forEach(drawAgent);
+    drawStatusDots();
     for(let i=pkts.length-1;i>=0;i--){drawPacket(pkts[i]);if(pkts[i].done)pkts.splice(i,1);}
     drawNightOverlay();
     frame++;requestAnimationFrame(render);
@@ -3705,6 +4584,252 @@ function initOffice() {
   patrol();render();
 }
 initOffice();
+
+// ─── System Health Tab ────────────────────────────────────────────────────────
+let _sysRefreshTimer = null;
+
+function onSystemTabActivated() {
+  loadSystemHealth();
+  _sysRefreshTimer = setInterval(loadSystemHealth, 60000);
+}
+
+function onSystemTabDeactivated() {
+  if (_sysRefreshTimer) { clearInterval(_sysRefreshTimer); _sysRefreshTimer = null; }
+}
+
+function classifyHealth(h) {
+  if (!h) return 'UNKNOWN';
+  if (h.sections_failed === 0) return 'HEALTHY';
+  if (h.sections_failed <= 2) return 'DEGRADED';
+  return 'FAILING';
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url + '?_=' + Date.now());
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+function timeAgo(isoStr) {
+  if (!isoStr) return '—';
+  const ms = Date.now() - new Date(isoStr).getTime();
+  if (ms < 0) return 'just now';
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ' + (mins % 60) + 'm ago';
+  return Math.floor(hrs / 24) + 'd ago';
+}
+
+function freshnessClass(isoStr) {
+  if (!isoStr) return 'fresh-stale';
+  const hrs = (Date.now() - new Date(isoStr).getTime()) / 3600000;
+  if (hrs <= 6)  return 'fresh-ok';
+  if (hrs <= 24) return 'fresh-warn';
+  return 'fresh-stale';
+}
+
+async function loadSystemHealth() {
+  const ts = new Date().toLocaleTimeString();
+  const refreshEl = document.getElementById('sys-last-refresh');
+  if (refreshEl) refreshEl.textContent = 'Last refresh: ' + ts + ' · Auto-refreshes every 60s';
+
+  let health = null;
+  try { health = await fetchJSON(LIVE_BASE + '/pipeline/health'); } catch(e) {}
+  if (!health) {
+    try { health = await fetchJSON((location.pathname.startsWith('/SPA') ? '/SPA/data' : './data') + '/pipeline_health.json'); } catch(e) {}
+  }
+
+  renderPipelineHealth(health);
+  await renderDataFreshness();
+  renderClock(health);
+  await renderGoLiveCard();
+}
+
+function renderPipelineHealth(h) {
+  const el = document.getElementById('sys-pipeline-body');
+  if (!el) return;
+  const status = classifyHealth(h);
+  const badgeClass = { HEALTHY:'health-healthy', DEGRADED:'health-degraded', FAILING:'health-failing', UNKNOWN:'health-unknown' }[status] || 'health-unknown';
+  const icon = { HEALTHY:'🟢', DEGRADED:'🟡', FAILING:'🔴', UNKNOWN:'⚫' }[status] || '⚫';
+
+  if (!h) {
+    el.innerHTML = `
+      <div style="margin-bottom:10px"><span class="health-badge health-unknown">⚫ UNKNOWN</span></div>
+      <div style="color:#aaa;font-size:12px">pipeline_health.json not found — run export_data.py</div>`;
+    return;
+  }
+
+  const lastRun = h.last_run || h.timestamp || null;
+  const sections_ok     = h.sections_ok     != null ? h.sections_ok     : (h.sections_total ? h.sections_total - (h.sections_failed||0) : '—');
+  const sections_total  = h.sections_total  != null ? h.sections_total  : 20;
+  const sections_failed = h.sections_failed != null ? h.sections_failed : 0;
+  const pools_fetched   = h.pools_fetched   != null ? h.pools_fetched   : (h.protocols_fetched || '—');
+  const export_duration = h.export_duration_s != null ? h.export_duration_s.toFixed(1) + 's' : (h.duration_s != null ? h.duration_s.toFixed(1) + 's' : '—');
+  const sectionsColor   = sections_failed === 0 ? '#4caf50' : sections_failed <= 2 ? '#ff9800' : '#f44336';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="health-badge ${badgeClass}">${icon} ${status}</span>
+      <span style="font-size:12px;color:#888">${timeAgo(lastRun)}</span>
+    </div>
+    <div class="sys-row"><span>Last run</span><span>${lastRun ? lastRun.replace('T',' ').slice(0,16)+' UTC' : '—'}</span></div>
+    <div class="sys-row"><span>Sections</span><span style="color:${sectionsColor};font-weight:600">${sections_ok}/${sections_total} OK${sections_failed > 0 ? ' (' + sections_failed + ' FAILED)' : ''}</span></div>
+    <div class="sys-row"><span>Pools fetched</span><span>${pools_fetched}</span></div>
+    <div class="sys-row"><span>Export duration</span><span>${export_duration}</span></div>
+    ${h.error ? '<div style="margin-top:8px;font-size:11px;color:#f44336;background:#3a0000;padding:4px 8px;border-radius:6px">'+h.error+'</div>' : ''}`;
+}
+
+async function renderDataFreshness() {
+  const el = document.getElementById('sys-freshness-body');
+  if (!el) return;
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+
+  const files = [
+    { name: 'status.json',            label: 'status.json',           key: 'updated_at', type: 'timestamp' },
+    { name: 'pnl_history.json',      label: 'pnl_history.json',      key: null,          type: 'count' },
+    { name: 'risk_alerts.json',      label: 'risk_alerts.json',       key: null,          type: 'alerts' },
+    { name: 'golive_readiness.json', label: 'golive_readiness.json',  key: 'checked_at',  type: 'timestamp' },
+    { name: 'meta.json',             label: 'meta.json',              key: 'updated_at',  type: 'timestamp' },
+  ];
+
+  const rows = await Promise.all(files.map(async f => {
+    try {
+      const data = await fetchJSON(dataBase + '/' + f.name);
+      let display = '';
+      let cls = 'fresh-ok';
+      if (f.type === 'timestamp') {
+        const ts = data[f.key] || data.timstamp || data.last_run || null;
+        cls = freshnessClass(ts);
+        display = ts ? timeAgo(ts) : '—';
+      } else if (f.type === 'count') {
+        const arr = Array.isArray(data) ? data : (data.history || data.entries || []);
+        display = arr.length + ' entries';
+        cls = arr.length > 0 ? 'fresh-ok' : 'fresh-warn';
+      } else if (f.type === 'alerts') {
+        const alerts = data.alerts || (Array.isArray(data) ? data : []);
+        display = alerts.length + ' alerts';
+        cls = 'fresh-ok';
+      }
+      return `<div class="freshness-row"><span>${f.label}</span><span class="${cls}">${display}</span></div>`;
+    } catch(e) {
+      return `<div class="freshness-row"><span>${f.label}</span><span class="fresh-stale">not found</span></div>`;
+    }
+  }));
+
+  el.innerHTML = rows.join('');
+}
+
+function renderClock(health) {
+  const el = document.getElementById('sys-clock-body');
+  if (!el) return;
+  const CYCLE_MS = 4 * 3600 * 1000; // 4 hours
+
+  // Get last run timestamp from health or status.json
+  let lastRunTs = null;
+  if (health) {
+    const raw = health.last_run || health.timestamp;
+    if (raw) lastRunTs = new Date(raw).getTime();
+  }
+
+  if (!lastRunTs) {
+    el.innerHTML = `
+      <div class="sys-row"><span>Last run</span><span class="fresh-stale">Unknown</span></div>
+      <div class="sys-row"><span>Next expected</span><span>—</span></div>
+      <div style="margin-top:12px;font-size:12px;color:#aaa">No pipeline_health.json data</div>`;
+    return;
+  }
+
+  const nextRun = lastRunTs + CYCLE_MS;
+  const now = Date.now();
+  const msUntil = nextRun - now;
+  const isOverdue = msUntil < 0;
+  const overdueMins = isOverdue ? Math.floor(-msUntil / 60000) : 0;
+
+  function buildCountdown() {
+    const remaining = nextRun - Date.now();
+    if (remaining <= 0) {
+      const overMin = Math.floor(-remaining / 60000);
+      return { text: overMin + 'm overdue', cls: 'countdown-overdue', warn: overMin > 30 };
+    }
+    const h = Math.floor(remaining / 3600000);
+    const m = Math.floor((remaining % 3600000) / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    return { text: h + 'h ' + String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's', cls: '', warn: false };
+  }
+
+  const lastRunStr = new Date(lastRunTs).toISOString().replace('T',' ').slice(0,16) + ' UTC';
+  const nextRunStr = new Date(nextRun).toISOString().replace('T',' ').slice(0,16) + ' UTC';
+
+  // Initial render
+  const cd = buildCountdown();
+  el.innerHTML = `
+    <div class="sys-row"><span>Last run</span><span>${timeAgo(new Date(lastRunTs).toISOString())}</span></div>
+    <div class="sys-row"><span>Timestamp</span><span style="font-size:11px">${lastRunStr}</span></div>
+    <div class="sys-row"><span>Next expected</span><span style="font-size:11px">${nextRunStr}</span></div>
+    <div style="margin-top:10px;margin-bottom:2px;font-size:11px;color:#888;font-weight:600;letter-spacing:.05em;text-transform:uppercase">Next run in</div>
+    <div id="sys-countdown" class="countdown-big ${cd.cls}">${cd.text}</div>
+    <div id="sys-overdue-warn" style="display:${cd.warn?'block':'none'};margin-top:6px;font-size:12px;color:#d97706;background:#3a2a00;padding:4px 10px;border-radius:6px">⚠️ GitHub Actions may be stuck or stopped</div>`;
+
+  // Live countdown tick
+  const tickId = setInterval(() => {
+    const cdEl = document.getElementById('sys-countdown');
+    const warnEl = document.getElementById('sys-overdue-warn');
+    if (!cdEl) { clearInterval(tickId); return; }
+    const r = buildCountdown();
+    cdEl.textContent = r.text;
+    cdEl.className = 'countdown-big ' + r.cls;
+    if (warnEl) warnEl.style.display = r.warn ? 'block' : 'none';
+  }, 1000);
+}
+
+async function renderGoLiveCard() {
+  const el = document.getElementById('sys-golive-body');
+  if (!el) return;
+
+  const GO_LIVE_DATE = new Date('2026-07-15');
+  const START_DATE   = new Date('2026-05-20');
+  const now          = new Date();
+  const totalDays    = Math.round((GO_LIVE_DATE - START_DATE) / 86400000);
+  const elapsed      = Math.max(0, Math.round((now - START_DATE) / 86400000));
+  const remaining    = Math.max(0, Math.round((GO_LIVE_DATE - now) / 86400000));
+  const pct          = Math.min(100, (elapsed / totalDays * 100)).toFixed(1);
+
+  // Try to load golive readiness
+  let readiness = null;
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  try { readiness = await fetchJSON(dataBase + '/golive_readiness.json'); } catch(e) {}
+
+  let criteriaHTML = '';
+  if (readiness && (readiness.criteria || readiness.checks)) {
+    const checks = readiness.criteria || readiness.checks || [];
+    const passing = checks.filter(c => c.status === 'pass' || c.passed === true || c.result === 'pass').length;
+    const total   = checks.length;
+    criteriaHTML = `<div class="sys-row"><span>Criteria passing</span><span style="color:${passing >= total ? '#4caf50' : '#ff9800'};font-weight:600">${passing}/${total}</span></div>`;
+    // Mini breakdown — first 4 criteria
+    const items = checks.slice(0, 4).map(c => {
+      const ok = c.status === 'pass' || c.passed === true || c.result === 'pass';
+      return `<div style="font-size:11px;padding:2px 0;color:${ok?'#4caf50':'#f44336'}">${ok?'✓':'✗'} ${c.name || c.check || c.id || 'criterion'}</div>`;
+    }).join('');
+    criteriaHTML += `<div style="margin-top:8px">${items}</div>`;
+    if (checks.length > 4) criteriaHTML += `<div style="font-size:11px;color:#aaa;margin-top:2px">…and ${checks.length - 4} more</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="sys-row" style="margin-bottom:4px">
+      <span>Days remaining</span>
+      <span style="font-size:20px;font-weight:600;color:#185FA5">${remaining}</span>
+    </div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:8px">Target: 2026-07-15</div>
+    <div style="background:#eee;border-radius:4px;height:7px;margin-bottom:4px;overflow:hidden">
+      <div style="background:linear-gradient(90deg,#16a34a,#185FA5);height:100%;width:${pct}%;transition:width .5s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-bottom:12px">
+      <span>Day ${elapsed} / ${totalDays}</span><span>${pct}%</span>
+    </div>
+    ${criteriaHTML || '<div style="color:#aaa;font-size:12px">golive_readiness.json not found</div>'}`;
+}
 </script>
 
 <div style="text-align:center;font-size:11px;color:#bbb;margin-top:40px;padding-top:16px;border-top:1px solid #eee">
