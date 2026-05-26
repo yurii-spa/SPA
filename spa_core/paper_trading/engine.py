@@ -387,56 +387,111 @@ class PaperTrader:
                         sum(p.current_apy for p in t1_positions) / len(t1_positions)
                         if t1_positions else 4.0
                     )
-                    # Total T2 already deployed (% of capital)
-                    t2_deployed_usd = sum(
-                        p.amount_usd for p in state.positions if p.tier == "T2"
+                    # Build the protocol key early so we can call max_safe_position_size
+                    pendle_protocol_key = (
+                        f"pendle-pt-{best_pt.get('symbol', 'unknown').lower()}"
                     )
-                    t2_cap_usd = state.total_capital_usd * 0.20  # 20% T2 limit
-                    t2_headroom = max(0.0, t2_cap_usd - t2_deployed_usd)
+                    pendle_chain = best_pt.get("chain", "arbitrum")
 
-                    pendle_size = pendle_allocation_size(
+                    # Strategy preference: how much we'd like to allocate
+                    # Uses the TOTAL T2 cap as the ceiling for the formula, but the
+                    # actual per-protocol concentration limit (max_concentration_t2)
+                    # is enforced by max_safe_position_size() below.
+                    t2_cap_pct = self.policy.config.max_total_t2_allocation  # e.g. 0.35
+                    pendle_want = pendle_allocation_size(
                         capital=state.total_capital_usd,
                         current_apy=best_pt["apy"],
                         t1_baseline_apy=t1_baseline,
-                        max_t2_pct=0.20,
+                        max_t2_pct=t2_cap_pct,
                     )
-                    # Constrain to actual T2 headroom and available cash
-                    pendle_size = min(pendle_size, t2_headroom, state.cash_usd - min_pendle_cash)
+                    # Hard ceiling from risk policy (respects per-protocol T2 concentration
+                    # AND total T2 aggregate AND cash buffer — all at once)
+                    pendle_max_safe = self.policy.max_safe_position_size(
+                        state, pendle_protocol_key, "T2"
+                    )
+                    pendle_size = min(pendle_want, pendle_max_safe, state.cash_usd - min_pendle_cash)
                     pendle_size = round(pendle_size, 2)
 
                     if pendle_size >= 100.0:  # minimum meaningful Pendle position
-                        position = build_pendle_position(best_pt, pendle_size)
-                        actions.append({
-                            "action":           "OPEN_PENDLE_PT",
-                            "protocol":         f"pendle-pt-{best_pt.get('symbol', 'unknown').lower()}",
-                            "symbol":           best_pt.get("symbol"),
-                            "chain":            best_pt.get("chain", "arbitrum"),
-                            "amount_usd":       pendle_size,
-                            "apy":              best_pt["apy"],
-                            "tier":             "T2",
-                            "special":          "fixed_rate",
-                            "maturity_date":    best_pt.get("maturity_date"),
-                            "days_to_maturity": best_pt.get("days_to_maturity"),
-                            "t1_baseline_apy":  round(t1_baseline, 4),
-                            "apy_premium":      round(best_pt["apy"] - t1_baseline, 4),
-                            "approved":         True,
-                            "note":             "ADR-002 PROPOSED — paper only",
-                        })
-                        log.info(
-                            f"auto_allocate: Pendle PT {best_pt.get('symbol')} "
-                            f"${pendle_size:,.2f} @ {best_pt['apy']:.2f}% APY "
-                            f"(premium +{best_pt['apy'] - t1_baseline:.2f}% over T1 baseline)"
+                        # Run full RiskPolicy check — final gate for Pendle positions.
+                        # max_safe_position_size() already pre-screened the size, so this
+                        # should normally pass. It catches edge-cases (e.g. race conditions
+                        # between state reads) and adds the circuit-breaker checks.
+                        pendle_risk = self.policy.check_new_position(
+                            state=state,
+                            protocol_key=pendle_protocol_key,
+                            tier="T2",
+                            amount_usd=pendle_size,
+                            current_apy=best_pt["apy"],
+                            tvl_usd=best_pt.get("tvl_usd", 0.0),
+                            chain=pendle_chain,
                         )
+                        if not pendle_risk.approved:
+                            log.info(
+                                f"auto_allocate: Pendle PT blocked by RiskPolicy — "
+                                f"{'; '.join(pendle_risk.violations)}"
+                            )
+                            actions.append({
+                                "action":   "BLOCKED",
+                                "protocol": pendle_protocol_key,
+                                "chain":    pendle_chain,
+                                "tier":     "T2",
+                                "reason":   "; ".join(pendle_risk.violations),
+                                "note":     "Pendle PT blocked by RiskPolicy T2 limit",
+                            })
+                        else:
+                            position = build_pendle_position(best_pt, pendle_size)
+                            actions.append({
+                                "action":           "OPEN_PENDLE_PT",
+                                "protocol":         pendle_protocol_key,
+                                "symbol":           best_pt.get("symbol"),
+                                "chain":            pendle_chain,
+                                "amount_usd":       pendle_size,
+                                "apy":              best_pt["apy"],
+                                "tier":             "T2",
+                                "special":          "fixed_rate",
+                                "maturity_date":    best_pt.get("maturity_date"),
+                                "days_to_maturity": best_pt.get("days_to_maturity"),
+                                "t1_baseline_apy":  round(t1_baseline, 4),
+                                "apy_premium":      round(best_pt["apy"] - t1_baseline, 4),
+                                "approved":         True,
+                                "warnings":         pendle_risk.warnings,
+                                "note":             "ADR-002 PROPOSED — paper only",
+                            })
+                            log.info(
+                                f"auto_allocate: Pendle PT {best_pt.get('symbol')} "
+                                f"${pendle_size:,.2f} @ {best_pt['apy']:.2f}% APY "
+                                f"(premium +{best_pt['apy'] - t1_baseline:.2f}% over T1 baseline, "
+                                f"RiskPolicy APPROVED)"
+                            )
                     else:
                         log.info(
                             f"auto_allocate: Pendle PT skipped — "
                             f"size ${pendle_size:.2f} < $100 minimum "
-                            f"(T2 headroom=${t2_headroom:.0f}, cash=${state.cash_usd:.0f})"
+                            f"(max_safe=${pendle_max_safe:.0f}, cash=${state.cash_usd:.0f})"
                         )
                 else:
                     log.debug("auto_allocate: no eligible Pendle PT pools available")
         except Exception as exc:
             log.warning(f"auto_allocate: Pendle PT allocation failed (non-fatal): {exc}")
+
+        # Check for drift-based rebalancing
+        try:
+            _rebal_state = self._load_portfolio_state()
+            _rebal_positions = [
+                {"protocol": p.protocol_key, "amount_usd": p.amount_usd}
+                for p in _rebal_state.positions
+            ]
+            if self.should_rebalance(_rebal_positions, _rebal_state.total_capital_usd):
+                rebalance_ops = self.rebalance_actions(
+                    _rebal_positions, _rebal_state.total_capital_usd
+                )
+                for op in rebalance_ops:
+                    actions.append(op)
+                if rebalance_ops:
+                    print(f"[REBALANCE] {len(rebalance_ops)} positions flagged for rebalancing")
+        except Exception as _re:
+            log.warning(f"auto_allocate: drift rebalance check failed (non-fatal): {_re}")
 
         if not actions:
             actions.append({"action": "NO_OP", "reason": "no_suitable_protocol"})
@@ -502,7 +557,7 @@ class PaperTrader:
         # Протоколы с уже открытыми позициями
         open_protocols = {p.protocol_key for p in state.positions}
 
-        _V2_L2_CHAINS = {"arbitrum", "base", "optimism", "polygon"}
+        _V2_L2_CHAINS = {"arbitrum", "base"}  # RiskPolicy preferred_chains: only Arbitrum + Base allowed
         _V2_CHAIN_CAP = 0.60   # max 60% on any single chain (mirrors RiskConfig default)
         _V2_L2_CAP    = 0.50   # max 50% total on L2s
 
@@ -829,6 +884,133 @@ class PaperTrader:
         state = self._load_portfolio_state()
         proto = self._get_protocol(protocol_key)
         return self.policy.max_safe_position_size(state, protocol_key, proto["tier"])
+
+    # ── Drift-based rebalancing ───────────────────────────────────────────────
+
+    def calculate_drift(self, positions: list, total_value: float) -> list:
+        """
+        Calculate how much each position has drifted from its target allocation.
+
+        Args:
+            positions: list of dicts with keys: protocol (or protocol_key),
+                       amount_usd, and optional target_pct.
+            total_value: total portfolio value in USD (deployed + cash).
+
+        Returns:
+            list of drift records:
+            {
+                "protocol": str,
+                "current_pct": float,
+                "target_pct": float,
+                "drift_pct": float,     # current - target (positive = overweight)
+                "drift_usd": float,
+                "action": "TRIM" | "ADD" | "OK",
+                "urgency": "HIGH" | "MEDIUM" | "LOW"
+            }
+        """
+        if not total_value or total_value <= 0:
+            return []
+
+        result = []
+        for pos in positions:
+            # Support both dict positions and Position dataclass objects
+            if isinstance(pos, dict):
+                protocol = pos.get("protocol") or pos.get("protocol_key", "unknown")
+                amount_usd = pos.get("amount_usd", 0.0)
+                target_pct_override = pos.get("target_pct")
+            else:
+                protocol = getattr(pos, "protocol_key", str(pos))
+                amount_usd = getattr(pos, "amount_usd", 0.0)
+                target_pct_override = getattr(pos, "target_pct", None)
+
+            current_pct = amount_usd / total_value * 100.0
+
+            # Use explicit target if set, otherwise assume current allocation IS the target
+            target_pct = target_pct_override if target_pct_override is not None else current_pct
+
+            drift_pct = current_pct - target_pct
+            drift_usd = drift_pct / 100.0 * total_value
+
+            abs_drift = abs(drift_pct)
+            if drift_pct > 5.0:
+                action = "TRIM"
+            elif drift_pct < -5.0:
+                action = "ADD"
+            else:
+                action = "OK"
+
+            if abs_drift > 10.0:
+                urgency = "HIGH"
+            elif abs_drift > 5.0:
+                urgency = "MEDIUM"
+            else:
+                urgency = "LOW"
+
+            result.append({
+                "protocol":    protocol,
+                "current_pct": round(current_pct, 4),
+                "target_pct":  round(target_pct, 4),
+                "drift_pct":   round(drift_pct, 4),
+                "drift_usd":   round(drift_usd, 2),
+                "action":      action,
+                "urgency":     urgency,
+            })
+
+        return result
+
+    def should_rebalance(self, positions: list, total_value: float) -> bool:
+        """
+        Returns True if any position has drift > 5% from target, or if
+        cash is outside the acceptable range [3%, 20%].
+        """
+        if not total_value or total_value <= 0:
+            return False
+
+        # Check cash bounds
+        deployed_usd = sum(
+            (p.get("amount_usd", 0.0) if isinstance(p, dict) else getattr(p, "amount_usd", 0.0))
+            for p in positions
+        )
+        cash_usd = total_value - deployed_usd
+        cash_pct = cash_usd / total_value * 100.0
+        if not (3.0 <= cash_pct <= 20.0):
+            return True
+
+        # Check position drift
+        drift_records = self.calculate_drift(positions, total_value)
+        return any(rec["action"] != "OK" for rec in drift_records)
+
+    def rebalance_actions(self, positions: list, total_value: float) -> list:
+        """
+        For each position needing rebalancing (action != "OK"), produce a
+        rebalance trade dict.
+
+        Returns:
+            list of rebalance action dicts:
+            {
+                "action": "REBALANCE_TRIM" | "REBALANCE_ADD",
+                "protocol": str,
+                "amount_usd": float,   # abs(drift_usd)
+                "from_pct": float,
+                "to_pct": float,
+                "reason": str
+            }
+        """
+        drift_records = self.calculate_drift(positions, total_value)
+        actions = []
+        for rec in drift_records:
+            if rec["action"] == "OK":
+                continue
+            rebal_action = "REBALANCE_TRIM" if rec["action"] == "TRIM" else "REBALANCE_ADD"
+            actions.append({
+                "action":     rebal_action,
+                "protocol":   rec["protocol"],
+                "amount_usd": abs(rec["drift_usd"]),
+                "from_pct":   rec["current_pct"],
+                "to_pct":     rec["target_pct"],
+                "reason":     f"Drift {rec['drift_pct']:+.1f}% from target",
+            })
+        return actions
 
     # ── Внутренние методы ─────────────────────────────────────────────────────
 
