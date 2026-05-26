@@ -5,7 +5,7 @@ SPA Strategy v3 — Pendle-Focused (IDEA-005 / Sprint v2.3)
 Стратегия v3_pendle_focused специализируется на максимизации APY через:
   1. Агрессивное использование Pendle PT позиций (до 20% T2-лимита)
   2. Умный выбор пулов: только maturity > 30 дней, сортировка по APY
-  3. Динамическая ротация: переход в новый пул если его APY на 0.5pp вышх
+  3. Динамическая ротация: переход в новый пул если его APY на 0.5pp выше
   4. Остаток капитала — в лучшие T1 пулы
 
 Цель: закрыть APY gap (текущий ~4.2% → цель 7.3%) за счёт Pendle PT.
@@ -15,7 +15,7 @@ SPA Strategy v3 — Pendle-Focused (IDEA-005 / Sprint v2.3)
   - V3PendleFocusedStrategy — основной класс с логикой аллокации
   - get_strategy_config()  — возвращает конфиг для STRATEGIES registry
   - select_best_pendle()   — выбор оптимального Pendle PT пула
-  - should_rotate()        — определяет, нужна ли ротахия позихии
+  - should_rotate()        — определяет, нужна ли ротация позиции
 
 Интеграция:
   from paper_trading.v3_pendle_focused import V3PendleFocusedStrategy
@@ -57,7 +57,7 @@ STRATEGY_ID = "v3_pendle_focused"
 @dataclass
 class AllocationDecision:
     """
-    Результат вычисления аллокахии для v3_pendle_focused.
+    Результат вычисления аллокации для v3_pendle_focused.
 
     Поля:
         pendle_pool:    выбранный Pendle PT пул (или None если нет подходящих)
