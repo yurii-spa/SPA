@@ -4233,6 +4233,17 @@ function initOffice() {
     return null;
   }
 
+  // ── Thought Bubble Message Pools v0.8 ────────────────────────────────────────
+  // IMPORTANT: declared here (before agents loop) to avoid TDZ when used in agent init
+  const BUBBLE_MESSAGES = {
+    data:     ['Fetching Aave APY…','DeFiLlama ✓ 7 pools','APY scan complete','Checking TVL…','Compound: 4.02%','Maple: 4.80%','15 protos active','Data pipeline OK'],
+    strategy: ['Reviewing allocations…','Aave 40K @ 4.23%','Maple position stable','No rebalance needed','T2 budget: 35%','Cash buffer: 5%','Scoring protocols…','v1_passive running'],
+    monitor:  ['Portfolio health OK','Drawdown: 0.0%','Concentration check ✓','VaR within limits','All positions safe','Kill switch: armed','No alerts active','Risk policy v0.4.5'],
+    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','4h cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-07-15','paper-v1 on track','Approving trades…'],
+  };
+  // Stagger so agents don't all talk at once (frames at 60fps)
+  const BUBBLE_STAGGER = {data:20,strategy:120,monitor:220,ceo:320};
+
   // ── Agents ────────────────────────────────────────────────────────────────
   // Seat tiles: seat is 1 tile below the 2×2 desk block
   const SEATS={data:{r:3,c:2},strategy:{r:3,c:14},monitor:{r:9,c:2},ceo:{r:9,c:14}};
@@ -4255,16 +4266,6 @@ function initOffice() {
   if (!window._spa_agentLastEvent) window._spa_agentLastEvent = {};
   const pkts=[];
   const SPEED=1.8;
-
-  // ── Thought Bubble Message Pools v0.8 ────────────────────────────────────────
-  const BUBBLE_MESSAGES = {
-    data:     ['Fetching Aave APY…','DeFiLlama ✓ 7 pools','APY scan complete','Checking TVL…','Compound: 4.02%','Maple: 4.80%','15 protos active','Data pipeline OK'],
-    strategy: ['Reviewing allocations…','Aave 40K @ 4.23%','Maple position stable','No rebalance needed','T2 budget: 35%','Cash buffer: 5%','Scoring protocols…','v1_passive running'],
-    monitor:  ['Portfolio health OK','Drawdown: 0.0%','Concentration check ✓','VaR within limits','All positions safe','Kill switch: armed','No alerts active','Risk policy v0.4.5'],
-    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','4h cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-07-15','paper-v1 on track','Approving trades…'],
-  };
-  // Stagger so agents don't all talk at once (frames at 60fps)
-  const BUBBLE_STAGGER = {data:20,strategy:120,monitor:220,ceo:320};
   function getNextBubbleMsg(agId, idx){
     const pool=BUBBLE_MESSAGES[agId];
     let msg=pool[idx%pool.length];
