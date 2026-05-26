@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPA v2.3 GitHub Push</title>
+<style>
+  body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 20px; margin: 0; }
+  h1   { color: #58a6ff; }
+  .file-list { background: #161b22; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .file-item { padding: 4px 0; color: #7ee787; font-size: 13px; }
+  .btn  { background: #238636; color: #fff; border: none; padding: 12px 24px;
+          border-radius: 6px; font-size: 15px; cursor: pointer; margin: 8px 4px; }
+  .btn:hover { background: #2ea043; }
+  .btn.danger { background: #b91c1c; }
+  .log  { background: #161b22; border-radius: 8px; padding: 16px; height: 420px;
+          overflow-y: auto; font-size: 12px; margin: 16px 0; border: 1px solid #30363d; }
+  .log .ok    { color: #7ee787; }
+  .log .err   { color: #f85149; }
+  .log .info  { color: #79c0ff; }
+  .log .warn  { color: #e3b341; }
+  .progress-bar { background: #21262d; border-radius: 6px; height: 12px; margin: 12px 0; }
+  .progress-fill { background: #238636; height: 100%; border-radius: 6px; transition: width 0.3s; }
+  #status-badge { padding: 4px 12px; border-radius: 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>🚀 SPA Sprint v2.3 — GitHub Push</h1>
+<p style="color:#8b949e">Pushes new files from sprint v2.3 to <code>github.com/yurii-spa/SPA</code> (branch: main)</p>
+
+<div class="file-list">
+  <div style="color:#8b949e;margin-bottom:8px">📦 Files to push (Sprint v2.3):</div>
+  <div class="file-item">✦ spa_core/backtesting/run_full_backtest.py  <span style="color:#8b949e">— IDEA-005: Full 2Y DeFiLlama Backtest</span></div>
+  <div class="file-item">✦ spa_core/paper_trading/v3_pendle_focused.py  <span style="color:#8b949e">— Strategy v3: Pendle-Focused Yield Maximiser</span></div>
+  <div class="file-item">✦ spa_core/paper_trading/strategies.py  <span style="color:#8b949e">— Registry: added v3_pendle_focused</span></div>
+  <div class="file-item">✦ KANBAN.json  <span style="color:#8b949e">— Sprint v2.3 tasks marked done</span></div>
+</div>
+
+<div>
+  <button class="btn" onclick="startPush()">▶ Push to GitHub</button>
+  <button class="btn" style="background:#1f6feb" onclick="clearLog()">🗑 Clear Log</button>
+  <span id="status-badge" style="background:#21262d">Idle</span>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+<div class="log" id="log"></div>
+
+<script>
+const OWNER   = "yurii-spa";
+const REPO    = "SPA";
+const BRANCH  = "main";
+const TOKEN   = "YOUR_GITHUB_TOKEN_HERE"; // replace with your repo-scope PAT
+const BASE    = "https://api.github.com";
+
+const FILES = [
+  "spa_core/backtesting/run_full_backtest.py",
+  "spa_core/paper_trading/v3_pendle_focused.py",
+  "spa_core/paper_trading/strategies.py",
+  "KANBAN.json",
+];
+
+function log(msg, cls = "info") {
+  const el = document.getElementById("log");
+  const line = document.createElement("div");
+  line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() { document.getElementById("log").innerHTML = ""; }
+
+function setProgress(n, total) {
+  document.getElementById("progress").style.width = `${Math.round(n/total*100)}%`;
+}
+
+function setBadge(text, color) {
+  const b = document.getElementById("status-badge");
+  b.textContent = text;
+  b.style.background = color || "#21262d";
+}
+
+async function readLocalFile(path) {
+  // Try to read via fetch from the same origin (file://)
+  // This works when the HTML is opened from the local filesystem
+  try {
+    const url = new URL(path, window.location.href);
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.text();
+  } catch (e) {
+    throw new Error(`Cannot read ${path}: ${e.message}`);
+  }
+}
+
+async function getSHA(filePath) {
+  const url = `${BASE}/repos/${OWNER}/${REPO}/contents/${filePath}?ref=${BRANCH}`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `token ${TOKEN}`, Accept: "application/vnd.github.v3+json" }
+  });
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`getSHA ${resp.status}: ${await resp.text()}`);
+  const data = await resp.json();
+  return data.sha || null;
+}
+
+async function pushFile(repoPath, content, message) {
+  const sha = await getSHA(repoPath);
+  const body = {
+    message,
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: BRANCH,
+  };
+  if (sha) body.sha = sha;
+
+  const resp = await fetch(`${BASE}/repos/${OWNER}/${REPO}/contents/${repoPath}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${TOKEN}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`PUT ${resp.status}: ${err}`);
+  }
+  return await resp.json();
+}
+
+async function startPush() {
+  setBadge("Pushing…", "#1f6feb");
+  log("=== SPA Sprint v2.3 GitHub Push ===", "info");
+  log(`Repo: ${OWNER}/${REPO} branch: ${BRANCH}`, "info");
+
+  let ok = 0, fail = 0;
+
+  for (let i = 0; i < FILES.length; i++) {
+    const filePath = FILES[i];
+    setProgress(i, FILES.length);
+    log(`[${i+1}/${FILES.length}] Reading ${filePath}…`, "info");
+
+    let content;
+    try {
+      content = await readLocalFile(filePath);
+    } catch (e) {
+      log(`  SKIP (cannot read): ${e.message}`, "warn");
+      fail++;
+      continue;
+    }
+
+    log(`  Pushing to GitHub (${content.length} chars)…`, "info");
+    try {
+      await pushFile(filePath, content, `feat(v2.3): ${filePath}`);
+      log(`  ✅ OK — ${filePath}`, "ok");
+      ok++;
+    } catch (e) {
+      log(`  ❌ FAIL — ${e.message}`, "err");
+      fail++;
+    }
+
+    // Rate limit courtesy delay
+    if (i < FILES.length - 1) await new Promise(r => setTimeout(r, 800));
+  }
+
+  setProgress(FILES.length, FILES.length);
+  log("", "info");
+  log(`=== Done: ${ok} pushed, ${fail} failed ===`, ok > 0 ? "ok" : "err");
+  setBadge(fail === 0 ? `✅ All ${ok} pushed` : `⚠ ${ok} OK / ${fail} failed`,
+           fail === 0 ? "#238636" : "#b91c1c");
+}
+</script>
+</body>
+</html>
