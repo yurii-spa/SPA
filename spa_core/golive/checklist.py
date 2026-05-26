@@ -4,10 +4,10 @@ All criteria must PASS before go-live is recommended.
 Owner (Yurii) makes final decision — this is advisory only.
 
 Criteria evaluated:
-  1.  Paper trading duration  ≥ 50 days
+  1.  Paper trading duration  ≥ 56 days (8 weeks per DEV_STRATEGY_v1.0)
   2.  PnL positive            total_pnl_usd > 0
   3.  No critical alerts      0 CRITICAL severity alerts
-  4.  Strategy Sharpe ≥ 1.0   backtest sharpe_ratio
+  4.  Strategy Sharpe ≥ 2.0   backtest sharpe_ratio (DEV_STRATEGY_v1.0 requirement)
   5.  Policy unchanged        RiskConfig.version == "v1.0"
   6.  Max drawdown < 3%       portfolio total_drawdown_pct
   7.  Diversification         ≥ 2 protocols, none > 45%
@@ -92,9 +92,10 @@ def check_paper_duration() -> dict:
     """Days of paper trading elapsed ≥ MIN_PAPER_DAYS.
 
     Start date is hardcoded as PAPER_START_DATE (2026-05-20) and requires
-    ≥ MIN_PAPER_DAYS (50) days of paper trading before PASS.
-    Any count below 50 is PENDING — never a hard FAIL, because being early
-    in the paper-trading period is expected, not a deployment blocker.
+    ≥ MIN_PAPER_DAYS (56) days of paper trading before PASS (8-week minimum
+    per DEV_STRATEGY_v1.0).
+    Any count below MIN_PAPER_DAYS is PENDING — never a hard FAIL, because being
+    early in the paper-trading period is expected, not a deployment blocker.
     """
     start = datetime.fromisoformat(PAPER_START_DATE).replace(tzinfo=timezone.utc)
     elapsed = (_today() - start).days
