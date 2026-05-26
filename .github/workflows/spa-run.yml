@@ -2,26 +2,89 @@ name: SPA — Run & Export
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
-  workflow_dispatch:
+    - cron: '0 */4 * * *'   # каждые 4 часа
+  workflow_dispatch:          # ручной запуск из GitHub UI
 
 permissions:
-  contents: write
+  contents: write             # нужно для git push
 
 jobs:
   run-and-export:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests
-      - run: cd spa_core && python export_data.py --fetch
-      - run: |
-          git config user.name "SPA Bot"
+
+      - name: Install Python dependencies
+        run: pip install -r spa_core/requirements.txt
+
+      - name: Run test suite
+        # SPA-D003 (v1.7): All tests consolidated into spa_core/tests/.
+        # The top-level tests/ directory was merged here — running a single
+        # directory simplifies discovery and avoids path-import confusion.
+        # Fixes: SPA-B002 (--fetch added to export step), SPA-F002 (full coverage).
+        run: |
+          pip install pytest --quiet
+          python -m pytest spa_core/tests/ -x -q --tb=short 2>&1 | tee test_output.txt
+          echo "Tests exit code: $?"
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ github.run_number }}
+          path: test_output.txt
+          retention-days: 7
+
+      - name: Export data
+        continue-on-error: false
+        env:
+          SPA_ALERT_EMAIL: ${{ secrets.SPA_ALERT_EMAIL }}
+          SPA_ALERT_PASSWORD: ${{ secrets.SPA_ALERT_PASSWORD }}
+          SPA_NOTIFY_EMAIL: ${{ secrets.SPA_NOTIFY_EMAIL }}
+          SPA_TELEGRAM_TOKEN: ${{ secrets.SPA_TELEGRAM_TOKEN }}
+          SPA_TELEGRAM_CHAT_ID: ${{ secrets.SPA_TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python spa_core/export_data.py --fetch
+
+      - name: Check pipeline health
+        run: |
+          python -c "
+          import json, sys
+          try:
+              h = json.load(open('data/pipeline_health.json'))
+              failed = h.get('sections_failed', 0)
+              pools  = h.get('total_pools_fetched', 0)
+              print(f'Pipeline health: {h[\"sections_ok\"]} ok, {failed} failed, {pools} pools fetched')
+              sys.exit(1 if failed > 5 else 0)
+          except FileNotFoundError:
+              print('WARNING: pipeline_health.json not found — export may have crashed early')
+              sys.exit(1)
+          "
+
+      - name: Upload pipeline health
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-health-${{ github.run_number }}
+          path: data/pipeline_health.json
+          retention-days: 7
+
+      - name: Commit & push data
+        run: |
+          git config user.name  "SPA Bot 🤖"
           git config user.email "spa-bot@users.noreply.github.com"
-          git add data/ spa_core/database/spa.db
-          git diff --staged --quiet && echo "No changes" || (git commit -m "data: SPA export $(date -u '+%Y-%m-%d %H:%M UTC')" && git push)
+          git add data/*.json spa_core/database/spa.db || true
+          git diff --staged --quiet && echo "No changes to commit" || \
+            git commit -m "data: SPA export $(date -u '+%Y-%m-%d %H:%M UTC')" && \
+            git push
