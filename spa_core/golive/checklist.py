@@ -452,26 +452,25 @@ def check_apy_gap(analytics_data: dict, portfolio: dict) -> dict:
 def check_agent_stability(data_dir: str | None = None) -> dict:
     """Criterion 12: \u2265 28 consecutive days of stable agent operation.
 
-    Reads from data/stability_tracking.json via StabilityTracker.
-    Clock starts on first successful export run (or at paper-trading start).
+    Reads from data/agent_stability.json via AgentStabilityTracker (SPA-F001).
+    "Stable" means status.json is refreshed every export cycle (< 6 h old).
+    Clock resets automatically if status.json becomes stale or is missing.
 
     PASS  \u2014 days >= 28
     WARN  \u2014 14 <= days < 28
-    FAIL  \u2014 days < 14 (or tracking not started)
+    FAIL  \u2014 days < 14 (or tracking not yet started)
     """
     try:
         import sys as _sys
         _spa_core = str(Path(__file__).parent.parent)
         if _spa_core not in _sys.path:
             _sys.path.insert(0, _spa_core)
-        from paper_trading.stability_tracker import StabilityTracker
+        from paper_trading.agent_stability import AgentStabilityTracker
 
-        state_file = (
-            Path(data_dir) / "stability_tracking.json"
-            if data_dir
-            else None
+        tracker = AgentStabilityTracker(
+            data_dir=Path(data_dir) if data_dir else None
         )
-        result = StabilityTracker(state_file=state_file).check_criterion()
+        result = tracker.check_criterion()
         return _criterion(
             name      = "Agent Stability",
             status    = result["status"],
@@ -488,16 +487,21 @@ def check_agent_stability(data_dir: str | None = None) -> dict:
             note      = f"Could not evaluate agent stability: {exc}",
         )
 
-_WALLET_SENTINEL = Path(__file__).parent.parent.parent / "data" / "wallet_ready.sentinel"
+_WALLET_SENTINEL       = Path(__file__).parent.parent.parent / "data" / "wallet_ready.sentinel"
+_WALLET_APPROVED_JSON  = Path(__file__).parent.parent.parent / "data" / "wallet_ready_approved.json"
 
 
 def check_wallet_ready(data_dir: str | None = None) -> dict:
     """
     Criterion 9: Gnosis Safe and hot wallet infrastructure is set up.
 
-    Returns PASS if data/wallet_ready.sentinel exists (written by activate.py
-    after the owner types "I CONFIRM LIVE TRADING" and all 11 criteria pass).
-    Returns PENDING otherwise — manual setup required.
+    PASS when ANY of the following exist:
+      (a) data/wallet_ready_approved.json  with {"approved": true, ...}
+          — created by  python -m spa_core.golive.approve_wallet  (SPA-F003)
+      (b) data/wallet_ready.sentinel
+          — written by activate.py on full go-live activation
+
+    Returns PENDING when neither file is present — manual setup required.
 
     Severity: WARN (not FAIL) — wallet setup is a deployment prerequisite, not
     a performance criterion. It does NOT block the READY verdict on its own.
@@ -508,15 +512,32 @@ def check_wallet_ready(data_dir: str | None = None) -> dict:
       - Hot wallet added as Safe delegate
       - SAFE_ADDRESS and WALLET_ADDRESS set in GitHub Secrets
       - Private key NOT in git history
-
-    Returns:
-        Criterion dict with status=PASS (sentinel exists) or PENDING (not yet).
     """
-    sentinel = (
-        Path(data_dir) / "wallet_ready.sentinel"
-        if data_dir
-        else _WALLET_SENTINEL
-    )
+    base = Path(data_dir) if data_dir else None
+
+    # ── (a) JSON approval flag (SPA-F003) ────────────────────────────────────
+    approved_json = (base / "wallet_ready_approved.json") if base else _WALLET_APPROVED_JSON
+    if approved_json.exists():
+        try:
+            record = json.loads(approved_json.read_text(encoding="utf-8"))
+            if record.get("approved") is True:
+                approved_at = record.get("approved_at", "unknown")
+                approved_by = record.get("approved_by", "operator")
+                return _criterion(
+                    name      = "Wallet Ready",
+                    status    = _PASS,
+                    value     = "approved",
+                    threshold = "manual_setup",
+                    note      = (
+                        f"wallet_ready_approved.json present — "
+                        f"approved by '{approved_by}' at {approved_at}"
+                    ),
+                )
+        except Exception:
+            pass  # fall through to sentinel check
+
+    # ── (b) Legacy sentinel (written by activate.py) ──────────────────────────
+    sentinel = (base / "wallet_ready.sentinel") if base else _WALLET_SENTINEL
     if sentinel.exists():
         return _criterion(
             name      = "Wallet Ready",
@@ -525,14 +546,16 @@ def check_wallet_ready(data_dir: str | None = None) -> dict:
             threshold = "manual_setup",
             note      = "wallet_ready.sentinel present — wallet infrastructure confirmed by owner",
         )
+
+    # ── Neither present ───────────────────────────────────────────────────────
     return _criterion(
         name      = "Wallet Ready",
         status    = _PENDING,
         value     = "not_verified",
         threshold = "manual_setup",
         note      = (
-            "Manual setup required — cannot auto-verify. "
-            "Complete Section B of docs/v2_activation_checklist.md: "
+            "Manual setup required — run: python -m spa_core.golive.approve_wallet  "
+            "(SPA-F003). Complete Section B of docs/v2_activation_checklist.md: "
             "Gnosis Safe creation, hot wallet setup, Safe delegate configuration, "
             "and GitHub Secrets (SAFE_ADDRESS, WALLET_ADDRESS)."
         ),
