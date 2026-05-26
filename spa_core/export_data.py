@@ -107,16 +107,19 @@ def run_export(fetch: bool = False) -> None:
     init_database(db_path)
     log.info(f"DB: {db_path}")
 
-    # Start / confirm agent-stability clock (idempotent — no-op if already started)
+    # Update agent-stability clock — SPA-F001 (idempotent per cycle)
+    # AgentStabilityTracker checks status.json freshness and writes data/agent_stability.json
     try:
-        from paper_trading.stability_tracker import StabilityTracker
-        just_started = StabilityTracker().start_tracking()
-        if just_started:
-            log.info("StabilityTracker: clock started (first run)")
-        else:
-            log.debug("StabilityTracker: clock confirmed running")
+        from paper_trading.agent_stability import AgentStabilityTracker
+        _data_dir = OUTPUT_DIR
+        _ast = AgentStabilityTracker(data_dir=_data_dir)
+        _ast_state = _ast.update(data_dir=_data_dir)
+        log.info(
+            f"AgentStabilityTracker: {_ast_state.get('consecutive_stable_days', 0):.1f} "
+            f"stable days (failures: {_ast_state.get('total_failures', 0)})"
+        )
     except Exception as _st_exc:
-        log.warning(f"StabilityTracker: could not update ({_st_exc})")
+        log.warning(f"AgentStabilityTracker: could not update ({_st_exc})")
 
     _push_thought("DataAgent", "Export cycle starting… reading from SQLite DB")
 
@@ -1013,7 +1016,7 @@ def run_export(fetch: bool = False) -> None:
         log.info(
             f"optimization: {len(opt_result['recommendations'])} candidates, "
             f"{approved_count} approved by RiskPolicy, "
-            f"expected_return={opt_resultK'portfolio_expected_return']:.2f}%, "
+            f"expected_return={opt_result['portfolio_expected_return']:.2f}%, "
             f"sharpe={opt_result['portfolio_sharpe']:.2f}"
         )
         _section_ok("optimization_recommendations")
