@@ -212,10 +212,27 @@ def run_activation(data_dir: str | None = None, _auto_confirm: str | None = None
         )
         return False
 
-    # ── Step 3: Write sentinel + activation record ────────────────────────────
-    print("\n[3/3] Writing wallet sentinel and activation record…")
+    # ── Step 3: Write wallet approval, sentinel + activation record ──────────
+    print("\n[3/3] Writing wallet approval, sentinel and activation record…")
     try:
-        # Write wallet_ready.sentinel so check_wallet_ready() returns PASS
+        # Write wallet_ready_approved.json (SPA-F003) — structured approval record
+        approved_json_path = data_path / "wallet_ready_approved.json"
+        approved_record = {
+            "approved":    True,
+            "approved_by": "activate.py (go-live)",
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "note": (
+                "Wallet automatically approved during go-live activation "
+                f"after owner typed '{CONFIRMATION_PHRASE}'."
+            ),
+        }
+        approved_json_path.write_text(
+            json.dumps(approved_record, indent=2),
+            encoding="utf-8",
+        )
+        print(f"✅ Wallet approval JSON written: {approved_json_path}")
+
+        # Write legacy wallet_ready.sentinel for backward compatibility
         sentinel_path = data_path / "wallet_ready.sentinel"
         sentinel_path.write_text(
             datetime.now(timezone.utc).isoformat(),
