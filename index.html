@@ -400,7 +400,7 @@
   /* ── Correlation Matrix (B3) ── */
   .corr-table { width:100%; border-collapse:collapse; font-size:10px; }
   .corr-table th { padding:4px 6px; color:#999; font-weight:500; text-align:center; white-space:nowrap; font-size:9px; }
-  .corr-table td { padding:4px 6px; text-align:center; border-radius:3�x; font-size:10px; font-weight:500; }
+  .corr-table td { padding:4px 6px; text-align:center; border-radius:3px; font-size:10px; font-weight:500; }
   .corr-high { background:#d1fae5; color:#065f46; }
   .corr-med  { background:#fef9c3; color:#713f12; }
   .corr-low  { background:#f3f4f6; color:#6b7280; }
@@ -745,7 +745,8 @@
       <div class="group-sep">M6 — Go-Live</div>
       <div class="kb-card"><div class="kb-title">PostgreSQL миграция</div><span class="tag tag-infra">Инфраструктура</span></div>
       <div class="kb-card"><div class="kb-title">Security audit + VPN + Kill Switch тест</div><span class="tag tag-adr">ADR</span></div>
-      <div class="kb-card"><div class="kb-title">ADR8o Go-Live решение</div><span class="tag tag-adr">ADR</span></div>
+      <div class="kb-card"><div class="kb-title">ADR: Go-Live решение</div><span class="tag tag-adr">ADR</span></div>
+
       <div class="group-sep">Данные</div>
       <div class="kb-card"><div class="kb-title">The Graph: on-chain события (liquidations, rates)</div><span class="tag tag-data">Данные</span></div>
       <div class="kb-card"><div class="kb-title">Backtest Engine (DeFiLlama history 2022+)</div><span class="tag tag-data">Данные</span></div>
@@ -794,7 +795,7 @@
       <div class="kb-card"><div class="kb-title strikethrough">Документация v0.3 (17 файлов)</div><span class="tag tag-doc">Документация</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">ADR-001 — ADR-009</div><span class="tag tag-adr">ADR</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Risk Policy v0.3 + Whitelist v0.4.5</div><span class="tag tag-adr">Политика</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Agent Architecture v0.3</div><span class="tag tag-agent">Аршитектура</span></div>
+      <div class="kb-card"><div class="kb-title strikethrough">Agent Architecture v0.3</div><span class="tag tag-agent">Архитектура</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Strategy Passport v1_passive</div><span class="tag tag-strat">Стратегия</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Message Bus (SQLite WAL) + 19 тестов</div><span class="tag tag-infra">Инфраструктура</span></div>
       <div class="kb-card"><div class="kb-title strikethrough">Monitoring Agent (HealthCheck wrapper)</div><span class="tag tag-agent">Агент</span></div>
@@ -1093,7 +1094,7 @@
       <div class="agent-tasks">Читает APY → ранжирует<br>auto_allocate() по бюджету<br>→ MessageBus: trade_opened</div>
     </div>
     <div class="agent-card">
-      <!-- MonitorBot: фиолетовый, следит за рисками, антенна мигает быстрп -->
+      <!-- MonitorBot: фиолетовый, следит за рисками, антенна мигает быстро -->
       <svg class="pixel-bot bot-monitor" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="0" width="2" height="1" fill="#C4B5FD" class="ant-monitor"/>
         <rect x="1" y="1" width="6" height="4" fill="#3B0764"/>
@@ -1150,7 +1151,7 @@
       <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama API</span></div>
       <div class="stack-row"><span class="stack-label">CI/CD</span><span class="stack-value">GitHub Actions (4h)</span></div>
       <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · React + Vite</span></div>
-      <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скорп</span></span></div>
+      <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скоро</span></span></div>
     </div>
     <div class="team-stack">
       <div class="flow-title">дорожная карта</div>
@@ -1167,7 +1168,7 @@
   <div class="agent-stream-log">
     <div class="agent-stream-log-header">
       <span id="agent-stream-log-hdr" style="transition:color .4s">📡 STREAM АГЕНТОВ — РЕАЛЬНОЕ ВРЕМЯ</span>
-      <span id="agent-stream-status" style="font-weight:400;color:#4b5563;font-size:9px;letter-spacing:.04em">Ожидание событик…</span>
+      <span id="agent-stream-status" style="font-weight:400;color:#4b5563;font-size:9px;letter-spacing:.04em">Ожидание событий…</span>
     </div>
     <div id="agent-stream-log-entries" class="agent-stream-entries">
       <div class="agent-stream-empty" id="agent-stream-empty-msg">
@@ -1317,9 +1318,9 @@
     <div id="strat-panel-v1" class="strat-panel">
       <div class="strat-kpi-grid" id="strat-v1-kpis">
         <div class="strat-kpi"><div class="strat-kpi-label">Доходність</div><div class="strat-kpi-value" id="v1-kpi-ret">—</div></div>
-        <div class="strat-kpi"><div class="strat-kpi-label">Поточний ЕФ�</div><div class="strat-kpi-value" id="v1-kpi-apy">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Поточний APY</div><div class="strat-kpi-value" id="v1-kpi-apy">—</div></div>
         <div class="strat-kpi"><div class="strat-kpi-label">Позицій</div><div class="strat-kpi-value" id="v1-kpi-pos">—</div></div>
-        <div class="strat-kpidiv class="strat-kpi-label">Кеш</div><div class="strat-kpi-value" id="v1-kpi-cash">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Кеш</div><div class="strat-kpi-value" id="v1-kpi-cash">—</div></div>
       </div>
       <div style="overflow-x:auto;margin-top:12px">
         <table class="proto-table">
@@ -1378,7 +1379,7 @@
   <div class="an-card" style="margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div class="an-title" style="margin-bottom:0">💡 AI Recommendations — Kelly·Markowitz Optimizer</div>
-      <span id="opt-improvement-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:#d1fae5;color:#065f46;pont-weight:600"></span>
+      <span id="opt-improvement-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:#d1fae5;color:#065f46;font-weight:600"></span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
       <div class="strat-kpi"><div class="strat-kpi-label">Policy</div><div class="strat-kpi-value" id="opt-policy" style="font-size:13px">—</div></div>
@@ -1969,7 +1970,17 @@ async function loadDashboard() {
 }
 
 // ─── APY Trends ───────────────────────────────────────────────────────────────
-)��幌��չ�ѥ���ɕ������Qɕ��̠���(����Ё�ɕ��̀�ձ��(�������ɕ��̀�݅�Ё��э�)M=8�1%Y}	M���������ɕ��̜��􁍅э�������(��������ɕ��̤�������ɕ��̀�݅�Ё��э�)M=8�	M��������}�ɕ��̹�ͽ����􁍅э��������(��������ɕ��́�����ɕ��̹�ɕ��̤�ɕ��ɸ�((������Ё���х���Ȁ􁑽�յ��й���������	�%�������ɕ��̵���х���Ȝ��(����������х���Ȥ�ɕ��ɸ�((������Ёɽ�̀�=����й���ɥ�̡�ɕ��̹�ɕ��̤������m��䰁�t������(��������Ё��ɽ܀�й�ɕ������U@������D : t.trend === 'DOWN' ? '↓' : '→';
+async function renderApyTrends() {
+  let trends = null;
+  try { trends = await fetchJSON(LIVE_BASE + '/apy/trends'); } catch(e) {}
+  if (!trends) { try { trends = await fetchJSON(BASE + '/apy_trends.json'); } catch(e) {} }
+  if (!trends || !trends.trends) return;
+
+  const container = document.getElementById('apy-trends-container');
+  if (!container) return;
+
+  const rows = Object.entries(trends.trends).map(([key, t]) => {
+    const arrow = t.trend === 'UP' ? '↑' : t.trend === 'DOWN' ? '↓' : '→';
     const color = t.trend === 'UP' ? '#4caf50' : t.trend === 'DOWN' ? '#f44336' : '#9e9e9e';
     return `<div class="trend-row" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
       <span class="trend-name" style="color:#444;font-weight:500">${key.split(':')[0]}</span>
@@ -2346,7 +2357,7 @@ setInterval(checkNightMode, 60000);
 // ─── Agent Click Popup ────────────────────────────────────────────────────────
 const AGENT_INFO = {
   data:     { name:'DataAgent 🤖',     role:'Сбор данных · DeFiLlama · 15 протоколов',  color:'#3B82F6' },
-  strategy: { name:'StrategyAgent 📈', role:'v1_passive · APY-скоринг · автп-аллокация', color:'#10B981' },
+  strategy: { name:'StrategyAgent 📈', role:'v1_passive · APY-скоринг · авто-аллокация', color:'#10B981' },
   monitor:  { name:'MonitorAgent 🔍',  role:'HealthCheck · AlertEngine · патруль',        color:'#8B5CF6' },
   ceo:      { name:'CEOAgent 👔',       role:'RiskPolicy · Approve/HOLD/REJECT',           color:'#F59E0B' },
 };
@@ -2943,36 +2954,6 @@ function renderApyHistoryChart(data) {
   if (_apyHistChart) { _apyHistChart.destroy(); _apyHistChart = null; }
 
   if (!data || !data.protocols) {
-    ctx.parentElement.innerHTML = '<div class="an-title">APY History by Protocol</div><div style="color:#bbb;font-size:12px;padding:20px 0">Нет данных (historical_apy.json gнедоступен)</div>';
-    return;
-  }
-
-  // Take last 30 data-points per protocol (data already sorted ASC)
-  const SHOW_DAYS = 30;
-  const protocols = Object.keys(data.protocols);
-  let allDates = new Set();
-  const sliced = {};
-  protocols.forEach(key => {
-    const arr = (data.protocols[key] || []).slice(-SHOW_DAYS);
-    sliced[key] = arr;
-    arr.forEach(e => allDates.add(e.date));
-  });
-  const labels = Array.from(allDates).sort();
-
-  const isDark = document.body.classList.contains('night') || windart = null;
-
-// Protocol colour palette — matches existing T1/T2 colours where possible
-const APY_HIST_COLORS = [
-  '#1D9E75', '#7F77DD', '#F59E0B', '#EF4444',
-  '#3B82F6', '#10B981', '#EC4899',
-];
-
-function renderApyHistoryChart(data) {
-  const ctx = document.getElementById('apy-history-chart');
-  if (!ctx) return;
-  if (_apyHistChart) { _apyHistChart.destroy(); _apyHistChart = null; }
-
-  if (!data || !data.protocols) {
     ctx.parentElement.innerHTML = '<div class="an-title">APY History by Protocol</div><div style="color:#bbb;font-size:12px;padding:20px 0">Нет данных (historical_apy.json недоступен)</div>';
     return;
   }
@@ -2993,7 +2974,7 @@ function renderApyHistoryChart(data) {
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
   const tickColor = '#888';
 
-  const datasets = protocols.map(hkey, idx) => {
+  const datasets = protocols.map((key, idx) => {
     const color = APY_HIST_COLORS[idx % APY_HIST_COLORS.length];
     // Build a map for fast lookup
     const byDate = {};
@@ -3258,7 +3239,7 @@ function renderCompareTable(comp) {
 
   const rows = [
     { label: 'Загальна доходність', v1val: v1.total_return_pct, v2val: v2.total_return_pct, fmt: v => (v != null ? (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
-    { label: 'Поточний АПЯ',        v1val: v1.current_apy,      v2val: v2.current_apy,      fmt: v => (v != nu? Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
+    { label: 'Поточний APY',        v1val: v1.current_apy,      v2val: v2.current_apy,      fmt: v => (v != null ? Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
     { label: 'Кількість позицій',   v1val: v1.positions_count,  v2val: v2.positions_count,  fmt: v => (v != null ? v : '—'), higherIsBetter: null },
     { label: 'Кеш-буфер',           v1val: v1.cash_pct,         v2val: v2.cash_pct,         fmt: v => (v != null ? (Number(v)*100).toFixed(1) + '%' : '—'), higherIsBetter: null },
     { label: 'PnL ($)',             v1val: v1.total_pnl_usd,    v2val: v2.total_pnl_usd,    fmt: v => (v != null ? (v >= 0 ? '+' : '') + '$' + Math.abs(Number(v)).toFixed(2) : '—'), higherIsBetter: true },
@@ -3461,7 +3442,33 @@ function renderActivityLog() {
   container.innerHTML = _actLog.map((entry, i) => {
     const isUser = entry.agentId === '_user';
     const col  = isUser ? '#6b7280' : (LOG_AGENT_COLORS[entry.agentId] || '#aaa');
-    cons:'monitor',  msg:'Portfolio drawdown is 0.0%. Kill switch triggers at 5%. All positions within concentration limits.' },
+    const name = isUser ? 'You' : (LOG_AGENT_NAMES[entry.agentId] || entry.agentId);
+    const msg  = isUser ? entry.message.replace(/^You: /,'') : entry.message;
+    const isLast = i === _actLog.length - 1;
+    return `<div class="log-entry${isUser?' log-entry-user':''}${isLast?' log-entry-new':''}">
+      <span class="log-ts">${entry.ts}</span>
+      <span class="log-agent-name" style="color:${col}">${name}</span>
+      <span class="log-msg">${msg}</span>
+    </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function toggleActivityLog() {
+  const panel = document.getElementById('activity-log-panel');
+  const btn   = document.getElementById('log-toggle-btn');
+  if (!panel) return;
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    btn && btn.classList.remove('has-new');
+    renderActivityLog();
+  }
+}
+
+// Pre-defined chat responses
+const CHAT_RESPONSES = [
+  { keys:['why maple','maple'],      agent:'strategy', msg:'Maple offers 4.80% with T2 risk tier. Max allowed allocation is 20%. Current: 20%. No room to increase.' },
+  { keys:['drawdown','risk'],        agent:'monitor',  msg:'Portfolio drawdown is 0.0%. Kill switch triggers at 5%. All positions within concentration limits.' },
   { keys:['apy','rate','yield'],     agent:'data',     msg:'Best current APY: Maple 4.80%, Aave V3 4.23%, Compound 4.02%. Data refreshed every 4h.' },
   { keys:['cash','buffer'],          agent:'strategy', msg:'Cash buffer: $5,000 (5% of $100,000). Minimum required: 5%.' },
   { keys:['status','health'],        agent:'monitor',  msg:'All systems nominal. Portfolio health: approved. 0 active violations.' },
@@ -3578,7 +3585,7 @@ function renderGoLiveVerdict(data) {
     if (countdownEl) countdownEl.textContent = 'golive_readiness.json not found — will show data when generated';
     return;
   }
-  const vraw = (data.verdict || '').toUpperCASE();
+  const vraw = (data.verdict || '').toUpperCase();
   const isReady  = vraw === 'READY';
   const isAlmost = vraw.includes('ALMOST');
   const isBlocked= vraw.includes('BLOCKED');
@@ -4688,7 +4695,7 @@ async function renderDataFreshness() {
   const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
 
   const files = [
-    { name: 'status.json',            label: 'status.json',           key: 'updated_at', type: 'timestamp' },
+    { name: 'status.json',           label: 'status.json',           key: 'updated_at', type: 'timestamp' },
     { name: 'pnl_history.json',      label: 'pnl_history.json',      key: null,          type: 'count' },
     { name: 'risk_alerts.json',      label: 'risk_alerts.json',       key: null,          type: 'alerts' },
     { name: 'golive_readiness.json', label: 'golive_readiness.json',  key: 'checked_at',  type: 'timestamp' },
@@ -4701,7 +4708,7 @@ async function renderDataFreshness() {
       let display = '';
       let cls = 'fresh-ok';
       if (f.type === 'timestamp') {
-        const ts = data[f.key] || data.timstamp || data.last_run || null;
+        const ts = data[f.key] || data.timestamp || data.last_run || null;
         cls = freshnessClass(ts);
         display = ts ? timeAgo(ts) : '—';
       } else if (f.type === 'count') {
