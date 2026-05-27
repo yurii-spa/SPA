@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T20:15:55Z",
-  "updated_by": "claude-agent (Sprint v3.13 — FEAT-RISK-002 Incident History Database shipped. spa_core/data_pipeline/incidents_fetcher.py + data/incidents.json + 58 tests + ADR-013. Unblocks FEAT-RISK-001 Risk Scoring Engine.)",
+  "last_updated": "2026-05-27T21:00:00Z",
+  "updated_by": "claude-agent (Added 3 new feature cards: FEAT-MON-003 Adaptive Monitoring Intervals, FEAT-MON-004 MEV Protection Flashbots, FEAT-STRAT-001 Bull Cycle Detector)",
   "columns": {
     "ideas": [
       {
@@ -213,6 +213,65 @@
           "alerts"
         ],
         "notes": "Do after Risk Layer (FEAT-RISK-001). Risk grades provide alert context — a TVL drop on a grade-A protocol is less alarming than on grade-D. Extends existing risk_monitor.py cleanly. Snapshot API is unauthenticated. DeFiLlama unlock endpoint: /api/unlocks. Estimated 2x increase in actionable early-warning signal coverage.",
+        "sprint": null,
+        "added": "2026-05-27"
+      },
+      {
+        "id": "FEAT-MON-003",
+        "title": "Adaptive Monitoring Intervals",
+        "description": "Different monitoring frequency by strategy tier: T1 lending → every 4-6 hours (APY changes slowly). T2 LP → every 30 minutes (IL accumulates unnoticed). T3 yield loop → every 3-5 minutes (Health Factor can drop from 1.5 to 1.1 in 20 min on market movement — delay = liquidation). Current monolithic 4h polling is an architectural risk for T3.",
+        "priority": "HIGH",
+        "phase": 2,
+        "estimated_hours": 6,
+        "depends_on": [
+          "FEAT-MON-001"
+        ],
+        "tags": [
+          "backend",
+          "monitoring",
+          "infra"
+        ],
+        "notes": "Разная частота мониторинга по tier стратегии: T1 lending → каждые 4-6 часов (APY меняется медленно). T2 LP → каждые 30 минут (IL накапливается незаметно). T3 yield loop → каждые 3-5 минут (Health Factor может упасть с 1.5 до 1.1 за 20 мин при движении рынка — промедление = ликвидация). Текущий монолитный 4h polling — архитектурный риск для T3.",
+        "sprint": null,
+        "added": "2026-05-27"
+      },
+      {
+        "id": "FEAT-MON-004",
+        "title": "MEV Protection (Flashbots Integration)",
+        "description": "Protection against sandwich attacks on large rebalance transactions. Flashbots Protect RPC as an alternative endpoint for execute operations. Relevant at AUM >$500K. Phase 3 — after go-live. Does not block paper trading.",
+        "priority": "MEDIUM",
+        "phase": 3,
+        "estimated_hours": 12,
+        "depends_on": [
+          "FEAT-004 Phase 3",
+          "FEAT-005 Phase 3"
+        ],
+        "tags": [
+          "backend",
+          "execution",
+          "security"
+        ],
+        "notes": "Защита от sandwich attacks при крупных rebalance транзакциях. Flashbots Protect RPC как альтернативный endpoint для execute операций. Актуально при AUM >$500K. Phase 3 — после go-live. Не блокирует paper trading.",
+        "sprint": null,
+        "added": "2026-05-27"
+      },
+      {
+        "id": "FEAT-STRAT-001",
+        "title": "Bull Cycle Detector + Dynamic Tier Allocation",
+        "description": "Automatic detection of bull/bear market cycle based on systemic APY growth in the market. In bull: gradual shift of T2 allocation cap 20%→35%, T3 5%→20% by defined thresholds (median market APY >8% for 7 days). In bear: return to conservative caps. Historically in bull cycles stable APYs were 10-18% — the system must be able to switch in minutes, not days. Input data: DefiLlama yields API (already in data pipeline).",
+        "priority": "HIGH",
+        "phase": 2,
+        "estimated_hours": 10,
+        "depends_on": [
+          "FEAT-RISK-001",
+          "FEAT-007 Phase 2"
+        ],
+        "tags": [
+          "backend",
+          "strategy",
+          "risk"
+        ],
+        "notes": "Автоматическое определение bull/bear рыночного цикла по системному росту APY на рынке. При bull: плавный сдвиг allocation cap T2 20%→35%, T3 5%→20% по заданным порогам (median market APY >8% за 7 дней). При bear: возврат к консервативным caps. Исторически в bull cycles APY на стейблах был 10-18% — система должна быть готова переключиться за минуты, не дни. Входные данные: DefiLlama yields API (уже есть в data pipeline).",
         "sprint": null,
         "added": "2026-05-27"
       },
