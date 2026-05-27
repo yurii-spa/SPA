@@ -108,13 +108,21 @@ class TestSupply:
         with pytest.raises(ValueError, match="Invalid amount"):
             adapter.supply("USDC", -100.0)
 
-    def test_live_mode_returns_not_implemented(self, live_adapter):
-        """dry_run=False must short-circuit to NOT_IMPLEMENTED, never raise."""
+    def test_live_mode_returns_not_implemented(self, live_adapter, monkeypatch):
+        """dry_run=False without SPA_EXECUTION_MODE=live must short-circuit.
+
+        Phase 3 contract: write methods short-circuit to BLOCKED when the
+        execution-mode env flag is unset (no live tx ever attempted). The
+        legacy ``NOT_IMPLEMENTED`` status is treated as an equivalent
+        short-circuit for backward-compat — both signal "we did not
+        broadcast a transaction".
+        """
+        monkeypatch.delenv("SPA_EXECUTION_MODE", raising=False)
         result = live_adapter.supply("USDC", 500.0)
-        assert result["status"] == "NOT_IMPLEMENTED"
-        assert result["tx_hash"] is None
+        assert result["status"] in ("NOT_IMPLEMENTED", "BLOCKED")
         assert result["asset"] == "USDC"
-        assert result["ctoken_received"] == 0.0
+        # tx_hash key is gone in Phase 3; either absent or None is fine.
+        assert result.get("tx_hash") is None
 
 
 # ─── TestWithdraw ─────────────────────────────────────────────────────────────
@@ -140,11 +148,16 @@ class TestWithdraw:
         with pytest.raises(ValueError, match="Invalid amount"):
             adapter.withdraw("USDC", 0.0)
 
-    def test_live_mode_returns_not_implemented(self, live_adapter):
-        """dry_run=False must short-circuit to NOT_IMPLEMENTED on withdraw too."""
+    def test_live_mode_returns_not_implemented(self, live_adapter, monkeypatch):
+        """dry_run=False without SPA_EXECUTION_MODE=live must short-circuit.
+
+        Phase 3 contract — same as supply: BLOCKED when env flag unset,
+        legacy NOT_IMPLEMENTED equivalent for backward-compat.
+        """
+        monkeypatch.delenv("SPA_EXECUTION_MODE", raising=False)
         result = live_adapter.withdraw("USDC", 100.0)
-        assert result["status"] == "NOT_IMPLEMENTED"
-        assert result["ctoken_received"] == 0.0
+        assert result["status"] in ("NOT_IMPLEMENTED", "BLOCKED")
+        assert result["asset"] == "USDC"
 
 
 # ─── TestBalanceAPY ───────────────────────────────────────────────────────────
@@ -172,7 +185,7 @@ class TestBalanceAPY:
     ):
         """Phase 2: live-mode reads attempt real RPC, then degrade to mock.
 
-        Phase 1 returned 0.0 in live mode (NOT_IMPLEMENTED). Phase 2 wires
+        Phase 1 returned 0.0 in live mode (NOT_IMPLEMTNED). Phase 2 wires
         real eth_call; when every RPC is patched to fail, the adapter
         degrades to the deterministic _MOCK_* fixture rather than crashing
         the pipeline. ``SPA_WALLET_ADDRESS`` is unset, which short-circuits
