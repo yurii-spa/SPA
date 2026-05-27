@@ -396,3 +396,52 @@ Modified:
 1. **FEAT-INT-001** — Audit Reader Agent (6h, MEDIUM) — will populate `data/audit_findings.json` and remove the only remaining fallback in the risk snapshot
 2. **FEAT-RISK-003** — Real Yield Classifier (6h, HIGH) — replaces hardcoded `yield_source` field in BOOTSTRAP_PROTOCOLS with live classification
 3. **FEAT-ALLOC-002** — Allocation cap enforcement in `engine.py` — consume `data/risk_scores.json` to clamp per-protocol caps
+
+## v3.14 — FEAT-INT-001 Audit Reader Agent (2026-05-27)
+
+**Sprint:** v3.14 (closed alongside FEAT-RISK-001 — same dispatch run)
+**Status:** ✅ DONE
+**Priority:** MEDIUM, Phase 1
+**Estimate:** 6h
+
+### What shipped
+- `spa_core/agents/audit_reader_agent.py` (1138 LOC) — Code4rena + Sherlock public-repo reader with offline-tolerant `BOOTSTRAP_AUDITS` (32 audit engagements across all 10 SPA whitelist protocols).
+- Dataclasses: `AuditFinding` (frozen), `ProtocolAuditSummary`.
+- `AuditReaderAgent` API: `_fetch_code4rena_index()`, `_fetch_sherlock_index()`, `_normalize_protocol_name()`, `_classify_status()`, `aggregate_by_protocol()`, `export()`.
+- Historical events seeded into bootstrap: Curve Vyper July 2023 (open critical), Euler V1 March 2023 (acknowledged critical → V2 rebuild), Compound Proposal 062 2021 (fixed critical), Maker Black Thursday 2020.
+- CLI: `python -m spa_core.agents.audit_reader_agent [--offline] [--dry-run]`.
+- Stdlib only (`urllib` + `json`); `aggregate_*` and `export()` NEVER raise; deterministic round-trip.
+
+### Tests
+- `spa_core/tests/test_audit_reader_agent.py` — **81/81 PASS** (2.13s).
+- Covers: normalize/classify, severity coercion, bootstrap coverage, invariants (fixed+open ≤ total), offline-only (urlopen not called), network-failure fallback, determinism, dry-run, schema sanity.
+
+### Side-effect on Risk Layer snapshot
+With `data/audit_findings.json` now present, `RiskScoringEngine.compute_all()` consumes real audit data instead of neutral fallback:
+
+```
+Before (only FEAT-RISK-001):  A=2 B=8 C=0 D=0  fallback_used_any=True
+After  (+ FEAT-INT-001):       A=4 B=6 C=0 D=0  fallback_used_any=False
+```
+
+Two protocols (aave-v3 → 0.914 stays A; morpho → 0.853 stays A; compound-v3 + maker promoted into A; curve B due to Vyper open critical) — exactly the discrimination we wanted from the audit-quality subscore.
+
+### Files
+Created:
+- `spa_core/agents/audit_reader_agent.py`
+- `spa_core/tests/test_audit_reader_agent.py`
+- `data/audit_findings.json` (10 protocols, 62 findings, 1 open critical)
+
+Modified:
+- `data/risk_scores.json` (regenerated with audit data — fallback_used_any flips False)
+- `KANBAN.json` (FEAT-INT-001 → done; sprint stamped v3.14)
+- `SPA_sprint_log.md` (this entry)
+
+### Risk Layer Phase 1 status after v3.14
+- ✅ FEAT-RISK-002 — Incident History DB (v3.13)
+- ✅ FEAT-RISK-001 — Risk Scoring Engine (v3.14)
+- ✅ FEAT-INT-001 — Audit Reader Agent (v3.14)
+- ⬜ FEAT-RISK-003 — Real Yield Classifier (HIGH, 6h) — last Phase 1 deliverable
+- ⬜ FEAT-ALLOC-002 — wire `engine.py` to consume `risk_scores.json` (allocation cap enforcement)
+
+After FEAT-RISK-003 lands, Risk Layer Phase 1 closes and Phase 2 (FEAT-MON-001/002/003 + FEAT-STRAT-001) is fully unblocked.
