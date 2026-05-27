@@ -98,10 +98,17 @@ class PaperTrader:
         config: RiskConfig = None,
         strategy_id: str = STRATEGY_ID,
         decision_logger=None,
+        live_execution: bool = False,
     ):
         self.db_path = db_path or get_db_path()
         self.policy = RiskPolicy(config=config)
         self.strategy_id = strategy_id
+        # FEAT-004/005 Phase 4 (SPA-V41-001): per-strategy opt-in for the
+        # live execution leg. The bridge is ONLY constructed if this flag is
+        # True AND SPA_EXECUTION_MODE=live at call time. Default False keeps
+        # 100+ existing call-sites byte-identical to pre-v3.11 behaviour.
+        self.live_execution: bool = bool(live_execution)
+        self._live_bridge = None  # lazy; see _get_live_bridge()
         # Accept an injected DecisionLogger, or create one automatically if
         # the class is available (backwards-compatible: stays None otherwise).
         if decision_logger is not None:
@@ -115,6 +122,26 @@ class PaperTrader:
         else:
             self._dlog = None
         self._ensure_strategy_state()
+
+    # ── Live execution bridge (Phase 4) ───────────────────────────────────────
+
+    def _get_live_bridge(self):
+        """Lazy-construct the LiveExecutionBridge.
+
+        Returns ``None`` if ``self.live_execution`` is False — in which case
+        the caller should skip the bridge entirely. The import is performed
+        here (NOT at module top) so test runs that don't touch live exec
+        skip the import cost and avoid pulling adapter deps.
+        """
+        if not self.live_execution:
+            return None
+        if self._live_bridge is None:
+            try:
+                from execution.engine_bridge import LiveExecutionBridge
+            except ImportError:
+                from spa_core.execution.engine_bridge import LiveExecutionBridge
+            self._live_bridge = LiveExecutionBridge()
+        return self._live_bridge
 
     # ── Основные операции ─────────────────────────────────────────────────────
 
@@ -148,6 +175,35 @@ class PaperTrader:
         if not result.approved:
             log.error(f"Trade BLOCKED by Risk Policy: {result}")
             raise RiskPolicyViolation(result)
+
+        # ── Live execution leg (FEAT-004/005 Phase 4 — SPA-V41-001) ──────────
+        # Additive: paper INSERT below is unconditional. Bridge is fully
+        # gated by self.live_execution AND SPA_EXECUTION_MODE=live; if either
+        # is off the bridge returns {status: SKIPPED} and we log nothing.
+        bridge = self._get_live_bridge()
+        if bridge is not None:
+            try:
+                live_result = bridge.execute_supply(protocol_key, amount_usd)
+                live_status = live_result.get("status") if isinstance(live_result, dict) else "ERROR"
+                if live_status in ("FAILED", "BLOCKED", "ERROR"):
+                    log.warning(
+                        "Live supply non-success for %s ($%.2f): status=%s reason=%s",
+                        protocol_key, amount_usd, live_status,
+                        live_result.get("reason") if isinstance(live_result, dict) else None,
+                    )
+                elif live_status == "SUCCESS":
+                    log.info(
+                        "Live supply SUCCESS for %s ($%.2f): supply_tx=%s",
+                        protocol_key, amount_usd,
+                        live_result.get("supply_tx"),
+                    )
+                # SKIPPED is silent at this level — bridge already logs it.
+            except Exception as exc:  # noqa: BLE001 — never abort paper trade
+                log.warning(
+                    "Live supply bridge unexpectedly raised for %s: %s — "
+                    "continuing with paper INSERT",
+                    protocol_key, exc,
+                )
 
         ts = _now()
 
@@ -192,6 +248,40 @@ class PaperTrader:
 
         if not open_trades:
             raise ValueError(f"No open position for {protocol_key}")
+
+        # ── Live execution leg (FEAT-004/005 Phase 4 — SPA-V41-001) ──────────
+        # Additive: SQL UPDATE below is unconditional. Bridge gated as in
+        # open_position(); routes to the SAME protocol the position was
+        # opened on (from paper_trades.protocol_key — already in DB).
+        bridge = self._get_live_bridge()
+        if bridge is not None:
+            try:
+                amount_total_open = sum(
+                    (t["amount_usd"] or 0.0) for t in open_trades
+                )
+                if amount_total_open > 0:
+                    live_result = bridge.execute_withdraw(
+                        protocol_key, float(amount_total_open),
+                    )
+                    live_status = live_result.get("status") if isinstance(live_result, dict) else "ERROR"
+                    if live_status in ("FAILED", "BLOCKED", "ERROR"):
+                        log.warning(
+                            "Live withdraw non-success for %s ($%.2f): status=%s reason=%s",
+                            protocol_key, amount_total_open, live_status,
+                            live_result.get("reason") if isinstance(live_result, dict) else None,
+                        )
+                    elif live_status == "SUCCESS":
+                        log.info(
+                            "Live withdraw SUCCESS for %s ($%.2f): withdraw_tx=%s",
+                            protocol_key, amount_total_open,
+                            live_result.get("withdraw_tx"),
+                        )
+            except Exception as exc:  # noqa: BLE001 — never abort paper close
+                log.warning(
+                    "Live withdraw bridge unexpectedly raised for %s: %s — "
+                    "continuing with paper UPDATE",
+                    protocol_key, exc,
+                )
 
         ts = _now()
         total_pnl = 0.0
