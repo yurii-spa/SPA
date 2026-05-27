@@ -1,10 +1,19 @@
 """
 SPA Database Initializer
-Создаёт SQLite базу данных и применяет схему.
+Создаёт базу данных (SQLite или PostgreSQL) и применяет схему.
 
 Использование:
     python init_db.py              # инициализация / проверка
     python init_db.py --reset      # сброс и пересоздание (⚠️ удаляет данные!)
+
+BL-008 Phase 2
+--------------
+The legacy `get_connection(db_path)` helper now delegates to
+`spa_core.database.connection.get_connection`, the new dual-driver
+abstraction. Backwards-compatible: callers that pass a `Path` continue to
+get a SQLite connection rooted at that path; callers without arguments get
+the env-resolved backend (SQLite by default, PostgreSQL when
+`SPA_DATABASE_URL=postgres://...`).
 """
 
 import sqlite3
@@ -12,11 +21,17 @@ import logging
 import argparse
 from pathlib import Path
 from contextlib import contextmanager
+from typing import Iterator, Optional
+
+# BL-008 Phase 2 — delegate to the new dual-driver abstraction.
+from .connection import get_connection as _abstract_get_connection
+from .db_url import get_db_url, is_postgres, is_sqlite
 
 log = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).parent / "spa.db"
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+SCHEMA_PG_PATH = Path(__file__).parent / "schema_postgres.sql"
 
 # Whitelist для заполнения таблицы protocols (v2.0.0 — M4 expansion: 7 → 15)
 # INSERT OR IGNORE позволяет добавлять новые записи в существующую БД
@@ -166,23 +181,61 @@ def get_db_path() -> Path:
 
 
 @contextmanager
-def get_connection(db_path: Path = None) -> sqlite3.Connection:
-    """Context manager для получения соединения с БД."""
-    path = db_path or DB_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    try:
+def get_connection(db_path: Path = None) -> Iterator[object]:
+    """
+    Context manager для получения соединения с БД.
+
+    BL-008 Phase 2 — теперь делегирует в `spa_core.database.connection`.
+    Backwards-compatible:
+      * `db_path=None` (most callers): use env-resolved URL
+        (SQLite default, PostgreSQL if `SPA_DATABASE_URL` is set).
+      * `db_path=Path("/tmp/x.db")`: force a SQLite connection at that path.
+        This preserves the historical contract used by tests + the engine.
+    """
+    if db_path is not None:
+        # Legacy SQLite-by-path callers — build a sqlite URL so the new
+        # abstraction routes to SQLite regardless of the env variable.
+        url: Optional[str] = f"sqlite:///{db_path}"
+    else:
+        url = None  # resolved from env by the abstraction
+
+    with _abstract_get_connection(url) as conn:
         yield conn
-    finally:
-        conn.close()
 
 
 def init_database(db_path: Path = None, reset: bool = False) -> None:
     """
     Инициализировать базу данных.
-    reset=True — удалить существующий файл и создать заново.
+
+    SQLite path: reset=True удаляет файл и пересоздаёт его.
+    PostgreSQL path: schema_postgres.sql применяется к подключенной БД.
+    `reset` для PG не поддерживается (требует DROP DATABASE на стороне сервера).
     """
+    url = get_db_url() if db_path is None else f"sqlite:///{db_path}"
+
+    if is_postgres(url):
+        # Postgres path — нет файла для удаления; reset бессмыслен здесь.
+        if reset:
+            log.warning(
+                "init_database(reset=True) is a no-op for PostgreSQL — "
+                "drop the database server-side and re-run."
+            )
+        if not SCHEMA_PG_PATH.exists():
+            raise FileNotFoundError(
+                f"PostgreSQL schema file missing: {SCHEMA_PG_PATH}"
+            )
+        schema_sql = SCHEMA_PG_PATH.read_text(encoding="utf-8")
+        log.info(f"Initializing PostgreSQL database via {SCHEMA_PG_PATH.name}")
+        with _abstract_get_connection(url) as conn:
+            with conn.cursor() as cur:
+                cur.execute(schema_sql)
+            conn.commit()
+            log.info("Schema applied successfully (PostgreSQL).")
+            _seed_protocols(conn, backend="postgres")
+        log.info("Database ready (PostgreSQL).")
+        return
+
+    # SQLite path (default)
     path = db_path or DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -194,33 +247,60 @@ def init_database(db_path: Path = None, reset: bool = False) -> None:
 
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
 
+    # NOTE: `executescript` is SQLite-specific; we keep raw sqlite3 here only
+    # for the bootstrap multi-statement DDL. Everything downstream goes through
+    # the abstraction.
     with sqlite3.connect(str(path)) as conn:
         conn.executescript(schema_sql)
         log.info("Schema applied successfully.")
-        _seed_protocols(conn)
+        _seed_protocols(conn, backend="sqlite")
 
     log.info("Database ready.")
 
 
-def _seed_protocols(conn: sqlite3.Connection) -> None:
+def _seed_protocols(conn, backend: str = "sqlite") -> None:
     """
     Upsert протоколов из INITIAL_PROTOCOLS.
-    INSERT OR IGNORE — существующие записи не трогаются, новые добавляются.
+
+    SQLite: INSERT OR IGNORE — существующие записи не трогаются.
+    Postgres: INSERT ... ON CONFLICT (key) DO NOTHING — эквивалент.
+
     Позволяет безопасно расширять whitelist без сброса БД.
     """
     cursor = conn.cursor()
-    before = cursor.execute("SELECT COUNT(*) FROM protocols").fetchone()[0]
 
-    for p in INITIAL_PROTOCOLS:
-        cursor.execute("""
+    def _scalar_count() -> int:
+        cursor.execute("SELECT COUNT(*) FROM protocols")
+        row = cursor.fetchone()
+        # sqlite3.Row supports indexing by int; RealDictCursor returns dict-like.
+        if isinstance(row, dict):
+            return int(next(iter(row.values())))
+        return int(row[0])
+
+    before = _scalar_count()
+
+    if backend == "postgres":
+        sql = """
+            INSERT INTO protocols
+                (key, protocol, asset, chain, tier, pool_id, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (key) DO NOTHING
+        """
+    else:
+        sql = """
             INSERT OR IGNORE INTO protocols
                 (key, protocol, asset, chain, tier, pool_id, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (p["key"], p["protocol"], p["asset"], p["chain"],
-              p["tier"], p.get("pool_id"), p.get("notes")))
+        """
+
+    for p in INITIAL_PROTOCOLS:
+        cursor.execute(sql, (
+            p["key"], p["protocol"], p["asset"], p["chain"],
+            p["tier"], p.get("pool_id"), p.get("notes"),
+        ))
 
     conn.commit()
-    after = cursor.execute("SELECT COUNT(*) FROM protocols").fetchone()[0]
+    after = _scalar_count()
     added = after - before
     if added:
         log.info(f"Protocols: added {added} new entries (total {after}).")
@@ -229,13 +309,53 @@ def _seed_protocols(conn: sqlite3.Connection) -> None:
 
 
 def check_database(db_path: Path = None) -> dict:
-    """Вернуть статистику по БД."""
+    """Вернуть статистику по БД.
+
+    SQLite-only: PostgreSQL не имеет одного файла, и stats() для PG
+    тривиально получается через `SELECT count(*)` — не входит в scope Phase 2.
+    """
     path = db_path or DB_PATH
+
+    # PG fast path — нет файла, отдаём только статусы таблиц.
+    if db_path is None and is_postgres(get_db_url()):
+        try:
+            with get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM protocols")
+                protocols = _first_int(cur.fetchone())
+                cur.execute("SELECT COUNT(*) FROM apy_snapshots")
+                snapshots = _first_int(cur.fetchone())
+                cur.execute("SELECT COUNT(*) FROM paper_trades")
+                trades = _first_int(cur.fetchone())
+                cur.execute("SELECT COUNT(*) FROM risk_events")
+                risk_events = _first_int(cur.fetchone())
+                try:
+                    cur.execute("SELECT COUNT(*) FROM agent_decisions")
+                    decisions_count = _first_int(cur.fetchone())
+                except Exception:
+                    decisions_count = 0
+                return {
+                    "status": "ok",
+                    "backend": "postgres",
+                    "protocols": protocols,
+                    "snapshots": snapshots,
+                    "trades": trades,
+                    "risk_events": risk_events,
+                    "agent_decisions": decisions_count,
+                }
+        except Exception as e:
+            return {"status": "error", "backend": "postgres", "error": str(e)}
 
     if not path.exists():
         return {"status": "missing", "path": str(path)}
 
     with get_connection(path) as conn:
+        # agent_decisions may not exist yet on older DBs — safe fallback
+        try:
+            decisions_count = conn.execute("SELECT COUNT(*) FROM agent_decisions").fetchone()[0]
+        except Exception:
+            decisions_count = 0
+
         stats = {
             "status": "ok",
             "path": str(path),
@@ -244,6 +364,7 @@ def check_database(db_path: Path = None) -> dict:
             "snapshots": conn.execute("SELECT COUNT(*) FROM apy_snapshots").fetchone()[0],
             "trades": conn.execute("SELECT COUNT(*) FROM paper_trades").fetchone()[0],
             "risk_events": conn.execute("SELECT COUNT(*) FROM risk_events").fetchone()[0],
+            "agent_decisions": decisions_count,
         }
 
         # Последний снимок
@@ -254,6 +375,15 @@ def check_database(db_path: Path = None) -> dict:
             stats["last_snapshot"] = dict(last)
 
         return stats
+
+
+def _first_int(row) -> int:
+    """Извлечь первое целое из строки результата (sqlite3.Row или RealDictCursor)."""
+    if row is None:
+        return 0
+    if isinstance(row, dict):
+        return int(next(iter(row.values())))
+    return int(row[0])
 
 
 if __name__ == "__main__":
@@ -277,8 +407,9 @@ if __name__ == "__main__":
         init_database(reset=args.reset)
         stats = check_database()
         print(f"\nDatabase stats:")
-        print(f"  Path:      {stats['path']}")
-        print(f"  Size:      {stats.get('size_mb', '?')} MB")
-        print(f"  Protocols: {stats.get('protocols', 0)}")
-        print(f"  Snapshots: {stats.get('snapshots', 0)}")
-        print(f"  Trades:    {stats.get('trades', 0)}")
+        print(f"  Path:            {stats['path']}")
+        print(f"  Size:            {stats.get('size_mb', '?')} MB")
+        print(f"  Protocols:       {stats.get('protocols', 0)}")
+        print(f"  Snapshots:       {stats.get('snapshots', 0)}")
+        print(f"  Trades:          {stats.get('trades', 0)}")
+        print(f"  Agent Decisions: {stats.get('agent_decisions', 0)}")
