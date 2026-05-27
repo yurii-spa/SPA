@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T21:19:05.664240Z",
-  "updated_by": "dispatch-orchestrator (v3.14 FEAT-RISK-001)",
+  "last_updated": "2026-05-27T21:23:00Z",
+  "updated_by": "dispatch-orchestrator (v3.14 close — FEAT-RISK-001 + FEAT-INT-001 shipped, Risk Layer Phase 1 advancing)",
   "columns": {
     "ideas": [
       {
@@ -141,23 +141,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "FEAT-INT-001",
-        "title": "Audit Reader Agent (Code4rena + Sherlock)",
-        "description": "Claude agent reads structured audit data from Code4rena and Sherlock public repos. Extracts critical/high findings per protocol, fix status (fixed/acknowledged/open), and auditor count. Output: data/audit_findings.json. Feeds into FEAT-RISK-001 as 'audit quality' scoring parameter. Both Code4rena and Sherlock expose public data with no API key required.",
-        "priority": "MEDIUM",
-        "phase": 1,
-        "estimated_hours": 6,
-        "depends_on": [],
-        "tags": [
-          "backend",
-          "agents",
-          "data_pipeline"
-        ],
-        "notes": "Parallel with FEAT-RISK-002 — no deps between them. LLM agent OK (no capital decisions). FEAT-RISK-001 degrades gracefully without audit data but scores are substantially stronger with it. Medium priority because audit data changes rarely — weekly refresh is sufficient.",
-        "sprint": null,
-        "added": "2026-05-27"
       },
       {
         "id": "FEAT-RISK-003",
@@ -416,6 +399,28 @@
       }
     ],
     "done": [
+      {
+        "id": "FEAT-INT-001",
+        "title": "Audit Reader Agent (Code4rena + Sherlock)",
+        "description": "Claude agent reads structured audit data from Code4rena and Sherlock public repos. Extracts critical/high findings per protocol, fix status (fixed/acknowledged/open), and auditor count. Output: data/audit_findings.json. Feeds into FEAT-RISK-001 as 'audit quality' scoring parameter. Both Code4rena and Sherlock expose public data with no API key required.",
+        "priority": "MEDIUM",
+        "phase": 1,
+        "estimated_hours": 6,
+        "depends_on": [],
+        "tags": [
+          "backend",
+          "agents",
+          "data_pipeline"
+        ],
+        "notes": "Parallel with FEAT-RISK-002 — no deps between them. LLM agent OK (no capital decisions). FEAT-RISK-001 degrades gracefully without audit data but scores are substantially stronger with it. Medium priority because audit data changes rarely — weekly refresh is sufficient.",
+        "sprint": "v3.14",
+        "added": "2026-05-27",
+        "status": "done",
+        "sprint_completed": "v3.14",
+        "completed": "2026-05-27",
+        "completed_at": "2026-05-27T21:23:00Z",
+        "implementation": "spa_core/agents/audit_reader_agent.py — Code4rena + Sherlock public-repo reader with offline-tolerant BOOTSTRAP_AUDITS fallback (32 audit engagements covering all 10 SPA whitelist protocols incl. historical events: Curve Vyper 2023 open critical, Euler V1 hack acknowledged critical, Compound Proposal 062, Maker Black Thursday). Dataclasses AuditFinding/ProtocolAuditSummary. Aggregates per-protocol critical/high counts split by fixed/open. Outputs data/audit_findings.json with sources tagging + summary stats. Stdlib-only (urllib + json), NEVER raises, deterministic round-trip. 81/81 tests pass in spa_core/tests/test_audit_reader_agent.py. CLI: python -m spa_core.agents.audit_reader_agent [--offline] [--dry-run]. Feeds FEAT-RISK-001 audit_findings_severity subscore — fallback_used flag is False once this lands."
+      },
       {
         "id": "FEAT-RISK-002",
         "title": "Incident History Database (DefiLlama Hacks API)",
