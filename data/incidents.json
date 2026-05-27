@@ -1,0 +1,236 @@
+{
+  "updated_at": "2026-05-27T20:14:33.619962Z",
+  "source": "DefiLlama hacks API (+ bootstrap fallback)",
+  "fetched_from_api": false,
+  "total_incidents": 10,
+  "total_amount_lost_usd": 40527000000.0,
+  "incidents": [
+    {
+      "id": "bootstrap-pendle-2024",
+      "protocol": "Penpie (Pendle aggregator)",
+      "protocol_slug": "penpie-pendle-aggregator",
+      "date": "2024-09-03",
+      "amount_lost_usd": 27000000.0,
+      "type": "exploit",
+      "technique": "Pendle market registration reentrancy via Penpie",
+      "chain": "ethereum",
+      "source_url": "https://medium.com/magpiexyz/penpie-hack-post-mortem-3f96ab12f6f5",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "pendle"
+      ]
+    },
+    {
+      "id": "bootstrap-uniswap-2024",
+      "protocol": "Uniswap",
+      "protocol_slug": "uniswap",
+      "date": "2024-01-04",
+      "amount_lost_usd": 0.0,
+      "type": "exploit",
+      "technique": "Permit2 signature phishing (front-end)",
+      "chain": "ethereum",
+      "source_url": "https://blog.uniswap.org/security",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "uniswap"
+      ]
+    },
+    {
+      "id": "bootstrap-curve-2023",
+      "protocol": "Curve Finance",
+      "protocol_slug": "curve-finance",
+      "date": "2023-07-30",
+      "amount_lost_usd": 73500000.0,
+      "type": "exploit",
+      "technique": "Vyper compiler reentrancy bug",
+      "chain": "ethereum",
+      "source_url": "https://twitter.com/CurveFinance/status/1685693835484585985",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "curve"
+      ]
+    },
+    {
+      "id": "bootstrap-yearn-2023",
+      "protocol": "Yearn Finance",
+      "protocol_slug": "yearn-finance",
+      "date": "2023-04-13",
+      "amount_lost_usd": 11500000.0,
+      "type": "exploit",
+      "technique": "Misconfigured iearn yUSDT vault (legacy v1 contract)",
+      "chain": "ethereum",
+      "source_url": "https://github.com/yearn/yearn-security/blob/master/disclosures/2023-04-13.md",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "yearn"
+      ]
+    },
+    {
+      "id": "bootstrap-euler-2023",
+      "protocol": "Euler Finance",
+      "protocol_slug": "euler-finance",
+      "date": "2023-03-13",
+      "amount_lost_usd": 197000000.0,
+      "type": "exploit",
+      "technique": "Donation attack via flash loan",
+      "chain": "ethereum",
+      "source_url": "https://blog.euler.finance/euler-hack-and-attack-recovery-eea03ba24d8a",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "euler"
+      ]
+    },
+    {
+      "id": "bootstrap-usdc-2023",
+      "protocol": "Circle USDC",
+      "protocol_slug": "circle-usdc",
+      "date": "2023-03-11",
+      "amount_lost_usd": 0.0,
+      "type": "depeg",
+      "technique": "Silicon Valley Bank exposure (~$3.3B of reserves)",
+      "chain": "ethereum",
+      "source_url": "https://www.circle.com/blog/an-update-on-usdc-and-silicon-valley-bank",
+      "status": "fixed",
+      "spa_protocols_affected": []
+    },
+    {
+      "id": "bootstrap-ust-2022",
+      "protocol": "Terra UST",
+      "protocol_slug": "terra-ust",
+      "date": "2022-05-09",
+      "amount_lost_usd": 40000000000.0,
+      "type": "depeg",
+      "technique": "Algorithmic stablecoin death spiral",
+      "chain": "terra",
+      "source_url": "https://rekt.news/luna-rekt/",
+      "status": "ongoing",
+      "spa_protocols_affected": []
+    },
+    {
+      "id": "bootstrap-cream-2021",
+      "protocol": "Cream Finance",
+      "protocol_slug": "cream-finance",
+      "date": "2021-10-27",
+      "amount_lost_usd": 130000000.0,
+      "type": "exploit",
+      "technique": "Flash loan + price oracle manipulation",
+      "chain": "ethereum",
+      "source_url": "https://medium.com/cream-finance/c-r-e-a-m-finance-post-mortem-amp-exploit-6ceb20a630c5",
+      "status": "fixed",
+      "spa_protocols_affected": []
+    },
+    {
+      "id": "bootstrap-compound-2021",
+      "protocol": "Compound",
+      "protocol_slug": "compound",
+      "date": "2021-09-29",
+      "amount_lost_usd": 80000000.0,
+      "type": "exploit",
+      "technique": "Faulty governance proposal (Proposal 062)",
+      "chain": "ethereum",
+      "source_url": "https://www.comp.xyz/t/post-mortem-compound-comp-token-distribution-bug/3034",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "compound",
+        "compound-v3"
+      ]
+    },
+    {
+      "id": "bootstrap-dai-2020",
+      "protocol": "MakerDAO DAI",
+      "protocol_slug": "makerdao-dai",
+      "date": "2020-03-12",
+      "amount_lost_usd": 8000000.0,
+      "type": "exploit",
+      "technique": "Black Thursday — keeper bots stalled, $0 auctions",
+      "chain": "ethereum",
+      "source_url": "https://forum.makerdao.com/t/black-thursday-response-thread/1433",
+      "status": "fixed",
+      "spa_protocols_affected": [
+        "makerdao"
+      ]
+    }
+  ],
+  "by_protocol_summary": {
+    "aave": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "aave-v3": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "compound": {
+      "incidents": 1,
+      "total_lost_usd": 80000000.0,
+      "last_incident": "2021-09-29"
+    },
+    "compound-v3": {
+      "incidents": 1,
+      "total_lost_usd": 80000000.0,
+      "last_incident": "2021-09-29"
+    },
+    "morpho": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "yearn": {
+      "incidents": 1,
+      "total_lost_usd": 11500000.0,
+      "last_incident": "2023-04-13"
+    },
+    "yearn-v3": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "maple": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "euler": {
+      "incidents": 1,
+      "total_lost_usd": 197000000.0,
+      "last_incident": "2023-03-13"
+    },
+    "euler-v2": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "sky": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "susds": {
+      "incidents": 0,
+      "total_lost_usd": 0.0,
+      "last_incident": null
+    },
+    "makerdao": {
+      "incidents": 1,
+      "total_lost_usd": 8000000.0,
+      "last_incident": "2020-03-12"
+    },
+    "pendle": {
+      "incidents": 1,
+      "total_lost_usd": 27000000.0,
+      "last_incident": "2024-09-03"
+    },
+    "curve": {
+      "incidents": 1,
+      "total_lost_usd": 73500000.0,
+      "last_incident": "2023-07-30"
+    },
+    "uniswap": {
+      "incidents": 1,
+      "total_lost_usd": 0.0,
+      "last_incident": "2024-01-04"
+    }
+  }
+}
