@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T14:30:00Z",
-  "updated_by": "claude-agent (Sprint v3.10 — FEAT-005 Phase 3: Compound V3 live supply/withdraw via eth_account; lazy import, SPA_EXECUTION_MODE hard-gate, structured FAILED/BLOCKED/ERROR dicts, EIP-1559 type=2, two-tx approve+supply flow, single-tx withdraw, 15 new tests, 30+15 total Compound, 119 total execution-stack regression all PASS.)",
+  "last_updated": "2026-05-27T15:30:00Z",
+  "updated_by": "claude-agent (Sprint v3.11 — FEAT-004/005 Phase 4: engine.py LIVE execution wiring via LiveExecutionBridge facade; lazy adapter import + per-strategy live_execution flag (default False, byte-identical) + SPA_EXECUTION_MODE=live hard-gate; structured SKIPPED/FAILED/BLOCKED/ERROR dicts; paper INSERT unconditional; data/live_execution_log.json audit ring at LOG_MAX_ENTRIES=1000; ADR-011; 37 new tests; 37/37 + 155/155 regression all PASS.)",
   "columns": {
     "ideas": [
       {
@@ -1530,6 +1530,33 @@
         "tests_total": 48,
         "regression_status": "140/140 execution-stack tests still PASS (Aave 43 + Compound 48 + router 36 + price_feeds 13)",
         "completed_at": "2026-05-27"
+      },
+      {
+        "id": "SPA-V41-001",
+        "title": "FEAT-004/005 Phase 4 — engine.py LIVE execution wiring via LiveExecutionBridge",
+        "description": "Phase 4 closes the FEAT-004 (Aave V3) and FEAT-005 (Compound V3) live-execution loop by wiring the v3.9/v3.10 signed-tx adapters into spa_core/paper_trading/engine.py (PaperTrader.open_position / close_position) behind a multi-layer safety gate. New module spa_core/execution/engine_bridge.py exposes LiveExecutionBridge with execute_supply(protocol_key, amount_usd) / execute_withdraw(protocol_key, amount_usd) and internal _parse_protocol_key() that splits 'aave-v3-usdc-ethereum' → (family=aave_v3, asset=USDC, chain=ethereum) — supports aave-v3-* and compound-v3-* prefixes, returns None on anything malformed. The bridge is invoked ONLY when both (a) PaperTrader was constructed with live_execution=True (new ctor kwarg, default False — preserves byte-identical behaviour for 100+ existing call-sites) AND (b) SPA_EXECUTION_MODE=live env var is set; otherwise returns {status: SKIPPED, reason: execution_mode_paper}. Adapters are imported LAZILY inside the bridge's _get_adapter() (not module-top) and cached per (family, chain) pair. Paper-trades SQLite INSERT/UPDATE is UNCONDITIONAL — the live leg is purely additive; if the adapter returns FAILED/BLOCKED/ERROR or raises, the bridge logs a structured WARNING + audit row and the engine continues with the paper write. NEVER raises. Audit log at data/live_execution_log.json is a flat JSON array capped at 1000 entries (oldest dropped on rollover); all I/O wrapped in try/except so audit failures never block a paper trade. close_position routes withdraws to the exact protocol the position was opened on (read from paper_trades.protocol_key). New docs/ADR_011_engine_live_cutover.md documents the design + multi-layer gate stack + operational notes. New spa_core/tests/test_engine_bridge.py — 37 deterministic tests (parsing happy paths + 9 malformed-input parametrisations, SPA_EXECUTION_MODE gate variants, SKIPPED branches, live SUCCESS for both families, FAILED/BLOCKED/raises all swallowed, regression gate proving live_execution=False is a strict no-op even with SPA_EXECUTION_MODE=live, audit-log rotation at LOG_MAX_ENTRIES=1000, corrupted-log file recovery, paper INSERT survives live-leg failure). Test result: 37/37 PASS. Regression: 66/66 across test_aave_v3_adapter.py + test_compound_v3_adapter.py + test_execution_router.py + 28/28 test_paper_trading.py + 155/155 across the full execution+paper-trading stack (incl. phase2/phase3 adapter tests). Phase 5 (FEAT-007 multi-call routing / partial-fill reconciliation) tracked separately.",
+        "sprint": "v3.11",
+        "feature": "FEAT-004 + FEAT-005",
+        "phase": "Phase 4",
+        "files_created": [
+          "spa_core/execution/engine_bridge.py",
+          "spa_core/tests/test_engine_bridge.py",
+          "docs/ADR_011_engine_live_cutover.md"
+        ],
+        "files_modified": [
+          "spa_core/paper_trading/engine.py",
+          "KANBAN.json"
+        ],
+        "tests": {
+          "new": "spa_core/tests/test_engine_bridge.py — 37/37 PASS",
+          "regression": "test_aave_v3_adapter + test_compound_v3_adapter + test_execution_router (66/66) + test_paper_trading (28/28) + phase2/phase3 adapter suites — 155/155 PASS"
+        },
+        "adr": "ADR-011",
+        "closes": [
+          "SPA-V39-001 phase 4 deferral",
+          "SPA-V40-001 phase 4 deferral"
+        ],
+        "completed_at": "2026-05-27T15:30:00Z"
       }
     ]
   }
