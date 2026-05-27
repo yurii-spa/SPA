@@ -167,10 +167,39 @@ class TestBalanceAPY:
         with pytest.raises(ValueError, match="Unsupported asset"):
             adapter.get_supply_apy("FRAX")
 
-    def test_live_mode_returns_zero(self, live_adapter):
-        """Live-mode reads return 0.0 (with warning) until Phase 2 lands."""
-        assert live_adapter.get_supply_balance("USDC") == 0.0
-        assert live_adapter.get_supply_apy("USDC") == 0.0
+    def test_live_mode_falls_back_to_mock_when_rpc_unreachable(
+        self, live_adapter, monkeypatch,
+    ):
+        """Phase 2: live-mode reads attempt real RPC, then degrade to mock.
+
+        Phase 1 returned 0.0 in live mode (NOT_IMPLEMENTED). Phase 2 wires
+        real eth_call; when every RPC is patched to fail, the adapter
+        degrades to the deterministic _MOCK_* fixture rather than crashing
+        the pipeline. ``SPA_WALLET_ADDRESS`` is unset, which short-circuits
+        the balance path to the mock immediately.
+        """
+        monkeypatch.delenv("SPA_WALLET_ADDRESS", raising=False)
+
+        def _always_fail(self, asset, data):  # noqa: ARG001
+            raise RuntimeError("simulated RPC outage")
+
+        # Patch the fallback router so no real network is touched.
+        from unittest.mock import patch
+        with patch.object(
+            CompoundV3Adapter, "_call_with_fallback", new=_always_fail,
+        ):
+            # Balance: missing SPA_WALLET_ADDRESS → fall back to mock.
+            assert (
+                live_adapter.get_supply_balance("USDC")
+                == CompoundV3Adapter._MOCK_BALANCES["USDC"]
+                == 8000.0
+            )
+            # APY: every RPC raises → fall back to mock.
+            assert (
+                live_adapter.get_supply_apy("USDC")
+                == CompoundV3Adapter._MOCK_APYS["USDC"]
+                == 4.5
+            )
 
 
 # ─── TestHealthCheck ──────────────────────────────────────────────────────────
