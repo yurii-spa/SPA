@@ -7,7 +7,7 @@ SPA Data Agent (M4)
 Логика:
   1. Вызывает DeFiLlamaFetcher (уже реализован в data_pipeline/defillama_fetcher.py)
   2. Публикует MARKET_DATA с snapshot данными
-  3. При ошибке публикует MARKET_DATA с пустым списком и флагом еррот
+  3. При ошибке публикует MARKET_DATA с пустым списком и флагом error
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from message_bus.topics import Priority, Topic, market_data_payload
 
 class DataAgent(BaseAgent):
     """
-    Агент данныхЄ — обёртка над DeFiLlamaFetcher.
+    Агент данных — обёртка над DeFiLlamaFetcher.
     Получает рыночные данные и публикует их в шину.
     """
 
@@ -58,9 +58,13 @@ class DataAgent(BaseAgent):
     # ── Private ───────────────────────────────────────────────────────────────
 
     def _fetch(self) -> tuple[list[dict], str | None]:
-        """Запустить fetcher. Возвращает (snapshots, error_or_None)."""
+        """Запустить fetcher. Возвращает (snapshots, error_or_None).
+
+        BL-008 Phase 2 — removed unused `import sqlite3`. The shared
+        `get_connection` from `database.init_db` now delegates to the
+        dual-driver abstraction (SQLite default, PostgreSQL via env).
+        """
         try:
-            import sqlite3
             from database.init_db import get_connection
             from data_pipeline.defillama_fetcher import collect_once
 
@@ -72,7 +76,7 @@ class DataAgent(BaseAgent):
 
         except Exception as exc:
             self.log.error("Fetch failed: %s", exc, exc_info=True)
-            # Fallback: читаем последние снапшоты из БД (если есты)
+            # Fallback: читаем последние снапшоты из БД (если есть)
             return self._load_latest_from_db(), str(exc)
 
     def _load_latest_from_db(self) -> list[dict]:
