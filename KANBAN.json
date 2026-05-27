@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T21:00:00Z",
-  "updated_by": "claude-agent (Roadmap update — added Risk Layer Block (FEAT-RISK-001/002/003), Monitoring Block (FEAT-MON-001/002), Intelligence Block (FEAT-INT-001). 6 new feature cards with phase/priority/depends_on. Recommended execution order: FEAT-RISK-002 → FEAT-INT-001 (parallel) → FEAT-RISK-001 → FEAT-RISK-003 → FEAT-MON-001 → FEAT-MON-002.)",
+  "last_updated": "2026-05-27T20:15:55Z",
+  "updated_by": "claude-agent (Sprint v3.13 — FEAT-RISK-002 Incident History Database shipped. spa_core/data_pipeline/incidents_fetcher.py + data/incidents.json + 58 tests + ADR-013. Unblocks FEAT-RISK-001 Risk Scoring Engine.)",
   "columns": {
     "ideas": [
       {
@@ -143,19 +143,6 @@
         "added": "2026-05-22"
       },
       {
-        "id": "FEAT-RISK-002",
-        "title": "Incident History Database (DefiLlama Hacks API)",
-        "description": "Database of protocol hacks, exploits, and depegs sourced from DefiLlama hacks API + rekt.news structure. Stored as data/incidents.json. Provides hack history per protocol as a core input component for the Risk Scoring Engine (FEAT-RISK-001). DefiLlama hacks API is public and free. Fields per incident: protocol, date, amount_lost_usd, type (hack/exploit/rugpull/depeg), post-mortem link, status (fixed/ongoing).",
-        "priority": "HIGH",
-        "phase": 1,
-        "estimated_hours": 4,
-        "depends_on": [],
-        "tags": ["backend", "data_pipeline", "risk"],
-        "notes": "Start here — foundational data for Risk Scoring Engine. No external deps, no cost. Implement alongside FEAT-INT-001 in parallel as soon as v3.x sprint block wraps. Required before FEAT-RISK-001 can score hack history component.",
-        "sprint": null,
-        "added": "2026-05-27"
-      },
-      {
         "id": "FEAT-INT-001",
         "title": "Audit Reader Agent (Code4rena + Sherlock)",
         "description": "Claude agent reads structured audit data from Code4rena and Sherlock public repos. Extracts critical/high findings per protocol, fix status (fixed/acknowledged/open), and auditor count. Output: data/audit_findings.json. Feeds into FEAT-RISK-001 as 'audit quality' scoring parameter. Both Code4rena and Sherlock expose public data with no API key required.",
@@ -163,7 +150,11 @@
         "phase": 1,
         "estimated_hours": 6,
         "depends_on": [],
-        "tags": ["backend", "agents", "data_pipeline"],
+        "tags": [
+          "backend",
+          "agents",
+          "data_pipeline"
+        ],
         "notes": "Parallel with FEAT-RISK-002 — no deps between them. LLM agent OK (no capital decisions). FEAT-RISK-001 degrades gracefully without audit data but scores are substantially stronger with it. Medium priority because audit data changes rarely — weekly refresh is sufficient.",
         "sprint": null,
         "added": "2026-05-27"
@@ -175,8 +166,14 @@
         "priority": "HIGH",
         "phase": 1,
         "estimated_hours": 12,
-        "depends_on": ["FEAT-RISK-002"],
-        "tags": ["backend", "risk", "data_pipeline"],
+        "depends_on": [
+          "FEAT-RISK-002"
+        ],
+        "tags": [
+          "backend",
+          "risk",
+          "data_pipeline"
+        ],
         "notes": "Core Risk Layer deliverable. Requires FEAT-RISK-002 (hack history data); enriched but not blocked by FEAT-INT-001. After shipping: update paper_trading/engine.py allocation caps to be risk-score-aware. Demonstrates systematic risk management beyond concentration limits — directly supports go-live readiness narrative. ADR required before wiring scores into allocation engine.",
         "sprint": null,
         "added": "2026-05-27"
@@ -188,8 +185,14 @@
         "priority": "HIGH",
         "phase": 1,
         "estimated_hours": 6,
-        "depends_on": ["FEAT-RISK-001"],
-        "tags": ["backend", "agents", "risk"],
+        "depends_on": [
+          "FEAT-RISK-001"
+        ],
+        "tags": [
+          "backend",
+          "agents",
+          "risk"
+        ],
         "notes": "Do immediately after or alongside FEAT-RISK-001 — yield source is one of the 15 risk scoring parameters. LLM agent classification is OK here (no capital decisions). Required before S2/S3 strategies graduate from paper trading. Chasing token emissions that expire is the #1 DeFi yield trap for passive strategies.",
         "sprint": null,
         "added": "2026-05-27"
@@ -201,8 +204,14 @@
         "priority": "HIGH",
         "phase": 2,
         "estimated_hours": 8,
-        "depends_on": ["FEAT-RISK-001"],
-        "tags": ["backend", "monitoring", "alerts"],
+        "depends_on": [
+          "FEAT-RISK-001"
+        ],
+        "tags": [
+          "backend",
+          "monitoring",
+          "alerts"
+        ],
         "notes": "Do after Risk Layer (FEAT-RISK-001). Risk grades provide alert context — a TVL drop on a grade-A protocol is less alarming than on grade-D. Extends existing risk_monitor.py cleanly. Snapshot API is unauthenticated. DeFiLlama unlock endpoint: /api/unlocks. Estimated 2x increase in actionable early-warning signal coverage.",
         "sprint": null,
         "added": "2026-05-27"
@@ -214,8 +223,15 @@
         "priority": "MEDIUM",
         "phase": 2,
         "estimated_hours": 6,
-        "depends_on": ["FEAT-MON-001", "FEAT-RISK-001"],
-        "tags": ["backend", "monitoring", "governance"],
+        "depends_on": [
+          "FEAT-MON-001",
+          "FEAT-RISK-001"
+        ],
+        "tags": [
+          "backend",
+          "monitoring",
+          "governance"
+        ],
         "notes": "Do after FEAT-MON-001 (shares alert pipeline and red_flags.json format). The FEAT-RISK-001 re-score trigger is the high-value output — governance changes are the earliest on-chain signal for protocol risk profile shifts, days before TVL or APY changes appear. Both APIs have no auth requirement. Tally covers Compound, Aave, Uniswap governance.",
         "sprint": null,
         "added": "2026-05-27"
@@ -360,6 +376,27 @@
       }
     ],
     "done": [
+      {
+        "id": "FEAT-RISK-002",
+        "title": "Incident History Database (DefiLlama Hacks API)",
+        "description": "Database of protocol hacks, exploits, and depegs sourced from DefiLlama hacks API + rekt.news structure. Stored as data/incidents.json. Provides hack history per protocol as a core input component for the Risk Scoring Engine (FEAT-RISK-001). DefiLlama hacks API is public and free. Fields per incident: protocol, date, amount_lost_usd, type (hack/exploit/rugpull/depeg), post-mortem link, status (fixed/ongoing).",
+        "priority": "HIGH",
+        "phase": 1,
+        "estimated_hours": 4,
+        "depends_on": [],
+        "tags": [
+          "backend",
+          "data_pipeline",
+          "risk"
+        ],
+        "notes": "Start here — foundational data for Risk Scoring Engine. No external deps, no cost. Implement alongside FEAT-INT-001 in parallel as soon as v3.x sprint block wraps. Required before FEAT-RISK-001 can score hack history component.",
+        "sprint": "v3.13",
+        "added": "2026-05-27",
+        "status": "done",
+        "sprint_completed": "v3.13",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/data_pipeline/incidents_fetcher.py — DefiLlama hacks API fetcher + curated BOOTSTRAP_INCIDENTS fallback (10 known DeFi incidents covering Aave/Compound/Curve/Euler/Yearn/Pendle/MakerDAO/Sky/USDC/USDS). Outputs data/incidents.json with canonical schema (id/protocol/protocol_slug/date/amount_lost_usd/type/technique/chain/source_url/status/spa_protocols_affected). by_protocol_summary pre-initialised for every SPA whitelist slug. Stdlib only (urllib + json), offline-tolerant, deterministic output. 58/58 tests pass in spa_core/tests/test_incidents_fetcher.py. ADR-013 documents schema, normalisation rules, and Risk Scoring Engine consumption plan. CLI: python -m spa_core.data_pipeline.incidents_fetcher [--offline] [--dry-run]."
+      },
       {
         "id": "SPA-V35-001",
         "title": "Strategy Registry (spa_core/strategies/strategy_registry.py)",
