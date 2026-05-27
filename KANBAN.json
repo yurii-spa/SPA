@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T21:00:00Z",
-  "updated_by": "claude-agent (Added 3 new feature cards: FEAT-MON-003 Adaptive Monitoring Intervals, FEAT-MON-004 MEV Protection Flashbots, FEAT-STRAT-001 Bull Cycle Detector)",
+  "last_updated": "2026-05-27T21:19:05.664240Z",
+  "updated_by": "dispatch-orchestrator (v3.14 FEAT-RISK-001)",
   "columns": {
     "ideas": [
       {
@@ -156,25 +156,6 @@
           "data_pipeline"
         ],
         "notes": "Parallel with FEAT-RISK-002 — no deps between them. LLM agent OK (no capital decisions). FEAT-RISK-001 degrades gracefully without audit data but scores are substantially stronger with it. Medium priority because audit data changes rarely — weekly refresh is sufficient.",
-        "sprint": null,
-        "added": "2026-05-27"
-      },
-      {
-        "id": "FEAT-RISK-001",
-        "title": "Risk Scoring Engine (A/B/C/D per protocol, 15 parameters)",
-        "description": "Structured A/B/C/D risk scoring for each protocol/pool across 15 parameters: TVL magnitude and trend, protocol age, hack history (from FEAT-RISK-002), audit count and findings severity (from FEAT-INT-001), yield source type, oracle risk (Chainlink/Pyth vs custom), bridge dependency, governance model (timelock duration, multisig threshold), on-chain liquidity depth, cross-protocol dependencies, regulatory surface, chain maturity. Data: DefiLlama protocols API + hacks API (free). Output: data/risk_scores.json with A/B/C/D grade, numeric subscores, and human-readable explanation per protocol. Effect on allocation: grade C → allocation cap halved; grade D → allocation cap 5% max.",
-        "priority": "HIGH",
-        "phase": 1,
-        "estimated_hours": 12,
-        "depends_on": [
-          "FEAT-RISK-002"
-        ],
-        "tags": [
-          "backend",
-          "risk",
-          "data_pipeline"
-        ],
-        "notes": "Core Risk Layer deliverable. Requires FEAT-RISK-002 (hack history data); enriched but not blocked by FEAT-INT-001. After shipping: update paper_trading/engine.py allocation caps to be risk-score-aware. Demonstrates systematic risk management beyond concentration limits — directly supports go-live readiness narrative. ADR required before wiring scores into allocation engine.",
         "sprint": null,
         "added": "2026-05-27"
       },
@@ -1767,6 +1748,28 @@
         },
         "adr": "ADR-012",
         "completed_at": "2026-05-27T19:30:00Z"
+      },
+      {
+        "id": "FEAT-RISK-001",
+        "title": "Risk Scoring Engine (A/B/C/D per protocol, 15 parameters)",
+        "description": "Structured A/B/C/D risk scoring for each protocol/pool across 15 parameters: TVL magnitude and trend, protocol age, hack history (from FEAT-RISK-002), audit count and findings severity (from FEAT-INT-001), yield source type, oracle risk (Chainlink/Pyth vs custom), bridge dependency, governance model (timelock duration, multisig threshold), on-chain liquidity depth, cross-protocol dependencies, regulatory surface, chain maturity. Data: DefiLlama protocols API + hacks API (free). Output: data/risk_scores.json with A/B/C/D grade, numeric subscores, and human-readable explanation per protocol. Effect on allocation: grade C → allocation cap halved; grade D → allocation cap 5% max.",
+        "priority": "HIGH",
+        "phase": 1,
+        "estimated_hours": 12,
+        "depends_on": [
+          "FEAT-RISK-002"
+        ],
+        "tags": [
+          "backend",
+          "risk",
+          "data_pipeline"
+        ],
+        "notes": "Core Risk Layer deliverable. Requires FEAT-RISK-002 (hack history data); enriched but not blocked by FEAT-INT-001. After shipping: update paper_trading/engine.py allocation caps to be risk-score-aware. Demonstrates systematic risk management beyond concentration limits — directly supports go-live readiness narrative. ADR required before wiring scores into allocation engine.",
+        "sprint": "v3.14",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/risk/scoring_engine.py (RiskScoringEngine + 15 subscores + BOOTSTRAP_PROTOCOLS for 10 whitelist protocols) + 92 pytest tests (all PASS) + ADR-014. Generated data/risk_scores.json (offline mode): A=2 B=8 C=0 D=0. Allocation cap policy documented (C halved, D=5%); engine.py integration deferred to next sprint. Fallback: degrades to neutral 0.5 if incidents.json or audit_findings.json missing."
       }
     ]
   }
