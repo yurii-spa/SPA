@@ -84,7 +84,7 @@
 ### v1.1 — Whitelist Correction + Risk Fixes (2026-05-21)
 
 - **Fix: `defillama_fetcher.py`** — corrected 12-pool whitelist (Arbitrum + Base chains); removed invented/non-existent protocols that had been hallucinated into the whitelist
-- **Fix: Strategy Tournament `V2_aggressive`** — resolved `RiskConfig` field bug that caused tournament scoring to crash on aggressive-tier strategies
+- **Fix: Strategy Tournament `v2_aggressive`** — resolved `RiskConfig` field bug that caused tournament scoring to crash on aggressive-tier strategies
 - Whitelist now authoritative: only on-chain verified pools included
 
 ### v1.2 — Pendle PT Integration (2026-05-21)
@@ -137,12 +137,12 @@
 **GitHub Actions Hardening**
 - `retry_request()` with exponential backoff in defillama_fetcher + pendle_fetcher
 - `pipeline_health.json` written after every export (sections OK/FAIL, pools count, duration)
-- Telegram alert triggered if >2 sections fail or pools fetched
+- Telegram alert triggered if >2 sections fail or 0 pools fetched
 - Workflow: 15-min timeout, health check step, artifact upload (7-day retention)
 - 6 new tests in `test_retry_logic.py` — all pass
 
 **Dashboard v4 — System Health Tab**
-- New `⚙Ϗ System` tab (hotkey `6`) with 4 cards:
+- New `⚙️ System` tab (hotkey `6`) with 4 cards:
   - Pipeline Health: 🟢/🟡/🔴 badge, section counts, duration
   - Data Freshness: color-coded by age (<6h/6-24h/>24h)
   - Paper Trading Clock: live countdown to next 4h cycle, ⚠️ if overdue
@@ -172,11 +172,11 @@
 
 ### v3.6 — FEAT-004 Phase 2: Aave V3 Read-Only RPC Integration (2026-05-27)
 
-- **`spa_core/execution/aave_v3_adapter.py`** — Phase 2 lift: replaced the Phase 1 NOT_IMPLEMTNED stubs of `get_supply_apy` and `get_supply_balance` with real on-chain `eth_call` decoding when `dry_run=False`. Pure stdlib only (`urllib.request` + `json`) — so no web3.py, no requests, no eth_account. Added 3-RPC fallback (`_call_with_fallback`) that strips the `#aave-v3-pool:0x...` URL fragment before POST, hardcoded selectors `0x35ea6a75` (getReserveData) + `0x70a08231` (balanceOf), canonical mainnet USDC?USDU/DAI token addresses for ethereum/arbitrum/base, and per-asset decimals scaling (6 USDC/USDT, 18 DAI). APY decoded from `currentLiquidityRate` at struct slot 2 (RAY → percent via `/1e25`); balance pipeline runs getReserveData → aTokenAddress at struct slot 8 → `balanceOf(SPA_WALLET_ADDRESS env)`. Production-safe `[FALLBACK]` policy: every live-path exception logs a WARNING and degrades to the Phase 1 mock value, so the pipeline never crashes if RPCs flake or `SPA_WALLET_ADDRESS` is unset. Write methods (supply / withdraw) stay NOT_IMPLEMENTED — Phase 3 will add eth_account signing. **Tests: `spa_core/tests/test_aave_v3_adapter_phase2.py` — 15 new deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4), all PASS in 0.04s with zero network (every `urlopen` patched). Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical.** Closes SPA-V36-001; FEAT-004 advances to ~66% complete (Phase 1 + 2 done, Phase 3 signing + engine cutover remaining).
+- **`spa_core/execution/aave_v3_adapter.py`** — Phase 2 lift: replaced the Phase 1 NOT_IMPLEMENTED stubs of `get_supply_apy` and `get_supply_balance` with real on-chain `eth_call` decoding when `dry_run=False`. Pure stdlib only (`urllib.request` + `json`) — no web3.py, no requests, no eth_account. Added 3-RPC fallback (`_call_with_fallback`) that strips the `#aave-v3-pool:0x...` URL fragment before POST, hardcoded selectors `0x35ea6a75` (getReserveData) + `0x70a08231` (balanceOf), canonical mainnet USDC/USDT/DAI token addresses for ethereum/arbitrum/base, and per-asset decimals scaling (6 USDC/USDT, 18 DAI). APY decoded from `currentLiquidityRate` at struct slot 2 (RAY → percent via `/1e25`); balance pipeline runs getReserveData → aTokenAddress at struct slot 8 → `balanceOf(SPA_WALLET_ADDRESS env)`. Production-safe `[FALLBACK]` policy: every live-path exception logs a WARNING and degrades to the Phase 1 mock value, so the pipeline never crashes if RPCs flake or `SPA_WALLET_ADDRESS` is unset. Write methods (supply / withdraw) stay NOT_IMPLEMENTED — Phase 3 will add eth_account signing. **Tests: `spa_core/tests/test_aave_v3_adapter_phase2.py` — 15 new deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4), all PASS in 0.04s with zero network (every `urlopen` patched). Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical.** Closes SPA-V36-001; FEAT-004 advances to ~66% complete (Phase 1 + 2 done, Phase 3 signing + engine cutover remaining).
 
 ### v3.10 — FEAT-005 Phase 3: Compound V3 Live supply/withdraw (2026-05-27)
 
-- **`spa_core/execution/compound_v3_adapter.py`** — Phase 3 lift: replaced the Phase 2 NOT_IMPLEMENTED short-circuit of `supply()` and `withdraw()` with a fully-signed EIP-1559 transaction path. Exact mirror of SPA-V39-001 (Aave V3 Phase 3 / ADR-009) ported to the Compound V3 Comet ABI. Multi-layer safety stack identical to ADR-009: (1) `dry_run=True` default unchanged (deterministic DRY_RUN dict, no imports, no RPC); (2) `dry_run=False` + `SPA_EXECUTION_MODE = "live"` → `{status: "BLOCKED"}`; (3) `SPA_PRIVATE_KEY` format + key-→address mismatch with `SPA_WALLET_ADDRESS` checks → `{status: "ERROR"}`; (4) `MAX_LIVE_AMOUNT = 10_000_000` USD sanity gate; (5) any RPC / signature / receipt revert returns `{status: "FAILED", phase: "approve"|"supply"|"withdraw"}` — Never raises. `eth_account` imported LAZILY via `_require_eth_account()` (psycopg2 pattern) so the dry-run happy path needs no new dep. Comet-specific selectors differ from Aave: `0xf2b9fdb8` for `Comet.supply(asset, amount)` (no onBehalfOf/referralCode) and `0xf3fef3a3` for `Comet.withdraw(asset, amount)` (no `to` — credits/debits `msg.sender`). Single-asset only — `SUPPORTED_ASSETS=['USDC']` (cUSDCv3). Two-tx supply flow (approve USDC on Comet → Comet.supply), single-tx withdraw. **Tests: `spa_core/tests/test_compound_v3_adapter_phase3.py` — 15 new deterministic network-free tests (execution-mode gate ×3, key validation ×3, supply happy + 3 sad paths, withdraw happy + revert, eth_account missing degrades to FAILED, sanity gate ×2). Existing `test_compound_v3_adapter.py` Phase-1 `live_mode_returns_not_implemented` tests updated to accept both NOT_IMPLEMENTED (legacy) and BLOCKED (Phase 3) for backward-compat. Compound suite total 17+16+15 = 48/48 PASS ctpassing in 0.08s. Cross-suite regression (Aave Phase 1+2+3 + Compound Phase 1+2+3 + router + price_feeds) 140/140 PASS.** Closes SPA-440-001; FEAT4005 now 100% complete (Phase 1+2+3). Phase 4 (v4.0) will wire `spa_core/orchestration/engine.py` cutover behind a per-strategy `live_execution: bool` YAML flag — paired with Aave V3 from SPA-V39-001. See `docs/ADR_010_compound_v3_live_writes.md`.
+- **`spa_core/execution/compound_v3_adapter.py`** — Phase 3 lift: replaced the Phase 2 NOT_IMPLEMENTED short-circuit of `supply()` and `withdraw()` with a fully-signed EIP-1559 transaction path. Exact mirror of SPA-V39-001 (Aave V3 Phase 3 / ADR-009) ported to the Compound V3 Comet ABI. Multi-layer safety stack identical to ADR-009: (1) `dry_run=True` default unchanged (deterministic DRY_RUN dict, no imports, no RPC); (2) `dry_run=False` + `SPA_EXECUTION_MODE != "live"` → `{status: "BLOCKED"}`; (3) `SPA_PRIVATE_KEY` format + key→address mismatch with `SPA_WALLET_ADDRESS` checks → `{status: "ERROR"}`; (4) `MAX_LIVE_AMOUNT = 10_000_000` USD sanity gate; (5) any RPC / signature / receipt revert returns `{status: "FAILED", phase: "approve"|"supply"|"withdraw"}` — never raises. `eth_account` imported LAZILY via `_require_eth_account()` (psycopg2 pattern) so the dry-run happy path needs no new dep. Comet-specific selectors differ from Aave: `0xf2b9fdb8` for `Comet.supply(asset, amount)` (no onBehalfOf/referralCode) and `0xf3fef3a3` for `Comet.withdraw(asset, amount)` (no `to` — credits/debits `msg.sender`). Single-asset only — `SUPPORTED_ASSETS=['USDC']` (cUSDCv3). Two-tx supply flow (approve USDC on Comet → Comet.supply), single-tx withdraw. **Tests: `spa_core/tests/test_compound_v3_adapter_phase3.py` — 15 new deterministic network-free tests (execution-mode gate ×3, key validation ×3, supply happy + 3 sad paths, withdraw happy + revert, eth_account missing degrades to FAILED, sanity gate ×2). Existing `test_compound_v3_adapter.py` Phase-1 `live_mode_returns_not_implemented` tests updated to accept both NOT_IMPLEMENTED (legacy) and BLOCKED (Phase 3) for backward-compat. Compound suite total 17+16+15 = 48/48 PASS in 0.08s. Cross-suite regression (Aave Phase 1+2+3 + Compound Phase 1+2+3 + router + price_feeds) 140/140 PASS.** Closes SPA-V40-001; FEAT-005 now 100% complete (Phase 1+2+3). Phase 4 (v4.0) will wire `spa_core/orchestration/engine.py` cutover behind a per-strategy `live_execution: bool` YAML flag — paired with Aave V3 from SPA-V39-001. See `docs/ADR_010_compound_v3_live_writes.md`.
 
 ---
 
@@ -212,3 +212,110 @@ Files changed in this session:
 
 Next milestone: paper duration criterion passes **2026-07-09** (48 days away).
 Go-live decision: **2026-07-15** — contingent on Sharpe ≥ 2.0, drawdown ≤ 5%, all agents stable ≥ 4 weeks.
+
+---
+
+## Sprint v3.12 — FEAT-007 Phase 1: Live APY Covariance Estimator + Dynamic Kelly (2026-05-27)
+
+**Goal:** Replace the synthetic CV=10% per-protocol volatility (used by `optimization/markowitz.py` and `optimization/kelly.py`) with a real rolling-window estimator over `data/apy_history.json`, while preserving byte-identical behaviour for every existing call-site.
+
+### Delivered
+
+- **`spa_core/analytics/covariance_estimator.py`** — new module:
+  - `CovarianceEstimator(history_file=..., preloaded=...)`
+  - `compute_volatility()` — sample stdev (Bessel) over rolling window with synthetic fallback when n < MIN_OBSERVATIONS=7
+  - `compute_correlation()` — Pearson on time-aligned timestamp intersection, tier-based synthetic fallback
+  - `compute_covariance_matrix()` / `compute_correlation_matrix()` — symmetric, diagonal=σ² / 1.0
+  - `summary()` — JSON-ready dict for dashboard export
+  - Pure stdlib (json/math/statistics/datetime) — zero numpy/scipy
+- **`spa_core/optimization/dynamic_kelly.py`** — new module:
+  - `dynamic_kelly_fraction(apy_pct, tier, tvl_usd, *, volatility_pp=None, risk_free_rate_pct=5.0)`
+  - `dynamic_half_kelly(...)`, `dynamic_position_size(...)`
+  - **Cardinal invariant**: when `volatility_pp` is `None` or `≤ 0`, returns EXACTLY the value of the classical `kelly.kelly_fraction` counterpart. Strict superset of the old API.
+  - Variance-Kelly formula: `f* = (μ - r_f) / σ²` with both inputs as fractions, clamped to `[0.0, 1.0]`
+- **`docs/ADR_012_dynamic_kelly_sizing.md`** — 3-phase rollout plan, alternatives (EWMA / Ledoit-Wolf shrinkage / risk-parity) rejected with rationale, rollback strategy
+- **`spa_core/tests/test_covariance_estimator.py`** — 31 deterministic tests (ISO parsing × 4, stdev/Pearson helpers × 7, protocol listing × 3, volatility × 5, correlation × 6, matrix properties × 4, summary × 3)
+- **`spa_core/tests/test_dynamic_kelly.py`** — 21 deterministic tests (fallback parity × 7 / variance-Kelly known values × 6 / cap-enforcement × 4 / half-kelly invariants)
+
+### Test results
+
+- **New: 52/52 PASS** in 0.06s (zero network, zero DB, zero filesystem)
+- **Regression: 80/80 PASS** across `test_optimization.py` + `test_apy_tracker.py` + `test_analytics.py`
+
+### Phase plan
+
+- ✅ **Phase 1 (this sprint)**: pure-additive scaffold, opt-in, no existing call-site changed
+- ⬜ **Phase 2 (next sprint)**: wire `CovarianceEstimator` into `markowitz.PortfolioOptimizer` + `recommender.AllocationRecommender` behind `SPA_LIVE_COVARIANCE=1` env flag; daily JSON export at `data/covariance_summary.json`
+- ⬜ **Phase 3 (post-go-live)**: retire the env flag; synthetic CV kept ONLY as cold-start fallback
+
+### Files
+
+Created:
+- `spa_core/analytics/covariance_estimator.py`
+- `spa_core/optimization/dynamic_kelly.py`
+- `spa_core/tests/test_covariance_estimator.py`
+- `spa_core/tests/test_dynamic_kelly.py`
+- `docs/ADR_012_dynamic_kelly_sizing.md`
+
+Modified:
+- `KANBAN.json` (SPA-V42-001 added to done)
+- `SPA_sprint_log.md` (this entry)
+
+## Sprint v3.13 — FEAT-RISK-002 Incident History Database (2026-05-27)
+
+### Goal
+Foundational data layer for the Risk Scoring Engine (FEAT-RISK-001). Canonical
+hack / exploit / rugpull / depeg history per protocol, sourced from DefiLlama
+hacks API with a curated bootstrap fallback. Single file as the source of
+truth (`data/incidents.json`) — no DB tables.
+
+### What shipped
+- **`spa_core/data_pipeline/incidents_fetcher.py`** — fetcher module
+  - `fetch_defillama_hacks()` — public API client (stdlib `urllib` + retry/backoff)
+  - `normalise_incident()` — single-record normaliser to the canonical schema
+  - `_dedupe_and_sort()` — deterministic (date DESC, slug ASC) ordering
+  - `build_summary()` — per-SPA-protocol roll-up (incidents / total_lost_usd / last_incident)
+  - `build_incidents_snapshot()` — orchestrator (offline + online merge)
+  - `write_snapshot()` / `load_snapshot()` — disk round-trip
+  - CLI: `python -m spa_core.data_pipeline.incidents_fetcher [--offline] [--dry-run] [--output PATH] [--timeout S] [-v]`
+  - **`BOOTSTRAP_INCIDENTS`** — 10 curated DeFi incidents (Euler $197M, Cream $130M, Compound $80M, Curve $73.5M, Yearn $11.5M, Penpie $27M, USDC depeg, DAI Black Thursday, UST $40B, Uniswap Permit2 phish)
+  - **`SPA_PROTOCOL_SLUGS`** — 16 canonical slugs covering current whitelist + S2 LP venues
+- **`data/incidents.json`** — seed snapshot (10 incidents, $40.5B total lost, 8/16 SPA slugs with non-zero history)
+- **`docs/ADR_013_incident_history.md`** — design doc, schema, normalisation rules, integration plan, alternatives, risks
+- **`spa_core/tests/test_incidents_fetcher.py`** — 58 deterministic tests
+  - slug normalisation (8 cases) — including unicode-adjacent / dunder
+  - type classification (12 cases) — DefiLlama enum mapping
+  - amount normalisation (5 cases) — millions → USD coercion, zero-passthrough
+  - date normalisation (6 cases) — ISO / unix s / unix ms / d-m-y / invalid
+  - SPA whitelist matching (5 cases) — symmetric substring matching
+  - record normalisation (4 cases) — including bootstrap round-trip property test
+  - dedupe semantics (4 cases) — date sort, source_url tiebreaker, amount tiebreaker
+  - summary roll-up (3 cases) — empty init, increment, latest-date kept
+  - HTTP fetch (4 cases) — list payload / dict payload / network error / invalid JSON
+  - snapshot composition (4 cases) — offline / summary-complete / online-merge / shape stability
+  - disk round-trip (3 cases) — write+read / missing file / corrupt file
+
+### Test results
+- **New: 58/58 PASS** in 0.09s (zero network, zero DB, zero filesystem outside tmp_path)
+- All bootstrap records pass the round-trip normalisation property test (no silent data corruption)
+
+### Phase plan
+- ✅ **Phase 1 (this sprint)**: ship fetcher + seed + tests + ADR. Module is importable but NOT wired into the 4h cycle yet.
+- ⬜ **Phase 2 (sprint v3.14)**: integrate into `spa_core/export_data.py` as section 19 — calls `build_incidents_snapshot()` post `apy_tracker` section. Cycle adds < 4s.
+- ⬜ **Phase 3 (FEAT-RISK-001)**: Risk Scoring Engine reads `by_protocol_summary` directly to compute the "hack history" sub-score (1 of 15 parameters).
+
+### Files
+Created:
+- `spa_core/data_pipeline/incidents_fetcher.py`
+- `spa_core/tests/test_incidents_fetcher.py`
+- `docs/ADR_013_incident_history.md`
+- `data/incidents.json`
+
+Modified:
+- `KANBAN.json` (FEAT-RISK-002 → done; sprint stamped v3.13)
+- `SPA_sprint_log.md` (this entry)
+
+### Next on the Risk Layer roadmap
+1. **FEAT-RISK-001** — Risk Scoring Engine (12h, HIGH) — now unblocked
+2. **FEAT-INT-001** — Audit Reader Agent (6h, MEDIUM) — parallel, independent
+3. **FEAT-RISK-003** — Real Yield Classifier (6h, HIGH) — after FEAT-RISK-001
