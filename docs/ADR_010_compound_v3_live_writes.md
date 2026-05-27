@@ -55,7 +55,7 @@ than Aave V3 Pool, so the adapter is simpler in three places:
 
 * **Function selectors differ** —
   * Comet.supply(asset, amount) = `0xf2b9fdb8` (vs Aave's
-    Pool.supply(asset, amount, onBehalfOf, referralCode) = `0x617ba037`).
+    Pool.supply(asset, amount, onBehalfOf, referralCode) = `0x61ba037`).
   * Comet.withdraw(asset, amount) = `0xf3fef3a3` (vs Aave's
     Pool.withdraw(asset, amount, to) = `0x69328dec`).
   * approve(spender, amount) is the same ERC-20 selector `0x095ea7b3`.
@@ -64,7 +64,7 @@ than Aave V3 Pool, so the adapter is simpler in three places:
   32-byte slot off each calldata and avoids a class of self-vs-other-wallet
   bugs.
 * **Single-asset markets** — `SUPPORTED_ASSETS = ["USDC"]`. The widely
-  deployed Comet on all three chains is cUSDCv3. cWETHv3 and other
+  deployed Comet on all three chains is cUSDCV3. cWETHv3 and other
   base-asset variants are deferred to a future ADR. (Aave V3 supports
   USDC / USDT / DAI on the same Pool because Pool is multi-asset by
   design.)
@@ -156,7 +156,7 @@ implementations of an implicit `LendingAdapter` protocol.
 * **Hardware-wallet signing (Ledger / Frame)** — deferred to the
   forthcoming `Signer` protocol ADR (will cover both Aave and Compound).
 * **Async / batched send** — deferred. Synchronous polling is simpler and
-  the per-call latency (≤ 30s receipt wait) is acceptable for the
+  the per-call latency (≩ 30s receipt wait) is acceptable for the
   hourly rebalance cadence.
 * **Wrap Aave V3 adapter into Compound** (i.e. duplicate the entire
   Phase-3 helper bundle into one shared `EvmWriteHelpers` module) —
@@ -168,7 +168,7 @@ implementations of an implicit `LendingAdapter` protocol.
 
 ## Test Coverage
 
-`spa_core/tests/test_compound_v3_adapter_phase3.py` — 15 deterministic
+`spa_core/tests/test_compound_v3_adapter_phase3.py` — 13 deterministic
 network-free tests covering: execution-mode gate (3), private-key
 validation (3), supply happy + 3 sad paths, withdraw happy + revert,
 eth_account missing → FAILED, sanity gate (negative + >10M).
