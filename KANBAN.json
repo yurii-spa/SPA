@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T20:15:55Z",
-  "updated_by": "claude-agent (Sprint v3.13 — FEAT-RISK-002 Incident History Database shipped. spa_core/data_pipeline/incidents_fetcher.py + data/incidents.json + 58 tests + ADR-013. Unblocks FEAT-RISK-001 Risk Scoring Engine.)",
+  "last_updated": "2026-05-27T14:30:00Z",
+  "updated_by": "claude-agent (Sprint v3.10 — FEAT-005 Phase 3: Compound V3 live supply/withdraw via eth_account; lazy import, SPA_EXECUTION_MODE hard-gate, structured FAILED/BLOCKED/ERROR dicts, EIP-1559 type=2, two-tx approve+supply flow, single-tx withdraw, 15 new tests, 30+15 total Compound, 119 total execution-stack regression all PASS.)",
   "columns": {
     "ideas": [
       {
@@ -141,100 +141,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "FEAT-INT-001",
-        "title": "Audit Reader Agent (Code4rena + Sherlock)",
-        "description": "Claude agent reads structured audit data from Code4rena and Sherlock public repos. Extracts critical/high findings per protocol, fix status (fixed/acknowledged/open), and auditor count. Output: data/audit_findings.json. Feeds into FEAT-RISK-001 as 'audit quality' scoring parameter. Both Code4rena and Sherlock expose public data with no API key required.",
-        "priority": "MEDIUM",
-        "phase": 1,
-        "estimated_hours": 6,
-        "depends_on": [],
-        "tags": [
-          "backend",
-          "agents",
-          "data_pipeline"
-        ],
-        "notes": "Parallel with FEAT-RISK-002 — no deps between them. LLM agent OK (no capital decisions). FEAT-RISK-001 degrades gracefully without audit data but scores are substantially stronger with it. Medium priority because audit data changes rarely — weekly refresh is sufficient.",
-        "sprint": null,
-        "added": "2026-05-27"
-      },
-      {
-        "id": "FEAT-RISK-001",
-        "title": "Risk Scoring Engine (A/B/C/D per protocol, 15 parameters)",
-        "description": "Structured A/B/C/D risk scoring for each protocol/pool across 15 parameters: TVL magnitude and trend, protocol age, hack history (from FEAT-RISK-002), audit count and findings severity (from FEAT-INT-001), yield source type, oracle risk (Chainlink/Pyth vs custom), bridge dependency, governance model (timelock duration, multisig threshold), on-chain liquidity depth, cross-protocol dependencies, regulatory surface, chain maturity. Data: DefiLlama protocols API + hacks API (free). Output: data/risk_scores.json with A/B/C/D grade, numeric subscores, and human-readable explanation per protocol. Effect on allocation: grade C → allocation cap halved; grade D → allocation cap 5% max.",
-        "priority": "HIGH",
-        "phase": 1,
-        "estimated_hours": 12,
-        "depends_on": [
-          "FEAT-RISK-002"
-        ],
-        "tags": [
-          "backend",
-          "risk",
-          "data_pipeline"
-        ],
-        "notes": "Core Risk Layer deliverable. Requires FEAT-RISK-002 (hack history data); enriched but not blocked by FEAT-INT-001. After shipping: update paper_trading/engine.py allocation caps to be risk-score-aware. Demonstrates systematic risk management beyond concentration limits — directly supports go-live readiness narrative. ADR required before wiring scores into allocation engine.",
-        "sprint": null,
-        "added": "2026-05-27"
-      },
-      {
-        "id": "FEAT-RISK-003",
-        "title": "Real Yield Classifier (cashflow / emissions / points / basis / rwa / unknown)",
-        "description": "Claude agent classifies yield source for every pool in the whitelist: real_cashflow (lending spread, fee revenue), token_emissions (protocol subsidy — will expire), points_farming (speculative pre-TGE), basis_trade (funding rate arbitrage), rwa (real-world asset backed), unknown. Agent reads protocol docs and reward contract structures. Critical for S2 (LP stable) and S3 (yield loop) strategies — prevents over-allocation to emissions-inflated APYs. Output: yield_source field added to protocols.json and risk_scores.json.",
-        "priority": "HIGH",
-        "phase": 1,
-        "estimated_hours": 6,
-        "depends_on": [
-          "FEAT-RISK-001"
-        ],
-        "tags": [
-          "backend",
-          "agents",
-          "risk"
-        ],
-        "notes": "Do immediately after or alongside FEAT-RISK-001 — yield source is one of the 15 risk scoring parameters. LLM agent classification is OK here (no capital decisions). Required before S2/S3 strategies graduate from paper trading. Chasing token emissions that expire is the #1 DeFi yield trap for passive strategies.",
-        "sprint": null,
-        "added": "2026-05-27"
-      },
-      {
-        "id": "FEAT-MON-001",
-        "title": "Red Flag Monitor Extended (TVL drop, APY spike, governance proposal, token unlock)",
-        "description": "Extends the existing depeg detector in alerts/risk_monitor.py with 4 additional signal categories: (1) TVL drop >15% in 24h or >30% in 7d — sourced from DeFiLlama time-series API; (2) APY spike >50% above 7-day baseline — anomaly or manipulation signal; (3) active governance proposal with risk-sensitive tags (upgrade/risk-param/treasury) from Snapshot API; (4) token unlock event within next 7 days — sourced from DeFiLlama unlock calendar. Output: data/red_flags.json — flat list of active red flags by protocol with severity (WARN/CRITICAL). Red flags trigger Telegram alerts via BL-005 and feed into go-live criterion 3 (no CRITICAL alerts). All data sources: DefiLlama API + Snapshot API — both free.",
-        "priority": "HIGH",
-        "phase": 2,
-        "estimated_hours": 8,
-        "depends_on": [
-          "FEAT-RISK-001"
-        ],
-        "tags": [
-          "backend",
-          "monitoring",
-          "alerts"
-        ],
-        "notes": "Do after Risk Layer (FEAT-RISK-001). Risk grades provide alert context — a TVL drop on a grade-A protocol is less alarming than on grade-D. Extends existing risk_monitor.py cleanly. Snapshot API is unauthenticated. DeFiLlama unlock endpoint: /api/unlocks. Estimated 2x increase in actionable early-warning signal coverage.",
-        "sprint": null,
-        "added": "2026-05-27"
-      },
-      {
-        "id": "FEAT-MON-002",
-        "title": "Governance Watcher (Snapshot GraphQL + Tally API)",
-        "description": "Continuous monitoring of active governance proposals for all whitelisted protocols via Snapshot GraphQL API (free, unauthenticated) and Tally API (free tier). Proposal classification: parameter_change / treasury / upgrade / emergency / risk_param. Triggers: (1) any risk_param or upgrade proposal → queue FEAT-RISK-001 re-score; (2) emergency proposal → immediate CRITICAL red flag in FEAT-MON-001 pipeline. Output: data/governance_proposals.json with active proposals, classification, vote deadline, and current vote direction. Polling interval: every 4h cycle (GitHub Actions).",
-        "priority": "MEDIUM",
-        "phase": 2,
-        "estimated_hours": 6,
-        "depends_on": [
-          "FEAT-MON-001",
-          "FEAT-RISK-001"
-        ],
-        "tags": [
-          "backend",
-          "monitoring",
-          "governance"
-        ],
-        "notes": "Do after FEAT-MON-001 (shares alert pipeline and red_flags.json format). The FEAT-RISK-001 re-score trigger is the high-value output — governance changes are the earliest on-chain signal for protocol risk profile shifts, days before TVL or APY changes appear. Both APIs have no auth requirement. Tally covers Compound, Aave, Uniswap governance.",
-        "sprint": null,
-        "added": "2026-05-27"
       }
     ],
     "backlog": [
@@ -376,27 +282,6 @@
       }
     ],
     "done": [
-      {
-        "id": "FEAT-RISK-002",
-        "title": "Incident History Database (DefiLlama Hacks API)",
-        "description": "Database of protocol hacks, exploits, and depegs sourced from DefiLlama hacks API + rekt.news structure. Stored as data/incidents.json. Provides hack history per protocol as a core input component for the Risk Scoring Engine (FEAT-RISK-001). DefiLlama hacks API is public and free. Fields per incident: protocol, date, amount_lost_usd, type (hack/exploit/rugpull/depeg), post-mortem link, status (fixed/ongoing).",
-        "priority": "HIGH",
-        "phase": 1,
-        "estimated_hours": 4,
-        "depends_on": [],
-        "tags": [
-          "backend",
-          "data_pipeline",
-          "risk"
-        ],
-        "notes": "Start here — foundational data for Risk Scoring Engine. No external deps, no cost. Implement alongside FEAT-INT-001 in parallel as soon as v3.x sprint block wraps. Required before FEAT-RISK-001 can score hack history component.",
-        "sprint": "v3.13",
-        "added": "2026-05-27",
-        "status": "done",
-        "sprint_completed": "v3.13",
-        "completed": "2026-05-27",
-        "implementation": "spa_core/data_pipeline/incidents_fetcher.py — DefiLlama hacks API fetcher + curated BOOTSTRAP_INCIDENTS fallback (10 known DeFi incidents covering Aave/Compound/Curve/Euler/Yearn/Pendle/MakerDAO/Sky/USDC/USDS). Outputs data/incidents.json with canonical schema (id/protocol/protocol_slug/date/amount_lost_usd/type/technique/chain/source_url/status/spa_protocols_affected). by_protocol_summary pre-initialised for every SPA whitelist slug. Stdlib only (urllib + json), offline-tolerant, deterministic output. 58/58 tests pass in spa_core/tests/test_incidents_fetcher.py. ADR-013 documents schema, normalisation rules, and Risk Scoring Engine consumption plan. CLI: python -m spa_core.data_pipeline.incidents_fetcher [--offline] [--dry-run]."
-      },
       {
         "id": "SPA-V35-001",
         "title": "Strategy Registry (spa_core/strategies/strategy_registry.py)",
@@ -1645,69 +1530,6 @@
         "tests_total": 48,
         "regression_status": "140/140 execution-stack tests still PASS (Aave 43 + Compound 48 + router 36 + price_feeds 13)",
         "completed_at": "2026-05-27"
-      },
-      {
-        "id": "SPA-V41-001",
-        "title": "FEAT-004/005 Phase 4 — engine.py LIVE execution wiring via LiveExecutionBridge",
-        "description": "Phase 4 closes the FEAT-004 (Aave V3) and FEAT-005 (Compound V3) live-execution loop by wiring the v3.9/v3.10 signed-tx adapters into spa_core/paper_trading/engine.py (PaperTrader.open_position / close_position) behind a multi-layer safety gate. New module spa_core/execution/engine_bridge.py exposes LiveExecutionBridge with execute_supply(protocol_key, amount_usd) / execute_withdraw(protocol_key, amount_usd) and internal _parse_protocol_key() that splits 'aave-v3-usdc-ethereum' → (family=aave_v3, asset=USDC, chain=ethereum) — supports aave-v3-* and compound-v3-* prefixes, returns None on anything malformed. The bridge is invoked ONLY when both (a) PaperTrader was constructed with live_execution=True (new ctor kwarg, default False — preserves byte-identical behaviour for 100+ existing call-sites) AND (b) SPA_EXECUTION_MODE=live env var is set; otherwise returns {status: SKIPPED, reason: execution_mode_paper}. Adapters are imported LAZILY inside the bridge's _get_adapter() (not module-top) and cached per (family, chain) pair. Paper-trades SQLite INSERT/UPDATE is UNCONDITIONAL — the live leg is purely additive; if the adapter returns FAILED/BLOCKED/ERROR or raises, the bridge logs a structured WARNING + audit row and the engine continues with the paper write. NEVER raises. Audit log at data/live_execution_log.json is a flat JSON array capped at 1000 entries (oldest dropped on rollover); all I/O wrapped in try/except so audit failures never block a paper trade. close_position routes withdraws to the exact protocol the position was opened on (read from paper_trades.protocol_key). New docs/ADR_011_engine_live_cutover.md documents the design + multi-layer gate stack + operational notes. New spa_core/tests/test_engine_bridge.py — 37 deterministic tests (parsing happy paths + 9 malformed-input parametrisations, SPA_EXECUTION_MODE gate variants, SKIPPED branches, live SUCCESS for both families, FAILED/BLOCKED/raises all swallowed, regression gate proving live_execution=False is a strict no-op even with SPA_EXECUTION_MODE=live, audit-log rotation at LOG_MAX_ENTRIES=1000, corrupted-log file recovery, paper INSERT survives live-leg failure). Test result: 37/37 PASS. Regression: 66/66 across test_aave_v3_adapter.py + test_compound_v3_adapter.py + test_execution_router.py + 28/28 test_paper_trading.py + 155/155 across the full execution+paper-trading stack (incl. phase2/phase3 adapter tests). Phase 5 (FEAT-007 multi-call routing / partial-fill reconciliation) tracked separately.",
-        "sprint": "v3.11",
-        "feature": "FEAT-004 + FEAT-005",
-        "phase": "Phase 4",
-        "files_created": [
-          "spa_core/execution/engine_bridge.py",
-          "spa_core/tests/test_engine_bridge.py",
-          "docs/ADR_011_engine_live_cutover.md"
-        ],
-        "files_modified": [
-          "spa_core/paper_trading/engine.py",
-          "KANBAN.json"
-        ],
-        "tests": {
-          "new": "spa_core/tests/test_engine_bridge.py — 37/37 PASS",
-          "regression": "test_aave_v3_adapter + test_compound_v3_adapter + test_execution_router (66/66) + test_paper_trading (28/28) + phase2/phase3 adapter suites — 155/155 PASS"
-        },
-        "adr": "ADR-011",
-        "closes": [
-          "SPA-V39-001 phase 4 deferral",
-          "SPA-V40-001 phase 4 deferral"
-        ],
-        "completed_at": "2026-05-27T15:30:00Z"
-      },
-      {
-        "id": "SPA-V42-001",
-        "title": "FEAT-007 Phase 1 — Live APY Covariance Estimator + Dynamic Kelly scaffold",
-        "description": "First phase of FEAT-007 Advanced Kelly Sizing with Live Data. Replaces the synthetic CV=10% per-protocol volatility and tier-based correlation constants used by markowitz.py/kelly.py with a real rolling-window estimator over data/apy_history.json (the APYTracker store). New module spa_core/analytics/covariance_estimator.py exposes CovarianceEstimator with: protocols(), compute_volatility(window_days=90, synthetic_apy fallback), compute_correlation(window_days=90, same_tier fallback), compute_covariance_matrix() (symmetric, diagonal=σ², σ_i*σ_j*ρ_ij off-diagonal), compute_correlation_matrix() (diagonal=1.0 exactly), summary() (JSON-ready, marks per-protocol fallback=True when n_obs<7). Pure stdlib (json, math, statistics, datetime); zero numpy/scipy. MIN_OBSERVATIONS=7 cold-start threshold; below threshold returns the same synthetic value markowitz already uses (lock-step constants: SYNTHETIC_APY_CV=0.10, SYNTHETIC_SAME_TIER_CORR=0.6, SYNTHETIC_CROSS_TIER_CORR=0.2). Time-aligned Pearson on the intersection of timestamps (no interpolation). New module spa_core/optimization/dynamic_kelly.py exposes dynamic_kelly_fraction/dynamic_half_kelly/dynamic_position_size — variance-Kelly f* = (μ - r_f) / σ² with strict cold-start delegation: when volatility_pp is None or ≤ 0, returns EXACTLY the value of the classical kelly.* counterpart (byte-identical for every existing 100+ call-site). r_f hard-coded to 5.0% matching markowitz/engine. Phase 2 will wire CovarianceEstimator into Markowitz behind SPA_LIVE_COVARIANCE=1 env flag; Phase 3 will retire the synthetic path post-go-live. ADR-012 documents the 3-phase rollout, alternatives considered (EWMA/Ledoit-Wolf/risk-parity rejected with rationale), and rollback (git rm of two files since Phase 1 is purely additive). Tests: 31 in test_covariance_estimator.py (ISO parsing × 4, safe_stdev/safe_pearson × 7, protocols() × 3, compute_volatility live+fallback × 5, compute_correlation × 6, matrix symmetry/diagonal/subset × 4, summary shape × 3) + 21 in test_dynamic_kelly.py (fallback parity × 7 across 5 input regimes + half-kelly/position-size parity, variance-Kelly known values × 6, cap/half-kelly/zero-input invariants × 4). 52/52 PASS in 0.06s, zero network, zero DB. Regression: test_optimization + test_apy_tracker + test_analytics 80/80 PASS. FEAT-007 remains open pending Phases 2 + 3.",
-        "feature": "FEAT-007",
-        "phase": "Phase 1",
-        "priority": "MEDIUM",
-        "estimate": "4h",
-        "tags": [
-          "backend",
-          "analytics",
-          "optimization",
-          "testing"
-        ],
-        "sprint": "v3.12",
-        "added": "2026-05-27",
-        "status": "done",
-        "completed": "2026-05-27",
-        "files_created": [
-          "spa_core/analytics/covariance_estimator.py",
-          "spa_core/optimization/dynamic_kelly.py",
-          "spa_core/tests/test_covariance_estimator.py",
-          "spa_core/tests/test_dynamic_kelly.py",
-          "docs/ADR_012_dynamic_kelly_sizing.md"
-        ],
-        "files_modified": [
-          "KANBAN.json",
-          "SPA_sprint_log.md"
-        ],
-        "tests": {
-          "new": "test_covariance_estimator.py (31) + test_dynamic_kelly.py (21) — 52/52 PASS",
-          "regression": "test_optimization + test_apy_tracker + test_analytics — 80/80 PASS"
-        },
-        "adr": "ADR-012",
-        "completed_at": "2026-05-27T19:30:00Z"
       }
     ]
   }
