@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T22:30:00Z",
-  "updated_by": "claude-agent (Sprint v3.7 — FEAT-005 Phase 2: Compound V3 read-only RPC integration — real eth_call decoding of Comet.balanceOf + chained getUtilization/getSupplyRate via stdlib urllib, 3-RPC fallback, [FALLBACK] degrade-to-mock safety; mirrors v3.6 Aave Phase 2 pattern)",
+  "last_updated": "2026-05-27T23:15:00Z",
+  "updated_by": "claude-agent (Sprint v3.8 — FEAT-006 Phase 2: real Chainlink AggregatorV3.latestAnswer eth_call decoding in price_feeds.py, 8-decimal scaling, two's-complement int256, zero-address placeholder short-circuit, sanity gate, 3-RPC fallback, [FALLBACK] degrade-to-synthetic safety; mirrors v3.6/v3.7 Phase 2 pattern. Pyth/RedStone legs remain deferred.)",
   "columns": {
     "ideas": [
       {
@@ -1437,6 +1437,19 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/execution/aave_v3_adapter.py — added TOKEN_ADDRESSES (3 chains × 3 stables), TOKEN_DECIMALS, SELECTOR_GET_RESERVE_DATA, SELECTOR_BALANCE_OF, RPC_TIMEOUT_SECONDS; _strip_fragment / _pad_address / _eth_call / _call_with_fallback / _balance_of_with_fallback / _get_reserve_data_hex; live paths in get_supply_apy + get_supply_balance with [FALLBACK] degrade-to-mock policy. Tests: spa_core/tests/test_aave_v3_adapter_phase2.py — 15 deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4); all PASS in 0.04s, zero network (every urlopen call patched). Regression: Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical."
+      },
+      {
+        "id": "SPA-V38-001",
+        "title": "FEAT-006 Phase 2 — Chainlink AggregatorV3 read-only RPC integration",
+        "description": "Second phase of FEAT-006 Real-Time Price Feeds. Replaces the Phase 1 'always-None' RPC scaffold in spa_core/data_pipeline/price_feeds.py with real Chainlink AggregatorV3.latestAnswer() eth_call decoding when dry_run=False. Mirrors SPA-V36-001 (Aave V3 Phase 2) and SPA-V37-001 (Compound V3 Phase 2) 1:1: pure stdlib (urllib.request + json), no web3.py, no requests, no eth_account. New _eth_call helper (5s timeout, DEBUG logging of RPC URL + selector), _strip_fragment_with_hint dispatcher that parses '#chainlink:<feed_addr>' fragments off each RPC URL and routes to the right decoder. Hardcoded selector 0x50d25bcd (latestAnswer()), CHAINLINK_DECIMALS=8 (all USDC/USDT/DAI mainnet feeds), two's-complement int256 decoder. Production-safe fallback: ALL live-path exceptions logged as [FALLBACK] WARNING and degraded — at endpoint level returns None so the next endpoint tries; at fetch_prices level, if every endpoint for a coin yields None, that coin falls back to its deterministic synthetic backup. Zero-address placeholder feeds (e.g. USDS which has no mainnet Chainlink feed yet) short-circuit before the timeout. Sanity gate rejects insane decoded prices (≤0 or >$1000). New dry_run constructor parameter (default True) preserves Phase 1 byte-identical behaviour for all existing call-sites — only PriceFeedFetcher(dry_run=False) activates real RPC. Pyth and RedStone legs of the 3-RPC fallback remain deferred — they require different decoders (HTTP JSON gateway) and ship in a later sprint. The endpoint registry retains all three slots so operators see the intended fallback order. FEAT-006 Phase 3 (depeg → risk policy kill-switch) was already shipped in SPA-V31-001 / v3.1, so this Phase 2 work effectively closes the meaningful execution scope of FEAT-006 — synthetic feeds remain the production default until on-chain validation completes.",
+        "priority": "MEDIUM",
+        "estimate": "3h",
+        "tags": ["backend", "data_pipeline"],
+        "sprint": "v3.8",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/data_pipeline/price_feeds.py — added SELECTOR_LATEST_ANSWER, CHAINLINK_DECIMALS, RPC_TIMEOUT_SECONDS; new dry_run constructor param (default True for backwards compat); _strip_fragment_with_hint / _pad_address / _eth_call / _decode_chainlink_answer helpers; live path in _fetch_price_rpc dispatches on the '#chainlink:<addr>' fragment, with zero-address short-circuit, two's-complement int256 decode, and sanity-bounds gate. fetch_prices(use_synthetic=False) now performs real Chainlink eth_calls when dry_run=False, with per-endpoint + per-coin synthetic-backup degrade policy. Tests: spa_core/tests/test_price_feeds_phase2.py — 22 deterministic tests across 6 classes (TestStripFragment×3, TestEthCallHelper×4, TestDecodeChainlinkAnswer×4, TestFetchPriceRpcLive×6, TestFetchPricesIntegration×3, TestBackwardsCompat×2); all PASS in 0.05s, zero network (every urlopen call patched). Regression: Phase 1 test_price_feeds.py 13/13 still PASS — dry_run=True default keeps every existing caller byte-identical. Cross-suite regression PASS (106/106: aave_v3 phase1+2, compound_v3 phase1+2, router, risk_depeg)."
       }
     ]
   }
