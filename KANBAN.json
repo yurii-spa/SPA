@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T19:00:00Z",
-  "updated_by": "claude-agent (Sprint v3.6 — FEAT-004 Phase 2: Aave V3 read-only RPC integration — real eth_call decoding of getReserveData + aToken.balanceOf via stdlib urllib, 3-RPC fallback, [FALLBACK] degrade-to-mock safety)",
+  "last_updated": "2026-05-27T22:30:00Z",
+  "updated_by": "claude-agent (Sprint v3.7 — FEAT-005 Phase 2: Compound V3 read-only RPC integration — real eth_call decoding of Comet.balanceOf + chained getUtilization/getSupplyRate via stdlib urllib, 3-RPC fallback, [FALLBACK] degrade-to-mock safety; mirrors v3.6 Aave Phase 2 pattern)",
   "columns": {
     "ideas": [
       {
@@ -1411,6 +1411,19 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/execution/compound_v3_adapter.py (CompoundV3Adapter class). Tests: spa_core/tests/test_compound_v3_adapter.py (14 deterministic tests across 5 classes — TestAdapterInit / TestSupply / TestWithdraw / TestBalanceAPY / TestHealthCheck — all PASS in <0.1s, zero network). Docs: docs/ADR_007_compound_v3_live_sdk.md (3-phase rollout plan + rollback strategy)."
+      },
+      {
+        "id": "SPA-V37-001",
+        "title": "FEAT-005 Phase 2 — Compound V3 read-only RPC integration",
+        "description": "Second phase of FEAT-005 Compound V3 Live SDK Integration. Replaces the Phase 1 NOT_IMPLEMENTED stubs of get_supply_apy and get_supply_balance with real on-chain eth_call decoding when dry_run=False. Mirrors SPA-V36-001 (Aave V3 Phase 2) 1:1: pure stdlib (urllib.request + json), no web3.py, no requests, no eth_account. New _eth_call helper (5s timeout, DEBUG logging of RPC URL + selector), _call_with_fallback round-robin across the 3 endpoints per chain (URL fragment #compound-v3-comet:... stripped before POST). Hardcoded selectors 0x6f307dc3 (getUtilization), 0x6fb1b0e9 (getSupplyRate(uint256)), 0x70a08231 (balanceOf). Balance pipeline: Comet.balanceOf(SPA_WALLET_ADDRESS env) → uint256 raw → divide by 10**6 (USDC base asset only on all chains in scope). Note: Comet's balanceOf already returns presentValue (incl. accrued interest), so no aToken-style indirection — one RPC call per asset, simpler than Aave's two-leg getReserveData+balanceOf round-trip. APY pipeline: two chained eth_calls — (1) Comet.getUtilization() → uint256 utilization (1e18-scaled), (2) Comet.getSupplyRate(utilization) → uint64 per-second rate (1e18-scaled). Annualised APY (%) = rate * SECONDS_PER_YEAR / 1e16 = rate * 31_536_000 / 1e18 * 100. Production-safe fallback: ALL live-path exceptions logged as [FALLBACK] WARNING and degraded to the Phase 1 _MOCK_APYS / _MOCK_BALANCES value (pipeline never crashes if RPC flakes or wallet env is missing). Write methods (supply / withdraw) still NOT_IMPLEMENTED — Phase 3 will add eth_account signing + raw eth_sendRawTransaction, paired with FEAT-004 Phase 3 cutover behind SPA_EXECUTION_MODE env flag.",
+        "priority": "HIGH",
+        "estimate": "4h",
+        "tags": ["backend", "execution"],
+        "sprint": "v3.7",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/execution/compound_v3_adapter.py — added TOKEN_DECIMALS, SELECTOR_GET_UTILIZATION / SELECTOR_GET_SUPPLY_RATE / SELECTOR_BALANCE_OF, RPC_TIMEOUT_SECONDS, SECONDS_PER_YEAR; _strip_fragment / _pad_address / _pad_uint256 / _eth_call / _call_with_fallback; live paths in get_supply_apy (two-leg getUtilization+getSupplyRate) and get_supply_balance (single-leg balanceOf), both with [FALLBACK] degrade-to-mock policy. Tests: spa_core/tests/test_compound_v3_adapter_phase2.py — 16 deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×5, TestGetSupplyBalanceLive×4); all PASS in 0.04s, zero network (every urlopen call patched). Phase 1 test test_live_mode_returns_zero replaced with test_live_mode_falls_back_to_mock_when_rpc_unreachable to reflect the new contract. Regression: 110/110 PASS on full execution-stack (aave_v3 phase1+2, compound_v3 phase1+2, router, price_feeds); broader spa_core/tests/ suite: 674 PASS, same 10 pre-existing failures as in SPA-T003 (Sharpe-1.0 stale assertions, fastapi/anthropic missing in test env — unrelated to this sprint)."
       },
       {
         "id": "SPA-V36-001",
