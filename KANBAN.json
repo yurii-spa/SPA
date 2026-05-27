@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T09:00:00Z",
-  "updated_by": "claude-agent (Dispatch sprint v3.2, SPA-V32-001 — FEAT-004 Phase 1: Aave V3 adapter scaffold (dry-run) + 14 tests PASS)",
+  "last_updated": "2026-05-27T12:00:00Z",
+  "updated_by": "claude-agent (Dispatch sprint v3.3, SPA-V33-001 — FEAT-005 Phase 1: Compound V3 adapter scaffold (dry-run) + 14 tests PASS)",
   "columns": {
     "ideas": [
       {
@@ -1312,6 +1312,22 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/execution/aave_v3_adapter.py (AaveV3Adapter class). Tests: spa_core/tests/test_aave_v3_adapter.py (14 deterministic tests across 5 classes — TestAdapterInit / TestSupply / TestWithdraw / TestBalanceAPY / TestHealthCheck — all PASS in <0.1s, zero network). Docs: docs/ADR_006_aave_live_sdk.md (3-phase rollout plan + rollback strategy)."
+      },
+      {
+        "id": "SPA-V33-001",
+        "title": "FEAT-005 Phase 1 — Compound V3 Live SDK Adapter Scaffold (dry-run)",
+        "description": "First phase of FEAT-005 Compound V3 Live SDK Integration. Pure-Python CompoundV3Adapter scaffold mirroring AaveV3Adapter (FEAT-004 Phase 1) pattern. Dry-run by default (deterministic mock balances + APYs), live mode returns NOT_IMPLEMENTED until Phase 2. Supports 3 chains (Ethereum, Arbitrum, Base) and USDC only (Compound V3 Comet is single-asset; multi-asset deferred). Real Comet (cUSDCv3) contract addresses captured for Phase 2 web3.py wiring. 3-RPC fallback endpoint registry per chain. supply/withdraw/get_supply_balance/get_supply_apy/health_check methods + _validate_inputs. Stdlib only — no web3.py / eth_account in Phase 1. Phase 2 will plug real eth_call decoding via Comet.getSupplyRate / Comet.balanceOf; Phase 3 will cut engine.py over from paper to live behind SPA_EXECUTION_MODE env flag (paired with FEAT-004 Phase 3). FEAT-005 remains open pending Phases 2 + 3.",
+        "priority": "HIGH",
+        "estimate": "4h",
+        "tags": [
+          "backend",
+          "execution"
+        ],
+        "sprint": "v3.3",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/execution/compound_v3_adapter.py (CompoundV3Adapter class). Tests: spa_core/tests/test_compound_v3_adapter.py (14 deterministic tests across 5 classes — TestAdapterInit / TestSupply / TestWithdraw / TestBalanceAPY / TestHealthCheck — all PASS in <0.1s, zero network). Docs: docs/ADR_007_compound_v3_live_sdk.md (3-phase rollout plan + rollback strategy)."
       }
     ]
   }
