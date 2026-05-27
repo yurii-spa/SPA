@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T12:00:00Z",
-  "updated_by": "claude-agent (Dispatch sprint v3.3, SPA-V33-001 — FEAT-005 Phase 1: Compound V3 adapter scaffold (dry-run) + 14 tests PASS)",
+  "last_updated": "2026-05-27T13:00:00Z",
+  "updated_by": "claude-agent (Dispatch sprint v3.4, SPA-V34-001 — Execution Router: pure-Python cross-protocol APY arbitration over AaveV3Adapter + CompoundV3Adapter, 36 router tests + 79/79 execution-stack tests PASS, ADR-008)",
   "columns": {
     "ideas": [
       {
@@ -1312,6 +1312,23 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/execution/aave_v3_adapter.py (AaveV3Adapter class). Tests: spa_core/tests/test_aave_v3_adapter.py (14 deterministic tests across 5 classes — TestAdapterInit / TestSupply / TestWithdraw / TestBalanceAPY / TestHealthCheck — all PASS in <0.1s, zero network). Docs: docs/ADR_006_aave_live_sdk.md (3-phase rollout plan + rollback strategy)."
+      },
+      {
+        "id": "SPA-V34-001",
+        "title": "Execution Router — cross-protocol APY arbitration (FEAT-005 dependency)",
+        "description": "Pure-Python ExecutionRouter that wraps the per-protocol adapters (AaveV3Adapter, CompoundV3Adapter, plus future Morpho/Yearn) into a single dispatch interface. Implements the 'Rate comparison vs Aave on every cycle; auto-route to highest net APY within risk limits' behaviour explicitly called out in FEAT-005. Risk gates: min_apy / allowed_protocols / blacklisted_protocols / allowed_chains — all exclusionary, no silent fallback. Structural typing (Protocol-style duck typing) so new adapters plug in without touching router.py. Withdrawals are NOT APY-routed — caller must name the protocol (engine.py is authoritative on position location). Deterministic alphabetic tie-breaking. Phase 1 (this sprint) is pure routing; Phase 2 will swap engine.py adapter-direct calls for ExecutionRouter.route_supply() once go-live cutover lands.",
+        "priority": "HIGH",
+        "estimate": "5h",
+        "tags": [
+          "backend",
+          "execution",
+          "testing"
+        ],
+        "sprint": "v3.4",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/execution/router.py (ExecutionRouter class with route_supply/route_withdraw/select_best_protocol/get_apy_comparison/aggregate_balances/health_check). Tests: spa_core/tests/test_execution_router.py — 36 deterministic tests across 8 classes (TestProtocolName / TestRouterRegistry / TestAPYComparison / TestSelectBestProtocol / TestRouteSupply / TestRouteWithdraw / TestAggregateBalances / TestHealthCheck) — all PASS in 0.05s, zero network, zero DB. Cross-suite execution-stack regression PASS (79/79: aave_v3+compound_v3+price_feeds+router). Docs: docs/ADR_008_execution_router.md (3-phase rollout + rollback strategy via SPA_EXECUTION_ROUTING_MODE env flag)."
       },
       {
         "id": "SPA-V33-001",
