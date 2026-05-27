@@ -1,4 +1,4 @@
-# SPA Sprint Log — updated 2026-05-21
+# SPA Sprint Log — updated 2026-05-22
 
 ## Completed ✅
 
@@ -81,6 +81,99 @@
 - All imports verified clean; export pipeline runs without errors
 - **Test result: 90/90 passing (0 failures)**
 
+### v1.1 — Whitelist Correction + Risk Fixes (2026-05-21)
+
+- **Fix: `defillama_fetcher.py`** — corrected 12-pool whitelist (Arbitrum + Base chains); removed invented/non-existent protocols that had been hallucinated into the whitelist
+- **Fix: Strategy Tournament `v2_aggressive`** — resolved `RiskConfig` field bug that caused tournament scoring to crash on aggressive-tier strategies
+- Whitelist now authoritative: only on-chain verified pools included
+
+### v1.2 — Pendle PT Integration (2026-05-21)
+
+- **New: `pendle_fetcher.py`** — PT pool fetcher with 7 quality gates (maturity, liquidity, underlying asset, TVL floor, APY sanity, chain whitelist, oracle freshness)
+- **New: `pendle_strategy.py`** — `PendlePosition` dataclass and `pendle_allocation_size()` sizing logic
+- **ADR-002** created: documents Pendle PT integration rationale, quality gates, and risk considerations
+- Pendle pools now available as T2 allocations; expected to close APY gap from ~4.2% toward 7.3% target
+
+### v1.3 — Analytics + Tournament (2026-05-21)
+
+- **New: `analytics/portfolio_stats.py`** — advanced portfolio metrics: Calmar ratio, Sortino ratio, Ulcer Index, rolling Sharpe/drawdown windows
+- **Fix: `backtesting/tournament.py`** — `StrategyTournament` weighted scoring fully operational (was broken by `RiskConfig` bug above); now produces correct cross-strategy rankings
+- **Dashboard: APY Gap Tracker panel** — visualises current APY vs target with per-protocol contribution breakdown
+- **Dashboard: Pendle PT panel** — live Pendle pool list with quality gate status
+- Test coverage expanded; total passing: **120+ tests**
+
+### v1.4 — Observability (2026-05-22)
+
+- **New: `alerts/daily_report.py`** — `DailyReportBuilder`: compiles Telegram daily digest (positions, PnL delta, risk flags, day X/56 counter)
+- **New: `alerts/risk_monitor.py`** — `RiskMonitor`: real-time alert engine; triggers on drawdown breach, APY anomaly, stale data, kill-switch conditions
+- **Fix: `sky_monitor.py`** — on-chain GSM Pause Delay checker with 3 fallback RPC sources (primary + 2 backups); resolves flaky monitoring when single RPC is unresponsive
+- **New: `agents/model_config.py`** — pluggable model assignment config; decouples agent roles from hardcoded model strings (CEO → Sonnet, Monitoring → Haiku, Data → Gemini Flash-Lite)
+
+### v1.5 — Dashboard v2 (2026-05-22)
+
+- **Dashboard: APY Gap Tracker** — full panel showing current ~4.2% vs 7.3% target, gap attribution by protocol tier
+- **Dashboard: Pendle PT panel** — pool list with quality gate badges, maturity dates, PT APY
+- **Dashboard: Day X/56 counter** — prominent paper trading progress indicator (Day 2 of 56 as of 2026-05-22)
+- **Dashboard: 📡 Live badge** — real-time data freshness indicator; turns amber if data is stale > 15 min
+- Dashboard now at **v1.5**, all 5 tabs fully integrated and live
+
+### v1.6 — 2026-05-22 (Night sprint wave)
+
+### Completed sprints:
+
+**Dashboard v3 — Backtesting Replay UI**
+- Added `📈 Backtesting Replay` card to Analytics tab
+- Chart.js two-line equity chart (v1_passive blue, v2_aggressive orange)
+- `⏱ Replay Mode` toggle: slider by day, auto-play 500ms, syncs Paper Trading tab values
+- Strategy comparison table: 5 metrics, winner highlighted green/loser red
+- `runBacktest()` auto-fires when Analytics tab opens
+
+**Documentation Suite (4 files)**
+- `docs/api_reference.md` — all 17 FastAPI endpoints with schemas and examples
+- `docs/data_schema.md` — 14 data/*.json files with full field tables
+- `docs/architecture.md` — ASCII component diagram, agent hierarchy, risk governance
+- `docs/paper_trading_guide.md` — 8-week cycle, timeline, Telegram setup
+
+**GitHub Actions Hardening**
+- `retry_request()` with exponential backoff in defillama_fetcher + pendle_fetcher
+- `pipeline_health.json` written after every export (sections OK/FAIL, pools count, duration)
+- Telegram alert triggered if >2 sections fail or 0 pools fetched
+- Workflow: 15-min timeout, health check step, artifact upload (7-day retention)
+- 6 new tests in `test_retry_logic.py` — all pass
+
+**Dashboard v4 — System Health Tab**
+- New `⚙️ System` tab (hotkey `6`) with 4 cards:
+  - Pipeline Health: 🟢/🟡/🔴 badge, section counts, duration
+  - Data Freshness: color-coded by age (<6h/6-24h/>24h)
+  - Paper Trading Clock: live countdown to next 4h cycle, ⚠️ if overdue
+  - Go-Live Countdown: progress bar Day X/56, criteria summary
+- Auto-refreshes every 60s while tab active
+
+**Operator Runbook**
+- `docs/operator_runbook.md` — ~2400 words
+- Day 1 setup, daily/weekly monitoring, Sky upgrade, go-live process
+- 6 incident scenarios with diagnostic steps
+- Configuration reference table, file structure map
+- v2.0 upgrade path (real capital ~late August 2026)
+
+**Concurrent Pool Fetching**
+- `ThreadPoolExecutor` parallel fetch (main + Pendle simultaneously)
+- 1-hour file-based response cache (`data/.cache/`)
+- Performance timing logged: `[PERF] Fetched N pools in Xs`
+- `data/.cache/` added to `.gitignore`
+
+**Manifest Updated**
+- 67 → 111 files in PUSH_MANIFEST (+44 entries)
+- Covers all agents, tests, docs, new modules
+
+### Total tests: ~140 (up from 120)
+### Total files: 116+ (manifest 111 + new docs/tests)
+### Dashboard: v1.6 — 6 tabs (Home, Paper Trading, Analytics, Go-Live, Agents, System)
+
+### v3.6 — FEAT-004 Phase 2: Aave V3 Read-Only RPC Integration (2026-05-27)
+
+- **`spa_core/execution/aave_v3_adapter.py`** — Phase 2 lift: replaced the Phase 1 NOT_IMPLEMENTED stubs of `get_supply_apy` and `get_supply_balance` with real on-chain `eth_call` decoding when `dry_run=False`. Pure stdlib only (`urllib.request` + `json`) — no web3.py, no requests, no eth_account. Added 3-RPC fallback (`_call_with_fallback`) that strips the `#aave-v3-pool:0x...` URL fragment before POST, hardcoded selectors `0x35ea6a75` (getReserveData) + `0x70a08231` (balanceOf), canonical mainnet USDC/USDT/DAI token addresses for ethereum/arbitrum/base, and per-asset decimals scaling (6 USDC/USDT, 18 DAI). APY decoded from `currentLiquidityRate` at struct slot 2 (RAY → percent via `/1e25`); balance pipeline runs getReserveData → aTokenAddress at struct slot 8 → `balanceOf(SPA_WALLET_ADDRESS env)`. Production-safe `[FALLBACK]` policy: every live-path exception logs a WARNING and degrades to the Phase 1 mock value, so the pipeline never crashes if RPCs flake or `SPA_WALLET_ADDRESS` is unset. Write methods (supply / withdraw) stay NOT_IMPLEMENTED — Phase 3 will add eth_account signing. **Tests: `spa_core/tests/test_aave_v3_adapter_phase2.py` — 15 new deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4), all PASS in 0.04s with zero network (every `urlopen` patched). Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical.** Closes SPA-V36-001; FEAT-004 advances to ~66% complete (Phase 1 + 2 done, Phase 3 signing + engine cutover remaining).
+
 ---
 
 ## Pending Push to GitHub
@@ -98,17 +191,20 @@ Files changed in this session:
 
 ---
 
-## Go-Live Status (as of 2026-05-21)
+## Go-Live Status (as of 2026-05-22)
 
 | Field | Value |
 |-------|-------|
 | Paper trading started | 2026-05-20 |
 | Target go-live date | 2026-07-15 |
-| Days elapsed | 1 |
-| Days remaining | 54 |
+| Days elapsed | 2 |
+| Days remaining | 53 |
+| Current APY | ~4.2% |
+| Target APY | 7.3% |
 | Current verdict | NOT READY |
 | Criteria passing | 5/8 |
-| Blocking criteria | Paper Duration (1/50 days) |
-| Warning criteria | PnL (day 1, $0 deployed), Diversification (0 positions yet) |
+| Blocking criteria | Paper Duration (2/56 days) |
+| Warning criteria | PnL (early stage, accumulating), Diversification (positions ramping up) |
 
-Next milestone: paper duration criterion passes **2026-07-09** (49 days away).
+Next milestone: paper duration criterion passes **2026-07-09** (48 days away).
+Go-live decision: **2026-07-15** — contingent on Sharpe ≥ 2.0, drawdown ≤ 5%, all agents stable ≥ 4 weeks.
