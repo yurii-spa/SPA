@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T03:45:00Z",
-  "updated_by": "claude-agent (v2.8 sprint, BL-008 Phase 2 done — call-site migration: init_db delegates to abstraction, data_agent cleaned, 14/14 DB tests PASS)",
+  "last_updated": "2026-05-27T09:00:00Z",
+  "updated_by": "claude-agent (Dispatch sprint v3.2, SPA-V32-001 — FEAT-004 Phase 1: Aave V3 adapter scaffold (dry-run) + 14 tests PASS)",
   "columns": {
     "ideas": [
       {
@@ -203,21 +203,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "BL-008",
-        "title": "PostgreSQL Migration",
-        "description": "Replace SQLite with PostgreSQL for production go-live. Alembic migrations, connection pooling, read replicas for dashboard queries. Pre-condition for v2.0.",
-        "priority": "HIGH",
-        "estimate": "16h",
-        "remaining_estimate": "4h",
-        "tags": [
-          "backend",
-          "infra"
-        ],
-        "sprint": "v2.0",
-        "added": "2026-05-22",
-        "progress": "Phase 1 (scaffold) DONE — see SPA-T002. Phase 2 (call-site migration) DONE — see SPA-T003. Remaining: Phase 3 (Alembic + production cutover, ~4h)."
       }
     ],
     "in_progress": [],
@@ -1230,6 +1215,40 @@
         "implementation": "spa_core/database/init_db.py — get_connection() now delegates to spa_core.database.connection.get_connection() via a sqlite:/// URL built from the Path (back-compat preserved for engine.py and ~12 indirect consumers). init_database() routes by backend: SQLite path keeps sqlite3.executescript() bootstrap, Postgres path reads schema_postgres.sql + applies via psycopg2 cursor. _seed_protocols() takes a `backend` arg and switches between `INSERT OR IGNORE` (SQLite) and `INSERT ... ON CONFLICT (key) DO NOTHING` (Postgres). check_database() gained a PG fast path that returns table counts without a filesystem stat. spa_core/agents/data_agent.py — removed unused `import sqlite3`; import path updated comment. Tests: 14/14 test_db_abstraction.py PASS; 555/565 full spa_core/tests/ suite PASS (10 pre-existing failures unrelated to this sprint: Sharpe-1.0 stale assertions, missing anthropic/fastapi modules in test env). Smoke test confirms SQLite mode boots a 15-protocol DB end-to-end via the new code path."
       },
       {
+        "id": "BL-008",
+        "title": "PostgreSQL Migration",
+        "description": "Replace SQLite with PostgreSQL for production go-live. Alembic migrations, connection pooling, read replicas for dashboard queries. Pre-condition for v2.0.",
+        "priority": "HIGH",
+        "estimate": "16h",
+        "tags": [
+          "backend",
+          "infra"
+        ],
+        "sprint": "v2.9",
+        "added": "2026-05-22",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "Closed across three sprints: Phase 1 scaffold (SPA-T002, v2.7), Phase 2 call-site migration (SPA-T003, v2.8), Phase 3 Alembic + cutover (SPA-T004, v2.9). Result: SPA_DATABASE_URL env var selects backend; existing SQLite path byte-identical; PostgreSQL path boots end-to-end via Alembic baseline 0001_initial_schema; docs/postgres_cutover.md walks operators through bootstrap → data copy → flip → validate → rollback."
+      },
+      {
+        "id": "SPA-T004",
+        "title": "BL-008 Phase 3 — Alembic migrations + production cutover docs",
+        "description": "Third and final phase of BL-008 PostgreSQL Migration. Adds Alembic scaffold (alembic.ini + env.py wired to spa_core.database.db_url + dual-dialect baseline migration covering all 7 SPA tables and 12 indexes). Cutover procedure documented end-to-end in docs/postgres_cutover.md (bootstrap → data copy → flip → validate → rollback). Verified hermetically against SQLite — Postgres branch is dialect-specific DDL that mirrors schema_postgres.sql.",
+        "priority": "HIGH",
+        "estimate": "4h",
+        "tags": [
+          "backend",
+          "infra",
+          "testing",
+          "docs"
+        ],
+        "sprint": "v2.9",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/database/alembic.ini — Alembic config; sqlalchemy.url is placeholder, real URL comes from env.py via SPA_DATABASE_URL. spa_core/database/alembic/env.py — online mode wraps the resolved URL in a SQLAlchemy NullPool engine (sqlalchemy is a transitive alembic dep, no new top-level dep); offline mode emits raw SQL by dialect. spa_core/database/alembic/versions/0001_initial_schema.py — dual-dialect baseline: branches on op.get_bind().dialect.name, emits SERIAL/TIMESTAMPTZ/DOUBLE PRECISION on Postgres vs INTEGER AUTOINCREMENT/TEXT/REAL on SQLite, identical CREATE INDEX IF NOT EXISTS for both. spa_core/database/alembic/script.py.mako — template for future revisions. spa_core/database/alembic/README — CLI cheat sheet. spa_core/tests/test_alembic.py — 5 deterministic tests (upgrade head, idempotency, downgrade base, current, init_db compatibility). All 5 PASS in 1.5s. docs/postgres_cutover.md (~2300 words) — operator runbook with rollback. requirements.txt += alembic>=1.13.0."
+      },
+      {
         "id": "SPA-T002",
         "title": "BL-008 Phase 1 — PostgreSQL Migration Scaffold (DB abstraction + tests + ADR)",
         "description": "First phase of BL-008 PostgreSQL Migration (architect_proposal pick). Env-driven dual-driver scaffold: SQLite stays default, PostgreSQL opt-in via SPA_DATABASE_URL. Existing call-sites untouched in this phase. Phase 2 will migrate sqlite3.connect → connection.get_connection. Phase 3 adds Alembic + production cutover.",
@@ -1245,6 +1264,54 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/database/db_url.py (84 LOC) — env-driven URL resolver: get_db_url()/is_postgres()/is_sqlite()/get_sqlite_path(). spa_core/database/connection.py (95 LOC) — get_connection() ctx manager, lazy psycopg2 import, DriverNotInstalled(RuntimeError) subclass, sqlite3.Row vs RealDictCursor. spa_core/database/schema_postgres.sql (156 LOC) — PG port of schema.sql, SERIAL/TIMESTAMPTZ/DOUBLE PRECISION translations, all 7 tables + indexes + FKs preserved. spa_core/tests/test_db_abstraction.py — 14 deterministic tests (default URL, env override, is_postgres/is_sqlite, sqlite path extraction, connection row factory, psycopg2-missing graceful error). docs/ADR_005_postgres_migration_plan.md — 3-phase plan with alternatives & rollback. requirements.txt += psycopg2-binary>=2.9.0. Result: 14/14 PASS in 0.04s. No existing tests broken. BL-008 estimated ~30% complete."
+      },
+      {
+        "id": "SPA-V30-001",
+        "title": "FEAT-006 Phase 1 — Price Feeds Scaffold (Chainlink/Pyth/RedStone)",
+        "description": "First phase of FEAT-006 Real-Time Price Feeds. Pure-Python PriceFeedFetcher with 4 stablecoins (USDC, USDT, DAI, USDS), synthetic fallback, 3-RPC fallback scaffold (mirrors sky_monitor.py pattern), depeg detection (WARN/CRITICAL tiers at +/-2%/+/-4%), JSON dump for dashboard. Phase 2 will plug in real Chainlink RPC calls. Phase 3 will wire detect_depeg() into risk/policy.py kill-switch.",
+        "priority": "MEDIUM",
+        "estimate": "4h",
+        "tags": [
+          "backend",
+          "infra"
+        ],
+        "sprint": "v3.0",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/data_pipeline/price_feeds.py (PriceFeedFetcher class). Tests: spa_core/tests/test_price_feeds.py (13 deterministic tests, all PASS)."
+      },
+      {
+        "id": "SPA-V31-001",
+        "title": "FEAT-006 Phase 3 — Depeg → Risk Policy Kill-Switch wiring",
+        "description": "Wired PriceFeedFetcher.detect_depeg() into risk/policy.py. New optional parameter stablecoin_prices on check_portfolio_health(): CRITICAL depeg → violations (kill-switch), WARN depeg → warnings. New standalone method RiskPolicy.check_stablecoin_depeg(). Backwards-compatible: existing 100+ call-sites unchanged (default param=None). Closes FEAT-006 (Real-Time Price Feeds) — Phase 1 scaffold (SPA-V30-001) + Phase 3 kill-switch wiring done; Phase 2 (real Chainlink/Pyth RPC decoding) deferred — synthetic feeds сейчас в production-safe scope.",
+        "priority": "MEDIUM",
+        "estimate": "3h",
+        "tags": [
+          "backend",
+          "risk"
+        ],
+        "sprint": "v3.1",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/risk/policy.py — added stablecoin_prices param to check_portfolio_health() + new check_stablecoin_depeg() method. Tests: spa_core/tests/test_risk_depeg.py (9 deterministic tests, all PASS)."
+      },
+      {
+        "id": "SPA-V32-001",
+        "title": "FEAT-004 Phase 1 — Aave V3 Live SDK Adapter Scaffold (dry-run)",
+        "description": "First phase of FEAT-004 Aave V3 Live SDK Integration. Pure-Python AaveV3Adapter scaffold mirroring the FEAT-006 / BL-008 phased pattern: dry-run by default (deterministic mock balances + APYs), live mode returns NOT_IMPLEMENTED until Phase 2. Supports 3 chains (Ethereum, Arbitrum, Base) and 3 stablecoins (USDC, USDT, DAI) with real Aave V3 Pool contract addresses captured for Phase 2 web3.py wiring. 3-RPC fallback endpoint registry per chain. supply/withdraw/get_supply_balance/get_supply_apy/health_check methods + _validate_inputs. Stdlib only — no web3.py / eth_account in Phase 1. Phase 2 will plug real eth_call decoding; Phase 3 will cut engine.py over from paper to live behind SPA_EXECUTION_MODE env flag. FEAT-004 remains open pending Phases 2 + 3.",
+        "priority": "HIGH",
+        "estimate": "4h",
+        "tags": [
+          "backend",
+          "execution"
+        ],
+        "sprint": "v3.2",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/execution/aave_v3_adapter.py (AaveV3Adapter class). Tests: spa_core/tests/test_aave_v3_adapter.py (14 deterministic tests across 5 classes — TestAdapterInit / TestSupply / TestWithdraw / TestBalanceAPY / TestHealthCheck — all PASS in <0.1s, zero network). Docs: docs/ADR_006_aave_live_sdk.md (3-phase rollout plan + rollback strategy)."
       }
     ]
   }
