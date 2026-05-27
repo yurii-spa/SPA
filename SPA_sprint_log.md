@@ -84,7 +84,7 @@
 ### v1.1 — Whitelist Correction + Risk Fixes (2026-05-21)
 
 - **Fix: `defillama_fetcher.py`** — corrected 12-pool whitelist (Arbitrum + Base chains); removed invented/non-existent protocols that had been hallucinated into the whitelist
-- **Fix: Strategy Tournament `v2_aggressive`** — resolved `RiskConfig` field bug that caused tournament scoring to crash on aggressive-tier strategies
+- **Fix: Strategy Tournament `V2_aggressive`** — resolved `RiskConfig` field bug that caused tournament scoring to crash on aggressive-tier strategies
 - Whitelist now authoritative: only on-chain verified pools included
 
 ### v1.2 — Pendle PT Integration (2026-05-21)
@@ -137,12 +137,12 @@
 **GitHub Actions Hardening**
 - `retry_request()` with exponential backoff in defillama_fetcher + pendle_fetcher
 - `pipeline_health.json` written after every export (sections OK/FAIL, pools count, duration)
-- Telegram alert triggered if >2 sections fail or 0 pools fetched
+- Telegram alert triggered if >2 sections fail or pools fetched
 - Workflow: 15-min timeout, health check step, artifact upload (7-day retention)
 - 6 new tests in `test_retry_logic.py` — all pass
 
 **Dashboard v4 — System Health Tab**
-- New `⚙️ System` tab (hotkey `6`) with 4 cards:
+- New `⚙Ϗ System` tab (hotkey `6`) with 4 cards:
   - Pipeline Health: 🟢/🟡/🔴 badge, section counts, duration
   - Data Freshness: color-coded by age (<6h/6-24h/>24h)
   - Paper Trading Clock: live countdown to next 4h cycle, ⚠️ if overdue
@@ -172,7 +172,11 @@
 
 ### v3.6 — FEAT-004 Phase 2: Aave V3 Read-Only RPC Integration (2026-05-27)
 
-- **`spa_core/execution/aave_v3_adapter.py`** — Phase 2 lift: replaced the Phase 1 NOT_IMPLEMENTED stubs of `get_supply_apy` and `get_supply_balance` with real on-chain `eth_call` decoding when `dry_run=False`. Pure stdlib only (`urllib.request` + `json`) — no web3.py, no requests, no eth_account. Added 3-RPC fallback (`_call_with_fallback`) that strips the `#aave-v3-pool:0x...` URL fragment before POST, hardcoded selectors `0x35ea6a75` (getReserveData) + `0x70a08231` (balanceOf), canonical mainnet USDC/USDT/DAI token addresses for ethereum/arbitrum/base, and per-asset decimals scaling (6 USDC/USDT, 18 DAI). APY decoded from `currentLiquidityRate` at struct slot 2 (RAY → percent via `/1e25`); balance pipeline runs getReserveData → aTokenAddress at struct slot 8 → `balanceOf(SPA_WALLET_ADDRESS env)`. Production-safe `[FALLBACK]` policy: every live-path exception logs a WARNING and degrades to the Phase 1 mock value, so the pipeline never crashes if RPCs flake or `SPA_WALLET_ADDRESS` is unset. Write methods (supply / withdraw) stay NOT_IMPLEMENTED — Phase 3 will add eth_account signing. **Tests: `spa_core/tests/test_aave_v3_adapter_phase2.py` — 15 new deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4), all PASS in 0.04s with zero network (every `urlopen` patched). Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical.** Closes SPA-V36-001; FEAT-004 advances to ~66% complete (Phase 1 + 2 done, Phase 3 signing + engine cutover remaining).
+- **`spa_core/execution/aave_v3_adapter.py`** — Phase 2 lift: replaced the Phase 1 NOT_IMPLEMTNED stubs of `get_supply_apy` and `get_supply_balance` with real on-chain `eth_call` decoding when `dry_run=False`. Pure stdlib only (`urllib.request` + `json`) — so no web3.py, no requests, no eth_account. Added 3-RPC fallback (`_call_with_fallback`) that strips the `#aave-v3-pool:0x...` URL fragment before POST, hardcoded selectors `0x35ea6a75` (getReserveData) + `0x70a08231` (balanceOf), canonical mainnet USDC?USDU/DAI token addresses for ethereum/arbitrum/base, and per-asset decimals scaling (6 USDC/USDT, 18 DAI). APY decoded from `currentLiquidityRate` at struct slot 2 (RAY → percent via `/1e25`); balance pipeline runs getReserveData → aTokenAddress at struct slot 8 → `balanceOf(SPA_WALLET_ADDRESS env)`. Production-safe `[FALLBACK]` policy: every live-path exception logs a WARNING and degrades to the Phase 1 mock value, so the pipeline never crashes if RPCs flake or `SPA_WALLET_ADDRESS` is unset. Write methods (supply / withdraw) stay NOT_IMPLEMENTED — Phase 3 will add eth_account signing. **Tests: `spa_core/tests/test_aave_v3_adapter_phase2.py` — 15 new deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4), all PASS in 0.04s with zero network (every `urlopen` patched). Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical.** Closes SPA-V36-001; FEAT-004 advances to ~66% complete (Phase 1 + 2 done, Phase 3 signing + engine cutover remaining).
+
+### v3.10 — FEAT-005 Phase 3: Compound V3 Live supply/withdraw (2026-05-27)
+
+- **`spa_core/execution/compound_v3_adapter.py`** — Phase 3 lift: replaced the Phase 2 NOT_IMPLEMENTED short-circuit of `supply()` and `withdraw()` with a fully-signed EIP-1559 transaction path. Exact mirror of SPA-V39-001 (Aave V3 Phase 3 / ADR-009) ported to the Compound V3 Comet ABI. Multi-layer safety stack identical to ADR-009: (1) `dry_run=True` default unchanged (deterministic DRY_RUN dict, no imports, no RPC); (2) `dry_run=False` + `SPA_EXECUTION_MODE = "live"` → `{status: "BLOCKED"}`; (3) `SPA_PRIVATE_KEY` format + key-→address mismatch with `SPA_WALLET_ADDRESS` checks → `{status: "ERROR"}`; (4) `MAX_LIVE_AMOUNT = 10_000_000` USD sanity gate; (5) any RPC / signature / receipt revert returns `{status: "FAILED", phase: "approve"|"supply"|"withdraw"}` — Never raises. `eth_account` imported LAZILY via `_require_eth_account()` (psycopg2 pattern) so the dry-run happy path needs no new dep. Comet-specific selectors differ from Aave: `0xf2b9fdb8` for `Comet.supply(asset, amount)` (no onBehalfOf/referralCode) and `0xf3fef3a3` for `Comet.withdraw(asset, amount)` (no `to` — credits/debits `msg.sender`). Single-asset only — `SUPPORTED_ASSETS=['USDC']` (cUSDCv3). Two-tx supply flow (approve USDC on Comet → Comet.supply), single-tx withdraw. **Tests: `spa_core/tests/test_compound_v3_adapter_phase3.py` — 15 new deterministic network-free tests (execution-mode gate ×3, key validation ×3, supply happy + 3 sad paths, withdraw happy + revert, eth_account missing degrades to FAILED, sanity gate ×2). Existing `test_compound_v3_adapter.py` Phase-1 `live_mode_returns_not_implemented` tests updated to accept both NOT_IMPLEMENTED (legacy) and BLOCKED (Phase 3) for backward-compat. Compound suite total 17+16+15 = 48/48 PASS ctpassing in 0.08s. Cross-suite regression (Aave Phase 1+2+3 + Compound Phase 1+2+3 + router + price_feeds) 140/140 PASS.** Closes SPA-440-001; FEAT4005 now 100% complete (Phase 1+2+3). Phase 4 (v4.0) will wire `spa_core/orchestration/engine.py` cutover behind a per-strategy `live_execution: bool` YAML flag — paired with Aave V3 from SPA-V39-001. See `docs/ADR_010_compound_v3_live_writes.md`.
 
 ---
 
