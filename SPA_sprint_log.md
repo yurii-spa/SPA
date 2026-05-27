@@ -319,3 +319,80 @@ Modified:
 1. **FEAT-RISK-001** — Risk Scoring Engine (12h, HIGH) — now unblocked
 2. **FEAT-INT-001** — Audit Reader Agent (6h, MEDIUM) — parallel, independent
 3. **FEAT-RISK-003** — Real Yield Classifier (6h, HIGH) — after FEAT-RISK-001
+
+---
+
+## v3.14 — FEAT-RISK-001 Risk Scoring Engine
+
+**Date:** 2026-05-27
+**Sprint:** v3.14
+**Ticket:** FEAT-RISK-001 (HIGH, Phase 1, est. 12h)
+**Owner:** Dispatch orchestrator (autonomous run)
+**Status:** Shipped — closes the Risk Layer foundation.
+
+### What shipped
+- **`spa_core/risk/scoring_engine.py`** — main module (~700 LOC)
+  - `ProtocolRiskScore` dataclass (protocol, slug, grade, score_numeric, subscores, explanation, generated_at, fallback_used, allocation_cap_pct)
+  - `RiskScoringEngine` class with:
+    - `_fetch_defillama_protocols(offline)` — stdlib `urllib` + retry/backoff + bootstrap merge
+    - `_load_incidents()` / `_load_audit_findings()` — read FEAT-RISK-002 + FEAT-INT-001 outputs; graceful `{}` on missing/corrupt
+    - **15 deterministic `_score_*` methods**, each returning `[0,1]` higher-is-safer
+    - `compute_score(slug)` — single-protocol scoring, NEVER raises
+    - `compute_all()` — full SPA whitelist (10 protocols)
+    - `export(output_file, dry_run)` — writes canonical `data/risk_scores.json`
+  - CLI: `python -m spa_core.risk.scoring_engine [--offline] [--dry-run] [--protocol SLUG] [--output PATH] [--timeout S] [-v]`
+  - **`BOOTSTRAP_PROTOCOLS`** — full snapshot for all 10 whitelist protocols (aave-v3, compound-v3, morpho, yearn-v3, sky, maker, curve, uniswap-v3, pendle, euler-v2) with TVL / age / oracle / multisig / liquidity / chain metadata (compiled from public DefiLlama state)
+  - **Weights**: 11 baseline subscores × 1.0 + 4 risk-critical × 1.5 (oracle_risk, hack_history, audit_findings_severity, timelock_duration), normalised so `sum == 1.0` exactly
+  - **Grade thresholds**: A ≥ 0.85, B ≥ 0.70, C ≥ 0.55, D < 0.55 (boundary inclusive on high side)
+- **`data/risk_scores.json`** — first canonical snapshot (offline mode):
+  - `A=2` (aave-v3 0.914, morpho 0.853)
+  - `B=8` (compound-v3 0.800, yearn-v3 0.756, sky 0.753, maker 0.800, curve 0.808, uniswap-v3 0.806, pendle 0.759, euler-v2 0.812)
+  - `C=0`, `D=0` — all whitelisted protocols pass the current bar
+  - `fallback_used_any=True` because `data/audit_findings.json` is not yet shipped (FEAT-INT-001 pending) and DefiLlama was skipped via `--offline`
+- **`docs/ADR_014_risk_scoring_engine.md`** — design doc:
+  - 15 subscores table with source + range
+  - Weight rationale (why 4 critical subscores boosted 1.5×)
+  - Grade thresholds + downstream allocation policy
+  - Output schema for `data/risk_scores.json`
+  - Integration plan for `engine.py` (next sprint)
+  - Fallback behaviour matrix (5 failure modes, all graceful)
+  - Alternatives considered (numeric-only, MLP, 5-tier, per-strategy overrides) — all rejected with rationale
+  - Rollback plan (fully additive feature)
+- **`spa_core/tests/test_scoring_engine.py`** — 92 deterministic tests:
+  - module-level invariants (weights sum to 1.0; all 15 keys present; boosted weights > baseline)
+  - grade boundary tests (8 cases, exactly on 0.85 / 0.70 / 0.55)
+  - `_clip` helper (3 cases)
+  - per-subscore boundary tests (3 × 15 ≈ 45 cases)
+  - `compute_score` happy path + unknown slug + allocation cap + incident-data sensitivity
+  - `compute_all` length + slug match + valid grades + custom slug list
+  - determinism (two-call equality)
+  - missing/corrupt incidents.json + missing audit file (graceful degradation, `fallback_used=True`)
+  - DefiLlama fetch (success + URLError timeout + offline-skip-network)
+  - export (dry-run, real write, per-score schema, summary counts, round-trip)
+  - `ProtocolRiskScore` dataclass `to_dict()`
+  - CLI smoke (offline+dry-run, offline+write, --protocol)
+
+### Test results
+- **New: 92/92 PASS** in 0.10s (zero network, zero filesystem outside `tmp_path`)
+- **Regression: 58/58 PASS** for `test_incidents_fetcher.py` (no breakage)
+
+### Phase plan
+- ✅ **Phase 1 (this sprint)**: ship engine + bootstrap + tests + ADR + first snapshot. Module is importable; CLI documented.
+- ⬜ **Phase 2 (next sprint)**: wire `engine.py` (allocation) to consume `data/risk_scores.json` — enforce C → cap × 0.5, D → cap 5%.
+- ⬜ **Phase 3**: scheduled daily refresh via CronAgent; integrate into operator digest as "Risk Movers" section.
+
+### Files
+Created:
+- `spa_core/risk/scoring_engine.py`
+- `spa_core/tests/test_scoring_engine.py`
+- `docs/ADR_014_risk_scoring_engine.md`
+- `data/risk_scores.json`
+
+Modified:
+- `KANBAN.json` (FEAT-RISK-001 → done; sprint stamped v3.14)
+- `SPA_sprint_log.md` (this entry)
+
+### Next on the Risk Layer roadmap
+1. **FEAT-INT-001** — Audit Reader Agent (6h, MEDIUM) — will populate `data/audit_findings.json` and remove the only remaining fallback in the risk snapshot
+2. **FEAT-RISK-003** — Real Yield Classifier (6h, HIGH) — replaces hardcoded `yield_source` field in BOOTSTRAP_PROTOCOLS with live classification
+3. **FEAT-ALLOC-002** — Allocation cap enforcement in `engine.py` — consume `data/risk_scores.json` to clamp per-protocol caps
