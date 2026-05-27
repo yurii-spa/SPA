@@ -185,7 +185,7 @@ class TestBalanceAPY:
     ):
         """Phase 2: live-mode reads attempt real RPC, then degrade to mock.
 
-        Phase 1 returned 0.0 in live mode (NOT_IMPLEMTNED). Phase 2 wires
+        Phase 1 returned 0.0 in live mode (NOT_IMPLEMENTED). Phase 2 wires
         real eth_call; when every RPC is patched to fail, the adapter
         degrades to the deterministic _MOCK_* fixture rather than crashing
         the pipeline. ``SPA_WALLET_ADDRESS`` is unset, which short-circuits
