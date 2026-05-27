@@ -1,0 +1,693 @@
+{
+  "generated_at": "2026-05-27T21:18:47.919761Z",
+  "agent_version": "1.0",
+  "sources": [
+    "bootstrap"
+  ],
+  "fallback_used": true,
+  "protocols": {
+    "aave-v3": {
+      "protocol_slug": "aave-v3",
+      "total_audits": 5,
+      "auditors": [
+        "ABDK",
+        "Certora",
+        "Code4rena",
+        "OpenZeppelin",
+        "Trail of Bits"
+      ],
+      "total_critical": 1,
+      "total_high": 5,
+      "fixed_critical": 1,
+      "open_critical": 0,
+      "fixed_high": 5,
+      "open_high": 0,
+      "last_audit_date": "2022-06-15",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Asset listing race condition",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-tob-2022",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/AaveV3.pdf"
+        },
+        {
+          "severity": "high",
+          "title": "isolation-mode debt ceiling underflow",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2022-05-aave-lens",
+          "url": "https://code4rena.com/reports/2022-05-aave-lens"
+        },
+        {
+          "severity": "high",
+          "title": "Liquidation grace period rounding",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-abdk-2022",
+          "url": "https://github.com/aave/aave-v3-core/blob/master/audits/27-01-2022_ABDK_AaveV3.pdf"
+        },
+        {
+          "severity": "high",
+          "title": "Formal verification: collateral state invariant",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-certora-2022",
+          "url": "https://github.com/aave/aave-v3-core/tree/master/certora"
+        },
+        {
+          "severity": "high",
+          "title": "Stable rate borrow accounting drift",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-openzeppelin-2022",
+          "url": "https://blog.openzeppelin.com/aave-v3-audit"
+        },
+        {
+          "severity": "high",
+          "title": "Flash loan re-entrancy via siloed assets",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-tob-2022",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/AaveV3.pdf"
+        },
+        {
+          "severity": "medium",
+          "title": "Reserve factor precision loss",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-abdk-2022",
+          "url": "https://github.com/aave/aave-v3-core/blob/master/audits/27-01-2022_ABDK_AaveV3.pdf"
+        },
+        {
+          "severity": "medium",
+          "title": "Missing zero-address checks in pool admin",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-openzeppelin-2022",
+          "url": "https://blog.openzeppelin.com/aave-v3-audit"
+        },
+        {
+          "severity": "medium",
+          "title": "Governance role centralisation",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-tob-2022",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/AaveV3.pdf"
+        },
+        {
+          "severity": "low",
+          "title": "Spec gap on emergency admin role",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-certora-2022",
+          "url": "https://github.com/aave/aave-v3-core/tree/master/certora"
+        },
+        {
+          "severity": "low",
+          "title": "Outdated NatSpec comments",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "aave-v3-openzeppelin-2022",
+          "url": "https://blog.openzeppelin.com/aave-v3-audit"
+        }
+      ]
+    },
+    "compound-v3": {
+      "protocol_slug": "compound-v3",
+      "total_audits": 4,
+      "auditors": [
+        "ChainSecurity",
+        "Code4rena",
+        "Community post-mortem",
+        "OpenZeppelin"
+      ],
+      "total_critical": 2,
+      "total_high": 3,
+      "fixed_critical": 2,
+      "open_critical": 0,
+      "fixed_high": 3,
+      "open_high": 0,
+      "last_audit_date": "2022-08-30",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Faulty governance proposal — COMP distribution bug (~$80M)",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "compound-proposal-062-2021",
+          "url": "https://www.comp.xyz/t/post-mortem-compound-comp-token-distribution-bug/3034"
+        },
+        {
+          "severity": "critical",
+          "title": "Liquidation premium rounding favours liquidator excessively",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "compound-v3-oz-2022",
+          "url": "https://blog.openzeppelin.com/compound-comet-audit"
+        },
+        {
+          "severity": "high",
+          "title": "Reward accrual desync after pause",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2022-08-compound-comet",
+          "url": "https://code4rena.com/reports/2022-08-olympus"
+        },
+        {
+          "severity": "high",
+          "title": "Asset configuration governance window",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "compound-v3-chainsec-2022",
+          "url": "https://chainsecurity.com/security-audit/compound-iii-comet"
+        },
+        {
+          "severity": "high",
+          "title": "Supply cap not enforced on absorb path",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "compound-v3-oz-2022",
+          "url": "https://blog.openzeppelin.com/compound-comet-audit"
+        },
+        {
+          "severity": "medium",
+          "title": "Withdrawal queue ordering",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "2022-08-compound-comet",
+          "url": "https://code4rena.com/reports/2022-08-olympus"
+        },
+        {
+          "severity": "medium",
+          "title": "Oracle staleness fallback gap",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "compound-v3-chainsec-2022",
+          "url": "https://chainsecurity.com/security-audit/compound-iii-comet"
+        },
+        {
+          "severity": "medium",
+          "title": "Index update can drift by 1 wei",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "compound-v3-oz-2022",
+          "url": "https://blog.openzeppelin.com/compound-comet-audit"
+        }
+      ]
+    },
+    "curve-finance": {
+      "protocol_slug": "curve-finance",
+      "total_audits": 4,
+      "auditors": [
+        "ChainSecurity",
+        "Community post-mortem",
+        "MixBytes",
+        "Trail of Bits"
+      ],
+      "total_critical": 1,
+      "total_high": 4,
+      "fixed_critical": 0,
+      "open_critical": 1,
+      "fixed_high": 3,
+      "open_high": 0,
+      "last_audit_date": "2024-01-15",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Vyper 0.2.15/0.2.16/0.3.0 reentrancy lock bug — drained CRV/ETH pools (~$73.5M)",
+          "status": "open",
+          "source": "bootstrap",
+          "contest_id": "curve-vyper-2023",
+          "url": "https://twitter.com/CurveFinance/status/1685693835484585985"
+        },
+        {
+          "severity": "high",
+          "title": "CryptoSwap oracle EMA window can be skewed",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "curve-crypto-mixbytes-2021",
+          "url": "https://github.com/mixbytes/audits_public/tree/master/Curve"
+        },
+        {
+          "severity": "high",
+          "title": "LLAMMA band liquidation timing",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "curve-llamalend-chainsec-2024",
+          "url": "https://chainsecurity.com/security-audit/curve-llamalend"
+        },
+        {
+          "severity": "high",
+          "title": "Stableswap invariant edge case at extreme imbalance",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "curve-tob-2020",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/curvefinance.pdf"
+        },
+        {
+          "severity": "high",
+          "title": "Multiple Vyper-compiled pools exposed simultaneously",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "curve-vyper-2023",
+          "url": "https://twitter.com/CurveFinance/status/1685693835484585985"
+        },
+        {
+          "severity": "medium",
+          "title": "Tricrypto fee precision",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "curve-crypto-mixbytes-2021",
+          "url": "https://github.com/mixbytes/audits_public/tree/master/Curve"
+        },
+        {
+          "severity": "medium",
+          "title": "Admin fee withdrawal centralisation",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "curve-tob-2020",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/curvefinance.pdf"
+        }
+      ]
+    },
+    "euler-v2": {
+      "protocol_slug": "euler-v2",
+      "total_audits": 3,
+      "auditors": [
+        "Code4rena",
+        "Community post-mortem",
+        "Spearbit"
+      ],
+      "total_critical": 2,
+      "total_high": 2,
+      "fixed_critical": 1,
+      "open_critical": 0,
+      "fixed_high": 2,
+      "open_high": 0,
+      "last_audit_date": "2024-06-20",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Donation attack via flash loan on V1 (~$197M, recovered) — V2 redesigned EVC",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "euler-v1-hack-2023",
+          "url": "https://blog.euler.finance/euler-hack-and-attack-recovery-eea03ba24d8a"
+        },
+        {
+          "severity": "critical",
+          "title": "Borrow accounting drift in nested EVK vaults (caught pre-launch)",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "euler-v2-spearbit-2024",
+          "url": "https://github.com/euler-xyz/euler-vault-kit/tree/master/audits"
+        },
+        {
+          "severity": "high",
+          "title": "EVC re-entrancy guard scope on nested calls",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2024-06-euler-v2",
+          "url": "https://code4rena.com/reports/2024-06-euler"
+        },
+        {
+          "severity": "high",
+          "title": "Price oracle adapter staleness check",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "euler-v2-spearbit-2024",
+          "url": "https://github.com/euler-xyz/euler-vault-kit/tree/master/audits"
+        },
+        {
+          "severity": "medium",
+          "title": "Vault hook ordering edge case",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2024-06-euler-v2",
+          "url": "https://code4rena.com/reports/2024-06-euler"
+        }
+      ]
+    },
+    "maker": {
+      "protocol_slug": "maker",
+      "total_audits": 3,
+      "auditors": [
+        "Community post-mortem",
+        "PeckShield",
+        "Trail of Bits"
+      ],
+      "total_critical": 1,
+      "total_high": 2,
+      "fixed_critical": 1,
+      "open_critical": 0,
+      "fixed_high": 2,
+      "open_high": 0,
+      "last_audit_date": "2020-03-12",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Black Thursday — keeper bots stalled, $0 collateral auctions (~$8M)",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "maker-black-thursday-2020",
+          "url": "https://forum.makerdao.com/t/black-thursday-response-thread/1433"
+        },
+        {
+          "severity": "high",
+          "title": "Auction keeper griefing window",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "maker-mcd-peckshield-2019",
+          "url": "https://github.com/makerdao/audits"
+        },
+        {
+          "severity": "high",
+          "title": "Vat liquidation accounting drift",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "maker-mcd-tob-2019",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/dappsys.pdf"
+        },
+        {
+          "severity": "medium",
+          "title": "Spotter price update centralisation",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "maker-mcd-tob-2019",
+          "url": "https://github.com/trailofbits/publications/blob/master/reviews/dappsys.pdf"
+        }
+      ]
+    },
+    "morpho": {
+      "protocol_slug": "morpho",
+      "total_audits": 3,
+      "auditors": [
+        "Code4rena",
+        "Spearbit"
+      ],
+      "total_critical": 1,
+      "total_high": 3,
+      "fixed_critical": 1,
+      "open_critical": 0,
+      "fixed_high": 3,
+      "open_high": 0,
+      "last_audit_date": "2024-02-19",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Reentrancy in callback during liquidation (pre-launch, never deployed)",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "morpho-spearbit-2023",
+          "url": "https://github.com/spearbit-audits/review-morpho"
+        },
+        {
+          "severity": "high",
+          "title": "Health factor uses stale price snapshot",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2023-07-morpho-blue",
+          "url": "https://code4rena.com/reports/2023-07-morpho-blue"
+        },
+        {
+          "severity": "high",
+          "title": "Vault fee recipient griefing",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2024-02-morpho-vaults",
+          "url": "https://code4rena.com/reports/2024-02-morpho-vaults"
+        },
+        {
+          "severity": "high",
+          "title": "Bad debt socialisation rounding",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "morpho-spearbit-2023",
+          "url": "https://github.com/spearbit-audits/review-morpho"
+        },
+        {
+          "severity": "medium",
+          "title": "Singleton market id collision",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2023-07-morpho-blue",
+          "url": "https://code4rena.com/reports/2023-07-morpho-blue"
+        },
+        {
+          "severity": "low",
+          "title": "Missing event on guardian change",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2024-02-morpho-vaults",
+          "url": "https://code4rena.com/reports/2024-02-morpho-vaults"
+        }
+      ]
+    },
+    "pendle": {
+      "protocol_slug": "pendle",
+      "total_audits": 3,
+      "auditors": [
+        "Code4rena",
+        "Community post-mortem",
+        "Spearbit"
+      ],
+      "total_critical": 0,
+      "total_high": 3,
+      "fixed_critical": 0,
+      "open_critical": 0,
+      "fixed_high": 2,
+      "open_high": 0,
+      "last_audit_date": "2024-09-03",
+      "findings": [
+        {
+          "severity": "high",
+          "title": "YT/PT rounding loss on early redemption",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2022-09-pendle",
+          "url": "https://code4rena.com/reports/2022-09-pendle"
+        },
+        {
+          "severity": "high",
+          "title": "SY wrapper exchange-rate manipulation",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "pendle-spearbit-2023",
+          "url": "https://github.com/spearbit-audits/review-pendle"
+        },
+        {
+          "severity": "high",
+          "title": "Pendle market registration reentrancy via Penpie aggregator (~$27M)",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "penpie-pendle-2024",
+          "url": "https://medium.com/magpiexyz/penpie-hack-post-mortem-3f96ab12f6f5"
+        },
+        {
+          "severity": "medium",
+          "title": "Market expiry timing assumption",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2022-09-pendle",
+          "url": "https://code4rena.com/reports/2022-09-pendle"
+        },
+        {
+          "severity": "medium",
+          "title": "Voting escrow APR drift",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "pendle-spearbit-2023",
+          "url": "https://github.com/spearbit-audits/review-pendle"
+        }
+      ]
+    },
+    "sky": {
+      "protocol_slug": "sky",
+      "total_audits": 3,
+      "auditors": [
+        "Cantina",
+        "ChainSecurity",
+        "Code4rena"
+      ],
+      "total_critical": 1,
+      "total_high": 3,
+      "fixed_critical": 1,
+      "open_critical": 0,
+      "fixed_high": 2,
+      "open_high": 0,
+      "last_audit_date": "2024-09-02",
+      "findings": [
+        {
+          "severity": "critical",
+          "title": "Migration freeze bypass via stale governance proxy",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "sky-chainsec-2024",
+          "url": "https://chainsecurity.com/security-audit/sky"
+        },
+        {
+          "severity": "high",
+          "title": "Savings rate accrual edge case on migration",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2024-06-sky",
+          "url": "https://code4rena.com/reports/2024-06-sky"
+        },
+        {
+          "severity": "high",
+          "title": "Cross-chain SKY supply reconciliation",
+          "status": "acknowledged",
+          "source": "bootstrap",
+          "contest_id": "sky-cantina-2024",
+          "url": "https://cantina.xyz/portfolio/sky"
+        },
+        {
+          "severity": "high",
+          "title": "sUSDS share price manipulation via donation",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "sky-chainsec-2024",
+          "url": "https://chainsecurity.com/security-audit/sky"
+        },
+        {
+          "severity": "medium",
+          "title": "USDS->DAI converter griefing",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2024-06-sky",
+          "url": "https://code4rena.com/reports/2024-06-sky"
+        }
+      ]
+    },
+    "uniswap-v3": {
+      "protocol_slug": "uniswap-v3",
+      "total_audits": 3,
+      "auditors": [
+        "ABDK",
+        "Code4rena",
+        "Trail of Bits"
+      ],
+      "total_critical": 0,
+      "total_high": 3,
+      "fixed_critical": 0,
+      "open_critical": 0,
+      "fixed_high": 3,
+      "open_high": 0,
+      "last_audit_date": "2022-06-15",
+      "findings": [
+        {
+          "severity": "high",
+          "title": "Permit2 signature replay vector",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2022-06-uniswap-permit2",
+          "url": "https://code4rena.com/reports/2022-06-uniswap-permit2"
+        },
+        {
+          "severity": "high",
+          "title": "Fee growth accounting in narrow ranges",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "uniswap-v3-abdk-2021",
+          "url": "https://github.com/Uniswap/v3-core/blob/main/audits/abdk/audit.pdf"
+        },
+        {
+          "severity": "high",
+          "title": "Tick math overflow at extreme price ranges",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "uniswap-v3-tob-2021",
+          "url": "https://github.com/Uniswap/v3-core/blob/main/audits/tob/audit.pdf"
+        },
+        {
+          "severity": "medium",
+          "title": "Allowance griefing via batched permits",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2022-06-uniswap-permit2",
+          "url": "https://code4rena.com/reports/2022-06-uniswap-permit2"
+        },
+        {
+          "severity": "medium",
+          "title": "Sqrt price rounding direction",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "uniswap-v3-abdk-2021",
+          "url": "https://github.com/Uniswap/v3-core/blob/main/audits/abdk/audit.pdf"
+        },
+        {
+          "severity": "medium",
+          "title": "Position manager NFT enumeration cost",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "uniswap-v3-tob-2021",
+          "url": "https://github.com/Uniswap/v3-core/blob/main/audits/tob/audit.pdf"
+        },
+        {
+          "severity": "low",
+          "title": "Unused constants",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "uniswap-v3-abdk-2021",
+          "url": "https://github.com/Uniswap/v3-core/blob/main/audits/abdk/audit.pdf"
+        }
+      ]
+    },
+    "yearn-v3": {
+      "protocol_slug": "yearn-v3",
+      "total_audits": 2,
+      "auditors": [
+        "Code4rena",
+        "MixBytes"
+      ],
+      "total_critical": 0,
+      "total_high": 2,
+      "fixed_critical": 0,
+      "open_critical": 0,
+      "fixed_high": 2,
+      "open_high": 0,
+      "last_audit_date": "2023-10-03",
+      "findings": [
+        {
+          "severity": "high",
+          "title": "TokenizedStrategy report() can be front-run",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2023-09-yearn-v3",
+          "url": "https://code4rena.com/reports/2023-09-yearn-v3"
+        },
+        {
+          "severity": "high",
+          "title": "Strategy debt reporting precision",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "yearn-v3-mixbytes-2023",
+          "url": "https://github.com/mixbytes/audits_public"
+        },
+        {
+          "severity": "medium",
+          "title": "Profit unlock timing off by 1 block",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "2023-09-yearn-v3",
+          "url": "https://code4rena.com/reports/2023-09-yearn-v3"
+        },
+        {
+          "severity": "low",
+          "title": "Missing zero-address guard on management",
+          "status": "fixed",
+          "source": "bootstrap",
+          "contest_id": "yearn-v3-mixbytes-2023",
+          "url": "https://github.com/mixbytes/audits_public"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_protocols": 10,
+    "total_findings": 62,
+    "open_critical_count": 1
+  }
+}
