@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T08:30:00Z",
-  "updated_by": "claude-agent (v2.4 sprint, BL-002 done)",
+  "last_updated": "2026-05-27T03:45:00Z",
+  "updated_by": "claude-agent (v2.8 sprint, BL-008 Phase 2 done — call-site migration: init_db delegates to abstraction, data_agent cleaned, 14/14 DB tests PASS)",
   "columns": {
     "ideas": [
       {
@@ -157,19 +157,6 @@
         "added": "2026-05-22"
       },
       {
-        "id": "BL-003",
-        "title": "Tester Agent Implementation",
-        "description": "Automated agent that generates pytest test cases for new modules, runs the full test suite, and reports failures to the message bus.",
-        "priority": "MEDIUM",
-        "estimate": "10h",
-        "tags": [
-          "backend",
-          "testing"
-        ],
-        "sprint": null,
-        "added": "2026-05-22"
-      },
-      {
         "id": "BL-004",
         "title": "Enable GitHub Pages (User Action)",
         "description": "One-time manual step: Settings → Pages → Source: GitHub Actions. Enables https://yurii-spa.github.io/SPA/ for dashboard and kanban.html.",
@@ -223,12 +210,14 @@
         "description": "Replace SQLite with PostgreSQL for production go-live. Alembic migrations, connection pooling, read replicas for dashboard queries. Pre-condition for v2.0.",
         "priority": "HIGH",
         "estimate": "16h",
+        "remaining_estimate": "4h",
         "tags": [
           "backend",
           "infra"
         ],
         "sprint": "v2.0",
-        "added": "2026-05-22"
+        "added": "2026-05-22",
+        "progress": "Phase 1 (scaffold) DONE — see SPA-T002. Phase 2 (call-site migration) DONE — see SPA-T003. Remaining: Phase 3 (Alembic + production cutover, ~4h)."
       }
     ],
     "in_progress": [],
@@ -1190,6 +1179,72 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/agents/architect_agent.py (ArchitectAgent class). Tests: spa_core/tests/test_architect_agent.py."
+      },
+      {
+        "id": "BL-003",
+        "title": "Tester Agent Implementation",
+        "description": "Automated agent that generates pytest test cases for new modules, runs the full test suite, and reports failures to the message bus.",
+        "priority": "MEDIUM",
+        "estimate": "10h",
+        "tags": [
+          "backend",
+          "testing"
+        ],
+        "sprint": "v2.5",
+        "added": "2026-05-22",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/agents/tester_agent.py (TesterAgent class — pure-Python phase 1: test discovery + run + failure reporting; no LLM test-generation yet). Tests: spa_core/tests/test_tester_agent.py (9 deterministic tests, all subprocess mocked)."
+      },
+      {
+        "id": "SPA-T001",
+        "title": "Unit tests for V3PendleFocusedStrategy (test_v3_pendle_focused.py)",
+        "description": "Closed test-coverage gap for SPA-V23-002 / IDEA-006. Previously v3_pendle_focused.py (447 LOC) had only integration coverage via test_tournament.py::TestV3Integration. Added direct unit tests for the strategy class.",
+        "priority": "HIGH",
+        "estimate": "2h",
+        "tags": [
+          "testing",
+          "backend"
+        ],
+        "sprint": "v2.6",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/tests/test_v3_pendle_focused.py — 38 deterministic unit tests across 7 test classes: TestAllocationDecisionDataclass (4), TestSelectBestPendle (8), TestShouldRotate (6), TestT1Allocation (6), TestComputeAllocation (7), TestStrategyConfig (5), TestBuildStrategyFactory (2). All 38 PASS in 0.05s. No DB, no network, pure-Python fixtures."
+      },
+      {
+        "id": "SPA-T003",
+        "title": "BL-008 Phase 2 — Call-site migration (init_db + data_agent → connection abstraction)",
+        "description": "Second phase of BL-008 PostgreSQL Migration. Migrated direct sqlite3.connect() call-sites to the dual-driver abstraction created in Phase 1. The legacy `database.init_db.get_connection(db_path)` is now a backwards-compatible delegator that builds a sqlite:/// URL when a Path is supplied, otherwise routes via env-resolved SPA_DATABASE_URL. init_database() gained a PostgreSQL branch (uses schema_postgres.sql + ON CONFLICT DO NOTHING). data_agent dropped a dead `import sqlite3`. defillama_fetcher already received connections externally — no changes. Goal: zero behavioural change in SQLite mode; PostgreSQL mode now boots end-to-end if SPA_DATABASE_URL=postgresql://... is set (still requires Phase 3 Alembic for prod). Phase 3 remaining: Alembic migrations + production cutover (~4h).",
+        "priority": "HIGH",
+        "estimate": "6h",
+        "tags": [
+          "backend",
+          "infra",
+          "testing"
+        ],
+        "sprint": "v2.8",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/database/init_db.py — get_connection() now delegates to spa_core.database.connection.get_connection() via a sqlite:/// URL built from the Path (back-compat preserved for engine.py and ~12 indirect consumers). init_database() routes by backend: SQLite path keeps sqlite3.executescript() bootstrap, Postgres path reads schema_postgres.sql + applies via psycopg2 cursor. _seed_protocols() takes a `backend` arg and switches between `INSERT OR IGNORE` (SQLite) and `INSERT ... ON CONFLICT (key) DO NOTHING` (Postgres). check_database() gained a PG fast path that returns table counts without a filesystem stat. spa_core/agents/data_agent.py — removed unused `import sqlite3`; import path updated comment. Tests: 14/14 test_db_abstraction.py PASS; 555/565 full spa_core/tests/ suite PASS (10 pre-existing failures unrelated to this sprint: Sharpe-1.0 stale assertions, missing anthropic/fastapi modules in test env). Smoke test confirms SQLite mode boots a 15-protocol DB end-to-end via the new code path."
+      },
+      {
+        "id": "SPA-T002",
+        "title": "BL-008 Phase 1 — PostgreSQL Migration Scaffold (DB abstraction + tests + ADR)",
+        "description": "First phase of BL-008 PostgreSQL Migration (architect_proposal pick). Env-driven dual-driver scaffold: SQLite stays default, PostgreSQL opt-in via SPA_DATABASE_URL. Existing call-sites untouched in this phase. Phase 2 will migrate sqlite3.connect → connection.get_connection. Phase 3 adds Alembic + production cutover.",
+        "priority": "HIGH",
+        "estimate": "5h",
+        "tags": [
+          "backend",
+          "infra",
+          "testing"
+        ],
+        "sprint": "v2.7",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/database/db_url.py (84 LOC) — env-driven URL resolver: get_db_url()/is_postgres()/is_sqlite()/get_sqlite_path(). spa_core/database/connection.py (95 LOC) — get_connection() ctx manager, lazy psycopg2 import, DriverNotInstalled(RuntimeError) subclass, sqlite3.Row vs RealDictCursor. spa_core/database/schema_postgres.sql (156 LOC) — PG port of schema.sql, SERIAL/TIMESTAMPTZ/DOUBLE PRECISION translations, all 7 tables + indexes + FKs preserved. spa_core/tests/test_db_abstraction.py — 14 deterministic tests (default URL, env override, is_postgres/is_sqlite, sqlite path extraction, connection row factory, psycopg2-missing graceful error). docs/ADR_005_postgres_migration_plan.md — 3-phase plan with alternatives & rollback. requirements.txt += psycopg2-binary>=2.9.0. Result: 14/14 PASS in 0.04s. No existing tests broken. BL-008 estimated ~30% complete."
       }
     ]
   }
