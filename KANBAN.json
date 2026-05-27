@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T16:00:00Z",
-  "updated_by": "claude-agent (Sprint v3.5 — Strategy Agent: strategy_registry, s1/s2/s3 strategies, multi_strategy_backtest, walk-forward validation, LLM-powered winner explanation)",
+  "last_updated": "2026-05-27T19:00:00Z",
+  "updated_by": "claude-agent (Sprint v3.6 — FEAT-004 Phase 2: Aave V3 read-only RPC integration — real eth_call decoding of getReserveData + aToken.balanceOf via stdlib urllib, 3-RPC fallback, [FALLBACK] degrade-to-mock safety)",
   "columns": {
     "ideas": [
       {
@@ -1411,6 +1411,19 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/execution/compound_v3_adapter.py (CompoundV3Adapter class). Tests: spa_core/tests/test_compound_v3_adapter.py (14 deterministic tests across 5 classes — TestAdapterInit / TestSupply / TestWithdraw / TestBalanceAPY / TestHealthCheck — all PASS in <0.1s, zero network). Docs: docs/ADR_007_compound_v3_live_sdk.md (3-phase rollout plan + rollback strategy)."
+      },
+      {
+        "id": "SPA-V36-001",
+        "title": "FEAT-004 Phase 2 — Aave V3 read-only RPC integration",
+        "description": "Second phase of FEAT-004 Aave V3 Live SDK Integration. Replaces the Phase 1 NOT_IMPLEMENTED stubs of get_supply_apy and get_supply_balance with real on-chain eth_call decoding when dry_run=False. Pure stdlib (urllib.request + json) — no web3.py, no requests, no eth_account. New _eth_call helper (5s timeout, DEBUG logging of RPC URL + selector), _call_with_fallback round-robin across the 3 endpoints per chain (URL fragment #aave-v3-pool:... stripped before POST), hardcoded selectors 0x35ea6a75 (getReserveData) + 0x70a08231 (balanceOf), canonical USDC/USDT/DAI token addresses for ethereum/arbitrum/base. APY decoded from currentLiquidityRate at struct slot 2 (RAY → %  via /1e25). Balance pipeline: getReserveData → aTokenAddress at struct slot 8 → balanceOf(SPA_WALLET_ADDRESS env) → scaled by 6 (USDC/USDT) or 18 (DAI) decimals. Production-safe fallback: ALL live-path exceptions logged as [FALLBACK] WARNING and degraded to the Phase 1 _MOCK_APYS / _MOCK_BALANCES value (pipeline never crashes if an RPC flakes or wallet env is missing). Write methods (supply / withdraw) still NOT_IMPLEMENTED — Phase 3 will add eth_account signing + raw eth_sendRawTransaction.",
+        "priority": "HIGH",
+        "estimate": "4h",
+        "tags": ["backend", "execution"],
+        "sprint": "v3.6",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-27",
+        "implementation": "spa_core/execution/aave_v3_adapter.py — added TOKEN_ADDRESSES (3 chains × 3 stables), TOKEN_DECIMALS, SELECTOR_GET_RESERVE_DATA, SELECTOR_BALANCE_OF, RPC_TIMEOUT_SECONDS; _strip_fragment / _pad_address / _eth_call / _call_with_fallback / _balance_of_with_fallback / _get_reserve_data_hex; live paths in get_supply_apy + get_supply_balance with [FALLBACK] degrade-to-mock policy. Tests: spa_core/tests/test_aave_v3_adapter_phase2.py — 15 deterministic tests across 4 classes (TestEthCallHelper×4, TestFallbackRouting×3, TestGetSupplyApyLive×4, TestGetSupplyBalanceLive×4); all PASS in 0.04s, zero network (every urlopen call patched). Regression: Phase 1 test_aave_v3_adapter.py 13/13 still PASS — dry_run=True path byte-identical."
       }
     ]
   }
