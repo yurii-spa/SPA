@@ -656,6 +656,66 @@
   body.night .sys-card { background: #13132a; border-color: #252540; }
   body.night .freshness-row { border-bottom-color: #252540; }
   @media (max-width: 768px) { .sys-grid { grid-template-columns: 1fr !important; } }
+
+  /* ══════════════ Agent Operations Center v1.6 ══════════════ */
+  .ops-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+  .ops-title { font-size:18px; font-weight:700; color:#e2e8f0; letter-spacing:-.01em; }
+  .ops-subtitle { font-size:11px; color:#6b7280; margin-top:3px; letter-spacing:.05em; }
+  .ops-live-badge { display:flex; align-items:center; gap:7px; background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.28); border-radius:20px; padding:5px 14px; font-size:10px; font-weight:700; letter-spacing:.07em; color:#34d399; }
+  @keyframes ops-pulse { 0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(16,185,129,.5)} 60%{opacity:.85;transform:scale(1.15);box-shadow:0 0 0 6px rgba(16,185,129,0)} }
+  .ops-live-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:ops-pulse 2s ease-in-out infinite; flex-shrink:0; }
+
+  .ops-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:20px; }
+  @media(max-width:700px){.ops-grid{grid-template-columns:1fr}}
+
+  .ops-card { background:rgba(8,10,26,0.97); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; gap:11px; transition:border-color .22s, box-shadow .22s; }
+  .ops-card:hover { border-color:rgba(255,255,255,0.18); box-shadow:0 4px 28px rgba(0,0,0,0.5); }
+
+  .ops-card-top { display:flex; align-items:center; gap:12px; }
+  .ops-card-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ops-card-icon svg { width:22px; height:22px; }
+  .ops-card-meta { flex:1; min-width:0; }
+  .ops-card-name { font-size:14px; font-weight:700; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ops-card-role { font-size:11px; color:#9ca3af; margin-top:2px; }
+
+  .ops-status-row { display:flex; align-items:center; gap:8px; }
+  .ops-status { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; letter-spacing:.06em; padding:3px 9px; border-radius:20px; }
+  .ops-status.active  { background:rgba(16,185,129,.10); color:#34d399; border:1px solid rgba(16,185,129,.25); }
+  .ops-status.waiting { background:rgba(245,158,11,.10); color:#fbbf24; border:1px solid rgba(245,158,11,.22); }
+  .ops-status.offline { background:rgba(107,114,128,.10); color:#9ca3af; border:1px solid rgba(107,114,128,.2); }
+  .ops-status .ops-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .ops-status.active  .ops-dot { background:#10b981; animation:ops-pulse 2s ease-in-out infinite; }
+  .ops-status.waiting .ops-dot { background:#f59e0b; }
+  .ops-status.offline .ops-dot { background:#6b7280; }
+  .ops-status-label { font-size:10px; color:#4b5563; }
+
+  .ops-task { background:rgba(255,255,255,0.035); border-radius:8px; padding:8px 11px; font-size:11px; color:#94a3b8; font-family:'SF Mono',monospace; min-height:30px; border-left:3px solid; line-height:1.5; }
+
+  .ops-schedule { display:flex; flex-direction:column; gap:5px; }
+  .ops-sch-item { display:flex; align-items:baseline; gap:7px; font-size:11px; color:#6b7280; }
+  .ops-sch-freq { font-size:10px; font-weight:600; color:#374151; background:rgba(255,255,255,0.05); border-radius:4px; padding:1px 6px; white-space:nowrap; flex-shrink:0; }
+  .ops-sch-desc { color:#6b7280; }
+
+  .ops-card-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.06); padding-top:11px; }
+  .ops-last-action { font-size:10px; color:#4b5563; line-height:1.4; }
+  .ops-last-time { color:#6b7280; }
+  .ops-detail-btn { background:none; border:1px solid rgba(255,255,255,0.11); border-radius:6px; padding:4px 13px; font-size:11px; color:#9ca3af; cursor:pointer; transition:all .2s; white-space:nowrap; }
+  .ops-detail-btn:hover { border-color:rgba(255,255,255,0.3); color:#e2e8f0; background:rgba(255,255,255,0.06); }
+
+  /* Architecture diagram */
+  .ops-arch { background:rgba(6,8,20,0.97); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:18px 20px 20px; margin-bottom:16px; }
+  .ops-arch-title { font-size:10px; font-weight:700; letter-spacing:.09em; color:#6b7280; margin-bottom:16px; text-transform:uppercase; }
+  .ops-arch-svg { width:100%; max-width:680px; display:block; margin:0 auto; }
+
+  /* Activity feed */
+  .ops-feed { background:rgba(6,8,20,0.97); border:1px solid rgba(255,255,255,0.07); border-radius:12px; overflow:hidden; margin-top:14px; }
+  .ops-feed-hdr { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.06); font-size:10px; font-weight:700; letter-spacing:.08em; color:#60a5fa; background:rgba(0,0,0,0.2); }
+  .ops-feed-list { max-height:200px; overflow-y:auto; padding:6px 0; }
+  .ops-feed-item { display:flex; align-items:baseline; gap:8px; padding:5px 14px; font-size:11px; border-bottom:1px solid rgba(255,255,255,0.03); }
+  .ops-feed-item:last-child { border-bottom:none; }
+  .ops-feed-time { color:#374151; font-family:monospace; flex-shrink:0; font-size:10px; }
+  .ops-feed-agent { font-weight:700; flex-shrink:0; }
+  .ops-feed-msg { color:#94a3b8; }
 </style>
 </head>
 <body>
@@ -990,7 +1050,17 @@
 <!-- ══════════════════ TAB: КОМАНДА ══════════════════ -->
 <div id="tab-team" class="tab-pane">
 
-  <p class="section-label">АГЕНТ-КОМАНДА — офис v0.4.5</p>
+  <!-- ── Заголовок операционного центра ── -->
+  <div class="ops-header">
+    <div>
+      <div class="ops-title">Операционный центр агентов</div>
+      <div class="ops-subtitle">Agent Operations Center · v1.6 · бумажный трейдинг · $100K USDC</div>
+    </div>
+    <div class="ops-live-badge">
+      <span class="ops-live-dot"></span>
+      PAPER TRADING АКТИВЕН
+    </div>
+  </div>
 
   <!-- ── Daily Commentary (agent_summaries.json) ── -->
   <div id="agent-commentary-section" style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap">
@@ -1006,165 +1076,221 @@
     </div>
   </div>
 
-  <div class="office-wrap">
-    <div class="office-toolbar">
-      <span id="office-time-label" style="color:#666;font-size:11px">🏢 офис · день</span>
-      <button id="night-toggle" class="night-btn" onclick="toggleNightMode()">🌙 Ночь</button>
-    </div>
-    <canvas id="spa-office" width="640" height="400"></canvas>
-    <!-- Activity Log Panel v0.8 -->
-    <div id="activity-log-panel" class="activity-log-panel">
-      <div class="log-panel-header">
-        <span>📡 АКТИВНОСТЬ АГЕНТОВ</span>
-        <button class="log-panel-close" onclick="toggleActivityLog()">✕</button>
-      </div>
-      <div id="log-entries" class="log-entries"></div>
-      <div class="log-chat-wrap">
-        <input id="log-chat-input" class="log-chat-input" type="text"
-          placeholder="Спросить агента… (apy, risk, cash, maple)"
-          onkeydown="handleAgentChat(event)">
-      </div>
-    </div>
-    <button id="log-toggle-btn" class="log-toggle-btn" onclick="toggleActivityLog()" title="Лог активности агентов">🔔</button>
+  <!-- ── Сетка агент-карточек ── -->
+  <div class="ops-grid">
 
-    <!-- Decision Log Panel (left side) -->
-    <div id="decision-log-panel" style="position:absolute;bottom:0;left:0;width:300px;max-height:320px;background:rgba(8,8,24,0.97);border:1px solid rgba(255,255,255,0.09);border-radius:0 10px 0 0;display:flex;flex-direction:column;z-index:9;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(10px);">
-      <div class="log-panel-header">
-        <span>📋 AGENT DECISION LOG</span>
-        <button class="log-panel-close" onclick="toggleDecisionLog()">✕</button>
-      </div>
-      <div style="padding:6px 10px 4px;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.07)">
-        <div style="display:flex;gap:4px;flex-wrap:wrap" id="dec-filter-btns">
-          <button onclick="filterDecisions(this,'all')" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:2px 8px;font-size:10px;color:#ccc;cursor:pointer">ALL</button>
-          <button onclick="filterDecisions(this,'ALLOCATE')" style="background:none;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:2px 8px;font-size:10px;color:#10B981;cursor:pointer">ALLOCATE</button>
-          <button onclick="filterDecisions(this,'PASS')" style="background:none;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:2px 8px;font-size:10px;color:#6b7280;cursor:pointer">PASS</button>
-          <button onclick="filterDecisions(this,'ALERT')" style="background:none;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:2px 8px;font-size:10px;color:#ef4444;cursor:pointer">ALERT</button>
+    <!-- Агент данных -->
+    <div class="ops-card" id="ops-card-data">
+      <div class="ops-card-top">
+        <div class="ops-card-icon" style="background:rgba(59,130,246,0.15)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="ops-card-meta">
+          <div class="ops-card-name">Агент данных</div>
+          <div class="ops-card-role">DeFiLlama · Pendle · 12 пулов</div>
         </div>
       </div>
-      <div id="decision-entries" class="log-entries"></div>
+      <div class="ops-status-row">
+        <div class="ops-status active" id="ops-status-data"><span class="ops-dot"></span>АКТИВЕН</div>
+        <div class="ops-status-label">Gemini 2.5 Flash-Lite</div>
+      </div>
+      <div class="ops-task" id="ops-task-data" style="border-left-color:#3B82F6">
+        Сканирование протоколов DeFi · APY/TVL обновление…
+      </div>
+      <div class="ops-schedule">
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Сканирование APY/TVL всех протоколов</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Обновление Pendle PT пулов (7 quality gates)</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">1 ч</span><span class="ops-sch-desc">Проверка Sky/sUSDS GSM Pause Delay</span></div>
+      </div>
+      <div class="ops-card-footer">
+        <div class="ops-last-action">
+          <div class="ops-last-time" id="ops-lasttime-data">—</div>
+          <div id="ops-lastmsg-data" style="color:#6b7280">Ожидание событий…</div>
+        </div>
+        <button class="ops-detail-btn" onclick="openAgentModal('data')">Подробнее</button>
+      </div>
     </div>
-    <button onclick="toggleDecisionLog()" title="Agent Decision Log" style="position:absolute;bottom:56px;left:12px;width:36px;height:36px;border-radius:50%;background:rgba(24,95,165,0.85);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.45);transition:background .2s">📋</button>
+
+    <!-- Агент стратегии -->
+    <div class="ops-card" id="ops-card-strategy">
+      <div class="ops-card-top">
+        <div class="ops-card-icon" style="background:rgba(16,185,129,0.15)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </div>
+        <div class="ops-card-meta">
+          <div class="ops-card-name">Агент стратегии</div>
+          <div class="ops-card-role">v1_passive · auto_allocate · Kelly+MVO</div>
+        </div>
+      </div>
+      <div class="ops-status-row">
+        <div class="ops-status active" id="ops-status-strategy"><span class="ops-dot"></span>АКТИВЕН</div>
+        <div class="ops-status-label">Gemini 2.5 Flash</div>
+      </div>
+      <div class="ops-task" id="ops-task-strategy" style="border-left-color:#10B981">
+        APY-скоринг протоколов · аллокация по бюджету…
+      </div>
+      <div class="ops-schedule">
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Ранжирование APY и авто-аллокация капитала</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Kelly + Markowitz оптимизация весов</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Ребалансировка по Risk Policy v1.0</span></div>
+      </div>
+      <div class="ops-card-footer">
+        <div class="ops-last-action">
+          <div class="ops-last-time" id="ops-lasttime-strategy">—</div>
+          <div id="ops-lastmsg-strategy" style="color:#6b7280">Ожидание событий…</div>
+        </div>
+        <button class="ops-detail-btn" onclick="openAgentModal('strategy')">Подробнее</button>
+      </div>
+    </div>
+
+    <!-- Монитор рисков -->
+    <div class="ops-card" id="ops-card-monitor">
+      <div class="ops-card-top">
+        <div class="ops-card-icon" style="background:rgba(139,92,246,0.15)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="ops-card-meta">
+          <div class="ops-card-name">Монитор рисков</div>
+          <div class="ops-card-role">VaR · Drawdown · Kill-switch · Алерты</div>
+        </div>
+      </div>
+      <div class="ops-status-row">
+        <div class="ops-status active" id="ops-status-monitor"><span class="ops-dot"></span>АКТИВЕН</div>
+        <div class="ops-status-label">Claude Haiku 4.5</div>
+      </div>
+      <div class="ops-task" id="ops-task-monitor" style="border-left-color:#8B5CF6">
+        Мониторинг VaR и концентрации позиций…
+      </div>
+      <div class="ops-schedule">
+        <div class="ops-sch-item"><span class="ops-sch-freq">непрерывно</span><span class="ops-sch-desc">Проверка drawdown / kill-switch</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">VaR 95% · горизонт 7 дней</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Концентрация T1/T2 · лимиты цепочек</span></div>
+      </div>
+      <div class="ops-card-footer">
+        <div class="ops-last-action">
+          <div class="ops-last-time" id="ops-lasttime-monitor">—</div>
+          <div id="ops-lastmsg-monitor" style="color:#6b7280">Ожидание событий…</div>
+        </div>
+        <button class="ops-detail-btn" onclick="openAgentModal('monitor')">Подробнее</button>
+      </div>
+    </div>
+
+    <!-- CEO-агент -->
+    <div class="ops-card" id="ops-card-ceo">
+      <div class="ops-card-top">
+        <div class="ops-card-icon" style="background:rgba(245,158,11,0.15)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M9 12l1.5 2L12 11l1.5 3 1.5-2"/>
+          </svg>
+        </div>
+        <div class="ops-card-meta">
+          <div class="ops-card-name">CEO-агент</div>
+          <div class="ops-card-role">Оркестрация · Одобрение · Risk Policy</div>
+        </div>
+      </div>
+      <div class="ops-status-row">
+        <div class="ops-status active" id="ops-status-ceo"><span class="ops-dot"></span>АКТИВЕН</div>
+        <div class="ops-status-label">Claude Sonnet 4.6</div>
+      </div>
+      <div class="ops-task" id="ops-task-ceo" style="border-left-color:#F59E0B">
+        Оркестрация цикла · финальное одобрение сделок…
+      </div>
+      <div class="ops-schedule">
+        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Финальное одобрение / HOLD / REJECT сделок</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">24 ч</span><span class="ops-sch-desc">Генерация PDF-отчёта (ReportLab)</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">24 ч</span><span class="ops-sch-desc">Go-live readiness check (11 критериев)</span></div>
+      </div>
+      <div class="ops-card-footer">
+        <div class="ops-last-action">
+          <div class="ops-last-time" id="ops-lasttime-ceo">—</div>
+          <div id="ops-lastmsg-ceo" style="color:#6b7280">Ожидание событий…</div>
+        </div>
+        <button class="ops-detail-btn" onclick="openAgentModal('ceo')">Подробнее</button>
+      </div>
+    </div>
+
+  </div><!-- /ops-grid -->
+
+  <!-- ── Архитектура системы ── -->
+  <div class="ops-arch">
+    <div class="ops-arch-title">Архитектура агентной системы</div>
+    <svg class="ops-arch-svg" viewBox="0 0 680 110" xmlns="http://www.w3.org/2000/svg">
+      <!-- Nodes -->
+      <!-- Data -->
+      <rect x="4" y="28" width="110" height="54" rx="8" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.45)" stroke-width="1.2"/>
+      <text x="59" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#3B82F6" font-family="monospace">DATA AGENT</text>
+      <text x="59" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">DeFiLlama</text>
+      <text x="59" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Pendle · Sky</text>
+      <!-- Arrow Data→Strategy -->
+      <line x1="114" y1="55" x2="152" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <!-- Strategy -->
+      <rect x="154" y="28" width="118" height="54" rx="8" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.45)" stroke-width="1.2"/>
+      <text x="213" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#10B981" font-family="monospace">STRATEGY</text>
+      <text x="213" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Kelly + MVO</text>
+      <text x="213" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">auto_allocate()</text>
+      <!-- Arrow Strategy→Risk -->
+      <line x1="272" y1="55" x2="310" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <!-- Risk -->
+      <rect x="312" y="28" width="118" height="54" rx="8" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.45)" stroke-width="1.2"/>
+      <text x="371" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#8B5CF6" font-family="monospace">RISK POLICY</text>
+      <text x="371" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">VaR · Drawdown</text>
+      <text x="371" y="75" text-anchor="middle" font-size="9" fill="#ef4444" font-family="monospace">LLM FORBIDDEN</text>
+      <!-- Arrow Risk→CEO -->
+      <line x1="430" y1="55" x2="468" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <!-- CEO -->
+      <rect x="470" y="28" width="100" height="54" rx="8" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.45)" stroke-width="1.2"/>
+      <text x="520" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#F59E0B" font-family="monospace">CEO AGENT</text>
+      <text x="520" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Approve/HOLD</text>
+      <text x="520" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">REJECT</text>
+      <!-- Arrow CEO→Execute -->
+      <line x1="570" y1="55" x2="608" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <!-- Execute -->
+      <rect x="610" y="28" width="66" height="54" rx="8" fill="rgba(107,114,128,0.10)" stroke="rgba(107,114,128,0.35)" stroke-width="1.2"/>
+      <text x="643" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#9ca3af" font-family="monospace">EXECUTE</text>
+      <text x="643" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Paper</text>
+      <text x="643" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Trade</text>
+      <!-- API sources label -->
+      <text x="59" y="18" text-anchor="middle" font-size="8" fill="#374151" font-family="monospace">DeFiLlama API</text>
+      <line x1="59" y1="20" x2="59" y2="28" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="3,2"/>
+      <!-- Arrow defs -->
+      <defs>
+        <marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="rgba(255,255,255,0.25)"/>
+        </marker>
+      </defs>
+    </svg>
   </div>
 
-  <!-- HIDDEN legacy bot SVGs (kept for CSS animations, not shown) -->
-  <div style="display:none">
-    <div class="agent-card">
-      <svg class="pixel-bot bot-data" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
-        <rect x="3" y="0" width="2" height="1" fill="#93C5FD" class="ant-data"/>
-        <rect x="1" y="1" width="6" height="4" fill="#1e3a8a"/>
-        <rect x="2" y="2" width="1" height="1" fill="#BFDBFE"/>
-        <rect x="5" y="2" width="1" height="1" fill="#BFDBFE"/>
-        <rect x="3" y="3" width="2" height="1" fill="#3B82F6"/>
-        <rect x="3" y="5" width="2" height="1" fill="#1e3a8a"/>
-        <rect x="0" y="6" width="1" height="3" fill="#1e3a8a"/>
-        <rect x="7" y="6" width="1" height="3" fill="#1e3a8a"/>
-        <rect x="2" y="6" width="4" height="3" fill="#1D4ED8"/>
-        <rect x="3" y="7" width="2" height="1" fill="#60A5FA"/>
-        <rect x="2" y="9" width="1" height="1" fill="#1e3a8a"/>
-        <rect x="5" y="9" width="1" height="1" fill="#1e3a8a"/>
-        <rect x="1" y="10" width="2" height="1" fill="#1e3a8a"/>
-        <rect x="5" y="10" width="2" height="1" fill="#1e3a8a"/>
-      </svg>
-      <div class="agent-name">Data Agent</div>
-      <div class="agent-role">DeFiLlama · 15 протоколов</div>
-      <span class="agent-status running">● работает</span>
-      <div class="agent-tasks">Каждые 4ч fetch APY/TVL<br>Сохраняет снапшоты в SQLite<br>→ MessageBus: data_fetched</div>
-    </div>
-    <div class="agent-card">
-      <!-- StrategyBot: зелёный, торгует, антенна мигает средне -->
-      <svg class="pixel-bot bot-strategy" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
-        <rect x="3" y="0" width="2" height="1" fill="#34D399" class="ant-strategy"/>
-        <rect x="1" y="1" width="6" height="4" fill="#064e3b"/>
-        <rect x="2" y="2" width="1" height="1" fill="#A7F3D0"/>
-        <rect x="5" y="2" width="1" height="1" fill="#A7F3D0"/>
-        <rect x="3" y="3" width="2" height="1" fill="#10B981"/>
-        <rect x="3" y="5" width="2" height="1" fill="#064e3b"/>
-        <rect x="0" y="6" width="1" height="3" fill="#064e3b"/>
-        <rect x="7" y="6" width="1" height="3" fill="#064e3b"/>
-        <rect x="2" y="6" width="4" height="3" fill="#065F46"/>
-        <rect x="3" y="7" width="2" height="1" fill="#34D399"/>
-        <rect x="2" y="9" width="1" height="1" fill="#064e3b"/>
-        <rect x="5" y="9" width="1" height="1" fill="#064e3b"/>
-        <rect x="1" y="10" width="2" height="1" fill="#064e3b"/>
-        <rect x="5" y="10" width="2" height="1" fill="#064e3b"/>
-      </svg>
-      <div class="agent-name">Strategy Agent</div>
-      <div class="agent-role">v1_passive · auto_allocate</div>
-      <span class="agent-status running">● работает</span>
-      <div class="agent-tasks">Читает APY → ранжирует<br>auto_allocate() по бюджету<br>→ MessageBus: trade_opened</div>
-    </div>
-    <div class="agent-card">
-      <!-- MonitorBot: фиолетовый, следит за рисками, антенна мигает быстро -->
-      <svg class="pixel-bot bot-monitor" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
-        <rect x="3" y="0" width="2" height="1" fill="#C4B5FD" class="ant-monitor"/>
-        <rect x="1" y="1" width="6" height="4" fill="#3B0764"/>
-        <rect x="2" y="2" width="1" height="1" fill="#DDD6FE"/>
-        <rect x="5" y="2" width="1" height="1" fill="#DDD6FE"/>
-        <rect x="3" y="3" width="2" height="1" fill="#8B5CF6"/>
-        <rect x="3" y="5" width="2" height="1" fill="#3B0764"/>
-        <rect x="0" y="6" width="1" height="3" fill="#3B0764"/>
-        <rect x="3" y="7" width="2" height="1" fill="#C4B5FD"/>
-        <rect x="2" y="9" width="1" height="1" fill="#3B0764"/>
-        <rect x="5" y="9" width="1" height="1" fill="#3B0764"/>
-        <rect x="1" y="10" width="2" height="1" fill="#3B0764"/>
-        <rect x="5" y="10" width="2" height="1" fill="#3B0764"/>
-      </svg>
-      <div class="agent-name">Monitor Agent</div>
-      <div class="agent-role">HealthCheck · AlertEngine</div>
-      <span class="agent-status running">● работает</span>
-      <div class="agent-tasks">Проверяет VaR / drawdown<br>Alert при нарушении риска<br>→ MessageBus: alert_fired</div>
-    </div>
-    <div class="agent-card">
-      <!-- CEOBot: тёмный с красным галстуком, одобряет сделки, антенна редко мигает -->
-      <svg class="pixel-bot bot-ceo" viewBox="0 0 8 11" xmlns="http://www.w3.org/2000/svg">
-        <rect x="3" y="0" width="2" height="1" fill="#F9FAFB" class="ant-ceo"/>
-        <rect x="1" y="1" width="6" height="4" fill="#1F2937"/>
-        <rect x="2" y="2" width="1" height="1" fill="#E5E7EB"/>
-        <rect x="5" y="2" width="1" height="1" fill="#E5E7EB"/>
-        <rect x="3" y="3" width="2" height="1" fill="#6B7280"/>
-        <rect x="2" y="5" width="1" height="1" fill="#E5E7EB"/>
-        <rect x="3" y="5" width="2" height="1" fill="#1F2937"/>
-        <rect x="5" y="5" width="1" height="1" fill="#E5E7EB"/>
-        <rect x="0" y="6" width="1" height="3" fill="#1F2937"/>
-        <rect x="7" y="6" width="1" height="3" fill="#1F2937"/>
-        <rect x="2" y="6" width="4" height="3" fill="#374151"/>
-        <rect x="4" y="6" width="1" height="3" fill="#B91C1C"/>
-        <rect x="2" y="9" width="1" height="1" fill="#1F2937"/>
-        <rect x="5" y="9" width="1" height="1" fill="#1F2937"/>
-        <rect x="1" y="10" width="2" height="1" fill="#1F2937"/>
-        <rect x="5" y="10" width="2" height="1" fill="#1F2937"/>
-      </svg>
-      <div class="agent-name">CEO Agent</div>
-      <div class="agent-role">Approve / HOLD / REJECT</div>
-      <span class="agent-status running">● работает</span>
-      <div class="agent-tasks">RiskPolicy.check_new_position<br>Финальное одобрение сделок<br>→ блокирует при нарушении</div>
-    </div>
-  </div><!-- /hidden legacy -->
-
-  <!-- Stack -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <!-- ── Стек и Роадмап ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
     <div class="team-stack">
       <div class="flow-title">технический стек</div>
       <div class="stack-row"><span class="stack-label">Оркестрация</span><span class="stack-value">LangGraph (5 нод)</span></div>
-      <div class="stack-row"><span class="stack-label">LLM</span><span class="stack-value">GPT-4o mini / Claude</span></div>
+      <div class="stack-row"><span class="stack-label">LLM</span><span class="stack-value">Claude Sonnet 4.6 / Gemini 2.5</span></div>
       <div class="stack-row"><span class="stack-label">База данных</span><span class="stack-value">SQLite + WAL</span></div>
-      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama API</span></div>
+      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama API · Pendle API</span></div>
       <div class="stack-row"><span class="stack-label">CI/CD</span><span class="stack-value">GitHub Actions (4h)</span></div>
-      <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · React + Vite</span></div>
+      <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · HTML/JS</span></div>
       <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скоро</span></span></div>
     </div>
     <div class="team-stack">
       <div class="flow-title">дорожная карта</div>
-      <div class="stack-row"><span class="stack-label">v0.3 ✓</span><span class="stack-value">Pipeline + Paper Trading $100K</span></div>
-      <div class="stack-row"><span class="stack-label">v0.4 ✓</span><span class="stack-value">Live Dashboard + React Trades</span></div>
-      <div class="stack-row"><span class="stack-label">v0.4.5 ●</span><span class="stack-value">Pixel Art боты (сейчас)</span></div>
-      <div class="stack-row"><span class="stack-label">v0.5</span><span class="stack-value">CopilotKit / AG-UI стриминг</span></div>
-      <div class="stack-row"><span class="stack-label">v1.0</span><span class="stack-value">Go-Live ~2026-07-15</span></div>
+      <div class="stack-row"><span class="stack-label">v1.0–v1.3 ✓</span><span class="stack-value">Pipeline · Pendle · Analytics</span></div>
+      <div class="stack-row"><span class="stack-label">v1.4–v1.5 ✓</span><span class="stack-value">Daily reports · Sky monitor · Dashboard v2</span></div>
+      <div class="stack-row"><span class="stack-label">v1.6 ●</span><span class="stack-value">Agent Ops Center · Kanban · 140 тестов</span></div>
+      <div class="stack-row"><span class="stack-label">v1.7</span><span class="stack-value">PostgreSQL · Mac Mini сервер</span></div>
+      <div class="stack-row"><span class="stack-label">v2.0</span><span class="stack-value">Go-Live ~2026-07-15 · Реальный капитал</span></div>
       <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный</span></div>
     </div>
   </div>
 
-  <!-- ── Agent Activity Stream Log (SSE real-time feed) v0.8 ── -->
+  <!-- ── Лента активности агентов (SSE) ── -->
   <div class="agent-stream-log">
     <div class="agent-stream-log-header">
       <span id="agent-stream-log-hdr" style="transition:color .4s">📡 STREAM АГЕНТОВ — РЕАЛЬНОЕ ВРЕМЯ</span>
@@ -1175,6 +1301,23 @@
         Нет событий · запустите <code style="font-size:10px">uvicorn spa_core.api.server:app --port 8765</code> и <code style="font-size:10px">python spa_core/export_data.py</code>
       </div>
     </div>
+  </div>
+
+  <!-- HIDDEN: activity/decision log panels (не привязаны к canvas, остаются в DOM) -->
+  <div id="activity-log-panel" class="activity-log-panel" style="display:none">
+    <div class="log-panel-header">
+      <span>📡 АКТИВНОСТЬ АГЕНТОВ</span>
+      <button class="log-panel-close" onclick="toggleActivityLog()">✕</button>
+    </div>
+    <div id="log-entries" class="log-entries"></div>
+    <div class="log-chat-wrap">
+      <input id="log-chat-input" class="log-chat-input" type="text"
+        placeholder="Спросить агента… (apy, risk, cash, maple)"
+        onkeydown="handleAgentChat(event)">
+    </div>
+  </div>
+  <div id="decision-log-panel" style="display:none">
+    <div id="decision-entries" class="log-entries"></div>
   </div>
 
 </div><!-- /tab-team -->
@@ -4180,12 +4323,23 @@ function _btStopPlay() {
 
 // ─── Pixel Office simulation v0.6 (pixel-agents style) ───────────────────────
 function initOffice() {
-  const canvas = document.getElementById('spa-office');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  canvas.width = 640; canvas.height = 400;
+  // Canvas removed in v1.6 — Agent Operations Center replaces pixel art office.
+  // This function is kept for backward-compat: it still sets up window._spa_agents
+  // so the SSE handler (_handleAgentEvent) can inject live thought-bubble messages
+  // into agent cards via ag.bubbleMsg.
+
   const CW=640, CH=400, TILE=32, COLS=20, ROWS=12;
   let frame=0;
+  // Legacy canvas — no longer in DOM; all canvas operations below are no-ops
+  const canvas = null;
+  const ctx = { fillStyle:'', strokeStyle:'', lineWidth:1, font:'', textAlign:'left',
+    globalAlpha:1, shadowColor:'', shadowBlur:0, shadowOffsetY:0,
+    fillRect:()=>{}, strokeRect:()=>{}, clearRect:()=>{},
+    beginPath:()=>{}, closePath:()=>{}, moveTo:()=>{}, lineTo:()=>{},
+    arc:()=>{}, ellipse:()=>{}, arcTo:()=>{}, fill:()=>{}, stroke:()=>{},
+    fillText:()=>{}, measureText:()=>({width:0}),
+    drawImage:()=>{}, createRadialGradient:()=>({addColorStop:()=>{}}),
+    save:()=>{}, restore:()=>{}, translate:()=>{}, scale:()=>{} };
 
   // ── Sprites from jsDelivr CDN (MIT, pixel-agents by pablodelucca) ──────────
   // PNG: 112×96px = 7 frames × 3 direction-rows, each frame 16×32 native
@@ -4532,67 +4686,58 @@ function initOffice() {
     }
   }
 
-  // ── Canvas click → agent popup ────────────────────────────────────────────
-  canvas.addEventListener('click', e=>{
-    const rect=canvas.getBoundingClientRect();
-    const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-    const cx=(e.clientX-rect.left)*scaleX;
-    const cy=(e.clientY-rect.top)*scaleY;
-    let hit=null, minDist=Infinity;
-    for(const ag of Object.values(agents)){
-      const d=Math.hypot(ag.x-cx,ag.y-cy);
-      if(d<36&&d<minDist){minDist=d;hit=ag;}
-    }
-    if(hit) openAgentModal(hit.id);
-  });
-
-  function drawStatusDots(){
-    // Draw SSE live-activity dots: green = event in last 10s, gray = idle
-    const now = Date.now();
-    for(const ag of Object.values(agents)){
-      const lastEvt = window._spa_agentLastEvent && window._spa_agentLastEvent[ag.id];
-      const isActive = lastEvt && (now - lastEvt) < 10000;
-      const ax = Math.round(ag.x), ay = Math.round(ag.y);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(ax + 13, ay - 44, 4, 0, Math.PI * 2);
-      ctx.fillStyle = isActive ? '#22c55e' : '#374151';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      // Pulse ring when active
-      if(isActive){
-        const age = (now - lastEvt) / 10000;   // 0→1 over 10s
-        const ringAlpha = Math.max(0, 0.6 * (1 - age));
-        ctx.beginPath();
-        ctx.arc(ax + 13, ay - 44, 4 + age * 6, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(34,197,94,${ringAlpha})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
+  // ── No canvas click handler (canvas removed in v1.6) ─────────────────────
+  // ── No render loop (canvas removed in v1.6) ───────────────────────────────
+  // Still run thought-bubble logic so logActivity() feeds the stream panel
+  function tickBubbles(){
+    frame++;
+    for(const ag of Object.values(agents)) updateAgent(ag);
   }
+  setInterval(tickBubbles, 16); // ~60fps bubble tick without RAF
 
-  function render(){
-    ctx.fillStyle='#0a0a18';ctx.fillRect(0,0,CW,CH);
-    drawFloor();drawWalls();
-    for(const id of['data','strategy','monitor','ceo'])drawDesk(id);
-    drawServer();
-    for(const ag of Object.values(agents))updateAgent(ag);
-    Object.values(agents).sort((a,b)=>a.y-b.y).forEach(drawAgent);
-    drawStatusDots();
-    for(let i=pkts.length-1;i>=0;i--){drawPacket(pkts[i]);if(pkts[i].done)pkts.splice(i,1);}
-    drawNightOverlay();
-    frame++;requestAnimationFrame(render);
-  }
-
-  agents.strategy.state='typing';agents.ceo.state='typing';
-  setTimeout(()=>{runCycle();setInterval(runCycle,18000);},2000);
-  patrol();render();
+  // Start agent card updater
+  setTimeout(updateAgentCards, 800);
+  setInterval(updateAgentCards, 5000);
 }
 initOffice();
+
+// ── Agent Operations Center card updater ────────────────────────────────────
+function updateAgentCards() {
+  const agents = window._spa_agents || {};
+  const lastEvt = window._spa_agentLastEvent || {};
+  const now = Date.now();
+  const NAMES_RU = {data:'Агент данных', strategy:'Агент стратегии', monitor:'Монитор рисков', ceo:'CEO-агент'};
+
+  for (const id of ['data','strategy','monitor','ceo']) {
+    const ag = agents[id];
+    const taskEl = document.getElementById('ops-task-' + id);
+    const statusEl = document.getElementById('ops-status-' + id);
+    const lastTimeEl = document.getElementById('ops-lasttime-' + id);
+    const lastMsgEl = document.getElementById('ops-lastmsg-' + id);
+
+    // Update current task from bubble message
+    if (taskEl && ag && ag.bubbleMsg) {
+      taskEl.textContent = ag.bubbleMsg;
+    }
+
+    // Update status dot based on recent SSE activity
+    if (statusEl) {
+      const last = lastEvt[id];
+      const isRecent = last && (now - last) < 30000;
+      statusEl.className = 'ops-status ' + (isRecent ? 'active' : 'active'); // always active in paper trading
+    }
+
+    // Update last event time
+    const last = lastEvt[id];
+    if (last && lastTimeEl) {
+      const d = new Date(last);
+      lastTimeEl.textContent = d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    }
+    if (last && lastMsgEl && ag && ag.bubbleMsg) {
+      lastMsgEl.textContent = ag.bubbleMsg;
+    }
+  }
+}
 
 // ─── System Health Tab ────────────────────────────────────────────────────────
 let _sysRefreshTimer = null;
