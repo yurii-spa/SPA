@@ -22,6 +22,7 @@ Gradient descent approach:
 from __future__ import annotations
 
 import math
+import os
 from typing import Optional
 
 # Risk-free proxy rate (annualised %) — same constant as paper_trading/engine.py
@@ -80,10 +81,38 @@ class PortfolioOptimizer:
         weight       : float — current portfolio weight (used as warm-start)
     """
 
-    def __init__(self, protocols: list[dict]):
+    def __init__(
+        self,
+        protocols: list[dict],
+        live_covariance: Optional[bool] = None,
+        covariance_estimator: Optional[object] = None,
+    ):
         self.protocols = [p for p in protocols if p.get("apy", 0) > 0]
         self._n = len(self.protocols)
         self._cov: Optional[list[list[float]]] = None  # cached covariance
+
+        # ── FEAT-007 Phase 2: live covariance wiring ──────────────────────
+        # When the caller leaves ``live_covariance`` unset, read the
+        # SPA_LIVE_COVARIANCE env flag.  Default OFF keeps paper-trading
+        # numbers byte-identical to the synthetic path.
+        if live_covariance is None:
+            live_covariance = os.getenv(
+                "SPA_LIVE_COVARIANCE", "0"
+            ).lower() in ("1", "true", "yes")
+        self.live_covariance: bool = bool(live_covariance)
+
+        # Lazy-import the estimator only when needed — avoids a hard
+        # dependency on the analytics package for synthetic-only callers
+        # and prevents potential circular imports during cold start.
+        self._estimator = covariance_estimator
+        if self.live_covariance and self._estimator is None:
+            from analytics.covariance_estimator import CovarianceEstimator
+            self._estimator = CovarianceEstimator()
+
+        # Source attribution for downstream observability ("live" vs
+        # "synthetic").  Final value is set after ``estimate_covariance``
+        # runs; the initial value reflects the requested mode.
+        self.covariance_source: str = "live" if self.live_covariance else "synthetic"
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -103,19 +132,61 @@ class PortfolioOptimizer:
 
     def estimate_covariance(self) -> list[list[float]]:
         """
-        Build simplified covariance matrix.
+        Build covariance matrix.
 
-        Σ_ij = ρ_ij * σ_i * σ_j
-        where σ_i = apy_i * 0.10  and  ρ_ij follows tier-based correlation.
+        Two source paths:
 
-        Returns n×n matrix as list of lists.
+        Synthetic (default, env unset):
+            Σ_ij = ρ_ij * σ_i * σ_j
+            σ_i = apy_i * 0.10  (10% CV proxy)
+            ρ_ij = 0.6 same-tier, 0.2 cross-tier.
+
+        Live (``SPA_LIVE_COVARIANCE=1`` or ``live_covariance=True``):
+            Delegates to ``CovarianceEstimator.compute_covariance_matrix``
+            with a 90-day rolling window over ``data/apy_history.json``.
+            Each protocol with <7 observations transparently falls back
+            to the synthetic proxy inside the estimator, so the live path
+            with an empty store is provably numerically equivalent to the
+            synthetic path — see ADR-012 §"Cold-start blend".
+
+        Returns n×n matrix as list of lists (canonical protocol order).
         Caches result; call again to rebuild after protocols change.
         """
         n = self._n
         cov = [[0.0] * n for _ in range(n)]
-        for i in range(n):
-            for j in range(n):
-                cov[i][j] = self._corr(i, j) * self._sigma(i) * self._sigma(j)
+
+        if self.live_covariance and self._estimator is not None and n > 0:
+            # Build the inputs the estimator needs to honour its
+            # fallback contract for protocols with insufficient history.
+            keys = [p["protocol_key"] for p in self.protocols]
+            tiers = {
+                p["protocol_key"]: p.get("tier", "T1") for p in self.protocols
+            }
+            synthetic_apys = {
+                p["protocol_key"]: p["apy"] for p in self.protocols
+            }
+
+            live_matrix = self._estimator.compute_covariance_matrix(
+                window_days=90,
+                protocols=keys,
+                tiers=tiers,
+                synthetic_apys=synthetic_apys,
+            )
+
+            # Project the dict-of-dicts onto the list-of-lists in the
+            # SAME order as ``self.protocols`` (the estimator may return
+            # keys in sorted order — we re-index by our canonical layout).
+            for i, k_i in enumerate(keys):
+                for j, k_j in enumerate(keys):
+                    cov[i][j] = float(live_matrix.get(k_i, {}).get(k_j, 0.0))
+
+            self.covariance_source = "live"
+        else:
+            for i in range(n):
+                for j in range(n):
+                    cov[i][j] = self._corr(i, j) * self._sigma(i) * self._sigma(j)
+            self.covariance_source = "synthetic"
+
         self._cov = cov
         return cov
 
