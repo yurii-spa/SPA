@@ -379,8 +379,9 @@
   .agent-modal-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
 
   /* ── Analytics Tab ── */
-  .analytics-grid { display:grid; grid-template-columns:1.2fr 1fr; gap:16px; margin-bottom:18px; }
-  .an-card { background:#fff; border:.5px solid #ddd; border-radius:12px; padding:16px 20px; }
+  #tab-analytics { overflow-x: hidden; }
+  .analytics-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(480px, 1fr)); gap:16px; margin-bottom:18px; }
+  .an-card { background:#fff; border:.5px solid #ddd; border-radius:12px; padding:16px 20px; max-width:100%; overflow:hidden; }
   .an-title { font-size:11px; font-weight:600; letter-spacing:.07em; color:#888; text-transform:uppercase; margin-bottom:14px; }
   .proto-table { width:100%; border-collapse:collapse; font-size:12.5px; }
   .proto-table th { color:#999; font-weight:500; text-align:left; padding:4px 8px; border-bottom:1px solid #eee; cursor:pointer; user-select:none; }
@@ -716,6 +717,29 @@
   .ops-feed-time { color:#374151; font-family:monospace; flex-shrink:0; font-size:10px; }
   .ops-feed-agent { font-weight:700; flex-shrink:0; }
   .ops-feed-msg { color:#94a3b8; }
+
+  /* ── SPA Tooltips ── */
+  .spa-tip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(100,100,120,0.18); color: rgba(80,80,100,0.7);
+    font-size: 9px; font-weight: bold; cursor: help;
+    margin-left: 4px; vertical-align: middle; position: relative;
+    transition: background 0.2s;
+  }
+  .spa-tip:hover { background: rgba(100,100,120,0.35); }
+  .spa-tip::after {
+    content: attr(data-tip-text);
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%); width: 260px;
+    background: #1a1a2e; color: #e0e0e0; font-size: 11px; line-height: 1.5;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    pointer-events: none; opacity: 0; transition: opacity 0.2s;
+    z-index: 9999; white-space: normal; text-align: left; font-weight: normal;
+  }
+  .spa-tip:hover::after { opacity: 1; }
+
 </style>
 </head>
 <body>
@@ -734,7 +758,7 @@
 <!-- TABS -->
 <div class="tabs">
   <button class="tab-btn active" onclick="showTab('kanban', this)">📋 Канбан</button>
-  <button class="tab-btn"        onclick="showTab('dashboard', this)">📊 Paper Trading</button>
+  <button class="tab-btn"        onclick="showTab('dashboard', this)">📊 Paper Trading <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Аналітика <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"        onclick="showTab('team', this)">👾 Команда</button>
   <button class="tab-btn"        onclick="showTab('golive', this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
@@ -1220,51 +1244,131 @@
   <!-- ── Архитектура системы ── -->
   <div class="ops-arch">
     <div class="ops-arch-title">Архитектура агентной системы</div>
-    <svg class="ops-arch-svg" viewBox="0 0 680 110" xmlns="http://www.w3.org/2000/svg">
-      <!-- Nodes -->
-      <!-- Data -->
-      <rect x="4" y="28" width="110" height="54" rx="8" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.45)" stroke-width="1.2"/>
-      <text x="59" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#3B82F6" font-family="monospace">DATA AGENT</text>
-      <text x="59" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">DeFiLlama</text>
-      <text x="59" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Pendle · Sky</text>
-      <!-- Arrow Data→Strategy -->
-      <line x1="114" y1="55" x2="152" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
-      <!-- Strategy -->
-      <rect x="154" y="28" width="118" height="54" rx="8" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.45)" stroke-width="1.2"/>
-      <text x="213" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#10B981" font-family="monospace">STRATEGY</text>
-      <text x="213" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Kelly + MVO</text>
-      <text x="213" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">auto_allocate()</text>
-      <!-- Arrow Strategy→Risk -->
-      <line x1="272" y1="55" x2="310" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
-      <!-- Risk -->
-      <rect x="312" y="28" width="118" height="54" rx="8" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.45)" stroke-width="1.2"/>
-      <text x="371" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#8B5CF6" font-family="monospace">RISK POLICY</text>
-      <text x="371" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">VaR · Drawdown</text>
-      <text x="371" y="75" text-anchor="middle" font-size="9" fill="#ef4444" font-family="monospace">LLM FORBIDDEN</text>
-      <!-- Arrow Risk→CEO -->
-      <line x1="430" y1="55" x2="468" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
-      <!-- CEO -->
-      <rect x="470" y="28" width="100" height="54" rx="8" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.45)" stroke-width="1.2"/>
-      <text x="520" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#F59E0B" font-family="monospace">CEO AGENT</text>
-      <text x="520" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Approve/HOLD</text>
-      <text x="520" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">REJECT</text>
-      <!-- Arrow CEO→Execute -->
-      <line x1="570" y1="55" x2="608" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrow)"/>
-      <!-- Execute -->
-      <rect x="610" y="28" width="66" height="54" rx="8" fill="rgba(107,114,128,0.10)" stroke="rgba(107,114,128,0.35)" stroke-width="1.2"/>
-      <text x="643" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#9ca3af" font-family="monospace">EXECUTE</text>
-      <text x="643" y="65" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Paper</text>
-      <text x="643" y="75" text-anchor="middle" font-size="9" fill="#6b7280" font-family="monospace">Trade</text>
-      <!-- API sources label -->
-      <text x="59" y="18" text-anchor="middle" font-size="8" fill="#374151" font-family="monospace">DeFiLlama API</text>
-      <line x1="59" y1="20" x2="59" y2="28" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="3,2"/>
-      <!-- Arrow defs -->
-      <defs>
-        <marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="rgba(255,255,255,0.25)"/>
-        </marker>
-      </defs>
-    </svg>
+    <div class="arch-diagram-wrapper" style="width:100%;max-width:700px;margin:24px auto 0;display:block;">
+<svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%;max-width:700px;display:block;margin:0 auto;" id="arch-svg">
+  <defs>
+    <linearGradient id="grad-ceo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="grad-data" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="grad-strategy" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="grad-risk" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="grad-exec" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="grad-infra" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f766e;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#134e4a;stop-opacity:1"/>
+    </linearGradient>
+    <filter id="glow-gold" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-green" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-red" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <path id="path-data-ceo" d="M 185 130 L 305 195"/>
+    <path id="path-strategy-ceo" d="M 515 130 L 395 195"/>
+    <path id="path-risk-ceo" d="M 185 290 L 305 225"/>
+    <path id="path-ceo-exec" d="M 395 225 L 515 290"/>
+    <path id="path-risk-exec" d="M 230 310 L 470 310"/>
+    <path id="path-data-strategy" d="M 230 110 L 470 110"/>
+    <path id="path-exec-infra" d="M 515 340 L 395 380"/>
+    <path id="path-risk-infra" d="M 185 340 L 305 380"/>
+  </defs>
+  <rect width="700" height="420" fill="rgba(10,10,30,0.3)" rx="12"/>
+  <line x1="185" y1="130" x2="305" y2="195" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.4"/>
+  <line x1="515" y1="130" x2="395" y2="195" stroke="#8b5cf6" stroke-width="1.5" stroke-opacity="0.4"/>
+  <line x1="185" y1="290" x2="305" y2="225" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.4"/>
+  <line x1="395" y1="225" x2="515" y2="290" stroke="#10b981" stroke-width="2.5" stroke-opacity="0.6"/>
+  <line x1="230" y1="310" x2="470" y2="310" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="6,4"/>
+  <line x1="230" y1="110" x2="470" y2="110" stroke="#6366f1" stroke-width="1.5" stroke-opacity="0.35"/>
+  <line x1="515" y1="340" x2="395" y2="380" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.4"/>
+  <line x1="185" y1="340" x2="305" y2="380" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.4"/>
+  <circle r="4" fill="#60a5fa" filter="url(#glow-gold)">
+    <animateMotion dur="8s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-data-ceo"/></animateMotion>
+  </circle>
+  <circle r="4" fill="#a78bfa" filter="url(#glow-gold)">
+    <animateMotion dur="8s" repeatCount="indefinite" begin="2s"><mpath xlink:href="#path-strategy-ceo"/></animateMotion>
+  </circle>
+  <circle r="4" fill="#f87171" filter="url(#glow-red)">
+    <animateMotion dur="2s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-risk-ceo"/></animateMotion>
+  </circle>
+  <circle r="5" fill="#34d399" filter="url(#glow-green)">
+    <animateMotion dur="0.5s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-ceo-exec"/></animateMotion>
+  </circle>
+  <circle r="3.5" fill="#fca5a5" filter="url(#glow-red)">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="1s"><mpath xlink:href="#path-risk-exec"/></animateMotion>
+  </circle>
+  <circle r="3.5" fill="#818cf8">
+    <animateMotion dur="8s" repeatCount="indefinite" begin="4s"><mpath xlink:href="#path-data-strategy"/></animateMotion>
+  </circle>
+  <circle r="4" fill="#6ee7b7" filter="url(#glow-green)">
+    <animateMotion dur="1s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-exec-infra"/></animateMotion>
+  </circle>
+  <circle r="3.5" fill="#fdba74">
+    <animateMotion dur="1s" repeatCount="indefinite" begin="0.5s"><mpath xlink:href="#path-risk-infra"/></animateMotion>
+  </circle>
+  <text x="237" y="158" fill="rgba(255,255,255,0.55)" font-size="9" text-anchor="middle">каждые 4ч</text>
+  <text x="463" y="158" fill="rgba(255,255,255,0.55)" font-size="9" text-anchor="middle">каждые 4ч</text>
+  <text x="237" y="268" fill="rgba(255,255,255,0.55)" font-size="9" text-anchor="middle">каждые 5мин</text>
+  <text x="463" y="268" fill="#86efac" font-size="9" font-weight="bold" text-anchor="middle">~50мс</text>
+  <text x="350" y="303" fill="#fca5a5" font-size="9" text-anchor="middle">экстренный стоп</text>
+  <text x="350" y="103" fill="rgba(255,255,255,0.45)" font-size="9" text-anchor="middle">каждые 4ч</text>
+  <text x="463" y="368" fill="#86efac" font-size="9" text-anchor="middle">on-chain txn</text>
+  <text x="237" y="368" fill="#fdba74" font-size="9" text-anchor="middle">мониторинг</text>
+  <rect x="305" y="185" width="90" height="50" rx="10" fill="url(#grad-ceo)" filter="url(#glow-gold)"/>
+  <rect x="305" y="185" width="90" height="50" rx="10" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="350" y="206" fill="white" font-size="9" font-weight="bold" text-anchor="middle">CEO AGENT</text>
+  <text x="350" y="220" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Claude Sonnet 4.6</text>
+  <text x="350" y="232" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">оркестрация</text>
+  <rect x="95" y="85" width="90" height="50" rx="10" fill="url(#grad-data)"/>
+  <rect x="95" y="85" width="90" height="50" rx="10" fill="none" stroke="#60a5fa" stroke-width="1"/>
+  <text x="140" y="106" fill="white" font-size="9" font-weight="bold" text-anchor="middle">DATA AGENT</text>
+  <text x="140" y="120" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Gemini Flash-Lite</text>
+  <text x="140" y="132" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">данные / аномалии</text>
+  <rect x="515" y="85" width="90" height="50" rx="10" fill="url(#grad-strategy)"/>
+  <rect x="515" y="85" width="90" height="50" rx="10" fill="none" stroke="#a78bfa" stroke-width="1"/>
+  <text x="560" y="106" fill="white" font-size="9" font-weight="bold" text-anchor="middle">STRATEGY</text>
+  <text x="560" y="120" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Gemini 2.5 Flash</text>
+  <text x="560" y="132" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">выбор стратегии</text>
+  <rect x="95" y="265" width="90" height="50" rx="10" fill="url(#grad-risk)"/>
+  <rect x="95" y="265" width="90" height="50" rx="10" fill="none" stroke="#f87171" stroke-width="1"/>
+  <text x="140" y="283" fill="white" font-size="9" font-weight="bold" text-anchor="middle">RISK MONITOR</text>
+  <text x="140" y="297" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Claude Haiku 4.5</text>
+  <text x="140" y="309" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">алерты / VaR</text>
+  <rect x="515" y="265" width="90" height="50" rx="10" fill="url(#grad-exec)"/>
+  <rect x="515" y="265" width="90" height="50" rx="10" fill="none" stroke="#34d399" stroke-width="1.5"/>
+  <text x="560" y="283" fill="white" font-size="9" font-weight="bold" text-anchor="middle">EXECUTION</text>
+  <text x="560" y="297" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">детерминирован</text>
+  <text x="560" y="309" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">paper trades</text>
+  <rect x="305" y="355" width="90" height="45" rx="10" fill="url(#grad-infra)"/>
+  <rect x="305" y="355" width="90" height="45" rx="10" fill="none" stroke="#2dd4bf" stroke-width="1"/>
+  <text x="350" y="373" fill="white" font-size="8.5" font-weight="bold" text-anchor="middle">БЛОКЧЕЙН</text>
+  <text x="350" y="386" fill="rgba(255,255,255,0.7)" font-size="7.5" text-anchor="middle">Aave/Compound</text>
+  <text x="350" y="397" fill="rgba(255,255,255,0.55)" font-size="7" text-anchor="middle">Morpho/Pendle...</text>
+  <rect x="519" y="248" width="82" height="14" rx="4" fill="rgba(239,68,68,0.25)" stroke="rgba(239,68,68,0.5)" stroke-width="0.8"/>
+  <text x="560" y="258" fill="#fca5a5" font-size="7.5" text-anchor="middle">⛔ LLM FORBIDDEN</text>
+  <rect x="309" y="168" width="82" height="14" rx="4" fill="rgba(245,158,11,0.2)" stroke="rgba(245,158,11,0.4)" stroke-width="0.8"/>
+  <text x="350" y="178" fill="#fcd34d" font-size="7.5" text-anchor="middle">✅ LLM OK</text>
+</svg>
+</div>
   </div>
 
   <!-- ── Стек и Роадмап ── -->
@@ -1328,7 +1432,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
     <div>
       <div style="font-size:15px;font-weight:500">Аналитика протоколов</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">APY · TVL · риск · сравнение</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">APY <span class="spa-tip" data-tip="APY">?</span> · TVL <span class="spa-tip" data-tip="TVL">?</span> · риск · сравнение</div>
     </div>
     <button class="refresh-btn" onclick="loadAnalytics()">↻ Обновить</button>
   </div>
@@ -1373,13 +1477,13 @@
   <div class="analytics-grid">
     <!-- Scatter: APY vs TVL -->
     <div class="an-card">
-      <div class="an-title">APY vs TVL — карта риска</div>
+      <div class="an-title">APY <span class="spa-tip" data-tip="APY">?</span> vs TVL <span class="spa-tip" data-tip="TVL">?</span> — карта риска</div>
       <canvas id="scatter-chart" height="260"></canvas>
       <div style="font-size:11px;color:#bbb;margin-top:8px">Ось X: TVL ($M) · Ось Y: APY (%) · Размер ∝ объёму позиции</div>
     </div>
     <!-- APY bar top-10 -->
     <div class="an-card">
-      <div class="an-title">Топ-10 протоколов по APY</div>
+      <div class="an-title">Топ-10 протоколов по APY <span class="spa-tip" data-tip="APY">?</span></div>
       <canvas id="apy-rank-chart" height="260"></canvas>
     </div>
   </div>
@@ -1394,8 +1498,8 @@
             <th onclick="sortProtoTable('protocol')" data-col="protocol">Протокол <span class="sort-arrow">↕</span></th>
             <th onclick="sortProtoTable('chain')" data-col="chain">Сеть <span class="sort-arrow">↕</span></th>
             <th onclick="sortProtoTable('tier')" data-col="tier">Tier <span class="sort-arrow">↕</span></th>
-            <th onclick="sortProtoTable('apy_total')" data-col="apy_total">APY % <span class="sort-arrow">↕</span></th>
-            <th onclick="sortProtoTable('tvl_usd')" data-col="tvl_usd">TVL <span class="sort-arrow">↕</span></th>
+            <th onclick="sortProtoTable('apy_total')" data-col="apy_total">APY % <span class="spa-tip" data-tip="APY">?</span> <span class="sort-arrow">↕</span></th>
+            <th onclick="sortProtoTable('tvl_usd')" data-col="tvl_usd">TVL <span class="spa-tip" data-tip="TVL">?</span> <span class="sort-arrow">↕</span></th>
             <th onclick="sortProtoTable('risk')" data-col="risk">Риск <span class="sort-arrow">↕</span></th>
           </tr>
         </thead>
@@ -1408,20 +1512,20 @@
 
   <!-- Risk alerts panel -->
   <div class="db-full" id="risk-panel">
-    <div class="db-section">🛡 RiskAgent — Концентрация &amp; Просадка</div>
+    <div class="db-section">🛡 RiskAgent — Концентрация &amp; Просадка <span class="spa-tip" data-tip="Drawdown">?</span></div>
     <div id="risk-alerts-body"><div class="alerts-clear">Загрузка...</div></div>
   </div>
 
   <!-- B1: Rolling Sharpe Ratio -->
   <div class="an-card" style="margin-bottom:18px">
-    <div class="an-title">Rolling 7-Day Sharpe Ratio <span style="font-weight:400;font-size:9px;color:#bbb">(annualised · last 30 days)</span></div>
+    <div class="an-title">Rolling 7-Day Sharpe Ratio <span class="spa-tip" data-tip="Sharpe Ratio">?</span> <span style="font-weight:400;font-size:9px;color:#bbb">(annualised · last 30 days)</span></div>
     <canvas id="sharpe-chart" height="180"></canvas>
     <div style="font-size:10px;color:#bbb;margin-top:6px">Purple line · — — 1.0 good · — — 2.0 excellent</div>
   </div>
 
   <!-- B2: Protocol APY History -->
   <div class="an-card" style="margin-bottom:18px">
-    <div class="an-title">APY History by Protocol <span style="font-weight:400;font-size:9px;color:#bbb">(last 30 days · click legend to toggle)</span></div>
+    <div class="an-title">APY <span class="spa-tip" data-tip="APY">?</span> History by Protocol <span style="font-weight:400;font-size:9px;color:#bbb">(last 30 days · click legend to toggle)</span></div>
     <canvas id="apy-history-chart" height="220"></canvas>
   </div>
 
@@ -1434,7 +1538,7 @@
     </div>
     <!-- B4: Backtest summary -->
     <div class="an-card">
-      <div class="an-title">Backtest Summary</div>
+      <div class="an-title">Backtest <span class="spa-tip" data-tip="Backtest">?</span> Summary</div>
       <div id="bt-summary-wrap"><div style="color:#bbb;font-size:12px">Загрузка...</div></div>
     </div>
   </div>
@@ -1468,7 +1572,7 @@
       <div style="overflow-x:auto;margin-top:12px">
         <table class="proto-table">
           <thead><tr>
-            <th>Протокол</th><th>Tier</th><th>Сума ($)</th><th>APY %</th><th>PnL ($)</th><th>Днів</th>
+            <th>Протокол</th><th>Tier</th><th>Сума ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Днів</th>
           </tr></thead>
           <tbody id="strat-v1-tbody">
             <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Завантаження...</td></tr>
@@ -1488,7 +1592,7 @@
       <div style="overflow-x:auto;margin-top:12px">
         <table class="proto-table">
           <thead><tr>
-            <th>Протокол</th><th>Tier</th><th>Сума ($)</th><th>APY %</th><th>PnL ($)</th><th>Днів</th>
+            <th>Протокол</th><th>Tier</th><th>Сума ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Днів</th>
           </tr></thead>
           <tbody id="strat-v2-tbody">
             <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Завантаження...</td></tr>
@@ -1521,19 +1625,19 @@
   <!-- B6: AI Recommendations (Kelly·Markowitz Optimizer) -->
   <div class="an-card" style="margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div class="an-title" style="margin-bottom:0">💡 AI Recommendations — Kelly·Markowitz Optimizer</div>
+      <div class="an-title" style="margin-bottom:0">💡 AI Recommendations — Kelly <span class="spa-tip" data-tip="Kelly">?</span>·Markowitz <span class="spa-tip" data-tip="Markowitz">?</span> Optimizer</div>
       <span id="opt-improvement-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:#d1fae5;color:#065f46;font-weight:600"></span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
       <div class="strat-kpi"><div class="strat-kpi-label">Policy</div><div class="strat-kpi-value" id="opt-policy" style="font-size:13px">—</div></div>
       <div class="strat-kpi"><div class="strat-kpi-label">Expected Return</div><div class="strat-kpi-value" id="opt-exp-ret">—</div></div>
-      <div class="strat-kpi"><div class="strat-kpi-label">Expected Sharpe</div><div class="strat-kpi-value" id="opt-sharpe">—</div></div>
+      <div class="strat-kpi"><div class="strat-kpi-label">Expected Sharpe <span class="spa-tip" data-tip="Sharpe">?</span></div><div class="strat-kpi-value" id="opt-sharpe">—</div></div>
       <div class="strat-kpi"><div class="strat-kpi-label">Optimizer</div><div class="strat-kpi-value" id="opt-method" style="font-size:12px">—</div></div>
     </div>
     <div style="overflow-x:auto;margin-bottom:16px">
       <table class="proto-table">
         <thead><tr>
-          <th>Protocol</th><th>Amount</th><th>% Portfolio</th><th>Kelly Fraction</th><th>APY</th><th>Status</th>
+          <th>Protocol</th><th>Amount</th><th>% Portfolio</th><th>Kelly Fraction <span class="spa-tip" data-tip="Kelly">?</span></th><th>APY <span class="spa-tip" data-tip="APY">?</span></th><th>Status</th>
         </tr></thead>
         <tbody id="opt-tbody">
           <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Loading recommendations...</td></tr>
@@ -1541,7 +1645,7 @@
       </table>
     </div>
     <div>
-      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:#888;text-transform:uppercase;margin-bottom:8px">Efficient Frontier</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:#888;text-transform:uppercase;margin-bottom:8px">Efficient Frontier <span class="spa-tip" data-tip="Efficient Frontier">?</span></div>
       <div style="position:relative;height:160px"><canvas id="frontier-chart"></canvas></div>
       <div style="font-size:10px;color:#bbb;margin-top:6px">Each point = one portfolio on the frontier · ★ = optimal (max Sharpe)</div>
     </div>
@@ -1549,7 +1653,7 @@
 
   <!-- ══ Strategy Tournament Panel ══ -->
   <div id="tournament-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-top:18px">
-    <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#1f2937;margin-bottom:14px">🏆 Strategy Tournament</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#1f2937;margin-bottom:14px">🏆 Strategy Tournament <span class="spa-tip" data-tip="Backtest">?</span></div>
     <!-- Winner card -->
     <div id="tournament-winner-card" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
       <span id="tournament-winner-text" style="font-size:16px;font-weight:700;color:#166534;flex:1">Loading…</span>
@@ -1579,7 +1683,7 @@
   <!-- ══ Advanced Stats Panel ══ -->
   <div id="advanced-stats-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-top:16px">
     <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#1f2937;margin-bottom:14px">📊 Advanced Portfolio Stats</div>
-    <div id="advanced-stats-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <div id="advanced-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px">
       <div style="text-align:center;color:#aaa;font-size:12px;padding:16px;grid-column:1/-1">Loading advanced analytics…</div>
     </div>
   </div>
@@ -1587,7 +1691,7 @@
   <!-- ══ Pendle PT Positions ══ -->
   <div class="an-card" style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div class="an-title" style="margin-bottom:0">🌿 Pendle PT Positions</div>
+      <div class="an-title" style="margin-bottom:0">🌿 Pendle PT <span class="spa-tip" data-tip="PT">?</span> Positions</div>
       <span id="pendle-badge" style="font-size:11px;color:#888"></span>
     </div>
     <div id="pendle-body">
@@ -1600,7 +1704,7 @@
   <div class="an-card" style="margin-top:16px" id="backtest-replay-card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="an-title" style="margin-bottom:0">📈 Backtesting Replay</div>
+        <div class="an-title" style="margin-bottom:0">📈 Backtesting Replay <span class="spa-tip" data-tip="Backtest">?</span></div>
         <span id="bt-replay-badge" class="bt-replay-badge" style="display:none">⏪ REPLAY MODE</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1775,7 +1879,7 @@
 
     <!-- Card 3: Paper Trading Clock -->
     <div class="sys-card">
-      <div class="sys-section">⏱ Paper Trading Clock</div>
+      <div class="sys-section">⏱ Paper Trading <span class="spa-tip" data-tip="Paper Trading">?</span> Clock</div>
       <div id="sys-clock-body">
         <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
       </div>
@@ -1795,6 +1899,48 @@
 </div><!-- /tab-system -->
 
 <script>
+
+// ─── Tooltips ────────────────────────────────────────────────────────────────
+const TOOLTIPS = {
+  'APY': 'Годовая процентная доходность — сколько % годовых приносит позиция с учётом реинвестирования',
+  'TVL': 'Общий заблокированный капитал в протоколе — чем выше, тем надёжнее и ликвиднее',
+  'Sharpe Ratio': 'Отношение доходности к риску. >1 — хорошо, >2 — отлично. Показывает, стоит ли принятый риск своей доходности',
+  'Kelly Criterion': 'Математическая формула оптимального размера позиции. SPA использует 25% от полного Келли для безопасности',
+  'Markowitz MVO': 'Метод оптимизации портфеля: максимизирует доходность при заданном риске, диверсифицируя вложения',
+  'Health Factor': 'Показатель безопасности займа в DeFi. <1.0 = ликвидация. SPA эскалирует мониторинг при HF<1.3',
+  'Tier 1': 'Самые надёжные протоколы: Aave V3, Compound V3, Morpho. Минимальный риск, лимит 40%',
+  'Tier 2': 'Протоколы с умеренным риском: Yearn V3, Pendle PT, Maple, Euler V2. Доходность 6-12%, лимит 20% каждый',
+  'Yield Loop': 'Стратегия: внести залог → занять стейблкоин → снова застейкать → повторить. Усиливает доходность, но увеличивает риск ликвидации',
+  'Impermanent Loss': 'Временный убыток LP-провайдера из-за изменения цен активов в пуле относительно простого холда',
+  'Covariance': 'Мера совместного движения двух активов. Используется для диверсификации портфеля',
+  'Bull Cycle': 'Бычий рынок: медианная APY > 8% в течение 7+ дней. SPA увеличивает лимиты T2/T3 в этот период',
+  'Efficient Frontier': 'Линия оптимальных портфелей: максимальная доходность при каждом уровне риска',
+  'Backtest': 'Тестирование стратегии на исторических данных для оценки её потенциальной эффективности',
+  'VaR': 'Value at Risk — максимальный ожидаемый убыток за 7 дней с вероятностью 95%',
+  'Sharpe': 'Отношение доходности к риску. >1 — хорошо, >2 — отлично',
+  'Drawdown': 'Максимальное снижение капитала от пика. Kill-switch срабатывает при просадке >5%',
+  'Calmar': 'Отношение годовой доходности к максимальной просадке. Чем выше, тем лучше',
+  'Sortino': 'Как Sharpe, но учитывает только негативную волатильность (убытки)',
+  'Ulcer Index': 'Мера «болезненности» просадок — учитывает глубину и длительность падений',
+  'Kelly': 'Математическая формула оптимального размера позиции. SPA использует 25% от полного Келли для безопасности',
+  'Markowitz': 'Метод оптимизации портфеля: максимизирует доходность при заданном риске',
+  'MVO': 'Mean-Variance Optimization — оптимизация портфеля по Марковицу',
+  'Paper Trading': 'Виртуальная торговля без реальных денег — тест системы перед запуском с реальным капиталом',
+  'T1': 'Tier 1 — самые надёжные протоколы: Aave V3, Compound V3, Morpho. Максимальный лимит 40%',
+  'T2': 'Tier 2 — протоколы с умеренным риском: Yearn, Pendle, Maple, Euler. Максимальный лимит 20% каждый',
+  'PnL': 'Прибыль и убытки (Profit and Loss) — итоговый финансовый результат позиции или портфеля',
+  'PT': 'Principal Token (Pendle) — токен фиксированной доходности, гарантирует APY до даты истечения',
+  'GSM': 'Governance Security Module — механизм задержки выполнения управленческих решений для защиты от атак',
+  'Kill Switch': 'Автоматический стоп: при просадке >5% система закрывает все позиции для защиты капитала',
+};
+
+function initTooltips() {
+  document.querySelectorAll('.spa-tip').forEach(el => {
+    const key = el.getAttribute('data-tip');
+    if (TOOLTIPS[key]) el.setAttribute('data-tip-text', TOOLTIPS[key]);
+  });
+}
+
 // ─── Конфиг ───────────────────────────────────────────────────────────────────
 let BASE = location.hostname === 'localhost' && location.port !== '8765'
   ? 'http://localhost:8000'
@@ -4984,6 +5130,9 @@ async function renderGoLiveCard() {
     </div>
     ${criteriaHTML || '<div style="color:#aaa;font-size:12px">golive_readiness.json not found</div>'}`;
 }
+
+// Инициализация всплывающих подсказок
+document.addEventListener('DOMContentLoaded', initTooltips);
 </script>
 
 <div style="text-align:center;font-size:11px;color:#bbb;margin-top:40px;padding-top:16px;border-top:1px solid #eee">
