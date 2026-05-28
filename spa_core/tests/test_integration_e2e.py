@@ -257,7 +257,7 @@ class TestSkyMonitorFallbackChain:
 
 
 # =============================================================================
-# Test 4: Engine risk limits enforced — pool with 45% APY ₒ capped
+# Test 4: Engine risk limits enforced — pool with 45% APY → capped
 # =============================================================================
 
 class TestEngineRiskLimitsEnforced:
@@ -335,7 +335,7 @@ class TestTournamentDeterministic:
 
         tournament = StrategyTournament()
         result1 = tournament.run(hist)
-        result2 = tournament.run hist)
+        result2 = tournament.run(hist)
 
         # Winner must be identical
         assert result1.winner == result2.winner, (
@@ -417,27 +417,51 @@ class TestGoLiveChecklistPaperDuration:
         )
         assert result["value"] == 3
 
-    def test_paper_duration_pass_when_55_days(self):
+    def test_paper_duration_pass_at_or_above_min(self):
+        """Sprint v3.21: realigned to the actual MIN_PAPER_DAYS constant.
+
+        Previously hard-coded to 55 days under the assumption that the minimum
+        was 50; the threshold was raised to 56 (8 weeks) in v0.17 but the test
+        was never updated, so it asserted PASS at 55 days — one day below the
+        real minimum.  Pulling MIN_PAPER_DAYS from the module keeps the test
+        in lockstep with the policy.
+        """
         from golive.checklist import check_paper_duration, _PASS, MIN_PAPER_DAYS
 
-        # Freeze time so that 55 days have elapsed (>= 50 = MIN_PAPER_DAYS)
+        # Freeze time so that exactly MIN_PAPER_DAYS days have elapsed.
         fake_today = datetime.fromisoformat("2026-05-20").replace(
             tzinfo=timezone.utc
-        ) + timedelta(days=55)
+        ) + timedelta(days=MIN_PAPER_DAYS)
 
         with patch("golive.checklist._today", return_value=fake_today):
             result = check_paper_duration()
 
         assert result["status"] == _PASS, (
-            f"Expected PASS at 55 days, got {result['status']}"
+            f"Expected PASS at {MIN_PAPER_DAYS} days, got {result['status']}"
         )
-        assert result["value"] == 55
+        assert result["value"] == MIN_PAPER_DAYS
 
 
 # =============================================================================
 # Test 8: API endpoints integration — TestClient, all return 200
 # =============================================================================
 
+# Sprint v3.21 — skip the FastAPI-backed integration class cleanly when the
+# optional fastapi / starlette test deps are not installed (previously caused
+# 5 ERRORs inside the fixture import).  Module-level importorskip is too broad
+# (would skip every other test in this file), so we attach the skip only to the
+# affected class below.
+try:  # pragma: no cover - import-side detection only
+    import fastapi as _fastapi  # noqa: F401
+    _HAS_FASTAPI = True
+except Exception:
+    _HAS_FASTAPI = False
+
+
+@pytest.mark.skipif(
+    not _HAS_FASTAPI,
+    reason="fastapi optional dep not installed — TestClient suite skipped",
+)
 class TestApiEndpointsIntegration:
     """
     FastAPI TestClient. Test:
@@ -497,7 +521,7 @@ class TestApiEndpointsIntegration:
 
 
 # =============================================================================
-# Test 9: APY tap report on track — weighted APY 7.5% → on_track=True
+# Test 9: APY gap report on track — weighted APY 7.5% → on_track=True
 # =============================================================================
 
 class TestApyGapReportOnTrack:
