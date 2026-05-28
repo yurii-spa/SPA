@@ -13,7 +13,9 @@ Criteria evaluated:
   7.  Diversification         ≥ 2 protocols, none > 45%
   8.  Data freshness          last export < 6h ago
   9.  Wallet ready            Gnosis Safe + hot wallet setup (manual — always PENDING)
-  10. Strategy tournament      v1_passive must be WINNING or TIED vs v2_aggressive
+  10. Strategy tournament      v1_passive OR v3_pendle_focused must be WINNING or TIED
+                                (PASS) — v2_aggressive winner with LOW confidence (WARN)
+                                — v2_aggressive winner with MEDIUM/HIGH confidence (FAIL)
   11. APY gap                  current APY within 2% of 7.3% target
   12. Agent stability          ≥ 28 consecutive days of stable agent operation
 
@@ -339,10 +341,26 @@ def check_diversification(positions: list, total_capital: float = 0.0) -> dict:
 
 
 def check_tournament_winner(tournament_data: dict) -> dict:
-    """Criterion 10: strategy tournament — v1_passive must be WINNING or TIED.
+    """Criterion 10: strategy tournament — an acceptable conservative strategy
+    must be WINNING or TIED.
 
     Reads from data/tournament_results.json (written by export_data.py section 18).
     Ties are defined as scores within 0.001 of each other.
+
+    Updated for IDEA-006 (sprint v2.3) to support the 3-way tournament:
+        - v1_passive         — conservative baseline
+        - v2_aggressive      — growth competitor (must NOT win with confidence)
+        - v3_pendle_focused  — Pendle-focused yield maximiser (acceptable winner)
+
+    Decision logic:
+        PASS  — winner ∈ {v1_passive, v3_pendle_focused}, OR top two scores
+                are within 0.001 (effectively tied at the top)
+        WARN  — v2_aggressive winning with LOW confidence (statistical noise)
+        FAIL  — v2_aggressive winning with MEDIUM or HIGH confidence
+
+    Backwards compatibility: when tournament_results.json predates v3 it
+    simply has no v3_pendle_focused score (defaults to 0.0) and the
+    function still degrades to the original v1 vs v2 behaviour.
     """
     winner     = tournament_data.get("winner")
     scores     = tournament_data.get("scores", {})
@@ -353,36 +371,57 @@ def check_tournament_winner(tournament_data: dict) -> dict:
             name      = "Strategy Tournament",
             status    = _WARN,
             value     = "unavailable",
-            threshold = "v1_passive winning or tied",
+            threshold = "v1_passive or v3_pendle_focused winning or tied",
             note      = "Tournament data unavailable — cannot evaluate",
         )
 
-    v1_score = float(scores.get("v1_passive", 0.0) or 0.0)
-    v2_score = float(scores.get("v2_aggressive", 0.0) or 0.0)
-    tied     = abs(v1_score - v2_score) < 0.001
+    v1_score = float(scores.get("v1_passive",        0.0) or 0.0)
+    v2_score = float(scores.get("v2_aggressive",     0.0) or 0.0)
+    v3_score = float(scores.get("v3_pendle_focused", 0.0) or 0.0)
 
-    if winner == "v1_passive" or tied:
+    # Top two strategies are effectively tied if their scores are within 0.001.
+    # We consider this a PASS — there is no statistically meaningful winner.
+    sorted_scores = sorted([v1_score, v2_score, v3_score], reverse=True)
+    top_two_tied  = abs(sorted_scores[0] - sorted_scores[1]) < 0.001
+
+    acceptable_winners = {"v1_passive", "v3_pendle_focused"}
+
+    score_str = (
+        f"v1={v1_score:.3f}, v2={v2_score:.3f}, v3={v3_score:.3f}"
+    )
+
+    if winner in acceptable_winners or top_two_tied:
         status = _PASS
-        result_str = "TIED" if tied else "WINNING"
-        note   = (
-            f"v1_passive {result_str} "
-            f"(scores: v1={v1_score:.3f} vs v2={v2_score:.3f}, "
-            f"confidence: {confidence})"
+        descriptor = "TIED" if top_two_tied and winner not in acceptable_winners else (
+            "TIED" if top_two_tied else "WINNING"
+        )
+        note = (
+            f"acceptable winner: {winner} {descriptor} "
+            f"(scores: {score_str}, confidence: {confidence})"
+        )
+    elif winner == "v2_aggressive" and str(confidence).upper() == "LOW":
+        status = _WARN
+        note = (
+            f"v2_aggressive winning with LOW confidence — "
+            f"likely statistical noise (scores: {score_str})"
         )
     else:
         status = _FAIL
-        note   = (
-            f"v1_passive LOSING to {winner} "
-            f"(scores: v1={v1_score:.3f} vs v2={v2_score:.3f}, "
-            f"confidence: {confidence})"
+        note = (
+            f"v2_aggressive WINNING (confidence: {confidence}) — "
+            f"conservative strategies losing (scores: {score_str})"
         )
 
     return _criterion(
         name      = "Strategy Tournament",
         status    = status,
-        value     = {"winner": winner, "v1_score": round(v1_score, 4),
-                     "v2_score": round(v2_score, 4)},
-        threshold = "v1_passive winning or tied",
+        value     = {
+            "winner":   winner,
+            "v1_score": round(v1_score, 4),
+            "v2_score": round(v2_score, 4),
+            "v3_score": round(v3_score, 4),
+        },
+        threshold = "v1_passive or v3_pendle_focused winning or tied",
         note      = note,
     )
 
@@ -727,7 +766,9 @@ def run_full_check(data_dir: str) -> dict:
     positions    = status_data.get("positions", [])
     generated_at = status_data.get("timestamp") or now.isoformat()
 
-    # ── Run all 11 criteria ──────────────────────────────────────────────────
+    # ── Run all 12 criteria ──────────────────────────────────────────────────
+    # v3.21: count realigned from 11 → 12 — Agent Stability (#12) was added in
+    # v2.6 but the inline comment was never updated.
     criteria = [
         check_paper_duration(),                           # 1
         check_pnl_positive(portfolio),                    # 2
