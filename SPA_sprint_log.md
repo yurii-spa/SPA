@@ -489,3 +489,55 @@ Modified:
 - `data/risk_scores.json` (enriched with yield_source field)
 - `KANBAN.json` (FEAT-RISK-003 → done; last_updated stamped 2026-05-28)
 - `SPA_sprint_log.md` (this entry)
+
+---
+
+## v3.16 — FEAT-MON-001 Red Flag Monitor Extended (2026-05-28)
+
+**Sprint window:** 2026-05-28 — single-dispatch close.
+**Owner:** dispatch-orchestrator / red-flag-monitor worker.
+**Scope:** 8 h (FEAT-MON-001 — Red Flag Monitor with 4 external signal categories).
+
+### Shipped
+- `spa_core/alerts/red_flag_monitor.py` (≈900 LOC) — `RedFlagMonitor` + `RedFlag` dataclass.
+  Four scan/classify pairs:
+  1. **`tvl_drop`** — DefiLlama `/protocol/{slug}` time-series, thresholds 15 % 24 h / 30 % 7 d / 50 % CRITICAL.
+  2. **`apy_spike`** — `data/historical_apy.json` 7-day baseline, multiplier 1.5× WARN / 3.0× CRITICAL.
+  3. **`governance_proposal`** — Snapshot unauthenticated GraphQL, tag set {upgrade, risk-param, treasury, emergency, shutdown, pause}.
+  4. **`token_unlock`** — DefiLlama `/api/unlocks` 7-day horizon, ≥5 % supply → CRITICAL.
+- Risk-grade context loaded from `data/risk_scores.json` upgrades severity to CRITICAL on grade C/D/F protocols (alert-fatigue prevention).
+- Pure stdlib (`urllib` + `json` + `dataclasses` + `datetime`). No new top-level dependencies.
+- Offline-tolerant, deterministic, NEVER raises — fully degraded path falls back to `BOOTSTRAP_*` fixtures.
+- CLI: `python -m spa_core.alerts.red_flag_monitor [--offline] [--dry-run]`.
+
+### Tests
+- `spa_core/tests/test_red_flag_monitor.py` — **56/56 PASS** in 2.15 s (verified this dispatch run).
+- Coverage: dataclass / constants (4), severity classification per category (8), JSON shape / summary (5), risk-grade context (3), fallback paths (3), network fetch hooks (8), CLI + determinism (3), module helpers + edge cases (≥20).
+- Full regression: 451/451 PASS across `test_risk_depeg`, `test_risk_policy`, `test_scoring_engine`, `test_yield_classifier_agent`, `test_audit_reader_agent`, `test_incidents_fetcher`, `test_red_flag_monitor`. No prior tests broken.
+
+### First snapshot
+Generated `data/red_flags.json` (offline mode):
+- **8 red flags total**, by_severity={CRITICAL: 2, WARN: 6}, by_category={apy_spike: 2, governance_proposal: 2, token_unlock: 2, tvl_drop: 2}, protocols_clean = 4.
+- CRITICAL findings: `pendle-pt apy_spike` (4.03× baseline) and `ethena-susde token_unlock` (6.4 % of supply).
+- `fallback_used = true`, `sources = ["bootstrap"]` — wiring to live endpoints occurs at next GitHub Actions cycle (v3.17).
+
+### Go-Live impact
+- Go-live criterion 3 ("no CRITICAL alerts in last 7 days") becomes **measurable** with this monitor — emits CRITICAL findings on external state changes, not only on internal portfolio events.
+- BL-005 (Telegram fan-out) now has a structured schema to ingest; integration commit planned for v3.17.
+
+### Phase 2 progress
+- ✅ FEAT-MON-001 — Red Flag Monitor Extended (v3.16) ← **this sprint**
+- ⏳ FEAT-MON-002 — Governance Watcher (Snapshot + Tally)
+- ⏳ FEAT-MON-003 — Adaptive Monitoring Intervals
+- ⏳ FEAT-STRAT-001 — Bull Cycle Detector + Dynamic Tier Allocation
+
+### Files
+Created:
+- `spa_core/alerts/red_flag_monitor.py`
+- `spa_core/tests/test_red_flag_monitor.py`
+- `data/red_flags.json`
+- `docs/ADR_015_red_flag_monitor.md`
+
+Modified:
+- `KANBAN.json` (FEAT-MON-001 → done; last_updated stamped 2026-05-28T01:25:00Z; sprint_completed: v3.16)
+- `SPA_sprint_log.md` (this entry)
