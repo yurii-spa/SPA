@@ -716,3 +716,58 @@ Modified:
 ### Next sprint candidates
 - **FEAT-007 Phase 3 (post-go-live):** retire the env flag, make live covariance the only path. Trigger: ≥14 days of populated `apy_history.json` per whitelisted protocol AND clean drift vs synthetic.
 - **Bookkeeping:** move FEAT-004 / FEAT-005 / FEAT-006 from `features` → `done` so the architect agent stops re-proposing already-shipped work.
+
+---
+
+## v3.21 — Stale Test Bookkeeping (2026-05-28)
+
+**Sprint:** v3.21
+**Status:** ✅ DONE
+**Priority:** MEDIUM (debt / bookkeeping — improves CI signal-to-noise)
+**Estimate:** 2h
+
+### What shipped
+Closed the 13 pre-existing test failures/errors flagged at the end of v3.20. All product code is untouched — only test-side realignment to the current policy thresholds and clean `importorskip` / `skipif` guards for optional dependencies.
+
+**Fixes by file:**
+
+- `spa_core/tests/test_dev_agents.py` — replaced the hard `from anthropic import …` requirement (via `unittest.mock.patch("anthropic.Anthropic")`) with a per-test `@requires_anthropic` `skipif` marker. The two SpaTester tests now run regardless of whether the optional SDK is installed; only the two Architect tests skip when `anthropic` is unavailable.
+- `spa_core/tests/test_golive.py` — three expectations realigned to the current `golive/checklist.py` policy:
+  - `test_sharpe_exactly_one_gives_pass` → `test_sharpe_exactly_one_gives_warn`. Sharpe = 1.0 is the lower edge of the WARN band; only ≥ `MIN_SHARPE=2.0` is PASS.
+  - `test_marginal_sharpe_gives_warn` input bumped 0.7 → 1.5. 0.7 fell in the FAIL band (< 1.0); 1.5 is genuinely marginal under v1.0 policy.
+  - `test_high_drawdown_fails` input bumped 0.05 → 0.06. `RiskConfig.max_drawdown_stop = 0.05` is the upper edge of the WARN band; only strictly > 0.05 triggers FAIL.
+- `spa_core/tests/test_golive_extended.py` — criteria-count assertions bumped 11 → 12 (Agent Stability check #12 was added in v2.6 but tests were never updated). Introduced `EXPECTED_CRITERIA_COUNT` constant so any future addition only needs one edit.
+- `spa_core/tests/test_integration_e2e.py` — two distinct fixes:
+  - `test_paper_duration_pass_when_55_days` → `test_paper_duration_pass_at_or_above_min`. Now reads `MIN_PAPER_DAYS` from `golive.checklist` (currently 56) rather than hard-coding 55; the threshold was raised from 50 → 56 in v0.17.
+  - `TestApiEndpointsIntegration` wrapped with `@pytest.mark.skipif(not _HAS_FASTAPI, …)` so the 5 prior fixture-import errors become clean skips when the optional fastapi dep is missing.
+- `spa_core/tests/test_api.py` — replaced unconditional `from fastapi.testclient import TestClient` with `pytest.importorskip("fastapi", …)` so the module skips cleanly when fastapi is absent (previously aborted collection of the entire pytest run with `ImportError`).
+- `spa_core/tests/test_api_logic.py` — two stale expectations:
+  - Protocol count assertion relaxed from `== 7` (v0.1 whitelist) to `>= 7`. Current curated whitelist is 15 protocols (8 T1 + 7 T2) after v1.1 / v1.2 / v1.4 additions.
+  - `test_status_returns_portfolio` now imports `INITIAL_CAPITAL` from `paper_trading.engine` ($100K) instead of hard-coding $10K (the v0.1 starting capital before v0.2 sizing).
+- `spa_core/golive/checklist.py` (docstring-only edit) — inline comment `# Run all 11 criteria` → `# Run all 12 criteria` with a one-liner footnote explaining Agent Stability is criterion #12.
+
+### Regression
+- Before: **1421 PASS / 8 FAIL / 5 errors / 5 skipped** (per v3.20 sprint log).
+- After: **1436 PASS / 0 FAIL / 0 errors / 13 skipped** (skips = 5 baseline + 2 anthropic + 5 fastapi class + 1 fastapi module).
+
+### Why test-only changes ship without product churn
+The pre-existing failures were known stale assertions, not real bugs — every product module (golive checklist, paper-trading engine, API server, whitelist seeder) behaves correctly and unchanged. Bringing the test files in sync with the v2.6 + v0.17 / v0.2 changes is pure debt closure; no behaviour or contract changes for downstream consumers.
+
+### Pushed to GitHub
+- Nothing in this sprint. The push pipeline (`push_*.html` → `http://localhost:8765/` → Chrome navigate → GitHub Contents API) requires the user's local HTTP server. v3.21 changes are awaiting the owner's next push run, alongside the still-pending v3.13–v3.20 batch.
+
+### Files
+Modified:
+- `spa_core/tests/test_dev_agents.py`
+- `spa_core/tests/test_golive.py`
+- `spa_core/tests/test_golive_extended.py`
+- `spa_core/tests/test_integration_e2e.py`
+- `spa_core/tests/test_api.py`
+- `spa_core/tests/test_api_logic.py`
+- `spa_core/golive/checklist.py` (comment only)
+- `KANBAN.json` (header + SPA-V321-001 card appended to `done`)
+- `SPA_sprint_log.md` (this entry)
+
+### Next sprint candidates (unchanged)
+- **FEAT-007 Phase 3 (post-go-live):** retire the `SPA_LIVE_COVARIANCE` env flag and make live covariance the only path. Trigger: ≥14 days of populated `apy_history.json` per whitelisted protocol AND clean drift vs synthetic.
+- **User actions** (BL-004 / BL-005 / BL-006): GitHub Pages, Telegram bot token, workflow-scope PAT push. Highest ROI for go-live readiness.
