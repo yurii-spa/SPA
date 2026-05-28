@@ -44,7 +44,8 @@
       "explanation": "Aave V3 graded A (numeric 0.958). Lowest subscores: tvl_trend=0.55, cross_protocol_deps=0.80, multisig_threshold=0.93.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102841Z"
+      "generated_at": "2026-05-27T21:23:06.102841Z",
+      "yield_source": "real_cashflow"
     },
     {
       "protocol": "Compound V3",
@@ -71,7 +72,8 @@
       "explanation": "Compound V3 graded B (numeric 0.844). Lowest subscores: timelock_duration=0.29, regulatory_surface=0.50, tvl_trend=0.53.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102884Z"
+      "generated_at": "2026-05-27T21:23:06.102884Z",
+      "yield_source": "real_cashflow"
     },
     {
       "protocol": "Morpho",
@@ -98,7 +100,8 @@
       "explanation": "Morpho graded A (numeric 0.897). Lowest subscores: timelock_duration=0.57, cross_protocol_deps=0.60, tvl_trend=0.62.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102896Z"
+      "generated_at": "2026-05-27T21:23:06.102896Z",
+      "yield_source": "real_cashflow"
     },
     {
       "protocol": "Yearn V3",
@@ -125,7 +128,8 @@
       "explanation": "Yearn V3 graded B (numeric 0.800). Lowest subscores: cross_protocol_deps=0.20, timelock_duration=0.29, tvl_trend=0.48.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102913Z"
+      "generated_at": "2026-05-27T21:23:06.102913Z",
+      "yield_source": "real_cashflow"
     },
     {
       "protocol": "Sky (sUSDS)",
@@ -152,7 +156,8 @@
       "explanation": "Sky (sUSDS) graded B (numeric 0.797). Lowest subscores: timelock_duration=0.29, protocol_age=0.43, regulatory_surface=0.50.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102926Z"
+      "generated_at": "2026-05-27T21:23:06.102926Z",
+      "yield_source": "real_cashflow"
     },
     {
       "protocol": "MakerDAO",
@@ -287,7 +292,8 @@
       "explanation": "Euler V2 graded A (numeric 0.856). Lowest subscores: protocol_age=0.43, timelock_duration=0.57, tvl_trend=0.60.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102978Z"
+      "generated_at": "2026-05-27T21:23:06.102978Z",
+      "yield_source": "real_cashflow"
     }
   ],
   "summary_by_grade": {
