@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-28T03:20:47.913662+00:00",
+  "last_updated": "2026-05-28T04:30:00+00:00",
   "updated_by": "spa-dev-continue-orchestrator",
-  "sprint_completed": "v3.20",
-  "last_dispatch_run": "2026-05-28T03:20:47.913662+00:00",
-  "last_dispatch_note": "Sprint v3.20: shipped FEAT-007 Phase 2 — wired live covariance + dynamic Kelly into PortfolioOptimizer and AllocationRecommender behind SPA_LIVE_COVARIANCE=1 env flag. Default behavior unchanged. 16/16 new integration tests PASS, 1327/1327 broader regression GREEN (excl. 5 pre-existing unrelated failures). Bookkeeping: moved FEAT-004/005/006 umbrella cards features→done (all phases shipped via sub-cards). No GitHub push (localhost:8765 pipeline requires user). Remaining HIGH unblocked work in backlog: only User Action items (BL-004/005/006); features now contains v2.0 post-go-live work (FEAT-001/002/003) + FEAT-007 (Phase 3 post-go-live) + FEAT-MON-004 (Phase 3 post-go-live).",
+  "sprint_completed": "v3.21",
+  "last_dispatch_run": "2026-05-28T04:30:00+00:00",
+  "last_dispatch_note": "Sprint v3.21 — Stale Test Bookkeeping. Closed the 13 known pre-existing test failures/errors flagged in v3.20 (test_dev_agents x2, test_golive x3, test_golive_extended x2, test_integration_e2e x1 + 5 fastapi-related errors, test_api_logic x2, test_api collection error). All product code untouched; tests realigned to current policy thresholds (MIN_SHARPE=2.0, max_drawdown_stop=0.05, MIN_PAPER_DAYS=56, 12-criteria checklist incl. Agent Stability, 15-protocol whitelist, INITIAL_CAPITAL=$100K) + clean importorskip guards for optional anthropic/fastapi deps. Regression now: 1436 PASS / 0 FAIL / 13 skipped (was 1421 PASS / 8 FAIL / 5 errors). No GitHub push (localhost:8765 pipeline requires user). Remaining HIGH unblocked work in backlog: only User Action items (BL-004/005/006); features still contains v2.0 post-go-live work + FEAT-007 Phase 3 + FEAT-MON-004 Phase 3.",
   "columns": {
     "ideas": [
       {
@@ -1841,6 +1841,25 @@
         "completed_at": "2026-05-28T03:20:47.913662+00:00",
         "sprint_completed": "v3.20-bookkeeping",
         "closure_note": "Umbrella card closed — all phases shipped via sub-cards: SPA-V30-001, SPA-V31-001, SPA-V38-001. Moved to done column during sprint v3.20 KANBAN reconciliation. Phase 1 (scaffold), Phase 2 (read-only RPC), Phase 3 (live writes) all in done. Phase 4 (engine.py wiring) shipped jointly for FEAT-004+005 via SPA-V41-001."
+      },
+      {
+        "id": "SPA-V321-001",
+        "title": "Stale Test Bookkeeping — fix 13 pre-existing failures/errors",
+        "description": "Closed the 13 known pre-existing test failures/errors flagged at the end of v3.20. All product code untouched; tests realigned to current policy thresholds + clean importorskip guards for optional deps.",
+        "priority": "MEDIUM",
+        "estimate": "2h",
+        "tags": [
+          "testing",
+          "debt",
+          "bookkeeping"
+        ],
+        "sprint": "v3.21",
+        "added": "2026-05-28",
+        "status": "done",
+        "sprint_completed": "v3.21",
+        "completed": "2026-05-28",
+        "completed_at": "2026-05-28T04:30:00Z",
+        "implementation": "Sprint v3.21 — Stale Test Bookkeeping. Test-only edits, no product changes.\n\nFixes:\n  - spa_core/tests/test_dev_agents.py: replaced module-level anthropic import     requirement with a @requires_anthropic skipif marker on the two architect tests;     the tester tests now run regardless of optional SDK availability.\n  - spa_core/tests/test_golive.py: realigned 3 expectations to current policy —     sharpe=1.0 → WARN (was PASS, MIN_SHARPE=2.0); 'marginal sharpe' input 0.7 → 1.5     so it actually lands in the [1.0, 2.0) WARN band; drawdown FAIL boundary tested     with 0.06 instead of 0.05 since 0.05 == RiskConfig.max_drawdown_stop is the upper     edge of the WARN band.\n  - spa_core/tests/test_golive_extended.py: criteria count assertion 11 → 12     (Agent Stability was added in v2.6 but tests were never updated); introduced     EXPECTED_CRITERIA_COUNT constant so future additions only need one edit.\n  - spa_core/tests/test_integration_e2e.py: paper-duration PASS test now uses     MIN_PAPER_DAYS from the module (was hard-coded 55, MIN is 56);     TestApiEndpointsIntegration class wrapped in @pytest.mark.skipif(not _HAS_FASTAPI)     instead of failing at fixture-import time (5 prior errors → clean skips).\n  - spa_core/tests/test_api.py: replaced unconditional `from fastapi.testclient import     TestClient` with pytest.importorskip('fastapi') so the module skips cleanly when     fastapi is absent (previously aborted collection of the entire pytest run).\n  - spa_core/tests/test_api_logic.py: protocol count assertion relaxed from exact 7     to >= 7 (whitelist grew to 15 across v1.1/v1.2/v1.4); INITIAL_CAPITAL test now     imports the engine constant ($100K) instead of hard-coding $10K.\n  - spa_core/golive/checklist.py: inline comment '# Run all 11 criteria' updated to     'Run all 12 criteria' with a one-liner footnote explaining v2.6 added     Agent Stability (#12).\n\nRegression after sprint v3.21: 1436 PASS / 0 FAIL / 13 skipped (was 1421 PASS / 8 FAIL / 5 errors)."
       }
     ]
   }
