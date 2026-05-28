@@ -468,3 +468,21 @@ class CovarianceEstimator:
             "min_observations": MIN_OBSERVATIONS,
             "protocols": out_protos,
         }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# CLI — daily JSON export for dashboards
+# ──────────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":  # pragma: no cover
+    import sys as _sys
+    out_path = Path("data/covariance_summary.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        est = CovarianceEstimator()
+        summary = est.summary()
+        out_path.write_text(json.dumps(summary, indent=2))
+        print(f"wrote {out_path}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"covariance_estimator CLI failed: {exc}", file=_sys.stderr)
+        _sys.exit(1)
