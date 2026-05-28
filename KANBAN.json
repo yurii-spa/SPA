@@ -1,6 +1,7 @@
 {
-  "last_updated": "2026-05-28T00:10:55Z",
-  "updated_by": "dispatch-orchestrator (v3.15 close — FEAT-RISK-003 Yield Classifier shipped, Risk Layer Phase 1 COMPLETE)",
+  "last_updated": "2026-05-28T01:25:00Z",
+  "updated_by": "dispatch-orchestrator (v3.16 close — FEAT-MON-001 Red Flag Monitor Extended shipped, 4 external categories live)",
+  "sprint_completed": "v3.16",
   "columns": {
     "ideas": [
       {
@@ -141,25 +142,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "FEAT-MON-001",
-        "title": "Red Flag Monitor Extended (TVL drop, APY spike, governance proposal, token unlock)",
-        "description": "Extends the existing depeg detector in alerts/risk_monitor.py with 4 additional signal categories: (1) TVL drop >15% in 24h or >30% in 7d — sourced from DeFiLlama time-series API; (2) APY spike >50% above 7-day baseline — anomaly or manipulation signal; (3) active governance proposal with risk-sensitive tags (upgrade/risk-param/treasury) from Snapshot API; (4) token unlock event within next 7 days — sourced from DeFiLlama unlock calendar. Output: data/red_flags.json — flat list of active red flags by protocol with severity (WARN/CRITICAL). Red flags trigger Telegram alerts via BL-005 and feed into go-live criterion 3 (no CRITICAL alerts). All data sources: DefiLlama API + Snapshot API — both free.",
-        "priority": "HIGH",
-        "phase": 2,
-        "estimated_hours": 8,
-        "depends_on": [
-          "FEAT-RISK-001"
-        ],
-        "tags": [
-          "backend",
-          "monitoring",
-          "alerts"
-        ],
-        "notes": "Do after Risk Layer (FEAT-RISK-001). Risk grades provide alert context — a TVL drop on a grade-A protocol is less alarming than on grade-D. Extends existing risk_monitor.py cleanly. Snapshot API is unauthenticated. DeFiLlama unlock endpoint: /api/unlocks. Estimated 2x increase in actionable early-warning signal coverage.",
-        "sprint": null,
-        "added": "2026-05-27"
       },
       {
         "id": "FEAT-MON-003",
@@ -1778,6 +1760,30 @@
         "completed": "2026-05-28",
         "implementation": "spa_core/agents/yield_classifier_agent.py (YieldClassifierAgent + BOOTSTRAP_CLASSIFICATIONS for 13 protocols across 6 categories: real_cashflow, token_emissions, points_farming, basis_trade, rwa, unknown). 116/116 pytest tests PASS in test_yield_classifier_agent.py. Generated data/yield_sources.json (offline mode): primary={real_cashflow:11, basis_trade:2}, high_emissions=0, unknown=0. Auto-enriches data/risk_scores.json with yield_source field via enrich_risk_scores(). CLI: python -m spa_core.agents.yield_classifier_agent [--offline] [--dry-run]. Stdlib only, offline-tolerant, deterministic, NEVER raises. Closes Risk Layer Phase 1 — FEAT-MON-001/002/003 + FEAT-STRAT-001 now fully unblocked for Phase 2.",
         "completed_at": "2026-05-28T00:10:55Z"
+      },
+      {
+        "id": "FEAT-MON-001",
+        "title": "Red Flag Monitor Extended (TVL drop, APY spike, governance proposal, token unlock)",
+        "description": "Extends the existing depeg detector in alerts/risk_monitor.py with 4 additional signal categories: (1) TVL drop >15% in 24h or >30% in 7d — sourced from DeFiLlama time-series API; (2) APY spike >50% above 7-day baseline — anomaly or manipulation signal; (3) active governance proposal with risk-sensitive tags (upgrade/risk-param/treasury) from Snapshot API; (4) token unlock event within next 7 days — sourced from DeFiLlama unlock calendar. Output: data/red_flags.json — flat list of active red flags by protocol with severity (WARN/CRITICAL). Red flags trigger Telegram alerts via BL-005 and feed into go-live criterion 3 (no CRITICAL alerts). All data sources: DefiLlama API + Snapshot API — both free.",
+        "priority": "HIGH",
+        "phase": 2,
+        "estimated_hours": 8,
+        "depends_on": [
+          "FEAT-RISK-001"
+        ],
+        "tags": [
+          "backend",
+          "monitoring",
+          "alerts"
+        ],
+        "notes": "Do after Risk Layer (FEAT-RISK-001). Risk grades provide alert context — a TVL drop on a grade-A protocol is less alarming than on grade-D. Extends existing risk_monitor.py cleanly. Snapshot API is unauthenticated. DeFiLlama unlock endpoint: /api/unlocks. Estimated 2x increase in actionable early-warning signal coverage.",
+        "sprint": "v3.16",
+        "added": "2026-05-27",
+        "status": "done",
+        "sprint_completed": "v3.16",
+        "completed": "2026-05-28",
+        "completed_at": "2026-05-28T01:25:00Z",
+        "implementation": "spa_core/alerts/red_flag_monitor.py (RedFlagMonitor + RedFlag dataclass + 4 fetcher/classifier pairs for tvl_drop, apy_spike, governance_proposal, token_unlock). Stdlib-only (urllib + json + dataclasses + datetime), offline-tolerant, deterministic, NEVER raises. Risk-grade context loaded from data/risk_scores.json upgrades severity to CRITICAL on grade C/D/F protocols. 56/56 pytest tests PASS in test_red_flag_monitor.py covering all 4 categories + severity classification + JSON shape + fallback paths + module helpers + CLI. Full regression 451/451 PASS across test_risk_*, test_scoring_engine, test_yield_classifier, test_audit_reader, test_incidents_fetcher, test_red_flag_monitor. Generated data/red_flags.json (offline mode): 8 flags total — 2 CRITICAL (pendle-pt apy_spike 4.03x, ethena-susde token_unlock 6.4% supply), 6 WARN, by_category={apy_spike:2, governance_proposal:2, token_unlock:2, tvl_drop:2}, protocols_clean=4. CLI: python -m spa_core.alerts.red_flag_monitor [--offline] [--dry-run]. ADR-015 documents thresholds, severity tiers, Telegram (BL-005) integration plan, go-live criterion 3 unlock. No new top-level dependencies."
       }
     ]
   }
