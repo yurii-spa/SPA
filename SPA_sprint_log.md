@@ -445,3 +445,47 @@ Modified:
 - ⬜ FEAT-ALLOC-002 — wire `engine.py` to consume `risk_scores.json` (allocation cap enforcement)
 
 After FEAT-RISK-003 lands, Risk Layer Phase 1 closes and Phase 2 (FEAT-MON-001/002/003 + FEAT-STRAT-001) is fully unblocked.
+
+## v3.15 — FEAT-RISK-003 Real Yield Classifier (2026-05-28)
+
+**Sprint:** v3.15
+**Status:** ✅ DONE
+**Priority:** HIGH, Phase 1
+**Estimate:** 6h (actual: pre-existing implementation found, finalized via dispatch run)
+
+### What shipped
+- `spa_core/agents/yield_classifier_agent.py` (963 LOC) — `YieldClassifierAgent` with `BOOTSTRAP_CLASSIFICATIONS` covering 13 SPA whitelist protocols across 6 yield categories: `real_cashflow`, `token_emissions`, `points_farming`, `basis_trade`, `rwa`, `unknown`.
+- `classify_all()` / `export()` / `enrich_risk_scores()` — all offline-tolerant, NEVER raise, deterministic round-trip.
+- Stdlib only (`urllib` + `json` + `re` + `datetime`); matches the audit_reader / incidents_fetcher pattern.
+- CLI: `python -m spa_core.agents.yield_classifier_agent [--offline] [--dry-run]`.
+
+### Tests
+- `spa_core/tests/test_yield_classifier_agent.py` — **116/116 PASS** in 0.12s (verified this dispatch run).
+
+### First snapshot
+Generated `data/yield_sources.json` (offline mode):
+- **13 protocols** classified
+- `by_primary={real_cashflow: 11, basis_trade: 2, token_emissions: 0, points_farming: 0, rwa: 0, unknown: 0}`
+- `high_emissions=0`, `unknown=0`
+- Auto-enriched `data/risk_scores.json` with `yield_source` field (6 of 10 risk-scored protocols matched).
+
+### Risk Layer Phase 1 — CLOSED
+- ✅ FEAT-RISK-002 — Incident History DB (v3.13)
+- ✅ FEAT-RISK-001 — Risk Scoring Engine (v3.14)
+- ✅ FEAT-INT-001 — Audit Reader Agent (v3.14)
+- ✅ FEAT-RISK-003 — Real Yield Classifier (v3.15)
+
+### Phase 2 unblocked
+- FEAT-MON-001 — Red Flag Monitor Extended
+- FEAT-MON-002 — Governance Watcher
+- FEAT-MON-003 — Adaptive Monitoring Intervals
+- FEAT-STRAT-001 — Bull Cycle Detector + Dynamic Tier Allocation
+
+### Files
+Created:
+- `data/yield_sources.json`
+
+Modified:
+- `data/risk_scores.json` (enriched with yield_source field)
+- `KANBAN.json` (FEAT-RISK-003 → done; last_updated stamped 2026-05-28)
+- `SPA_sprint_log.md` (this entry)
