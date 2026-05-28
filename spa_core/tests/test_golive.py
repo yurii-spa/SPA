@@ -130,10 +130,15 @@ class TestCheckStrategyPerformance:
         result = check_strategy_performance(backtest_data)
         assert result["status"] == _PASS
 
-    def test_sharpe_exactly_one_gives_pass(self):
+    def test_sharpe_exactly_one_gives_warn(self):
+        """Sharpe = 1.0 is at the bottom of the WARN band (1.0 ≤ s < MIN_SHARPE=2.0).
+
+        Updated in sprint v3.21: previously asserted PASS, but the policy was
+        tightened in v1.0 (DEV_STRATEGY) — only ≥ 2.0 is PASS, ≥ 1.0 is WARN.
+        """
         backtest_data = {"metrics": {"sharpe_ratio": 1.0}}
         result = check_strategy_performance(backtest_data)
-        assert result["status"] == _PASS
+        assert result["status"] == _WARN
 
     def test_low_sharpe_gives_fail(self):
         backtest_data = {"metrics": {"sharpe_ratio": 0.3}}
@@ -141,8 +146,12 @@ class TestCheckStrategyPerformance:
         assert result["status"] == _FAIL
 
     def test_marginal_sharpe_gives_warn(self):
-        """Sharpe between 0.5 and 1.0 should give WARN."""
-        backtest_data = {"metrics": {"sharpe_ratio": 0.7}}
+        """Sharpe strictly between 1.0 and MIN_SHARPE=2.0 should give WARN.
+
+        Updated in sprint v3.21: previously used 0.7 which now falls in the FAIL
+        band (< 1.0).  1.5 is genuinely marginal under the current policy.
+        """
+        backtest_data = {"metrics": {"sharpe_ratio": 1.5}}
         result = check_strategy_performance(backtest_data)
         assert result["status"] == _WARN
 
@@ -177,7 +186,13 @@ class TestCheckDrawdownAcceptable:
         assert result["status"] == _WARN
 
     def test_high_drawdown_fails(self):
-        portfolio = {"total_drawdown_pct": 0.05}
+        """Drawdown strictly above RiskConfig.max_drawdown_stop (=0.05) must FAIL.
+
+        Updated in sprint v3.21: the previous input of exactly 0.05 sits at the
+        upper edge of the WARN band (≤ max_drawdown_stop ⇒ WARN); only > 0.05
+        triggers FAIL.  0.06 is unambiguously in the FAIL region.
+        """
+        portfolio = {"total_drawdown_pct": 0.06}
         result = check_drawdown_acceptable(portfolio)
         assert result["status"] == _FAIL
 
