@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-05-27T21:23:00Z",
-  "updated_by": "dispatch-orchestrator (v3.14 close — FEAT-RISK-001 + FEAT-INT-001 shipped, Risk Layer Phase 1 advancing)",
+  "last_updated": "2026-05-28T00:10:55Z",
+  "updated_by": "dispatch-orchestrator (v3.15 close — FEAT-RISK-003 Yield Classifier shipped, Risk Layer Phase 1 COMPLETE)",
   "columns": {
     "ideas": [
       {
@@ -141,25 +141,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "FEAT-RISK-003",
-        "title": "Real Yield Classifier (cashflow / emissions / points / basis / rwa / unknown)",
-        "description": "Claude agent classifies yield source for every pool in the whitelist: real_cashflow (lending spread, fee revenue), token_emissions (protocol subsidy — will expire), points_farming (speculative pre-TGE), basis_trade (funding rate arbitrage), rwa (real-world asset backed), unknown. Agent reads protocol docs and reward contract structures. Critical for S2 (LP stable) and S3 (yield loop) strategies — prevents over-allocation to emissions-inflated APYs. Output: yield_source field added to protocols.json and risk_scores.json.",
-        "priority": "HIGH",
-        "phase": 1,
-        "estimated_hours": 6,
-        "depends_on": [
-          "FEAT-RISK-001"
-        ],
-        "tags": [
-          "backend",
-          "agents",
-          "risk"
-        ],
-        "notes": "Do immediately after or alongside FEAT-RISK-001 — yield source is one of the 15 risk scoring parameters. LLM agent classification is OK here (no capital decisions). Required before S2/S3 strategies graduate from paper trading. Chasing token emissions that expire is the #1 DeFi yield trap for passive strategies.",
-        "sprint": null,
-        "added": "2026-05-27"
       },
       {
         "id": "FEAT-MON-001",
@@ -1775,6 +1756,28 @@
         "status": "done",
         "completed": "2026-05-27",
         "implementation": "spa_core/risk/scoring_engine.py (RiskScoringEngine + 15 subscores + BOOTSTRAP_PROTOCOLS for 10 whitelist protocols) + 92 pytest tests (all PASS) + ADR-014. Generated data/risk_scores.json (offline mode): A=2 B=8 C=0 D=0. Allocation cap policy documented (C halved, D=5%); engine.py integration deferred to next sprint. Fallback: degrades to neutral 0.5 if incidents.json or audit_findings.json missing."
+      },
+      {
+        "id": "FEAT-RISK-003",
+        "title": "Real Yield Classifier (cashflow / emissions / points / basis / rwa / unknown)",
+        "description": "Claude agent classifies yield source for every pool in the whitelist: real_cashflow (lending spread, fee revenue), token_emissions (protocol subsidy — will expire), points_farming (speculative pre-TGE), basis_trade (funding rate arbitrage), rwa (real-world asset backed), unknown. Critical for S2 (LP stable) and S3 (yield loop) strategies — prevents over-allocation to emissions-inflated APYs. Output: yield_source field added to risk_scores.json + standalone data/yield_sources.json.",
+        "priority": "HIGH",
+        "phase": 1,
+        "estimated_hours": 6,
+        "depends_on": [
+          "FEAT-RISK-001"
+        ],
+        "tags": [
+          "backend",
+          "agents",
+          "risk"
+        ],
+        "sprint": "v3.15",
+        "added": "2026-05-27",
+        "status": "done",
+        "completed": "2026-05-28",
+        "implementation": "spa_core/agents/yield_classifier_agent.py (YieldClassifierAgent + BOOTSTRAP_CLASSIFICATIONS for 13 protocols across 6 categories: real_cashflow, token_emissions, points_farming, basis_trade, rwa, unknown). 116/116 pytest tests PASS in test_yield_classifier_agent.py. Generated data/yield_sources.json (offline mode): primary={real_cashflow:11, basis_trade:2}, high_emissions=0, unknown=0. Auto-enriches data/risk_scores.json with yield_source field via enrich_risk_scores(). CLI: python -m spa_core.agents.yield_classifier_agent [--offline] [--dry-run]. Stdlib only, offline-tolerant, deterministic, NEVER raises. Closes Risk Layer Phase 1 — FEAT-MON-001/002/003 + FEAT-STRAT-001 now fully unblocked for Phase 2.",
+        "completed_at": "2026-05-28T00:10:55Z"
       }
     ]
   }
