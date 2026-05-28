@@ -1,6 +1,6 @@
 # ADR-012 — Dynamic Kelly Sizing with Live APY Covariance
 
-**Status:** Accepted — Phase 1 (scaffold) shipped in sprint v3.12.
+**Status:** Accepted — Phase 2 shipped in sprint v3.20.
 **Date:** 2026-05-27
 **Related:** FEAT-007, ADR-001 (initial risk policy), ADR-008 (execution router), ADR-011 (engine live cutover)
 
@@ -129,3 +129,108 @@ required; no network calls.
 `summary(window_days=90)` returns a JSON-ready dict suitable for direct
 write to `data/covariance_summary.json` — that file is the planned
 Phase 2 dashboard input.
+
+---
+
+## Phase 2 (sprint v3.20 — DONE)
+
+### What was wired
+
+* `spa_core/optimization/markowitz.py`
+  * `PortfolioOptimizer.__init__` now accepts `live_covariance: bool | None = None`
+    and `covariance_estimator: CovarianceEstimator | None = None`. When
+    `live_covariance` is `None`, the constructor reads
+    `SPA_LIVE_COVARIANCE` from the environment (default `0`, treated as
+    OFF). When the flag is on and no estimator instance is passed, the
+    optimizer lazy-imports and instantiates a default
+    `CovarianceEstimator()` — this is a no-op when
+    `data/apy_history.json` is missing.
+  * `PortfolioOptimizer.estimate_covariance()` now branches: synthetic
+    path is byte-identical to the v3.19 behaviour, live path calls
+    `compute_covariance_matrix(window_days=90, protocols=..., tiers=...,
+    synthetic_apys=...)` and projects the dict-of-dicts onto the
+    canonical list-of-lists in declaration order.
+  * Two new read-only attributes: `live_covariance: bool` and
+    `covariance_source: "live" | "synthetic"`. The recommender attaches
+    the latter to its top-level result for dashboard observability.
+  * Private `_sigma` / `_corr` helpers are unchanged — they remain the
+    synthetic source-of-truth and the same code the estimator falls
+    back to when a protocol has fewer than `MIN_OBSERVATIONS` data
+    points.
+
+* `spa_core/optimization/recommender.py`
+  * Reads `SPA_LIVE_COVARIANCE` once at the start of `recommend()`.
+  * When live, instantiates a single shared `CovarianceEstimator`,
+    pre-computes per-protocol volatility (with synthetic fallback when
+    history is short), and uses `dynamic_kelly_fraction(...,
+    volatility_pp=vol_map.get(key))` in the Step-1 Kelly pre-filter.
+    Classical `kelly_fraction` path is preserved when the flag is off.
+  * Same `estimator` and `live=True` flag are threaded into
+    `PortfolioOptimizer(...)` so the recommender and optimizer share a
+    single live view.
+  * Top-level result dict now carries `"covariance_source": "live" |
+    "synthetic"` so the dashboard / API can show which path produced
+    the numbers.
+
+* `spa_core/analytics/covariance_estimator.py`
+  * Added a `__main__` CLI block that writes
+    `data/covariance_summary.json` via `CovarianceEstimator().summary()`.
+    Safe to invoke from cron / the export pipeline.
+
+### Env flag mechanic
+
+The single switch is `SPA_LIVE_COVARIANCE`. Truthy values: `1`, `true`,
+`yes` (case-insensitive). Anything else — including unset, empty, `0`,
+`false` — keeps the classical synthetic behaviour. The flag is read at
+the boundaries (constructor / `recommend()` entry) so per-call overrides
+are possible by passing `live_covariance=True` to
+`PortfolioOptimizer(...)` directly.
+
+### Safety property — "empty history = synthetic equivalent"
+
+The estimator's fallback contract is unchanged from Phase 1:
+`compute_volatility(key, synthetic_apy=apy)` returns
+`apy * SYNTHETIC_APY_CV` (= `apy * 0.10`) when there are fewer than
+`MIN_OBSERVATIONS=7` observations, and `compute_correlation` returns the
+tier-based synthetic value (`0.6` same-tier, `0.2` cross-tier) when the
+overlap is too short. These are exactly the values the old `_sigma /
+_corr` helpers return.
+
+Consequence: on the day of the cutover, with the env flag flipped but
+`data/apy_history.json` still empty, **the covariance matrix and the
+recommender output are provably numerically equivalent to the v3.19
+code**. The new test `TestEmptyHistoryEqualsSynthetic` enforces this
+guarantee per-matrix-cell to 1e-9 absolute tolerance.
+
+### Rollback procedure
+
+Single action: unset `SPA_LIVE_COVARIANCE` (or set it to `0`). No code
+revert needed — the classical synthetic path is still present and
+chosen by default. Restart the recommender process to clear cached env
+reads in long-running daemons.
+
+### Validation (this sprint)
+
+* `spa_core/tests/test_phase2_integration.py` — 16 deterministic tests
+  covering: env-unset byte-identity, empty-history numerical equivalence,
+  populated-history measurable divergence, recommender end-to-end env
+  wiring, and dynamic-Kelly call-site verification.
+* Regression: `test_covariance_estimator` (44) + `test_dynamic_kelly`
+  (39) + `test_optimization` (16) → 99/99 PASS. No existing behaviour
+  changed.
+
+### Phase 3 (post-go-live)
+
+Remove the `SPA_LIVE_COVARIANCE` env flag entirely:
+* `PortfolioOptimizer` constructor drops the kwarg; live covariance is
+  the default and only path.
+* `_sigma` / `_corr` are retained only as the in-process fallback for
+  protocols with `<7` observations — same role they play today inside
+  the estimator's fallback branch.
+* `AllocationRecommender.recommend()` no longer branches on the flag;
+  `dynamic_kelly_fraction` becomes the default everywhere.
+
+Trigger: at least 14 days of populated `apy_history.json` for every
+whitelisted protocol AND a clean diff in observed Kelly fractions vs
+the synthetic baseline (< 20% drift per protocol). Targeted for the
+sprint immediately following the 2026-07-15 go-live ADR.
