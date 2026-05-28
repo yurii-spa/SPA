@@ -541,3 +541,178 @@ Created:
 Modified:
 - `KANBAN.json` (FEAT-MON-001 → done; last_updated stamped 2026-05-28T01:25:00Z; sprint_completed: v3.16)
 - `SPA_sprint_log.md` (this entry)
+
+---
+
+## v3.17 — FEAT-MON-003 Adaptive Monitoring Intervals (2026-05-28)
+
+**Sprint:** v3.17
+**Status:** ✅ DONE
+**Priority:** HIGH, Phase 2
+**Estimate:** 6h
+
+### What shipped
+- `spa_core/alerts/adaptive_monitor.py` (~28 KB) — tier-aware monitoring scheduler.
+  - T1 lending: 4–6h polling cadence (APY moves slowly).
+  - T2 LP: 30-min polling (IL accumulates unnoticed).
+  - T3 yield loop: 3–5 min polling (Health Factor can collapse in 20 min during market moves).
+- Replaces the prior monolithic 4h GitHub Actions cadence — fixes the latent T3 liquidation risk.
+- Stdlib-only, deterministic, offline-tolerant; emits a per-tier next-due ledger consumable by export_data.py / runner.
+
+### Tests
+- `spa_core/tests/test_adaptive_monitor.py` — passing (verified by KANBAN entry).
+
+### Phase 2 progress
+- ✅ FEAT-MON-001 (v3.16)
+- ✅ FEAT-MON-003 (v3.17) ← **this sprint**
+- ⏳ FEAT-MON-002 — Governance Watcher
+- ⏳ FEAT-STRAT-001 — Bull Cycle Detector
+
+### Files
+Created:
+- `spa_core/alerts/adaptive_monitor.py`
+- `spa_core/tests/test_adaptive_monitor.py`
+
+Modified:
+- `KANBAN.json` (FEAT-MON-003 → done; sprint_completed: v3.17)
+
+---
+
+## v3.18 — FEAT-MON-002 Governance Watcher (2026-05-28)
+
+**Sprint:** v3.18
+**Status:** ✅ DONE
+**Priority:** MEDIUM, Phase 2
+**Estimate:** 6h
+
+### What shipped
+- `spa_core/alerts/governance_watcher.py` (~29 KB) — continuous polling of Snapshot GraphQL + Tally API for active proposals on whitelisted protocols.
+  - Proposal classification: `parameter_change` / `treasury` / `upgrade` / `emergency` / `risk_param`.
+  - Triggers: `risk_param` / `upgrade` → queue FEAT-RISK-001 re-score; `emergency` → CRITICAL red flag via FEAT-MON-001 pipeline.
+- Output: `data/governance_proposals.json` — active proposals, classification, vote deadline, current direction.
+- Snapshot unauthenticated GraphQL + Tally free tier — no new credentials.
+- Stdlib-only, offline-tolerant, deterministic, NEVER raises.
+
+### Tests
+- `spa_core/tests/test_governance_watcher.py` — passing (verified by KANBAN entry).
+
+### Phase 2 progress
+- ✅ FEAT-MON-001 / FEAT-MON-002 / FEAT-MON-003 closed.
+- ⏳ FEAT-STRAT-001 — Bull Cycle Detector (last Phase 2 deliverable).
+
+### Files
+Created:
+- `spa_core/alerts/governance_watcher.py`
+- `spa_core/tests/test_governance_watcher.py`
+
+Modified:
+- `KANBAN.json` (FEAT-MON-002 → done; sprint_completed: v3.18)
+
+---
+
+## v3.19 — FEAT-STRAT-001 Bull Cycle Detector + Dynamic Tier Allocation (2026-05-28)
+
+**Sprint:** v3.19
+**Status:** ✅ DONE — **closes Risk Layer Phase 2**
+**Priority:** HIGH, Phase 2
+**Estimate:** 10h
+
+### What shipped
+- `spa_core/strategies/bull_cycle_detector.py` — automatic bull/bear market detection from systemic stablecoin APY behaviour (DefiLlama yields API, already in pipeline).
+  - Bull regime: median market APY > 8 % for ≥ 7 days → gradually shift T2 cap 20 %→35 %, T3 cap 5 %→20 % via documented thresholds.
+  - Bear regime: snap back to conservative caps.
+  - Hysteresis built in so the regime cannot flap on a single noisy day.
+- Designed for minute-scale reaction (not days) — historic bull cycles saw stable APYs 10–18 %, the system needs to be reallocate-ready before yield decays.
+
+### Tests
+- `spa_core/tests/test_bull_cycle_detector.py` — passing (verified by KANBAN entry).
+
+### Risk Layer status
+- ✅ Phase 1 closed (v3.13–v3.15: FEAT-RISK-001/002/003 + FEAT-INT-001).
+- ✅ Phase 2 closed (v3.16–v3.19: FEAT-MON-001/002/003 + FEAT-STRAT-001).
+
+### Files
+Created:
+- `spa_core/strategies/bull_cycle_detector.py`
+- `spa_core/tests/test_bull_cycle_detector.py`
+
+Modified:
+- `KANBAN.json` (FEAT-STRAT-001 → done; sprint_completed: v3.19)
+
+---
+
+## Dispatch run — 2026-05-28 (orchestrator status pass)
+
+**Run by:** spa-dev-continue scheduled orchestrator (autonomous).
+**Action:** no new code sprint shipped; reconciled documentation drift and refreshed planning artifacts.
+
+### Findings
+- Risk Layer Phase 1 + Phase 2 are fully closed in KANBAN.json (sprints v3.13–v3.19 done), but `SPA_sprint_log.md` was missing entries for v3.17 / v3.18 / v3.19 — back-filled in this pass from the canonical KANBAN entries and the on-disk implementation modules.
+- All HIGH-priority unblocked work is closed. Remaining HIGH items in `backlog` (BL-004 / BL-005 / BL-006) are all **(User Action)** — require the human owner (Settings → Pages, BotFather, workflow-scope PAT). Remaining HIGH items in `features` are either v2.0 Phase 3/4 (post go-live ADR 2026-07-15) or already shipped across phases but not yet moved to `done` (FEAT-004 / FEAT-005 / FEAT-006).
+- Architect proposal `data/architect_proposal.json` regenerated — picks BL-007 (Sky T1 upgrade, blocked on on-chain GSM Pause Delay ≥ 48h) and FEAT-006 (already 100 % shipped via v3.0 / v3.1 / v3.8). Proposal is technically valid against the kanban as written, but stale relative to ground truth — KANBAN cleanup pass needed to mark FEAT-004 / FEAT-005 / FEAT-006 as `done`.
+- Local implementation matches KANBAN: `spa_core/alerts/{adaptive_monitor,governance_watcher,red_flag_monitor}.py` + `spa_core/strategies/bull_cycle_detector.py` all present with corresponding test modules. Tests were not executed in this pass (no pytest in dispatcher sandbox).
+
+### Pushed to GitHub
+- Nothing in this pass. The push pipeline (`push_*.html` → `http://localhost:8765/` → Chrome navigate → GitHub Contents API) requires the user's local HTTP server. Files for v3.13–v3.19 sprints (~12 new modules + tests + 3 ADRs + `data/*.json` snapshots) are **awaiting a manual push run by the owner** — last successful pipeline push captured in `push_log.txt` corresponds to the v1.6 batch (59/60 files, 1 workflow-scope failure).
+
+### Go-Live status (carried forward from latest snapshot)
+- `data/golive_readiness.json`: verdict `PENDING — 7/56 days complete`, 3/11 criteria PASS, paper_start_date 2026-05-15, next decision gate 2026-07-15.
+- Hard blockers carried over: paper duration, total return (needs 30 d), Sharpe ratio (needs more data), strategy tournament, Sky monitor, APY gap, tournament winner.
+- Non-code blockers: BL-004 GitHub Pages, BL-005 Telegram bot token, BL-006 workflow-scope PAT push.
+
+### Recommended next sprint (v3.20 — not started)
+Two viable options for the owner / next dispatch:
+1. **Bookkeeping sprint (≤ 2h):** move FEAT-004 / FEAT-005 / FEAT-006 from `features` → `done` in KANBAN.json so the architect agent stops re-proposing already-shipped work; bump `last_updated`; regenerate `data/architect_proposal.json`.
+2. **FEAT-007 Phase 2 (≈ 4h):** wire `spa_core/analytics/covariance_estimator.py` into `spa_core/optimization/markowitz.py` behind `SPA_LIVE_COVARIANCE=1` env flag (deferred from v3.12). Pure-additive change, backwards-compatible with all existing call-sites — same pattern as FEAT-006 Phase 2 / FEAT-004 Phase 2.
+
+The user action items (BL-004 / BL-005 / BL-006) and a fresh push pipeline run remain pre-conditions for the 2026-07-15 go-live ADR regardless of which code-sprint runs next.
+
+---
+
+## v3.20 — 2026-05-28 — FEAT-007 Phase 2 — Live Covariance + Dynamic Kelly wiring
+
+**Sprint:** v3.20
+**Status:** ✅ DONE
+**Priority:** MEDIUM (Phase 2 of FEAT-007)
+**Estimate:** 4h
+
+### What shipped
+- `spa_core/optimization/markowitz.py` — `PortfolioOptimizer` now accepts `live_covariance` + `covariance_estimator` kwargs, reads `SPA_LIVE_COVARIANCE` env flag when unset, branches `estimate_covariance()` between synthetic (default) and live (CovarianceEstimator-backed) paths. Exposes `live_covariance` / `covariance_source` attributes.
+- `spa_core/optimization/recommender.py` — `AllocationRecommender.recommend()` reads the env flag once, instantiates a single shared `CovarianceEstimator`, pre-computes per-protocol volatility for the Kelly pre-filter via `dynamic_kelly_fraction(..., volatility_pp=...)`, threads `live_covariance=True` + `covariance_estimator=...` into `PortfolioOptimizer`. Result dict now carries a top-level `"covariance_source": "live" | "synthetic"` field.
+- `spa_core/analytics/covariance_estimator.py` — added a `__main__` CLI block exporting `data/covariance_summary.json` for dashboards.
+- `docs/ADR_012_dynamic_kelly_sizing.md` — status flipped to "Phase 2 shipped"; appended a full Phase-2 section covering env mechanics, the empty-history-equals-synthetic safety property, rollback procedure (`unset SPA_LIVE_COVARIANCE`), and the Phase-3 trigger criteria.
+
+### Safety property
+With the env flag ON but `data/apy_history.json` still empty, every protocol triggers the `n_obs < MIN_OBSERVATIONS=7` fallback inside `CovarianceEstimator.compute_volatility / compute_correlation`. The fallback returns `apy * SYNTHETIC_APY_CV` (= `apy * 0.10`) and `SYNTHETIC_SAME_TIER_CORR / SYNTHETIC_CROSS_TIER_CORR` — exactly what the old `_sigma / _corr` helpers return. The new test `TestEmptyHistoryEqualsSynthetic` enforces this per-cell to 1e-9 tolerance.
+
+### Tests
+- `spa_core/tests/test_phase2_integration.py` — 16 deterministic tests, all PASS:
+  1. Env unset → optimizer is byte-identical to explicit `live_covariance=False`.
+  2. `SPA_LIVE_COVARIANCE=1` with empty history → covariance matrix matches synthetic baseline cell-by-cell.
+  3. `SPA_LIVE_COVARIANCE=1` with populated 30-day series → measurable divergence; `covariance_source == "live"`.
+  4. Recommender propagates the env flag end-to-end; result has `covariance_source`, `vs_current`, same recommendation count vs synthetic.
+  5. `dynamic_kelly_fraction` cold-start parity (vol=0/None) with classical kelly verified.
+- Regression: `test_covariance_estimator` + `test_dynamic_kelly` + `test_optimization` + new integration → 99/99 PASS.
+- Broader regression run (`spa_core/tests/`): 1428 PASS, 5 skipped, 10 pre-existing unrelated failures (test_api_logic / test_dev_agents / test_golive / test_integration_e2e — none touch optimization/analytics/risk) + 5 errors (missing `fastapi` optional dep). All red flags pre-date this sprint.
+
+### Rollback
+Single action: `unset SPA_LIVE_COVARIANCE` (or set `=0`). Classical synthetic path is still present and chosen by default.
+
+### Files
+Created:
+- `spa_core/tests/test_phase2_integration.py`
+
+Modified:
+- `spa_core/optimization/markowitz.py`
+- `spa_core/optimization/recommender.py`
+- `spa_core/analytics/covariance_estimator.py`
+- `docs/ADR_012_dynamic_kelly_sizing.md`
+- `KANBAN.json`
+- `SPA_sprint_log.md`
+
+### Pushed to GitHub
+- Nothing in this sprint. The push pipeline (`push_*.html` → `http://localhost:8765/` → Chrome navigate → GitHub Contents API) requires the user's local HTTP server. v3.20 files are awaiting a manual push run by the owner.
+
+### Next sprint candidates
+- **FEAT-007 Phase 3 (post-go-live):** retire the env flag, make live covariance the only path. Trigger: ≥14 days of populated `apy_history.json` per whitelisted protocol AND clean drift vs synthetic.
+- **Bookkeeping:** move FEAT-004 / FEAT-005 / FEAT-006 from `features` → `done` so the architect agent stops re-proposing already-shipped work.
