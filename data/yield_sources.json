@@ -1,0 +1,204 @@
+{
+  "generated_at": "2026-05-28T00:10:55.349107Z",
+  "agent_version": "1.0",
+  "sources": [
+    "bootstrap"
+  ],
+  "fallback_used": true,
+  "protocols": {
+    "aave-v3": {
+      "protocol_slug": "aave-v3",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Standard lending protocol. APY = utilization * borrow_rate - reserve_factor. No active emissions program on the mainnet stablecoin markets — supply APY is 100% borrower-paid interest.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "compound-v3": {
+      "protocol_slug": "compound-v3",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [
+        "token_emissions"
+      ],
+      "confidence": "HIGH",
+      "emissions_share_pct": 15,
+      "rationale": "Comet lending spread is the dominant yield source. COMP incentives are still active on most cUSDC/cUSDT markets but typically contribute under ~15% of headline APY.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "curve-usdc-usdt": {
+      "protocol_slug": "curve-usdc-usdt",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [
+        "token_emissions"
+      ],
+      "confidence": "HIGH",
+      "emissions_share_pct": 40,
+      "rationale": "Stableswap LP fees are real swap-volume revenue. Gauge rewards in CRV (and convex/yearn meta-wrappers) still account for roughly 40% of headline APY on the USDC/USDT pool — these are token emissions that can be cut by governance vote at any epoch.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "ethena-susde": {
+      "protocol_slug": "ethena-susde",
+      "primary_source": "basis_trade",
+      "secondary_sources": [],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "sUSDe yield is the funding-rate spread captured by Ethena's delta-neutral perp short against staked ETH/BTC collateral. APY tracks perp funding markets — can compress sharply (or turn negative) in bear regimes.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "euler-v2": {
+      "protocol_slug": "euler-v2",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "EVK vault lending spread. Supply APY = utilization * borrow APR - reserve. Post-relaunch the protocol does not subsidise stablecoin markets with token emissions.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "fluid-usdc": {
+      "protocol_slug": "fluid-usdc",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [],
+      "confidence": "MEDIUM",
+      "emissions_share_pct": 10,
+      "rationale": "Fluid (Instadapp) lending vault — APY is borrower-paid interest on the smart-collateral / smart-debt design. Small FLUID/INST incentives layered on top for top-up pools.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "maple": {
+      "protocol_slug": "maple",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [
+        "rwa"
+      ],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Institutional credit lending — APY is the borrower interest paid by KYC'd institutional borrowers (market makers, prop firms). Some pools take real-world receivables as collateral.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "morpho": {
+      "protocol_slug": "morpho",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Morpho Blue is intent-based lending — supply APY is pure borrower-paid interest matched at the singleton vault level. Vault curator can layer rewards but base APY is real cashflow.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "pendle-pt": {
+      "protocol_slug": "pendle-pt",
+      "primary_source": "basis_trade",
+      "secondary_sources": [
+        "real_cashflow"
+      ],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Principal Tokens lock in a fixed yield by selling away the variable YT side. The fixed APY is the implied discount on the underlying SY's future yield (which itself can be real_cashflow, basis or emissions — but for the PT holder it is mechanical basis carry until expiry).",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "sky": {
+      "protocol_slug": "sky",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [
+        "rwa"
+      ],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "sUSDS pays the Sky Savings Rate which is backed by MakerDAO's PSM + RWA collateral (treasuries via Monetalis, Andromeda, BlockTower). Rate is governance-set, funded by real T-bill yields and stablecoin lending.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "spark-usdc": {
+      "protocol_slug": "spark-usdc",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [
+        "rwa"
+      ],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Spark USDC supply rate is the SparkLend lending spread plus the DAI Savings Rate inheritance (which is RWA-backed via Maker's allocator vaults). No SPK emissions on the supply side at the current sub-system.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "uniswap-v3-stable": {
+      "protocol_slug": "uniswap-v3-stable",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Concentrated-liquidity LP fees are pure swap volume revenue. No UNI emissions on the stable pools — APY is 100% trading fees minus impermanent-loss risk.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    },
+    "yearn-v3": {
+      "protocol_slug": "yearn-v3",
+      "primary_source": "real_cashflow",
+      "secondary_sources": [],
+      "confidence": "HIGH",
+      "emissions_share_pct": 0,
+      "rationale": "Yearn V3 vaults auto-compound supply yields from underlying lending strategies (Aave, Compound, Morpho). No vault-level token emissions on stablecoin vaults.",
+      "data_sources": [
+        "bootstrap",
+        "protocol_docs"
+      ],
+      "classified_at": "2026-05-28"
+    }
+  },
+  "summary": {
+    "total_protocols": 13,
+    "by_primary_source": {
+      "basis_trade": 2,
+      "points_farming": 0,
+      "real_cashflow": 11,
+      "rwa": 0,
+      "token_emissions": 0,
+      "unknown": 0
+    },
+    "high_emissions_count": 0,
+    "unknown_count": 0
+  }
+}
