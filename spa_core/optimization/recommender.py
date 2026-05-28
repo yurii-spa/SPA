@@ -20,6 +20,7 @@ Edge cases handled:
 
 from __future__ import annotations
 
+import os
 import sys
 import logging
 from pathlib import Path
@@ -89,6 +90,7 @@ class AllocationRecommender:
             "portfolio_expected_return": 0.0,
             "portfolio_sharpe": 0.0,
             "vs_current": {"return_improvement_pct": 0.0},
+            "covariance_source": "synthetic",
         }
 
         if capital <= 0:
@@ -123,16 +125,43 @@ class AllocationRecommender:
             log.warning("AllocationRecommender: no valid pools after normalisation")
             return empty_result
 
+        # ── FEAT-007 Phase 2: live covariance / dynamic Kelly toggle ──────
+        live = os.getenv("SPA_LIVE_COVARIANCE", "0").lower() in ("1", "true", "yes")
+
+        # Build a per-protocol volatility map only when running live.
+        # Lazy-import so the analytics package isn't a hard dep for the
+        # synthetic path.
+        estimator = None
+        vol_map: dict[str, float] = {}
+        if live:
+            from analytics.covariance_estimator import CovarianceEstimator
+            from optimization.dynamic_kelly import dynamic_kelly_fraction
+
+            estimator = CovarianceEstimator()
+            for pool in normalised:
+                vol_map[pool["protocol_key"]] = estimator.compute_volatility(
+                    pool["protocol_key"],
+                    synthetic_apy=pool["apy"],
+                )
+
         # ── Step 1: Kelly pre-filter ───────────────────────────────────────
         kelly_fracs: dict[str, float] = {}
         mvo_candidates: list[dict] = []
 
         for pool in normalised:
-            kf = kelly_fraction(
-                apy_pct=pool["apy"],
-                tier=pool["tier"],
-                tvl_usd=pool["tvl_usd"],
-            )
+            if live:
+                kf = dynamic_kelly_fraction(
+                    apy_pct=pool["apy"],
+                    tier=pool["tier"],
+                    tvl_usd=pool["tvl_usd"],
+                    volatility_pp=vol_map.get(pool["protocol_key"]),
+                )
+            else:
+                kf = kelly_fraction(
+                    apy_pct=pool["apy"],
+                    tier=pool["tier"],
+                    tvl_usd=pool["tvl_usd"],
+                )
             half_kf = kf / 2.0
             kelly_fracs[pool["protocol_key"]] = half_kf
 
@@ -141,10 +170,16 @@ class AllocationRecommender:
 
         if not mvo_candidates:
             log.info("AllocationRecommender: all pools filtered out by Kelly criterion")
-            return empty_result
+            empty_with_source = dict(empty_result)
+            empty_with_source["covariance_source"] = "live" if live else "synthetic"
+            return empty_with_source
 
         # ── Step 2: Markowitz optimisation ────────────────────────────────
-        self.optimizer = PortfolioOptimizer(protocols=mvo_candidates)
+        self.optimizer = PortfolioOptimizer(
+            protocols=mvo_candidates,
+            live_covariance=live,
+            covariance_estimator=estimator,
+        )
         self.optimizer.estimate_covariance()
         mvo_result = self.optimizer.optimize(target_return_pct=None)   # max-Sharpe
 
@@ -221,6 +256,7 @@ class AllocationRecommender:
             "vs_current": {
                 "return_improvement_pct": round(return_improvement, 4),
             },
+            "covariance_source": getattr(self.optimizer, "covariance_source", "synthetic"),
         }
 
     # ── Private helpers ───────────────────────────────────────────────────────
