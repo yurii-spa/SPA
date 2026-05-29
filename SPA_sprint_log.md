@@ -1,6 +1,52 @@
-# SPA Sprint Log — updated 2026-05-29
+# SPA Sprint Log — updated 2026-05-30
 
 ## Completed ✅
+
+---
+
+## Sprint v3.34 — 2026-05-30 — Авто-синхронизация Go-Live дашборда (index.html ← data/adapter_status.json)
+
+**Цель:** Устранить остаточный хардкод во фронте. В v3.33 создан единый backend-источник истины `data/adapter_status.json` (генерируется `spa_core/execution/adapter_status.py`), но `index.html` (Go-Live таб) всё ещё рендерил таблицу адаптеров из захардкоженной JS-константы `ADAPTER_STATUS`. V334 переключает фронт на чтение JSON через fetch с graceful fallback на встроенные значения.
+
+**Контекст:** Прямое продолжение «Следующего спринта» из v3.33. Все нумерованные спринты SPA-V326…V333 закрыты; HIGH-backlog = user-actions (Secrets / GitHub Pages / Telegram / Gnosis Safe), FEAT-001/002 — mega-features (Phase 3, v2.0). Status pass недопустим → взят логичный self-contained dev-шаг, явно названный в v3.33.
+
+### Что сделано (SPA-V334-001)
+- `index.html` (≈5225 строк, точечные Edit-правки, не переписывался целиком):
+  - Хардкод `const ADAPTER_STATUS = [...]` переименован в `const ADAPTER_STATUS_FALLBACK` (данные сохранены как fallback).
+  - Добавлены модульные переменные `ADAPTER_STATUS_DATA` / `ADAPTER_STATUS_LIVE_APY` / `ADAPTER_STATUS_GENERATED_AT`.
+  - Добавлена чистая функция-трансформер `mapAdapterRecord(rec)`: backend-запись (`protocol_key, name, tier, allocation_cap, allocation_note?, chains[], assets[], mock_apy{}, write_state, apy_source{mode,live_project,live_enabled}`) → форма, которую ждёт рендер-таблица (cap `0.2→"20%"`, chains.join, assets.join, APY-HTML из `mock_apy`, state-маппинг `BLOCKED→blocked`/`NOT_IMPLEMENTED→notimpl`).
+  - Добавлена `async function loadAdapterStatus()`: `fetch(BASE + '/adapter_status.json?_=' + Date.now())`, маппинг `adapters[]`, на ошибку — `ADAPTER_STATUS_DATA=null` (→ fallback), в любом случае вызывает `renderAdapterStatus()`.
+  - `renderAdapterStatus()` теперь рендерит из `ADAPTER_STATUS_DATA ?? ADAPTER_STATUS_FALLBACK`, `liveApy` берётся из `ADAPTER_STATUS_LIVE_APY`. Разметка `pendle-table` и хелперы `stateColor`/`srcBadge` сохранены; добавлена подпись «synced from data/adapter_status.json · generated …».
+  - Прямой вызов `renderAdapterStatus()` заменён на `loadAdapterStatus()` (fire-and-forget внутри `loadGoLive`).
+  - JS-синтаксис проверен `node --check` на извлечённом инлайн-скрипте (exit 0); ссылок на старое имя не осталось.
+- `data/adapter_status.json` перегенерирован (`python3 -m spa_core.execution.adapter_status --write`, exit 0; валиден, 5 адаптеров, schema_version=1).
+- Тесты: `spa_core/tests/test_dashboard_adapter_sync.py` — 50 контракт-тестов (наличие/валидность JSON, required-поля каждого адаптера, фактические tier/cap/write_state сверены напрямую с JSON, python-зеркало трансформера `_map_adapter_record`, guard на присутствие `loadAdapterStatus`/`ADAPTER_STATUS_FALLBACK`/`mapAdapterRecord`/`adapter_status.json` в index.html и на исчезновение старой `const ADAPTER_STATUS =`).
+
+### Verbatim значения (сверены с data/adapter_status.json)
+- yearn-v3 — T2, cap 0.2, BLOCKED.
+- euler-v2 — T2, cap 0.2, BLOCKED.
+- maple — T2, cap 0.2, BLOCKED.
+- pendle-pt — T2, cap 0.2, **NOT_IMPLEMENTED**.
+- sky-susds — **T2-conditional**, cap **0.0** (allocation_note "→0.30 when ELIGIBLE"), BLOCKED.
+
+### Файлы
+Новые:
+- `spa_core/tests/test_dashboard_adapter_sync.py` (50 тестов)
+
+Обновлены:
+- `index.html` (Go-Live таб: fetch adapter_status.json + fallback + mapAdapterRecord)
+- `data/adapter_status.json` (перегенерирован)
+- `KANBAN.json` (done +1: SPA-V334-001; sprint_completed→v3.34; бэкап `KANBAN.json.bak.v334`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v334`)
+
+### Результаты тестов
+- Новый файл `test_dashboard_adapter_sync.py`: **50 PASS / 0 FAIL**.
+- `test_adapter_status.py`: **55 PASS / 0 FAIL**.
+- Регрессия (`test_engine_bridge` + `test_adapter_status`): **91 PASS / 1 FAIL** — единственное падение `test_malformed_returns_none[morpho-blue-usdc-base]` пред-существующее (morpho-blue parse, baseline), вне scope V334.
+- `data/adapter_status.json` валиден (`json.load` OK, 5 адаптеров). `KANBAN.json` валиден.
+
+### Следующий спринт
+**SPA-V335:** Оживить live APY-источник — фактическое чтение DeFiLlama yields при `SPA_LIVE_APY=1` (вместо текущего mock-fallback во всех T2-адаптерах), с TTL-кэшем и graceful degradation на mock. (v3.35 заканчивается на 5 → перед выбором запустить периодический architect review `python3 -m spa_core.dev_agents.architect --command review-backlog`.) Альтернатива: исполнение плана PostgreSQL-миграции из v3.31.
 
 ---
 
