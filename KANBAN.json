@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T14:14:28Z",
+  "last_updated": "2026-05-29T17:20:00Z",
   "updated_by": "dev-orchestrator",
-  "sprint_completed": "v3.27",
-  "last_dispatch_run": "2026-05-29T13:10:00+00:00",
-  "last_dispatch_note": "v3.27: DeFiLlama APY feed — live APY reads для T2 (Yearn/Euler/Maple) с TTL-кэшем и fallback на мок; SPA_LIVE_APY env-гейт; 38 тестов passed.",
+  "sprint_completed": "v3.29",
+  "last_dispatch_run": "2026-05-29T17:20:00Z",
+  "last_dispatch_note": "v3.29 Sky/sUSDS conditional-T1 adapter shipped (ERC-4626 sUSDS vault, USDS/DAI, GSM>=48h gated via sky_monitor; BLOCKED until ELIGIBLE). 50 adapter tests pass; 145 T2+engine regression pass. Sky currently PENDING -> tier T2-conditional, 0% cap. 1 pre-existing failure (morpho-blue parse) unrelated.",
   "columns": {
     "ideas": [
       {
@@ -311,6 +311,22 @@
       }
     ],
     "done": [
+      {
+        "id": "SPA-V328-001",
+        "title": "Pendle PT adapter (ERC-5115 fixed-rate PT-USDC)",
+        "status": "done",
+        "sprint": "v3.28",
+        "completed": "2026-05-29",
+        "implementation": "Added spa_core/execution/adapters/pendle_pt_adapter.py (PendlePTAdapter, T2). Pendle Principal Token markets on ethereum: PT-USDC (~6.5% implied fixed APY, maturity 2026-09-24) and PT-USDT (~6.1%, maturity 2026-12-31). ERC-5115 (SY) lifecycle documented: PT minted from SY (mintPyFromSy), redeemed 1:1 to underlying after maturity (redeemPyToToken / SY.redeem); router selectors are Phase 3 placeholders. Style 1:1 with yearn_v3/maple: TxRequest+PositionInfo dataclasses (PositionInfo carries maturity); supply/withdraw return DRY_RUN in dry_run, BLOCKED when mode!=live, NOT_IMPLEMENTED in live (signing=Phase 3); ValueError on bad chain/asset/amount. get_supply_apy short-circuits to _DRY_RUN_APY mock in dry_run; live path uses defillama_apy_feed (live_apy_enabled + get_live_apy('pendle-pt',asset,chain)) with production-safe mock fallback on any error (lazy import in try/except), identical to yearn. Pendle-specific: get_maturity(asset)->ISO date, is_matured(asset,now=None)->bool (UTC-aware, naive treated as UTC), implied_fixed_apy alias. is_healthy always True (PT cannot be liquidated). Registered 'pendle-pt' prefix -> 'pendle_pt' family in engine_bridge.py (_PROTOCOL_PREFIX_TO_FAMILY + _get_adapter lazy import); engine accepts keys like pendle-pt-usdc-ethereum (verified parse -> _get_adapter -> execute_supply dispatch reaches adapter). Added 'pendle-pt'/'pendle' -> 'pendle' to _PROTOCOL_PROJECT_MATCH in defillama_apy_feed.py. stdlib-only (urllib+json), never raises on dry-run happy path. Tests: spa_core/tests/test_pendle_pt_adapter.py (49 tests, all pass via pytest 9.0.3). Updated test_engine_bridge: added test_pendle_pt_key_parses and removed the now-obsolete 'pendle-pt-steth-arbitrum' malformed case (pendle-pt is a supported prefix). Regression: yearn 32 / euler 28 / maple 28 = 88 pass; engine_bridge 36 pass. No real network (defillama_apy_feed mocked via patch on real module funcs; env patched). Two PRE-EXISTING failures unrelated to V328 left untouched: test_engine_bridge morpho-blue-usdc-base parse case (baseline also parses it as family=morpho), and test_defillama_apy_feed TestTtlCache (needs live network, offline sandbox).",
+        "files": [
+          "spa_core/execution/adapters/pendle_pt_adapter.py (new)",
+          "spa_core/execution/engine_bridge.py (modified: pendle-pt family + dispatch)",
+          "spa_core/execution/defillama_apy_feed.py (modified: pendle project match)",
+          "spa_core/tests/test_pendle_pt_adapter.py (new, 49 tests)",
+          "spa_core/tests/test_engine_bridge.py (modified: pendle-pt parse test)"
+        ],
+        "tests": 49
+      },
       {
         "id": "FEAT-INT-001",
         "title": "Audit Reader Agent (Code4rena + Sherlock)",
@@ -2055,6 +2071,18 @@
         "title": "T2 adapters wiring — live APY in Yearn/Euler/Maple get_supply_apy with mock fallback",
         "priority": "HIGH",
         "status": "done"
+      },
+      {
+        "id": "SPA-V329-001",
+        "title": "Sky/sUSDS conditional-T1 adapter",
+        "description": "ERC-4626 sUSDS vault adapter, GSM>=48h gated (conditional T1 via sky_monitor). dry_run/BLOCKED/live branches like maple. DeFiLlama live APY wiring (project sky). Registered in engine_bridge (sky-susds family). 50 tests.",
+        "priority": "MEDIUM",
+        "tags": [
+          "backend",
+          "execution"
+        ],
+        "sprint": "v3.29",
+        "completed": "2026-05-29"
       }
     ]
   }
