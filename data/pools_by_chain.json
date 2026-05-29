@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-28T23:11:08.612037+00:00",
+  "generated_at": "2026-05-29T11:17:40.341765+00:00",
   "total_pools": 12,
   "chains": {
     "ethereum": [
@@ -9,8 +9,8 @@
         "asset": "USDC",
         "tier": "T1",
         "chain": "ethereum",
-        "apy_total": 3.26003,
-        "tvl_usd": 177426752.0
+        "apy_total": 3.30276,
+        "tvl_usd": 164257586.0
       },
       {
         "key": "compound-v3-usdc-ethereum",
@@ -18,8 +18,8 @@
         "asset": "USDC",
         "tier": "T1",
         "chain": "ethereum",
-        "apy_total": 3.3086,
-        "tvl_usd": 37296489.0
+        "apy_total": 3.31406,
+        "tvl_usd": 36592401.0
       },
       {
         "key": "morpho-usdc-ethereum",
@@ -27,8 +27,8 @@
         "asset": "USDC",
         "tier": "T1",
         "chain": "ethereum",
-        "apy_total": 4.12897,
-        "tvl_usd": 111089381.0
+        "apy_total": 4.19037,
+        "tvl_usd": 111105335.0
       },
       {
         "key": "yearn-v3-usdc-ethereum",
@@ -54,8 +54,8 @@
         "asset": "USDC",
         "tier": "T2",
         "chain": "ethereum",
-        "apy_total": 2.47989,
-        "tvl_usd": 27137916.0
+        "apy_total": 2.64373,
+        "tvl_usd": 22136163.0
       },
       {
         "key": "sky-susds-ethereum",
@@ -74,8 +74,8 @@
         "asset": "USDC",
         "tier": "T1",
         "chain": "arbitrum",
-        "apy_total": 2.46849,
-        "tvl_usd": 39752087.0
+        "apy_total": 2.43354,
+        "tvl_usd": 40767726.0
       },
       {
         "key": "compound-v3-usdc-arbitrum",
@@ -103,8 +103,8 @@
         "asset": "USDC",
         "tier": "T1",
         "chain": "base",
-        "apy_total": 3.19018,
-        "tvl_usd": 28267784.0
+        "apy_total": 3.21782,
+        "tvl_usd": 27486592.0
       },
       {
         "key": "morpho-usdc-base",
