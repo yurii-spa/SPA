@@ -124,14 +124,14 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
     Args:
         private_key_hex: 64-hex-char private key (``0x`` prefix optional).
         tx_dict: Must contain:
-            ``to``                  → ``0x...`` address string
-            ``data``                 → ``0x...`` hex string or ``bytes``
-            ``value``                → int (wei); defaults to 0
-            ``nonce``                → int
-            ``chainId``              → int
-            ``maxFeePerGas``         → int (wei)
-            ``maxPriorityFeePerGas`` → int (wei)
-            ``gas``                  → int (gas limit)
+            ``to``                   — ``0x...`` address string
+            ``data``                 — ``0x...`` hex string or ``bytes``
+            ``value``                — int (wei); defaults to 0
+            ``nonce``                — int
+            ``chainId``              — int
+            ``maxFeePerGas``         — int (wei)
+            ``maxPriorityFeePerGas`` — int (wei)
+            ``gas``                  — int (gas limit)
 
     Returns:
         Raw signed transaction bytes (EIP-2718 envelope, starts with 0x02).
@@ -175,7 +175,7 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
     if raw is None:
         raw = getattr(signed, "raw_transaction", None)
     if raw is None:
-        raise RuntimeError("Signed tx missing rawTransaction attribute ℔ unexpected eth_account version")
+        raise RuntimeError("Signed tx missing rawTransaction attribute — unexpected eth_account version")
     return bytes(raw)
 
 
@@ -222,7 +222,7 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
 def encode_function_call(selector_hex: str, *args: Any) -> bytes:
     """ABI-encode a Solidity function call for uint256 / address / bool args.
 
-    *selector_hex*: 4-byte function selector as ``0xAABBCCDD@` or ``AABBCCDD``.
+    *selector_hex*: 4-byte function selector as ``0xAABBCCDD`` or ``AABBCCDD``.
     *args*: each must be one of:
         - ``int``  → encoded as uint256 (big-endian, 32 bytes)
         - ``str`` starting with ``"0x"`` → treated as an address (20-byte,
@@ -231,7 +231,7 @@ def encode_function_call(selector_hex: str, *args: Any) -> bytes:
 
     Returns raw calldata bytes (selector + ABI-encoded args).
     """
-    sel = bytes.fromhex((selector_hex.lstrip("0x"))
+    sel = bytes.fromhex(selector_hex.lstrip("0x"))
     if len(sel) != 4:
         raise ValueError(f"Selector must be exactly 4 bytes; got {len(sel)}")
     parts = [sel]
@@ -286,12 +286,12 @@ def _rpc_call(rpc_url: str, method: str, params: list, timeout: float = _RPC_TIM
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"{method}: HTTP failure ℔ {exc}") from exc
+        raise RuntimeError(f"{method}: HTTP failure — {exc}") from exc
 
     try:
         parsed = json.loads(raw.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as exc:
-        raise RuntimeError(f"{method}: malformed JSON ℔ {exc}") from exc
+        raise RuntimeError(f"{method}: malformed JSON — {exc}") from exc
 
     if "error" in parsed:
         raise RuntimeError(f"{method}: RPC error — {parsed['error']}")
