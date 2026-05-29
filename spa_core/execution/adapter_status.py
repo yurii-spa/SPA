@@ -24,6 +24,10 @@ CLI:
     python3 -m spa_core.execution.adapter_status --write PATH
 
 Sprint v3.33 — initial implementation.
+Sprint v3.35 (SPA-V335) — optional live APY enrichment: when ``SPA_LIVE_APY`` is
+on, each adapter record gains a ``live_apy`` chain→asset→apy map fetched from
+DeFiLlama (graceful — empty/omitted on any failure) and ``apy_source.mode``
+flips to ``"live"`` with ``live_values_present=True``.
 """
 from __future__ import annotations
 
@@ -123,6 +127,51 @@ def _live_apy_enabled() -> bool:
         return False
 
 
+def _fetch_live_apy_map(
+    protocol_key: str,
+    mock_apy: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float]]:
+    """Fetch live DeFiLlama APY for exactly the (chain, asset) pairs in ``mock_apy``.
+
+    Sprint v3.35 / SPA-V335 — embeds *actual* live APY values in the status
+    document so the dashboard can render real numbers instead of always falling
+    back to the mock constant.
+
+    Behaviour:
+      * Iterates the same chain→asset combinations the adapter advertises in its
+        ``_DRY_RUN_APY`` map and queries ``defillama_apy_feed.get_live_apy`` for
+        each one (protocol matching is identical to the adapters' live path).
+      * Only non-``None`` results are kept; a chain with no matched assets is
+        omitted entirely, so the resulting map is a strict subset of ``mock_apy``.
+      * The feed module is imported lazily inside ``try/except`` and every query
+        is individually guarded — a network failure, parse error, or missing
+        match yields an empty map rather than aborting collection. NEVER raises.
+
+    Callers must gate this on ``live_enabled`` so it is never invoked (and never
+    touches the network) when ``SPA_LIVE_APY`` is off.
+    """
+    live_map: dict[str, dict[str, float]] = {}
+    try:
+        from spa_core.execution import defillama_apy_feed
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("defillama_apy_feed import failed (%s) — no live APY", exc)
+        return live_map
+
+    for chain, assets in (mock_apy or {}).items():
+        for asset in (assets or {}):
+            try:
+                apy = defillama_apy_feed.get_live_apy(protocol_key, asset, chain)
+            except Exception as exc:  # noqa: BLE001 — never propagate
+                log.debug(
+                    "live APY lookup failed for %s/%s/%s (%s)",
+                    protocol_key, asset, chain, exc,
+                )
+                apy = None
+            if apy is not None:
+                live_map.setdefault(chain, {})[asset] = apy
+    return live_map
+
+
 def _adapter_record(spec: dict[str, Any], live_enabled: bool) -> dict[str, Any]:
     """Build a single adapter status record from its spec + live module data.
 
@@ -140,6 +189,7 @@ def _adapter_record(spec: dict[str, Any], live_enabled: bool) -> dict[str, Any]:
             "mode": "mock",
             "live_project": spec["apy_source_project"],
             "live_enabled": live_enabled,
+            "live_values_present": False,
         },
     }
     if spec.get("allocation_note"):
@@ -166,6 +216,18 @@ def _adapter_record(spec: dict[str, Any], live_enabled: bool) -> dict[str, Any]:
         record.setdefault("chains", [])
         record.setdefault("assets", [])
         record.setdefault("mock_apy", {})
+
+    # ── Live APY enrichment (Sprint v3.35 / SPA-V335) ────────────────────────
+    # Only when the SPA_LIVE_APY gate is on AND the adapter imported cleanly.
+    # On any failure / no match the live map is empty and we transparently stay
+    # on the mock source — identical graceful-degradation contract to the
+    # adapters' own get_supply_apy live path.
+    if live_enabled and "error" not in record and record["mock_apy"]:
+        live_apy = _fetch_live_apy_map(spec["protocol_key"], record["mock_apy"])
+        if live_apy:
+            record["live_apy"] = live_apy
+            record["apy_source"]["mode"] = "live"
+            record["apy_source"]["live_values_present"] = True
 
     return record
 
