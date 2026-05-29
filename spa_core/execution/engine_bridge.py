@@ -80,6 +80,7 @@ LOG_MAX_ENTRIES: int = 1000
 _PROTOCOL_PREFIX_TO_FAMILY: dict[str, str] = {
     "aave-v3":     "aave_v3",
     "compound-v3": "compound_v3",
+    "morpho":      "morpho",        # T1 — Sprint v3.24 / SPA-V324-002
 }
 
 
@@ -378,6 +379,9 @@ class LiveExecutionBridge:
         elif family == "compound_v3":
             from spa_core.execution.compound_v3_adapter import CompoundV3Adapter
             adapter_cls = CompoundV3Adapter
+        elif family == "morpho":
+            from spa_core.execution.adapters.morpho_adapter import MorphoAdapter
+            adapter_cls = MorphoAdapter
         else:
             return None
 
