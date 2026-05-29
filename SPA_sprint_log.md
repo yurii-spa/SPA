@@ -4,6 +4,47 @@
 
 ---
 
+## Sprint v3.33 — 2026-05-29 — Adapter status (backend JSON source of truth)
+
+**Цель:** Устранить хардкод-дублирование данных адаптеров. В v3.32 таблица статуса execution-адаптеров в `index.html` (Go-Live таб) брала tier / alloc cap / chains / assets / mock APY / write-state из JS-константы `ADAPTER_STATUS`, продублированной из Python adapter-модулей. V333 создаёт единый backend-источник истины, который программно собирает эти метаданные из самих модулей и эмитит JSON.
+
+**Контекст:** Прямое продолжение «Следующего спринта» из v3.32 («вынести данные адаптеров в JSON-эндпоинт для авто-синхронизации с backend»). Все нумерованные спринты SPA-V326…V332 закрыты; HIGH-backlog состоит из user-actions (Secrets / GitHub Pages / Telegram), FEAT-001/002 — mega-features (60–80h). Status pass недопустим → взят логичный self-contained dev-шаг.
+
+### Что сделано (SPA-V333-001)
+- Создан `spa_core/execution/adapter_status.py` (чистый stdlib: argparse/importlib/json/logging/os/datetime/pathlib; никакого web3/psycopg2; adapter-модули импортируются лениво в try/except — сбой одного адаптера даёт запись с полем `error` и не роняет сбор; нет сетевых вызовов; не кидает на happy path).
+  - Реестр `_ADAPTER_SPECS` на 5 адаптеров. Adapter-класс определяется динамически (атрибут модуля с именем на `Adapter`), `SUPPORTED_CHAINS/ASSETS` и `_DRY_RUN_APY` читаются напрямую из модуля.
+  - `collect_adapter_status() -> list[dict]`: protocol_key, name, tier, allocation_cap, allocation_note (optional), chains, assets, mock_apy (вложенный chain→asset→apy), write_state, apy_source ({mode, live_project, live_enabled}). `live_enabled` из `defillama_apy_feed.live_apy_enabled()` в try/except (default False).
+  - `build_status_document()` → {generated_at, schema_version:1, execution_mode, live_apy_enabled, adapters}. `write_status_json(path=None)` пишет `data/adapter_status.json` (indent=2). CLI `python3 -m spa_core.execution.adapter_status [--json | --write [PATH]]`.
+- Сгенерирован артефакт `data/adapter_status.json` (5 адаптеров, валиден).
+- Тесты: `spa_core/tests/test_adapter_status.py` — 55 тестов (наличие/required-поля, tier, write_state, allocation_cap, mock_apy сверяется напрямую с `_DRY_RUN_APY` каждого реального модуля, build_status_document, write_status_json в tmp + json.load, live_enabled через env SPA_LIVE_APY).
+
+### Verbatim значения (сверены с adapter-модулями)
+- yearn-v3 — T2, cap 0.20, BLOCKED, ethereum+arbitrum, USDC/USDT, mock eth 6.8/6.5, arb 7.1/6.9, project "yearn".
+- euler-v2 — T2, cap 0.20, BLOCKED, ethereum, USDC/USDT, mock 7.4/7.1, "euler".
+- maple — T2, cap 0.20, BLOCKED, ethereum, USDC, mock 5.6, "maple".
+- pendle-pt — T2, cap 0.20, **NOT_IMPLEMENTED**, ethereum, USDC/USDT, mock 6.5/6.1, "pendle".
+- sky-susds — **T2-conditional**, cap **0.0** (allocation_note "→0.30 when ELIGIBLE"), BLOCKED, ethereum, USDS/DAI, mock 6.5/6.5, "sky".
+
+### Файлы
+Новые:
+- `spa_core/execution/adapter_status.py`
+- `spa_core/tests/test_adapter_status.py` (55 тестов)
+- `data/adapter_status.json` (артефакт)
+
+Обновлены:
+- `KANBAN.json` (done +1: SPA-V333-001; sprint_completed→v3.33; бэкап `KANBAN.json.bak.v333`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v333`)
+
+### Результаты тестов
+- Новый файл: **55 PASS / 0 FAIL** (pytest 9.0.3, Python 3.10).
+- Регрессия (`test_engine_bridge` / `test_pendle_pt_adapter` / `test_sky_susds_adapter`): **135 PASS / 1 FAIL** — единственное падение `test_malformed_returns_none[morpho-blue-usdc-base]` пред-существующее (morpho-blue parse, baseline), вне scope V333.
+- `data/adapter_status.json` валиден (`json.load` OK, 5 адаптеров). `KANBAN.json` валиден.
+
+### Следующий спринт
+**SPA-V334:** Авто-синхронизация дашборда — `index.html` (Go-Live таб) читает `data/adapter_status.json` (fetch) вместо хардкод-константы `ADAPTER_STATUS`, с graceful fallback на встроенные значения. Альтернатива: оживить APY-источник (фактическое чтение live DeFiLlama при `SPA_LIVE_APY`).
+
+---
+
 ## Sprint v3.32 — 2026-05-29 — Go-live dashboard update (T2/conditional adapter status)
 
 **Цель:** Добавить в Go-Live таб `index.html` секцию со статусом новых T2/conditional execution-адаптеров (Yearn V3, Euler V2, Maple, Pendle PT, Sky/sUSDS) — по каждому: tier, allocation cap, live/blocked state, источник APY (mock / live DeFiLlama). Read-only дашборд, без backend-изменений.
