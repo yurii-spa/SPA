@@ -4,6 +4,41 @@
 
 ---
 
+## Sprint v3.32 — 2026-05-29 — Go-live dashboard update (T2/conditional adapter status)
+
+**Цель:** Добавить в Go-Live таб `index.html` секцию со статусом новых T2/conditional execution-адаптеров (Yearn V3, Euler V2, Maple, Pendle PT, Sky/sUSDS) — по каждому: tier, allocation cap, live/blocked state, источник APY (mock / live DeFiLlama). Read-only дашборд, без backend-изменений.
+
+**Контекст:** Адаптеры уже реализованы (Phase 3, live-writes заблокированы); их mock APY лежат в `_DRY_RUN_APY` каждого модуля `spa_core/execution/adapters/*_adapter.py`. V332 — чисто фронтовая визуализация существующего состояния, новых Python-изменений нет.
+
+### Что сделано (SPA-V332-001)
+- **HTML:** в `<div id="tab-golive">` после блока «📋 Readiness Criteria» и перед «📄 Investor Report» добавлен новый блок `<div class="db-full">` с заголовком `.db-section` «🔌 T2 / Conditional Adapters» и контейнером `<div id="golive-adapters">` (со skeleton-плейсхолдером до рендера).
+- **JS:** добавлены константа `ADAPTER_STATUS` (массив из 5 адаптеров) и функция `renderAdapterStatus()` (рядом с `renderGoLiveCriteria`/`renderGoLiveReport`). Вызов `renderAdapterStatus()` добавлен в `loadGoLive()` рядом с остальными `renderGoLive*`.
+- **Таблица** строится в стиле `.pendle-table`, колонки: Adapter | Tier | Alloc Cap | Chains | Assets | Mock APY | APY Source | Write State.
+- **Данные (verbatim из adapter-модулей `_DRY_RUN_APY` + конвенции tier/cap):**
+  - Yearn V3 — T2, cap 20%, ethereum+arbitrum, USDC/USDT, mock ETH 6.8/6.5, ARB 7.1/6.9, writes BLOCKED (Phase 3, SPA_EXECUTION_MODE≠live), source mock / live DeFiLlama "yearn".
+  - Euler V2 — T2, cap 20%, ethereum, USDC/USDT, mock 7.4/7.1, BLOCKED, "euler".
+  - Maple — T2, cap 20%, ethereum, USDC, mock 5.6, BLOCKED, "maple".
+  - Pendle PT — T2, cap 20%, ethereum, USDC/USDT (PT/ERC-5115), mock implied 6.5 (mat. 2026-09-24) / 6.1 (mat. 2026-12-31), writes NOT_IMPLEMENTED (Phase 3), "pendle".
+  - Sky/sUSDS — T2-conditional, cap **0%** с пометкой «→ 30% when ELIGIBLE (GSM 48h)», ethereum, USDS/DAI, mock 6.5, supply/withdraw BLOCKED (статус PENDING до ELIGIBLE), "sky".
+- **Цветокодирование Write State:** BLOCKED → `#B91C1C`, NOT_IMPLEMENTED → `#f59e0b`, live-ready → `#16a34a` (token'ы страницы). APY Source — бэйдж mock (амбер) с указанием будущего live-проекта DeFiLlama; при `SPA_LIVE_APY` логически переключается на live.
+
+### Файлы
+Обновлены:
+- `index.html` (Go-Live таб: новый блок секции ~строки 1815–1822; JS — `ADAPTER_STATUS` + `renderAdapterStatus()` рядом с `renderGoLiveCriteria`, вызов в `loadGoLive()`)
+- `KANBAN.json` (SPA-V332 backlog→done как SPA-V332-001; sprint_completed→v3.32; last_updated→2026-05-29; бэкап `KANBAN.json.bak.v332`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v332`)
+
+### Результаты
+- Изменение чисто HTML/JS — **новых Python-тестов не добавлялось** (read-only дашборд, backend не затронут).
+- Проверено: `python3 -c "import json;json.load(open('KANBAN.json'))"` — валиден.
+- Проверено: заголовок «🔌 T2 / Conditional Adapters» присутствует в `index.html`; `renderAdapterStatus` и определён, и вызван из `loadGoLive()`; контейнер `id="golive-adapters"` на месте; `<div id="tab-golive">` корректно закрывается (`</div><!-- /tab-golive -->`), парность тегов не нарушена.
+- Значения mock APY/cap/tier сверены с `spa_core/execution/adapters/{yearn_v3,euler_v2,maple,pendle_pt,sky_susds}_adapter.py`.
+
+### Следующий спринт
+Backlog почти исчерпан по dev-задачам (MEV SPA-V326 закрыт ранее; PG-миграция SPA-V331 — plan-only). Большинство оставшихся карточек требуют действий пользователя (workflow-scope PAT `BL-006`) или живого капитала/инфраструктуры. Логичный следующий dev-шаг — оживить APY-источник в этой же секции (фактическое чтение `SPA_LIVE_APY` / live DeFiLlama-статуса вместо статичного флага), либо вынести данные адаптеров в JSON-эндпоинт для авто-синхронизации с backend.
+
+---
+
 ## Sprint v3.31 — 2026-05-29 — PostgreSQL migration prep (SQLite → PostgreSQL, plan-only)
 
 **Цель:** Подготовить (но НЕ выполнять) миграцию с SQLite на PostgreSQL: новый модуль `spa_core/persistence/pg_migration.py` — интроспекция текущей SQLite-схемы, генерация эквивалентного PostgreSQL DDL (типы, default'ы, индексы) и FK-safe план копирования. Plan-only по scope (`без выполнения миграции`).
