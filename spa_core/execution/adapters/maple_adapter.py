@@ -380,7 +380,22 @@ class MapleAdapter:
 
     def get_supply_apy(self, asset: str) -> float:
         asset = asset.upper()
-        return _DRY_RUN_APY.get(self.chain, {}).get(asset, 4.5)
+        mock = _DRY_RUN_APY.get(self.chain, {}).get(asset, 4.5)
+        if self.dry_run:
+            return mock
+
+        # Live: try DeFiLlama live APY (v3.27), gated by SPA_LIVE_APY.
+        try:
+            from spa_core.execution import defillama_apy_feed
+            if defillama_apy_feed.live_apy_enabled():
+                live = defillama_apy_feed.get_live_apy("maple", asset, self.chain)
+                if live is not None:
+                    log.info("get_supply_apy: live DeFiLlama APY %s%% for %s/%s", live, self.chain, asset)
+                    return live
+                log.debug("get_supply_apy: no live APY for %s/%s — using mock %s%%", self.chain, asset, mock)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("get_supply_apy: live APY lookup failed (%s) — using mock", exc)
+        return mock
 
     def get_apy(self, asset: str) -> float:
         return self.get_supply_apy(asset)
