@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T20:12:00Z",
-  "updated_by": "spa-worker-dev",
-  "sprint_completed": "v3.32",
-  "last_dispatch_run": "2026-05-29T19:15:00Z",
-  "last_dispatch_note": "v3.31 PostgreSQL migration prep (SPA-V331): создан spa_core/persistence/pg_migration.py — plan-only SQLite->PostgreSQL (introspection, type/default mapping, FK-safe DDL, CLI, execution заблокирован). 30 тестов PASS, регрессия чистая (1 пред-существующий morpho-blue fail вне scope). Следующий: SPA-V332 (Go-live dashboard: статус T2/conditional адаптеров в index.html).",
+  "last_updated": "2026-05-29T21:14:44Z",
+  "updated_by": "spa-orchestrator-dev",
+  "sprint_completed": "v3.33",
+  "last_dispatch_run": "2026-05-29T21:14:44Z",
+  "last_dispatch_note": "v3.33 Adapter status JSON (SPA-V333): создан spa_core/execution/adapter_status.py — единый backend-источник истины метаданных 5 адаптеров + data/adapter_status.json. 55 тестов PASS, регрессия чистая. Все нумерованные спринты V326-V333 закрыты; HIGH-backlog = user-actions; FEAT-001/002 = mega-features. Следующий dev-шаг: оживить APY-источник (live SPA_LIVE_APY) или авто-синк index.html с data/adapter_status.json.",
   "columns": {
     "ideas": [
       {
@@ -2119,6 +2119,21 @@
         "sprint": "v3.32",
         "completed": "2026-05-29",
         "resolution": "DONE: секция статуса T2/conditional адаптеров добавлена в Go-Live таб index.html (JS-render renderAdapterStatus, вызов в loadGoLive). Read-only дашборд, без изменений Python/backend. Значения mock APY/cap/tier сверены с adapter-модулями."
+      },
+      {
+        "id": "SPA-V333-001",
+        "title": "Adapter status — backend JSON source of truth",
+        "priority": "MEDIUM",
+        "type": "dev",
+        "estimate": "2h",
+        "sprint": "v3.33",
+        "completed_at": "2026-05-29T21:14:44Z",
+        "description": "Создан spa_core/execution/adapter_status.py: программный сбор метаданных 5 execution-адаптеров (tier, alloc cap, chains, assets, mock APY из _DRY_RUN_APY, write_state, apy_source) + CLI (--json/--write) + артефакт data/adapter_status.json. Устраняет хардкод-дублирование ADAPTER_STATUS в index.html. 55 тестов PASS, регрессия чистая (1 пред-существующий morpho-blue fail вне scope).",
+        "files": [
+          "spa_core/execution/adapter_status.py",
+          "spa_core/tests/test_adapter_status.py",
+          "data/adapter_status.json"
+        ]
       }
     ]
   }
