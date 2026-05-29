@@ -51,6 +51,11 @@ _PROTOCOL_PROJECT_MATCH: dict[str, str] = {
     "maple": "maple",
     "yearn": "yearn",
     "euler": "euler",
+    "pendle-pt": "pendle",
+    "pendle": "pendle",
+    "sky-susds": "sky",
+    "sky": "sky",
+    "susds": "sky",
 }
 
 
