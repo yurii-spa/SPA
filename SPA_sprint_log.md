@@ -4,6 +4,50 @@
 
 ---
 
+## Sprint v3.35 — 2026-05-30 — Live APY enrichment (adapter_status.json встраивает реальные DeFiLlama значения + dashboard render)
+
+**Цель:** Закрыть последний gap живого APY-конвейера. В v3.27 создан `defillama_apy_feed.get_live_apy` (реальный фетч DeFiLlama `/pools` с TTL-кэшем), в v3.28 он подключён в live-путь `get_supply_apy` всех 5 T2-адаптеров, в v3.33/v3.34 создан `data/adapter_status.json` и дашборд читает его через fetch. **Но сам `adapter_status.py` собирал только `mock_apy` + флаг `live_enabled` — фактические live-значения никогда не попадали ни в JSON, ни на дашборд.** V335 встраивает реальные live APY в документ и рендерит их.
+
+**Контекст:** Named «следующий спринт» из v3.34 («оживить live APY») по факту уже был реализован на уровне feed+адаптеров → status pass запрещён → взят следующий реальный, self-contained gap того же нарратива (v3.32→v3.33→v3.34→v3.35). Stale-карточка `in_progress` SPA-V335-001 (FEAT-003 Investor Reporting, 60h mega-feature, без реализации) заменена на фактически выполненную V335. HIGH-backlog = user-actions (Secrets/Pages/Telegram/Safe), FEAT-001/002 — mega-features v2.0.
+
+### Что сделано (SPA-V335-001)
+- `spa_core/execution/adapter_status.py`:
+  - Новая чистая функция `_fetch_live_apy_map(protocol_key, mock_apy)`: итерирует те же `(chain, asset)` пары, что есть в `_DRY_RUN_APY` адаптера, и для каждой зовёт `defillama_apy_feed.get_live_apy` (lazy import в try/except; каждый запрос индивидуально guard-нут — НИКОГДА не пробрасывает). Возвращает `{chain:{asset:apy}}` только из non-None значений (строгий subset `mock_apy`; пустые chain опускаются).
+  - `_adapter_record`: вызывает enrichment ТОЛЬКО при `live_enabled=True` и чистом импорте адаптера; непустой результат → `record['live_apy']`, `apy_source.mode` flip `mock`→`live`, `live_values_present=True`. Поле `apy_source.live_values_present` добавлено всегда (default False).
+  - Graceful degradation: при выключенном `SPA_LIVE_APY` сеть не трогается вообще; при network/parse-fail или no-match — `live_apy` пуст, `mode` остаётся `mock`. Контракт идентичен live-пути `get_supply_apy` в адаптерах.
+  - `data/adapter_status.json` перегенерирован (offline → `live_apy_enabled=false`, `live_apy` отсутствует, `schema_version=1`, +`live_values_present`).
+- `index.html` (Go-Live таб, точечные Edit):
+  - Вынесен общий форматтер `fmtApyMap(map)` (был инлайн в `mapAdapterRecord`; вывод mock-строки байт-в-байт прежний).
+  - `mapAdapterRecord` добавляет `apyLive` (HTML из `rec.live_apy`) и `liveValuesPresent` (из `apy_source.live_values_present`).
+  - Новый `apyCell(a)`: при наличии live-значений показывает их зелёным + зачёркнутый mock ниже; иначе mock. Колонка переименована `Mock APY`→`APY`.
+  - `srcBadge` теперь различает три состояния: `live DeFiLlama (project)` (зелёный, есть значения) / `mock · live "project" (no pool match)` (амбер, гейт включён но матча нет) / `mock (live: DeFiLlama "project")` (гейт выключен).
+  - JS валиден (`node --check` на извлечённом инлайн-скрипте, exit 0).
+
+### Verbatim (data/adapter_status.json, offline-режим)
+- 5 адаптеров; `live_apy_enabled=false`; ни у одной записи нет `live_apy`; у всех `apy_source.live_values_present=false`, `mode="mock"`.
+- yearn-v3 T2 cap 0.2 BLOCKED · euler-v2 T2 0.2 BLOCKED · maple T2 0.2 BLOCKED · pendle-pt T2 0.2 NOT_IMPLEMENTED · sky-susds T2-conditional 0.0 ("→0.30 when ELIGIBLE") BLOCKED.
+
+### Файлы
+Обновлены:
+- `spa_core/execution/adapter_status.py` (_fetch_live_apy_map + live enrichment + live_values_present)
+- `spa_core/tests/test_adapter_status.py` (+8 тестов: `TestLiveApyEnrichment`)
+- `index.html` (fmtApyMap / apyLive / liveValuesPresent / apyCell / srcBadge / колонка APY)
+- `spa_core/tests/test_dashboard_adapter_sync.py` (+5 wiring-guard тестов)
+- `data/adapter_status.json` (перегенерирован)
+- `KANBAN.json` (in_progress очищен; done +1 SPA-V335-001; sprint_completed→v3.35; бэкап `KANBAN.json.bak.v335`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v335`)
+
+### Результаты тестов
+- `test_adapter_status.py`: **63 PASS** (55 + 8 новых live-enrichment; покрывают: нет live при выключенном гейте, сеть не трогается при выключенном гейте, встраивание при включённом, omit при None, никогда не падает при исключении feed, subset-семантика `_fetch_live_apy_map`, partial-hit flip→live, JSON-сериализуемость).
+- `test_dashboard_adapter_sync.py`: **60 PASS** (55 + 5 wiring-guard на `fmtApyMap`/`apyLive`/`rec.live_apy`/`liveValuesPresent`/`apyCell`).
+- Регрессия (`test_engine_bridge` + `test_yearn_v3_adapter` + `test_maple_adapter`): **159 PASS / 1 FAIL** — единственное падение `test_malformed_returns_none[morpho-blue-usdc-base]` пред-существующее (baseline, вне scope).
+- `data/adapter_status.json` и `KANBAN.json` валидны (`json.load` OK).
+
+### Следующий спринт
+**SPA-V336:** FEAT-007 — заменить синтетическую ковариационную матрицу в Kelly-сайзинге на rolling 90-day live APY covariance из DeFiLlama (теперь, когда live APY реально доступен end-to-end). Альтернатива: исполнение плана PostgreSQL-миграции (v3.31). **NB:** v3.35 заканчивается на 5 → перед выбором следующего спринта запустить периодический architect review `python3 -m spa_core.dev_agents.architect --command review-backlog`.
+
+---
+
 ## Sprint v3.34 — 2026-05-30 — Авто-синхронизация Go-Live дашборда (index.html ← data/adapter_status.json)
 
 **Цель:** Устранить остаточный хардкод во фронте. В v3.33 создан единый backend-источник истины `data/adapter_status.json` (генерируется `spa_core/execution/adapter_status.py`), но `index.html` (Go-Live таб) всё ещё рендерил таблицу адаптеров из захардкоженной JS-константы `ADAPTER_STATUS`. V334 переключает фронт на чтение JSON через fetch с graceful fallback на встроенные значения.
