@@ -219,3 +219,14 @@ class TestFrontEndWiring:
     def test_old_constant_renamed(self, html):
         # The bare hardcoded constant must be gone (renamed to *_FALLBACK).
         assert "const ADAPTER_STATUS =" not in html
+
+    # v3.35 — live APY rendering wiring.
+    @pytest.mark.parametrize("token", [
+        "fmtApyMap",           # shared chain→asset→apy formatter
+        "apyLive",             # mapped live-APY HTML string
+        "rec.live_apy",        # reads the backend-embedded live values
+        "liveValuesPresent",   # mapped from apy_source.live_values_present
+        "apyCell",             # APY cell prefers live values when present
+    ])
+    def test_live_apy_wiring_present(self, html, token):
+        assert token in html, f"index.html missing v3.35 live-APY token: {token}"
