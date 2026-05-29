@@ -1076,3 +1076,50 @@ Env-переменные:
 
 ### Следующий спринт
 SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Yearn/Euler/Maple) вместо мок-значений. Endpoint: `https://yields.llama.fi/pools`
+
+## Sprint v3.27 — 2026-05-29 — DeFiLlama APY feed (live APY для T2)
+
+**Цель:** заменить мок-значения APY в T2-адаптерах (Yearn V3 / Euler V2 / Maple) на live-чтения из DeFiLlama, с безопасным fallback на мок.
+
+### SPA-V327-001 — defillama_apy_feed.py
+
+**Файл:** `spa_core/execution/defillama_apy_feed.py`
+
+- Endpoint: `https://yields.llama.fi/pools` (GET, stdlib `urllib.request`, без зависимостей)
+- `_fetch_pools()` — retry/backoff (timeout 15s, 3 попытки, backoff 2.0); при сетевой ошибке возвращает `[]` и логирует warning (никогда не кидает)
+- In-process TTL-кэш: `_CACHE = {"pools": None, "ts": 0.0}`, TTL по умолчанию 900s (15 мин), override через `SPA_APY_CACHE_TTL`. Функция `_get_pools_cached(force=False)`; пустой fetch (сбой сети) НЕ кэшируется
+- `get_live_apy(protocol, asset, chain) -> float | None` — нормализация protocol (lower, пробелы→дефисы), asset (upper), chain (lower); маппинг через `_PROTOCOL_PROJECT_MATCH`; fuzzy-match как в defillama_fetcher (substring project/symbol/chain, выбор max `tvlUsd`); `round(apy, 4)`. Любая ошибка / нет матча / apy=None → `None`
+- `get_live_apy_from_pools(pools, protocol, asset, chain)` — детерминированный helper без сети (используется и внутри `get_live_apy`, и в тестах)
+- `_PROTOCOL_PROJECT_MATCH = {"yearn-v3":"yearn","euler-v2":"euler","maple":"maple","yearn":"yearn","euler":"euler"}`
+- Env-гейт: `live_apy_enabled()` читает `SPA_LIVE_APY` ∈ {"1","true","yes"} (по умолчанию off)
+- `clear_cache()` для тестов; `__main__` демо с мок-пулами
+
+### SPA-V327-002 — T2 adapters wiring
+
+**Файлы:** `yearn_v3_adapter.py`, `euler_v2_adapter.py`, `maple_adapter.py`
+
+- В `get_supply_apy(asset)` сохранено вычисление `mock` (Yearn/Euler fallback 5.0 → фактические значения из `_DRY_RUN_APY`; Maple fallback 4.5)
+- `dry_run=True` → возвращает mock как раньше (короткое замыкание до любого сетевого вызова)
+- Live режим: если `defillama_apy_feed.live_apy_enabled()` → `get_live_apy(PROTOCOL, asset, self.chain)`; `live is not None` → info-лог + return live; иначе debug-лог + mock
+- Ленивый импорт `from spa_core.execution import defillama_apy_feed` внутри try/except — отсутствие модуля/сети/любое исключение → mock
+- PROTOCOL: yearn → "yearn-v3", euler → "euler-v2", maple → "maple"
+
+### Регрессия
+- `test_defillama_apy_feed`: 38 PASS / 0 FAIL (unittest runner, без реальной сети)
+- T2-адаптеры (`test_yearn_v3_adapter`, `test_euler_v2_adapter`, `test_maple_adapter`): 88 PASS / 0 FAIL — wiring не сломал dry-run
+- Итого: 126 PASS / 0 FAIL
+
+### Файлы
+Новые:
+- `spa_core/execution/defillama_apy_feed.py`
+- `spa_core/tests/test_defillama_apy_feed.py`
+
+Обновлены:
+- `spa_core/execution/adapters/yearn_v3_adapter.py` (get_supply_apy live wiring)
+- `spa_core/execution/adapters/euler_v2_adapter.py` (get_supply_apy live wiring)
+- `spa_core/execution/adapters/maple_adapter.py` (get_supply_apy live wiring)
+- `KANBAN.json` (done +2: SPA-V327-001, SPA-V327-002)
+- `SPA_sprint_log.md`
+
+### Следующий спринт
+SPA-V328: Pendle PT adapter — ERC-5115 fixed-rate yield (PT-USDC tokens), ethereum.
