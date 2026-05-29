@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T21:14:44Z",
+  "last_updated": "2026-05-29T22:14:38Z",
   "updated_by": "spa-orchestrator-dev",
-  "sprint_completed": "v3.33",
-  "last_dispatch_run": "2026-05-29T21:14:44Z",
-  "last_dispatch_note": "v3.33 Adapter status JSON (SPA-V333): создан spa_core/execution/adapter_status.py — единый backend-источник истины метаданных 5 адаптеров + data/adapter_status.json. 55 тестов PASS, регрессия чистая. Все нумерованные спринты V326-V333 закрыты; HIGH-backlog = user-actions; FEAT-001/002 = mega-features. Следующий dev-шаг: оживить APY-источник (live SPA_LIVE_APY) или авто-синк index.html с data/adapter_status.json.",
+  "sprint_completed": "v3.34",
+  "last_dispatch_run": "2026-05-29T22:14:38Z",
+  "last_dispatch_note": "v3.34 Dashboard auto-sync (SPA-V334): index.html (Go-Live tab) теперь читает data/adapter_status.json через fetch вместо хардкод-константы; ADAPTER_STATUS -> ADAPTER_STATUS_FALLBACK, добавлены loadAdapterStatus()/mapAdapterRecord(). 50 новых контракт-тестов PASS, test_adapter_status 55 PASS, регрессия чистая (только пред-существующий morpho-fail). Следующий dev-шаг: оживить live APY (фактическое чтение DeFiLlama при SPA_LIVE_APY) либо PostgreSQL миграция (исполнение плана v3.31).",
   "columns": {
     "ideas": [
       {
@@ -2134,6 +2134,19 @@
           "spa_core/tests/test_adapter_status.py",
           "data/adapter_status.json"
         ]
+      },
+      {
+        "id": "SPA-V334-001",
+        "title": "Авто-синхронизация Go-Live дашборда с data/adapter_status.json",
+        "description": "index.html (Go-Live таб) читает data/adapter_status.json через fetch (single source of truth из v3.33) с graceful fallback на встроенную константу ADAPTER_STATUS_FALLBACK. Добавлены loadAdapterStatus(), mapAdapterRecord(); renderAdapterStatus() рендерит из загруженного JSON. Новый тест-файл test_dashboard_adapter_sync.py (50 тестов) фиксирует контракт backend-JSON ↔ фронт.",
+        "priority": "MEDIUM",
+        "tags": [
+          "frontend",
+          "execution",
+          "dashboard"
+        ],
+        "sprint": "v3.34",
+        "completed": "2026-05-29"
       }
     ]
   }
