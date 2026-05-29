@@ -4,6 +4,47 @@
 
 ---
 
+## Sprint v3.31 — 2026-05-29 — PostgreSQL migration prep (SQLite → PostgreSQL, plan-only)
+
+**Цель:** Подготовить (но НЕ выполнять) миграцию с SQLite на PostgreSQL: новый модуль `spa_core/persistence/pg_migration.py` — интроспекция текущей SQLite-схемы, генерация эквивалентного PostgreSQL DDL (типы, default'ы, индексы) и FK-safe план копирования. Plan-only по scope (`без выполнения миграции`).
+
+**Контекст:** В репо уже есть BL-008 seam (`spa_core/database/connection.py` + `db_url.py`, поддержка SQLite/Postgres) и Alembic baseline (`0001_initial_schema.py` с двумя диалектами DDL для 7 канонических таблиц). V331 добавляет *generic* инструмент миграции поверх этого: он не дублирует Alembic, а интроспектит живую SQLite-БД и выводит Postgres-DDL программно, поэтому будущие таблицы мигрируют автоматически.
+
+### Что сделано (SPA-V331-001)
+- Создан `spa_core/persistence/__init__.py` + `spa_core/persistence/pg_migration.py` (чистый stdlib: `sqlite3`/`re`/`dataclasses`; psycopg2 НЕ импортируется на plan-пути).
+- **Type mapping (SQLite affinity → PostgreSQL):** реализованы 5 правил affinity из SQLite-доков (`INT*`→INTEGER, `CHAR/CLOB/TEXT`→TEXT, `REAL/FLOA/DOUB`→REAL, `NUM/DECIMAL/BOOLEAN/DATE`→NUMERIC, пусто/`BLOB`→BLOB). Маппинг в Postgres: INTEGER→INTEGER, TEXT→TEXT, REAL→DOUBLE PRECISION, BLOB→BYTEA, NUMERIC→NUMERIC. `INTEGER PRIMARY KEY [AUTOINCREMENT]` (rowid alias) → `SERIAL`. Явные `TIMESTAMP*/DATETIME` → `TIMESTAMPTZ`.
+- **Трансляция default'ов:** `datetime('now','utc')` / `datetime('now')` / `CURRENT_TIMESTAMP` → `NOW()`; числовые/строковые/NULL-литералы — verbatim; `strftime(...)` (например seed для `snapshot_id`/`trade_id`) — дропается с warning (на Postgres значение поставляет приложение или trigger/sequence). Проверка strftime идёт ДО datetime-правил (strftime часто оборачивает `datetime('now')`).
+- **Интроспекция:** `introspect_sqlite()` читает `sqlite_master` + `PRAGMA table_info / index_list / index_info / foreign_key_list`. Автоиндексы UNIQUE/PK (origin≠'c') не дублируются как отдельные индексы — UNIQUE выражается inline в колонке. Пропускаются `sqlite_*`/`alembic_version`.
+- **FK-safe порядок:** `topo_sort_tables()` (Kahn) — родитель раньше ребёнка; при цикле — fallback на declaration order.
+- **Генерация DDL:** `generate_table_ddl` / `generate_index_ddl` / `generate_postgres_ddl` → `CREATE TABLE/INDEX IF NOT EXISTS`, SERIAL PK / composite PK / FK / UNIQUE, упорядочено topo-сортом.
+- **План:** `build_migration_plan()` → `MigrationPlan` (tables, copy_order, ddl, row_counts, warnings) + `to_dict()`. Источник: аргумент / `SPA_DATABASE_URL` / дефолтный `spa_core/database/spa.db`.
+- **Execution guard:** `execute_migration()` всегда блокирует (`MigrationExecutionBlocked`), пока не задан `SPA_PG_MIGRATION_EXECUTE=1` И `i_understand_this_writes_data=True`; даже тогда тело копирования = `NotImplementedError` (намеренно вне scope V331; зеркалит BLOCKED/NOT_IMPLEMENTED-паттерн live-адаптеров).
+- **CLI:** `python3 -m spa_core.persistence.pg_migration [--plan|--ddl-only|--json] [--sqlite PATH] [--no-counts]`.
+
+### Проверка на реальной БД
+- `--ddl-only` на живом `spa_core/database/spa.db` сгенерировал все 7 канонических таблиц (protocols, apy_snapshots, paper_trades, risk_events, strategy_state, message_bus, agent_decisions) с корректным `SERIAL PRIMARY KEY`, `DOUBLE PRECISION`, FK `protocol_key→protocols(key)`, `UNIQUE`, `DEFAULT NOW()`; `snapshot_id`/`trade_id` strftime-default корректно дропнут. Copy order: protocols первым (FK-safe).
+- Известный нюанс: колонки, объявленные в SQLite как `TEXT` с datetime-default (`added_at`), мигрируют как `TEXT DEFAULT NOW()` (а не `TIMESTAMPTZ`, как в Alembic baseline) — generic-интроспектор уважает фактический объявленный тип источника. На Postgres рабочее (NOW()→text каст); при желании точного `TIMESTAMPTZ` см. Alembic baseline.
+
+### Файлы
+Новые:
+- `spa_core/persistence/__init__.py`
+- `spa_core/persistence/pg_migration.py`
+- `spa_core/tests/test_pg_migration.py` (30 тестов)
+
+Обновлены:
+- `KANBAN.json` (SPA-V331 backlog→done как SPA-V331-001; backlog 10→9; done 123→124; sprint_completed→v3.31; бэкап `KANBAN.json.bak.v331`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v331`)
+
+### Результаты тестов
+- `test_pg_migration.py`: **30 PASS / 0 FAIL** (type mapping, default-трансляция, интроспекция, topo-sort, DDL-генерация, план, execution-guard, CLI).
+- Регрессия (engine_bridge / pendle / sky / db_abstraction + V331): **179 PASS / 1 FAIL** — единственное падение `test_malformed_returns_none[morpho-blue-usdc-base]` пред-существующее (morpho-blue parse, baseline), к V331 не относится.
+- Раннер: `pytest`, Python 3.10. Plan-путь без сети и без psycopg2.
+
+### Следующий спринт
+**SPA-V332:** Go-live dashboard update — обновить `index.html` (Go-Live таб): показывать статус новых T2/conditional адаптеров (Yearn V3, Euler V2, Maple, Pendle PT, Sky/sUSDS) — tier, allocation cap, live/blocked, источник APY (mock / live DeFiLlama).
+
+---
+
 ## Sprint v3.30 — 2026-05-29 — Architect review + KANBAN housekeeping
 
 **Цель:** периодический architect review (v3.30 заканчивается на 0) + наведение порядка в KANBAN: закрыть устаревшие карточки, добавить новые задачи в backlog.
