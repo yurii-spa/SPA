@@ -1033,3 +1033,46 @@ Engine теперь принимает ключи: `yearn-v3-usdc-ethereum`, `eu
 5. **SPA-BL-009** — Gnosis Safe кошелёк → Go-Live критерий #9
 
 **Следующий возможный спринт:** SPA-V326 — FEAT-MON-004 MEV Protection (Flashbots RPC), либо Pendle PT adapter (PT-stablecoin ERC-5115), либо DeFiLlama APY feed для live APY reads в T2 адаптерах.
+
+---
+
+## Sprint v3.26 — 2026-05-29 — MEV Protection (Flashbots Protect RPC)
+
+**Цель:** защитить live-транзакции от MEV/sandwich атак через Flashbots Protect RPC.
+
+### SPA-V326-001 — mev_protection.py
+
+**Файл:** `spa_core/execution/mev_protection.py`
+
+- `send_protected(signed_tx_hex)` — роутинг через Flashbots Protect RPC вместо публичного мемпула
+- `send_raw_transaction_auto(signed_tx_hex, public_rpc)` — drop-in замена для всех адаптеров: автоматически выбирает Flashbots/публичный RPC в зависимости от env
+- `wait_for_receipt(tx_hash, rpc, max_wait)` — polling с graceful timeout
+- `send_protected_dry_run()` — детерминированный mock для тестов
+
+Endpoints:
+- Primary: `https://rpc.flashbots.net/fast` (fast mode, default)
+- Fallback: `https://rpc.flashbots.net` → `https://rpc.mevblocker.io/noreverts`
+- Emergency fallback: публичный RPC с предупреждением
+
+Env-переменные:
+- `SPA_MEV_PROTECTION=true` — включить защиту (по умолчанию false)
+- `SPA_FLASHBOTS_MODE=fast|standard|mevblocker`
+
+Транзакция никогда не попадает в публичный мемпул при MEV_PROTECTION=true + EXECUTION_MODE=live.
+
+**Тесты:** `spa_core/tests/test_mev_protection.py` — 18 тестов
+
+### Регрессия
+18 PASS / 0 FAIL (custom runner, pytest недоступен в sandbox)
+
+### Файлы
+Новые:
+- `spa_core/execution/mev_protection.py`
+- `spa_core/tests/test_mev_protection.py`
+
+Обновлены:
+- `KANBAN.json` (done +1: SPA-V326-001)
+- `SPA_sprint_log.md`
+
+### Следующий спринт
+SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Yearn/Euler/Maple) вместо мок-значений. Endpoint: `https://yields.llama.fi/pools`
