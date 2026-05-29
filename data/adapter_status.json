@@ -1,0 +1,137 @@
+{
+  "generated_at": "2026-05-29T21:13:46.822124+00:00",
+  "schema_version": 1,
+  "execution_mode": "dry_run",
+  "live_apy_enabled": false,
+  "adapters": [
+    {
+      "protocol_key": "yearn-v3",
+      "name": "Yearn V3",
+      "tier": "T2",
+      "allocation_cap": 0.2,
+      "write_state": "BLOCKED",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "yearn",
+        "live_enabled": false
+      },
+      "chains": [
+        "ethereum",
+        "arbitrum"
+      ],
+      "assets": [
+        "USDC",
+        "USDT"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 6.8,
+          "USDT": 6.5
+        },
+        "arbitrum": {
+          "USDC": 7.1,
+          "USDT": 6.9
+        }
+      }
+    },
+    {
+      "protocol_key": "euler-v2",
+      "name": "Euler V2",
+      "tier": "T2",
+      "allocation_cap": 0.2,
+      "write_state": "BLOCKED",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "euler",
+        "live_enabled": false
+      },
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC",
+        "USDT"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 7.4,
+          "USDT": 7.1
+        }
+      }
+    },
+    {
+      "protocol_key": "maple",
+      "name": "Maple",
+      "tier": "T2",
+      "allocation_cap": 0.2,
+      "write_state": "BLOCKED",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "maple",
+        "live_enabled": false
+      },
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 5.6
+        }
+      }
+    },
+    {
+      "protocol_key": "pendle-pt",
+      "name": "Pendle PT",
+      "tier": "T2",
+      "allocation_cap": 0.2,
+      "write_state": "NOT_IMPLEMENTED",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "pendle",
+        "live_enabled": false
+      },
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC",
+        "USDT"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 6.5,
+          "USDT": 6.1
+        }
+      }
+    },
+    {
+      "protocol_key": "sky-susds",
+      "name": "Sky / sUSDS",
+      "tier": "T2-conditional",
+      "allocation_cap": 0.0,
+      "write_state": "BLOCKED",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "sky",
+        "live_enabled": false
+      },
+      "allocation_note": "\u21920.30 when ELIGIBLE",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDS",
+        "DAI"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDS": 6.5,
+          "DAI": 6.5
+        }
+      }
+    }
+  ]
+}
