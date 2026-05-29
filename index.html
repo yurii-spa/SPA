@@ -3984,15 +3984,21 @@ let ADAPTER_STATUS_DATA = null;     // mapped records from the backend JSON, or 
 let ADAPTER_STATUS_LIVE_APY = false; // mirrors doc.live_apy_enabled
 let ADAPTER_STATUS_GENERATED_AT = null;
 
+// Format a nested chain→asset→apy map into the table's APY HTML string.
+function fmtApyMap(map) {
+  const chainKeys = Object.keys(map || {});
+  return chainKeys.map(ch => {
+    const pairs = Object.keys(map[ch]).map(asset => `${asset} ${map[ch][asset]}%`).join(' / ');
+    return chainKeys.length > 1 ? `${ch.slice(0, 3).toUpperCase()}: ${pairs}` : pairs;
+  }).join('<br>');
+}
+
 // Pure transformer: backend adapter record → shape expected by renderAdapterStatus().
 function mapAdapterRecord(rec) {
   const cap = Math.round((rec.allocation_cap || 0) * 100) + '%';
-  const mock = rec.mock_apy || {};
-  const chainKeys = Object.keys(mock);
-  const apy = chainKeys.map(ch => {
-    const pairs = Object.keys(mock[ch]).map(asset => `${asset} ${mock[ch][asset]}%`).join(' / ');
-    return chainKeys.length > 1 ? `${ch.slice(0, 3).toUpperCase()}: ${pairs}` : pairs;
-  }).join('<br>');
+  const apy = fmtApyMap(rec.mock_apy || {});
+  // v3.35: backend may embed real DeFiLlama values in rec.live_apy (gated SPA_LIVE_APY).
+  const apyLive = fmtApyMap(rec.live_apy || {});
   const src = rec.apy_source || {};
   let state, stateLabel, stateNote;
   switch (rec.write_state) {
@@ -4011,9 +4017,11 @@ function mapAdapterRecord(rec) {
     chains: (rec.chains || []).join(', '),
     assets: (rec.assets || []).join(' / '),
     apy,
+    apyLive,
     source: src.mode,
     project: src.live_project,
     liveEnabled: !!src.live_enabled,
+    liveValuesPresent: !!src.live_values_present,
     state,
     stateLabel,
     stateNote,
@@ -4043,17 +4051,31 @@ function renderAdapterStatus() {
   const rows = ADAPTER_STATUS_DATA && ADAPTER_STATUS_DATA.length ? ADAPTER_STATUS_DATA : ADAPTER_STATUS_FALLBACK;
   const liveApy = ADAPTER_STATUS_LIVE_APY; // sourced from data/adapter_status.json (doc.live_apy_enabled)
   const stateColor = s => s === 'blocked' ? '#B91C1C' : s === 'notimpl' ? '#f59e0b' : '#16a34a';
+  // v3.35: a row is genuinely "live" only when the backend embedded real values
+  // (live_values_present). When the gate is on but no pool matched, show a
+  // "live: no match" amber badge so the mock fallback is explicit.
   const srcBadge = a => {
-    const live = liveApy && a.liveEnabled !== false;
+    const live = liveApy && a.liveValuesPresent;
+    const pending = liveApy && a.liveEnabled !== false && !a.liveValuesPresent;
     const col = live ? '#16a34a' : '#f59e0b';
-    const txt = live ? `live DeFiLlama (${a.project})` : `mock (live: DeFiLlama "${a.project}")`;
+    const txt = live ? `live DeFiLlama (${a.project})`
+      : pending ? `mock · live "${a.project}" (no pool match)`
+      : `mock (live: DeFiLlama "${a.project}")`;
     return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span>`;
+  };
+  // APY cell: prefer embedded live values (green) when present, else mock.
+  const apyCell = a => {
+    if (liveApy && a.liveValuesPresent && a.apyLive) {
+      return `<span style="color:#16a34a;font-weight:600">${a.apyLive}</span>`
+        + (a.apy ? `<div style="font-size:9px;color:#aaa;text-decoration:line-through">${a.apy}</div>` : '');
+    }
+    return a.apy;
   };
   const syncedNote = ADAPTER_STATUS_DATA
     ? `<div style="font-size:10px;color:#999;margin-top:4px">synced from data/adapter_status.json${ADAPTER_STATUS_GENERATED_AT ? ` · generated ${ADAPTER_STATUS_GENERATED_AT.slice(0,16).replace('T',' ')}` : ''}</div>`
     : '';
   el.innerHTML = `<table class="pendle-table"><thead><tr>
-    <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>Mock APY</th><th>APY Source</th><th>Write State</th>
+    <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>APY</th><th>APY Source</th><th>Write State</th>
   </tr></thead><tbody>
     ${rows.map(a => `<tr>
       <td style="font-weight:600">${a.name}</td>
@@ -4061,7 +4083,7 @@ function renderAdapterStatus() {
       <td style="font-weight:600">${a.cap}${a.capNote ? `<div style="font-size:10px;font-weight:400;color:#888;margin-top:1px">${a.capNote}</div>` : ''}</td>
       <td style="font-size:11px;color:#555">${a.chains}</td>
       <td style="font-size:11px;color:#555">${a.assets}</td>
-      <td style="font-size:11px;color:#333">${a.apy}</td>
+      <td style="font-size:11px;color:#333">${apyCell(a)}</td>
       <td>${srcBadge(a)}</td>
       <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
     </tr>`).join('')}
