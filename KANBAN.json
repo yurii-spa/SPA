@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T17:45:00Z",
+  "last_updated": "2026-05-29T19:15:00Z",
   "updated_by": "dev-orchestrator",
-  "sprint_completed": "v3.30",
-  "last_dispatch_run": "2026-05-29T17:45:00Z",
-  "last_dispatch_note": "v3.30 Architect review + KANBAN housekeeping: закрыто 6 устаревших v1.6 review-карточек (REV-001..006) — 5 как уже запушенные, REV-005 как дубль BL-006. Добавлены в backlog SPA-V331 (PostgreSQL migration prep) и SPA-V332 (Go-live dashboard: статус T2-адаптеров). architect-модуль требует ANTHROPIC_API_KEY (нет в sandbox) — ревью выполнено оркестратором вручную. Следующий: SPA-V331.",
+  "sprint_completed": "v3.31",
+  "last_dispatch_run": "2026-05-29T19:15:00Z",
+  "last_dispatch_note": "v3.31 PostgreSQL migration prep (SPA-V331): создан spa_core/persistence/pg_migration.py — plan-only SQLite->PostgreSQL (introspection, type/default mapping, FK-safe DDL, CLI, execution заблокирован). 30 тестов PASS, регрессия чистая (1 пред-существующий morpho-blue fail вне scope). Следующий: SPA-V332 (Go-live dashboard: статус T2/conditional адаптеров в index.html).",
   "columns": {
     "ideas": [
       {
@@ -230,19 +230,6 @@
           "golive"
         ],
         "blocked_by": "user_action",
-        "sprint": null,
-        "added": "2026-05-29"
-      },
-      {
-        "id": "SPA-V331",
-        "title": "PostgreSQL migration prep (схема из SQLite)",
-        "description": "Подготовить схему миграции SQLite -> PostgreSQL (DDL, типы, индексы, mapping таблиц message_bus/incidents/state). Только подготовка схемы и скрипта, БЕЗ выполнения миграции. Стиль: отдельный модуль spa_core/persistence/pg_migration.py + tests.",
-        "priority": "MEDIUM",
-        "estimate": "3h",
-        "tags": [
-          "backend",
-          "persistence"
-        ],
         "sprint": null,
         "added": "2026-05-29"
       },
@@ -2120,6 +2107,18 @@
         "added": "2026-05-22",
         "completed": "2026-05-29",
         "resolution": "Закрыто в v3.30 housekeeping: контент давно запушен повторными full-repo пушами (push_index.html / push_full_clean.html / push_v317..v329). Карточка v1.6 устарела."
+      },
+      {
+        "id": "SPA-V331-001",
+        "title": "PostgreSQL migration prep (SQLite -> PG, plan-only)",
+        "description": "Новый модуль spa_core/persistence/pg_migration.py: интроспекция SQLite (PRAGMA table_info/index_list/foreign_key_list), type-mapping по affinity-правилам SQLite -> PostgreSQL (INTEGER/TEXT/REAL->DOUBLE PRECISION/BLOB->BYTEA/NUMERIC, TIMESTAMP*->TIMESTAMPTZ, INTEGER PK AUTOINCREMENT->SERIAL), трансляция default'ов (datetime('now','utc')/CURRENT_TIMESTAMP->NOW(); strftime(...) дропается с warning), FK-safe topo-sort порядка копирования, генерация CREATE TABLE/INDEX IF NOT EXISTS DDL, MigrationPlan + row counts, CLI (--plan/--ddl-only/--json). execute_migration() заблокирован (plan-only): требует SPA_PG_MIGRATION_EXECUTE=1 + явный флаг, тело копирования НЕ реализовано (вне scope). Проверено на реальном spa.db (7 канонических таблиц, protocols первым). 30 новых тестов. БЕЗ выполнения миграции.",
+        "priority": "MEDIUM",
+        "tags": [
+          "backend",
+          "persistence"
+        ],
+        "sprint": "v3.31",
+        "completed": "2026-05-29"
       }
     ]
   }
