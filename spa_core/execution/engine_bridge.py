@@ -81,6 +81,11 @@ _PROTOCOL_PREFIX_TO_FAMILY: dict[str, str] = {
     "aave-v3":     "aave_v3",
     "compound-v3": "compound_v3",
     "morpho":      "morpho",        # T1 — Sprint v3.24 / SPA-V324-002
+    "yearn-v3":    "yearn_v3",      # T2 — Sprint v3.25 / SPA-V325-001
+    "euler-v2":    "euler_v2",      # T2 — Sprint v3.25 / SPA-V325-002
+    "maple":       "maple",         # T2 — Sprint v3.25 / SPA-V325-003
+    "pendle-pt":   "pendle_pt",     # T2 — Sprint v3.28 / SPA-V328-001
+    "sky-susds":   "sky_susds",     # Conditional T1 — Sprint v3.29 / SPA-V329-001
 }
 
 
@@ -382,6 +387,21 @@ class LiveExecutionBridge:
         elif family == "morpho":
             from spa_core.execution.adapters.morpho_adapter import MorphoAdapter
             adapter_cls = MorphoAdapter
+        elif family == "yearn_v3":
+            from spa_core.execution.adapters.yearn_v3_adapter import YearnV3Adapter
+            adapter_cls = YearnV3Adapter
+        elif family == "euler_v2":
+            from spa_core.execution.adapters.euler_v2_adapter import EulerV2Adapter
+            adapter_cls = EulerV2Adapter
+        elif family == "maple":
+            from spa_core.execution.adapters.maple_adapter import MapleAdapter
+            adapter_cls = MapleAdapter
+        elif family == "pendle_pt":
+            from spa_core.execution.adapters.pendle_pt_adapter import PendlePTAdapter
+            adapter_cls = PendlePTAdapter
+        elif family == "sky_susds":
+            from spa_core.execution.adapters.sky_susds_adapter import SkySUSDSAdapter
+            adapter_cls = SkySUSDSAdapter
         else:
             return None
 
