@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-05-29T19:15:00Z",
-  "updated_by": "dev-orchestrator",
-  "sprint_completed": "v3.31",
+  "last_updated": "2026-05-29T20:12:00Z",
+  "updated_by": "spa-worker-dev",
+  "sprint_completed": "v3.32",
   "last_dispatch_run": "2026-05-29T19:15:00Z",
   "last_dispatch_note": "v3.31 PostgreSQL migration prep (SPA-V331): создан spa_core/persistence/pg_migration.py — plan-only SQLite->PostgreSQL (introspection, type/default mapping, FK-safe DDL, CLI, execution заблокирован). 30 тестов PASS, регрессия чистая (1 пред-существующий morpho-blue fail вне scope). Следующий: SPA-V332 (Go-live dashboard: статус T2/conditional адаптеров в index.html).",
   "columns": {
@@ -230,19 +230,6 @@
           "golive"
         ],
         "blocked_by": "user_action",
-        "sprint": null,
-        "added": "2026-05-29"
-      },
-      {
-        "id": "SPA-V332",
-        "title": "Go-live dashboard update: статус T2-адаптеров",
-        "description": "Обновить index.html (Go-Live таб): показывать статус новых T2/conditional адаптеров (Yearn V3, Euler V2, Maple, Pendle PT, Sky/sUSDS) — tier, allocation cap, live/blocked, APY source (mock/live DeFiLlama).",
-        "priority": "MEDIUM",
-        "estimate": "2h",
-        "tags": [
-          "frontend",
-          "golive"
-        ],
         "sprint": null,
         "added": "2026-05-29"
       }
@@ -2119,6 +2106,19 @@
         ],
         "sprint": "v3.31",
         "completed": "2026-05-29"
+      },
+      {
+        "id": "SPA-V332-001",
+        "title": "Go-live dashboard update: статус T2/conditional адаптеров",
+        "description": "Go-Live таб index.html: добавлена секция «🔌 T2 / Conditional Adapters» (после Readiness Criteria, перед Investor Report). Таблица .pendle-table по каждому адаптеру: Adapter | Tier | Alloc Cap | Chains | Assets | Mock APY | APY Source | Write State. Данные взяты verbatim из adapter-модулей (_DRY_RUN_APY) + конвенции tier/cap: Yearn V3 (T2, 20%, ETH+ARB, mock 6.5-7.1%, writes BLOCKED), Euler V2 (T2, 20%, ETH, 7.1-7.4%, BLOCKED), Maple (T2, 20%, ETH, 5.6%, BLOCKED), Pendle PT (T2, 20%, ETH, PT 6.1-6.5%, NOT_IMPLEMENTED), Sky/sUSDS (T2-conditional, cap 0% → 30% когда ELIGIBLE/GSM 48h, 6.5%, BLOCKED/PENDING). APY Source: mock по умолчанию, live DeFiLlama при SPA_LIVE_APY. Write State цветокодирован (#B91C1C/#f59e0b/#16a34a). JS-render: ADAPTER_STATUS + renderAdapterStatus(), вызывается из loadGoLive(). Read-only, без backend-изменений.",
+        "priority": "MEDIUM",
+        "tags": [
+          "frontend",
+          "golive"
+        ],
+        "sprint": "v3.32",
+        "completed": "2026-05-29",
+        "resolution": "DONE: секция статуса T2/conditional адаптеров добавлена в Go-Live таб index.html (JS-render renderAdapterStatus, вызов в loadGoLive). Read-only дашборд, без изменений Python/backend. Значения mock APY/cap/tier сверены с adapter-модулями."
       }
     ]
   }
