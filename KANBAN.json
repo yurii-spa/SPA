@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T17:20:00Z",
+  "last_updated": "2026-05-29T17:45:00Z",
   "updated_by": "dev-orchestrator",
-  "sprint_completed": "v3.29",
-  "last_dispatch_run": "2026-05-29T17:20:00Z",
-  "last_dispatch_note": "v3.29 Sky/sUSDS conditional-T1 adapter shipped (ERC-4626 sUSDS vault, USDS/DAI, GSM>=48h gated via sky_monitor; BLOCKED until ELIGIBLE). 50 adapter tests pass; 145 T2+engine regression pass. Sky currently PENDING -> tier T2-conditional, 0% cap. 1 pre-existing failure (morpho-blue parse) unrelated.",
+  "sprint_completed": "v3.30",
+  "last_dispatch_run": "2026-05-29T17:45:00Z",
+  "last_dispatch_note": "v3.30 Architect review + KANBAN housekeeping: закрыто 6 устаревших v1.6 review-карточек (REV-001..006) — 5 как уже запушенные, REV-005 как дубль BL-006. Добавлены в backlog SPA-V331 (PostgreSQL migration prep) и SPA-V332 (Go-live dashboard: статус T2-адаптеров). architect-модуль требует ANTHROPIC_API_KEY (нет в sandbox) — ревью выполнено оркестратором вручную. Следующий: SPA-V331.",
   "columns": {
     "ideas": [
       {
@@ -232,84 +232,36 @@
         "blocked_by": "user_action",
         "sprint": null,
         "added": "2026-05-29"
+      },
+      {
+        "id": "SPA-V331",
+        "title": "PostgreSQL migration prep (схема из SQLite)",
+        "description": "Подготовить схему миграции SQLite -> PostgreSQL (DDL, типы, индексы, mapping таблиц message_bus/incidents/state). Только подготовка схемы и скрипта, БЕЗ выполнения миграции. Стиль: отдельный модуль spa_core/persistence/pg_migration.py + tests.",
+        "priority": "MEDIUM",
+        "estimate": "3h",
+        "tags": [
+          "backend",
+          "persistence"
+        ],
+        "sprint": null,
+        "added": "2026-05-29"
+      },
+      {
+        "id": "SPA-V332",
+        "title": "Go-live dashboard update: статус T2-адаптеров",
+        "description": "Обновить index.html (Go-Live таб): показывать статус новых T2/conditional адаптеров (Yearn V3, Euler V2, Maple, Pendle PT, Sky/sUSDS) — tier, allocation cap, live/blocked, APY source (mock/live DeFiLlama).",
+        "priority": "MEDIUM",
+        "estimate": "2h",
+        "tags": [
+          "frontend",
+          "golive"
+        ],
+        "sprint": null,
+        "added": "2026-05-29"
       }
     ],
     "in_progress": [],
-    "review": [
-      {
-        "id": "REV-001",
-        "title": "Push Dashboard v1.6 (index.html)",
-        "description": "index.html with all 6 tabs (Home, Paper Trading, Analytics, Go-Live, Agents, System). Done locally, not yet on GitHub. Commit: feat: v1.6 dashboard.",
-        "priority": "HIGH",
-        "estimate": "0.2h",
-        "tags": [
-          "frontend"
-        ],
-        "sprint": "v1.6",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "REV-002",
-        "title": "Push Core Python Modules (20+ files)",
-        "description": "All spa_core modules: paper_trading, risk, data_pipeline, backtesting, optimization, golive, analytics, agents, alerts, execution, message_bus, orchestrator, monitor. Done locally.",
-        "priority": "HIGH",
-        "estimate": "0.2h",
-        "tags": [
-          "backend"
-        ],
-        "sprint": "v1.6",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "REV-003",
-        "title": "Push Test Suites (~140 tests, 20+ files)",
-        "description": "All test files: conftest, test_optimization, test_backtesting, test_golive, test_email, test_alerts, test_pendle, test_analytics, test_api, test_paper_trading, test_replay, test_risk, test_sky, test_tournament, test_retry_logic, test_concurrent_fetch, test_rebalancing, test_e2e, test_apy_tracker.",
-        "priority": "HIGH",
-        "estimate": "0.2h",
-        "tags": [
-          "testing"
-        ],
-        "sprint": "v1.6",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "REV-004",
-        "title": "Push Documentation Suite (10+ files)",
-        "description": "docs/api_reference.md, docs/data_schema.md, docs/architecture.md, docs/paper_trading_guide.md, docs/operator_runbook.md, ADR-001, ADR-002, ADR-003, setup guides.",
-        "priority": "MEDIUM",
-        "estimate": "0.2h",
-        "tags": [
-          "docs"
-        ],
-        "sprint": "v1.6",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "REV-005",
-        "title": "Push GitHub Actions Workflow (workflow scope)",
-        "description": ".github/workflows/spa-run.yml + deploy-pages.yml. Requires workflow-scope token. Use push_workflow.command. Last blocker before full CI is live on GitHub.",
-        "priority": "HIGH",
-        "estimate": "0.2h",
-        "tags": [
-          "infra"
-        ],
-        "sprint": "v1.6",
-        "added": "2026-05-22"
-      },
-      {
-        "id": "REV-006",
-        "title": "Push KANBAN.json + kanban.html",
-        "description": "New kanban board state file and HTML dashboard. Created in this session. Commit: feat: live kanban board state / feat: kanban board dashboard.",
-        "priority": "MEDIUM",
-        "estimate": "0.1h",
-        "tags": [
-          "frontend",
-          "docs"
-        ],
-        "sprint": "v1.6",
-        "added": "2026-05-22"
-      }
-    ],
+    "review": [],
     "done": [
       {
         "id": "SPA-V328-001",
@@ -2083,6 +2035,91 @@
         ],
         "sprint": "v3.29",
         "completed": "2026-05-29"
+      },
+      {
+        "id": "REV-001",
+        "title": "Push Dashboard v1.6 (index.html)",
+        "description": "index.html with all 6 tabs (Home, Paper Trading, Analytics, Go-Live, Agents, System). Done locally, not yet on GitHub. Commit: feat: v1.6 dashboard.",
+        "priority": "HIGH",
+        "estimate": "0.2h",
+        "tags": [
+          "frontend"
+        ],
+        "sprint": "v3.30",
+        "added": "2026-05-22",
+        "completed": "2026-05-29",
+        "resolution": "Закрыто в v3.30 housekeeping: контент давно запушен повторными full-repo пушами (push_index.html / push_full_clean.html / push_v317..v329). Карточка v1.6 устарела."
+      },
+      {
+        "id": "REV-002",
+        "title": "Push Core Python Modules (20+ files)",
+        "description": "All spa_core modules: paper_trading, risk, data_pipeline, backtesting, optimization, golive, analytics, agents, alerts, execution, message_bus, orchestrator, monitor. Done locally.",
+        "priority": "HIGH",
+        "estimate": "0.2h",
+        "tags": [
+          "backend"
+        ],
+        "sprint": "v3.30",
+        "added": "2026-05-22",
+        "completed": "2026-05-29",
+        "resolution": "Закрыто в v3.30 housekeeping: контент давно запушен повторными full-repo пушами (push_index.html / push_full_clean.html / push_v317..v329). Карточка v1.6 устарела."
+      },
+      {
+        "id": "REV-003",
+        "title": "Push Test Suites (~140 tests, 20+ files)",
+        "description": "All test files: conftest, test_optimization, test_backtesting, test_golive, test_email, test_alerts, test_pendle, test_analytics, test_api, test_paper_trading, test_replay, test_risk, test_sky, test_tournament, test_retry_logic, test_concurrent_fetch, test_rebalancing, test_e2e, test_apy_tracker.",
+        "priority": "HIGH",
+        "estimate": "0.2h",
+        "tags": [
+          "testing"
+        ],
+        "sprint": "v3.30",
+        "added": "2026-05-22",
+        "completed": "2026-05-29",
+        "resolution": "Закрыто в v3.30 housekeeping: контент давно запушен повторными full-repo пушами (push_index.html / push_full_clean.html / push_v317..v329). Карточка v1.6 устарела."
+      },
+      {
+        "id": "REV-004",
+        "title": "Push Documentation Suite (10+ files)",
+        "description": "docs/api_reference.md, docs/data_schema.md, docs/architecture.md, docs/paper_trading_guide.md, docs/operator_runbook.md, ADR-001, ADR-002, ADR-003, setup guides.",
+        "priority": "MEDIUM",
+        "estimate": "0.2h",
+        "tags": [
+          "docs"
+        ],
+        "sprint": "v3.30",
+        "added": "2026-05-22",
+        "completed": "2026-05-29",
+        "resolution": "Закрыто в v3.30 housekeeping: контент давно запушен повторными full-repo пушами (push_index.html / push_full_clean.html / push_v317..v329). Карточка v1.6 устарела."
+      },
+      {
+        "id": "REV-005",
+        "title": "Push GitHub Actions Workflow (workflow scope)",
+        "description": ".github/workflows/spa-run.yml + deploy-pages.yml. Requires workflow-scope token. Use push_workflow.command. Last blocker before full CI is live on GitHub.",
+        "priority": "HIGH",
+        "estimate": "0.2h",
+        "tags": [
+          "infra"
+        ],
+        "sprint": "v3.30",
+        "added": "2026-05-22",
+        "completed": "2026-05-29",
+        "resolution": "Закрыто в v3.30 housekeeping как дубль BL-006 (Workflow Scope Token Push, user_action). Канонический трекер — BL-006; workflow можно запушить только токеном с workflow-scope."
+      },
+      {
+        "id": "REV-006",
+        "title": "Push KANBAN.json + kanban.html",
+        "description": "New kanban board state file and HTML dashboard. Created in this session. Commit: feat: live kanban board state / feat: kanban board dashboard.",
+        "priority": "MEDIUM",
+        "estimate": "0.1h",
+        "tags": [
+          "frontend",
+          "docs"
+        ],
+        "sprint": "v3.30",
+        "added": "2026-05-22",
+        "completed": "2026-05-29",
+        "resolution": "Закрыто в v3.30 housekeeping: контент давно запушен повторными full-repo пушами (push_index.html / push_full_clean.html / push_v317..v329). Карточка v1.6 устарела."
       }
     ]
   }
