@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T22:14:38Z",
+  "last_updated": "2026-05-30T00:30:00Z",
   "updated_by": "spa-orchestrator-dev",
-  "sprint_completed": "v3.34",
-  "last_dispatch_run": "2026-05-29T22:14:38Z",
-  "last_dispatch_note": "v3.34 Dashboard auto-sync (SPA-V334): index.html (Go-Live tab) теперь читает data/adapter_status.json через fetch вместо хардкод-константы; ADAPTER_STATUS -> ADAPTER_STATUS_FALLBACK, добавлены loadAdapterStatus()/mapAdapterRecord(). 50 новых контракт-тестов PASS, test_adapter_status 55 PASS, регрессия чистая (только пред-существующий morpho-fail). Следующий dev-шаг: оживить live APY (фактическое чтение DeFiLlama при SPA_LIVE_APY) либо PostgreSQL миграция (исполнение плана v3.31).",
+  "sprint_completed": "v3.35",
+  "last_dispatch_run": "2026-05-30T00:30:00Z",
+  "last_dispatch_note": "v3.35 Live APY enrichment (SPA-V335): adapter_status.py теперь при SPA_LIVE_APY=1 фактически фетчит live DeFiLlama APY per chain/asset (через defillama_apy_feed.get_live_apy) и встраивает их в каждую запись как live_apy {chain:{asset:apy}}; apy_source получает live_values_present и flip mode->live при наличии значений. Graceful: при выключенном гейте сеть не трогается, при ошибке/no-match — пусто, mode остаётся mock (никогда не падает). index.html (Go-Live) теперь рендерит live значения (зелёным, mock зачёркнут) через fmtApyMap/apyCell + badge 'live DeFiLlama' vs 'no pool match'. Тесты: test_adapter_status 63 PASS (+8 live), test_dashboard_adapter_sync 60 PASS (+5 wiring guard), JS node --check OK. Регрессия чистая (только пред-существующий morpho-blue parse fail). Следующий dev-шаг: FEAT-007 — live APY rolling covariance для Kelly sizing, либо исполнение плана PostgreSQL-миграции (v3.31). NB: v3.35 заканчивается на 5 → следующий выбор должен предваряться architect review-backlog.",
   "columns": {
     "ideas": [
       {
@@ -107,26 +107,6 @@
         ],
         "sprint": null,
         "added": "2026-05-22"
-      },
-      {
-        "id": "FEAT-MON-004",
-        "title": "MEV Protection (Flashbots Integration)",
-        "description": "Protection against sandwich attacks on large rebalance transactions. Flashbots Protect RPC as an alternative endpoint for execute operations. Relevant at AUM >$500K. Phase 3 — after go-live. Does not block paper trading.",
-        "priority": "MEDIUM",
-        "phase": 3,
-        "estimated_hours": 12,
-        "depends_on": [
-          "FEAT-004 Phase 3",
-          "FEAT-005 Phase 3"
-        ],
-        "tags": [
-          "backend",
-          "execution",
-          "security"
-        ],
-        "notes": "Защита от sandwich attacks при крупных rebalance транзакциях. Flashbots Protect RPC как альтернативный endpoint для execute операций. Актуально при AUM >$500K. Phase 3 — после go-live. Не блокирует paper trading.",
-        "sprint": null,
-        "added": "2026-05-27"
       }
     ],
     "backlog": [
@@ -188,7 +168,9 @@
           "backend"
         ],
         "sprint": null,
-        "added": "2026-05-22"
+        "added": "2026-05-22",
+        "note": "sky_susds_adapter.py built in v3.29, GSM gate implemented",
+        "status": "conditional"
       },
       {
         "id": "SPA-BL-007",
@@ -237,6 +219,24 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "SPA-V335-001",
+        "title": "Live APY enrichment of adapter_status.json + dashboard render",
+        "status": "done",
+        "sprint": "v3.35",
+        "completed": "2026-05-30",
+        "priority": "MEDIUM",
+        "implementation": "Закрывает gap, оставшийся после v3.27 (live feed) и v3.33/v3.34 (adapter_status JSON + dashboard fetch): adapter_status.py собирал только mock_apy + флаг live_enabled, но НИКОГДА не встраивал фактические live APY значения. SPA-V335 добавляет _fetch_live_apy_map(protocol_key, mock_apy): итерирует те же (chain,asset) комбинации, что в _DRY_RUN_APY адаптера, и для каждой вызывает defillama_apy_feed.get_live_apy (lazy import в try/except, каждый запрос индивидуально guard-нут — никогда не пробрасывает исключение). _adapter_record вызывает его ТОЛЬКО при live_enabled=True и успешном импорте адаптера; непустой результат пишется в record['live_apy']={chain:{asset:apy}} (строгий subset mock_apy), apy_source.mode flip 'mock'->'live', live_values_present=True. apy_source всегда получает новое поле live_values_present (по умолчанию False). При выключенном SPA_LIVE_APY сеть не трогается вообще; при network/parse fail или no-match live_apy пустой и mode остаётся 'mock' (graceful degradation, идентичная live-пути get_supply_apy в адаптерах). data/adapter_status.json перегенерирован (offline → live_apy_enabled=false, live_apy отсутствует, schema_version=1, +поле live_values_present). index.html (Go-Live): вынесен общий форматтер fmtApyMap(); mapAdapterRecord добавляет apyLive (HTML из rec.live_apy) и liveValuesPresent (из apy_source.live_values_present); apyCell() показывает live значения зелёным с зачёркнутым mock когда они есть, иначе mock; srcBadge различает 'live DeFiLlama (project)' / 'mock · live (no pool match)' / 'mock'; колонка переименована 'Mock APY'->'APY'. JS валиден (node --check).",
+        "files": [
+          "spa_core/execution/adapter_status.py (modified: _fetch_live_apy_map + live enrichment в _adapter_record + live_values_present)",
+          "spa_core/tests/test_adapter_status.py (modified: +8 тестов TestLiveApyEnrichment)",
+          "index.html (modified: fmtApyMap/apyLive/liveValuesPresent/apyCell + srcBadge + колонка APY)",
+          "spa_core/tests/test_dashboard_adapter_sync.py (modified: +5 wiring-guard тестов)",
+          "data/adapter_status.json (regenerated)"
+        ],
+        "tests": 13,
+        "test_results": "test_adapter_status 63 PASS (55+8), test_dashboard_adapter_sync 60 PASS (55+5); регрессия test_engine_bridge/yearn/maple — 159 PASS / 1 пред-существующий morpho-blue-usdc-base fail (вне scope)"
+      },
       {
         "id": "SPA-V328-001",
         "title": "Pendle PT adapter (ERC-5115 fixed-rate PT-USDC)",
@@ -2147,6 +2147,29 @@
         ],
         "sprint": "v3.34",
         "completed": "2026-05-29"
+      },
+      {
+        "id": "FEAT-MON-004",
+        "title": "MEV Protection (Flashbots Integration)",
+        "description": "Protection against sandwich attacks on large rebalance transactions. Flashbots Protect RPC as an alternative endpoint for execute operations. Relevant at AUM >$500K. Phase 3 — after go-live. Does not block paper trading.",
+        "priority": "MEDIUM",
+        "phase": 3,
+        "estimated_hours": 12,
+        "depends_on": [
+          "FEAT-004 Phase 3",
+          "FEAT-005 Phase 3"
+        ],
+        "tags": [
+          "backend",
+          "execution",
+          "security"
+        ],
+        "notes": "Защита от sandwich attacks при крупных rebalance транзакциях. Flashbots Protect RPC как альтернативный endpoint для execute операций. Актуально при AUM >$500K. Phase 3 — после go-live. Не блокирует paper trading.",
+        "sprint": null,
+        "added": "2026-05-27",
+        "status": "done",
+        "sprint_completed": "v3.26",
+        "note": "Implemented: mev_protection.py Flashbots Protect RPC"
       }
     ]
   }
