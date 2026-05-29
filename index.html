@@ -3863,7 +3863,7 @@ async function loadGoLive() {
     ]);
     renderGoLiveVerdict(readiness);
     renderGoLiveCriteria(readiness);
-    renderAdapterStatus();
+    loadAdapterStatus();
     renderGoLiveReport(latestReport);
     renderGoLiveTimeline();
     updateGoLiveTabBadge(readiness);
@@ -3954,7 +3954,8 @@ function renderGoLiveCriteria(data) {
 
 // T2 / conditional adapter status (read-only dashboard view).
 // Data sourced verbatim from adapter modules (_DRY_RUN_APY) + project tier/cap conventions.
-const ADAPTER_STATUS = [
+// FALLBACK only — live data is fetched from data/adapter_status.json (see loadAdapterStatus).
+const ADAPTER_STATUS_FALLBACK = [
   { name: 'Yearn V3',  tier: 'T2', cap: '20%', chains: 'ethereum, arbitrum', assets: 'USDC / USDT',
     apy: 'ETH: USDC 6.8% / USDT 6.5%<br>ARB: USDC 7.1% / USDT 6.9%',
     source: 'mock', project: 'yearn', state: 'blocked',
@@ -3978,21 +3979,83 @@ const ADAPTER_STATUS = [
     stateLabel: 'Supply/withdraw BLOCKED', stateNote: 'PENDING · until ELIGIBLE' },
 ];
 
+// ─── Live adapter status (synced from data/adapter_status.json) ──────────────
+let ADAPTER_STATUS_DATA = null;     // mapped records from the backend JSON, or null if fetch failed
+let ADAPTER_STATUS_LIVE_APY = false; // mirrors doc.live_apy_enabled
+let ADAPTER_STATUS_GENERATED_AT = null;
+
+// Pure transformer: backend adapter record → shape expected by renderAdapterStatus().
+function mapAdapterRecord(rec) {
+  const cap = Math.round((rec.allocation_cap || 0) * 100) + '%';
+  const mock = rec.mock_apy || {};
+  const chainKeys = Object.keys(mock);
+  const apy = chainKeys.map(ch => {
+    const pairs = Object.keys(mock[ch]).map(asset => `${asset} ${mock[ch][asset]}%`).join(' / ');
+    return chainKeys.length > 1 ? `${ch.slice(0, 3).toUpperCase()}: ${pairs}` : pairs;
+  }).join('<br>');
+  const src = rec.apy_source || {};
+  let state, stateLabel, stateNote;
+  switch (rec.write_state) {
+    case 'BLOCKED':
+      state = 'blocked'; stateLabel = 'Writes BLOCKED'; stateNote = 'Phase 3 · SPA_EXECUTION_MODE≠live'; break;
+    case 'NOT_IMPLEMENTED':
+      state = 'notimpl'; stateLabel = 'Writes NOT_IMPLEMENTED'; stateNote = 'Phase 3'; break;
+    default:
+      state = 'ok'; stateLabel = String(rec.write_state || 'OK'); stateNote = '';
+  }
+  return {
+    name: rec.name,
+    tier: rec.tier,
+    cap,
+    capNote: rec.allocation_note || '',
+    chains: (rec.chains || []).join(', '),
+    assets: (rec.assets || []).join(' / '),
+    apy,
+    source: src.mode,
+    project: src.live_project,
+    liveEnabled: !!src.live_enabled,
+    state,
+    stateLabel,
+    stateNote,
+  };
+}
+
+// Fetch the backend source of truth and render; falls back to ADAPTER_STATUS_FALLBACK on failure.
+async function loadAdapterStatus() {
+  try {
+    const doc = await fetch(BASE + '/adapter_status.json?_=' + Date.now()).then(r => r.json());
+    if (doc && Array.isArray(doc.adapters) && doc.adapters.length) {
+      ADAPTER_STATUS_DATA = doc.adapters.map(mapAdapterRecord);
+      ADAPTER_STATUS_LIVE_APY = !!doc.live_apy_enabled;
+      ADAPTER_STATUS_GENERATED_AT = doc.generated_at || null;
+    } else {
+      ADAPTER_STATUS_DATA = null;
+    }
+  } catch (e) {
+    ADAPTER_STATUS_DATA = null; // → renderAdapterStatus falls back to the embedded constant
+  }
+  renderAdapterStatus();
+}
+
 function renderAdapterStatus() {
   const el = document.getElementById('golive-adapters');
   if (!el) return;
-  const liveApy = false; // SPA_LIVE_APY disabled by default → all adapters serve mock APY
+  const rows = ADAPTER_STATUS_DATA && ADAPTER_STATUS_DATA.length ? ADAPTER_STATUS_DATA : ADAPTER_STATUS_FALLBACK;
+  const liveApy = ADAPTER_STATUS_LIVE_APY; // sourced from data/adapter_status.json (doc.live_apy_enabled)
   const stateColor = s => s === 'blocked' ? '#B91C1C' : s === 'notimpl' ? '#f59e0b' : '#16a34a';
   const srcBadge = a => {
-    const live = liveApy;
+    const live = liveApy && a.liveEnabled !== false;
     const col = live ? '#16a34a' : '#f59e0b';
     const txt = live ? `live DeFiLlama (${a.project})` : `mock (live: DeFiLlama "${a.project}")`;
     return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span>`;
   };
+  const syncedNote = ADAPTER_STATUS_DATA
+    ? `<div style="font-size:10px;color:#999;margin-top:4px">synced from data/adapter_status.json${ADAPTER_STATUS_GENERATED_AT ? ` · generated ${ADAPTER_STATUS_GENERATED_AT.slice(0,16).replace('T',' ')}` : ''}</div>`
+    : '';
   el.innerHTML = `<table class="pendle-table"><thead><tr>
     <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>Mock APY</th><th>APY Source</th><th>Write State</th>
   </tr></thead><tbody>
-    ${ADAPTER_STATUS.map(a => `<tr>
+    ${rows.map(a => `<tr>
       <td style="font-weight:600">${a.name}</td>
       <td><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:#185FA5;background:#185FA51a">${a.tier}</span></td>
       <td style="font-weight:600">${a.cap}${a.capNote ? `<div style="font-size:10px;font-weight:400;color:#888;margin-top:1px">${a.capNote}</div>` : ''}</td>
@@ -4002,7 +4065,7 @@ function renderAdapterStatus() {
       <td>${srcBadge(a)}</td>
       <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
     </tr>`).join('')}
-  </tbody></table>`;
+  </tbody></table>${syncedNote}`;
 }
 
 function renderGoLiveReport(data) {
