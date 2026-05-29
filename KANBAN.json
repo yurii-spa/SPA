@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T00:00:00+00:00",
+  "last_updated": "2026-05-29T13:11:43.668512+00:00",
   "updated_by": "spa-dev-sprint-v324",
-  "sprint_completed": "v3.24",
-  "last_dispatch_run": "2026-05-29T10:10:49+00:00",
-  "last_dispatch_note": "Dispatch run 2026-05-29T10:10Z (status pass, no new sprint). Independent re-verification: all HIGH-priority UNBLOCKED work closed through v3.23/v3.24. Remaining HIGH backlog (BL-004/005/006, SPA-BL-007/008/009) all user_action. Remaining HIGH features (FEAT-001 Real Capital, FEAT-002 Multi-Strategy) gated on 2026-07-15 go-live ADR + paper duration 8/56d. review column (REV-001..006) = GitHub-push tasks deliberately NOT pushed: REV-005 needs workflow-scope token; push path is a credentialed browser workaround unsuitable for unattended runs; prior runs consistently classed pushes as user action. golive verdict NOT_READY unchanged (6 PASS/2 WARN/2 FAIL/2 PENDING). DISPATCH_REPORT_2026-05-29.md already on disk. SECURITY: PAT delivered in plaintext in task file — should be rotated. No product code touched. No GitHub push.",
+  "sprint_completed": "v3.25",
+  "last_dispatch_run": "2026-05-29T13:10:00+00:00",
+  "last_dispatch_note": "v3.25: T2 execution adapters — Yearn V3 + Euler V2 + Maple. 3 adapters + 3 test files + engine_bridge wiring. 34 tests passed.",
   "columns": {
     "ideas": [
       {
@@ -1988,6 +1988,49 @@
         "tags": [
           "security",
           "gitignore"
+        ]
+      },
+      {
+        "id": "SPA-V325-001",
+        "title": "YearnV3Adapter — ERC-4626 T2 (ethereum + arbitrum)",
+        "status": "done",
+        "priority": "HIGH",
+        "sprint_completed": "v3.25",
+        "files": [
+          "spa_core/execution/adapters/yearn_v3_adapter.py",
+          "spa_core/tests/test_yearn_v3_adapter.py"
+        ]
+      },
+      {
+        "id": "SPA-V325-002",
+        "title": "EulerV2Adapter — ERC-4626 T2 (ethereum)",
+        "status": "done",
+        "priority": "HIGH",
+        "sprint_completed": "v3.25",
+        "files": [
+          "spa_core/execution/adapters/euler_v2_adapter.py",
+          "spa_core/tests/test_euler_v2_adapter.py"
+        ]
+      },
+      {
+        "id": "SPA-V325-003",
+        "title": "MapleAdapter — ERC-4626 T2 Cash Management (ethereum)",
+        "status": "done",
+        "priority": "HIGH",
+        "sprint_completed": "v3.25",
+        "files": [
+          "spa_core/execution/adapters/maple_adapter.py",
+          "spa_core/tests/test_maple_adapter.py"
+        ]
+      },
+      {
+        "id": "SPA-V325-004",
+        "title": "engine_bridge.py — T2 adapter registration (yearn-v3 + euler-v2 + maple)",
+        "status": "done",
+        "priority": "HIGH",
+        "sprint_completed": "v3.25",
+        "files": [
+          "spa_core/execution/engine_bridge.py"
         ]
       }
     ]
