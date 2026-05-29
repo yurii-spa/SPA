@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T13:11:43.668512+00:00",
+  "last_updated": "2026-05-29T13:27:55.381562+00:00",
   "updated_by": "spa-dev-sprint-v324",
-  "sprint_completed": "v3.25",
+  "sprint_completed": "v3.26",
   "last_dispatch_run": "2026-05-29T13:10:00+00:00",
-  "last_dispatch_note": "v3.25: T2 execution adapters — Yearn V3 + Euler V2 + Maple. 3 adapters + 3 test files + engine_bridge wiring. 34 tests passed.",
+  "last_dispatch_note": "v3.26: MEV Protection — Flashbots Protect RPC, mev_protection.py + tests, 18 tests passed.",
   "columns": {
     "ideas": [
       {
@@ -2031,6 +2031,17 @@
         "sprint_completed": "v3.25",
         "files": [
           "spa_core/execution/engine_bridge.py"
+        ]
+      },
+      {
+        "id": "SPA-V326-001",
+        "title": "mev_protection.py — Flashbots Protect RPC routing",
+        "status": "done",
+        "priority": "MEDIUM",
+        "sprint_completed": "v3.26",
+        "files": [
+          "spa_core/execution/mev_protection.py",
+          "spa_core/tests/test_mev_protection.py"
         ]
       }
     ]
