@@ -55,7 +55,7 @@ class TestGetAddress:
 
     def test_different_key_different_address(self):
         from spa_core.execution.eth_signer import get_address_from_private_key
-        addr = get_address_from private_key(_PK2_NO_PREFIX)
+        addr = get_address_from_private_key(_PK2_NO_PREFIX)
         assert addr == _ADDR2
         assert addr != _ADDR1
 
