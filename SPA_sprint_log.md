@@ -4,6 +4,36 @@
 
 ---
 
+## Sprint v3.30 — 2026-05-29 — Architect review + KANBAN housekeeping
+
+**Цель:** периодический architect review (v3.30 заканчивается на 0) + наведение порядка в KANBAN: закрыть устаревшие карточки, добавить новые задачи в backlog.
+
+**Замечание по architect-агенту:** `spa_core/dev_agents/architect.py` требует пакет `anthropic` и `ANTHROPIC_API_KEY` (LLM-вызов через Claude API). В автономном sandbox этих credentials нет, поэтому `python3 -m spa_core.dev_agents.architect --command review-backlog` не выполнить. Ревью backlog проведено оркестратором вручную по тому же сценарию, что заложен в `review_backlog()`.
+
+### Что сделано (SPA-V330-001)
+
+**1. Чистка колонки `review` (6 устаревших карточек v1.6 от 2026-05-22):**
+- `REV-001` (Push Dashboard v1.6 / index.html), `REV-002` (Push Core Python Modules), `REV-003` (Push Test Suites ~140), `REV-004` (Push Documentation Suite), `REV-006` (Push KANBAN.json + kanban.html) → перенесены в `done` со статусом «уже запушено». Контент давно в репо через повторные full-repo пуши (`push_index.html`, `push_full_clean.html`, `push_v317..v329`). Поле `resolution` добавлено в каждую карточку.
+- `REV-005` (Push GitHub Actions Workflow, workflow-scope) → закрыта как **дубль `BL-006`** (Workflow Scope Token Push, `user_action`). Канонический трекер — `BL-006`: workflow-файлы можно запушить только PAT с workflow-scope, что является действием пользователя.
+- Колонка `review` теперь пустая (0 карточек). `done`: 117 → 123.
+
+**2. Добавлены задачи в `backlog` (код-работа на ближайшие спринты):**
+- `SPA-V331` — PostgreSQL migration prep (MEDIUM, ~3h): схема миграции SQLite → PostgreSQL (DDL, типы, индексы, mapping `message_bus`/`incidents`/`state`), новый модуль `spa_core/persistence/pg_migration.py` + тесты. **Без выполнения миграции.**
+- `SPA-V332` — Go-live dashboard update (MEDIUM, ~2h): обновить `index.html` (Go-Live таб) — показывать статус новых T2/conditional адаптеров (Yearn V3, Euler V2, Maple, Pendle PT, Sky/sUSDS): tier, allocation cap, live/blocked, источник APY (mock / live DeFiLlama).
+- `backlog`: 8 → 10 карточек.
+
+**3. Обзор backlog (HIGH-приоритеты):** все HIGH-карточки backlog (`BL-004`/`BL-005`/`BL-006`, `SPA-BL-007/008/009`) — это `user_action` (GitHub Pages, Telegram токен, workflow-scope PAT, RPC ключи, Gnosis Safe). Автономной код-работы среди HIGH нет. HIGH-features `FEAT-001/002` (Phase 3 Real Capital Execution / Phase 4 Live Portfolio) требуют live-подписи и реальных средств — вне scope автономного dev-агента (LLM_FORBIDDEN: risk/execution/monitoring).
+
+### Файлы
+Обновлены:
+- `KANBAN.json` (review 6→0; done +6; backlog +2: SPA-V331, SPA-V332; header → v3.30; бэкап `KANBAN.json.bak.v330`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v330`)
+
+### Следующий спринт
+**SPA-V331:** PostgreSQL migration prep — схема миграции из SQLite в PostgreSQL (DDL + скрипт + тесты), без выполнения.
+
+---
+
 ## Sprint v3.24 — 2026-05-29 — Закрытие трёх критических технических рисков перед go-live
 
 **Цель:** устранить три технических риска, выявленных архитектором как блокеры для live-режима.
