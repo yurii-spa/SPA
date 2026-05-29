@@ -257,6 +257,134 @@ class TestLiveApyGate:
             assert adapter_status._live_apy_enabled() is False
 
 
+# ─── Live APY enrichment (Sprint v3.35 / SPA-V335) ───────────────────────────
+
+class TestLiveApyEnrichment:
+    """Live APY embedding is gated on SPA_LIVE_APY and degrades gracefully."""
+
+    def test_no_live_apy_field_when_disabled(self):
+        """With the gate off, no record carries a live_apy map and mode=mock."""
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_LIVE_APY", None)
+            for rec in collect_adapter_status():
+                assert "live_apy" not in rec
+                assert rec["apy_source"]["mode"] == "mock"
+                assert rec["apy_source"]["live_values_present"] is False
+
+    def test_feed_not_touched_when_disabled(self, monkeypatch):
+        """The feed (network) must never be queried when the gate is off."""
+        from spa_core.execution import defillama_apy_feed
+
+        calls = []
+
+        def _spy(protocol, asset, chain):
+            calls.append((protocol, asset, chain))
+            return 9.99
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _spy)
+        monkeypatch.delenv("SPA_LIVE_APY", raising=False)
+        collect_adapter_status()
+        assert calls == []
+
+    def test_live_values_embedded_when_enabled(self, monkeypatch):
+        """With the gate on and the feed returning a number, live_apy is embedded."""
+        from spa_core.execution import defillama_apy_feed
+
+        monkeypatch.setattr(
+            defillama_apy_feed, "get_live_apy",
+            lambda protocol, asset, chain: 8.25,
+        )
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+
+        by_key = {a["protocol_key"]: a for a in collect_adapter_status()}
+        yearn = by_key["yearn-v3"]
+        assert "live_apy" in yearn
+        assert yearn["apy_source"]["mode"] == "live"
+        assert yearn["apy_source"]["live_values_present"] is True
+        # live_apy keys are a subset of the mock_apy (chain, asset) combos.
+        for chain, assets in yearn["live_apy"].items():
+            assert chain in yearn["mock_apy"]
+            for asset, apy in assets.items():
+                assert asset in yearn["mock_apy"][chain]
+                assert apy == 8.25
+
+    def test_live_apy_omitted_when_feed_returns_none(self, monkeypatch):
+        """Feed returning None for every pair → no live_apy, mode stays mock."""
+        from spa_core.execution import defillama_apy_feed
+
+        monkeypatch.setattr(
+            defillama_apy_feed, "get_live_apy",
+            lambda protocol, asset, chain: None,
+        )
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+
+        for rec in collect_adapter_status():
+            assert "live_apy" not in rec
+            assert rec["apy_source"]["mode"] == "mock"
+            assert rec["apy_source"]["live_values_present"] is False
+
+    def test_live_apy_never_raises_on_feed_error(self, monkeypatch):
+        """A feed that raises must not abort collection — graceful empty map."""
+        from spa_core.execution import defillama_apy_feed
+
+        def _boom(protocol, asset, chain):
+            raise RuntimeError("network down")
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _boom)
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+
+        adapters = collect_adapter_status()  # must not raise
+        assert len(adapters) == 5
+        for rec in adapters:
+            assert "live_apy" not in rec
+            assert rec["apy_source"]["mode"] == "mock"
+
+    def test_fetch_live_apy_map_subset(self, monkeypatch):
+        """_fetch_live_apy_map keeps only non-None pairs, omitting empty chains."""
+        from spa_core.execution import defillama_apy_feed
+
+        mock_apy = {
+            "ethereum": {"USDC": 6.8, "USDT": 6.5},
+            "arbitrum": {"USDC": 7.1},
+        }
+
+        def _selective(protocol, asset, chain):
+            # Only ethereum/USDC resolves; everything else misses.
+            if chain == "ethereum" and asset == "USDC":
+                return 6.42
+            return None
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _selective)
+        out = adapter_status._fetch_live_apy_map("yearn-v3", mock_apy)
+        assert out == {"ethereum": {"USDC": 6.42}}
+
+    def test_partial_live_flips_mode_to_live(self, monkeypatch):
+        """Even a single live match flips the source to live."""
+        from spa_core.execution import defillama_apy_feed
+
+        def _one_hit(protocol, asset, chain):
+            return 5.0 if (protocol == "maple") else None
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _one_hit)
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+        by_key = {a["protocol_key"]: a for a in collect_adapter_status()}
+        assert by_key["maple"]["apy_source"]["mode"] == "live"
+        assert by_key["yearn-v3"]["apy_source"]["mode"] == "mock"
+
+    def test_document_with_live_is_json_serialisable(self, monkeypatch):
+        from spa_core.execution import defillama_apy_feed
+
+        monkeypatch.setattr(
+            defillama_apy_feed, "get_live_apy",
+            lambda protocol, asset, chain: 7.0,
+        )
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+        doc = build_status_document()
+        json.dumps(doc)  # must not raise
+        assert doc["live_apy_enabled"] is True
+        assert any("live_apy" in a for a in doc["adapters"])
+
+
 # ─── Resilience: broken adapter does not abort collection ────────────────────
 
 class TestResilience:
