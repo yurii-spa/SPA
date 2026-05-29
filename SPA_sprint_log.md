@@ -1122,4 +1122,82 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - `SPA_sprint_log.md`
 
 ### Следующий спринт
-SPA-V328: Pendle PT adapter — ERC-5115 fixed-rate yield (PT-USDC tokens), ethereum.
+
+---
+
+## Sprint v3.28 — 2026-05-29 — Pendle PT adapter (ERC-5115 fixed-rate yield)
+
+**Цель:** Добавить T2-адаптер для Pendle Principal Token (PT) — ERC-5115 / SY, фиксированная implied-доходность PT-USDC на сети ethereum. Стиль 1-в-1 с `yearn_v3_adapter.py` / `maple_adapter.py`.
+
+### Что сделано (SPA-V328-001)
+- Создан `spa_core/execution/adapters/pendle_pt_adapter.py` — `PendlePTAdapter` (T2), стиль повторяет yearn_v3/maple 1-в-1.
+  - Маркеты (ethereum): PT-USDC (~6.5% implied fixed APY, maturity 2026-09-24) и PT-USDT (~6.1%, maturity 2026-12-31).
+  - dataclasses `TxRequest`, `PositionInfo` (с полем `maturity`). `SUPPORTED_CHAINS=("ethereum",)`, `SUPPORTED_ASSETS=("USDC","USDT")`.
+  - `supply`/`withdraw`: `DRY_RUN` в dry_run; `BLOCKED` если `SPA_EXECUTION_MODE != live`; `NOT_IMPLEMENTED` в live (подпись = Phase 3, как заглушка). `ValueError` на неподдерживаемые chain/asset и на amount<=0 / >10M cap.
+  - `get_supply_apy(asset)`: dry_run → mock из `_DRY_RUN_APY` (короткое замыкание до любого сетевого вызова); live → `defillama_apy_feed.live_apy_enabled()` + `get_live_apy("pendle-pt", asset, chain)`; `live is not None` → info-лог + return; иначе debug-лог + mock. Ленивый импорт в try/except → любое исключение/нет модуля → mock. Точно как в yearn.
+  - Pendle-специфика: `get_maturity(asset)->ISO`, `is_matured(asset, now=None)->bool` (UTC-aware, naive→UTC, не кидает), `implied_fixed_apy` как алиас `get_supply_apy`, `get_apy` алиас.
+  - ERC-5115 (SY) lifecycle в docstring/комментариях: SY оборачивает underlying; PT минтится из SY (`mintPyFromSy`); после maturity redeem PT→underlying 1:1 (`redeemPyToToken` / `SY.redeem`). Селекторы заданы константами-заглушками для Phase 3.
+  - `is_healthy()` всегда True (PT не ликвидируется). `health_check`, `get_position(wallet, asset, chain)`, `get_supply_balance`, блок `if __name__ == "__main__"` демо.
+  - Чистый stdlib (`urllib` + `json`), без внешних зависимостей; не кидает исключений на dry-run happy path; production-safe fallback на mock.
+- Зарегистрирован в `engine_bridge.py`: префикс `"pendle-pt"` → family `"pendle_pt"` в `_PROTOCOL_PREFIX_TO_FAMILY`; ветка `elif family == "pendle_pt"` в `_get_adapter` с lazy-import `PendlePTAdapter`. Engine принимает ключи `pendle-pt-usdc-ethereum` / `pendle-pt-usdt-ethereum` (проверено: parse → dispatch доходит до адаптера).
+- Добавлено `"pendle-pt": "pendle"` и `"pendle": "pendle"` в `_PROTOCOL_PROJECT_MATCH` (`defillama_apy_feed.py`).
+- Тесты: `spa_core/tests/test_pendle_pt_adapter.py` — 49 тестов (init/валидация, dry_run supply/withdraw, BLOCKED/NOT_IMPLEMENTED, mock-APY, live-режим через мок `defillama_apy_feed` без сети, maturity/is_matured, get_position, is_healthy=True, интеграция с engine_bridge: `_parse_protocol_key` + `_get_adapter` + `execute_supply`).
+
+### Файлы
+Новые:
+- `spa_core/execution/adapters/pendle_pt_adapter.py`
+- `spa_core/tests/test_pendle_pt_adapter.py` (49 тестов)
+
+Обновлены:
+- `spa_core/execution/engine_bridge.py` (pendle-pt family + dispatch)
+- `spa_core/execution/defillama_apy_feed.py` (pendle project match)
+- `spa_core/tests/test_engine_bridge.py` (pendle-pt parse-тест; убран устаревший malformed-кейс)
+- `KANBAN.json` (done +1: SPA-V328-001; header → v3.28; бэкап `KANBAN.json.bak.v328`)
+- `SPA_sprint_log.md` (бэкап `SPA_sprint_log.md.bak.v328`)
+
+### Результаты тестов
+- Новый адаптер: **49 PASS / 0 FAIL** (`pytest 9.0.3`, Python 3.10).
+- Регрессия T2 (yearn 32 / euler 28 / maple 28): **88 PASS / 0 FAIL**.
+- `test_engine_bridge`: **36 PASS** (добавлен `test_pendle_pt_key_parses`; убран устаревший кейс `pendle-pt-steth-arbitrum` из списка malformed — теперь это поддерживаемый префикс).
+- Раннер: pytest (установлен в sandbox через `pip install --break-system-packages pytest`). Все тесты детерминированы, без реальной сети — live-APY моки ставятся через `mock.patch` на функции реального модуля `defillama_apy_feed`, env патчится.
+- Импорт адаптера и резолв ключа `pendle-pt-usdc-ethereum` через engine_bridge (`_parse_protocol_key` → `_get_adapter` → `execute_supply`) подтверждены отдельной проверкой.
+
+**Два пред-существующих падения (НЕ связаны с V328, не чинил — вне scope):**
+1. `test_engine_bridge::TestParseProtocolKey::test_malformed_returns_none[morpho-blue-usdc-base]` — `morpho-blue-...` парсится как family `morpho` уже в baseline (без правок V328); сам тест в комментарии это признаёт («…wait it is»).
+2. `test_defillama_apy_feed::TestTtlCache` — требует реального сетевого вызова (ConnectionError в offline-sandbox); код TTL-кэша V328 не трогал.
+
+### Следующий спринт
+**SPA-V329:** Sky / sUSDS adapter (условный T1) — активировать как только GSM ≥48h подтверждён.
+
+## Sprint v3.29 — 2026-05-29 — Sky/sUSDS adapter (условный T1)
+
+**Цель:** Добавить адаптер для Sky Savings (sUSDS, ERC-4626 vault) как условный T1 — код готов, но supply/withdraw в live заблокированы до тех пор, пока sky_monitor не подтвердит GSM Pause Delay ≥ 48h (status ELIGIBLE). Стиль 1-в-1 с `maple_adapter.py`.
+
+### Что сделано (SPA-V329-001)
+- Создан `spa_core/execution/adapters/sky_susds_adapter.py` — `SkySUSDSAdapter`, conditional T1.
+  - sUSDS vault (ethereum): `0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD`. Активы: USDS (`0xdC035D45...`) + DAI. decimals=18. ERC-4626 селекторы как в maple.
+  - **Conditional-T1 gate (уникально для Sky):** `is_eligible_t1()` читает `sky_monitor` (dry_run → `check_sky_status()` manual без сети; live → `check_sky_status_live()`; никогда не кидает). `get_tier()` → "T1" / "T2-conditional". `get_allocation_cap()` → 0.30 (ELIGIBLE) / 0.0 (PENDING) через `get_sky_allocation_pct`.
+  - `supply`/`withdraw`: dry_run → DRY_RUN (с полями `tier`, `eligible_t1`); live + НЕ eligible → BLOCKED "Sky not yet ELIGIBLE for T1 (GSM Pause Delay < 48h confirmed)"; eligible но `SPA_EXECUTION_MODE != live` → BLOCKED; полная live-ветка (approve+deposit / redeem) скопирована из maple.
+  - `get_supply_apy(asset)`: mock 6.5% + DeFiLlama live wiring `get_live_apy("sky", asset, chain)` (gated `SPA_LIVE_APY`), try/except → mock. Плюс `get_apy`, `get_supply_balance`, `get_position`, `is_healthy()=True`, `health_check()`, `_execute_tx_pair`/`_execute_single_tx`, `__main__` демо. Чистый stdlib.
+- Зарегистрирован в `engine_bridge.py`: префикс `"sky-susds"` → family `"sky_susds"` в `_PROTOCOL_PREFIX_TO_FAMILY`; ветка `elif family == "sky_susds"` в `_get_adapter`. Ключ `sky-susds-usds-ethereum` резолвится корректно.
+- Добавлено `"sky-susds"/"sky"/"susds" → "sky"` в `_PROTOCOL_PROJECT_MATCH` (`defillama_apy_feed.py`).
+- Тесты: `spa_core/tests/test_sky_susds_adapter.py` — 50 тестов (init/валидация, dry_run, conditional-T1 gate при PENDING/ELIGIBLE через мок sky_monitor, BLOCKED-ветки, mock/live APY через мок defillama_apy_feed без сети, get_position, is_healthy, health_check, интеграция engine_bridge parse+dispatch).
+
+### Файлы
+Новые:
+- `spa_core/execution/adapters/sky_susds_adapter.py`
+- `spa_core/tests/test_sky_susds_adapter.py` (50 тестов)
+
+Обновлены:
+- `spa_core/execution/engine_bridge.py` (sky-susds family + dispatch)
+- `spa_core/execution/defillama_apy_feed.py` (sky project match)
+- `KANBAN.json` (done +1: SPA-V329-001; header → v3.29; бэкап `KANBAN.json.bak.v329`)
+- `SPA_sprint_log.md` (бэкап `SPA_sprint_log.md.bak.v329`)
+
+### Результаты тестов
+- Новый адаптер: **50 PASS / 0 FAIL**.
+- Регрессия (maple/yearn/pendle/engine_bridge): **145 PASS / 1 FAIL** — единственное падение `test_malformed_returns_none[morpho-blue-usdc-base]` пред-существующее (morpho-blue parse), не связано с V329.
+- Текущий статус Sky: **PENDING** → адаптер отдаёт tier "T2-conditional", allocation cap 0.0; live supply/withdraw заблокированы (BLOCKED) — это и есть ожидаемое поведение до подтверждения GSM ≥ 48h.
+
+### Следующий спринт
+**SPA-V330:** Architect review + KANBAN housekeeping — `python3 -m spa_core.dev_agents.architect --command review-backlog`, закрыть устаревшие карточки, добавить новые задачи. (v3.30 заканчивается на 0 → периодический architect review.)
