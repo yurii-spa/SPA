@@ -1812,6 +1812,15 @@
     </div>
   </div>
 
+  <!-- T2 / Conditional Adapter status -->
+  <div class="db-full" style="margin-bottom:20px">
+    <div class="db-section">🔌 T2 / Conditional Adapters</div>
+    <div style="overflow-x:auto" id="golive-adapters">
+      <div class="skeleton skel-line" style="margin:8px 0"></div>
+      <div class="skeleton skel-line short"></div>
+    </div>
+  </div>
+
   <!-- PDF Report download -->
   <div class="db-full" style="margin-bottom:20px">
     <div class="db-section">📄 Investor Report</div>
@@ -3854,6 +3863,7 @@ async function loadGoLive() {
     ]);
     renderGoLiveVerdict(readiness);
     renderGoLiveCriteria(readiness);
+    renderAdapterStatus();
     renderGoLiveReport(latestReport);
     renderGoLiveTimeline();
     updateGoLiveTabBadge(readiness);
@@ -3938,6 +3948,59 @@ function renderGoLiveCriteria(data) {
       <td>${badge(c.status)}</td>
       <td style="font-size:12px;color:#555">${c.value != null ? c.value : '—'}${c.threshold != null ? ' / ' + c.threshold : ''}</td>
       <td style="font-size:11px;color:#888;max-width:180px">${c.note || ''}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+// T2 / conditional adapter status (read-only dashboard view).
+// Data sourced verbatim from adapter modules (_DRY_RUN_APY) + project tier/cap conventions.
+const ADAPTER_STATUS = [
+  { name: 'Yearn V3',  tier: 'T2', cap: '20%', chains: 'ethereum, arbitrum', assets: 'USDC / USDT',
+    apy: 'ETH: USDC 6.8% / USDT 6.5%<br>ARB: USDC 7.1% / USDT 6.9%',
+    source: 'mock', project: 'yearn', state: 'blocked',
+    stateLabel: 'Writes BLOCKED', stateNote: 'Phase 3 · SPA_EXECUTION_MODE≠live' },
+  { name: 'Euler V2',  tier: 'T2', cap: '20%', chains: 'ethereum', assets: 'USDC / USDT',
+    apy: 'USDC 7.4% / USDT 7.1%',
+    source: 'mock', project: 'euler', state: 'blocked',
+    stateLabel: 'Writes BLOCKED', stateNote: 'Phase 3 · SPA_EXECUTION_MODE≠live' },
+  { name: 'Maple',     tier: 'T2', cap: '20%', chains: 'ethereum', assets: 'USDC',
+    apy: 'USDC 5.6%',
+    source: 'mock', project: 'maple', state: 'blocked',
+    stateLabel: 'Writes BLOCKED', stateNote: 'Phase 3 · SPA_EXECUTION_MODE≠live' },
+  { name: 'Pendle PT', tier: 'T2', cap: '20%', chains: 'ethereum', assets: 'USDC / USDT (PT, ERC-5115)',
+    apy: 'USDC 6.5% (mat. 2026-09-24)<br>USDT 6.1% (mat. 2026-12-31)',
+    source: 'mock', project: 'pendle', state: 'notimpl',
+    stateLabel: 'Writes NOT_IMPLEMENTED', stateNote: 'Phase 3' },
+  { name: 'Sky / sUSDS', tier: 'T2-conditional', cap: '0%', capNote: '→ 30% when ELIGIBLE (GSM 48h)',
+    chains: 'ethereum', assets: 'USDS / DAI',
+    apy: '6.5%',
+    source: 'mock', project: 'sky', state: 'blocked',
+    stateLabel: 'Supply/withdraw BLOCKED', stateNote: 'PENDING · until ELIGIBLE' },
+];
+
+function renderAdapterStatus() {
+  const el = document.getElementById('golive-adapters');
+  if (!el) return;
+  const liveApy = false; // SPA_LIVE_APY disabled by default → all adapters serve mock APY
+  const stateColor = s => s === 'blocked' ? '#B91C1C' : s === 'notimpl' ? '#f59e0b' : '#16a34a';
+  const srcBadge = a => {
+    const live = liveApy;
+    const col = live ? '#16a34a' : '#f59e0b';
+    const txt = live ? `live DeFiLlama (${a.project})` : `mock (live: DeFiLlama "${a.project}")`;
+    return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span>`;
+  };
+  el.innerHTML = `<table class="pendle-table"><thead><tr>
+    <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>Mock APY</th><th>APY Source</th><th>Write State</th>
+  </tr></thead><tbody>
+    ${ADAPTER_STATUS.map(a => `<tr>
+      <td style="font-weight:600">${a.name}</td>
+      <td><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:#185FA5;background:#185FA51a">${a.tier}</span></td>
+      <td style="font-weight:600">${a.cap}${a.capNote ? `<div style="font-size:10px;font-weight:400;color:#888;margin-top:1px">${a.capNote}</div>` : ''}</td>
+      <td style="font-size:11px;color:#555">${a.chains}</td>
+      <td style="font-size:11px;color:#555">${a.assets}</td>
+      <td style="font-size:11px;color:#333">${a.apy}</td>
+      <td>${srcBadge(a)}</td>
+      <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
     </tr>`).join('')}
   </tbody></table>`;
 }
