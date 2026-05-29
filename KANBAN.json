@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-29T13:27:55.381562+00:00",
-  "updated_by": "spa-dev-sprint-v324",
-  "sprint_completed": "v3.26",
+  "last_updated": "2026-05-29T14:14:28Z",
+  "updated_by": "dev-orchestrator",
+  "sprint_completed": "v3.27",
   "last_dispatch_run": "2026-05-29T13:10:00+00:00",
-  "last_dispatch_note": "v3.26: MEV Protection — Flashbots Protect RPC, mev_protection.py + tests, 18 tests passed.",
+  "last_dispatch_note": "v3.27: DeFiLlama APY feed — live APY reads для T2 (Yearn/Euler/Maple) с TTL-кэшем и fallback на мок; SPA_LIVE_APY env-гейт; 38 тестов passed.",
   "columns": {
     "ideas": [
       {
@@ -2043,6 +2043,18 @@
           "spa_core/execution/mev_protection.py",
           "spa_core/tests/test_mev_protection.py"
         ]
+      },
+      {
+        "id": "SPA-V327-001",
+        "title": "defillama_apy_feed.py — live APY feed (DeFiLlama yields/pools, TTL cache)",
+        "priority": "HIGH",
+        "status": "done"
+      },
+      {
+        "id": "SPA-V327-002",
+        "title": "T2 adapters wiring — live APY in Yearn/Euler/Maple get_supply_apy with mock fallback",
+        "priority": "HIGH",
+        "status": "done"
       }
     ]
   }
