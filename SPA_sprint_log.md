@@ -1920,3 +1920,32 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V350:** возможные направления — кросс-сигнальная корреляция feed-health (несколько сигналов degraded одновременно = системный сбой источника, не точечный); ЛИБО валидация монотонности/непрерывности дат истории конкретного протокола (пропуски/возвраты дат назад во времени).
 
 ---
+
+## Sprint v3.50 — 2026-05-30 — APY-feed date monotonicity / continuity validation (SPA-V350)
+
+### Что сделано
+- Добавлен **9-й** feed-health монитор `RiskMonitor.alert_apy_feed_date_monotonicity` — валидация МОНОТОННОСТИ и НЕПРЕРЫВНОСТИ дат истории каждого протокола в `data/historical_apy.json`. Закрывает data-integrity слепое пятно: все 8 предыдущих мониторов (stale / protocol-drop / tvl-drop / per-protocol anomaly / schema-drift / protocol-stale / aggregated summary / value-bounds) проверяли свежесть, счётчики, дельты, структуру, ТИПЫ и ДИАПАЗОН значений, но НИ ОДИН не проверял, что ДАТЫ записей истории конкретного протокола идут монотонно вперёд без разрывов. `date-regression` (`date[i+1] < date[i]`) и большой `gap` (> 72ч = ≥2 пропущенных дня в суточном фиде) скрыто ломают rolling-90d covariance/Kelly расчёт. Это была отложенная альтернатива из dispatch-ноты v3.49.
+  - Метод зеркалит v3.49 `alert_apy_feed_value_bounds` 1-в-1: берёт ВСЮ history-list каждого протокола, парсит даты (`date`|`ts`|`timestamp`; epoch seconds / ISO с заменой Z / bare `YYYY-MM-DD`→полночь UTC; naive→UTC; ошибка→None). Протокол `bad` если: регрессия даты, gap соседних дат > `APY_FEED_MAX_DATE_GAP_HOURS=72.0`, или непарсимая/None дата. Протоколы с <2 валидными датами = OK (нечего сравнивать), 0 валидных дат = bad. apy/tvl-типы — забота schema-drift, не трогаются.
+  - **Сигналы:** `unreadable` (нет файла/битый/нет пригодных протоколов), `too_few` (< `APY_FEED_MONO_MIN_PROTOCOLS=1`), `monotonicity_bad` (доля bad >= `APY_FEED_MONO_MAX_BAD_PCT=0.5`).
+  - **Persistent state** `apy_feed_monotonicity_health_state.json` (`consecutive_mono`, `last_alerted_cycle`, `updated_at`, `prev_bad_keys`), порог=1 (fire на первом плохом цикле, refire на каждом следующем, healthy сбрасывает streak, state всегда обновляется). top-level try/except→False (НИКОГДА не raise), lazy TelegramSender. HTML msg `⚠️ <b>SPA APY Feed Date Monotonicity</b>` с перечислением нарушителей и причиной (regression / gap Xh / unparseable). Helpers `_load/_write_apy_feed_monotonicity_health_state`.
+  - `export_data.py`: зеркальный try/except-блок «APY feed date monotonicity alert» сразу ПОСЛЕ value-bounds, ПЕРЕД feed_health_summary.
+  - **Интеграция в v3.47-агрегатор** `feed_health_summary.py`: 9-й сигнал `("date_monotonicity", "apy_feed_monotonicity_health_state.json", "Date monotonicity", "consecutive_mono", 1)` + docstring 8→9. `index.html` рендерит чипы Feed Health динамически — правок не требует.
+
+### Файлы
+- `spa_core/alerts/risk_monitor.py` (modified — константы, поле `__init__`, метод + helpers)
+- `spa_core/export_data.py` (modified — wiring)
+- `spa_core/alerts/feed_health_summary.py` (modified — 9-й сигнал + docstring)
+- `spa_core/tests/test_apy_feed_date_monotonicity_monitor.py` (new, 34 теста)
+- `spa_core/tests/test_feed_health_summary.py` (modified — счётчики 8→9)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v350` для изменённых файлов.
+
+### Результаты тестов
+- `test_apy_feed_date_monotonicity_monitor.py` — **43 PASS** (offline FakeSender, tmp_path).
+- Регрессия (`value_bounds` 42 + `schema_drift` 36 + `protocol_stale` 21 + `protocol_anomaly` 30 + `feed_health_summary` 22 + `defillama` 38) — **189 PASS, 0 новых фейлов**.
+- Независимая перепроверка оркестратором: `test_apy_feed_date_monotonicity_monitor` + `test_feed_health_summary` = 65 PASS. `py_compile` risk_monitor.py + export_data.py + feed_health_summary.py — OK. KANBAN.json валиден.
+
+### Следующий спринт
+- **SPA-V351:** кросс-сигнальная корреляция feed-health (несколько сигналов degraded одновременно = СИСТЕМНЫЙ сбой источника, эскалация severity, а не точечный алерт) — единственная нетривиальная оставшаяся идея в feed-health домене. **РЕКОМЕНДАЦИЯ ОРКЕСТРАТОРА:** feed-health домен насыщен (9 мониторов v3.40→v3.50); приоритизировать `SPA-V330`-style **architect review + KANBAN housekeeping** — пересмотреть, не пора ли переключиться с monitor-treadmill на FEAT-001/002 (Phase 3/4 live execution) или закрытие user-action backlog (RPC/Telegram/Safe secrets).
+
+---
