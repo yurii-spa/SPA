@@ -1,20 +1,21 @@
 """
-Aave V3 Live SDK Adapter (FEAT-004 Phase 2).
+Aave V3 Live SDK Adapter (FEAT-004 Phase 3).
 
 Pure-Python adapter mirroring price_feeds.py (FEAT-006):
   - Env-driven, 3-RPC fallback per chain (URL fragment carries Pool hint)
   - Dry-run / synthetic mode (deterministic mock balances + APYs)
   - Phase 2: real eth_call decoding for get_supply_apy + get_supply_balance
-    via stdlib urllib.request (no web3.py, no requests, no eth_account)
-  - Write methods (supply / withdraw) stay NOT_IMPLEMENTED — Phase 3 will
-    add eth_account signing + tx broadcast.
+    via stdlib urllib.request (no web3.py, no requests)
+  - Phase 3: real supply / withdraw via eth_account-signed raw transactions
+    routed through eth_sendRawTransaction + receipt polling, gated behind
+    the SPA_EXECUTION_MODE=live env flag.
 
 Phase 1 (shipped v3.2):
   * AaveV3Adapter scaffold with dry-run supply / withdraw / balance / APY
   * Input validation, deterministic mock returns, health_check()
   * RPC endpoint registry + Pool contract addresses
 
-Phase 2 (this file, v3.6):
+Phase 2 (v3.6):
   * Real getReserveData(asset) decoding → currentLiquidityRate (RAY → APY %)
   * Real aToken.balanceOf(wallet) decoding (Wallet via SPA_WALLET_ADDRESS env)
   * Per-chain canonical token address registry (USDC / USDT / DAI ×
@@ -24,31 +25,71 @@ Phase 2 (this file, v3.6):
     Phase 1 mock value with a [FALLBACK] WARNING — the production pipeline
     never crashes if RPCs flake.
 
-Phase 3 (not in this file):
-  * web3.py-free Pool.supply / Pool.withdraw via raw eth_sendRawTransaction
-  * eth_account signing from secrets manager (private key never on disk)
-  * Wire AaveV3Adapter into spa_core/orchestration/engine.py to flip
-    paper-trade execution paths over to live execution behind a feature flag
-    (mirrors BL-008 dual-driver pattern).
+Phase 3 (this file, v3.9):
+  * supply(): ERC20.approve(POOL, amount) → Pool.supply(asset, amount,
+    onBehalfOf, referralCode) — two signed EIP-1559 transactions
+  * withdraw(): Pool.withdraw(asset, amount, to) — single signed transaction
+  * eth_account imported LAZILY (mirrors psycopg2 pattern in
+    spa_core/database/connection.py) — missing dependency degrades to
+    {"status": "FAILED", ...} not ImportError
+  * Multi-layer safety gates:
+      - dry_run=True (default) — unchanged from Phase 1/2
+      - dry_run=False + SPA_EXECUTION_MODE!=live → {"status": "BLOCKED"}
+      - SPA_PRIVATE_KEY missing → {"status": "ERROR"}
+      - key→address mismatch with SPA_WALLET_ADDRESS → {"status": "ERROR"}
+      - amount <= 0 or amount > 10_000_000 → ValueError (sanity gate)
+      - any RPC / signature / receipt revert → {"status": "FAILED"} with
+        per-phase tag ("approve" | "supply" | "withdraw")
+  * The paper-trading engine NEVER sees a raised exception from the live
+    write path — every failure mode returns a structured dict.
+  * Wire-up into spa_core/orchestration/engine.py is deferred to Phase 4
+    (paper→live cutover behind a runtime flag).
 
 Supported topology:
   Chains    — ethereum, arbitrum, base
   Assets    — USDC, USDT, DAI
   Modes     — dry_run=True (default; safe, deterministic, byte-identical to
                 Phase 1),
-              dry_run=False (Phase 2: live read methods + NOT_IMPLEMENTED
-                write methods).
+              dry_run=False + SPA_EXECUTION_MODE=live (Phase 3: real
+                on-chain writes).
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
 log = logging.getLogger("spa.aave_v3_adapter")
+
+
+class DependencyNotInstalled(RuntimeError):
+    """Raised when a Phase 3 live write needs eth_account and it's missing."""
+
+
+def _require_eth_account():
+    """Lazy-import eth_account (mirrors psycopg2 pattern in database/connection.py).
+
+    Returns the (Account, _) pair so callers can use ``Account.from_key`` and
+    ``Account.sign_transaction``. We DON'T import at module top because the
+    SPA_EXECUTION_MODE!=live happy path must not require the package.
+
+    Raises:
+        DependencyNotInstalled: if eth_account is not importable. The
+            ``supply`` / ``withdraw`` methods catch this and return
+            ``{"status": "FAILED", ...}`` so the pipeline never crashes.
+    """
+    try:
+        from eth_account import Account  # type: ignore
+        return Account
+    except ImportError as exc:  # pragma: no cover — exercised via test mock
+        raise DependencyNotInstalled(
+            "eth_account not installed; pip install eth-account>=0.10.0 "
+            "to enable Phase 3 live writes"
+        ) from exc
 
 
 class AaveV3Adapter:
@@ -156,9 +197,27 @@ class AaveV3Adapter:
     # don't pull in an external keccak dependency.
     SELECTOR_GET_RESERVE_DATA: str = "0x35ea6a75"  # getReserveData(address)
     SELECTOR_BALANCE_OF:       str = "0x70a08231"  # balanceOf(address)
+    SELECTOR_APPROVE:          str = "0x095ea7b3"  # approve(address,uint256)
+    SELECTOR_SUPPLY:           str = "0x617ba037"  # Pool.supply(asset,amt,onBehalfOf,refCode)
+    SELECTOR_WITHDRAW:         str = "0x69328dec"  # Pool.withdraw(asset,amt,to)
 
     # JSON-RPC timeout (seconds) per endpoint try.
     RPC_TIMEOUT_SECONDS: float = 5.0
+
+    # Phase 3 — receipt polling parameters (max 30s wall-clock per tx).
+    RECEIPT_POLL_INTERVAL_SECONDS: float = 2.0
+    RECEIPT_POLL_MAX_SECONDS:      float = 30.0
+
+    # Sanity gate for live writes — refuse anything above 10M USD-equivalent
+    # to catch unit-conversion / scaling bugs before they hit chain.
+    MAX_LIVE_AMOUNT: float = 10_000_000.0
+
+    # EVM chain IDs (used to fall back if eth_chainId RPC fails).
+    DEFAULT_CHAIN_IDS: dict[str, int] = {
+        "ethereum": 1,
+        "arbitrum": 42161,
+        "base":     8453,
+    }
 
     # Deterministic mock fixtures for dry-run mode. Match SUPPORTED_ASSETS.
     _MOCK_BALANCES: dict[str, float] = {
@@ -346,6 +405,85 @@ class AaveV3Adapter:
             + " | ".join(failures)
         )
 
+    def _eth_rpc(self, rpc_url: str, method: str, params: list) -> object:
+        """Post an arbitrary JSON-RPC method and return the ``result`` field.
+
+        Generic sibling of ``_eth_call`` used by Phase 3 for ``eth_chainId``,
+        ``eth_getTransactionCount``, ``eth_gasPrice``, ``eth_sendRawTransaction``
+        and ``eth_getTransactionReceipt``.
+
+        Args:
+            rpc_url: Full JSON-RPC endpoint URL (fragment already stripped).
+            method: JSON-RPC method name (e.g. ``eth_chainId``).
+            params: List of params (forwarded as-is into the JSON body).
+
+        Returns:
+            Whatever sits in the JSON-RPC ``result`` field — caller decodes.
+
+        Raises:
+            RuntimeError: HTTP failure, malformed JSON, JSON-RPC error, or
+                missing ``result``.
+        """
+        log.debug("eth_rpc rpc=%s method=%s", rpc_url, method)
+        payload = {
+            "jsonrpc": "2.0",
+            "id":      1,
+            "method":  method,
+            "params":  params,
+        }
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            rpc_url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(
+                req, timeout=self.RPC_TIMEOUT_SECONDS,
+            ) as resp:
+                raw = resp.read()
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise RuntimeError(f"{method} HTTP failure: {exc}") from exc
+
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise RuntimeError(f"{method} malformed JSON: {exc}") from exc
+
+        if "error" in parsed:
+            raise RuntimeError(f"{method} RPC error: {parsed['error']}")
+        if "result" not in parsed:
+            raise RuntimeError(f"{method} missing result: {parsed!r}")
+        return parsed["result"]
+
+    def _rpc_first(self, method: str, params: list) -> object:
+        """Iterate the chain's RPC endpoints, return first successful result.
+
+        Mirrors ``_call_with_fallback`` but for arbitrary RPC methods. Used
+        by Phase 3 for ``eth_chainId`` / ``eth_gasPrice`` / etc.
+
+        Raises:
+            RuntimeError: if every endpoint fails.
+        """
+        endpoints = self.rpc_endpoints.get(self.chain, [])
+        if not endpoints:
+            raise RuntimeError(
+                f"No RPC endpoints configured for chain={self.chain}"
+            )
+        failures: list[str] = []
+        for raw_url in endpoints:
+            url = self._strip_fragment(raw_url)
+            try:
+                return self._eth_rpc(url, method, params)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("rpc %s failed url=%s err=%s", method, url, exc)
+                failures.append(f"{url} -> {exc}")
+        raise RuntimeError(
+            f"All {len(endpoints)} RPCs failed for {method} on "
+            f"{self.chain}: " + " | ".join(failures)
+        )
+
     def _call_token(self, rpc_url: str, token: str, data: str) -> str:
         """eth_call to an arbitrary token contract (used for balanceOf)."""
         return self._eth_call(rpc_url, token, data)
@@ -375,6 +513,249 @@ class AaveV3Adapter:
             f"All {len(endpoints)} RPCs failed for balanceOf({wallet}) on "
             f"{self.chain}: " + " | ".join(failures)
         )
+
+    # ─── Phase 3: live-write helpers ──────────────────────────────────────────
+
+    @staticmethod
+    def _pad_uint256(value: int) -> str:
+        """Encode a non-negative int as 32-byte big-endian hex (no 0x)."""
+        if value < 0:
+            raise ValueError(f"uint256 must be non-negative; got {value}")
+        return format(value, "064x")
+
+    def _build_approve_calldata(self, spender: str, raw_amount: int) -> str:
+        """ERC20.approve(spender, amount) calldata (selector + 2 × 32-byte args)."""
+        return (
+            self.SELECTOR_APPROVE
+            + self._pad_address(spender)
+            + self._pad_uint256(raw_amount)
+        )
+
+    def _build_supply_calldata(
+        self,
+        asset_addr: str,
+        raw_amount: int,
+        on_behalf_of: str,
+        referral_code: int = 0,
+    ) -> str:
+        """Pool.supply(asset, amount, onBehalfOf, referralCode) calldata.
+
+        Layout: 0x617ba037 + asset (32B) + amount (32B) + onBehalfOf (32B)
+                + referralCode (32B). uint16 right-pads as uint256.
+        """
+        return (
+            self.SELECTOR_SUPPLY
+            + self._pad_address(asset_addr)
+            + self._pad_uint256(raw_amount)
+            + self._pad_address(on_behalf_of)
+            + self._pad_uint256(int(referral_code))
+        )
+
+    def _build_withdraw_calldata(
+        self, asset_addr: str, raw_amount: int, to: str,
+    ) -> str:
+        """Pool.withdraw(asset, amount, to) calldata."""
+        return (
+            self.SELECTOR_WITHDRAW
+            + self._pad_address(asset_addr)
+            + self._pad_uint256(raw_amount)
+            + self._pad_address(to)
+        )
+
+    def _get_chain_id(self) -> int:
+        """Fetch chainId via eth_chainId, fall back to DEFAULT_CHAIN_IDS."""
+        try:
+            result = self._rpc_first("eth_chainId", [])
+            return int(result, 16) if isinstance(result, str) else int(result)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("eth_chainId failed: %s — using default", exc)
+            return self.DEFAULT_CHAIN_IDS[self.chain]
+
+    def _get_nonce(self, address: str) -> int:
+        result = self._rpc_first(
+            "eth_getTransactionCount", [address, "pending"],
+        )
+        return int(result, 16) if isinstance(result, str) else int(result)
+
+    def _get_gas_price(self) -> int:
+        result = self._rpc_first("eth_gasPrice", [])
+        return int(result, 16) if isinstance(result, str) else int(result)
+
+    def _send_raw_tx(self, signed_hex: str) -> str:
+        """Broadcast a signed transaction; return its hash.
+
+        MEV protection (Sprint v3.52 / SPA-V352): when SPA_MEV_PROTECTION is
+        enabled AND SPA_EXECUTION_MODE == "live", prefer the Flashbots Protect
+        private mempool. Any routing error falls back to the public RPC path
+        below, so default behaviour is byte-for-byte unchanged.
+        """
+        try:
+            from spa_core.execution import mev_protection
+            if (mev_protection.is_mev_protection_enabled()
+                    and os.getenv("SPA_EXECUTION_MODE") == "live"):
+                res = mev_protection.send_protected(signed_hex, fallback_rpc=None)
+                tx_hash = res.get("tx_hash")
+                if res.get("status") != "FAILED" and tx_hash:
+                    log.info("MEV-protected broadcast via %s", res.get("endpoint"))
+                    return tx_hash
+                log.warning(
+                    "MEV-protected broadcast failed (%s) — falling back to public RPC",
+                    res.get("reason"),
+                )
+        except Exception as exc:  # noqa: BLE001 — never block the public path
+            log.warning("MEV protection routing error, using public RPC: %s", exc)
+        result = self._rpc_first("eth_sendRawTransaction", [signed_hex])
+        if not isinstance(result, str) or not result.startswith("0x"):
+            raise RuntimeError(f"eth_sendRawTransaction bad result: {result!r}")
+        return result
+
+    def _wait_for_receipt(self, tx_hash: str) -> dict:
+        """Poll eth_getTransactionReceipt until mined or timeout.
+
+        Returns the receipt dict on success, raises RuntimeError on timeout
+        or RPC failure.
+        """
+        deadline = time.monotonic() + self.RECEIPT_POLL_MAX_SECONDS
+        while time.monotonic() < deadline:
+            try:
+                result = self._rpc_first(
+                    "eth_getTransactionReceipt", [tx_hash],
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.debug("receipt poll error for %s: %s", tx_hash, exc)
+                result = None
+            if isinstance(result, dict):
+                return result
+            time.sleep(self.RECEIPT_POLL_INTERVAL_SECONDS)
+        raise RuntimeError(
+            f"Receipt timeout after {self.RECEIPT_POLL_MAX_SECONDS}s for "
+            f"tx {tx_hash}"
+        )
+
+    @staticmethod
+    def _receipt_block_number(receipt: dict) -> int | None:
+        """Extract block number from a receipt (hex or int)."""
+        bn = receipt.get("blockNumber")
+        if isinstance(bn, str) and bn.startswith("0x"):
+            try:
+                return int(bn, 16)
+            except ValueError:
+                return None
+        if isinstance(bn, int):
+            return bn
+        return None
+
+    @staticmethod
+    def _receipt_success(receipt: dict) -> bool:
+        status = receipt.get("status")
+        if isinstance(status, str):
+            return status.lower() in ("0x1", "1")
+        if isinstance(status, int):
+            return status == 1
+        return False
+
+    @staticmethod
+    def _validate_private_key(pk: str) -> str:
+        """Normalise hex private key. Raises ValueError if malformed."""
+        if not pk:
+            raise ValueError("SPA_PRIVATE_KEY missing")
+        cleaned = pk[2:] if pk.lower().startswith("0x") else pk
+        if len(cleaned) != 64:
+            raise ValueError(
+                f"SPA_PRIVATE_KEY must be 64 hex chars (0x-prefix optional); "
+                f"got {len(cleaned)}"
+            )
+        try:
+            int(cleaned, 16)
+        except ValueError as exc:
+            raise ValueError("SPA_PRIVATE_KEY is not valid hex") from exc
+        return "0x" + cleaned
+
+    def _check_live_preconditions(self) -> dict | None:
+        """Return a structured short-circuit dict if a precondition fails.
+
+        Order:
+          1) SPA_EXECUTION_MODE must equal "live" (case-insensitive)
+          2) SPA_PRIVATE_KEY must exist and be 64 hex chars
+          3) Derived address must match SPA_WALLET_ADDRESS (if that env is set)
+
+        Returns None if everything is OK. Otherwise returns the dict the
+        caller should return directly to its invoker.
+        """
+        if os.environ.get("SPA_EXECUTION_MODE", "").lower() != "live":
+            return {
+                "status": "BLOCKED",
+                "reason": "SPA_EXECUTION_MODE!=live",
+            }
+        return None
+
+    def _resolve_signer(self) -> tuple[object, str]:
+        """Load eth_account.Account + return (Account, wallet_address).
+
+        Raises:
+            DependencyNotInstalled: eth_account missing.
+            ValueError: key missing/invalid or address mismatch.
+        """
+        Account = _require_eth_account()
+        pk = os.environ.get("SPA_PRIVATE_KEY", "")
+        if not pk:
+            raise ValueError("SPA_PRIVATE_KEY missing")
+        normalised = self._validate_private_key(pk)
+        acct = Account.from_key(normalised)
+        derived = acct.address
+        configured = os.environ.get("SPA_WALLET_ADDRESS")
+        if configured and configured.lower() != derived.lower():
+            raise ValueError(
+                f"SPA_WALLET_ADDRESS ({configured}) does not match address "
+                f"derived from SPA_PRIVATE_KEY ({derived})"
+            )
+        return acct, derived
+
+    def _sign_and_send(
+        self,
+        Account,
+        private_key: str,
+        *,
+        to: str,
+        data: str,
+        nonce: int,
+        chain_id: int,
+        gas_price: int,
+        gas_limit: int = 350_000,
+    ) -> str:
+        """Build an EIP-1559 tx, sign, broadcast, return tx hash.
+
+        For EIP-1559 we set ``maxFeePerGas = 2 × gasPrice`` and
+        ``maxPriorityFeePerGas = gasPrice // 10`` — conservative defaults
+        that are widely accepted by mainnet/L2 mempools.
+        """
+        max_priority = max(int(gas_price // 10), 1)
+        max_fee = max(int(gas_price * 2), max_priority + 1)
+        tx = {
+            "to":                   to,
+            "value":                0,
+            "gas":                  gas_limit,
+            "maxFeePerGas":         max_fee,
+            "maxPriorityFeePerGas": max_priority,
+            "nonce":                nonce,
+            "chainId":              chain_id,
+            "data":                 data,
+            "type":                 2,
+        }
+        signed = Account.sign_transaction(tx, private_key=private_key)
+        raw = getattr(signed, "rawTransaction", None)
+        if raw is None:
+            raw = getattr(signed, "raw_transaction", None)  # newer eth_account
+        if raw is None:
+            raise RuntimeError("Signed tx missing rawTransaction attribute")
+        # rawTransaction is bytes — convert to 0x-prefixed hex.
+        if isinstance(raw, (bytes, bytearray)):
+            signed_hex = "0x" + raw.hex()
+        else:
+            signed_hex = str(raw)
+            if not signed_hex.startswith("0x"):
+                signed_hex = "0x" + signed_hex
+        return self._send_raw_tx(signed_hex)
 
     # ─── Supply / withdraw ────────────────────────────────────────────────────
 
@@ -421,18 +802,161 @@ class AaveV3Adapter:
                 "timestamp":       ts,
             }
 
-        log.warning(
-            "[supply NOT_IMPLEMENTED] live mode requested for %s on %s",
-            asset, self.chain,
+        # Phase 3 live path — sanity gate first.
+        if amount > self.MAX_LIVE_AMOUNT:
+            log.warning(
+                "[supply REJECTED] amount %.2f exceeds MAX_LIVE_AMOUNT %.2f",
+                amount, self.MAX_LIVE_AMOUNT,
+            )
+            return {
+                "status":    "ERROR",
+                "reason":    f"amount {amount} exceeds MAX_LIVE_AMOUNT "
+                             f"{self.MAX_LIVE_AMOUNT}",
+                "asset":     asset,
+                "amount":    amount,
+                "chain":     self.chain,
+                "timestamp": ts,
+            }
+
+        gate = self._check_live_preconditions()
+        if gate is not None:
+            log.info(
+                "[supply gated] chain=%s asset=%s reason=%s",
+                self.chain, asset, gate.get("reason"),
+            )
+            gate.update({
+                "asset": asset, "amount": amount,
+                "chain": self.chain, "timestamp": ts,
+            })
+            return gate
+
+        return self._live_supply(asset, amount, ts)
+
+    def _live_supply(self, asset: str, amount: float, ts: str) -> dict:
+        """Phase 3 live supply path. Never raises — always returns a dict."""
+        try:
+            Account = _require_eth_account()
+        except DependencyNotInstalled as exc:
+            log.warning("[FALLBACK] supply: %s", exc)
+            return {
+                "status":    "FAILED",
+                "reason":    str(exc),
+                "phase":     "approve",
+                "asset":     asset,
+                "amount":    amount,
+                "chain":     self.chain,
+                "timestamp": ts,
+            }
+
+        try:
+            acct, wallet = self._resolve_signer()
+        except ValueError as exc:
+            log.warning("[FALLBACK] supply preconditions: %s", exc)
+            return {
+                "status":    "ERROR",
+                "reason":    str(exc),
+                "asset":     asset,
+                "amount":    amount,
+                "chain":     self.chain,
+                "timestamp": ts,
+            }
+
+        decimals = self.TOKEN_DECIMALS[asset]
+        raw_amount = int(round(amount * (10 ** decimals)))
+        asset_addr = self.TOKEN_ADDRESSES[self.chain][asset]
+        pk_normalised = self._validate_private_key(
+            os.environ.get("SPA_PRIVATE_KEY", "")
+        )
+
+        # ── Phase 1/2: approve ────────────────────────────────────────────
+        try:
+            chain_id = self._get_chain_id()
+            nonce = self._get_nonce(wallet)
+            gas_price = self._get_gas_price()
+            approve_data = self._build_approve_calldata(
+                self.pool_address, raw_amount,
+            )
+            approve_hash = self._sign_and_send(
+                Account, pk_normalised,
+                to=asset_addr, data=approve_data,
+                nonce=nonce, chain_id=chain_id, gas_price=gas_price,
+                gas_limit=120_000,
+            )
+            approve_receipt = self._wait_for_receipt(approve_hash)
+            if not self._receipt_success(approve_receipt):
+                log.warning(
+                    "[FALLBACK] supply approve reverted tx=%s", approve_hash,
+                )
+                return {
+                    "status":     "FAILED",
+                    "reason":     "approve receipt status=0x0 (revert)",
+                    "phase":      "approve",
+                    "approve_tx": approve_hash,
+                    "asset":      asset, "amount": amount,
+                    "chain":      self.chain, "timestamp": ts,
+                }
+        except Exception as exc:  # noqa: BLE001 — production safety
+            log.warning("[FALLBACK] supply approve failed: %s", exc)
+            return {
+                "status":    "FAILED",
+                "reason":    f"approve failed: {exc}",
+                "phase":     "approve",
+                "asset":     asset, "amount": amount,
+                "chain":     self.chain, "timestamp": ts,
+            }
+
+        # ── Phase 3: supply ───────────────────────────────────────────────
+        try:
+            supply_data = self._build_supply_calldata(
+                asset_addr, raw_amount, wallet, referral_code=0,
+            )
+            supply_hash = self._sign_and_send(
+                Account, pk_normalised,
+                to=self.pool_address, data=supply_data,
+                nonce=nonce + 1, chain_id=chain_id, gas_price=gas_price,
+                gas_limit=350_000,
+            )
+            supply_receipt = self._wait_for_receipt(supply_hash)
+            if not self._receipt_success(supply_receipt):
+                log.warning(
+                    "[FALLBACK] supply call reverted tx=%s", supply_hash,
+                )
+                return {
+                    "status":     "FAILED",
+                    "reason":     "supply receipt status=0x0 (revert)",
+                    "phase":      "supply",
+                    "approve_tx": approve_hash,
+                    "supply_tx":  supply_hash,
+                    "asset":      asset, "amount": amount,
+                    "chain":      self.chain, "timestamp": ts,
+                }
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[FALLBACK] supply send failed: %s", exc)
+            return {
+                "status":     "FAILED",
+                "reason":     f"supply failed: {exc}",
+                "phase":      "supply",
+                "approve_tx": approve_hash,
+                "asset":      asset, "amount": amount,
+                "chain":      self.chain, "timestamp": ts,
+            }
+
+        log.info(
+            "[supply SUCCESS] chain=%s asset=%s amount=%.6f approve_tx=%s "
+            "supply_tx=%s", self.chain, asset, amount,
+            approve_hash, supply_hash,
         )
         return {
-            "status":          "NOT_IMPLEMENTED",
-            "tx_hash":         None,
-            "asset":           asset,
-            "amount":          amount,
-            "atoken_received": 0.0,
-            "chain":           self.chain,
-            "timestamp":       ts,
+            "status":       "SUCCESS",
+            "approve_tx":   approve_hash,
+            "supply_tx":    supply_hash,
+            "block_number": self._receipt_block_number(supply_receipt),
+            "asset":        asset,
+            "amount":       amount,
+            "amount_usd":   amount,
+            "wallet":       wallet,
+            "chain":        self.chain,
+            "timestamp":    ts,
         }
 
     def withdraw(self, asset: str, amount: float) -> dict:
@@ -476,18 +1000,122 @@ class AaveV3Adapter:
                 "timestamp":       ts,
             }
 
-        log.warning(
-            "[withdraw NOT_IMPLEMENTED] live mode requested for %s on %s",
-            asset, self.chain,
+        # Phase 3 live path.
+        if amount > self.MAX_LIVE_AMOUNT:
+            log.warning(
+                "[withdraw REJECTED] amount %.2f exceeds MAX_LIVE_AMOUNT %.2f",
+                amount, self.MAX_LIVE_AMOUNT,
+            )
+            return {
+                "status":    "ERROR",
+                "reason":    f"amount {amount} exceeds MAX_LIVE_AMOUNT "
+                             f"{self.MAX_LIVE_AMOUNT}",
+                "asset":     asset,
+                "amount":    amount,
+                "chain":     self.chain,
+                "timestamp": ts,
+            }
+
+        gate = self._check_live_preconditions()
+        if gate is not None:
+            log.info(
+                "[withdraw gated] chain=%s asset=%s reason=%s",
+                self.chain, asset, gate.get("reason"),
+            )
+            gate.update({
+                "asset": asset, "amount": amount,
+                "chain": self.chain, "timestamp": ts,
+            })
+            return gate
+
+        return self._live_withdraw(asset, amount, ts)
+
+    def _live_withdraw(self, asset: str, amount: float, ts: str) -> dict:
+        """Phase 3 live withdraw path. Never raises — always returns a dict."""
+        try:
+            Account = _require_eth_account()
+        except DependencyNotInstalled as exc:
+            log.warning("[FALLBACK] withdraw: %s", exc)
+            return {
+                "status":    "FAILED",
+                "reason":    str(exc),
+                "phase":     "withdraw",
+                "asset":     asset,
+                "amount":    amount,
+                "chain":     self.chain,
+                "timestamp": ts,
+            }
+
+        try:
+            acct, wallet = self._resolve_signer()
+        except ValueError as exc:
+            log.warning("[FALLBACK] withdraw preconditions: %s", exc)
+            return {
+                "status":    "ERROR",
+                "reason":    str(exc),
+                "asset":     asset,
+                "amount":    amount,
+                "chain":     self.chain,
+                "timestamp": ts,
+            }
+
+        decimals = self.TOKEN_DECIMALS[asset]
+        raw_amount = int(round(amount * (10 ** decimals)))
+        asset_addr = self.TOKEN_ADDRESSES[self.chain][asset]
+        pk_normalised = self._validate_private_key(
+            os.environ.get("SPA_PRIVATE_KEY", "")
+        )
+
+        try:
+            chain_id = self._get_chain_id()
+            nonce = self._get_nonce(wallet)
+            gas_price = self._get_gas_price()
+            withdraw_data = self._build_withdraw_calldata(
+                asset_addr, raw_amount, wallet,
+            )
+            withdraw_hash = self._sign_and_send(
+                Account, pk_normalised,
+                to=self.pool_address, data=withdraw_data,
+                nonce=nonce, chain_id=chain_id, gas_price=gas_price,
+                gas_limit=350_000,
+            )
+            withdraw_receipt = self._wait_for_receipt(withdraw_hash)
+            if not self._receipt_success(withdraw_receipt):
+                log.warning(
+                    "[FALLBACK] withdraw reverted tx=%s", withdraw_hash,
+                )
+                return {
+                    "status":      "FAILED",
+                    "reason":      "withdraw receipt status=0x0 (revert)",
+                    "phase":       "withdraw",
+                    "withdraw_tx": withdraw_hash,
+                    "asset":       asset, "amount": amount,
+                    "chain":       self.chain, "timestamp": ts,
+                }
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[FALLBACK] withdraw failed: %s", exc)
+            return {
+                "status":    "FAILED",
+                "reason":    f"withdraw failed: {exc}",
+                "phase":     "withdraw",
+                "asset":     asset, "amount": amount,
+                "chain":     self.chain, "timestamp": ts,
+            }
+
+        log.info(
+            "[withdraw SUCCESS] chain=%s asset=%s amount=%.6f tx=%s",
+            self.chain, asset, amount, withdraw_hash,
         )
         return {
-            "status":          "NOT_IMPLEMENTED",
-            "tx_hash":         None,
-            "asset":           asset,
-            "amount":          amount,
-            "atoken_received": 0.0,
-            "chain":           self.chain,
-            "timestamp":       ts,
+            "status":       "SUCCESS",
+            "withdraw_tx":  withdraw_hash,
+            "block_number": self._receipt_block_number(withdraw_receipt),
+            "asset":        asset,
+            "amount":       amount,
+            "amount_usd":   amount,
+            "wallet":       wallet,
+            "chain":        self.chain,
+            "timestamp":    ts,
         }
 
     # ─── Read methods ─────────────────────────────────────────────────────────
