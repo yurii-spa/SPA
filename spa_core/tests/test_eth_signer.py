@@ -206,6 +206,18 @@ class TestEncodeFunctionCall:
         with pytest.raises(ValueError, match="4 bytes"):
             encode_function_call("0xdeadbeef00", 42)  # 5 bytes
 
+    def test_selector_prefix_strip_preserves_leading_zero(self):
+        """0x-префикс срезается ровно, ведущий 0 селектора сохраняется."""
+        from spa_core.execution.eth_signer import encode_function_call
+        # одинаковый результат с префиксом и без; ведущий 0 не теряется
+        a = encode_function_call("0x095ea7b3", 1)
+        b = encode_function_call("095ea7b3", 1)
+        assert a == b
+        assert a[:4].hex() == "095ea7b3"
+        # селектор с ведущими нулями
+        c = encode_function_call("0x00112233", 1)
+        assert c[:4].hex() == "00112233"
+
     def test_unsupported_type_raises(self):
         from spa_core.execution.eth_signer import encode_function_call
         with pytest.raises(TypeError, match="unsupported type"):
