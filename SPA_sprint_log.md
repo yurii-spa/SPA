@@ -4,6 +4,42 @@
 
 ---
 
+## Sprint v3.53 — 2026-05-30 — Fix baseline failure: eth_signer.encode_function_call 0x-prefix selector strip (SPA-V353)
+
+**Цель:** Закрыть два пред-существующих baseline-фейла в execution-домене, отмеченных в dispatch-ноте v3.52 как единственный незакрытый baseline в этом домене: `test_eth_signer.py::TestEncodeFunctionCall::test_approve_selector` и `::test_unsupported_type_raises`. Малый, self-contained, без user-action блокировки — следующий разблокированный код-спринт после того как весь HIGH go-live backlog упёрся в user-action секреты (SPA-BL-012), а feed-health домен заморожен (SPA-BL-011).
+
+### Проблема
+`encode_function_call(selector_hex, *args)` в `spa_core/execution/eth_signer.py` парсил селектор через `bytes.fromhex(selector_hex.lstrip("0x"))`. `str.lstrip("0x")` срезает **любые** ведущие символы из множества `{'0','x'}`, а не префикс `"0x"`:
+- `"095ea7b3"` (ERC-20 approve selector) → `"95ea7b3"` (7 hex-символов, нечётная длина) → `bytes.fromhex` бросает `ValueError` **до** проверки типов аргументов.
+- `"0x00112233"` → `"112233"` (срезаны и `0x`, и ведущий `0`).
+
+Это ломало `test_approve_selector` (вызывает `encode_function_call("095ea7b3", spender, amount)`, ждёт `calldata[:4].hex()=="095ea7b3"`) и `test_unsupported_type_raises` (ждёт `TypeError`, но получал ранний `ValueError`). Оба таскались «вне scope» много спринтов.
+
+### Что сделано (SPA-V353-001)
+- **`spa_core/execution/eth_signer.py`** (строка 234): `selector_hex.lstrip("0x")` → корректный strip ровно префикса `0x`/`0X`:
+  ```python
+  _sel_hex = selector_hex[2:] if selector_hex[:2].lower() == "0x" else selector_hex
+  sel = bytes.fromhex(_sel_hex)
+  ```
+  Больше ничего в функции не менялось. `test_bad_selector_raises` (`"0xdeadbeef00"` → 5 байт → `ValueError "4 bytes"`) продолжает проходить.
+- **`spa_core/tests/test_eth_signer.py`**: добавлен регрессионный тест `test_selector_prefix_strip_preserves_leading_zero` (идентичность результата с/без префикса `0x`, сохранность ведущего нуля `095ea7b3` и `00112233`).
+
+### Файлы
+- `spa_core/execution/eth_signer.py` (modified)
+- `spa_core/tests/test_eth_signer.py` (modified — +1 регрессионный тест)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v353` (eth_signer.py, test_eth_signer.py, KANBAN.json, SPA_sprint_log.md).
+
+### Результаты тестов
+- `test_eth_signer.py` — **26 PASS / 0 FAIL** (ранее падали `test_approve_selector` + `test_unsupported_type_raises` — теперь PASS; новый тест PASS).
+- Регрессия execution (`test_eth_signer` + `test_mev_wiring` + `test_aave_v3_adapter` + `test_compound_v3_adapter`) — **86 PASS / 0 FAIL**.
+- Независимая перепроверка оркестратором: `test_eth_signer.py` = 26 PASS. `py_compile` eth_signer.py — OK. KANBAN.json валиден.
+
+### Следующий спринт
+- **SPA-V354:** латентный однотипный баг — `eth_signer.py` строки 105/143/201 используют `private_key_hex.lstrip("0x")` (под guard `.startswith("0x")`): для приватного ключа вида `0x00ab…` ведущие нули после префикса будут СРЕЗАНЫ → неверный ключ. Тот же класс дефекта, что закрыт в V353, но на pk-пути. Малый self-contained фикс (заменить на `[2:]`-strip). Альтернатива — отрендерить MEV-protection-статус (вкл/выкл, endpoint) в `adapter_status.json` + дашборд (зеркалит v3.35 live-APY enrichment). NB: HIGH go-live путь по-прежнему упирается в user-action секреты (SPA-BL-012); feed-health домен заморожен (SPA-BL-011).
+
+---
+
 ## Sprint v3.52 — 2026-05-30 — Wire MEV protection into adapter live-send paths (SPA-V352 / SPA-BL-010)
 
 **Цель:** Закрыть классический built-but-not-wired gap. `spa_core/execution/mev_protection.py` (v3.26) полностью реализовал Flashbots Protect RPC — `send_protected`, `send_raw_transaction_auto`, fallback-цепочку `[flashbots/fast, flashbots/standard, mevblocker/noreverts]`, `wait_for_receipt` — а его docstring прямо называл `send_raw_transaction_auto` «the drop-in replacement for `eth_signer.send_raw_transaction` in all adapters' live execution paths». **Но ни один адаптер его не вызывал.** Все 6 broadcast-адаптеров слали транзакции напрямую через `eth_signer.send_raw_transaction`, т.е. MEV-защита (приватный mempool, защита от sandwich/frontrun) была мёртвым кодом в реальном пути исполнения. Это реализация HIGH-карточки `SPA-BL-010`, которую архитектор v3.51 назвал единственным разблокированным код-спринтом.
