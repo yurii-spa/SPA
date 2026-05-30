@@ -4,6 +4,73 @@
 
 ---
 
+## Sprint v3.48 — 2026-05-30 — Fix baseline parse failure: morpho-blue prefix (SPA-V348)
+
+**Цель:** Закрыть давний baseline-фейл `spa_core/tests/test_engine_bridge.py::TestParseProtocolKey::test_malformed_returns_none[morpho-blue-usdc-base]`, таскавшийся «вне scope» ~20 спринтов. `_parse_protocol_key("morpho-blue-usdc-base")` возвращал семантически неверное `{family:'morpho', asset:'BLUE-USDC', chain:'base'}` (`'blue'` съедался в asset), а тест ждал `None` с пометкой «# unknown family». Но `morpho-blue` НЕ unknown: `yield_classifier_agent.py` и `audit_reader_agent.py` УЖЕ маппят `morpho-blue` → family `morpho`; `engine_bridge` был единственным несогласованным местом. Правильное поведение: `morpho-blue-usdc-base` → `{family:'morpho', asset:'USDC', chain:'base'}`. Прецедент — SPA-V328 (когда `pendle-pt` стал поддерживаемым префиксом и obsolete-кейс убрали из malformed-списка).
+
+### Что сделано (SPA-V348-001)
+- **`spa_core/execution/engine_bridge.py`:**
+  - В словарь `_PROTOCOL_PREFIX_TO_FAMILY` добавлена запись `"morpho-blue": "morpho"` ПЕРЕД `"morpho": "morpho"` (комментарий `# T1 Morpho Blue — Sprint v3.48 / SPA-V348-001 (longest-prefix)`).
+  - Цикл подбора префикса в `_parse_protocol_key` переведён с insertion-order на **longest-prefix-match**: `for prefix in sorted(_PROTOCOL_PREFIX_TO_FAMILY, key=len, reverse=True)`, чтобы многословный префикс `morpho-blue` выигрывал у короткого `morpho`. Условие точного совпадения формы `<prefix>-` оставлено как было.
+- **`spa_core/tests/test_engine_bridge.py`:**
+  - `"morpho-blue-usdc-base"` убран из parametrize-списка `test_malformed_returns_none` (теперь это валидный ключ).
+  - После `test_pendle_pt_key_parses` добавлены два позитивных теста: `test_morpho_blue_key_parses` (morpho-blue-usdc-base → {morpho, USDC, base}) и `test_morpho_plain_key_still_parses` (regression: plain `morpho-usdc-ethereum` по-прежнему парсится).
+
+### Файлы
+Обновлены:
+- `spa_core/execution/engine_bridge.py` (+префикс `morpho-blue`, longest-prefix-match в `_parse_protocol_key`)
+- `spa_core/tests/test_engine_bridge.py` (`morpho-blue-usdc-base` из malformed → позитивные `test_morpho_blue_key_parses` + `test_morpho_plain_key_still_parses`)
+
+### Результаты тестов
+- `test_engine_bridge.py` — **38 PASS / 0 FAIL** (включая ранее падавший `morpho-blue-usdc-base` кейс, теперь позитивный).
+- Регрессия `test_engine_bridge.py` + `test_morpho_adapter.py` + `test_pendle_pt_adapter.py` — **128 PASS / 0 FAIL** (прогон из корня репо).
+- `py_compile` `engine_bridge.py` — OK. `KANBAN.json` валиден (`json.load`).
+- Бэкапы `KANBAN.json.bak.v348` / `SPA_sprint_log.md.bak.v348` созданы. Done-карта `SPA-V348-001` добавлена первой в `columns.done`.
+
+### Следующий спринт
+**SPA-V349:** отрендерить per-signal `updated_at` / историю в Feed Health-панели дашборда (продолжение v3.47), ЛИБО реальный end-to-end прогон pg-миграции против тестового PostgreSQL-инстанса.
+
+---
+
+## Sprint v3.47 — 2026-05-30 — Aggregated feed-health summary (SPA-V347)
+
+**Цель:** Свести семь независимых feed/covariance health-сигналов, накопленных цепочкой v3.39→v3.46, в ОДИН сводный индикатор. Каждый монитор в `risk_monitor.py` пишет свой state-файл со streak-счётчиком, но оператору приходилось мысленно объединять шесть отдельных алертов. Это ровно та консолидация, которую рекомендовал dispatch-отчёт v5 («ценнее седьмого монитора — свести шесть `alert_apy_feed_*` в один»). Спринт сознательно НЕ трогает money-moving код (eth_signer / подпись транзакций / live supply-withdraw).
+
+### Что сделано (SPA-V347-001)
+- **`spa_core/alerts/feed_health_summary.py`** (новый, stdlib-only, без сети, never-raise; паттерн как `execution/adapter_status.py` / `analytics/covariance_export.py`):
+  - Реестр `SIGNALS` из 7 кортежей `(key, state_filename, label, streak_field, threshold)`. Пороги зеркалят `should_alert = n >= …` в risk_monitor.py **дословно**: covariance=3 (`consecutive_degraded`), apy_feed_stale=2 (`consecutive_stale`), protocol_drop/tvl_drop=1 (`consecutive_drops`), protocol_anomaly=1 (`consecutive_anomalies`), schema_drift=1 (`consecutive_drifts`), protocol_stale=1 (`consecutive_stale`).
+  - `classify_streak(streak, threshold)` → `ok` (streak≤0) / `warn` (0<streak<threshold) / `degraded` (streak≥threshold) / `unknown` (битый ввод).
+  - `evaluate_signal(...)`: graceful чтение state-файла. Отсутствует → `ok` (монитор трактует свежий/отсутствующий state как нулевой streak). Присутствует, но нечитаем/не-dict → `unknown` (freshness неверифицируема — показываем, а не молчим).
+  - `collect_feed_health` / `build_summary_document` → `{schema_version:1, generated_at(ISO Z), overall_status(worst-of), signal_count, counts{ok,warn,degraded,unknown}, signals[]}`. Severity-ранг: `degraded`>`warn`>`unknown`>`ok`.
+  - `write_feed_health_summary(out_path=None, *, data_dir=None)` пишет `data/feed_health_summary.json`. CLI `--data-dir/--json/--write`.
+- **`spa_core/export_data.py`:** новый try/except-блок «Aggregated feed-health summary (SPA-V347)» сразу ПОСЛЕ блока per-protocol staleness alert и перед decision-log: `write_feed_health_summary(str(OUTPUT_DIR/"feed_health_summary.json"), data_dir=OUTPUT_DIR)` в `try/except→log.error`. Существующие alert-блоки НЕ тронуты.
+- **`index.html`** (карточка `cov-card`, точечные Edit):
+  - HTML-блок «Feed Health» бейдж (`#feed-health-badge`) + `#feed-health-detail` + чипы `#feed-health-signals`, вставлен после заголовка «AI Recommendations», перед covariance-матрицей.
+  - `loadFeedHealth()` (`fetch(BASE+'/feed_health_summary.json')` с `.catch`) + `renderFeedHealth(data)`: бейдж цветом overall (green=ok / amber=warn / red=degraded / grey=unknown), строка-сводка counts + generated, по чипу на сигнал с `(streak/threshold)` и tooltip.
+  - Вызов `loadFeedHealth()` добавлен рядом с `loadCovariance()` в Analytics-блоке.
+- **`data/feed_health_summary.json`** сгенерирован (offline → все 7 сигналов `ok`, overall `ok`).
+
+### Файлы
+Новые:
+- `spa_core/alerts/feed_health_summary.py`
+- `spa_core/tests/test_feed_health_summary.py` (22 теста)
+- `data/feed_health_summary.json` (артефакт)
+
+Обновлены:
+- `spa_core/export_data.py` (блок aggregated feed-health summary)
+- `index.html` (Feed Health бейдж + loadFeedHealth/renderFeedHealth + вызов)
+
+### Результаты тестов
+- `test_feed_health_summary.py` — **22 PASS / 0 FAIL** (classify_streak, реестр/пороги, missing→ok, degraded→overall, warn→overall, worst-of, corrupt→unknown, non-dict→unknown, per-streak-field, write+JSON round-trip, CLI, never-raise).
+- Регрессия `apy_feed/covariance/alert` — **96 PASS / 0 FAIL** (прогон из `spa_core/`).
+- `node --check` извлечённого инлайн-JS `index.html` — OK. `py_compile` `export_data.py` + `feed_health_summary.py` — OK. `feed_health_summary.json` + `KANBAN.json` валидны (`json.load`).
+- Бэкапы `KANBAN.json.bak.v347` / `SPA_sprint_log.md.bak.v347` созданы. Done-карта `SPA-V347-001` добавлена (done 140→141).
+
+### Следующий спринт
+**SPA-V348:** отрендерить per-signal `updated_at` / историю в Feed Health-панели, ЛИБО (более ценное) — закрыть user-action HIGH-карточки go-live (Secrets / Telegram / Gnosis Safe / Pages) или 2 пред-существующих baseline-фейла (`test_engine_bridge` morpho-blue-usdc-base; `test_defillama_apy_feed` TtlCache). Альтернатива — реальный end-to-end прогон pg-миграции против тестового PostgreSQL-инстанса.
+
+---
+
 ## Sprint v3.46 — 2026-05-30 — APY-feed per-protocol staleness monitoring + alerting (SPA-V346)
 
 **Цель:** Поймать ситуацию, когда КОНКРЕТНЫЙ протокол в `data/historical_apy.json` перестал обновляться (последняя запись его истории старше порога), хотя фид в ЦЕЛОМ выглядит свежим — `generated_at` двигается, потому что ОСТАЛЬНЫЕ протоколы обновляются. Это вторая альтернатива из dispatch-ноты V344 (первую — schema-drift валидацию — закрыл V345).
