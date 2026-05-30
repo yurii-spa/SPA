@@ -1377,6 +1377,18 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _cae:
         log.error(f"Covariance degradation alert dispatch failed: {_cae}")
 
+    # ── APY feed staleness alert (stale/stuck historical_apy.json) ────────────
+    try:
+        from alerts.risk_monitor import RiskMonitor
+        from alerts.telegram_sender import TelegramSender
+        _apy_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_monitor.alert_apy_feed_stale(
+            feed_path=str(OUTPUT_DIR / "historical_apy.json"),
+            sender=TelegramSender(),
+        )
+    except Exception as _afe:
+        log.error(f"APY feed staleness alert dispatch failed: {_afe}")
+
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
 
