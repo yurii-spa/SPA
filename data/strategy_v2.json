@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-30T15:54:36.080305+00:00",
+  "generated_at": "2026-05-30T20:00:28.830868+00:00",
   "strategy_id": "paper-v2",
   "strategy_name": "v2 \u2014 Growth Aggressive",
   "portfolio": {
@@ -7,7 +7,7 @@
     "deployed_usd": 60000.0,
     "cash_usd": 40000.0,
     "cash_pct": 0.4,
-    "total_pnl_usd": 55.45,
+    "total_pnl_usd": 56.57,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -16,27 +16,27 @@
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 5.1,
-      "unrealized_pnl_usd": 17.23,
-      "unrealized_pnl_pct": 0.0011,
-      "days_held": 8.2
+      "unrealized_pnl_usd": 17.59,
+      "unrealized_pnl_pct": 0.0012,
+      "days_held": 8.4
     },
     {
       "protocol_key": "maple-usdc-ethereum",
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 16.2,
+      "unrealized_pnl_usd": 16.54,
       "unrealized_pnl_pct": 0.0011,
-      "days_held": 8.2
+      "days_held": 8.4
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 30000.0,
-      "current_apy": 3.25987,
-      "unrealized_pnl_usd": 22.02,
+      "current_apy": 3.25546,
+      "unrealized_pnl_usd": 22.45,
       "unrealized_pnl_pct": 0.0007,
-      "days_held": 8.2
+      "days_held": 8.4
     }
   ],
   "trades": [
@@ -50,8 +50,8 @@
       "action": "OPEN",
       "amount_usd": 30000.0,
       "apy_at_open": 4.0189,
-      "net_apy_annualized": 3.25987,
-      "pnl_usd": 22.023815514684397,
+      "net_apy_annualized": 3.25546,
+      "pnl_usd": 22.450893836450927,
       "reason": null
     },
     {
@@ -65,7 +65,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 4.79533,
       "net_apy_annualized": 4.79533,
-      "pnl_usd": 16.19872344510751,
+      "pnl_usd": 16.535212639520495,
       "reason": null
     },
     {
@@ -79,7 +79,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 5.11,
       "net_apy_annualized": 5.1,
-      "pnl_usd": 17.22790719933647,
+      "pnl_usd": 17.58577514401541,
       "reason": null
     }
   ],

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-30T20:00:51.193609Z",
+  "overall_status": "degraded",
+  "signal_count": 9,
+  "counts": {
+    "ok": 3,
+    "warn": 0,
+    "degraded": 6,
+    "unknown": 0
+  },
+  "signals": [
+    {
+      "key": "covariance",
+      "label": "Covariance source",
+      "state_file": "covariance_health_state.json",
+      "threshold": 3,
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": 0,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "apy_feed_stale",
+      "label": "APY feed staleness",
+      "state_file": "apy_feed_health_state.json",
+      "threshold": 2,
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": 0,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "protocol_drop",
+      "label": "Protocol-count drop",
+      "state_file": "apy_feed_protocol_health_state.json",
+      "threshold": 1,
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": 0,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "tvl_drop",
+      "label": "TVL drop",
+      "state_file": "apy_feed_tvl_health_state.json",
+      "threshold": 1,
+      "streak": 3,
+      "status": "degraded",
+      "last_alerted_cycle": 3,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "protocol_anomaly",
+      "label": "Per-protocol anomaly",
+      "state_file": "apy_feed_anomaly_health_state.json",
+      "threshold": 1,
+      "streak": 2,
+      "status": "degraded",
+      "last_alerted_cycle": 2,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "schema_drift",
+      "label": "Feed schema drift",
+      "state_file": "apy_feed_schema_health_state.json",
+      "threshold": 1,
+      "streak": 2,
+      "status": "degraded",
+      "last_alerted_cycle": 2,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "protocol_stale",
+      "label": "Per-protocol staleness",
+      "state_file": "apy_feed_protocol_stale_health_state.json",
+      "threshold": 1,
+      "streak": 2,
+      "status": "degraded",
+      "last_alerted_cycle": 2,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "value_bounds",
+      "label": "Value bounds",
+      "state_file": "apy_feed_bounds_health_state.json",
+      "threshold": 1,
+      "streak": 1,
+      "status": "degraded",
+      "last_alerted_cycle": 1,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    },
+    {
+      "key": "date_monotonicity",
+      "label": "Date monotonicity",
+      "state_file": "apy_feed_monotonicity_health_state.json",
+      "threshold": 1,
+      "streak": 1,
+      "status": "degraded",
+      "last_alerted_cycle": 1,
+      "updated_at": "2026-05-30T20:00:51Z",
+      "present": true
+    }
+  ]
+}
