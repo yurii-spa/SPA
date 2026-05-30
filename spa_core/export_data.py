@@ -1449,6 +1449,16 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _avb:
         log.error(f"APY feed value-bounds alert dispatch failed: {_avb}")
 
+    # ── APY feed date monotonicity alert (date regression / gaps, SPA-V350) ────
+    try:
+        _apy_mono_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_mono_monitor.alert_apy_feed_date_monotonicity(
+            feed_path=OUTPUT_DIR / "historical_apy.json",
+            sender=TelegramSender(),
+        )
+    except Exception as _amd:
+        log.error(f"APY feed date monotonicity alert dispatch failed: {_amd}")
+
     # ── Aggregated feed-health summary (SPA-V347) ─────────────────────────────
     # Roll the 7 feed/covariance health signals above into ONE dashboard-ready
     # status doc (data/feed_health_summary.json) so the UI shows one badge.
