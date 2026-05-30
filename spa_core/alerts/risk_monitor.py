@@ -38,6 +38,8 @@ APY_FEED_PROTOCOL_DROP_PCT  = 0.5   # падение ≥50% числа прот�
 APY_FEED_MIN_PROTOCOLS      = 3     # абсолютный пол: < 3 протоколов в фиде = деградация
 APY_FEED_TVL_DROP_PCT       = 0.5   # падение совокупного TVL ≥50% между циклами = деградация
 APY_FEED_MIN_TVL_USD        = 1.0e7 # абсолютный пол: совокупный TVL фида < $10M = деградация
+APY_FEED_PROTOCOL_APY_DROP_PCT = 0.6  # падение APY конкретного протокола ≥60% между циклами = аномалия
+APY_FEED_PROTOCOL_TVL_DROP_PCT = 0.6  # падение TVL конкретного протокола ≥60% между циклами = аномалия
 
 
 class RiskMonitor:
@@ -58,6 +60,7 @@ class RiskMonitor:
         self._apy_feed_health_file = self.data_dir / "apy_feed_health_state.json"
         self._apy_feed_protocol_health_file = self.data_dir / "apy_feed_protocol_health_state.json"
         self._apy_feed_tvl_health_file = self.data_dir / "apy_feed_tvl_health_state.json"
+        self._apy_feed_anomaly_health_file = self.data_dir / "apy_feed_anomaly_health_state.json"
 
     # ------------------------------------------------------------------
     # Public API
@@ -1091,6 +1094,276 @@ class RiskMonitor:
             )
         except Exception as exc:
             log.debug(f"_write_apy_feed_tvl_health_state: {exc}")
+
+    def alert_apy_feed_protocol_anomaly(
+        self,
+        feed_path=None,
+        *,
+        snapshot=None,
+        now=None,
+        sender=None,
+    ) -> bool:
+        """
+        Track each INDIVIDUAL protocol carried in historical_apy.json across
+        cycles and fire a Telegram alert when a specific protocol either
+        DISAPPEARS from the feed between cycles or its APY / TVL crashes
+        sharply, even when the aggregate alerts stay quiet.
+
+        This closes a POINT blind spot covered by neither
+        alert_apy_feed_protocol_drop (which watches the protocol *count* — a
+        single dropout barely moves it) nor alert_apy_feed_tvl_drop (which
+        watches *aggregate* TVL — one protocol collapsing is masked by the
+        others holding the total up). A single position can vanish or have its
+        APY/TVL halve while count and aggregate TVL look fine — corrupting the
+        covariance / dynamic-Kelly view of that exact position.
+
+        The snapshot is a ``dict[str, {"apy": float|None, "tvl_usd": float|None}]``
+        built from the LAST history record of every protocol in the feed.
+
+        A cycle is considered anomalous on any of:
+          • unreadable — the snapshot could not be resolved (None);
+          • disappeared — a key present in the previous snapshot is gone now;
+          • apy_crash — a protocol present in both whose prev apy was > 0 and
+            whose current apy fell to ``prev * (1 - APY_FEED_PROTOCOL_APY_DROP_PCT)``
+            or below;
+          • tvl_crash — same rule on ``tvl_usd`` with
+            ``APY_FEED_PROTOCOL_TVL_DROP_PCT``.
+
+        State is persisted in
+        ``self.data_dir / "apy_feed_anomaly_health_state.json"`` so the
+        consecutive-anomaly streak survives across 4h pipeline runs.
+
+        Alert rule: like the protocol-drop monitor (threshold 1), a point
+        anomaly is alerted immediately on the very first anomalous cycle, then
+        re-fires on every further consecutive anomalous cycle. A healthy cycle
+        resets the streak and silences alerting. ``prev_snapshot`` is always
+        refreshed with the current snapshot (when known) after evaluation so
+        the next cycle compares against the latest state.
+
+        Returns:
+            True if an alert was sent on this call, False otherwise.
+            Never raises — all failures are logged and swallowed.
+        """
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+
+            # Resolve snapshot from the feed file if not supplied directly.
+            if snapshot is None and feed_path is not None:
+                try:
+                    doc = json.loads(
+                        Path(feed_path).read_text(encoding="utf-8")
+                    )
+                    if isinstance(doc, dict):
+                        proto = doc.get("protocols")
+                        if proto is None:
+                            proto = doc.get("protocol_history")
+                        if isinstance(proto, dict):
+                            built: dict = {}
+                            for key, hist in proto.items():
+                                if not isinstance(hist, list) or not hist:
+                                    continue
+                                last = hist[-1]
+                                if not isinstance(last, dict):
+                                    continue
+
+                                def _coerce(raw):
+                                    if raw is None:
+                                        return None
+                                    try:
+                                        return float(raw)
+                                    except (TypeError, ValueError):
+                                        return None
+
+                                built[key] = {
+                                    "apy": _coerce(last.get("apy")),
+                                    "tvl_usd": _coerce(last.get("tvl_usd")),
+                                }
+                            if built:
+                                snapshot = built
+                except Exception as exc:
+                    log.debug(f"alert_apy_feed_protocol_anomaly: feed read — {exc}")
+
+            # Normalise `now` to an aware UTC datetime.
+            if now is None:
+                now = _dt.now(_tz.utc)
+            elif now.tzinfo is None:
+                now = now.replace(tzinfo=_tz.utc)
+            now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            state = self._load_apy_feed_anomaly_health_state()
+            prev = state.get("prev_snapshot")
+            if not isinstance(prev, dict):
+                prev = None
+
+            # Anomaly signals (compare current snapshot against prev_snapshot).
+            unreadable = snapshot is None
+
+            disappeared: list[str] = []
+            apy_crash: list[str] = []
+            tvl_crash: list[str] = []
+            if (not unreadable) and prev is not None:
+                for key, pdata in prev.items():
+                    if key not in snapshot:
+                        disappeared.append(key)
+                        continue
+                    cur = snapshot.get(key) or {}
+                    pd = pdata if isinstance(pdata, dict) else {}
+                    prev_apy = pd.get("apy")
+                    cur_apy = cur.get("apy")
+                    if (
+                        prev_apy is not None
+                        and prev_apy > 0
+                        and cur_apy is not None
+                        and cur_apy <= prev_apy * (1 - APY_FEED_PROTOCOL_APY_DROP_PCT)
+                    ):
+                        apy_crash.append(key)
+                    prev_tvl = pd.get("tvl_usd")
+                    cur_tvl = cur.get("tvl_usd")
+                    if (
+                        prev_tvl is not None
+                        and prev_tvl > 0
+                        and cur_tvl is not None
+                        and cur_tvl <= prev_tvl * (1 - APY_FEED_PROTOCOL_TVL_DROP_PCT)
+                    ):
+                        tvl_crash.append(key)
+
+            anomalous = bool(unreadable or disappeared or apy_crash or tvl_crash)
+
+            if not anomalous:
+                # Healthy cycle — reset streak, silence alerting, refresh prev.
+                state["consecutive_anomalies"] = 0
+                state["last_alerted_cycle"] = 0
+                if snapshot is not None:
+                    state["prev_snapshot"] = snapshot
+                state["updated_at"] = now_iso
+                self._write_apy_feed_anomaly_health_state(state)
+                log.info(
+                    f"alert_apy_feed_protocol_anomaly: healthy "
+                    f"({len(snapshot) if snapshot else 0} protocols), streak reset"
+                )
+                return False
+
+            # Anomalous cycle — grow the streak.
+            state["consecutive_anomalies"] = (
+                int(state.get("consecutive_anomalies", 0)) + 1
+            )
+            n = state["consecutive_anomalies"]
+            last_alerted = int(state.get("last_alerted_cycle", 0))
+            state["updated_at"] = now_iso
+
+            # Fire immediately on the first anomalous cycle (threshold 1), then
+            # re-fire on every further consecutive anomalous cycle.
+            should_alert = n >= 1 and n != last_alerted
+
+            # Always refresh prev_snapshot with the current snapshot (if known)
+            # so the NEXT cycle compares against the actual latest state.
+            if snapshot is not None:
+                state["prev_snapshot"] = snapshot
+
+            if not should_alert:
+                self._write_apy_feed_anomaly_health_state(state)
+                log.info(
+                    f"alert_apy_feed_protocol_anomaly: anomalous streak={n}, no alert"
+                )
+                return False
+
+            # Build a human-readable detail string from the active signals.
+            _LIM = 5
+            lines: list[str] = []
+            if disappeared:
+                lines.append(
+                    "disappeared: " + ", ".join(disappeared[:_LIM])
+                )
+            if apy_crash:
+                parts = []
+                for key in apy_crash[:_LIM]:
+                    pa = (prev or {}).get(key, {}).get("apy")
+                    ca = (snapshot or {}).get(key, {}).get("apy")
+                    parts.append(f"{key} {pa}→{ca}")
+                lines.append("APY crash: " + ", ".join(parts))
+            if tvl_crash:
+                parts = []
+                for key in tvl_crash[:_LIM]:
+                    pt = (prev or {}).get(key, {}).get("tvl_usd")
+                    ct = (snapshot or {}).get(key, {}).get("tvl_usd")
+                    pt_s = f"${pt:,.0f}" if isinstance(pt, (int, float)) else "n/a"
+                    ct_s = f"${ct:,.0f}" if isinstance(ct, (int, float)) else "n/a"
+                    parts.append(f"{key} {pt_s}→{ct_s}")
+                lines.append("TVL crash: " + ", ".join(parts))
+            if unreadable:
+                lines.append("snapshot unreadable")
+            detail_str = "\n".join(lines) if lines else "per-protocol anomaly"
+
+            msg = (
+                f"⚠️ <b>SPA APY Feed Protocol Anomaly</b>\n\n"
+                f"historical_apy.json has a per-protocol anomaly for "
+                f"{n} consecutive cycle(s).\n"
+                f"{detail_str}\n"
+                f"A specific position dropped out or its APY/TVL crashed while "
+                f"aggregate alerts stayed quiet.\n"
+                f"Action: check DeFiLlama per-protocol fetch + section 9b export_data.py."
+            )
+
+            if sender is None:
+                try:
+                    from alerts.telegram_sender import TelegramSender
+                    sender = TelegramSender()
+                except Exception as exc:
+                    log.error(
+                        f"alert_apy_feed_protocol_anomaly: could not create "
+                        f"TelegramSender — {exc}"
+                    )
+                    # Persist the grown streak even if we couldn't build a sender.
+                    self._write_apy_feed_anomaly_health_state(state)
+                    return False
+
+            try:
+                ok = sender.send(msg)
+            except Exception as exc:
+                log.error(f"alert_apy_feed_protocol_anomaly: send error — {exc}")
+                self._write_apy_feed_anomaly_health_state(state)
+                return False
+
+            state["last_alerted_cycle"] = n
+            self._write_apy_feed_anomaly_health_state(state)
+            log.info(
+                f"alert_apy_feed_protocol_anomaly: alert {'sent' if ok else 'failed'} "
+                f"(streak={n}, disappeared={len(disappeared)}, "
+                f"apy_crash={len(apy_crash)}, tvl_crash={len(tvl_crash)})"
+            )
+            return bool(ok)
+        except Exception as exc:
+            log.error(f"alert_apy_feed_protocol_anomaly: unexpected error — {exc}")
+            return False
+
+    def _load_apy_feed_anomaly_health_state(self) -> dict:
+        """Load the per-protocol-anomaly state file (graceful — fresh on miss/corrupt)."""
+        fresh = {
+            "prev_snapshot": None,
+            "consecutive_anomalies": 0,
+            "last_alerted_cycle": 0,
+            "updated_at": None,
+        }
+        try:
+            if self._apy_feed_anomaly_health_file.exists():
+                data = json.loads(
+                    self._apy_feed_anomaly_health_file.read_text(encoding="utf-8")
+                )
+                if isinstance(data, dict):
+                    fresh.update({k: data.get(k, fresh[k]) for k in fresh})
+        except Exception as exc:
+            log.debug(f"_load_apy_feed_anomaly_health_state: {exc}")
+        return fresh
+
+    def _write_apy_feed_anomaly_health_state(self, state: dict) -> None:
+        """Persist the per-protocol-anomaly state file (graceful — swallows errors)."""
+        try:
+            self._apy_feed_anomaly_health_file.parent.mkdir(parents=True, exist_ok=True)
+            self._apy_feed_anomaly_health_file.write_text(
+                json.dumps(state, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            log.debug(f"_write_apy_feed_anomaly_health_state: {exc}")
 
     # ------------------------------------------------------------------
     # APY persistence helpers
