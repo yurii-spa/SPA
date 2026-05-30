@@ -1682,3 +1682,28 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 
 ### Следующий спринт
 - **SPA-V344:** per-protocol APY-аномалия / детектор выпадения конкретного протокола из фида (один протокол резко теряет APY/TVL или пропадает между циклами — точечное слепое пятно, не покрываемое агрегатными TVL/count-алертами), ЛИБО валидация schema-drift фида `historical_apy.json` (изменение формы/ключей записей, неожиданные поля, смена типов `tvl_usd`/`apy`).
+
+## Sprint v3.44 — 2026-05-30 — APY-feed per-protocol anomaly + dropout detector
+
+### Что сделано
+- Добавлен ТОЧЕЧНЫЙ ранний health-алерт `RiskMonitor.alert_apy_feed_protocol_anomaly` на **аномалию конкретного протокола** в `data/historical_apy.json` между циклами. Закрывает слепое пятно, не покрываемое агрегатными алертами: число протоколов (`alert_apy_feed_protocol_drop`, v3.42) и совокупный TVL (`alert_apy_feed_tvl_drop`, v3.43) могут держаться, пока ОДНА позиция тихо обваливается или ВЫПАДАЕТ из фида — covariance/Kelly-вселенная теряет точечный капитальный/доходностный вес незаметно для агрегатов. Зеркалит `alert_apy_feed_protocol_drop`/`alert_apy_feed_tvl_drop` 1-в-1.
+  - Строит per-protocol `snapshot` = `dict[key → {apy, tvl_usd}]`: для каждого протокола из `protocols` (или `protocol_history`) берётся ПОСЛЕДНЯЯ запись истории, `apy`/`tvl_usd` coerce через `float()` (не-число/отсутствует → None; пустой/не-list history → протокол пропущен; битый/нет файла/нет пригодных протоколов → snapshot=None=unreadable).
+  - Аномалия = `unreadable` ИЛИ `disappeared` (ключ был в `prev_snapshot`, исчез сейчас) ИЛИ `apy_crash` (prev apy>0 и `cur_apy <= prev_apy*(1-0.6)`) ИЛИ `tvl_crash` (prev tvl>0 и `cur_tvl <= prev_tvl*(1-0.6)`).
+  - Константы `APY_FEED_PROTOCOL_APY_DROP_PCT=0.6` / `APY_FEED_PROTOCOL_TVL_DROP_PCT=0.6` (выше агрегатных 0.5 — отдельный протокол волатильнее). Поле `self._apy_feed_anomaly_health_file = data_dir/apy_feed_anomaly_health_state.json` в `__init__`.
+  - Persistent state (`prev_snapshot`/`consecutive_anomalies`/`last_alerted_cycle`/`updated_at`), streak-логика, **порог=1** (точечную аномалию алертим сразу на первом цикле; рефайр на каждом следующем аномальном цикле; healthy сбрасывает streak; `prev_snapshot` всегда обновляется текущим snapshot после оценки). top-level try/except→False (НИКОГДА не raise), lazy TelegramSender. HTML msg `⚠️ <b>SPA APY Feed Protocol Anomaly</b>` с перечислением затронутых протоколов по категориям (disappeared / APY crash prev→cur / TVL crash $prev→$cur).
+  - Helpers `_load/_write_apy_feed_anomaly_health_state` (graceful на miss/corrupt).
+  - `export_data.py`: зеркальный try/except-блок «APY feed per-protocol anomaly alert» сразу после блока TVL collapse в `run_export`.
+
+### Файлы
+- `spa_core/alerts/risk_monitor.py` (modified)
+- `spa_core/export_data.py` (modified)
+- `spa_core/tests/test_apy_feed_protocol_anomaly_monitor.py` (new, 30 тестов)
+
+### Результаты тестов
+- `test_apy_feed_protocol_anomaly_monitor.py` **30 PASS** (offline FakeSender, tmp_path-изоляция).
+- Регрессия мониторинга (`test_apy_feed_tvl_drop_monitor` + `test_apy_feed_protocol_drop_monitor` + `test_apy_feed_stale_monitor` + `test_covariance_health_monitor`) — **70 PASS, 0 новых фейлов**.
+- `py_compile` risk_monitor.py + export_data.py OK. KANBAN.json валиден (re-parse OK). Бэкапы `.bak.v344` созданы.
+- Пред-существующие fail (`test_engine_bridge` morpho-blue-usdc-base, `test_defillama_apy_feed` TestTtlCache) — вне scope, не трогались.
+
+### Следующий спринт
+- **SPA-V345:** валидация schema-drift фида `historical_apy.json` (изменение формы/ключей записей, смена типов `apy`/`tvl_usd`, неожиданные поля), ЛИБО per-protocol stale-детектор (конкретный протокол перестал обновляться — `generated_at` фида свежий, но последняя дата истории одного протокола залипла на N циклов).
