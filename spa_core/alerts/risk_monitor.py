@@ -63,6 +63,15 @@ APY_FEED_TVL_MIN = 0.0          # tvl_usd должен быть > 0 (<= 0 нев
 APY_FEED_TVL_MAX = 1.0e13       # 10 трлн USD — абсурдный верхний sanity-cap
 APY_FEED_BOUNDS_MAX_BAD_PCT = 0.5   # доля протоколов вне границ ≥50% = алерт
 APY_FEED_BOUNDS_MIN_PROTOCOLS = 1   # абсолютный пол: < 1 пригодного числового протокола
+# SPA-V350: APY-feed DATE MONOTONICITY & CONTINUITY. Все health-мониторы выше
+# проверяют свежесть/счётчики/дельты/структуру/ТИПЫ/ДИАПАЗОНЫ — но НИ ОДИН не
+# проверяет, что даты записей истории КАЖДОГО протокола идут МОНОТОННО ВПЕРЁД и
+# БЕЗ БОЛЬШИХ РАЗРЫВОВ. Регрессия даты (date[i+1] < date[i]) или пропущенные дни
+# (разрыв > 72ч при суточной гранулярности) тихо ломают rolling-90d
+# covariance/Kelly-расчёт, проходя все остальные проверки.
+APY_FEED_MAX_DATE_GAP_HOURS = 72.0  # фид суточной гранулярности; разрыв > 72ч = ≥2 пропущенных дня = деградация
+APY_FEED_MONO_MAX_BAD_PCT = 0.5     # доля протоколов с битой монотонностью/непрерывностью ≥50% = алерт
+APY_FEED_MONO_MIN_PROTOCOLS = 1     # абсолютный пол: < 1 пригодного протокола с историей
 
 
 class RiskMonitor:
@@ -87,6 +96,7 @@ class RiskMonitor:
         self._apy_feed_schema_health_file = self.data_dir / "apy_feed_schema_health_state.json"
         self._apy_feed_protocol_stale_health_file = self.data_dir / "apy_feed_protocol_stale_health_state.json"
         self._apy_feed_bounds_health_file = self.data_dir / "apy_feed_bounds_health_state.json"
+        self._apy_feed_monotonicity_health_file = self.data_dir / "apy_feed_monotonicity_health_state.json"
 
     # ------------------------------------------------------------------
     # Public API
@@ -1964,6 +1974,357 @@ class RiskMonitor:
             )
         except Exception as exc:
             log.debug(f"_write_apy_feed_bounds_health_state: {exc}")
+
+    # ------------------------------------------------------------------
+    # APY-feed DATE MONOTONICITY & CONTINUITY alert (SPA-V350)
+    # ------------------------------------------------------------------
+
+    def alert_apy_feed_date_monotonicity(
+        self,
+        feed_path=None,
+        *,
+        snapshot=None,
+        now=None,
+        sender=None,
+    ) -> bool:
+        """
+        Validate that the DATES of each protocol's history in historical_apy.json
+        advance MONOTONICALLY (non-decreasing) and CONTINUOUSLY (no large gaps),
+        and fire a Telegram alert when too many protocols carry a date REGRESSION
+        (``date[i+1] < date[i]``) or a date GAP wider than
+        ``APY_FEED_MAX_DATE_GAP_HOURS`` (a daily-granularity feed should never
+        skip ≥2 days).
+
+        This closes a DATA-INTEGRITY blind spot covered by NONE of the existing
+        eight APY-feed monitors (stale / protocol-drop / tvl-drop / per-protocol
+        anomaly / schema-drift / protocol-stale / aggregated summary /
+        value-bounds): every one of those checks the feed-level freshness, the
+        latest record, counts, deltas, structure, types, or value ranges — but a
+        history whose dates run BACKWARDS in time or skip days passes all of
+        them, while silently corrupting the rolling-90d covariance / dynamic-Kelly
+        computation that walks the whole dated series.
+
+        ``snapshot`` may be passed directly as a ``dict[str, list]`` mapping
+        ``protocol -> history-list`` (so tests can bypass file reads), mirroring
+        the per-protocol-stale / value-bounds monitors. Otherwise the mapping is
+        read from the feed file (``{protocols: {...}}`` or
+        ``{protocol_history: {...}}``).
+
+        For each protocol the WHOLE history list is inspected. Each record's date
+        is read from whichever of ``date`` / ``ts`` / ``timestamp`` is present
+        and parsed with the same approach as the per-protocol-stale / anomaly
+        monitors (epoch int/float seconds; ISO with ``Z`` replaced; bare
+        ``YYYY-MM-DD`` promoted to midnight UTC; naive → UTC; otherwise None).
+
+        A protocol is "bad" when ANY of:
+          • a record has a missing / unparseable date (continuity unverifiable);
+          • an adjacent pair regresses (``date[i+1] < date[i]``); or
+          • an adjacent gap exceeds ``APY_FEED_MAX_DATE_GAP_HOURS``.
+        A protocol with fewer than 2 valid dated records but at least one valid
+        date is OK (nothing to compare). A protocol with ZERO valid dates is bad.
+        Non-numeric apy / tvl values are NOT this monitor's concern (schema-drift
+        owns those) — only the DATES matter here.
+
+        A cycle is considered bad on any of:
+          • unreadable — file missing / corrupt / no usable protocols (snapshot
+            None);
+          • too_few — fewer than ``APY_FEED_MONO_MIN_PROTOCOLS`` protocols;
+          • monotonicity_bad — the fraction of protocols that are bad is
+            ``>= APY_FEED_MONO_MAX_BAD_PCT``.
+
+        State is persisted in
+        ``self.data_dir / "apy_feed_monotonicity_health_state.json"`` so the
+        consecutive-bad streak survives across 4h pipeline runs.
+
+        Alert rule (threshold 1, like value-bounds / schema-drift): fire
+        immediately on the first bad cycle, then re-fire on every further
+        consecutive bad cycle. A healthy cycle resets the streak and silences
+        alerting. State is always updated after evaluation.
+
+        Returns:
+            True if an alert was sent on this call, False otherwise.
+            Never raises — all failures are logged and swallowed.
+        """
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+
+            def _parse_dt(raw):
+                """Parse a date / ts value into an aware UTC datetime, or None."""
+                if raw is None:
+                    return None
+                # bool is an int subclass but never a valid epoch here.
+                if isinstance(raw, bool):
+                    return None
+                # Numeric epoch seconds.
+                if isinstance(raw, (int, float)):
+                    try:
+                        return _dt.fromtimestamp(float(raw), _tz.utc)
+                    except (OverflowError, OSError, ValueError):
+                        return None
+                if not isinstance(raw, str):
+                    return None
+                s = raw.strip()
+                if not s:
+                    return None
+                # Bare YYYY-MM-DD → midnight UTC.
+                if len(s) == 10 and s[4] == "-" and s[7] == "-":
+                    s = s + "T00:00:00+00:00"
+                s = s.replace("Z", "+00:00")
+                try:
+                    dt = _dt.fromisoformat(s)
+                except ValueError:
+                    return None
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=_tz.utc)
+                return dt
+
+            # Resolve the protocol -> history mapping from the feed file if not
+            # supplied directly.
+            proto = None
+            if snapshot is not None and isinstance(snapshot, dict):
+                proto = snapshot
+            elif feed_path is not None:
+                try:
+                    doc = json.loads(
+                        Path(feed_path).read_text(encoding="utf-8")
+                    )
+                    if isinstance(doc, dict):
+                        proto = doc.get("protocols")
+                        if proto is None:
+                            proto = doc.get("protocol_history")
+                except Exception as exc:
+                    log.debug(
+                        f"alert_apy_feed_date_monotonicity: feed read — {exc}"
+                    )
+
+            # Normalise `now` to an aware UTC datetime.
+            if now is None:
+                now = _dt.now(_tz.utc)
+            elif now.tzinfo is None:
+                now = now.replace(tzinfo=_tz.utc)
+            now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            state = self._load_apy_feed_monotonicity_health_state()
+
+            # ----------------------------------------------------------------
+            # Walk every protocol's WHOLE history and check date ordering.
+            # ----------------------------------------------------------------
+            bad_keys: list[str] = []          # protocols with bad date series
+            bad_reasons: dict[str, str] = {}  # protocol -> short reason
+            total_usable = 0                  # protocols with a usable history list
+
+            if isinstance(proto, dict):
+                for key, hist in proto.items():
+                    if not isinstance(hist, list) or not hist:
+                        # Non-list / empty history → schema-drift's concern; skip.
+                        continue
+                    total_usable += 1
+                    dates: list = []
+                    unparseable = False
+                    for rec in hist:
+                        if not isinstance(rec, dict):
+                            unparseable = True
+                            break
+                        raw = (
+                            rec.get("date")
+                            if rec.get("date") is not None
+                            else rec.get("ts")
+                            if rec.get("ts") is not None
+                            else rec.get("timestamp")
+                        )
+                        dt = _parse_dt(raw)
+                        if dt is None:
+                            unparseable = True
+                            break
+                        dates.append(dt)
+
+                    if unparseable:
+                        bad_keys.append(key)
+                        bad_reasons[key] = "unparseable date"
+                        continue
+                    if not dates:
+                        # No valid dates at all → continuity unverifiable.
+                        bad_keys.append(key)
+                        bad_reasons[key] = "no valid dates"
+                        continue
+                    # Fewer than 2 valid dates → nothing to compare → OK.
+                    if len(dates) < 2:
+                        continue
+
+                    reasons: list[str] = []
+                    for i in range(len(dates) - 1):
+                        delta_h = (
+                            dates[i + 1] - dates[i]
+                        ).total_seconds() / 3600.0
+                        if delta_h < 0:
+                            reasons.append(
+                                f"regression at idx {i + 1} "
+                                f"({delta_h:.1f}h)"
+                            )
+                            break
+                        if delta_h > APY_FEED_MAX_DATE_GAP_HOURS:
+                            reasons.append(
+                                f"gap {delta_h:.1f}h at idx {i + 1}"
+                            )
+                            break
+                    if reasons:
+                        bad_keys.append(key)
+                        bad_reasons[key] = "; ".join(reasons)
+
+            # Bad-cycle signals.
+            unreadable = (not isinstance(proto, dict)) or total_usable == 0
+            too_few = (
+                (not unreadable) and total_usable < APY_FEED_MONO_MIN_PROTOCOLS
+            )
+            bad_pct = (
+                (len(bad_keys) / total_usable) if total_usable > 0 else 0.0
+            )
+            monotonicity_bad = (
+                (not unreadable)
+                and len(bad_keys) > 0
+                and bad_pct >= APY_FEED_MONO_MAX_BAD_PCT
+            )
+            bad = bool(unreadable or too_few or monotonicity_bad)
+
+            if not bad:
+                # Healthy cycle — reset streak, silence alerting.
+                state["consecutive_mono"] = 0
+                state["last_alerted_cycle"] = 0
+                state["prev_bad_keys"] = bad_keys
+                state["updated_at"] = now_iso
+                self._write_apy_feed_monotonicity_health_state(state)
+                log.info(
+                    f"alert_apy_feed_date_monotonicity: healthy "
+                    f"({total_usable} protocols, {len(bad_keys)} bad), "
+                    f"streak reset"
+                )
+                return False
+
+            # Bad cycle — grow the streak.
+            state["consecutive_mono"] = int(state.get("consecutive_mono", 0)) + 1
+            n = state["consecutive_mono"]
+            last_alerted = int(state.get("last_alerted_cycle", 0))
+            state["prev_bad_keys"] = bad_keys
+            state["updated_at"] = now_iso
+
+            # Fire immediately on the first bad cycle (threshold 1), then re-fire
+            # on every further consecutive bad cycle.
+            should_alert = n >= 1 and n != last_alerted
+
+            if not should_alert:
+                self._write_apy_feed_monotonicity_health_state(state)
+                log.info(
+                    f"alert_apy_feed_date_monotonicity: bad streak={n}, no alert"
+                )
+                return False
+
+            # Build a human-readable detail string from the active signals.
+            _LIM = 5
+            lines: list[str] = []
+            if unreadable:
+                lines.append("feed unreadable / no usable protocols")
+            if too_few:
+                lines.append(
+                    f"only {total_usable} usable protocol(s) "
+                    f"< {APY_FEED_MONO_MIN_PROTOCOLS} floor"
+                )
+            if monotonicity_bad:
+                parts = [
+                    f"{k} ({bad_reasons.get(k, 'date order broken')})"
+                    for k in bad_keys[:_LIM]
+                ]
+                more = (
+                    "" if len(bad_keys) <= _LIM
+                    else f" (+{len(bad_keys) - _LIM} more)"
+                )
+                lines.append(
+                    f"{len(bad_keys)}/{total_usable} protocols with broken date "
+                    f"series ({int(bad_pct * 100)}% >= "
+                    f"{int(APY_FEED_MONO_MAX_BAD_PCT * 100)}%): "
+                    + ", ".join(parts) + more
+                )
+            detail_str = "\n".join(lines) if lines else "date series broken"
+
+            msg = (
+                f"⚠️ <b>SPA APY Feed Date Monotonicity</b>\n\n"
+                f"historical_apy.json has non-monotonic / discontinuous dates for "
+                f"{n} consecutive cycle(s).\n"
+                f"{detail_str}\n"
+                f"Date regression (history runs backwards) or a >"
+                f"{APY_FEED_MAX_DATE_GAP_HOURS:.0f}h gap (skipped days) passes "
+                f"stale/drop/anomaly/schema/bounds checks but silently breaks the "
+                f"rolling-90d covariance & Kelly computation.\n"
+                f"Action: check DeFiLlama history merge + section 9b export_data.py."
+            )
+
+            if sender is None:
+                try:
+                    from alerts.telegram_sender import TelegramSender
+                    sender = TelegramSender()
+                except Exception as exc:
+                    log.error(
+                        f"alert_apy_feed_date_monotonicity: could not create "
+                        f"TelegramSender — {exc}"
+                    )
+                    # Persist the grown streak even if we couldn't build a sender.
+                    self._write_apy_feed_monotonicity_health_state(state)
+                    return False
+
+            try:
+                ok = sender.send(msg)
+            except Exception as exc:
+                log.error(
+                    f"alert_apy_feed_date_monotonicity: send error — {exc}"
+                )
+                self._write_apy_feed_monotonicity_health_state(state)
+                return False
+
+            state["last_alerted_cycle"] = n
+            self._write_apy_feed_monotonicity_health_state(state)
+            log.info(
+                f"alert_apy_feed_date_monotonicity: alert "
+                f"{'sent' if ok else 'failed'} "
+                f"(streak={n}, bad={len(bad_keys)}/{total_usable})"
+            )
+            return bool(ok)
+        except Exception as exc:
+            log.error(
+                f"alert_apy_feed_date_monotonicity: unexpected error — {exc}"
+            )
+            return False
+
+    def _load_apy_feed_monotonicity_health_state(self) -> dict:
+        """Load the monotonicity state file (graceful — fresh on miss/corrupt)."""
+        fresh = {
+            "prev_bad_keys": [],
+            "consecutive_mono": 0,
+            "last_alerted_cycle": 0,
+            "updated_at": None,
+        }
+        try:
+            if self._apy_feed_monotonicity_health_file.exists():
+                data = json.loads(
+                    self._apy_feed_monotonicity_health_file.read_text(
+                        encoding="utf-8"
+                    )
+                )
+                if isinstance(data, dict):
+                    fresh.update({k: data.get(k, fresh[k]) for k in fresh})
+        except Exception as exc:
+            log.debug(f"_load_apy_feed_monotonicity_health_state: {exc}")
+        return fresh
+
+    def _write_apy_feed_monotonicity_health_state(self, state: dict) -> None:
+        """Persist the monotonicity state file (graceful — swallows errors)."""
+        try:
+            self._apy_feed_monotonicity_health_file.parent.mkdir(
+                parents=True, exist_ok=True
+            )
+            self._apy_feed_monotonicity_health_file.write_text(
+                json.dumps(state, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            log.debug(f"_write_apy_feed_monotonicity_health_state: {exc}")
 
     # ------------------------------------------------------------------
     # APY-feed PER-PROTOCOL staleness alert (one protocol stops advancing)
