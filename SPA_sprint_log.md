@@ -1836,3 +1836,87 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 **Следующий спринт (SPA-V346)**: per-protocol stale-детектор — конкретный протокол перестал обновляться (его последний timestamp/ts заморожен) при свежем generated_at всего фида; ЛИБО sanity-bounds валидация диапазонов значений apy/tvl_usd (например apy < 0 или > 1000%, tvl_usd <= 0 или абсурдно большой) — отлов мусорных, но формально корректных по типу значений.
 
 ---
+
+## Sprint v3.46 — 2026-05-30 — APY-feed per-protocol staleness monitoring
+
+### Что сделано
+- (Backfill-стаб — полная запись восстановлена из KANBAN SPA-V346-001.) Новый ранний health-алерт `RiskMonitor.alert_apy_feed_protocol_stale` на ситуацию, когда КОНКРЕТНЫЙ протокол в `data/historical_apy.json` перестал обновляться (последняя запись его истории старше `APY_FEED_PROTOCOL_MAX_AGE_HOURS=48h`), при том что фид в ЦЕЛОМ свежий (`generated_at` двигается за счёт остальных протоколов). Закрывает ВРЕМЕННОЕ слепое пятно: `alert_apy_feed_stale` смотрит только на feed-level `generated_at`, а per-protocol anomaly — на крах значений apy/tvl, но не на замороженную дату. Зеркалит schema-drift по стилю (snapshot/persistent state/streak, порог=1, fire/refire/reset, никогда не raise, lazy TelegramSender). State-файл `apy_feed_protocol_stale_health_state.json`.
+
+### Файлы
+- `spa_core/alerts/risk_monitor.py` (modified)
+- `spa_core/export_data.py` (modified)
+- `spa_core/tests/test_apy_feed_protocol_stale_monitor.py` (new)
+
+### Результаты тестов
+- Новый файл тестов PASS; регрессия feed-мониторов — 0 новых фейлов (см. DISPATCH_REPORT_2026-05-30 серии).
+
+### Следующий спринт
+- **SPA-V347:** агрегированная feed-health сводка — консолидация независимых feed/covariance health-сигналов в один dashboard-бейдж.
+
+---
+
+## Sprint v3.47 — 2026-05-30 — Aggregated feed-health summary
+
+### Что сделано
+- (Backfill-стаб — из KANBAN SPA-V347-001.) Новый standalone-агрегатор `spa_core/alerts/feed_health_summary.py`, консолидирующий 7 независимых feed/covariance health-сигналов (covariance, apy_feed_stale, protocol_drop, tvl_drop, protocol_anomaly, schema_drift, protocol_stale) в ОДИН dashboard-ready документ `data/feed_health_summary.json`. Каждый сигнал читается из своего state-файла (graceful на miss/corrupt), классифицируется ok/warn/degraded/unknown против СОБСТВЕННОГО порога монитора, и сворачивается в `overall_status` (worst-of). Чистый stdlib, никогда не бросает на happy-path. Зеркалит паттерн `execution/adapter_status.py` / `analytics/covariance_export.py`. Интегрирован в `export_data.py` (write после всех feed-алертов) и в `index.html` (бейдж Feed Health + динамические чипы по сигналам).
+
+### Файлы
+- `spa_core/alerts/feed_health_summary.py` (new)
+- `spa_core/export_data.py` (modified)
+- `index.html` (modified — бейдж + loadFeedHealth/renderFeedHealth)
+- `spa_core/tests/test_feed_health_summary.py` (new)
+
+### Результаты тестов
+- `test_feed_health_summary.py` PASS (offline, tmp_path); регрессия 0 новых фейлов.
+
+### Следующий спринт
+- **SPA-V348:** устранение давнего baseline-фейла парсинга (morpho-blue в engine_bridge).
+
+---
+
+## Sprint v3.48 — 2026-05-30 — Fix morpho-blue prefix parse in engine_bridge
+
+### Что сделано
+- (Backfill-стаб — из KANBAN SPA-V348-001.) Закрыт давний baseline-фейл `test_engine_bridge::test_malformed_returns_none[morpho-blue-usdc-base]`, таскавшийся «вне scope» ~20 спринтов. `_parse_protocol_key` в `engine_bridge.py` парсил `morpho-blue-usdc-base` как `{family:morpho, asset:BLUE-USDC, chain:base}` (asset неверен — 'blue' съедался), а тест ждал None. Но `morpho-blue` УЖЕ маппится на family `morpho` в `yield_classifier_agent.py` / `audit_reader_agent.py` — `engine_bridge` был единственным несогласованным местом. Добавлен префикс `morpho-blue`->`morpho` ПЕРЕД `morpho`; цикл подбора префикса переведён на longest-prefix-match. Тест переведён на корректное ожидание.
+
+### Файлы
+- `spa_core/engine_bridge.py` (modified)
+- `spa_core/tests/test_engine_bridge.py` (modified)
+
+### Результаты тестов
+- `test_engine_bridge.py` PASS (включая новые `test_morpho_blue_key_parses`); полная регрессия зелёная.
+
+### Следующий спринт
+- **SPA-V349:** sanity-bounds валидация диапазонов значений apy/tvl_usd (отложенная альтернатива из v3.45) — отлов мусорных, но формально корректных по типу значений, отравляющих covariance/Kelly-вселенную.
+
+---
+
+## Sprint v3.49 — 2026-05-30 — APY-feed value-range sanity-bounds validation
+
+### Что сделано
+- Добавлен 8-й feed-health монитор `RiskMonitor.alert_apy_feed_value_bounds` — валидация того, что численные ЗНАЧЕНИЯ записей `data/historical_apy.json` попадают в адекватный ДИАПАЗОН. Закрывает явно отложенную из v3.45 альтернативу (stale-детектор взяли как V346; sanity-bounds не строили). Все существующие feed-мониторы (stale / protocol-drop / tvl-drop / per-protocol anomaly / schema-drift / protocol-stale) проверяют свежесть, счётчики, дельты, структуру и ТИПЫ — но НИ ОДИН не валидирует диапазон значений. Type-valid garbage (`apy=50000%`, `apy<0`, `tvl_usd<=0`, `tvl_usd>$10T`) проходил все проверки, но отравлял covariance/Kelly-вселенную.
+  - Метод зеркалит `alert_apy_feed_schema_drift` 1-в-1: для каждого протокола берётся ПОСЛЕДНЯЯ history-запись, `apy`/`tvl_usd` коэрсятся через `float()`. Протокол `out_of_bounds`, если `apy < APY_FEED_APY_MIN(0.0)`, `apy > APY_FEED_APY_MAX(1000.0)`, `tvl_usd <= APY_FEED_TVL_MIN(0.0)` или `tvl_usd > APY_FEED_TVL_MAX(1e13)`. Нечисловые/отсутствующие значения — забота schema-drift, ИСКЛЮЧАЮТСЯ из знаменателя bounds.
+  - **Конвенция единиц apy**: фид DeFiLlama хранит `apy` как ПРОЦЕНТНОЕ число (6.3057 == 6.3057%, см. `execution/defillama_apy_feed.py` `get_live_apy` docstring "Return live APY (%)" и `data/historical_apy.json`), поэтому верхняя граница = `1000.0` (== 1000%), а не `10.0` (доля). `tvl_usd` — сырые доллары.
+  - **Сигналы**: `unreadable` (нет файла/битый/нет пригодных числовых протоколов), `too_few` (< `APY_FEED_BOUNDS_MIN_PROTOCOLS=1`), `bounds_bad` (доля out_of_bounds >= `APY_FEED_BOUNDS_MAX_BAD_PCT=0.5`).
+  - **Persistent state** `apy_feed_bounds_health_state.json` (streak-поле `consecutive_bounds`, `last_alerted_cycle`, `updated_at`, `prev_bad_keys`), **порог=1** (fire на первом плохом цикле, refire на каждом следующем, healthy сбрасывает streak, state всегда обновляется). top-level try/except→False (НИКОГДА не raise), lazy TelegramSender. HTML msg `⚠️ <b>SPA APY Feed Value Bounds</b>` с перечислением нарушивших протоколов, какой границы и значения. Helpers `_load/_write_apy_feed_bounds_health_state`.
+  - `export_data.py`: зеркальный try/except-блок «APY feed value-bounds alert» сразу ПОСЛЕ protocol-stale, ПЕРЕД feed_health_summary.
+  - **Интеграция в v3.47-агрегатор** `feed_health_summary.py`: 8-й сигнал `("value_bounds", "apy_feed_bounds_health_state.json", "Value bounds", "consecutive_bounds", 1)` + обновлён docstring-реестр. `index.html` рендерит чипы Feed Health ДИНАМИЧЕСКИ из `data.signals` (`loadFeedHealth`/`renderFeedHealth`) — правок не требует (подтверждено чтением).
+
+### Файлы
+- `spa_core/alerts/risk_monitor.py` (modified — константы, поле `__init__`, метод + helpers)
+- `spa_core/export_data.py` (modified — wiring)
+- `spa_core/alerts/feed_health_summary.py` (modified — 8-й сигнал + docstring)
+- `spa_core/tests/test_apy_feed_value_bounds_monitor.py` (new, 42 теста)
+- `spa_core/tests/test_feed_health_summary.py` (modified — счётчики 7→8)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v349` для всех изменённых файлов.
+
+### Результаты тестов
+- `test_apy_feed_value_bounds_monitor.py` — **42 PASS** (offline FakeSender, tmp_path-изоляция).
+- Регрессия (`test_apy_feed_schema_drift_monitor` + `test_apy_feed_protocol_anomaly_monitor` + `test_feed_health_summary` + `test_defillama_apy_feed`) — **126 PASS, 0 новых фейлов**.
+- `py_compile` risk_monitor.py + export_data.py + feed_health_summary.py — OK. KANBAN.json валиден. `node --check` неприменим к `.html` (node трактует расширение как модуль) — index.html не правился, проверка пропущена осознанно.
+
+### Следующий спринт
+- **SPA-V350:** возможные направления — кросс-сигнальная корреляция feed-health (несколько сигналов degraded одновременно = системный сбой источника, не точечный); ЛИБО валидация монотонности/непрерывности дат истории конкретного протокола (пропуски/возвраты дат назад во времени).
+
+---
