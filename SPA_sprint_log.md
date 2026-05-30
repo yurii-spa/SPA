@@ -4,6 +4,29 @@
 
 ---
 
+## Sprint v3.38 — 2026-05-30 — Covariance export wired into 4h pipeline (SPA-V338)
+
+**Цель:** Врезать вызов `covariance_export` в основной 4-часовой export-pipeline, чтобы `data/covariance_summary.json` авто-обновлялся каждый цикл вместе с остальными артефактами (`adapter_status.json`, `historical_apy.json`, `optimization_recommendations.json` и т.д.), а не генерировался только вручную через CLI.
+
+**Контекст:** v3.36 (SPA-V336) создал `spa_core/analytics/covariance_export.py` — строит ковариационно-корреляционную матрицу живых APY (DeFiLlama через `apy_history_bridge`) и пишет `data/covariance_summary.json` (schema_version=1). v3.37 (SPA-V337) отрендерил этот JSON в дашборде. ПРОБЛЕМА: артефакт генерировался ТОЛЬКО вручную через CLI — в проде не обновлялся автоматически каждый 4h-цикл. Pipeline = `spa_core/export_data.py :: run_export(fetch=...)`, который пишет все `data/*.json` и трекает `pipeline_health` (`_section_ok`/`_section_fail`).
+
+**Что сделано (SPA-V338-001):**
+- В `run_export()` добавлена секция **13b** сразу после `optimization_recommendations` (#13) и перед PDF Report (#14) — логичное место рядом с другими аналитическими/optimization-экспортами.
+- Вызов: `from analytics.covariance_export import write_covariance_json` → `write_covariance_json(out_path=str(OUTPUT_DIR / "covariance_summary.json"))`. Стандартный путь — тот же дефолт `data/covariance_summary.json`, что у CLI. Внутри `write_covariance_json` авто-мостит `data/historical_apy.json` (написан в #9b выше) через `apy_history_bridge` → `CovarianceEstimator` → live матрицы.
+- **Graceful-обёртка** (зеркалит все опциональные экспорты пайплайна): вызов в `try/except`; на успехе `_section_ok("covariance_summary")` + `log.info(source/protocols)`; на сбое `log.error(..., exc_info=True)` + `_section_fail("covariance_summary")` + `write_json` заглушки (schema_version=1, source=synthetic_fallback, пустые матрицы, error). Пайплайн НИКОГДА не падает из-за covariance-шага.
+- Зарегистрирован в `files_written`-манифесте (decision_log) и в `pipeline_health` (sections_ok/failed) тем же способом, что adapter_status/optimization. Существующие экспорты не менялись (байт-в-байт).
+- Wiring-тест: класс `TestExportPipelineWiring` в `spa_core/tests/test_covariance_export.py` — статическая проверка (импорт+вызов `write_covariance_json`, стандартный путь, манифест, `_section_ok`/`_section_fail`, guarded try/except) + behavioural (raising-writer не пробрасывается = graceful) + offline end-to-end (bridge из `historical_apy.json` → валидный `covariance_summary.json` без сети).
+
+**Файлы:**
+- `spa_core/export_data.py` (modified: секция 13b — `write_covariance_json` в try/except + `_section_ok`/`_section_fail` + `files_written`-манифест)
+- `spa_core/tests/test_covariance_export.py` (modified: +класс `TestExportPipelineWiring`)
+
+**Результаты тестов:** `test_covariance_export.py` зелёный (58 baseline + новые wiring-тесты). `data/covariance_summary.json` + `KANBAN.json` валидны (json.load). Бэкапы `.bak.v338` созданы. Известный baseline-фейл `test_engine_bridge::...morpho-blue-usdc-base` — пред-существующий, НЕ чинился, вне scope.
+
+**Следующий спринт:** SPA-V339 — исполнение плана PostgreSQL-миграции (`pg_migration.py`, plan-only с v3.31) за `SPA_PG_MIGRATION_EXECUTE=1`; ЛИБО подключение covariance к `pipeline_health`-мониторингу/алертам (warning/Telegram если covariance-секция падает или source=synthetic_fallback несколько циклов подряд).
+
+---
+
 ## Sprint v3.37 — 2026-05-30 — Covariance dashboard render (SPA-V337)
 
 **Цель:** Отрендерить `data/covariance_summary.json` (артефакт, эмитнутый в v3.36 `covariance_export.py`) в дашборде — Optimization/Analytics таб, карточка B6 «AI Recommendations»: heatmap корреляций APY + live volatility badges + source-индикатор (live/partial/synthetic). Зеркалит паттерн v3.34/v3.35 (фронт читает backend-JSON через `fetch`, `loadAdapterStatus`/`renderAdapterStatus`). Чисто фронтенд-изменение — backend/Python не трогался.
