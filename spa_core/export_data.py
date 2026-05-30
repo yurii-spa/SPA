@@ -90,6 +90,7 @@ def run_export(fetch: bool = False) -> None:
         "pendle_pools_found":    0,
         "export_duration_seconds": 0.0,
         "next_run_eta":          "4h",
+        "covariance_source":     None,
     }
 
     def _section_ok(name: str) -> None:
@@ -1046,9 +1047,11 @@ def run_export(fetch: bool = False) -> None:
             f"covariance_summary.json: source={cov_doc['source']}, "
             f"{len(cov_doc['protocols'])} protocols"
         )
+        _health["covariance_source"] = cov_doc.get("source")
         _section_ok("covariance_summary")
     except Exception as e:
         log.error(f"covariance_summary export failed: {e}", exc_info=True)
+        _health["covariance_source"] = "synthetic_fallback"
         _section_fail("covariance_summary")
         write_json("covariance_summary.json", {
             "schema_version": 1,
@@ -1362,6 +1365,17 @@ def run_export(fetch: bool = False) -> None:
             _monitor.alert_pipeline_failure(_health, sender=_tg)
     except Exception as _ae:
         log.error(f"Pipeline failure alert dispatch failed: {_ae}")
+
+    # ── Covariance degradation alert (consecutive synthetic/failed cycles) ────
+    try:
+        from alerts.risk_monitor import RiskMonitor
+        from alerts.telegram_sender import TelegramSender
+        _cov_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _cov_src = _health.get("covariance_source")
+        _cov_failed = "covariance_summary" in _health.get("failed_sections", [])
+        _cov_monitor.alert_covariance_degraded(_cov_src, sender=TelegramSender(), section_failed=_cov_failed)
+    except Exception as _cae:
+        log.error(f"Covariance degradation alert dispatch failed: {_cae}")
 
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
