@@ -59,11 +59,12 @@ def test_classify_bad_input_is_unknown():
 # --------------------------------------------------------------------------
 
 def test_eight_signals_registered():
-    assert len(fhs.SIGNALS) == 8
+    assert len(fhs.SIGNALS) == 9
     keys = {k for k, *_ in fhs.SIGNALS}
     assert keys == {
         "covariance", "apy_feed_stale", "protocol_drop", "tvl_drop",
         "protocol_anomaly", "schema_drift", "protocol_stale", "value_bounds",
+        "date_monotonicity",
     }
 
 
@@ -77,6 +78,7 @@ def test_thresholds_match_monitors():
     assert th["schema_drift"] == 1
     assert th["protocol_stale"] == 1
     assert th["value_bounds"] == 1
+    assert th["date_monotonicity"] == 1
 
 
 # --------------------------------------------------------------------------
@@ -96,8 +98,8 @@ def test_missing_state_is_ok(tmp_path):
 def test_all_missing_overall_ok(tmp_path):
     doc = fhs.build_summary_document(tmp_path)
     assert doc["overall_status"] == "ok"
-    assert doc["signal_count"] == 8
-    assert doc["counts"]["ok"] == 8
+    assert doc["signal_count"] == 9
+    assert doc["counts"]["ok"] == 9
 
 
 def test_degraded_signal_drives_overall(tmp_path):
@@ -199,7 +201,7 @@ def test_cli_json_round_trip(tmp_path, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     doc = json.loads(out)
-    assert doc["signal_count"] == 8
+    assert doc["signal_count"] == 9
 
 
 def test_cli_write(tmp_path):
