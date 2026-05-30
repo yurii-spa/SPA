@@ -39,6 +39,9 @@ this module is a no-op and the normal public RPC path is used.
   SPA_FLASHBOTS_HINTS=true    Send calldata hints to Flashbots (default: false)
 
 Sprint v3.26 — initial implementation.
+Sprint v3.52 (SPA-V352) — wired into all adapter live-send paths; public path
+now returns a consistent receipt-like dict; added ``broadcast_protected_hash``
+for hash-consuming callers (Aave/Compound).
 """
 from __future__ import annotations
 
@@ -226,9 +229,55 @@ def send_raw_transaction_auto(
             timeout=timeout,
         )
     else:
-        # Standard path — same as before
+        # Standard path — public mempool. Normalise the raw tx-hash string into
+        # the same receipt-like dict shape that ``send_protected`` returns, so
+        # every caller gets a consistent contract regardless of routing.
+        # (Sprint v3.52 / SPA-V352 — adapters consume the result as a dict.)
         from spa_core.execution.eth_signer import send_raw_transaction
-        return send_raw_transaction(signed_tx_hex, public_rpc)
+        raw = send_raw_transaction(signed_tx_hex, public_rpc)
+        if isinstance(raw, dict):
+            return raw
+        return {
+            "status": "PENDING",
+            "tx_hash": raw,
+            "endpoint": public_rpc,
+            "protection": "none",
+            "block_number": None,
+        }
+
+
+def broadcast_protected_hash(signed_tx_hex: str, timeout: int = 30) -> str:
+    """MEV-route a signed tx through Flashbots Protect and return its tx hash.
+
+    Thin convenience for hash-consuming callers (e.g. the Aave/Compound
+    adapters, whose ``_send_raw_tx`` returns a hash string and then polls for
+    the receipt separately). Routes through ``send_protected`` with NO public
+    fallback — the caller decides whether to fall back to its own public RPC.
+
+    Parameters
+    ----------
+    signed_tx_hex : str
+        Signed transaction hex (with or without leading ``0x``).
+    timeout : int
+        Per-endpoint timeout in seconds (default: 30).
+
+    Returns
+    -------
+    str
+        The ``0x``-prefixed transaction hash.
+
+    Raises
+    ------
+    RuntimeError
+        If every protected endpoint fails (so the caller can fall back).
+    """
+    res = send_protected(signed_tx_hex, fallback_rpc=None, timeout=timeout)
+    tx_hash = res.get("tx_hash")
+    if res.get("status") == "FAILED" or not tx_hash:
+        raise RuntimeError(
+            f"MEV-protected broadcast failed: {res.get('reason', res)}"
+        )
+    return tx_hash
 
 
 # ─── Receipt polling ──────────────────────────────────────────────────────────
