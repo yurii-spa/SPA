@@ -127,6 +127,36 @@ def _live_apy_enabled() -> bool:
         return False
 
 
+def _mev_protection_status() -> dict[str, Any]:
+    """Return MEV-protection status (enabled / endpoint / mode / fallbacks).
+
+    Sprint v3.55 (SPA-V355) — surfaces the Flashbots Protect routing state wired
+    into adapter live-send paths in v3.52 so the Go-Live dashboard can show
+    whether private-mempool protection is active. stdlib-only, never raises:
+    any failure yields a safe ``{"enabled": False, ...}`` default.
+    """
+    try:
+        from spa_core.execution import mev_protection
+        enabled = bool(mev_protection.is_mev_protection_enabled())
+        mode = os.getenv("SPA_FLASHBOTS_MODE", "fast").lower()
+        endpoint = mev_protection.get_protected_rpc()
+        fallbacks = list(getattr(mev_protection, "_PROTECTED_ENDPOINTS", []))
+        return {
+            "enabled": enabled,
+            "endpoint": endpoint,
+            "flashbots_mode": mode,
+            "fallback_endpoints": fallbacks,
+        }
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("mev_protection status lookup failed (%s) — defaulting disabled", exc)
+        return {
+            "enabled": False,
+            "endpoint": None,
+            "flashbots_mode": "fast",
+            "fallback_endpoints": [],
+        }
+
+
 def _fetch_live_apy_map(
     protocol_key: str,
     mock_apy: dict[str, dict[str, float]],
@@ -251,6 +281,7 @@ def build_status_document() -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "execution_mode": os.environ.get("SPA_EXECUTION_MODE", "dry_run"),
         "live_apy_enabled": _live_apy_enabled(),
+        "mev_protection": _mev_protection_status(),
         "adapters": collect_adapter_status(),
     }
 
