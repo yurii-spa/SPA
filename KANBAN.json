@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-30T18:15:00Z",
-  "updated_by": "spa-dev-agent (v3.50)",
-  "sprint_completed": "v3.50",
-  "last_dispatch_run": "2026-05-30T18:15:00Z",
-  "last_dispatch_note": "SPA-V350: добавлен 9-й feed-health монитор — APY-feed DATE MONOTONICITY/CONTINUITY validation. Все 8 предыдущих мониторов (stale / protocol-drop / tvl-drop / per-protocol anomaly / schema-drift / protocol-stale / aggregated summary / value-bounds) проверяли свежесть, счётчики, дельты, структуру, ТИПЫ и ДИАПАЗОН значений, но НИ ОДИН не валидировал, что даты записей истории конкретного протокола в data/historical_apy.json идут монотонно вперёд без разрывов: date-regression (date[i+1] < date[i]) или большой gap (> APY_FEED_MAX_DATE_GAP_HOURS=72ч, т.е. ≥2 пропущенных дня в суточном фиде) ломают rolling-90d covariance/Kelly расчёт скрыто. RiskMonitor.alert_apy_feed_date_monotonicity зеркалит v3.49 value-bounds 1-в-1: берёт ВСЮ history-list каждого протокола, парсит даты (date|ts|timestamp; epoch/ISO/bare YYYY-MM-DD), помечает протокол bad при регрессии/gap>72ч/непарсимой дате; протоколы с <2 валидными датами = OK, 0 валидных дат = bad. Сигналы unreadable/too_few/monotonicity_bad (доля bad >= APY_FEED_MONO_MAX_BAD_PCT=0.5), persistent streak consecutive_mono (threshold 1, fire/refire/reset), state apy_feed_monotonicity_health_state.json, top-level try/except (никогда не бросает), lazy TelegramSender. Интегрирован в export_data.py-диспатч (блок после value-bounds, перед feed_health_summary) и в v3.47-агрегатор feed_health_summary.py как 9-й сигнал date_monotonicity. Тесты: 43 новых PASS, регрессия 189 PASS / 0 fail. py_compile OK, бэкапы .bak.v350.",
+  "last_updated": "2026-05-30T20:20:15Z",
+  "updated_by": "spa-dev-agent (v3.52)",
+  "sprint_completed": "v3.52",
+  "last_dispatch_run": "2026-05-30T20:20:15Z",
+  "last_dispatch_note": "SPA-V352 (MEV Protection wiring — SPA-BL-010): закрыт классический built-but-not-wired gap. mev_protection.py (v3.26) реализовывал Flashbots Protect RPC (send_protected / send_raw_transaction_auto / fallback-цепочка), и его docstring заявлял send_raw_transaction_auto как drop-in замену eth_signer.send_raw_transaction в live-пути ВСЕХ адаптеров — но НИ ОДИН адаптер его не вызывал: все 6 broadcast-адаптеров слали транзакции напрямую через eth_signer.send_raw_transaction, т.е. MEV-защита была мёртвым кодом в реальном пути исполнения. Хуже: T2-адаптеры (yearn/maple/sky/euler) делали receipt = send_raw_transaction(...) и затем receipt.get('status') — но eth_signer.send_raw_transaction возвращает СТРОКУ (hash), а не dict → латентный AttributeError в live-режиме. SPA-V352: (1) mev_protection.send_raw_transaction_auto нормализован — public-путь теперь возвращает консистентный receipt-like dict (а не сырую строку); (2) добавлен broadcast_protected_hash() для hash-потребителей; (3) 4 T2-адаптера (8 call-site) переключены на send_raw_transaction_auto + проверка падения расширена на статус 'FAILED'; (4) 2 T1-адаптера (aave/compound) _send_raw_tx теперь предпочитают Flashbots в live-режиме с graceful fallback на публичный _rpc_first. Гейтинг: при SPA_MEV_PROTECTION!=true ИЛИ mode!=live поведение байт-в-байт прежнее (публичный путь). Тесты: новый test_mev_wiring.py (source-guards + контракт + T1 routing), test_mev_wiring + test_mev_protection 58 PASS; регрессия адаптеров (yearn/maple/euler/sky/aave×3/compound×3/adapter_status) 254 PASS, 0 новых фейлов. Пред-существующие baseline-фейлы test_eth_signer encode_function_call (lstrip('0x') баг в коде, не тронутом этим спринтом) — вне scope. py_compile всех 7 файлов OK, KANBAN.json валиден, бэкапы .bak.v352. Status pass НЕ применялся.",
   "_dropped_dispatch_note_v349": "SPA-V349: добавлен 8-й feed-health монитор — APY-feed VALUE-RANGE sanity-bounds validation. Все существующие мониторы проверяли свежесть, счётчики, дельты, структуру и ТИПЫ, но ни один не валидировал, что численные ЗНАЧЕНИЯ попадают в адекватный ДИАПАЗОН: type-valid garbage (apy=50000%, apy<0, tvl_usd<=0, tvl_usd>$10T) проходил все проверки и отравлял covariance/Kelly-вселенную. Это была явно отложенная альтернатива из v3.45 (stale-детектор взяли как V346; sanity-bounds — нет). RiskMonitor.alert_apy_feed_value_bounds зеркалит schema-drift 1-в-1: берёт последнюю history-запись каждого протокола, коэрсит apy/tvl_usd через float(), помечает out_of_bounds по 4 границам; нечисловые записи — забота schema-drift, исключаются из знаменателя. Сигналы unreadable/too_few/bounds_bad, persistent streak consecutive_bounds (threshold 1, fire/refire/reset), top-level try/except (никогда не бросает), lazy TelegramSender. apy-конвенция: процентное число (1000.0 == 1000%), tvl_usd — сырые доллары. Интегрирован в v3.47-агрегатор feed_health_summary.py как 8-й сигнал value_bounds и в export_data.py-диспатч. index.html рендерит чипы динамически — без правок. Тесты: 42 новых PASS, регрессия 126 PASS.",
   "_prev_dispatch_note_v344": "SPA-V344: per-protocol APY/TVL anomaly + dropout detector. Новый ранний health-алерт RiskMonitor.alert_apy_feed_protocol_anomaly — точечный детектор по data/historical_apy.json: строит per-protocol snapshot (apy/tvl_usd из последней записи истории каждого протокола; поддержка ключей protocols/protocol_history; coerce float→None) и сравнивает с persisted prev_snapshot. Аномалия = unreadable ИЛИ протокол ВЫПАЛ из фида между циклами ИЛИ его APY упал ≥60% ИЛИ его TVL упал ≥60%. Закрывает слепое пятно агрегатных алертов (alert_apy_feed_protocol_drop по числу протоколов и alert_apy_feed_tvl_drop по совокупному TVL держатся, а КОНКРЕТНАЯ позиция обваливается/исчезает — covariance/Kelly-вселенная теряет точечный вес). Зеркалит protocol_drop/tvl_drop 1-в-1: top-level try/except→False (never-raise), lazy TelegramSender, persistent state apy_feed_anomaly_health_state.json, streak-порог=1 (мгновенный fire, рефайр на каждом следующем аномальном цикле, healthy сбрасывает streak, prev_snapshot всегда обновляется после оценки). Константы APY_FEED_PROTOCOL_APY_DROP_PCT=0.6 / APY_FEED_PROTOCOL_TVL_DROP_PCT=0.6 (выше агрегатных 0.5, т.к. отдельный протокол волатильнее). export_data.py: зеркальный try/except-блок «APY feed per-protocol anomaly alert» сразу после блока TVL collapse в run_export. Тесты: новый модуль test_apy_feed_protocol_anomaly_monitor.py 30 PASS; регрессия мониторинга (tvl_drop+protocol_drop+stale+covariance_health) 70 PASS, 0 новых фейлов. py_compile risk_monitor.py+export_data.py OK, KANBAN.json валиден, бэкапы .bak.v344. Следующий dev-шаг: SPA-V345 — валидация schema-drift фида historical_apy.json (изменение формы/ключей записей, смена типов apy/tvl_usd, неожиданные поля) ЛИБО per-protocol stale-детектор (конкретный протокол перестал обновляться — generated_at фида свежий, но последняя дата истории одного протокола залипла).",
   "_prev_dispatch_note": "SPA-V347: aggregated feed-health summary. Свёл 7 feed/covariance health-сигналов в один data/feed_health_summary.json (overall worst-of) + сводный бейдж в дашборде. Консолидация шести near-duplicate мониторов v3.40-v3.46 в один индикатор — ровно то, что рекомендовал отчёт v5.",
@@ -20,7 +20,10 @@
           "infra"
         ],
         "sprint": null,
-        "added": "2026-05-22"
+        "added": "2026-05-22",
+        "status": "superseded",
+        "superseded_by": "BL-001",
+        "note": "Дубликат BL-001 (Mac Mini Server Setup) в backlog. Объединено в ходе v3.51 housekeeping; трекать через BL-001."
       },
       {
         "id": "IDEA-002",
@@ -221,11 +224,96 @@
         "blocked_by": "user_action",
         "sprint": null,
         "added": "2026-05-29"
+      },
+      {
+        "id": "SPA-BL-010",
+        "title": "SPA-V326: MEV Protection — Flashbots Protect RPC",
+        "description": "Маршрутизировать подпись/отправку транзакций через Flashbots Protect RPC в spa_core/execution/eth_signer.py: приватный mempool для send_raw_transaction (защита от sandwich/frontrun при live-исполнении). Phase-3-предпосылка к FEAT-001. Паттерн: зеркалить стиль существующих адаптеров (try/except graceful, dry_run short-circuit, BLOCKED when mode!=live).",
+        "priority": "HIGH",
+        "estimate": "6h",
+        "tags": [
+          "backend",
+          "execution",
+          "mev"
+        ],
+        "sprint": "v3.52",
+        "added": "2026-05-30",
+        "note": "Архитектор v3.51: единственный разблокированный HIGH-приоритетный КОД-спринт. Рекомендуется как следующий dev-спринт вместо feed-health монитора #10.",
+        "status": "done",
+        "completed": "2026-05-30",
+        "resolution": "Реализовано в v3.52 (SPA-V352-001). MEV-слой (Flashbots Protect RPC) уже существовал с v3.26, но был не подключён к live-пути адаптеров; v3.52 подключил send_raw_transaction_auto / send_protected во все 6 broadcast-адаптеров (T2 + T1) с гейтингом SPA_MEV_PROTECTION + live."
+      },
+      {
+        "id": "SPA-BL-011",
+        "title": "GOVERNANCE: feed-health домен заморожен",
+        "description": "Запрет на feed-health монитор #10 без НОВОГО класса отказа. 9 мониторов (v3.40→v3.50) уже покрывают свежесть, счётчики, дельты TVL, per-protocol аномалии/dropout/stale, schema-drift, диапазоны значений и монотонность дат. Новый монитор допустим ТОЛЬКО если он ловит отказ, не покрытый ни одним из существующих 9 (не вариацию). Иначе — приоритизировать MEV (SPA-BL-010), live-execution (FEAT-001/002) или разблокировку user-action backlog.",
+        "priority": "HIGH",
+        "estimate": "0h",
+        "tags": [
+          "governance",
+          "process"
+        ],
+        "sprint": null,
+        "added": "2026-05-30",
+        "note": "Архитектор v3.51: останавливает monitor-treadmill. Кросс-сигнальная корреляция (SPA-V351-идея из лога v3.50) НЕ считается новым классом отказа — это агрегация уже покрытых сигналов, дублирует v3.47 feed_health_summary."
+      },
+      {
+        "id": "SPA-BL-012",
+        "title": "CRITICAL PATH: go-live разблокировка (user actions)",
+        "description": "Сводная карточка: критический путь к go-live 2026-07-15 — НЕ код, а user-action секреты. Зависит от BL-004 (GitHub Pages), BL-005/SPA-BL-008 (Telegram token), BL-006 (workflow-scope PAT), SPA-BL-007 (Alchemy/Infura RPC keys), SPA-BL-009 (Gnosis Safe + SPA_WALLET_ADDRESS). Пока эти не закрыты пользователем, live-execution (FEAT-001) и реальные алерты невозможны. Dev-агент разблокированной код-работы по go-live больше не имеет — отсюда monitor-treadmill.",
+        "priority": "HIGH",
+        "estimate": "0h",
+        "tags": [
+          "golive",
+          "tracking",
+          "blocked"
+        ],
+        "blocked_by": "user_action",
+        "sprint": null,
+        "added": "2026-05-30",
+        "note": "Архитектор v3.51: эскалация видимости. ~7 недель до go-live, весь HIGH-backlog заблокирован на пользователе."
       }
     ],
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "SPA-V352-001",
+        "title": "Wire MEV protection into all adapter live-execution send paths",
+        "status": "done",
+        "sprint": "v3.52",
+        "completed": "2026-05-30",
+        "priority": "HIGH",
+        "note": "Built-but-not-wired gap: mev_protection.py (v3.26) реализовал Flashbots Protect RPC и заявлял send_raw_transaction_auto как drop-in замену в live-пути всех адаптеров, но НИ ОДИН адаптер его не вызывал — 6 broadcast-адаптеров слали tx напрямую через eth_signer.send_raw_transaction → MEV-защита была мёртвым кодом. Дополнительно T2-адаптеры обращались к результату как к dict (.get('status')), хотя eth_signer.send_raw_transaction возвращает строку → латентный AttributeError в live. Зеркалит паттерн v3.35/v3.38 (built-but-not-wired). Реализует SPA-BL-010 (MEV Protection).",
+        "resolution": "mev_protection.py: send_raw_transaction_auto public-путь нормализован — возвращает консистентный receipt-like dict {status:PENDING, tx_hash, endpoint, protection:none, block_number} (dict-результат проходит насквозь), вместо сырой строки; добавлен broadcast_protected_hash(signed_tx_hex)->str (Flashbots без публичного fallback, raise при отказе) для hash-потребителей. T2 (yearn_v3/maple/sky_susds/euler_v2): import send_raw_transaction_auto из mev_protection, broadcast переключён receipt=send_raw_transaction_auto(...), проверка падения расширена receipt.get('status') in ('0x0','FAILED'). T1 (aave_v3/compound_v3): _send_raw_tx предпочитает mev_protection.send_protected когда is_mev_protection_enabled() and SPA_EXECUTION_MODE=='live', graceful try/except → fallback на существующий публичный _rpc_first; по умолчанию (MEV off) путь байт-в-байт прежний.",
+        "files": [
+          "spa_core/execution/mev_protection.py (modified: нормализация send_raw_transaction_auto + broadcast_protected_hash + docstring v3.52)",
+          "spa_core/execution/adapters/yearn_v3_adapter.py (modified: 2 site → send_raw_transaction_auto + FAILED-check)",
+          "spa_core/execution/adapters/maple_adapter.py (modified: 2 site)",
+          "spa_core/execution/adapters/sky_susds_adapter.py (modified: 2 site)",
+          "spa_core/execution/adapters/euler_v2_adapter.py (modified: 2 site)",
+          "spa_core/execution/aave_v3_adapter.py (modified: _send_raw_tx MEV-routed + public fallback)",
+          "spa_core/execution/compound_v3_adapter.py (modified: _send_raw_tx MEV-routed + public fallback)",
+          "spa_core/tests/test_mev_wiring.py (new: source-guards + контракт-нормализация + broadcast_protected_hash + T1 routing)"
+        ],
+        "test_results": "test_mev_wiring.py + test_mev_protection.py 58 PASS. Регрессия адаптеров (yearn/maple/euler/sky/aave×3/compound×3/adapter_status/eth_signer) 254 PASS, 2 пред-существующих baseline-фейла test_eth_signer.TestEncodeFunctionCall (lstrip('0x') баг в encode_function_call — НЕ тронут этим спринтом, вне scope). py_compile всех 7 файлов OK. KANBAN.json валиден. Бэкапы .bak.v352."
+      },
+      {
+        "id": "SPA-V351-001",
+        "title": "Architect review + KANBAN housekeeping (SPA-V330-style)",
+        "status": "done",
+        "sprint": "v3.51",
+        "completed": "2026-05-30",
+        "priority": "MEDIUM",
+        "note": "Периодический architect review (v3.50 закончился на 0 → триггер каждые 5 спринтов). architect.py — LLM-обёртка над Claude API (anthropic+ANTHROPIC_API_KEY), недоступная в автономной песочнице; review выполнен оркестратором (сам Claude архитекторского уровня) напрямую. Главный вывод: feed-health домен насыщен (9 мониторов v3.40→v3.50), весь HIGH-backlog заблокирован на user_action, критический путь к go-live = секреты пользователя, не код.",
+        "resolution": "KANBAN housekeeping: (1) IDEA-001 Mac Mini Local Server → superseded (дубль BL-001); (2) +SPA-BL-010 MEV Protection/Flashbots (HIGH, следующий разблокированный код-спринт); (3) +SPA-BL-011 governance-заморозка feed-health домена (монитор #10 только под новый класс отказа); (4) +SPA-BL-012 critical-path трекер go-live user-action блокеров; (5) подтверждено done: V327/V328/V331/V332. Status pass НЕ применялся. Файлы: KANBAN.json (housekeeping), SPA_sprint_log.md (v3.51 запись), DISPATCH_REPORT_2026-05-30_v351_architect.md (review-отчёт). Бэкапы .bak.v351.",
+        "files": [
+          "KANBAN.json (housekeeping: dedup IDEA-001, +SPA-BL-010/011/012, метаданные v3.51)",
+          "SPA_sprint_log.md (v3.51 запись)",
+          "DISPATCH_REPORT_2026-05-30_v351_architect.md (new — architect review)"
+        ],
+        "test_results": "Housekeeping-спринт (без код-изменений): KANBAN.json валиден (json.load round-trip OK). py_compile не применим. Регрессия кода не затронута."
+      },
       {
         "id": "SPA-V350-001",
         "title": "APY-feed date monotonicity / continuity validation alert",
@@ -2420,5 +2508,6 @@
       }
     ]
   },
-  "sprint_current": "v3.50"
+  "sprint_current": "v3.50",
+  "_dropped_dispatch_note_v350": "SPA-V350: добавлен 9-й feed-health монитор — APY-feed DATE MONOTONICITY/CONTINUITY validation. Все 8 предыдущих мониторов (stale / protocol-drop / tvl-drop / per-protocol anomaly / schema-drift / protocol-stale / aggregated summary / value-bounds) проверяли свежесть, счётчики, дельты, структуру, ТИПЫ и ДИАПАЗОН значений, но НИ ОДИН не валидировал, что даты записей истории конкретного протокола в data/historical_apy.json идут монотонно вперёд без разрывов: date-regression (date[i+1] < date[i]) или большой gap (> APY_FEED_MAX_DATE_GAP_HOURS=72ч, т.е. ≥2 пропущенных дня в суточном фиде) ломают rolling-90d covariance/Kelly расчёт скрыто. RiskMonitor.alert_apy_feed_date_monotonicity зеркалит v3.49 value-bounds 1-в-1: берёт ВСЮ history-list каждого протокола, парсит даты (date|ts|timestamp; epoch/ISO/bare YYYY-MM-DD), помечает протокол bad при регрессии/gap>72ч/непарсимой дате; протоколы с <2 валидными датами = OK, 0 валидных дат = bad. Сигналы unreadable/too_few/monotonicity_bad (доля bad >= APY_FEED_MONO_MAX_BAD_PCT=0.5), persistent streak consecutive_mono (threshold 1, fire/refire/reset), state apy_feed_monotonicity_health_state.json, top-level try/except (никогда не бросает), lazy TelegramSender. Интегрирован в export_data.py-диспатч (блок после value-bounds, перед feed_health_summary) и в v3.47-агрегатор feed_health_summary.py как 9-й сигнал date_monotonicity. Тесты: 43 новых PASS, регрессия 189 PASS / 0 fail. py_compile OK, бэкапы .bak.v350."
 }
