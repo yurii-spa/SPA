@@ -1,8 +1,8 @@
 {
-  "stable_since": "2026-05-30T08:42:59Z",
-  "last_check": "2026-05-30T08:42:59Z",
+  "stable_since": "2026-05-30T15:53:47Z",
+  "last_check": "2026-05-30T15:53:47Z",
   "consecutive_stable_days": 0.0,
-  "total_failures": 5,
+  "total_failures": 6,
   "failure_history": [
     {
       "time": "2026-05-26T23:49:31Z",
@@ -23,6 +23,10 @@
     {
       "time": "2026-05-30T08:42:59Z",
       "reason": "status.json stale: 12.0h > 6.0h threshold"
+    },
+    {
+      "time": "2026-05-30T15:53:47Z",
+      "reason": "status.json stale: 7.2h > 6.0h threshold"
     }
   ],
   "is_active": true
