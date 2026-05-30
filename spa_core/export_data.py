@@ -1389,6 +1389,16 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _afe:
         log.error(f"APY feed staleness alert dispatch failed: {_afe}")
 
+    # ── APY feed protocol-count drop alert (sharp protocol-count drop) ─────────
+    try:
+        _apy_proto_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_proto_monitor.alert_apy_feed_protocol_drop(
+            feed_path=str(OUTPUT_DIR / "historical_apy.json"),
+            sender=TelegramSender(),
+        )
+    except Exception as _apde:
+        log.error(f"APY feed protocol-count drop alert dispatch failed: {_apde}")
+
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
 
