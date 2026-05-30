@@ -587,7 +587,28 @@ class CompoundV3Adapter:
         return int(result, 16) if isinstance(result, str) else int(result)
 
     def _send_raw_tx(self, signed_hex: str) -> str:
-        """Broadcast a signed transaction; return its hash."""
+        """Broadcast a signed transaction; return its hash.
+
+        MEV protection (Sprint v3.52 / SPA-V352): when SPA_MEV_PROTECTION is
+        enabled AND SPA_EXECUTION_MODE == "live", prefer the Flashbots Protect
+        private mempool. Any routing error falls back to the public RPC path
+        below, so default behaviour is byte-for-byte unchanged.
+        """
+        try:
+            from spa_core.execution import mev_protection
+            if (mev_protection.is_mev_protection_enabled()
+                    and os.getenv("SPA_EXECUTION_MODE") == "live"):
+                res = mev_protection.send_protected(signed_hex, fallback_rpc=None)
+                tx_hash = res.get("tx_hash")
+                if res.get("status") != "FAILED" and tx_hash:
+                    log.info("MEV-protected broadcast via %s", res.get("endpoint"))
+                    return tx_hash
+                log.warning(
+                    "MEV-protected broadcast failed (%s) — falling back to public RPC",
+                    res.get("reason"),
+                )
+        except Exception as exc:  # noqa: BLE001 — never block the public path
+            log.warning("MEV protection routing error, using public RPC: %s", exc)
         result = self._rpc_first("eth_sendRawTransaction", [signed_hex])
         if not isinstance(result, str) or not result.startswith("0x"):
             raise RuntimeError(f"eth_sendRawTransaction bad result: {result!r}")
