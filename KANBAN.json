@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-30T01:00:00Z",
+  "last_updated": "2026-05-30T01:30:00Z",
   "updated_by": "spa-orchestrator-dev",
-  "sprint_completed": "v3.36",
-  "last_dispatch_run": "2026-05-30T01:00:00Z",
-  "last_dispatch_note": "v3.36 Live APY covariance export (SPA-V336, FEAT-007 финал): закрыт последний end-to-end gap живой ковариации для dynamic-Kelly/Markowitz. Phase 1 (v3.12) дал CovarianceEstimator, Phase 2 врезал его в recommender.py+markowitz.py за SPA_LIVE_COVARIANCE=1 — НО estimator читает data/apy_history.json, который пишется только инкрементально APYTracker в live-цикле и в sandbox/fresh-checkout отсутствовал → live-путь ВСЕГДА молча падал в синтетику CV=10%. SPA-V336 добавляет: (1) spa_core/analytics/apy_history_bridge.py — конвертер существующего data/historical_apy.json ({protocols:{key:[{date,apy,tvl_usd}]}}) в APYTracker-схему data/apy_history.json ({protocol_history:{key:[{ts,apy,tvl_usd}]}}), ts=date+T00:00:00+00:00, pure stdlib, никогда не падает, ensure_apy_history() идемпотентен; (2) spa_core/analytics/covariance_export.py — строит CovarianceEstimator над bridged store (авто-мост если store нет), считает volatilities + полную covariance/correlation матрицу + tier-map + source-label, пишет data/covariance_summary.json (schema_version=1). Артефакты перегенерированы: source=live, 7 протоколов, n_obs=81, fallback=false. Проверено: recommender с SPA_LIVE_COVARIANCE=1 теперь даёт covariance_source=live (раньше synthetic). Тесты: test_covariance_export.py 58 PASS; FEAT-007 регрессия (covariance_estimator/dynamic_kelly/optimization) 141 PASS. Baseline morpho-blue parse fail вне scope. Следующий dev-шаг: SPA-V337 — отрендерить covariance_summary.json в дашборде (Analytics/Optimization таб: матрица корреляций + live vol badges), либо исполнение плана PostgreSQL-миграции (v3.31).",
+  "sprint_completed": "v3.37",
+  "last_dispatch_run": "2026-05-30T01:30:00Z",
+  "last_dispatch_note": "v3.37 Covariance summary dashboard render (SPA-V337): отрендерил data/covariance_summary.json (артефакт SPA-V336) в дашборде — Optimization/Analytics таб, карточка B6 «AI Recommendations», сразу после Efficient Frontier. Зеркалит паттерн v3.34/35 (фронт читает backend-JSON через fetch, без новых библиотек). index.html: HTML-подблок (заголовок-секция + #cov-source-badge + #cov-meta + #cov-vol-badges + #cov-heatmap); loadCovariance() (fetch covariance_summary.json?_=Date.now(), guard на null); renderCovariance(data) — source-бейдж (live→зелёный/partial→amber/synthetic→red, inline-badge стиль adapter_status), meta-строка (window/min-obs/generated/bridged), volatility badges по протоколам с tier-цветом (T1 #185FA5/T2 #7c3aed) + μ mean_apy, heatmap = HTML-таблица из correlation_matrix (короткие аббревиатуры, фон ячейки градиентом по r: красный для +, синий для −, alpha=min(1,|r|)*0.7, диагональ серый), guard if(!el)return + заглушка на пустую матрицу; вызов loadCovariance() рядом с loadOptimization() в Optimization-блоке. Чисто фронтенд — backend не трогался. Проверки: covariance_summary.json + KANBAN.json валидны; grep renderCovariance==1, loadCovariance>=2; регрессия test_covariance_export.py 58 PASS; baseline morpho-blue fail вне scope. Следующий dev-шаг: SPA-V338 — подключить covariance_export в 4h export-pipeline (export_data.py) для авто-обновления covariance_summary.json каждый цикл, либо исполнение PostgreSQL-миграции (план v3.31).",
   "columns": {
     "ideas": [
       {
@@ -2191,6 +2191,28 @@
         "status": "done",
         "sprint_completed": "v3.26",
         "note": "Implemented: mev_protection.py Flashbots Protect RPC"
+      },
+      {
+        "id": "SPA-V337-001",
+        "title": "Covariance summary dashboard render — correlation heatmap + volatility badges + source badge",
+        "status": "done",
+        "sprint": "v3.37",
+        "completed": "2026-05-30",
+        "priority": "MEDIUM",
+        "tags": [
+          "frontend",
+          "analytics",
+          "optimization"
+        ],
+        "implementation": "Зеркалит паттерн v3.34/35 (фронт читает backend-JSON через fetch): рендер data/covariance_summary.json (артефакт SPA-V336) в дашборде, карточка B6 «AI Recommendations» (Optimization/Analytics таб). index.html: (1) HTML-подблок сразу после Efficient Frontier внутри an-card — секция-заголовок «Live APY Covariance — Correlation Matrix» с инлайн source-бейджем #cov-source-badge, мета-строка #cov-meta (window/min-obs/generated/bridged), контейнер #cov-vol-badges (flex-wrap) и #cov-heatmap (overflow-x:auto); чистый HTML/CSS-inline, без новых библиотек. (2) JS loadCovariance() — fetch BASE+'/covariance_summary.json?_='+Date.now() с .catch(()=>null), guard на null, → renderCovariance(data). (3) renderCovariance(data): source-бейдж live→зелёный #16a34a 'source: live DeFiLlama', partial→amber #f59e0b, иначе red #B91C1C 'source: synthetic fallback' (тот же inline-badge стиль что у adapter_status); meta-строка; volatility badges по одному на протокол из protocols с tier-цветом (T1 #185FA5, T2 #7c3aed), формат 'shortName volatility_pp.toFixed(2)pp' + μ mean_apy маленьким, shortName = ключ без -ethereum; heatmap — обычная HTML <table> из correlation_matrix, короткие аббревиатуры (aave-usdc/aave-usdt/comp-usdc/euler-usdc/maple-usdc/morpho-usdc/yearn-usdc), значения .toFixed(2), фон ячейки по r (r>=0 → rgba(220,38,38,alpha), r<0 → rgba(24,95,165,alpha), alpha=min(1,|r|)*0.7), диагональ серый #e5e7eb, пустая матрица → заглушка 'No covariance data'; все getElementById защищены if(!el)return. (4) Вызов loadCovariance() рядом с loadOptimization() в блоке загрузки Optimization-таба. Чисто фронтенд — backend/Python не трогался.",
+        "files": [
+          "index.html (modified: HTML cov-панель в карточке B6; loadCovariance() + renderCovariance(); вызов loadCovariance() в Optimization-блоке)",
+          "KANBAN.json (+ бэкап KANBAN.json.bak.v337)",
+          "SPA_sprint_log.md (+ бэкап SPA_sprint_log.md.bak.v337)"
+        ],
+        "tests": 0,
+        "test_results": "Фронт-изменения тестами не покрыты (как v3.32/v3.34/v3.35). JSON-валидность: covariance_summary.json + KANBAN.json — ok. grep: renderCovariance ==1, loadCovariance >=2 (def+вызов). Регрессия test_covariance_export.py: 58 PASS. Baseline morpho-blue-usdc-base fail вне scope.",
+        "resolution": "DONE: covariance_summary.json отрендерен в Optimization-табе (heatmap корреляций + live volatility badges + source-индикатор). Read-only дашборд, без backend-изменений."
       }
     ]
   }
