@@ -1,8 +1,71 @@
-# SPA Sprint Log — updated 2026-05-30
+# SPA Sprint Log — updated 2026-05-31
 
 ## Completed ✅
 
 ---
+
+## Sprint v3.55 — 2026-05-31 — Surface MEV-protection status in adapter_status.json + dashboard (SPA-V355)
+
+### Цель
+Отрендерить статус MEV-защиты (Flashbots Protect RPC) в дашборде — прямо указанная в dispatch-ноте v3.54 следующая разблокированная код-работа. MEV-защита была подключена в live-send пути всех 6 адаптеров в v3.52, но её состояние (вкл/выкл, endpoint, режим) НИГДЕ не отображалось. Малый, self-contained, never-raise, stdlib-only спринт; зеркалит паттерн v3.35 live-APY enrichment (top-level поле документа + чтение/рендер в index.html). Money-moving код (eth_signer / mev_protection / адаптеры) НЕ тронут.
+
+### Что сделано (SPA-V355-001)
+- **`spa_core/execution/adapter_status.py`:** добавлен helper `_mev_protection_status()` (стиль `_live_apy_enabled` — top-level try/except, НИКОГДА не бросает, безопасный default `{enabled:False, endpoint:None, flashbots_mode:"fast", fallback_endpoints:[]}`). Читает `mev_protection.is_mev_protection_enabled()`, `get_protected_rpc()`, env `SPA_FLASHBOTS_MODE`, константу `_PROTECTED_ENDPOINTS`. `build_status_document()` теперь эмитит top-level блок `"mev_protection"` между `live_apy_enabled` и `adapters` (порядок остальных ключей не изменён — подтверждено).
+- **`index.html`:** новая модульная переменная `ADAPTER_STATUS_MEV` (рядом с `ADAPTER_STATUS_GENERATED_AT`); `loadAdapterStatus()` пишет `doc.mev_protection || null` в успешной ветке и сбрасывает в `null` на ошибке/старом фиде; `renderAdapterStatus()` строит `mevBadge` (IIFE) — зелёный `#16a34a` `MEV Protection: ON · endpoint (mode)` при `enabled`, amber `#f59e0b` `MEV Protection: OFF (public mempool) · would use … when enabled` при `enabled===false`, пустая строка при `null` (обратная совместимость со старыми фидами). Вставлен после `</table>`, перед `syncedNote`. Стиль inline-span повторяет существующие бейджи. HTML таблицы не тронут.
+- **`spa_core/tests/test_adapter_status.py`:** добавлен класс `TestMevProtectionStatus` (6 тестов, env через `mock.patch.dict(os.environ, …)` как в `test_execution_mode_default`): `test_mev_block_present`, `test_mev_disabled_by_default`, `test_mev_enabled_when_env_set`, `test_mev_mode_fast_default`, `test_mev_mode_standard`, `test_document_still_json_serialisable`.
+- **`data/adapter_status.json`** перегенерирован — блок `mev_protection` присутствует в корректной позиции (`enabled:false`, `endpoint:https://rpc.flashbots.net/fast`, `flashbots_mode:fast`, 3 fallback-эндпоинта).
+
+### Файлы
+- `spa_core/execution/adapter_status.py` (modified — helper + поле в build_status_document)
+- `index.html` (modified — ADAPTER_STATUS_MEV + mevBadge)
+- `spa_core/tests/test_adapter_status.py` (modified — +6 тестов)
+- `data/adapter_status.json` (regenerated)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v355` (adapter_status.py, test_adapter_status.py, index.html, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `pytest test_adapter_status.py + test_mev_protection.py + test_mev_wiring.py` — **127 PASS / 0 FAIL** (включая 6 новых `TestMevProtectionStatus`).
+- Независимая перепроверка оркестратором: те же 127 PASS. `py_compile adapter_status.py` — OK. `data/adapter_status.json` валиден, порядок ключей `['generated_at','schema_version','execution_mode','live_apy_enabled','mev_protection','adapters']`. `KANBAN.json` валиден.
+
+### Следующий спринт
+- **SPA-V356:** разумные разблокированные код-шаги — (а) показать per-adapter применимость MEV-routing (какие адаптеры реально маршрутятся через `send_protected`) в том же блоке `mev_protection`; ЛИБО (б) отрендерить per-signal `updated_at`-историю в Feed Health-панели (продолжение v3.47/v3.49). HIGH go-live путь по-прежнему упирается в user-action секреты (SPA-BL-012); feed-health домен заморожен (SPA-BL-011).
+
+---
+
+## Sprint v3.54 — 2026-05-31 — Fix latent lstrip(0x) on private-key path (SPA-V354)
+
+### Цель
+Устранить оставшийся однотипный латентный баг среза 0x-префикса на private-key пути в `spa_core/execution/eth_signer.py`, явно указанный в dispatch-ноте v3.53 как следующий разблокированный код-спринт. Тот же класс дефекта, что V353, но на критичном signing-пути. Малый, self-contained, без user-action блокировки.
+
+### Проблема
+`private_key_hex.lstrip("0x")` (под guard `.startswith("0x")`) срезает **любые** ведущие символы из множества `{'0','x'}`, а не префикс `"0x"`. Для приватного ключа вида `0x00ab…` ведущие нули после префикса срезаются → ключ укорачивается (`len != 64` → `ValueError`, либо при иных входных данных — неверный ключ / несовпадение адреса / повреждённая подпись). Три идентичных вхождения:
+- строка 105 — `get_address_from_private_key`
+- строка 143 — `sign_transaction`
+- строка 201 — `sign_message`
+
+### Что сделано (SPA-V354-001)
+- **`spa_core/execution/eth_signer.py`** (строки 105/143/201): каждое
+  `pk_hex = private_key_hex.lstrip("0x") if private_key_hex.startswith("0x") else private_key_hex`
+  заменено на
+  `pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex`.
+  Срезается **ровно** префикс `0x`/`0X`; ведущие нули тела ключа сохраняются. `encode_function_call` (починен в V353) не тронут; money-moving логика не изменена кроме самих strip-строк.
+- **`spa_core/tests/test_eth_signer.py`**: добавлен `TestGetAddress.test_private_key_prefix_strip_preserves_leading_zero` — pk `0x` + `00` + `ab`*31 (64 hex после префикса) даёт тот же checksummed-адрес, что и bare-форма `00ab…`; ведущий ноль не теряется.
+
+### Файлы
+- `spa_core/execution/eth_signer.py`
+- `spa_core/tests/test_eth_signer.py`
+- Бэкапы: `eth_signer.py.bak.v354`, `test_eth_signer.py.bak.v354`, `KANBAN.json.bak.v354`, `SPA_sprint_log.md.bak.v354`
+
+### Результаты тестов
+- `python3 -m pytest spa_core/tests/test_eth_signer.py -q` → **25 passed**, 0 failed (24 прежних + 1 новый регрессионный тест).
+- `python3 -m pytest test_eth_signer.py test_mev_wiring.py test_aave_v3_adapter.py test_compound_v3_adapter.py -q` → **59 passed**, 0 failed.
+- `python3 -m py_compile spa_core/execution/eth_signer.py` → OK.
+
+### Следующий спринт
+Разумный разблокированный код-шаг: добавить MEV-protection статус (вкл/выкл + endpoint) в `data/adapter_status.json` + чтение/рендер в `index.html` (`loadAdapterStatus`/`renderAdapterStatus`) — зеркалит паттерн v3.35 adapter live-APY enrichment. HIGH go-live backlog по-прежнему user_action-blocked (SPA-BL-012); feed-health заморожен (SPA-BL-011).
+
+---
+
 
 ## Sprint v3.53 — 2026-05-30 — Fix baseline failure: eth_signer.encode_function_call 0x-prefix selector strip (SPA-V353)
 
