@@ -32,6 +32,8 @@ DAILY_DRAWDOWN_PCT         = 2.0     # single-day drop that triggers alert
 APY_DROP_THRESHOLD         = 1.0     # pp drop vs last snapshot
 CASH_BUFFER_MIN_PCT        = 3.0
 COVARIANCE_DEGRADED_CYCLES_ALERT = 3   # consecutive synthetic/failed covariance cycles before alerting
+APY_FEED_MAX_AGE_HOURS      = 8.0   # historical_apy.json старше = stale (>2 цикла при 4h-каденции)
+APY_FEED_STALE_CYCLES_ALERT = 2     # подряд stale-циклов до алерта
 
 
 class RiskMonitor:
@@ -49,6 +51,7 @@ class RiskMonitor:
         self.data_dir = Path(data_dir)
         self._prev_apys_file = self.data_dir / ".prev_position_apys.json"
         self._cov_health_file = self.data_dir / "covariance_health_state.json"
+        self._apy_feed_health_file = self.data_dir / "apy_feed_health_state.json"
 
     # ------------------------------------------------------------------
     # Public API
@@ -454,6 +457,209 @@ class RiskMonitor:
             )
         except Exception as exc:
             log.debug(f"_write_covariance_health_state: {exc}")
+
+    # ------------------------------------------------------------------
+    # APY-feed staleness alert
+    # ------------------------------------------------------------------
+
+    def alert_apy_feed_stale(
+        self,
+        feed_path=None,
+        *,
+        generated_at=None,
+        data_source=None,
+        now=None,
+        sender=None,
+    ) -> bool:
+        """
+        Track historical_apy.json feed health across cycles and fire a Telegram
+        alert when the APY feed has silently degraded for several consecutive
+        cycles before it ever reaches the covariance synthetic_fallback path.
+
+        A feed is considered degraded on any of:
+          • too old — ``generated_at`` age exceeds ``APY_FEED_MAX_AGE_HOURS``
+            (or could not be parsed at all);
+          • stuck — ``generated_at`` is identical to the previously recorded
+            value (file not refreshing / cached);
+          • synthetic — ``data_source`` starts with ``"synthetic"``.
+
+        State is persisted in ``self.data_dir / "apy_feed_health_state.json"``
+        so the consecutive-stale streak survives across 4h pipeline runs.
+
+        Alert rule: fire when the streak reaches ``APY_FEED_STALE_CYCLES_ALERT``
+        and re-fire on every further consecutive stale cycle past that. A
+        healthy cycle resets the streak and silences alerting.
+
+        Returns:
+            True if an alert was sent on this call, False otherwise.
+            Never raises — all failures are logged and swallowed.
+        """
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+
+            # Resolve metadata from the feed file if not supplied directly.
+            if generated_at is None and feed_path is not None:
+                try:
+                    doc = json.loads(
+                        Path(feed_path).read_text(encoding="utf-8")
+                    )
+                    if isinstance(doc, dict):
+                        generated_at = doc.get("generated_at")
+                        if data_source is None:
+                            data_source = doc.get("data_source")
+                except Exception as exc:
+                    log.debug(f"alert_apy_feed_stale: feed read — {exc}")
+
+            # Normalise `now` to an aware UTC datetime.
+            if now is None:
+                now = _dt.now(_tz.utc)
+            elif now.tzinfo is None:
+                now = now.replace(tzinfo=_tz.utc)
+
+            # Parse generated_at into an aware datetime (None on failure).
+            gen = None
+            if isinstance(generated_at, str):
+                try:
+                    gen = _dt.fromisoformat(generated_at.replace("Z", "+00:00"))
+                    if gen.tzinfo is None:
+                        gen = gen.replace(tzinfo=_tz.utc)
+                except Exception as exc:
+                    log.debug(f"alert_apy_feed_stale: parse generated_at — {exc}")
+                    gen = None
+
+            age_hours = None
+            if gen is not None:
+                age_hours = (now - gen).total_seconds() / 3600.0
+
+            state = self._load_apy_feed_health_state()
+            prev_gen = state.get("last_generated_at")
+            now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            # Degradation signals.
+            too_old = age_hours is None or age_hours > APY_FEED_MAX_AGE_HOURS
+            stuck = (
+                generated_at is not None
+                and prev_gen is not None
+                and prev_gen == generated_at
+            )
+            synthetic = (data_source or "").lower().startswith("synthetic")
+            degraded = bool(too_old or stuck or synthetic)
+
+            if not degraded:
+                # Healthy cycle — reset streak, silence alerting.
+                state["consecutive_stale"] = 0
+                state["last_alerted_cycle"] = 0
+                state["last_generated_at"] = generated_at
+                state["last_source"] = data_source
+                state["updated_at"] = now_iso
+                self._write_apy_feed_health_state(state)
+                log.info(
+                    f"alert_apy_feed_stale: healthy generated_at={generated_at!r}, "
+                    f"source={data_source!r}, streak reset"
+                )
+                return False
+
+            # Degraded cycle — grow the streak.
+            state["consecutive_stale"] = int(state.get("consecutive_stale", 0)) + 1
+            state["last_generated_at"] = generated_at
+            state["last_source"] = data_source
+            state["updated_at"] = now_iso
+            n = state["consecutive_stale"]
+            last_alerted = int(state.get("last_alerted_cycle", 0))
+
+            # Fire once at/over threshold, and again only as the streak grows.
+            should_alert = n >= APY_FEED_STALE_CYCLES_ALERT and n != last_alerted
+            if not should_alert:
+                self._write_apy_feed_health_state(state)
+                log.info(
+                    f"alert_apy_feed_stale: stale streak={n} "
+                    f"(threshold={APY_FEED_STALE_CYCLES_ALERT}), no alert"
+                )
+                return False
+
+            # Build a human-readable reason string from the active signals.
+            reasons = []
+            if stuck:
+                reasons.append("stuck generated_at")
+            if too_old:
+                if age_hours is None:
+                    reasons.append("generated_at unparseable")
+                else:
+                    reasons.append(
+                        f"age {age_hours:.1f}h > {APY_FEED_MAX_AGE_HOURS}h"
+                    )
+            if synthetic:
+                reasons.append(f"data_source={data_source}")
+            reason_str = ", ".join(reasons) if reasons else "stale feed"
+
+            msg = (
+                f"⚠️ <b>SPA APY Feed Stale</b>\n\n"
+                f"historical_apy.json has been stale for {n} consecutive cycles.\n"
+                f"Reason: {reason_str}\n"
+                f"generated_at: {generated_at or 'unavailable'}\n"
+                f"The covariance/Kelly inputs may silently degrade to synthetic data.\n"
+                f"Action: check DeFiLlama fetch + section 9b of export_data.py."
+            )
+
+            if sender is None:
+                try:
+                    from alerts.telegram_sender import TelegramSender
+                    sender = TelegramSender()
+                except Exception as exc:
+                    log.error(
+                        f"alert_apy_feed_stale: could not create TelegramSender — {exc}"
+                    )
+                    # Persist the grown streak even if we couldn't build a sender.
+                    self._write_apy_feed_health_state(state)
+                    return False
+
+            try:
+                ok = sender.send(msg)
+            except Exception as exc:
+                log.error(f"alert_apy_feed_stale: send error — {exc}")
+                self._write_apy_feed_health_state(state)
+                return False
+
+            state["last_alerted_cycle"] = n
+            self._write_apy_feed_health_state(state)
+            log.info(
+                f"alert_apy_feed_stale: alert {'sent' if ok else 'failed'} "
+                f"(streak={n}, reason={reason_str!r})"
+            )
+            return bool(ok)
+        except Exception as exc:
+            log.error(f"alert_apy_feed_stale: unexpected error — {exc}")
+            return False
+
+    def _load_apy_feed_health_state(self) -> dict:
+        """Load the APY-feed-health state file (graceful — fresh on miss/corrupt)."""
+        fresh = {
+            "consecutive_stale": 0,
+            "last_generated_at": None,
+            "last_source": None,
+            "last_alerted_cycle": 0,
+            "updated_at": None,
+        }
+        try:
+            if self._apy_feed_health_file.exists():
+                data = json.loads(
+                    self._apy_feed_health_file.read_text(encoding="utf-8")
+                )
+                if isinstance(data, dict):
+                    fresh.update({k: data.get(k, fresh[k]) for k in fresh})
+        except Exception as exc:
+            log.debug(f"_load_apy_feed_health_state: {exc}")
+        return fresh
+
+    def _write_apy_feed_health_state(self, state: dict) -> None:
+        """Persist the APY-feed-health state file (graceful — swallows errors)."""
+        try:
+            self._apy_feed_health_file.parent.mkdir(parents=True, exist_ok=True)
+            self._apy_feed_health_file.write_text(
+                json.dumps(state, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            log.debug(f"_write_apy_feed_health_state: {exc}")
 
     # ------------------------------------------------------------------
     # APY persistence helpers
