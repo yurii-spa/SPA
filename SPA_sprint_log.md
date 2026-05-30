@@ -1632,3 +1632,29 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 
 ### Следующий спринт
 **SPA-V330:** Architect review + KANBAN housekeeping — `python3 -m spa_core.dev_agents.architect --command review-backlog`, закрыть устаревшие карточки, добавить новые задачи. (v3.30 заканчивается на 0 → периодический architect review.)
+
+## Sprint v3.42 — 2026-05-30 — APY-feed protocol-count drop monitoring + v3.41 verification
+
+### Что сделано
+- **Часть A (verification v3.41):** прогнан pytest для PostgreSQL-миграции, который прошлый ран НЕ выполнил из-за сбоя sandbox. `test_pg_migration_execute.py` + `test_pg_migration.py` — **42 PASS**. Регрессия мониторинга (`test_apy_feed_stale_monitor` + `test_covariance_health_monitor` + `test_alerts` + `test_covariance_export`) — **161 PASS**. v3.41 верифицирован зелёным.
+- **Часть B (новая фича):** добавлен ранний health-алерт на резкое падение числа протоколов в `data/historical_apy.json` между циклами (напр. DeFiLlama частично отвалился: было 7, стало 3). Закрывает слепое пятно — фид может оставаться свежим (generated_at OK) и live (data_source OK), тихо теряя протоколы, что невидимо для `alert_apy_feed_stale` (возраст/source) и `alert_covariance_degraded` (covariance source), при этом covariance/Kelly-вселенная истончается. Решение зеркалит SPA-V340 `alert_apy_feed_stale` 1-в-1.
+  - Константы `APY_FEED_PROTOCOL_DROP_PCT=0.5` (падение ≥50% = деградация) и `APY_FEED_MIN_PROTOCOLS=3` (абсолютный пол).
+  - `self._apy_feed_protocol_health_file` в `__init__`.
+  - Метод `alert_apy_feed_protocol_drop(feed_path=None, *, num_protocols=None, now=None, sender=None)` — top-level try/except→False, lazy TelegramSender, persistent state (`prev_num_protocols`/`consecutive_drops`/`last_alerted_cycle`), streak-логика. degraded = unreadable (None) ИЛИ too_few (< 3) ИЛИ sharp_drop (num <= prev*0.5). Порог по числу циклов = **1** (резкое падение алертим сразу, в отличие от staleness=2); refire на каждом растущем цикле; prev всегда обновляется после оценки.
+  - Helpers `_load/_write_apy_feed_protocol_health_state` (graceful).
+  - `export_data.py`: зеркальный try/except-блок «APY feed protocol-count drop alert» сразу после блока staleness в `run_export`.
+
+### Файлы
+- `spa_core/alerts/risk_monitor.py` (modified)
+- `spa_core/export_data.py` (modified)
+- `spa_core/tests/test_apy_feed_protocol_drop_monitor.py` (new, 23 теста)
+
+### Результаты тестов
+- Часть A: pg_migration 42 PASS; регрессия мониторинга 161 PASS.
+- Часть B: `test_apy_feed_protocol_drop_monitor.py` **23 PASS** (offline FakeSender).
+- Полная объединённая регрессия: **226 PASS, 0 новых фейлов**.
+- `py_compile` risk_monitor.py + export_data.py ok. KANBAN.json валиден. Бэкапы `.bak.v342` созданы.
+- Пред-существующие fail (`test_engine_bridge` morpho-blue-usdc-base, `test_defillama_apy_feed` TestTtlCache) — вне scope, не трогались.
+
+### Следующий спринт
+- **SPA-V343:** алерт на резкое схлопывание суммарного TVL в `historical_apy.json` (фид может сохранять число протоколов, но TVL обвалиться — ещё одно слепое пятно для covariance-вселенной), ЛИБО дальнейшее расширение feed-мониторинга (напр. per-protocol APY-аномалии / выпадение конкретного протокола из фида).
