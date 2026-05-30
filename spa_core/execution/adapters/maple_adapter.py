@@ -477,8 +477,9 @@ class MapleAdapter:
     ) -> dict[str, Any]:
         from spa_core.execution.eth_signer import (
             get_nonce, estimate_gas, get_base_fee,
-            send_raw_transaction, sign_transaction,
+            sign_transaction,
         )
+        from spa_core.execution.mev_protection import send_raw_transaction_auto
         wallet = Account.from_key(private_key).address
         rpc = self._endpoints[0]
         try:
@@ -497,8 +498,8 @@ class MapleAdapter:
                     "chainId": 1, "type": 2,
                 }
                 signed = sign_transaction(private_key, tx)
-                receipt = send_raw_transaction(signed.hex(), rpc)
-                if receipt.get("status") == "0x0":
+                receipt = send_raw_transaction_auto(signed.hex(), rpc)
+                if receipt.get("status") in ("0x0", "FAILED"):
                     return {
                         "status": "FAILED",
                         "phase": "approve" if idx == 0 else phase_tag,
@@ -518,8 +519,9 @@ class MapleAdapter:
     ) -> dict[str, Any]:
         from spa_core.execution.eth_signer import (
             get_nonce, estimate_gas, get_base_fee,
-            send_raw_transaction, sign_transaction,
+            sign_transaction,
         )
+        from spa_core.execution.mev_protection import send_raw_transaction_auto
         wallet = Account.from_key(private_key).address
         rpc = self._endpoints[0]
         try:
@@ -537,8 +539,8 @@ class MapleAdapter:
                 "chainId": 1, "type": 2,
             }
             signed = sign_transaction(private_key, tx)
-            receipt = send_raw_transaction(signed.hex(), rpc)
-            if receipt.get("status") == "0x0":
+            receipt = send_raw_transaction_auto(signed.hex(), rpc)
+            if receipt.get("status") in ("0x0", "FAILED"):
                 return {"status": "FAILED", "phase": phase_tag, "receipt": receipt, "protocol": "maple"}
             return {
                 "status": "OK", "protocol": "maple", "chain": self.chain,
