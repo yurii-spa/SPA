@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-30T00:30:00Z",
+  "last_updated": "2026-05-30T01:00:00Z",
   "updated_by": "spa-orchestrator-dev",
-  "sprint_completed": "v3.35",
-  "last_dispatch_run": "2026-05-30T00:30:00Z",
-  "last_dispatch_note": "v3.35 Live APY enrichment (SPA-V335): adapter_status.py теперь при SPA_LIVE_APY=1 фактически фетчит live DeFiLlama APY per chain/asset (через defillama_apy_feed.get_live_apy) и встраивает их в каждую запись как live_apy {chain:{asset:apy}}; apy_source получает live_values_present и flip mode->live при наличии значений. Graceful: при выключенном гейте сеть не трогается, при ошибке/no-match — пусто, mode остаётся mock (никогда не падает). index.html (Go-Live) теперь рендерит live значения (зелёным, mock зачёркнут) через fmtApyMap/apyCell + badge 'live DeFiLlama' vs 'no pool match'. Тесты: test_adapter_status 63 PASS (+8 live), test_dashboard_adapter_sync 60 PASS (+5 wiring guard), JS node --check OK. Регрессия чистая (только пред-существующий morpho-blue parse fail). Следующий dev-шаг: FEAT-007 — live APY rolling covariance для Kelly sizing, либо исполнение плана PostgreSQL-миграции (v3.31). NB: v3.35 заканчивается на 5 → следующий выбор должен предваряться architect review-backlog.",
+  "sprint_completed": "v3.36",
+  "last_dispatch_run": "2026-05-30T01:00:00Z",
+  "last_dispatch_note": "v3.36 Live APY covariance export (SPA-V336, FEAT-007 финал): закрыт последний end-to-end gap живой ковариации для dynamic-Kelly/Markowitz. Phase 1 (v3.12) дал CovarianceEstimator, Phase 2 врезал его в recommender.py+markowitz.py за SPA_LIVE_COVARIANCE=1 — НО estimator читает data/apy_history.json, который пишется только инкрементально APYTracker в live-цикле и в sandbox/fresh-checkout отсутствовал → live-путь ВСЕГДА молча падал в синтетику CV=10%. SPA-V336 добавляет: (1) spa_core/analytics/apy_history_bridge.py — конвертер существующего data/historical_apy.json ({protocols:{key:[{date,apy,tvl_usd}]}}) в APYTracker-схему data/apy_history.json ({protocol_history:{key:[{ts,apy,tvl_usd}]}}), ts=date+T00:00:00+00:00, pure stdlib, никогда не падает, ensure_apy_history() идемпотентен; (2) spa_core/analytics/covariance_export.py — строит CovarianceEstimator над bridged store (авто-мост если store нет), считает volatilities + полную covariance/correlation матрицу + tier-map + source-label, пишет data/covariance_summary.json (schema_version=1). Артефакты перегенерированы: source=live, 7 протоколов, n_obs=81, fallback=false. Проверено: recommender с SPA_LIVE_COVARIANCE=1 теперь даёт covariance_source=live (раньше synthetic). Тесты: test_covariance_export.py 58 PASS; FEAT-007 регрессия (covariance_estimator/dynamic_kelly/optimization) 141 PASS. Baseline morpho-blue parse fail вне scope. Следующий dev-шаг: SPA-V337 — отрендерить covariance_summary.json в дашборде (Analytics/Optimization таб: матрица корреляций + live vol badges), либо исполнение плана PostgreSQL-миграции (v3.31).",
   "columns": {
     "ideas": [
       {
@@ -105,8 +105,11 @@
         "tags": [
           "backend"
         ],
-        "sprint": null,
-        "added": "2026-05-22"
+        "sprint": "v3.36",
+        "added": "2026-05-22",
+        "status": "done",
+        "completed": "2026-05-30",
+        "resolution": "Delivered across 3 phases: Phase 1 (v3.12) CovarianceEstimator + dynamic_kelly scaffold; Phase 2 wired into recommender.py + markowitz.py behind SPA_LIVE_COVARIANCE=1; Phase 3 (v3.36 / SPA-V336-001) apy_history_bridge + covariance_export close the data gap so the live path consumes real rolling-90d DeFiLlama APY covariance (recommender now reports covariance_source=live instead of synthetic)."
       }
     ],
     "backlog": [
@@ -219,6 +222,24 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "SPA-V336-001",
+        "title": "Live APY covariance export — apy_history_bridge + covariance_export (FEAT-007 finale)",
+        "status": "done",
+        "sprint": "v3.36",
+        "completed": "2026-05-30",
+        "priority": "MEDIUM",
+        "implementation": "Закрывает последний end-to-end gap FEAT-007. CovarianceEstimator (Phase 1, v3.12) читает rolling APY-серии из data/apy_history.json; Phase 2 врезал его в recommender.py + markowitz.py за SPA_LIVE_COVARIANCE=1. Но apy_history.json пишется только инкрементально APYTracker.record_snapshot в live-цикле — в sandbox/fresh-checkout его нет, поэтому каждый SPA_LIVE_COVARIANCE=1 прогон молча падал в синтетику CV=10%. SPA-V336: (1) spa_core/analytics/apy_history_bridge.py — конвертер существующего data/historical_apy.json ({protocols:{key:[{date,apy,tvl_usd}]}}, реальный 90-дневный DeFiLlama/synthetic экспорт) в APYTracker-схему data/apy_history.json ({protocol_history:{key:[{ts,apy,tvl_usd}]}, last_updated}); date YYYY-MM-DD промотируется в tz-aware ISO ts (T00:00:00+00:00) чтобы парситься через estimator._parse_iso/rolling-window; pure stdlib (json/datetime/pathlib), никогда не падает на happy path (malformed sub-structures скипаются по-записи), ключи protocol_history сортируются для детерминизма; ensure_apy_history() идемпотентен (не трогает существующий store). (2) spa_core/analytics/covariance_export.py — строит CovarianceEstimator над bridged store (авто-мост из historical_apy.json если apy_history.json отсутствует), считает per-protocol volatilities (через summary), полную covariance + correlation матрицу с tier-map (longest-prefix tier_for: aave/compound/morpho/sky=T1, yearn/euler/maple/pendle=T2), data_availability флаги и source-label (live/partial/synthetic_fallback), пишет data/covariance_summary.json (schema_version=1, generated_at, window_days, matrices). CLI у обоих модулей. Артефакты перегенерированы: source=live, 7 протоколов, n_obs=81 (в 90д окне от 2026-05-30), все fallback=false. Интеграция подтверждена: AllocationRecommender().recommend с SPA_LIVE_COVARIANCE=1 теперь возвращает covariance_source=live (раньше — synthetic), без крэша. Существующие call-sites не менялись — синтетический путь (флаг выключен) байт-в-байт прежний.",
+        "files": [
+          "spa_core/analytics/apy_history_bridge.py (new)",
+          "spa_core/analytics/covariance_export.py (new)",
+          "spa_core/tests/test_covariance_export.py (new, 58 тестов)",
+          "data/apy_history.json (regenerated via bridge — 7 protocols, 630 points)",
+          "data/covariance_summary.json (new artifact — source=live, schema_version=1)"
+        ],
+        "tests": 58,
+        "test_results": "test_covariance_export 58 PASS; FEAT-007 регрессия (covariance_estimator 31 + dynamic_kelly 21 + optimization 20 + export 58 + recommender) 141 PASS / 0 FAIL; engine_bridge baseline 36 PASS / 1 пред-существующий morpho-blue-usdc-base fail (вне scope)"
+      },
       {
         "id": "SPA-V335-001",
         "title": "Live APY enrichment of adapter_status.json + dashboard render",
