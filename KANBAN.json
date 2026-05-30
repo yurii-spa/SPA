@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-05-30T01:30:00Z",
+  "last_updated": "2026-05-30T02:30:00Z",
   "updated_by": "spa-orchestrator-dev",
-  "sprint_completed": "v3.37",
-  "last_dispatch_run": "2026-05-30T01:30:00Z",
-  "last_dispatch_note": "v3.37 Covariance summary dashboard render (SPA-V337): отрендерил data/covariance_summary.json (артефакт SPA-V336) в дашборде — Optimization/Analytics таб, карточка B6 «AI Recommendations», сразу после Efficient Frontier. Зеркалит паттерн v3.34/35 (фронт читает backend-JSON через fetch, без новых библиотек). index.html: HTML-подблок (заголовок-секция + #cov-source-badge + #cov-meta + #cov-vol-badges + #cov-heatmap); loadCovariance() (fetch covariance_summary.json?_=Date.now(), guard на null); renderCovariance(data) — source-бейдж (live→зелёный/partial→amber/synthetic→red, inline-badge стиль adapter_status), meta-строка (window/min-obs/generated/bridged), volatility badges по протоколам с tier-цветом (T1 #185FA5/T2 #7c3aed) + μ mean_apy, heatmap = HTML-таблица из correlation_matrix (короткие аббревиатуры, фон ячейки градиентом по r: красный для +, синий для −, alpha=min(1,|r|)*0.7, диагональ серый), guard if(!el)return + заглушка на пустую матрицу; вызов loadCovariance() рядом с loadOptimization() в Optimization-блоке. Чисто фронтенд — backend не трогался. Проверки: covariance_summary.json + KANBAN.json валидны; grep renderCovariance==1, loadCovariance>=2; регрессия test_covariance_export.py 58 PASS; baseline morpho-blue fail вне scope. Следующий dev-шаг: SPA-V338 — подключить covariance_export в 4h export-pipeline (export_data.py) для авто-обновления covariance_summary.json каждый цикл, либо исполнение PostgreSQL-миграции (план v3.31).",
+  "sprint_completed": "v3.38",
+  "last_dispatch_run": "2026-05-30T02:30:00Z",
+  "last_dispatch_note": "v3.38 Covariance export wired into 4h export pipeline (SPA-V338): врезал covariance_export в основной export-pipeline spa_core/export_data.py :: run_export(), чтобы data/covariance_summary.json авто-обновлялся каждый 4h-цикл вместе с остальными артефактами (раньше генерировался только вручную через CLI). Новая секция 13b сразу после optimization_recommendations (#13) и перед PDF Report (#14): from analytics.covariance_export import write_covariance_json; write_covariance_json(out_path=OUTPUT_DIR/'covariance_summary.json') — стандартный путь, тот же что у CLI по умолчанию. Зеркалит graceful-паттерн остальных опциональных экспортов: вызов в try/except, на успехе _section_ok('covariance_summary') + log.info(source/protocols), на сбое log.error + _section_fail('covariance_summary') + write_json заглушки (schema_version=1, source=synthetic_fallback, пустые матрицы, error) — пайплайн НИКОГДА не падает из-за covariance-шага. Зарегистрирован в files_written-манифесте (decision_log) и в pipeline_health (sections_ok/failed) тем же способом, что adapter_status/optimization. Существующие экспорты не тронуты. covariance_summary использует bridged data/historical_apy.json (написан в #9b выше) → estimator → live матрицы. Тесты: spa_core/tests/test_covariance_export.py +новый класс TestExportPipelineWiring (статическая проверка импорта/вызова/манифеста/health + graceful-failure не пробрасывается + offline end-to-end write валиден). Проверки: test_covariance_export.py зелёный (было 58, стало больше); data/covariance_summary.json + KANBAN.json валидны; baseline morpho-blue-usdc-base fail вне scope. Следующий dev-шаг: SPA-V339 — исполнение плана PostgreSQL-миграции (pg_migration.py, plan-only с v3.31) за SPA_PG_MIGRATION_EXECUTE=1, либо подключение covariance к pipeline_health-мониторингу/алертам.",
   "columns": {
     "ideas": [
       {
@@ -222,6 +222,20 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "SPA-V338-001",
+        "title": "SPA-V338: covariance_export wired into 4h export pipeline",
+        "status": "done",
+        "sprint": "v3.38",
+        "completed": "2026-05-30",
+        "priority": "MEDIUM",
+        "resolution": "Закрывает gap после v3.36/v3.37: data/covariance_summary.json (ковариация/корреляция/волатильность живых APY, FEAT-007 артефакт) генерировался ТОЛЬКО вручную через CLI covariance_export — в проде не обновлялся автоматически. SPA-V338 врезал вызов в основной 4h export-pipeline spa_core/export_data.py :: run_export(): новая секция 13b сразу после optimization_recommendations (#13) и перед PDF Report (#14): `from analytics.covariance_export import write_covariance_json; write_covariance_json(out_path=OUTPUT_DIR/'covariance_summary.json')` — пишет в стандартный путь (тот же дефолт, что у CLI), читает bridged data/historical_apy.json (уже написан в #9b выше) через apy_history_bridge → CovarianceEstimator → live матрицы. Зеркалит graceful-паттерн всех опциональных экспортов: try/except, на успехе _section_ok('covariance_summary') + log.info(source/протоколы), на сбое log.error(exc_info) + _section_fail('covariance_summary') + write_json-заглушка (schema_version=1, source=synthetic_fallback, пустые covariance/correlation матрицы, error) — пайплайн НИКОГДА не падает из-за covariance-шага. Зарегистрирован в files_written-манифесте decision_log и в pipeline_health (sections_ok/failed) тем же способом, что adapter_status/optimization. Существующие экспорты не менялись (байт-в-байт). Тесты: добавлен класс TestExportPipelineWiring в spa_core/tests/test_covariance_export.py — статическая проверка (импорт write_covariance_json, вызов, стандартный путь, манифест, _section_ok/_section_fail health, guarded try/except) + behavioural (raising-writer не пробрасывается из секции = graceful) + offline end-to-end (bridge из historical_apy.json → валидный covariance_summary.json без сети).",
+        "files": [
+          "spa_core/export_data.py (modified: секция 13b — write_covariance_json в try/except + _section_ok/_section_fail + files_written-манифест)",
+          "spa_core/tests/test_covariance_export.py (modified: +класс TestExportPipelineWiring)"
+        ],
+        "test_results": "test_covariance_export.py зелёный (58 baseline + новые wiring-тесты); covariance_summary.json + KANBAN.json валидны; baseline test_engine_bridge morpho-blue-usdc-base fail — пред-существующий, вне scope"
+      },
       {
         "id": "SPA-V336-001",
         "title": "Live APY covariance export — apy_history_bridge + covariance_export (FEAT-007 finale)",
