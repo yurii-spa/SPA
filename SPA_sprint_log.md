@@ -4,6 +4,44 @@
 
 ---
 
+## Sprint v3.37 — 2026-05-30 — Covariance dashboard render (SPA-V337)
+
+**Цель:** Отрендерить `data/covariance_summary.json` (артефакт, эмитнутый в v3.36 `covariance_export.py`) в дашборде — Optimization/Analytics таб, карточка B6 «AI Recommendations»: heatmap корреляций APY + live volatility badges + source-индикатор (live/partial/synthetic). Зеркалит паттерн v3.34/v3.35 (фронт читает backend-JSON через `fetch`, `loadAdapterStatus`/`renderAdapterStatus`). Чисто фронтенд-изменение — backend/Python не трогался.
+
+**Контекст:** Прямое продолжение «Следующего спринта» из v3.36. v3.36 материализовал `apy_history.json` (через bridge) и записал `data/covariance_summary.json` (schema_version=1, source=live, 7 протоколов, n_obs=81), но фронтенд его не отображал. V337 закрывает визуализационный gap тем же fetch-паттерном, что v3.34 (golive report) и v3.35 (adapter live APY): никаких новых библиотек, heatmap — обычная HTML-таблица с фоновой заливкой ячеек (НЕ Chart.js).
+
+### Что сделано (SPA-V337-001)
+- **HTML-панель ковариации** (`index.html`, карточка B6 `an-card`) — вставлена сразу ПОСЛЕ блока Efficient Frontier, внутри карточки:
+  - Заголовок-секция в стиле существующих uppercase-лейблов: «Live APY Covariance — Correlation Matrix» с инлайн source-бейджем `#cov-source-badge`.
+  - Мета-строка `#cov-meta` (window / min-obs / generated / bridged).
+  - Контейнер volatility badges `#cov-vol-badges` (flex-wrap).
+  - Контейнер heatmap `#cov-heatmap` (overflow-x:auto).
+  - Чистый HTML/CSS-inline.
+- **`loadCovariance()`** (рядом с `renderEfficientFrontier`) — `fetch(BASE + '/covariance_summary.json?_=' + Date.now())` с `.catch(()=>null)`, guard на null → `renderCovariance(data)`.
+- **`renderCovariance(data)`**:
+  - **source badge** — `live` → зелёный `#16a34a` «source: live DeFiLlama»; `partial` → amber `#f59e0b`; иначе → red `#B91C1C` «source: synthetic fallback». Тот же inline-badge стиль, что у `renderAdapterStatus`.
+  - **meta** — `window ${window_days}d · min ${min_observations} obs · generated ${generated_at[:16]}` (+ ` · bridged` если `history_bridged`).
+  - **volatility badges** — по одному на протокол из `protocols`: `${shortName} ${volatility_pp.toFixed(2)}pp` + `μ mean_apy` маленьким, tier-цвет (T1 `#185FA5`, T2 `#7c3aed`); shortName = ключ без `-ethereum`.
+  - **heatmap** — HTML `<table>` из `correlation_matrix`: короткие аббревиатуры (aave-usdc / aave-usdt / comp-usdc / euler-usdc / maple-usdc / morpho-usdc / yearn-usdc), значения `.toFixed(2)`, фон ячейки градиентом по `r` (r≥0 → `rgba(220,38,38,alpha)`, r<0 → `rgba(24,95,165,alpha)`, `alpha=min(1,|r|)*0.7`), диагональ серый `#e5e7eb`; пустая/отсутствующая матрица → заглушка «No covariance data».
+  - Все `getElementById` защищены `if(!el)return`.
+- **Вызов** `loadCovariance()` добавлен рядом с `loadOptimization()` в блоке загрузки Optimization-таба.
+
+### Файлы
+- **Обновлён:** `index.html` (HTML-панель в карточке B6; `loadCovariance()` + `renderCovariance()`; вызов в Optimization-блоке).
+- **Обновлён:** `KANBAN.json` (+ бэкап `KANBAN.json.bak.v337`) — карточка SPA-V337-001 в `done`, верхнеуровневые поля sprint_completed→v3.37, last_updated/last_dispatch_run/last_dispatch_note.
+- **Обновлён:** `SPA_sprint_log.md` (+ бэкап `SPA_sprint_log.md.bak.v337`).
+
+### Результаты проверки
+- `python3 -c "import json;json.load(open('KANBAN.json'))"` → **KANBAN ok**.
+- `python3 -c "import json;json.load(open('data/covariance_summary.json'))"` → **cov ok**.
+- `grep -c "function renderCovariance" index.html` → **1**; `grep -c "loadCovariance" index.html` → **2** (определение функции на строке 4247 + вызов в Optimization-блоке на строке 2773).
+- Регрессия `spa_core/tests/test_covariance_export.py` → **58 PASS** (бэкенд не менялся; фронт тестами не покрыт — как v3.32/v3.34/v3.35). Baseline morpho-blue-usdc-base fail вне scope.
+
+### Следующий спринт
+**SPA-V338** — подключить `covariance_export` в 4-часовой export-pipeline (`export_data.py`), чтобы `data/covariance_summary.json` авто-обновлялся каждый цикл вместе с остальными артефактами (сейчас он генерится только вручную через CLI). Альтернатива: исполнение плана PostgreSQL-миграции (`pg_migration.py`, plan-only с v3.31) — фактический перенос SQLite→PG за `SPA_PG_MIGRATION_EXECUTE=1`.
+
+---
+
 ## Sprint v3.36 — 2026-05-30 — Live APY covariance export (FEAT-007 финал: apy_history_bridge + covariance_export)
 
 **Цель:** Закрыть последний end-to-end gap живой APY-ковариации для dynamic-Kelly / Markowitz сайзинга. Phase 1 (v3.12) дал `CovarianceEstimator` + `dynamic_kelly`; Phase 2 врезал их в `optimization/recommender.py` и `optimization/markowitz.py` за флагом `SPA_LIVE_COVARIANCE=1`. **Но `CovarianceEstimator` читает rolling-серии из `data/apy_history.json`, который пишется ТОЛЬКО инкрементально `APYTracker.record_snapshot` во время live-цикла — в sandbox/fresh-checkout его нет, поэтому каждый `SPA_LIVE_COVARIANCE=1` прогон молча падал в синтетику CV=10%.** Живая ковариация из DeFiLlama никогда фактически не считалась. V336 материализует store из уже существующего экспорта и эмитит dashboard-ready JSON.
