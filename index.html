@@ -1649,6 +1649,13 @@
       <div style="position:relative;height:160px"><canvas id="frontier-chart"></canvas></div>
       <div style="font-size:10px;color:#bbb;margin-top:6px">Each point = one portfolio on the frontier · ★ = optimal (max Sharpe)</div>
     </div>
+    <!-- ══ v3.37: Live APY Covariance / Correlation Matrix ══ -->
+    <div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:#888;text-transform:uppercase;margin-bottom:8px;margin-top:18px">Live APY Covariance — Correlation Matrix <span id="cov-source-badge"></span></div>
+      <div id="cov-meta" style="font-size:10px;color:#bbb;margin-bottom:8px"></div>
+      <div id="cov-vol-badges" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+      <div id="cov-heatmap" style="overflow-x:auto"></div>
+    </div>
   </div>
 
   <!-- ══ Strategy Tournament Panel ══ -->
@@ -2763,6 +2770,7 @@ async function loadAnalytics() {
     renderTournament(tournamentData);
     renderAdvancedStats(advancedData);
     loadOptimization();
+    loadCovariance();
     renderPendlePositions();
     runBacktest();
   } catch(e) {
@@ -4231,6 +4239,96 @@ function renderEfficientFrontier(data) {
       }
     }
   });
+}
+
+// ─── v3.37: Live APY Covariance / Correlation Matrix ─────────────────────────
+// Mirrors the v3.34/35 pattern: read the backend covariance_summary.json via fetch
+// and render a correlation heatmap + per-protocol volatility badges + source badge.
+async function loadCovariance() {
+  const data = await fetch(BASE + '/covariance_summary.json?_=' + Date.now()).then(r => r.json()).catch(() => null);
+  if (!data) return;
+  renderCovariance(data);
+}
+
+function renderCovariance(data) {
+  const inlineBadge = (txt, col) => `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span>`;
+  const shortName = k => (k || '').replace(/-ethereum$/, '');
+  // Compact abbreviations for the heatmap header/row labels.
+  const abbr = k => {
+    const m = {
+      'aave-v3-usdc-ethereum': 'aave-usdc',
+      'aave-v3-usdt-ethereum': 'aave-usdt',
+      'compound-v3-usdc-ethereum': 'comp-usdc',
+      'euler-v2-usdc-ethereum': 'euler-usdc',
+      'maple-usdc-ethereum': 'maple-usdc',
+      'morpho-usdc-ethereum': 'morpho-usdc',
+      'yearn-v3-usdc-ethereum': 'yearn-usdc',
+    };
+    return m[k] || shortName(k);
+  };
+
+  // ── source badge ──
+  const srcEl = document.getElementById('cov-source-badge');
+  if (srcEl) {
+    const src = data.source;
+    if (src === 'live') srcEl.innerHTML = inlineBadge('source: live DeFiLlama', '#16a34a');
+    else if (src === 'partial') srcEl.innerHTML = inlineBadge('source: partial', '#f59e0b');
+    else srcEl.innerHTML = inlineBadge('source: synthetic fallback', '#B91C1C');
+  }
+
+  // ── meta line ──
+  const metaEl = document.getElementById('cov-meta');
+  if (metaEl) {
+    const gen = data.generated_at ? data.generated_at.slice(0, 16).replace('T', ' ') : '—';
+    metaEl.textContent = `window ${data.window_days}d · min ${data.min_observations} obs · generated ${gen}` + (data.history_bridged ? ' · bridged' : '');
+  }
+
+  // ── volatility badges ──
+  const volEl = document.getElementById('cov-vol-badges');
+  if (volEl) {
+    const protos = data.protocols || {};
+    const tierCol = t => t === 'T1' ? '#185FA5' : t === 'T2' ? '#7c3aed' : '#888';
+    volEl.innerHTML = Object.keys(protos).map(k => {
+      const p = protos[k];
+      const col = tierCol(p.tier);
+      const vol = (p.volatility_pp != null ? Number(p.volatility_pp) : 0).toFixed(2);
+      const apy = p.mean_apy != null ? Number(p.mean_apy).toFixed(2) + '%' : '—';
+      return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${shortName(k)} ${vol}pp<span style="font-size:9px;font-weight:400;color:#999">μ ${apy}</span></span>`;
+    }).join('');
+  }
+
+  // ── heatmap ──
+  const hmEl = document.getElementById('cov-heatmap');
+  if (!hmEl) return;
+  const corr = data.correlation_matrix || {};
+  const keys = Object.keys(corr);
+  if (!keys.length) {
+    hmEl.innerHTML = '<div style="color:#bbb;font-size:12px;padding:12px 0">No covariance data</div>';
+    return;
+  }
+  // Cell background: positive r → red, negative r → blue, near 0 → near-white.
+  const cellBg = r => {
+    const a = Math.min(1, Math.abs(r)) * 0.7;
+    if (r >= 0) return `rgba(220,38,38,${a.toFixed(3)})`;
+    return `rgba(24,95,165,${a.toFixed(3)})`;
+  };
+  const thStyle = 'padding:4px 6px;font-size:10px;font-weight:600;color:#555;border:1px solid #f0f0f0;white-space:nowrap';
+  let html = '<table style="border-collapse:collapse;font-size:10px"><thead><tr><th style="' + thStyle + '"></th>';
+  keys.forEach(k => { html += `<th style="${thStyle}">${abbr(k)}</th>`; });
+  html += '</tr></thead><tbody>';
+  keys.forEach(rk => {
+    html += `<tr><th style="${thStyle};text-align:left">${abbr(rk)}</th>`;
+    keys.forEach(ck => {
+      const v = corr[rk] && corr[rk][ck] != null ? Number(corr[rk][ck]) : null;
+      if (v == null) { html += `<td style="padding:4px 6px;border:1px solid #f0f0f0;color:#bbb">—</td>`; return; }
+      const isDiag = rk === ck;
+      const bg = isDiag ? '#e5e7eb' : cellBg(v);
+      html += `<td style="padding:4px 6px;border:1px solid #f0f0f0;color:#1f2937;text-align:center;background:${bg}">${v.toFixed(2)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  hmEl.innerHTML = html;
 }
 
 // ─── Decision Log Panel ───────────────────────────────────────────────────────
