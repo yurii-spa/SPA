@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-05-30T00:13:30.088745+00:00",
+  "generated_at": "2026-05-30T08:43:51.933084+00:00",
   "window_days": 90,
   "min_observations": 7,
   "source": "live",
-  "history_store": "../data/apy_history.json",
+  "history_store": "data/apy_history.json",
   "history_bridged": false,
   "protocols": {
     "aave-v3-usdc-ethereum": {
