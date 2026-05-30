@@ -1649,6 +1649,15 @@
       <div style="position:relative;height:160px"><canvas id="frontier-chart"></canvas></div>
       <div style="font-size:10px;color:#bbb;margin-top:6px">Each point = one portfolio on the frontier · ★ = optimal (max Sharpe)</div>
     </div>
+    <!-- ══ SPA-V347: Aggregated Feed Health badge ══ -->
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;margin-top:18px;flex-wrap:wrap">
+        <span style="font-size:10px;font-weight:600;letter-spacing:.07em;color:#888;text-transform:uppercase">Feed Health</span>
+        <span id="feed-health-badge" style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:600;color:#fff;background:#9ca3af">—</span>
+        <span id="feed-health-detail" style="font-size:10px;color:#bbb"></span>
+      </div>
+      <div id="feed-health-signals" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px"></div>
+    </div>
     <!-- ══ v3.37: Live APY Covariance / Correlation Matrix ══ -->
     <div>
       <div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:#888;text-transform:uppercase;margin-bottom:8px;margin-top:18px">Live APY Covariance — Correlation Matrix <span id="cov-source-badge"></span></div>
@@ -2771,6 +2780,7 @@ async function loadAnalytics() {
     renderAdvancedStats(advancedData);
     loadOptimization();
     loadCovariance();
+    loadFeedHealth();
     renderPendlePositions();
     runBacktest();
   } catch(e) {
@@ -3960,6 +3970,43 @@ function renderGoLiveCriteria(data) {
   </tbody></table>`;
 }
 
+// ─── SPA-V347: aggregated feed-health badge ──────────────────────────────────
+async function loadFeedHealth() {
+  const data = await fetch(BASE + '/feed_health_summary.json?_=' + Date.now()).then(r => r.json()).catch(() => null);
+  renderFeedHealth(data);
+}
+function renderFeedHealth(data) {
+  const badge = document.getElementById('feed-health-badge');
+  const detail = document.getElementById('feed-health-detail');
+  const wrap = document.getElementById('feed-health-signals');
+  const COLORS = { ok: '#16a34a', warn: '#f59e0b', degraded: '#B91C1C', unknown: '#9ca3af' };
+  if (!data) {
+    if (badge) { badge.textContent = 'unavailable'; badge.style.background = COLORS.unknown; }
+    if (detail) detail.textContent = '';
+    if (wrap) wrap.innerHTML = '';
+    return;
+  }
+  const overall = (data.overall_status || 'unknown').toLowerCase();
+  if (badge) {
+    badge.textContent = overall.toUpperCase();
+    badge.style.background = COLORS[overall] || COLORS.unknown;
+  }
+  if (detail) {
+    const c = data.counts || {};
+    const ga = (data.generated_at || '').slice(0, 16).replace('T', ' ');
+    detail.textContent = `${data.signal_count || 0} signals · ${c.degraded || 0} degraded · ${c.warn || 0} warn · ${c.unknown || 0} unknown` + (ga ? ` · ${ga}` : '');
+  }
+  if (wrap) {
+    wrap.innerHTML = (data.signals || []).map(s => {
+      const st = (s.status || 'unknown').toLowerCase();
+      const note = st === 'ok' ? '' : ` (${s.streak}/${s.threshold})`;
+      const label = (s.label || s.key) + note;
+      const title = `${s.label || s.key}: ${st} — streak ${s.streak} / threshold ${s.threshold}`;
+      return `<span title="${title}" style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;color:#fff;background:${COLORS[st] || COLORS.unknown}">${label}</span>`;
+    }).join('');
+  }
+}
+
 // T2 / conditional adapter status (read-only dashboard view).
 // Data sourced verbatim from adapter modules (_DRY_RUN_APY) + project tier/cap conventions.
 // FALLBACK only — live data is fetched from data/adapter_status.json (see loadAdapterStatus).
@@ -3991,6 +4038,7 @@ const ADAPTER_STATUS_FALLBACK = [
 let ADAPTER_STATUS_DATA = null;     // mapped records from the backend JSON, or null if fetch failed
 let ADAPTER_STATUS_LIVE_APY = false; // mirrors doc.live_apy_enabled
 let ADAPTER_STATUS_GENERATED_AT = null;
+let ADAPTER_STATUS_MEV = null;       // v3.55: mirrors doc.mev_protection (or null on older feeds)
 
 // Format a nested chain→asset→apy map into the table's APY HTML string.
 function fmtApyMap(map) {
@@ -4044,11 +4092,14 @@ async function loadAdapterStatus() {
       ADAPTER_STATUS_DATA = doc.adapters.map(mapAdapterRecord);
       ADAPTER_STATUS_LIVE_APY = !!doc.live_apy_enabled;
       ADAPTER_STATUS_GENERATED_AT = doc.generated_at || null;
+      ADAPTER_STATUS_MEV = doc.mev_protection || null; // v3.55
     } else {
       ADAPTER_STATUS_DATA = null;
+      ADAPTER_STATUS_MEV = null;
     }
   } catch (e) {
     ADAPTER_STATUS_DATA = null; // → renderAdapterStatus falls back to the embedded constant
+    ADAPTER_STATUS_MEV = null;
   }
   renderAdapterStatus();
 }
@@ -4082,6 +4133,21 @@ function renderAdapterStatus() {
   const syncedNote = ADAPTER_STATUS_DATA
     ? `<div style="font-size:10px;color:#999;margin-top:4px">synced from data/adapter_status.json${ADAPTER_STATUS_GENERATED_AT ? ` · generated ${ADAPTER_STATUS_GENERATED_AT.slice(0,16).replace('T',' ')}` : ''}</div>`
     : '';
+  // v3.55: MEV-protection (Flashbots Protect) status badge. Null feed (older
+  // backend without the field) → render nothing for backward compatibility.
+  const mevBadge = (() => {
+    const m = ADAPTER_STATUS_MEV;
+    if (!m) return '';
+    const mode = m.flashbots_mode || 'fast';
+    if (m.enabled) {
+      const col = '#16a34a';
+      const txt = `MEV Protection: ON · ${m.endpoint || '—'} (${mode})`;
+      return `<div style="margin-top:6px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span></div>`;
+    }
+    const col = '#f59e0b';
+    const txt = `MEV Protection: OFF (public mempool)${m.endpoint ? ` · would use ${m.endpoint} (${mode}) when enabled` : ''}`;
+    return `<div style="margin-top:6px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span></div>`;
+  })();
   el.innerHTML = `<table class="pendle-table"><thead><tr>
     <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>APY</th><th>APY Source</th><th>Write State</th>
   </tr></thead><tbody>
@@ -4095,7 +4161,7 @@ function renderAdapterStatus() {
       <td>${srcBadge(a)}</td>
       <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
     </tr>`).join('')}
-  </tbody></table>${syncedNote}`;
+  </tbody></table>${mevBadge}${syncedNote}`;
 }
 
 function renderGoLiveReport(data) {
