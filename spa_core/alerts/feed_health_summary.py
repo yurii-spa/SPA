@@ -1,7 +1,7 @@
 """
 SPA-V347 — Aggregated APY-feed / covariance health summary.
 
-Consolidates the SEVEN independent feed/covariance health signals tracked by
+Consolidates the NINE independent feed/covariance health signals tracked by
 ``spa_core/alerts/risk_monitor.py`` into ONE dashboard-ready status document
 (``data/feed_health_summary.json``).
 
@@ -16,6 +16,7 @@ consecutive-degradation streak counter:
   6. apy_feed_schema_health_state.json         — alert_apy_feed_schema_drift  (>=1)
   7. apy_feed_protocol_stale_health_state.json — alert_apy_feed_protocol_stale(>=1)
   8. apy_feed_bounds_health_state.json         — alert_apy_feed_value_bounds  (>=1)
+  9. apy_feed_monotonicity_health_state.json   — alert_apy_feed_date_monotonicity (>=1)
 
 This module reads those state files (graceful on miss/corrupt), classifies each
 signal as ok / warn / degraded / unknown against the monitor's OWN alert
@@ -63,6 +64,8 @@ SIGNALS: Tuple[Tuple[str, str, str, str, int], ...] = (
      "Per-protocol staleness", "consecutive_stale", 1),
     ("value_bounds", "apy_feed_bounds_health_state.json",
      "Value bounds", "consecutive_bounds", 1),
+    ("date_monotonicity", "apy_feed_monotonicity_health_state.json",
+     "Date monotonicity", "consecutive_mono", 1),
 )
 
 # Default data dir: <repo>/data (spa_core/alerts/ -> parents[2] == repo root).
