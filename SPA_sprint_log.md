@@ -4,6 +4,40 @@
 
 ---
 
+## Sprint v3.52 — 2026-05-30 — Wire MEV protection into adapter live-send paths (SPA-V352 / SPA-BL-010)
+
+**Цель:** Закрыть классический built-but-not-wired gap. `spa_core/execution/mev_protection.py` (v3.26) полностью реализовал Flashbots Protect RPC — `send_protected`, `send_raw_transaction_auto`, fallback-цепочку `[flashbots/fast, flashbots/standard, mevblocker/noreverts]`, `wait_for_receipt` — а его docstring прямо называл `send_raw_transaction_auto` «the drop-in replacement for `eth_signer.send_raw_transaction` in all adapters' live execution paths». **Но ни один адаптер его не вызывал.** Все 6 broadcast-адаптеров слали транзакции напрямую через `eth_signer.send_raw_transaction`, т.е. MEV-защита (приватный mempool, защита от sandwich/frontrun) была мёртвым кодом в реальном пути исполнения. Это реализация HIGH-карточки `SPA-BL-010`, которую архитектор v3.51 назвал единственным разблокированным код-спринтом.
+
+**Дополнительный латентный баг:** T2-адаптеры (yearn/maple/sky/euler) делали `receipt = send_raw_transaction(signed.hex(), rpc)` и затем `receipt.get("status") == "0x0"` — но `eth_signer.send_raw_transaction` возвращает **строку** (tx hash), а не dict → `.get` на строке = `AttributeError` в live-режиме (ловился `except` → возвращал FAILED). Адаптеры были написаны под dict-контракт `send_raw_transaction_auto`, но подключены к str-возвращающей функции. SPA-V352 чинит и это.
+
+### Что сделано (SPA-V352-001)
+- **`spa_core/execution/mev_protection.py`:**
+  - `send_raw_transaction_auto` — public-ветка нормализована: сырой tx-hash (строка от `eth_signer.send_raw_transaction`) оборачивается в консистентный receipt-like dict `{status:"PENDING", tx_hash, endpoint, protection:"none", block_number:None}`; dict-результат (мок/будущее) проходит насквозь. Теперь функция возвращает **один и тот же dict-контракт** независимо от маршрутизации (Flashbots или public).
+  - Добавлен `broadcast_protected_hash(signed_tx_hex, timeout=30) -> str` — тонкий helper для hash-потребителей (Aave/Compound `_send_raw_tx`): маршрутит через `send_protected` БЕЗ публичного fallback (caller сам решает), возвращает tx hash, `RuntimeError` при отказе всех protected-эндпоинтов.
+  - docstring обновлён (v3.52-нота).
+- **T2-адаптеры (`adapters/yearn_v3`, `maple`, `sky_susds`, `euler_v2`), по 2 call-site каждый = 8 сайтов:** local-import переключён с `eth_signer.send_raw_transaction` на `from spa_core.execution.mev_protection import send_raw_transaction_auto`; `receipt = send_raw_transaction_auto(signed.hex(), rpc)`; проверка падения расширена `receipt.get("status") in ("0x0", "FAILED")` (ловит и revert-receipt, и FAILED-broadcast от Flashbots).
+- **T1-адаптеры (`aave_v3`, `compound_v3`) — единый chokepoint `_send_raw_tx`:** при `mev_protection.is_mev_protection_enabled()` **И** `SPA_EXECUTION_MODE == "live"` сначала пробует `mev_protection.send_protected(signed_hex, fallback_rpc=None)` и возвращает его `tx_hash`; при FAILED/исключении — `log.warning` и graceful fallback на существующий публичный `self._rpc_first("eth_sendRawTransaction", …)`. Весь MEV-блок в `try/except` (никогда не блокирует публичный путь). Сохраняет str-hash-контракт + последующий receipt-polling нетронутыми.
+- **Гейтинг:** при `SPA_MEV_PROTECTION != true` ИЛИ `mode != live` поведение **байт-в-байт прежнее** — публичный путь. dry_run-короткозамыкание адаптеров (mock-ветка до live-исполнения) не тронуто.
+
+### Файлы
+Новые:
+- `spa_core/tests/test_mev_wiring.py` (source-guards на все 6 адаптеров + нормализация dict-контракта `send_raw_transaction_auto` + `broadcast_protected_hash` + behavioural T1 `_send_raw_tx` routing: off/on-live/fallback/not-live)
+
+Обновлены:
+- `spa_core/execution/mev_protection.py` (нормализация `send_raw_transaction_auto` + `broadcast_protected_hash` + docstring)
+- `spa_core/execution/adapters/yearn_v3_adapter.py`, `maple_adapter.py`, `sky_susds_adapter.py`, `euler_v2_adapter.py` (broadcast → `send_raw_transaction_auto`, FAILED-check)
+- `spa_core/execution/aave_v3_adapter.py`, `compound_v3_adapter.py` (`_send_raw_tx` MEV-routed + public fallback)
+
+### Результаты тестов
+- `test_mev_wiring.py` + `test_mev_protection.py` — **58 PASS / 0 FAIL** (offline, mock Flashbots).
+- Регрессия адаптеров (`test_yearn_v3_adapter` + `test_maple_adapter` + `test_euler_v2_adapter` + `test_sky_susds_adapter` + `test_aave_v3_adapter` + `test_compound_v3_adapter` + `test_adapter_status` + `test_eth_signer`) — **254 PASS / 2 FAIL**. Оба фейла — пред-существующие baseline: `test_eth_signer.py::TestEncodeFunctionCall::test_approve_selector` и `::test_unsupported_type_raises` (баг `selector_hex.lstrip("0x")` в `encode_function_call`, который для селектора с ведущим `0`/`x` срезает лишние символы; код `encode_function_call` НЕ менялся этим спринтом → вне scope).
+- `py_compile` всех 7 изменённых файлов — OK. `KANBAN.json` валиден (`json.load`). Бэкапы `KANBAN.json.bak.v352` / `SPA_sprint_log.md.bak.v352` созданы. Done-карта `SPA-V352-001` добавлена первой в `columns.done`; `SPA-BL-010` помечен done.
+
+### Следующий спринт
+**SPA-V353:** опционально починить пред-существующий baseline-фейл `eth_signer.encode_function_call` (`selector_hex.lstrip("0x")` → корректный strip префикса `0x`, напр. `selector_hex[2:] if selector_hex.startswith("0x") else selector_hex`) — единственный незакрытый baseline-фейл в execution-домене, малый и self-contained. Альтернатива — отрендерить MEV-protection-статус (вкл/выкл, endpoint) в `adapter_status.json` + дашборд (зеркалит v3.35 live-APY enrichment), ЛИБО реальный end-to-end прогон pg-миграции против тестового PostgreSQL. NB: следующий разблокированный go-live путь по-прежнему упирается в user-action секреты (SPA-BL-012).
+
+---
+
 ## Sprint v3.48 — 2026-05-30 — Fix baseline parse failure: morpho-blue prefix (SPA-V348)
 
 **Цель:** Закрыть давний baseline-фейл `spa_core/tests/test_engine_bridge.py::TestParseProtocolKey::test_malformed_returns_none[morpho-blue-usdc-base]`, таскавшийся «вне scope» ~20 спринтов. `_parse_protocol_key("morpho-blue-usdc-base")` возвращал семантически неверное `{family:'morpho', asset:'BLUE-USDC', chain:'base'}` (`'blue'` съедался в asset), а тест ждал `None` с пометкой «# unknown family». Но `morpho-blue` НЕ unknown: `yield_classifier_agent.py` и `audit_reader_agent.py` УЖЕ маппят `morpho-blue` → family `morpho`; `engine_bridge` был единственным несогласованным местом. Правильное поведение: `morpho-blue-usdc-base` → `{family:'morpho', asset:'USDC', chain:'base'}`. Прецедент — SPA-V328 (когда `pendle-pt` стал поддерживаемым префиксом и obsolete-кейс убрали из malformed-списка).
@@ -1947,5 +1981,35 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 
 ### Следующий спринт
 - **SPA-V351:** кросс-сигнальная корреляция feed-health (несколько сигналов degraded одновременно = СИСТЕМНЫЙ сбой источника, эскалация severity, а не точечный алерт) — единственная нетривиальная оставшаяся идея в feed-health домене. **РЕКОМЕНДАЦИЯ ОРКЕСТРАТОРА:** feed-health домен насыщен (9 мониторов v3.40→v3.50); приоритизировать `SPA-V330`-style **architect review + KANBAN housekeeping** — пересмотреть, не пора ли переключиться с monitor-treadmill на FEAT-001/002 (Phase 3/4 live execution) или закрытие user-action backlog (RPC/Telegram/Safe secrets).
+
+---
+
+## Sprint v3.51 — 2026-05-30 — Architect review + KANBAN housekeeping (SPA-V330-style)
+
+### Триггер
+- v3.50 закончился на «0» → периодический architect review (каждые 5 спринтов). Рекомендация самого оркестратора из лога v3.50: feed-health домен насыщен, переключиться с monitor-treadmill на SPA-V330-style housekeeping.
+
+### Что сделано
+- **Architect review выполнен оркестратором напрямую.** `spa_core/dev_agents/architect.py` — LLM-обёртка над Claude API (`import anthropic`, `ANTHROPIC_API_KEY`, модель `claude-sonnet-4-6`); в автономной песочнице падает с `ModuleNotFoundError: No module named 'anthropic'`. Оркестратор сам является Claude-инстансом архитекторского уровня → review проведён напрямую в формате `review_backlog()` (next sprint / defer / risks). Полный отчёт: `DISPATCH_REPORT_2026-05-30_v351_architect.md`.
+- **Ключевой вывод:** feed-health домен НАСЫЩЕН — 9 near-duplicate мониторов за v3.40→v3.50 (stale / protocol-drop / tvl-drop / per-protocol-anomaly / schema-drift / protocol-stale / aggregated-summary / value-bounds / date-monotonicity). Дальнейшие мониторы — убывающая ценность. Весь HIGH-приоритетный backlog заблокирован на **user_action** — это и есть критический путь к go-live (2026-07-15, ~7 недель). Monitor-treadmill возник потому, что feed-мониторы были единственной разблокированной код-работой.
+- **KANBAN housekeeping:**
+  - `IDEA-001` (Mac Mini Local Server) → `superseded` (дубликат `BL-001`).
+  - **+SPA-BL-010** MEV Protection / Flashbots Protect RPC в `eth_signer.py` (HIGH) — следующий разблокированный код-спринт, замещает «монитор #10».
+  - **+SPA-BL-011** GOVERNANCE: feed-health домен заморожен (HIGH, 0h) — монитор #10 только под НОВЫЙ класс отказа, не вариацию. Кросс-сигнальная корреляция дублирует v3.47 `feed_health_summary` → не считается новым классом.
+  - **+SPA-BL-012** CRITICAL PATH: go-live user-action трекер (BL-004/005/006, SPA-BL-007/008/009).
+  - Подтверждено `done`: V327 (live APY feed), V328 (Pendle-PT), V331 (pg-migration-prep, v3.41), V332 (go-live dashboard, v3.33–3.35) — во избежание повторного взятия.
+- **Status pass НЕ применялся** — housekeeping = реальная работа (3 файла, 3 новых карточки, 1 dedup).
+
+### Файлы
+- `KANBAN.json` (modified — метаданные v3.51, dedup IDEA-001, +SPA-BL-010/011/012, +done SPA-V351-001)
+- `SPA_sprint_log.md` (modified — эта запись)
+- `DISPATCH_REPORT_2026-05-30_v351_architect.md` (new — architect review)
+- Бэкапы `.bak.v351` (KANBAN.json, SPA_sprint_log.md)
+
+### Результаты
+- KANBAN.json валиден (json round-trip OK). Код не изменялся → регрессия не затронута.
+
+### Следующий спринт
+- **SPA-V352 = SPA-BL-010 MEV Protection (Flashbots Protect RPC)** — единственный разблокированный HIGH код-спринт. Альтернатива: при появлении user-action секретов — переключиться на FEAT-001 Phase 3 live execution. Feed-health монитор #10 ЗАПРЕЩЁН (SPA-BL-011) без нового класса отказа.
 
 ---
