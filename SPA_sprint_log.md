@@ -4,6 +4,47 @@
 
 ---
 
+## Sprint v3.46 — 2026-05-30 — APY-feed per-protocol staleness monitoring + alerting (SPA-V346)
+
+**Цель:** Поймать ситуацию, когда КОНКРЕТНЫЙ протокол в `data/historical_apy.json` перестал обновляться (последняя запись его истории старше порога), хотя фид в ЦЕЛОМ выглядит свежим — `generated_at` двигается, потому что ОСТАЛЬНЫЕ протоколы обновляются. Это вторая альтернатива из dispatch-ноты V344 (первую — schema-drift валидацию — закрыл V345).
+
+**Контекст / слепое пятно:** Ни один существующий APY-feed монитор этого не ловит:
+- `alert_apy_feed_stale` (V340) смотрит на **feed-level** `generated_at` — один залипший протокол его не сдвигает, если другие обновляются;
+- `alert_apy_feed_protocol_anomaly` (V344) смотрит на **крах ЗНАЧЕНИЙ** apy/tvl и dropout — протокол с замороженными значениями, который просто перестал получать свежие даты (никуда не исчезает, значения не падают), не триггерит ни один из его сигналов.
+
+Залипший протокол тихо скармливает устаревшую точку в covariance / dynamic-Kelly вселенную именно этой позиции, пока все агрегатные и value-based алерты молчат.
+
+### Что сделано (SPA-V346-001)
+- **`spa_core/alerts/risk_monitor.py`:**
+  - Константа `APY_FEED_PROTOCOL_MAX_AGE_HOURS = 48.0` (последняя запись истории протокола старше = протокол тихо залип; >2 суток при суточной гранулярности) после `APY_FEED_SCHEMA_MIN_PROTOCOLS`.
+  - `self._apy_feed_protocol_stale_health_file = self.data_dir / "apy_feed_protocol_stale_health_state.json"` в `__init__` после `_apy_feed_schema_health_file`.
+  - Новый публичный метод `RiskMonitor.alert_apy_feed_protocol_stale(feed_path=None, *, snapshot=None, now=None, sender=None) -> bool` сразу после schema-drift helpers — зеркалит anomaly/drop 1-в-1: top-level `try/except → return False` (НИКОГДА не raise), lazy `TelegramSender`, persistent state, streak-логика.
+  - **КЛЮЧЕВОЕ ПРОЕКТНОЕ РЕШЕНИЕ:** фид имеет **суточную** гранулярность дат (`date=YYYY-MM-DD`), а пайплайн идёт каждые 4ч (6 циклов/сутки) → внутри суток дата каждого протокола легитимно НЕ меняется между циклами. Поэтому staleness меряется по **возрасту записи в часах** (`now - last_record_date`), а НЕ по равенству дат между циклами — здоровый суточный фид никогда не ложно-срабатывает.
+  - **Резолв snapshot:** `dict[protocol → last_record_date_raw]` из ПОСЛЕДНЕЙ записи истории каждого протокола (из фида: ключ `protocols` ИЛИ `protocol_history`, поле `date`|`ts`|`timestamp`). Парсер `_parse_dt`: epoch seconds (int/float), ISO (с заменой `Z`→`+00:00`), bare `YYYY-MM-DD`→полночь UTC, naive→UTC, ошибка→None. `now`: None→`datetime.now(utc)`, naive→utc.
+  - **degraded** если: `unreadable` (snapshot None) ИЛИ любой протокол с `age > 48h` ИЛИ непарсимой/None датой (freshness неверифицируема → считаем stale).
+  - **Streak-порог = 1:** healthy → `consecutive_stale=0` / `last_alerted_cycle=0` / `last_stale_keys=[]` / return False; stale → инкремент, `should_alert=(n>=1 AND n!=last_alerted)`, рефайр на каждом растущем цикле; `last_alerted_cycle=n` только ПОСЛЕ успешной отправки (failed/raised send НЕ двигает `last_alerted` → ретрай на следующем цикле). HTML msg `⚠️ <b>SPA APY Feed Protocol Stale</b>` со списком stale-протоколов (key + возраст в часах ИЛИ «no parseable date», лимит 5) + нота про устаревший covariance/Kelly-вход. Helpers `_load/_write_apy_feed_protocol_stale_health_state` graceful на miss/corrupt.
+- **`spa_core/export_data.py`:** зеркальный try/except-блок «APY feed per-protocol staleness alert» сразу ПОСЛЕ блока «APY feed schema drift alert» в конце `run_export`: `RiskMonitor(data_dir=OUTPUT_DIR).alert_apy_feed_protocol_stale(feed_path=OUTPUT_DIR / "historical_apy.json", sender=TelegramSender())`, обёрнут в `try/except → log.error`. Существующие секции НЕ тронуты.
+- **Тесты `spa_core/tests/test_apy_feed_protocol_stale_monitor.py`** (новый, offline, `FakeSender`/`BadSender`, `tmp_path`): all-fresh→no alert; суточная гранулярность (та же дата, age<порог)→НЕ stale (false-positive guard); ровно на пороге (strict `>`)→no alert; один протокол 3д stale→fire на первом цикле + msg содержит «Protocol Stale» и имя протокола; рефайр на следующем stale-цикле (streak вырос); recovery→reset streak; несколько stale-протоколов перечислены; непарсимая дата→stale; date=None→stale; epoch seconds поддержан; unreadable (snapshot None)→alert; naive now→UTC; чтение из feed-файла (`protocols` и `protocol_history`); полностью свежий feed→no alert; отсутствующий/битый feed→unreadable alert без исключения; persistence через re-instantiate; corrupt state→recover; bad-sender (raise)→swallow→False + last_alerted НЕ двинут; failed send (ok=False)→ретрай на следующем цикле.
+
+### Файлы
+Новые:
+- `spa_core/tests/test_apy_feed_protocol_stale_monitor.py` (21 тест)
+
+Обновлены:
+- `spa_core/alerts/risk_monitor.py` (`APY_FEED_PROTOCOL_MAX_AGE_HOURS`, `_apy_feed_protocol_stale_health_file`, `alert_apy_feed_protocol_stale` + load/write helpers)
+- `spa_core/export_data.py` (блок APY feed per-protocol staleness alert после schema drift alert)
+
+### Результаты тестов
+- `test_apy_feed_protocol_stale_monitor.py` — **21 PASS / 0 FAIL** (offline, `pytest`, Python 3.10).
+- Регрессия мониторинга (`anomaly` + `protocol_drop` + `tvl_drop` + `stale` + `schema_drift` + `covariance_health` + `alerts`) — **163 PASS / 0 FAIL**, без новых фейлов.
+- `py_compile` `risk_monitor.py` + `export_data.py` — ok. `KANBAN.json` валиден (`json.load`).
+- Бэкапы `KANBAN.json.bak.v346` / `SPA_sprint_log.md.bak.v346` созданы. Done-карта `SPA-V346-001` добавлена в `columns.done`.
+
+### Следующий спринт
+**SPA-V347:** агрегированный «APY feed health» summary-индикатор в дашборде — свести staleness + protocol-count drop + tvl drop + per-protocol anomaly + schema drift + per-protocol staleness в один статус-бейдж. Альтернатива — реальный end-to-end прогон pg-миграции против тестового PostgreSQL-инстанса (за `SPA_PG_MIGRATION_EXECUTE=1`, `dry_run=False`) с psycopg2.
+
+---
+
 ## Sprint v3.41 — 2026-05-30 — PostgreSQL migration execution path (gated, dry-run default) (SPA-V341)
 
 **Цель:** Превратить `spa_core/persistence/pg_migration.py` из plan-only (V331) в модуль с РЕАЛЬНЫМ, но строго gated путём исполнения миграции SQLite → PostgreSQL. Сохранён слоистый safety-паттерн адаптеров (BLOCKED по умолчанию), добавлены ещё два защитных слоя поверх существующего gate.
@@ -1707,3 +1748,24 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 
 ### Следующий спринт
 - **SPA-V345:** валидация schema-drift фида `historical_apy.json` (изменение формы/ключей записей, смена типов `apy`/`tvl_usd`, неожиданные поля), ЛИБО per-protocol stale-детектор (конкретный протокол перестал обновляться — `generated_at` фида свежий, но последняя дата истории одного протокола залипла на N циклов).
+
+## Sprint v3.45 — 2026-05-30 — APY-feed schema-drift validation
+
+**Что сделано**
+
+Добавлен монитор-метод `alert_apy_feed_schema_drift` в `risk_monitor.py`, который валидирует СТРУКТУРУ/КЛЮЧИ/ТИПЫ записей historical_apy.json. Для каждого протокола берётся ПОСЛЕДНЯЯ запись истории и проверяется схема: history должна быть list, запись — dict, обязательные поля `apy`/`tvl_usd` присутствуют и являются числом (int/float или числовая строка; bool/None/нечисловая строка = drift). Неожиданные ключи фиксируются для контекста, но не фатальны. Это слепое пятно, которое НЕ видят stale/protocol-drop/tvl-drop/per-protocol-anomaly алерты — все они уже предполагают корректную схему и молча пропускают или мис-парсят битые записи.
+
+**Сигналы drift**: `unreadable` (нет файла/битый/нет пригодных протоколов), `too_few` (< APY_FEED_SCHEMA_MIN_PROTOCOLS=1), `schema_bad` (доля протоколов с битой схемой >= APY_FEED_SCHEMA_MAX_BAD_PCT=50%).
+
+**Порог**: срабатывает на первом drift-цикле (threshold 1), refire на каждом следующем drift-цикле; healthy сбрасывает streak; состояние `apy_feed_schema_health_state.json` всегда обновляется после оценки.
+
+**Файлы:**
+- `spa_core/alerts/risk_monitor.py` — метод `alert_apy_feed_schema_drift` + helpers `_load_/_write_apy_feed_schema_health_state`, константы `APY_FEED_REQUIRED_FIELDS` / `APY_FEED_SCHEMA_MAX_BAD_PCT` / `APY_FEED_SCHEMA_MIN_PROTOCOLS` / `APY_FEED_KNOWN_FIELDS`, поле `_apy_feed_schema_health_file`
+- `spa_core/export_data.py` — wiring (блок `APY feed schema drift alert` после per-protocol anomaly)
+- `spa_core/tests/test_apy_feed_schema_drift_monitor.py` — 40 тестов
+
+**Результаты тестов:** новые 40 PASS, регрессия 148 PASS (anomaly+tvl+protocol-drop+stale+covariance), 0 фейлов. py_compile risk_monitor.py + export_data.py — OK.
+
+**Следующий спринт (SPA-V346)**: per-protocol stale-детектор — конкретный протокол перестал обновляться (его последний timestamp/ts заморожен) при свежем generated_at всего фида; ЛИБО sanity-bounds валидация диапазонов значений apy/tvl_usd (например apy < 0 или > 1000%, tvl_usd <= 0 или абсурдно большой) — отлов мусорных, но формально корректных по типу значений.
+
+---
