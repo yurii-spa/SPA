@@ -34,6 +34,8 @@ CASH_BUFFER_MIN_PCT        = 3.0
 COVARIANCE_DEGRADED_CYCLES_ALERT = 3   # consecutive synthetic/failed covariance cycles before alerting
 APY_FEED_MAX_AGE_HOURS      = 8.0   # historical_apy.json старше = stale (>2 цикла при 4h-каденции)
 APY_FEED_STALE_CYCLES_ALERT = 2     # подряд stale-циклов до алерта
+APY_FEED_PROTOCOL_DROP_PCT  = 0.5   # падение ≥50% числа протоколов между циклами = деградация
+APY_FEED_MIN_PROTOCOLS      = 3     # абсолютный пол: < 3 протоколов в фиде = деградация
 
 
 class RiskMonitor:
@@ -52,6 +54,7 @@ class RiskMonitor:
         self._prev_apys_file = self.data_dir / ".prev_position_apys.json"
         self._cov_health_file = self.data_dir / "covariance_health_state.json"
         self._apy_feed_health_file = self.data_dir / "apy_feed_health_state.json"
+        self._apy_feed_protocol_health_file = self.data_dir / "apy_feed_protocol_health_state.json"
 
     # ------------------------------------------------------------------
     # Public API
@@ -660,6 +663,210 @@ class RiskMonitor:
             )
         except Exception as exc:
             log.debug(f"_write_apy_feed_health_state: {exc}")
+
+    # ------------------------------------------------------------------
+    # APY-feed protocol-count drop alert
+    # ------------------------------------------------------------------
+
+    def alert_apy_feed_protocol_drop(
+        self,
+        feed_path=None,
+        *,
+        num_protocols=None,
+        now=None,
+        sender=None,
+    ) -> bool:
+        """
+        Track the number of protocols carried in historical_apy.json across
+        cycles and fire a Telegram alert when it drops sharply (e.g. DeFiLlama
+        partially failed: 7 protocols → 3) or falls below an absolute floor.
+
+        This closes a blind spot not covered by alert_apy_feed_stale (which
+        watches generated_at age / source) nor alert_covariance_degraded
+        (which watches the covariance source): the feed can stay "fresh" and
+        "live" while silently shedding protocols, quietly thinning the
+        covariance / dynamic-Kelly universe.
+
+        A cycle is considered degraded on any of:
+          • too few — ``num_protocols < APY_FEED_MIN_PROTOCOLS``;
+          • sharp drop — a previous count exists and the current count fell to
+            ``prev * (1 - APY_FEED_PROTOCOL_DROP_PCT)`` or below;
+          • unreadable — ``num_protocols`` could not be resolved (None).
+
+        State is persisted in
+        ``self.data_dir / "apy_feed_protocol_health_state.json"`` so the
+        consecutive-drop streak survives across 4h pipeline runs.
+
+        Alert rule: unlike the staleness monitor (threshold 2), a sharp
+        protocol drop is alerted immediately on the very first degraded cycle
+        (threshold 1, because a collapsing universe is more urgent), then
+        re-fires on every further consecutive degraded cycle. A healthy cycle
+        resets the streak and silences alerting. ``prev_num_protocols`` is
+        always refreshed with the current value after evaluation so the next
+        cycle compares against the latest count.
+
+        Returns:
+            True if an alert was sent on this call, False otherwise.
+            Never raises — all failures are logged and swallowed.
+        """
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+
+            # Resolve num_protocols from the feed file if not supplied directly.
+            if num_protocols is None and feed_path is not None:
+                try:
+                    doc = json.loads(
+                        Path(feed_path).read_text(encoding="utf-8")
+                    )
+                    if isinstance(doc, dict):
+                        proto = doc.get("protocols")
+                        if proto is None:
+                            proto = doc.get("protocol_history")
+                        if isinstance(proto, dict):
+                            num_protocols = len(proto)
+                except Exception as exc:
+                    log.debug(f"alert_apy_feed_protocol_drop: feed read — {exc}")
+
+            # Normalise `now` to an aware UTC datetime.
+            if now is None:
+                now = _dt.now(_tz.utc)
+            elif now.tzinfo is None:
+                now = now.replace(tzinfo=_tz.utc)
+            now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            state = self._load_apy_feed_protocol_health_state()
+            prev = state.get("prev_num_protocols")
+
+            # Degradation signals.
+            unreadable = num_protocols is None
+            too_few = (not unreadable) and num_protocols < APY_FEED_MIN_PROTOCOLS
+            sharp_drop = (
+                (not unreadable)
+                and prev is not None
+                and num_protocols <= prev * (1 - APY_FEED_PROTOCOL_DROP_PCT)
+            )
+            degraded = bool(unreadable or too_few or sharp_drop)
+
+            if not degraded:
+                # Healthy cycle — reset streak, silence alerting, refresh prev.
+                state["consecutive_drops"] = 0
+                state["last_alerted_cycle"] = 0
+                state["prev_num_protocols"] = num_protocols
+                state["updated_at"] = now_iso
+                self._write_apy_feed_protocol_health_state(state)
+                log.info(
+                    f"alert_apy_feed_protocol_drop: healthy "
+                    f"num_protocols={num_protocols!r}, streak reset"
+                )
+                return False
+
+            # Degraded cycle — grow the streak.
+            state["consecutive_drops"] = int(state.get("consecutive_drops", 0)) + 1
+            n = state["consecutive_drops"]
+            last_alerted = int(state.get("last_alerted_cycle", 0))
+            state["updated_at"] = now_iso
+
+            # Fire immediately on the first degraded cycle (threshold 1), then
+            # re-fire on every further consecutive degraded cycle.
+            should_alert = n >= 1 and n != last_alerted
+
+            # Always refresh prev_num_protocols with the current value (if known)
+            # so the NEXT cycle compares against the actual latest count.
+            if num_protocols is not None:
+                state["prev_num_protocols"] = num_protocols
+
+            if not should_alert:
+                self._write_apy_feed_protocol_health_state(state)
+                log.info(
+                    f"alert_apy_feed_protocol_drop: degraded streak={n}, no alert"
+                )
+                return False
+
+            # Build a human-readable reason string from the active signals.
+            reasons = []
+            if too_few:
+                reasons.append(
+                    f"only {num_protocols} protocols < {APY_FEED_MIN_PROTOCOLS} floor"
+                )
+            if sharp_drop:
+                reasons.append(
+                    f"sharp drop {prev} → {num_protocols} "
+                    f"(>= {int(APY_FEED_PROTOCOL_DROP_PCT * 100)}%)"
+                )
+            if unreadable:
+                reasons.append("protocol count unreadable")
+            reason_str = ", ".join(reasons) if reasons else "protocol-count drop"
+
+            cur_display = num_protocols if num_protocols is not None else "unavailable"
+            msg = (
+                f"⚠️ <b>SPA APY Feed Protocol Drop</b>\n\n"
+                f"historical_apy.json protocol count has degraded for "
+                f"{n} consecutive cycle(s).\n"
+                f"Reason: {reason_str}\n"
+                f"Protocols now: {cur_display} (was {prev if prev is not None else 'n/a'})\n"
+                f"The covariance/Kelly universe is silently thinning.\n"
+                f"Action: check DeFiLlama fetch + section 9b of export_data.py."
+            )
+
+            if sender is None:
+                try:
+                    from alerts.telegram_sender import TelegramSender
+                    sender = TelegramSender()
+                except Exception as exc:
+                    log.error(
+                        f"alert_apy_feed_protocol_drop: could not create "
+                        f"TelegramSender — {exc}"
+                    )
+                    # Persist the grown streak even if we couldn't build a sender.
+                    self._write_apy_feed_protocol_health_state(state)
+                    return False
+
+            try:
+                ok = sender.send(msg)
+            except Exception as exc:
+                log.error(f"alert_apy_feed_protocol_drop: send error — {exc}")
+                self._write_apy_feed_protocol_health_state(state)
+                return False
+
+            state["last_alerted_cycle"] = n
+            self._write_apy_feed_protocol_health_state(state)
+            log.info(
+                f"alert_apy_feed_protocol_drop: alert {'sent' if ok else 'failed'} "
+                f"(streak={n}, reason={reason_str!r})"
+            )
+            return bool(ok)
+        except Exception as exc:
+            log.error(f"alert_apy_feed_protocol_drop: unexpected error — {exc}")
+            return False
+
+    def _load_apy_feed_protocol_health_state(self) -> dict:
+        """Load the protocol-count-health state file (graceful — fresh on miss/corrupt)."""
+        fresh = {
+            "consecutive_drops": 0,
+            "prev_num_protocols": None,
+            "last_alerted_cycle": 0,
+            "updated_at": None,
+        }
+        try:
+            if self._apy_feed_protocol_health_file.exists():
+                data = json.loads(
+                    self._apy_feed_protocol_health_file.read_text(encoding="utf-8")
+                )
+                if isinstance(data, dict):
+                    fresh.update({k: data.get(k, fresh[k]) for k in fresh})
+        except Exception as exc:
+            log.debug(f"_load_apy_feed_protocol_health_state: {exc}")
+        return fresh
+
+    def _write_apy_feed_protocol_health_state(self, state: dict) -> None:
+        """Persist the protocol-count-health state file (graceful — swallows errors)."""
+        try:
+            self._apy_feed_protocol_health_file.parent.mkdir(parents=True, exist_ok=True)
+            self._apy_feed_protocol_health_file.write_text(
+                json.dumps(state, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            log.debug(f"_write_apy_feed_protocol_health_state: {exc}")
 
     # ------------------------------------------------------------------
     # APY persistence helpers
