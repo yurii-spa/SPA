@@ -80,6 +80,7 @@ LOG_MAX_ENTRIES: int = 1000
 _PROTOCOL_PREFIX_TO_FAMILY: dict[str, str] = {
     "aave-v3":     "aave_v3",
     "compound-v3": "compound_v3",
+    "morpho-blue": "morpho",        # T1 Morpho Blue — Sprint v3.48 / SPA-V348-001 (longest-prefix)
     "morpho":      "morpho",        # T1 — Sprint v3.24 / SPA-V324-002
     "yearn-v3":    "yearn_v3",      # T2 — Sprint v3.25 / SPA-V325-001
     "euler-v2":    "euler_v2",      # T2 — Sprint v3.25 / SPA-V325-002
@@ -129,7 +130,9 @@ def _parse_protocol_key(protocol_key: str) -> Optional[dict]:
     key = protocol_key.strip().lower()
 
     matched_prefix: Optional[str] = None
-    for prefix in _PROTOCOL_PREFIX_TO_FAMILY:
+    # Longest-prefix-first so multi-word prefixes (e.g. "morpho-blue") win
+    # over their shorter base ("morpho"). SPA-V348.
+    for prefix in sorted(_PROTOCOL_PREFIX_TO_FAMILY, key=len, reverse=True):
         # Match exact "<prefix>-..." form so "aave-v3-foo" matches but
         # "aave-v3" or "aave-v3foo" does not.
         if key.startswith(prefix + "-"):
