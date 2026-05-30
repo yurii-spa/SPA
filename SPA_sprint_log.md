@@ -4,6 +4,29 @@
 
 ---
 
+## Sprint v3.39 — 2026-05-30 — Covariance health monitoring + alerting (SPA-V339)
+
+**Цель:** Подключить covariance-секцию пайплайна к мониторингу/алертингу. v3.38 (SPA-V338) врезал `covariance_export` в 4h-pipeline (секция 13b пишет `data/covariance_summary.json` с `source ∈ {live, partial, synthetic_fallback}` и трекает `_section_ok`/`_section_fail`). ПРОБЛЕМА: covariance-специфичная деградация (`source == "synthetic_fallback"` несколько циклов подряд ИЛИ падение секции) была НЕВИДИМА для алертинга — `alert_pipeline_failure` срабатывает только на `sections_failed > 2` / `total_pools_fetched == 0`. Нужен covariance-specific health-трекинг + Telegram-алерт при деградации N циклов подряд.
+
+**Что сделано (SPA-V339-001):**
+- **`spa_core/alerts/risk_monitor.py`:** добавлена module-level константа `COVARIANCE_DEGRADED_CYCLES_ALERT = 3` сразу после `CASH_BUFFER_MIN_PCT`. В `__init__` добавлен путь state-файла `self._cov_health_file = self.data_dir / "covariance_health_state.json"`.
+- Новый метод `RiskMonitor.alert_covariance_degraded(cov_source, sender=None, *, section_failed=False) -> bool` размещён СРАЗУ после `alert_pipeline_failure` — зеркалит его структуру (HTML-msg с emoji + `<b>`-тегами, lazy-инстанс `TelegramSender` если `sender is None`, `sender.send(msg)` в try/except, лог, НИКОГДА не raise).
+- **Логика:** `degraded = section_failed or cov_source in (None, "", "synthetic_fallback")`; healthy source = `"live"` | `"partial"`. State грузится через `_load_covariance_health_state()` (graceful: miss/corrupt → свежий `{"consecutive_degraded":0,"last_source":None,"last_alerted_cycle":0,"updated_at":None}`, helpers в стиле `_load_prev_apys`, stdlib json).
+- **Правило алерта:** healthy → сброс `consecutive_degraded=0`, `last_alerted_cycle=0`, запись state, return False. Degraded → инкремент `consecutive_degraded`; **fire когда `consecutive_degraded >= COVARIANCE_DEGRADED_CYCLES_ALERT` AND `consecutive_degraded != last_alerted_cycle`** — т.е. один раз ровно на пороге (3-й цикл) и снова на каждом следующем цикле растущего streak (4-й, 5-й...); после отправки `last_alerted_cycle = consecutive_degraded`. Восстановление до live/partial сбрасывает streak и алертинг. Весь метод в top-level `try/except → return False`.
+- **`spa_core/export_data.py`:** в инициализацию `_health` добавлен `"covariance_source": None`. В секции 13b success-ветка пишет `_health["covariance_source"] = cov_doc.get("source")`, except-ветка `= "synthetic_fallback"`. Отдельный try/except-блок после `# ── Pipeline failure alert` (после записи pipeline_health.json): `RiskMonitor(data_dir=OUTPUT_DIR).alert_covariance_degraded(_cov_src, sender=TelegramSender(), section_failed="covariance_summary" in failed_sections)`. Import-стиль зеркалит существующий блок (`from alerts.risk_monitor import RiskMonitor`).
+- **Тесты `spa_core/tests/test_covariance_health_monitor.py`** (новый, pytest, offline, `FakeSender` записывает сообщения): healthy `live`/`partial` → no alert + streak 0; single synthetic → no alert + streak 1; threshold (3×synthetic) → fires ровно 1 раз на 3-м, msg содержит "Covariance Degraded"; 4-й synthetic → re-fire (streak вырос); recovery `live` → reset streak без алерта; `section_failed=True`+source None → degraded; corrupt state-файл → recover без исключения; persistence через re-instantiate `RiskMonitor` с тем же data_dir; bad-sender (`.send` raise) → swallow → False.
+
+**Файлы:**
+- `spa_core/alerts/risk_monitor.py` (modified: `COVARIANCE_DEGRADED_CYCLES_ALERT=3`; `_cov_health_file` в `__init__`; `alert_covariance_degraded()` + `_load_covariance_health_state()` + `_write_covariance_health_state()`)
+- `spa_core/export_data.py` (modified: `covariance_source` в `_health`; capture source в секции 13b; covariance degradation alert-блок после pipeline failure alert)
+- `spa_core/tests/test_covariance_health_monitor.py` (new: 11 тестов)
+
+**Результаты тестов:** `test_covariance_health_monitor.py` — **11 PASS**. Регрессия `test_covariance_export.py` + `test_alerts.py` — **92 PASS** (без новых фейлов). AST-parse `export_data.py` + `risk_monitor.py` — ok. `KANBAN.json` валиден (json.load). Бэкапы `.bak.v339` созданы. Известный baseline-фейл `test_engine_bridge::...morpho-blue-usdc-base` — пред-существующий, НЕ чинился, вне scope.
+
+**Следующий спринт:** SPA-V340 — исполнение плана PostgreSQL-миграции (`pg_migration.py`, plan-only с v3.31) за `SPA_PG_MIGRATION_EXECUTE=1`; ЛИБО дальнейшее улучшение covariance/monitoring (напр. трекинг возраста `data/historical_apy.json` / алерт на залипшую `generated_at` или устаревший APY-feed, чтобы ловить тихую деградацию ещё до перехода на synthetic_fallback).
+
+---
+
 ## Sprint v3.38 — 2026-05-30 — Covariance export wired into 4h pipeline (SPA-V338)
 
 **Цель:** Врезать вызов `covariance_export` в основной 4-часовой export-pipeline, чтобы `data/covariance_summary.json` авто-обновлялся каждый цикл вместе с остальными артефактами (`adapter_status.json`, `historical_apy.json`, `optimization_recommendations.json` и т.д.), а не генерировался только вручную через CLI.
