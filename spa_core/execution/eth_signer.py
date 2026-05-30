@@ -231,7 +231,8 @@ def encode_function_call(selector_hex: str, *args: Any) -> bytes:
 
     Returns raw calldata bytes (selector + ABI-encoded args).
     """
-    sel = bytes.fromhex(selector_hex.lstrip("0x"))
+    _sel_hex = selector_hex[2:] if selector_hex[:2].lower() == "0x" else selector_hex
+    sel = bytes.fromhex(_sel_hex)
     if len(sel) != 4:
         raise ValueError(f"Selector must be exactly 4 bytes; got {len(sel)}")
     parts = [sel]
