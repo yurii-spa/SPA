@@ -36,6 +36,8 @@ APY_FEED_MAX_AGE_HOURS      = 8.0   # historical_apy.json старше = stale (
 APY_FEED_STALE_CYCLES_ALERT = 2     # подряд stale-циклов до алерта
 APY_FEED_PROTOCOL_DROP_PCT  = 0.5   # падение ≥50% числа протоколов между циклами = деградация
 APY_FEED_MIN_PROTOCOLS      = 3     # абсолютный пол: < 3 протоколов в фиде = деградация
+APY_FEED_TVL_DROP_PCT       = 0.5   # падение совокупного TVL ≥50% между циклами = деградация
+APY_FEED_MIN_TVL_USD        = 1.0e7 # абсолютный пол: совокупный TVL фида < $10M = деградация
 
 
 class RiskMonitor:
@@ -55,6 +57,7 @@ class RiskMonitor:
         self._cov_health_file = self.data_dir / "covariance_health_state.json"
         self._apy_feed_health_file = self.data_dir / "apy_feed_health_state.json"
         self._apy_feed_protocol_health_file = self.data_dir / "apy_feed_protocol_health_state.json"
+        self._apy_feed_tvl_health_file = self.data_dir / "apy_feed_tvl_health_state.json"
 
     # ------------------------------------------------------------------
     # Public API
@@ -867,6 +870,227 @@ class RiskMonitor:
             )
         except Exception as exc:
             log.debug(f"_write_apy_feed_protocol_health_state: {exc}")
+
+    def alert_apy_feed_tvl_drop(
+        self,
+        feed_path=None,
+        *,
+        total_tvl_usd=None,
+        now=None,
+        sender=None,
+    ) -> bool:
+        """
+        Track the TOTAL TVL carried in historical_apy.json across cycles and
+        fire a Telegram alert when it collapses sharply (e.g. DeFiLlama returns
+        drastically lower TVL while still reporting the same number of
+        protocols) or falls below an absolute floor.
+
+        This closes a blind spot covered by neither alert_apy_feed_stale (which
+        watches generated_at age / source) nor alert_apy_feed_protocol_drop
+        (which watches the protocol *count*): the feed can stay "fresh", "live"
+        and keep the same number of protocols while their aggregate capital
+        weight quietly collapses, thinning the covariance / dynamic-Kelly
+        universe by capital weight even when protocol count is constant.
+
+        A cycle is considered degraded on any of:
+          • too low — ``total_tvl_usd < APY_FEED_MIN_TVL_USD``;
+          • sharp drop — a previous total exists and the current total fell to
+            ``prev * (1 - APY_FEED_TVL_DROP_PCT)`` or below;
+          • unreadable — ``total_tvl_usd`` could not be resolved (None).
+
+        State is persisted in
+        ``self.data_dir / "apy_feed_tvl_health_state.json"`` so the
+        consecutive-drop streak survives across 4h pipeline runs.
+
+        Alert rule: like the protocol-drop monitor (threshold 1), a sharp TVL
+        collapse is alerted immediately on the very first degraded cycle, then
+        re-fires on every further consecutive degraded cycle. A healthy cycle
+        resets the streak and silences alerting. ``prev_tvl_usd`` is always
+        refreshed with the current value after evaluation so the next cycle
+        compares against the latest total.
+
+        Returns:
+            True if an alert was sent on this call, False otherwise.
+            Never raises — all failures are logged and swallowed.
+        """
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+
+            # Resolve total_tvl_usd from the feed file if not supplied directly.
+            if total_tvl_usd is None and feed_path is not None:
+                try:
+                    doc = json.loads(
+                        Path(feed_path).read_text(encoding="utf-8")
+                    )
+                    if isinstance(doc, dict):
+                        proto = doc.get("protocols")
+                        if proto is None:
+                            proto = doc.get("protocol_history")
+                        if isinstance(proto, dict):
+                            running = 0.0
+                            seen = 0
+                            for hist in proto.values():
+                                if not isinstance(hist, list) or not hist:
+                                    continue
+                                last = hist[-1]
+                                if not isinstance(last, dict):
+                                    continue
+                                raw = last.get("tvl_usd")
+                                if raw is None:
+                                    continue
+                                try:
+                                    running += float(raw)
+                                    seen += 1
+                                except (TypeError, ValueError):
+                                    continue
+                            if seen > 0:
+                                total_tvl_usd = running
+                except Exception as exc:
+                    log.debug(f"alert_apy_feed_tvl_drop: feed read — {exc}")
+
+            # Normalise `now` to an aware UTC datetime.
+            if now is None:
+                now = _dt.now(_tz.utc)
+            elif now.tzinfo is None:
+                now = now.replace(tzinfo=_tz.utc)
+            now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            state = self._load_apy_feed_tvl_health_state()
+            prev = state.get("prev_tvl_usd")
+
+            # Degradation signals.
+            unreadable = total_tvl_usd is None
+            too_low = (not unreadable) and total_tvl_usd < APY_FEED_MIN_TVL_USD
+            sharp_drop = (
+                (not unreadable)
+                and prev is not None
+                and total_tvl_usd <= prev * (1 - APY_FEED_TVL_DROP_PCT)
+            )
+            degraded = bool(unreadable or too_low or sharp_drop)
+
+            if not degraded:
+                # Healthy cycle — reset streak, silence alerting, refresh prev.
+                state["consecutive_drops"] = 0
+                state["last_alerted_cycle"] = 0
+                state["prev_tvl_usd"] = total_tvl_usd
+                state["updated_at"] = now_iso
+                self._write_apy_feed_tvl_health_state(state)
+                log.info(
+                    f"alert_apy_feed_tvl_drop: healthy "
+                    f"total_tvl_usd={total_tvl_usd!r}, streak reset"
+                )
+                return False
+
+            # Degraded cycle — grow the streak.
+            state["consecutive_drops"] = int(state.get("consecutive_drops", 0)) + 1
+            n = state["consecutive_drops"]
+            last_alerted = int(state.get("last_alerted_cycle", 0))
+            state["updated_at"] = now_iso
+
+            # Fire immediately on the first degraded cycle (threshold 1), then
+            # re-fire on every further consecutive degraded cycle.
+            should_alert = n >= 1 and n != last_alerted
+
+            # Always refresh prev_tvl_usd with the current value (if known) so
+            # the NEXT cycle compares against the actual latest total.
+            if total_tvl_usd is not None:
+                state["prev_tvl_usd"] = total_tvl_usd
+
+            if not should_alert:
+                self._write_apy_feed_tvl_health_state(state)
+                log.info(
+                    f"alert_apy_feed_tvl_drop: degraded streak={n}, no alert"
+                )
+                return False
+
+            # Build a human-readable reason string from the active signals.
+            reasons = []
+            if too_low:
+                reasons.append(
+                    f"total TVL ${total_tvl_usd:,.0f} < ${APY_FEED_MIN_TVL_USD:,.0f} floor"
+                )
+            if sharp_drop:
+                reasons.append(
+                    f"sharp drop ${prev:,.0f} → ${total_tvl_usd:,.0f} "
+                    f"(>= {int(APY_FEED_TVL_DROP_PCT * 100)}%)"
+                )
+            if unreadable:
+                reasons.append("total TVL unreadable")
+            reason_str = ", ".join(reasons) if reasons else "total-TVL drop"
+
+            cur_display = (
+                f"${total_tvl_usd:,.0f}" if total_tvl_usd is not None else "unavailable"
+            )
+            prev_display = f"${prev:,.0f}" if prev is not None else "n/a"
+            msg = (
+                f"⚠️ <b>SPA APY Feed TVL Collapse</b>\n\n"
+                f"historical_apy.json total TVL has collapsed for "
+                f"{n} consecutive cycle(s).\n"
+                f"Reason: {reason_str}\n"
+                f"TVL now: {cur_display} (was {prev_display})\n"
+                f"The covariance/Kelly universe is thinning by capital weight.\n"
+                f"Action: check DeFiLlama fetch + section 9b of export_data.py."
+            )
+
+            if sender is None:
+                try:
+                    from alerts.telegram_sender import TelegramSender
+                    sender = TelegramSender()
+                except Exception as exc:
+                    log.error(
+                        f"alert_apy_feed_tvl_drop: could not create "
+                        f"TelegramSender — {exc}"
+                    )
+                    # Persist the grown streak even if we couldn't build a sender.
+                    self._write_apy_feed_tvl_health_state(state)
+                    return False
+
+            try:
+                ok = sender.send(msg)
+            except Exception as exc:
+                log.error(f"alert_apy_feed_tvl_drop: send error — {exc}")
+                self._write_apy_feed_tvl_health_state(state)
+                return False
+
+            state["last_alerted_cycle"] = n
+            self._write_apy_feed_tvl_health_state(state)
+            log.info(
+                f"alert_apy_feed_tvl_drop: alert {'sent' if ok else 'failed'} "
+                f"(streak={n}, reason={reason_str!r})"
+            )
+            return bool(ok)
+        except Exception as exc:
+            log.error(f"alert_apy_feed_tvl_drop: unexpected error — {exc}")
+            return False
+
+    def _load_apy_feed_tvl_health_state(self) -> dict:
+        """Load the total-TVL-health state file (graceful — fresh on miss/corrupt)."""
+        fresh = {
+            "consecutive_drops": 0,
+            "prev_tvl_usd": None,
+            "last_alerted_cycle": 0,
+            "updated_at": None,
+        }
+        try:
+            if self._apy_feed_tvl_health_file.exists():
+                data = json.loads(
+                    self._apy_feed_tvl_health_file.read_text(encoding="utf-8")
+                )
+                if isinstance(data, dict):
+                    fresh.update({k: data.get(k, fresh[k]) for k in fresh})
+        except Exception as exc:
+            log.debug(f"_load_apy_feed_tvl_health_state: {exc}")
+        return fresh
+
+    def _write_apy_feed_tvl_health_state(self, state: dict) -> None:
+        """Persist the total-TVL-health state file (graceful — swallows errors)."""
+        try:
+            self._apy_feed_tvl_health_file.parent.mkdir(parents=True, exist_ok=True)
+            self._apy_feed_tvl_health_file.write_text(
+                json.dumps(state, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            log.debug(f"_write_apy_feed_tvl_health_state: {exc}")
 
     # ------------------------------------------------------------------
     # APY persistence helpers
