@@ -385,6 +385,48 @@ class TestLiveApyEnrichment:
         assert any("live_apy" in a for a in doc["adapters"])
 
 
+# ─── MEV-protection status (Sprint v3.55 / SPA-V355) ─────────────────────────
+
+class TestMevProtectionStatus:
+    """build_status_document() surfaces the Flashbots Protect routing state."""
+
+    def test_mev_block_present(self):
+        doc = build_status_document()
+        assert "mev_protection" in doc
+        mev = doc["mev_protection"]
+        assert isinstance(mev, dict)
+        assert isinstance(mev["enabled"], bool)
+        assert "endpoint" in mev
+        assert "flashbots_mode" in mev
+        assert isinstance(mev["fallback_endpoints"], list)
+
+    def test_mev_disabled_by_default(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_MEV_PROTECTION", None)
+            assert build_status_document()["mev_protection"]["enabled"] is False
+
+    def test_mev_enabled_when_env_set(self):
+        with mock.patch.dict(os.environ, {"SPA_MEV_PROTECTION": "true"}):
+            mev = build_status_document()["mev_protection"]
+            assert mev["enabled"] is True
+            assert mev["endpoint"]  # non-empty
+
+    def test_mev_mode_fast_default(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_FLASHBOTS_MODE", None)
+            mev = build_status_document()["mev_protection"]
+            assert mev["flashbots_mode"] == "fast"
+            assert "/fast" in mev["endpoint"]
+
+    def test_mev_mode_standard(self):
+        with mock.patch.dict(os.environ, {"SPA_FLASHBOTS_MODE": "standard"}):
+            mev = build_status_document()["mev_protection"]
+            assert mev["endpoint"] == "https://rpc.flashbots.net"
+
+    def test_document_still_json_serialisable(self):
+        json.dumps(build_status_document())  # must not raise
+
+
 # ─── Resilience: broken adapter does not abort collection ────────────────────
 
 class TestResilience:
