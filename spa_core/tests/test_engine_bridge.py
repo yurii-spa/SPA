@@ -167,12 +167,31 @@ class TestParseProtocolKey:
         "aave-v3-",                      # empty tail
         "aave-v3-usdc",                  # missing chain
         "compound-v3",                   # no tail
-        "pendle-pt-steth-arbitrum",      # unknown family
-        "morpho-blue-usdc-base",         # unknown family
         "aave-v3usdc-ethereum",          # malformed (missing dash)
     ])
     def test_malformed_returns_none(self, bad):
         assert _parse_protocol_key(bad) is None
+
+    def test_pendle_pt_key_parses(self):
+        # SPA-V328: 'pendle-pt' is now a supported prefix → 'pendle_pt' family.
+        assert _parse_protocol_key("pendle-pt-usdc-ethereum") == {
+            "family": "pendle_pt", "asset": "USDC", "chain": "ethereum",
+        }
+
+    def test_morpho_blue_key_parses(self):
+        # SPA-V348: 'morpho-blue' is a supported prefix (Morpho Blue) → 'morpho'
+        # family via longest-prefix match (consistent with yield_classifier_agent
+        # and audit_reader_agent which already map morpho-blue → morpho).
+        assert _parse_protocol_key("morpho-blue-usdc-base") == {
+            "family": "morpho", "asset": "USDC", "chain": "base",
+        }
+
+    def test_morpho_plain_key_still_parses(self):
+        # Regression: adding the longer 'morpho-blue' prefix must not break the
+        # plain 'morpho-' prefix.
+        assert _parse_protocol_key("morpho-usdc-ethereum") == {
+            "family": "morpho", "asset": "USDC", "chain": "ethereum",
+        }
 
     def test_none_input(self):
         assert _parse_protocol_key(None) is None  # type: ignore[arg-type]
@@ -225,12 +244,11 @@ class TestBridgeSkipped:
         assert (tmp_path / "live_execution_log.json").exists()
 
     def test_skipped_unsupported_protocol(self, tmp_path, force_live, monkeypatch):
-        # pendle-pt-* has no live adapter — should SKIP cleanly.
+        # pendle-pt-* parses (SPA-V328), but STETH/arbitrum isn't a supported
+        # PT market, so _get_adapter rejects it → unsupported_protocol SKIP.
         bridge = _make_bridge(tmp_path)
         result = bridge.execute_withdraw("pendle-pt-steth-arbitrum", 100.0)
         assert result["status"] == "SKIPPED"
-        # pendle has no aave-v3- / compound-v3- prefix, so it parses as None →
-        # unparseable_protocol_key.
         assert result["reason"] in ("unparseable_protocol_key", "unsupported_protocol")
 
 
