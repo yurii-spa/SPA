@@ -1439,6 +1439,29 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _aps:
         log.error(f"APY feed per-protocol staleness alert dispatch failed: {_aps}")
 
+    # ── APY feed value-bounds alert (value-range sanity-bounds, SPA-V349) ──────
+    try:
+        _apy_bounds_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_bounds_monitor.alert_apy_feed_value_bounds(
+            feed_path=OUTPUT_DIR / "historical_apy.json",
+            sender=TelegramSender(),
+        )
+    except Exception as _avb:
+        log.error(f"APY feed value-bounds alert dispatch failed: {_avb}")
+
+    # ── Aggregated feed-health summary (SPA-V347) ─────────────────────────────
+    # Roll the 7 feed/covariance health signals above into ONE dashboard-ready
+    # status doc (data/feed_health_summary.json) so the UI shows one badge.
+    try:
+        from alerts.feed_health_summary import write_feed_health_summary
+
+        write_feed_health_summary(
+            str(OUTPUT_DIR / "feed_health_summary.json"),
+            data_dir=OUTPUT_DIR,
+        )
+    except Exception as _fhs:
+        log.error(f"Feed-health summary aggregation failed: {_fhs}")
+
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
 
