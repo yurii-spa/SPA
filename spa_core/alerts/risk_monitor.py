@@ -49,6 +49,20 @@ APY_FEED_KNOWN_FIELDS = (
     "apy", "tvl_usd", "timestamp", "ts", "date", "block",
     "chain", "symbol", "pool", "project",
 )
+# SPA-V349: APY-feed VALUE-RANGE sanity-bounds. Все health-мониторы выше проверяют
+# свежесть/счётчики/дельты/структуру/ТИПЫ — но НИ ОДИН не проверяет, что ЗНАЧЕНИЯ
+# попадают в адекватный ДИАПАЗОН. Мусор-но-валидный-по-типу (apy=50000%, apy<0,
+# tvl_usd<=0, абсурдно большой tvl) проходит все проверки, но отравляет
+# covariance/Kelly-вселенную. Конвенция единиц apy: фид DeFiLlama хранит apy как
+# ПРОЦЕНТНОЕ ЧИСЛО (6.3057 = 6.3057%, см. execution/defillama_apy_feed.py
+# get_live_apy "Return live APY (%)" и data/historical_apy.json), поэтому верхняя
+# граница задана как 1000.0 (== 1000%). tvl_usd — сырые доллары.
+APY_FEED_APY_MIN = 0.0          # apy < 0 невалиден
+APY_FEED_APY_MAX = 1000.0       # 1000% как процентное число (apy хранится как percent, не доля)
+APY_FEED_TVL_MIN = 0.0          # tvl_usd должен быть > 0 (<= 0 невалиден)
+APY_FEED_TVL_MAX = 1.0e13       # 10 трлн USD — абсурдный верхний sanity-cap
+APY_FEED_BOUNDS_MAX_BAD_PCT = 0.5   # доля протоколов вне границ ≥50% = алерт
+APY_FEED_BOUNDS_MIN_PROTOCOLS = 1   # абсолютный пол: < 1 пригодного числового протокола
 
 
 class RiskMonitor:
@@ -72,6 +86,7 @@ class RiskMonitor:
         self._apy_feed_anomaly_health_file = self.data_dir / "apy_feed_anomaly_health_state.json"
         self._apy_feed_schema_health_file = self.data_dir / "apy_feed_schema_health_state.json"
         self._apy_feed_protocol_stale_health_file = self.data_dir / "apy_feed_protocol_stale_health_state.json"
+        self._apy_feed_bounds_health_file = self.data_dir / "apy_feed_bounds_health_state.json"
 
     # ------------------------------------------------------------------
     # Public API
@@ -1669,6 +1684,286 @@ class RiskMonitor:
             )
         except Exception as exc:
             log.debug(f"_write_apy_feed_schema_health_state: {exc}")
+
+    # ------------------------------------------------------------------
+    # APY-feed VALUE-RANGE sanity-bounds alert (SPA-V349)
+    # ------------------------------------------------------------------
+
+    def alert_apy_feed_value_bounds(
+        self,
+        feed_path=None,
+        *,
+        records=None,
+        now=None,
+        sender=None,
+    ) -> bool:
+        """
+        Validate that the numeric VALUES in historical_apy.json fall in sane
+        RANGES and fire a Telegram alert when too many protocols carry
+        out-of-bounds numbers — e.g. ``apy = 50000`` (50000%), ``apy < 0``,
+        ``tvl_usd <= 0``, or an absurdly large ``tvl_usd`` (> $10T).
+
+        This closes a blind spot covered by NONE of the existing APY-feed
+        monitors (stale / protocol-drop / tvl-drop / per-protocol anomaly /
+        schema-drift / protocol-stale): every one of those checks freshness,
+        counts, deltas, structure, or TYPES — but a garbage-but-type-valid
+        number passes all of them, yet poisons the covariance / dynamic-Kelly
+        universe just the same.
+
+        ``records`` (alias for a ready-made ``dict[str, list[record]]`` mapping
+        protocol -> history) lets tests bypass file reads, mirroring the
+        schema-drift monitor.
+
+        For each protocol the LAST history record is inspected. ``apy`` and
+        ``tvl_usd`` are coerced via ``float()``. A protocol is "out_of_bounds"
+        when, for its last record:
+          • ``apy < APY_FEED_APY_MIN`` (apy below 0), or
+          • ``apy > APY_FEED_APY_MAX`` (apy above 1000%), or
+          • ``tvl_usd <= APY_FEED_TVL_MIN`` (tvl not strictly positive), or
+          • ``tvl_usd > APY_FEED_TVL_MAX`` (tvl above the $10T sanity cap).
+
+        Records whose ``apy`` / ``tvl_usd`` can NOT be parsed as numbers are
+        NOT this monitor's concern — schema-drift owns those — so they are
+        SKIPPED from the bounds denominator entirely (mirroring how schema
+        handles non-applicable cases).
+
+        A cycle is considered bad on any of:
+          • unreadable — file missing / corrupt / no usable numeric protocols;
+          • too_few — fewer than ``APY_FEED_BOUNDS_MIN_PROTOCOLS`` usable
+            numeric protocols;
+          • bounds_bad — the fraction of usable protocols that are
+            out_of_bounds is ``>= APY_FEED_BOUNDS_MAX_BAD_PCT``.
+
+        State is persisted in
+        ``self.data_dir / "apy_feed_bounds_health_state.json"`` so the
+        consecutive-bad streak survives across 4h pipeline runs.
+
+        Alert rule (threshold 1, like schema-drift): fire immediately on the
+        first bad cycle, then re-fire on every further consecutive bad cycle. A
+        healthy cycle resets the streak and silences alerting. State is always
+        updated after evaluation.
+
+        Returns:
+            True if an alert was sent on this call, False otherwise.
+            Never raises — all failures are logged and swallowed.
+        """
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+
+            # Resolve the protocol -> history mapping from the feed file if not
+            # supplied directly.
+            proto = None
+            if records is not None and isinstance(records, dict):
+                proto = records
+            elif feed_path is not None:
+                try:
+                    doc = json.loads(
+                        Path(feed_path).read_text(encoding="utf-8")
+                    )
+                    if isinstance(doc, dict):
+                        proto = doc.get("protocols")
+                        if proto is None:
+                            proto = doc.get("protocol_history")
+                except Exception as exc:
+                    log.debug(f"alert_apy_feed_value_bounds: feed read — {exc}")
+
+            # Normalise `now` to an aware UTC datetime.
+            if now is None:
+                now = _dt.now(_tz.utc)
+            elif now.tzinfo is None:
+                now = now.replace(tzinfo=_tz.utc)
+            now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            state = self._load_apy_feed_bounds_health_state()
+
+            # ----------------------------------------------------------------
+            # Coerce + range-check every protocol's LAST history record.
+            # ----------------------------------------------------------------
+            def _coerce_float(v):
+                # Return a real float for int/float/numeric-string; else None.
+                # bool is intentionally accepted by float() but schema-drift
+                # owns type policing, so we mirror float() semantics here.
+                if isinstance(v, bool):
+                    return None
+                if isinstance(v, (int, float)):
+                    return float(v)
+                if isinstance(v, str):
+                    try:
+                        return float(v.strip())
+                    except (TypeError, ValueError):
+                        return None
+                return None
+
+            bad_keys: list[str] = []          # protocols out of bounds
+            bad_reasons: dict[str, str] = {}  # protocol -> short reason+value
+            total_usable = 0                  # protocols with usable numeric apy+tvl
+
+            if isinstance(proto, dict):
+                for key, hist in proto.items():
+                    if not isinstance(hist, list) or not hist:
+                        # Non-list / empty history → schema-drift's concern; skip.
+                        continue
+                    last = hist[-1]
+                    if not isinstance(last, dict):
+                        continue
+                    apy = _coerce_float(last.get("apy"))
+                    tvl = _coerce_float(last.get("tvl_usd"))
+                    if apy is None or tvl is None:
+                        # Non-numeric / missing → schema-drift owns it; skip
+                        # from the bounds denominator.
+                        continue
+                    total_usable += 1
+                    reasons: list[str] = []
+                    if apy < APY_FEED_APY_MIN:
+                        reasons.append(f"apy {apy:g} < {APY_FEED_APY_MIN:g}")
+                    elif apy > APY_FEED_APY_MAX:
+                        reasons.append(f"apy {apy:g} > {APY_FEED_APY_MAX:g}")
+                    if tvl <= APY_FEED_TVL_MIN:
+                        reasons.append(f"tvl_usd {tvl:g} <= {APY_FEED_TVL_MIN:g}")
+                    elif tvl > APY_FEED_TVL_MAX:
+                        reasons.append(f"tvl_usd {tvl:g} > {APY_FEED_TVL_MAX:g}")
+                    if reasons:
+                        bad_keys.append(key)
+                        bad_reasons[key] = "; ".join(reasons)
+
+            # Bad-cycle signals.
+            unreadable = (not isinstance(proto, dict)) or total_usable == 0
+            too_few = (not unreadable) and total_usable < APY_FEED_BOUNDS_MIN_PROTOCOLS
+            bad_pct = (
+                (len(bad_keys) / total_usable) if total_usable > 0 else 0.0
+            )
+            bounds_bad = (
+                (not unreadable)
+                and len(bad_keys) > 0
+                and bad_pct >= APY_FEED_BOUNDS_MAX_BAD_PCT
+            )
+            bad = bool(unreadable or too_few or bounds_bad)
+
+            if not bad:
+                # Healthy cycle — reset streak, silence alerting.
+                state["consecutive_bounds"] = 0
+                state["last_alerted_cycle"] = 0
+                state["prev_bad_keys"] = bad_keys
+                state["updated_at"] = now_iso
+                self._write_apy_feed_bounds_health_state(state)
+                log.info(
+                    f"alert_apy_feed_value_bounds: healthy "
+                    f"({total_usable} numeric protocols, {len(bad_keys)} oob), "
+                    f"streak reset"
+                )
+                return False
+
+            # Bad cycle — grow the streak.
+            state["consecutive_bounds"] = int(state.get("consecutive_bounds", 0)) + 1
+            n = state["consecutive_bounds"]
+            last_alerted = int(state.get("last_alerted_cycle", 0))
+            state["prev_bad_keys"] = bad_keys
+            state["updated_at"] = now_iso
+
+            # Fire immediately on the first bad cycle (threshold 1), then re-fire
+            # on every further consecutive bad cycle.
+            should_alert = n >= 1 and n != last_alerted
+
+            if not should_alert:
+                self._write_apy_feed_bounds_health_state(state)
+                log.info(
+                    f"alert_apy_feed_value_bounds: bad streak={n}, no alert"
+                )
+                return False
+
+            # Build a human-readable detail string from the active signals.
+            _LIM = 6
+            lines: list[str] = []
+            if unreadable:
+                lines.append("feed unreadable / no usable numeric protocols")
+            if too_few:
+                lines.append(
+                    f"only {total_usable} usable numeric protocol(s) "
+                    f"< {APY_FEED_BOUNDS_MIN_PROTOCOLS} floor"
+                )
+            if bounds_bad:
+                parts = [
+                    f"{k} ({bad_reasons.get(k, 'out of bounds')})"
+                    for k in bad_keys[:_LIM]
+                ]
+                more = "" if len(bad_keys) <= _LIM else f" (+{len(bad_keys) - _LIM} more)"
+                lines.append(
+                    f"{len(bad_keys)}/{total_usable} protocols out-of-bounds "
+                    f"({int(bad_pct * 100)}% >= {int(APY_FEED_BOUNDS_MAX_BAD_PCT * 100)}%): "
+                    + ", ".join(parts) + more
+                )
+            detail_str = "\n".join(lines) if lines else "value out of bounds"
+
+            msg = (
+                f"⚠️ <b>SPA APY Feed Value Bounds</b>\n\n"
+                f"historical_apy.json carries out-of-range values for "
+                f"{n} consecutive cycle(s).\n"
+                f"{detail_str}\n"
+                f"Type-valid garbage numbers (apy>1000% / apy<0 / tvl_usd<=0 / "
+                f"tvl_usd>$10T) pass stale/drop/anomaly/schema checks but poison "
+                f"the covariance & Kelly universe.\n"
+                f"Action: check DeFiLlama parse + section 9b of export_data.py."
+            )
+
+            if sender is None:
+                try:
+                    from alerts.telegram_sender import TelegramSender
+                    sender = TelegramSender()
+                except Exception as exc:
+                    log.error(
+                        f"alert_apy_feed_value_bounds: could not create "
+                        f"TelegramSender — {exc}"
+                    )
+                    # Persist the grown streak even if we couldn't build a sender.
+                    self._write_apy_feed_bounds_health_state(state)
+                    return False
+
+            try:
+                ok = sender.send(msg)
+            except Exception as exc:
+                log.error(f"alert_apy_feed_value_bounds: send error — {exc}")
+                self._write_apy_feed_bounds_health_state(state)
+                return False
+
+            state["last_alerted_cycle"] = n
+            self._write_apy_feed_bounds_health_state(state)
+            log.info(
+                f"alert_apy_feed_value_bounds: alert {'sent' if ok else 'failed'} "
+                f"(streak={n}, oob={len(bad_keys)}/{total_usable})"
+            )
+            return bool(ok)
+        except Exception as exc:
+            log.error(f"alert_apy_feed_value_bounds: unexpected error — {exc}")
+            return False
+
+    def _load_apy_feed_bounds_health_state(self) -> dict:
+        """Load the value-bounds state file (graceful — fresh on miss/corrupt)."""
+        fresh = {
+            "prev_bad_keys": [],
+            "consecutive_bounds": 0,
+            "last_alerted_cycle": 0,
+            "updated_at": None,
+        }
+        try:
+            if self._apy_feed_bounds_health_file.exists():
+                data = json.loads(
+                    self._apy_feed_bounds_health_file.read_text(encoding="utf-8")
+                )
+                if isinstance(data, dict):
+                    fresh.update({k: data.get(k, fresh[k]) for k in fresh})
+        except Exception as exc:
+            log.debug(f"_load_apy_feed_bounds_health_state: {exc}")
+        return fresh
+
+    def _write_apy_feed_bounds_health_state(self, state: dict) -> None:
+        """Persist the value-bounds state file (graceful — swallows errors)."""
+        try:
+            self._apy_feed_bounds_health_file.parent.mkdir(parents=True, exist_ok=True)
+            self._apy_feed_bounds_health_file.write_text(
+                json.dumps(state, indent=2), encoding="utf-8"
+            )
+        except Exception as exc:
+            log.debug(f"_write_apy_feed_bounds_health_state: {exc}")
 
     # ------------------------------------------------------------------
     # APY-feed PER-PROTOCOL staleness alert (one protocol stops advancing)
