@@ -1033,6 +1033,34 @@ def run_export(fetch: bool = False) -> None:
             "error": str(e),
         })
 
+    # 13b. covariance_summary.json — live rolling-90d APY covariance/correlation
+    #      (FEAT-007 / SPA-V336 artifact, auto-refreshed each cycle — SPA-V338).
+    #      Bridges data/historical_apy.json (written above) → estimator store and
+    #      writes the dashboard-ready matrix doc. Wrapped graceful: never aborts.
+    try:
+        from analytics.covariance_export import write_covariance_json
+        cov_doc = write_covariance_json(
+            out_path=str(OUTPUT_DIR / "covariance_summary.json"),
+        )
+        log.info(
+            f"covariance_summary.json: source={cov_doc['source']}, "
+            f"{len(cov_doc['protocols'])} protocols"
+        )
+        _section_ok("covariance_summary")
+    except Exception as e:
+        log.error(f"covariance_summary export failed: {e}", exc_info=True)
+        _section_fail("covariance_summary")
+        write_json("covariance_summary.json", {
+            "schema_version": 1,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "window_days": 90,
+            "source": "synthetic_fallback",
+            "protocols": {},
+            "covariance_matrix": {},
+            "correlation_matrix": {},
+            "error": str(e),
+        })
+
     # 14. PDF Report
     try:
         from reports.report_scheduler import generate_latest_report
@@ -1052,7 +1080,8 @@ def run_export(fetch: bool = False) -> None:
             "trades.json", "pnl_history.json", "meta.json", "backtest_results.json",
             "historical_apy.json", "risk_alerts.json", "alerts.json",
             "strategy_v2.json", "strategy_comparison.json",
-            "optimization_recommendations.json", "golive_readiness.json",
+            "optimization_recommendations.json", "covariance_summary.json",
+            "golive_readiness.json",
         ]
         report_logger.log(
             decision_type='REPORT',
@@ -1166,7 +1195,8 @@ def run_export(fetch: bool = False) -> None:
             "error": str(e),
         })
 
-    # 18. tournament_results.json — strategy tournament (v1 vs v2 on same data)
+    # 18. tournament_results.json — strategy tournament
+    #     (v1_passive vs v2_aggressive vs v3_pendle_focused on same data)
     try:
         from backtesting.tournament import StrategyTournament
         from backtesting.data_loader import load_from_defillama_api, generate_synthetic_history
@@ -1200,7 +1230,11 @@ def run_export(fetch: bool = False) -> None:
             "winner": "v1_passive",
             "confidence": "LOW",
             "recommendation": "Tournament data unavailable.",
-            "scores": {"v1_passive": 0.0, "v2_aggressive": 0.0},
+            "scores": {
+                "v1_passive":        0.0,
+                "v2_aggressive":     0.0,
+                "v3_pendle_focused": 0.0,
+            },
             "metrics": {},
             "error": str(e),
         })
