@@ -580,9 +580,10 @@ class YearnV3Adapter:
     ) -> dict[str, Any]:
         """Sign and send two sequential transactions (approve → deposit)."""
         from spa_core.execution.eth_signer import (
-            get_nonce, estimate_gas, get_base_fee, send_raw_transaction,
+            get_nonce, estimate_gas, get_base_fee,
             sign_transaction,
         )
+        from spa_core.execution.mev_protection import send_raw_transaction_auto
         wallet = Account.from_key(private_key).address
         rpc = self._endpoints[0]
 
@@ -606,8 +607,8 @@ class YearnV3Adapter:
                     "type": 2,
                 }
                 signed = sign_transaction(private_key, tx)
-                receipt = send_raw_transaction(signed.hex(), rpc)
-                if receipt.get("status") == "0x0":
+                receipt = send_raw_transaction_auto(signed.hex(), rpc)
+                if receipt.get("status") in ("0x0", "FAILED"):
                     return {
                         "status": "FAILED",
                         "phase": "approve" if idx == 0 else phase_tag,
@@ -636,9 +637,10 @@ class YearnV3Adapter:
     ) -> dict[str, Any]:
         """Sign and send a single transaction."""
         from spa_core.execution.eth_signer import (
-            get_nonce, estimate_gas, get_base_fee, send_raw_transaction,
+            get_nonce, estimate_gas, get_base_fee,
             sign_transaction,
         )
+        from spa_core.execution.mev_protection import send_raw_transaction_auto
         wallet = Account.from_key(private_key).address
         rpc = self._endpoints[0]
 
@@ -660,8 +662,8 @@ class YearnV3Adapter:
                 "type": 2,
             }
             signed = sign_transaction(private_key, tx)
-            receipt = send_raw_transaction(signed.hex(), rpc)
-            if receipt.get("status") == "0x0":
+            receipt = send_raw_transaction_auto(signed.hex(), rpc)
+            if receipt.get("status") in ("0x0", "FAILED"):
                 return {
                     "status": "FAILED",
                     "phase": phase_tag,
