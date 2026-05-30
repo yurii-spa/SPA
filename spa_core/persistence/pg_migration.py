@@ -1,13 +1,18 @@
 """
 SPA-V331 — PostgreSQL migration prep (SQLite → PostgreSQL).
 
-This module *prepares* a migration from the current SQLite backend to
-PostgreSQL. It is deliberately **plan-only**: it introspects a live SQLite
-database, derives the equivalent PostgreSQL DDL (type mapping, defaults,
-indexes), and builds an ordered, FK-safe copy plan. It does **not** execute
-the migration — `execute_migration()` is gated behind an explicit opt-in and
-raises by default, mirroring the BLOCKED/NOT_IMPLEMENTED safety pattern used
-by the live execution adapters.
+This module migrates the current SQLite backend to PostgreSQL. The planning
+path introspects a live SQLite database, derives the equivalent PostgreSQL DDL
+(type mapping, defaults, indexes), and builds an ordered, FK-safe copy plan.
+
+`execute_migration()` (SPA-V341) implements a **gated** execution path: it
+refuses to do anything unless the operator both sets
+`SPA_PG_MIGRATION_EXECUTE=1` AND passes `i_understand_this_writes_data=True`,
+and even then defaults to `dry_run=True` (reports the ordered DDL + copy plan
+without writing). Only an explicit `dry_run=False` opens a write transaction.
+This mirrors the layered BLOCKED safety pattern used by the live execution
+adapters. The PostgreSQL driver is dependency-injected so the path is fully
+unit-testable offline without psycopg2.
 
 Design goals
 ------------
@@ -26,7 +31,7 @@ Typical usage
     python -m spa_core.persistence.pg_migration --plan
     python -m spa_core.persistence.pg_migration --plan --sqlite /path/to/spa.db --ddl-only
 
-Phase scope (V331): schema + plan + tests. Data copy is described, not run.
+Phase scope (V341): schema + plan + gated execution (dry-run default) + tests.
 """
 from __future__ import annotations
 
@@ -580,32 +585,200 @@ def _count_rows(
 
 
 # ---------------------------------------------------------------------------
-# Execution guard (intentionally not implemented for V331).
+# SQL statement splitting (for execution / dry-run reporting).
 # ---------------------------------------------------------------------------
 
 
-def execute_migration(plan: MigrationPlan, pg_url: str, *, i_understand_this_writes_data: bool = False) -> None:
+def split_sql_statements(ddl: str) -> List[str]:
     """
-    Apply `plan` to a live PostgreSQL instance.
+    Split a generated DDL blob into individual executable statements.
 
-    **V331 is plan-only.** This function refuses to run unless the caller passes
-    `i_understand_this_writes_data=True` *and* sets `SPA_PG_MIGRATION_EXECUTE=1`
-    in the environment. Even then the data-copy body is left unimplemented on
-    purpose — moving real state must be a separately-reviewed operation with a
-    verified backup. This mirrors the BLOCKED/NOT_IMPLEMENTED safety pattern of
-    the live execution adapters.
+    Comment-only lines (``-- ...``) and blank fragments are dropped. Splitting
+    is on the statement-terminating semicolon; SPA's generated DDL never embeds
+    a semicolon inside a literal, so a simple split is safe here (the planner is
+    the only producer of this text).
+    """
+    statements: List[str] = []
+    for chunk in ddl.split(";"):
+        # Strip whole-line SQL comments, keep the actual statement body.
+        lines = [
+            ln for ln in chunk.splitlines()
+            if ln.strip() and not ln.strip().startswith("--")
+        ]
+        stmt = "\n".join(lines).strip()
+        if stmt:
+            statements.append(stmt + ";")
+    return statements
+
+
+# ---------------------------------------------------------------------------
+# Migration execution (SPA-V341).
+#
+# V331 shipped this as plan-only. V341 implements a *gated* execution path:
+# the function still refuses to do anything unless the operator both sets
+# SPA_PG_MIGRATION_EXECUTE=1 AND passes i_understand_this_writes_data=True.
+# Even past that gate the default is `dry_run=True`, so the default behaviour
+# is to REPORT the ordered DDL + per-table copy plan without opening a single
+# write transaction. Actually mutating a live Postgres requires the explicit
+# dry_run=False. The PostgreSQL driver is dependency-injected (connection_
+# factory) so the whole path is unit-testable offline with a fake DB-API
+# connection and never hard-depends on psycopg2.
+# ---------------------------------------------------------------------------
+
+
+def _default_pg_connection_factory(pg_url: str):  # pragma: no cover - needs a live DB
+    """Lazily import psycopg2 and open a connection. Only used for real runs."""
+    try:
+        import psycopg2  # type: ignore
+    except ImportError as exc:  # pragma: no cover
+        raise MigrationExecutionBlocked(
+            "psycopg2 is required for a real (dry_run=False) migration run but "
+            "is not installed. Install psycopg2-binary or pass connection_factory."
+        ) from exc
+    return psycopg2.connect(pg_url)
+
+
+def execute_migration(
+    plan: MigrationPlan,
+    pg_url: str,
+    *,
+    i_understand_this_writes_data: bool = False,
+    sqlite_source: Optional[Union[str, Path, sqlite3.Connection]] = None,
+    connection_factory=None,
+    dry_run: bool = True,
+    batch_size: int = 500,
+) -> dict:
+    """
+    Apply `plan` to a PostgreSQL instance (SPA-V341 gated execution path).
+
+    Safety gates (all must hold to do anything beyond raising):
+      1. ``SPA_PG_MIGRATION_EXECUTE=1`` in the environment, AND
+      2. ``i_understand_this_writes_data=True``.
+    Failing either raises :class:`MigrationExecutionBlocked`, exactly as V331.
+
+    Even past the gate the default ``dry_run=True`` performs NO writes — it
+    returns the ordered list of DDL statements and the per-table copy plan
+    (with row counts when a `sqlite_source` is available). Pass
+    ``dry_run=False`` to actually open a transaction, apply the DDL and copy
+    rows table-by-table in FK-safe order.
+
+    Parameters
+    ----------
+    plan:
+        A :class:`MigrationPlan` from :func:`build_migration_plan`.
+    pg_url:
+        PostgreSQL DSN/URL (passed to the connection factory on a real run).
+    sqlite_source:
+        Source SQLite DB (path, ``sqlite:///`` URL, or open connection) to read
+        rows from during the data copy. Required when ``dry_run=False``.
+    connection_factory:
+        Callable ``(pg_url) -> DBAPI connection``. Injected for tests; defaults
+        to a lazily-imported ``psycopg2.connect``.
+    dry_run:
+        When True (default) nothing is written — a plan dict is returned.
+    batch_size:
+        Rows per ``executemany`` batch during the copy.
+
+    Returns
+    -------
+    dict
+        Summary: ``{dry_run, ddl_statements, copy_order, rows_copied,
+        rows_planned, committed}``.
     """
     env_ok = os.environ.get("SPA_PG_MIGRATION_EXECUTE", "") == "1"
     if not (i_understand_this_writes_data and env_ok):
         raise MigrationExecutionBlocked(
-            "Migration execution is disabled (V331 is plan-only). To enable a "
-            "reviewed run set SPA_PG_MIGRATION_EXECUTE=1 and pass "
-            "i_understand_this_writes_data=True. Data copy is not yet implemented."
+            "Migration execution is disabled. To enable a reviewed run set "
+            "SPA_PG_MIGRATION_EXECUTE=1 and pass i_understand_this_writes_data=True. "
+            f"(env_set={env_ok}, opt_in={i_understand_this_writes_data})"
         )
-    raise NotImplementedError(
-        "Data copy is out of scope for V331 — implement in a follow-up sprint "
-        "with backup + verification gates."
+
+    statements = split_sql_statements(plan.ddl)
+    by_name = {t.name: t for t in plan.tables}
+    # Honour the plan's FK-safe order, but only for tables we actually have.
+    copy_order = [n for n in plan.copy_order if n in by_name]
+
+    result: dict = {
+        "dry_run": bool(dry_run),
+        "ddl_statements": statements,
+        "copy_order": copy_order,
+        "rows_planned": dict(plan.row_counts),
+        "rows_copied": {},
+        "committed": False,
+    }
+
+    # ---- Dry run: report only, never connect, never write. ----------------
+    if dry_run:
+        return result
+
+    # ---- Real run: a SQLite source is mandatory to copy rows. -------------
+    if sqlite_source is None:
+        raise MigrationPlanError(
+            "dry_run=False requires sqlite_source to copy data from."
+        )
+
+    factory = connection_factory or _default_pg_connection_factory
+    pg_conn = factory(pg_url)
+
+    # SQLite read connection (do NOT close a caller-supplied connection).
+    own_sqlite = not isinstance(sqlite_source, sqlite3.Connection)
+    sconn = (
+        sqlite3.connect(_resolve_sqlite_path(sqlite_source))
+        if own_sqlite
+        else sqlite_source
     )
+    sconn.row_factory = sqlite3.Row
+
+    try:
+        cur = pg_conn.cursor()
+        # 1) Apply schema DDL (idempotent: CREATE TABLE/INDEX IF NOT EXISTS).
+        for stmt in statements:
+            cur.execute(stmt)
+
+        # 2) Copy data table-by-table in FK-safe order.
+        for table in copy_order:
+            spec = by_name[table]
+            col_names = [c.name for c in spec.columns]
+            quoted_cols = ", ".join(col_names)
+            placeholders = ", ".join(["%s"] * len(col_names))
+            insert_sql = (
+                f"INSERT INTO {table} ({quoted_cols}) VALUES ({placeholders})"
+            )
+
+            copied = 0
+            batch: List[tuple] = []
+            select_sql = f"SELECT {quoted_cols} FROM '{table}'"
+            for row in sconn.execute(select_sql):
+                batch.append(tuple(row[c] for c in col_names))
+                if len(batch) >= batch_size:
+                    cur.executemany(insert_sql, batch)
+                    copied += len(batch)
+                    batch = []
+            if batch:
+                cur.executemany(insert_sql, batch)
+                copied += len(batch)
+            result["rows_copied"][table] = copied
+
+        pg_conn.commit()
+        result["committed"] = True
+        return result
+    except Exception:
+        # Best-effort rollback; never mask the original error.
+        try:
+            pg_conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        try:
+            pg_conn.close()
+        except Exception:
+            pass
+        if own_sqlite:
+            try:
+                sconn.close()
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -677,6 +850,7 @@ __all__ = [
     "generate_index_ddl",
     "generate_postgres_ddl",
     "build_migration_plan",
+    "split_sql_statements",
     "execute_migration",
     "main",
 ]
