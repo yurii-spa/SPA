@@ -1658,3 +1658,27 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 
 ### Следующий спринт
 - **SPA-V343:** алерт на резкое схлопывание суммарного TVL в `historical_apy.json` (фид может сохранять число протоколов, но TVL обвалиться — ещё одно слепое пятно для covariance-вселенной), ЛИБО дальнейшее расширение feed-мониторинга (напр. per-protocol APY-аномалии / выпадение конкретного протокола из фида).
+
+## Sprint v3.43 — 2026-05-30 — APY-feed total-TVL collapse alert
+
+### Что сделано
+- Добавлен ранний health-алерт на резкое схлопывание **СОВОКУПНОГО TVL** в `data/historical_apy.json` между циклами (напр. DeFiLlama вернул резко меньший TVL при том же числе протоколов). Закрывает слепое пятно: фид может оставаться свежим (`generated_at` OK), live (`data_source` OK) и нести **то же число протоколов**, тихо теряя капитальный вес — невидимо для `alert_apy_feed_stale` (возраст/source) и `alert_apy_feed_protocol_drop` (число протоколов), при этом covariance/Kelly-вселенная истончается по капитальному весу. Решение зеркалит SPA-V342 `alert_apy_feed_protocol_drop` 1-в-1.
+  - Константы `APY_FEED_TVL_DROP_PCT=0.5` (падение совокупного TVL ≥50% между циклами = деградация) и `APY_FEED_MIN_TVL_USD=1e7` (абсолютный пол: совокупный TVL фида < $10M).
+  - `self._apy_feed_tvl_health_file` в `__init__` (после `_apy_feed_protocol_health_file`).
+  - Метод `alert_apy_feed_tvl_drop(feed_path=None, *, total_tvl_usd=None, now=None, sender=None)` — top-level try/except→False (НИКОГДА не raise), lazy TelegramSender, persistent state (`prev_tvl_usd`/`consecutive_drops`/`last_alerted_cycle`/`updated_at`), streak-логика. Резолв `total_tvl_usd`: если None и `feed_path` задан — graceful чтение JSON (`protocols` ИЛИ `protocol_history`), для каждого протокола берётся `tvl_usd` ПОСЛЕДНЕЙ записи истории и суммируется (пропуск пустых/не-list значений и записей без числового `tvl_usd`, coerce через `float()`); нет пригодных протоколов/битый/нет файла → None (unreadable). degraded = unreadable (None) ИЛИ too_low (< $10M) ИЛИ sharp_drop (total <= prev*0.5). Порог по числу циклов = **1** (резкое схлопывание алертим сразу); refire на каждом растущем цикле; `prev_tvl_usd` всегда обновляется после оценки. HTML msg `⚠️ <b>SPA APY Feed TVL Collapse</b>` с TVL формата `${value:,.0f}`.
+  - Helpers `_load/_write_apy_feed_tvl_health_state` (graceful на miss/corrupt).
+  - `export_data.py`: зеркальный try/except-блок «APY feed TVL collapse alert» сразу после блока protocol-count drop в `run_export`.
+
+### Файлы
+- `spa_core/alerts/risk_monitor.py` (modified)
+- `spa_core/export_data.py` (modified)
+- `spa_core/tests/test_apy_feed_tvl_drop_monitor.py` (new, 24 теста)
+
+### Результаты тестов
+- `test_apy_feed_tvl_drop_monitor.py` **24 PASS** (offline FakeSender, tmp_path-изолированы).
+- Регрессия мониторинга (`test_apy_feed_protocol_drop_monitor` + `test_apy_feed_stale_monitor` + `test_covariance_health_monitor` + `test_alerts` + `test_covariance_export`) — **138 PASS, 0 новых фейлов**.
+- `py_compile` risk_monitor.py + export_data.py ok. KANBAN.json валиден. Бэкапы `.bak.v343` созданы.
+- Пред-существующие fail (`test_engine_bridge` morpho-blue-usdc-base, `test_defillama_apy_feed` TestTtlCache) — вне scope, не трогались.
+
+### Следующий спринт
+- **SPA-V344:** per-protocol APY-аномалия / детектор выпадения конкретного протокола из фида (один протокол резко теряет APY/TVL или пропадает между циклами — точечное слепое пятно, не покрываемое агрегатными TVL/count-алертами), ЛИБО валидация schema-drift фида `historical_apy.json` (изменение формы/ключей записей, неожиданные поля, смена типов `tvl_usd`/`apy`).
