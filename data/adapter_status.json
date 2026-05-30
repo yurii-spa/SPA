@@ -1,8 +1,18 @@
 {
-  "generated_at": "2026-05-29T23:14:56.667927+00:00",
+  "generated_at": "2026-05-30T23:13:09.021863+00:00",
   "schema_version": 1,
   "execution_mode": "dry_run",
   "live_apy_enabled": false,
+  "mev_protection": {
+    "enabled": false,
+    "endpoint": "https://rpc.flashbots.net/fast",
+    "flashbots_mode": "fast",
+    "fallback_endpoints": [
+      "https://rpc.flashbots.net/fast",
+      "https://rpc.flashbots.net",
+      "https://rpc.mevblocker.io/noreverts"
+    ]
+  },
   "adapters": [
     {
       "protocol_key": "yearn-v3",
