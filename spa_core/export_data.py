@@ -1409,6 +1409,16 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _atde:
         log.error(f"APY feed TVL collapse alert dispatch failed: {_atde}")
 
+    # ── APY feed per-protocol anomaly alert (protocol dropout / APY|TVL crash) ──
+    try:
+        _apy_anom_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_anom_monitor.alert_apy_feed_protocol_anomaly(
+            feed_path=OUTPUT_DIR / "historical_apy.json",
+            sender=TelegramSender(),
+        )
+    except Exception as _aae:
+        log.error(f"APY feed per-protocol anomaly alert dispatch failed: {_aae}")
+
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
 
