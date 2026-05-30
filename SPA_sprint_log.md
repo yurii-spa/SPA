@@ -4,6 +4,43 @@
 
 ---
 
+## Sprint v3.41 — 2026-05-30 — PostgreSQL migration execution path (gated, dry-run default) (SPA-V341)
+
+**Цель:** Превратить `spa_core/persistence/pg_migration.py` из plan-only (V331) в модуль с РЕАЛЬНЫМ, но строго gated путём исполнения миграции SQLite → PostgreSQL. Сохранён слоистый safety-паттерн адаптеров (BLOCKED по умолчанию), добавлены ещё два защитных слоя поверх существующего gate.
+
+### Что сделано (SPA-V341-001)
+- **`spa_core/persistence/pg_migration.py`:**
+  - Новая функция-хелпер `split_sql_statements(ddl) -> List[str]` — режет сгенерированный DDL-блоб на отдельные исполняемые стейтменты, отбрасывая комментарии (`-- …`) и пустые фрагменты, каждый завершается `;`. Добавлена в `__all__`.
+  - Новый `_default_pg_connection_factory(pg_url)` — ленивый `import psycopg2` только для реального прогона; при отсутствии psycopg2 кидает `MigrationExecutionBlocked` (без hard-dependency на драйвер).
+  - **Полностью реализован `execute_migration(plan, pg_url, *, i_understand_this_writes_data=False, sqlite_source=None, connection_factory=None, dry_run=True, batch_size=500) -> dict`** (был `raise NotImplementedError`):
+    - **Gate 1+2 (как в V331):** требует `SPA_PG_MIGRATION_EXECUTE=1` в env И `i_understand_this_writes_data=True`; иначе `MigrationExecutionBlocked` (в сообщении показывает `env_set`/`opt_in`).
+    - **Gate 3 (новый):** даже пройдя gate, по умолчанию `dry_run=True` — НИЧЕГО не пишет и даже не подключается к Postgres: возвращает план (`ddl_statements`, FK-safe `copy_order`, `rows_planned`). Реальная запись только при явном `dry_run=False`.
+    - **Реальный прогон (`dry_run=False`):** требует `sqlite_source` (иначе `MigrationPlanError`); драйвер инъектируется через `connection_factory` (по умолчанию psycopg2) → unit-тестируется офлайн фейковым DB-API соединением. Применяет DDL (идемпотентный — `CREATE … IF NOT EXISTS`), копирует данные по таблицам в FK-safe порядке через параметризованный `executemany` (`%s`-плейсхолдеры, батчами `batch_size`), `commit()` в конце. Ошибка → best-effort `rollback()` + проброс; `finally` закрывает Postgres-соединение и (если открывали сами) SQLite. Никогда не закрывает переданное caller-ом соединение.
+    - Возвращает summary: `{dry_run, ddl_statements, copy_order, rows_planned, rows_copied, committed}`.
+  - Обновлён module docstring и `Phase scope` (V341): «schema + plan + gated execution (dry-run default) + tests». CLI без изменений (по-прежнему plan/ddl/json).
+- **Тесты `spa_core/tests/test_pg_migration_execute.py`** (новый, офлайн, stdlib + pytest; `FakeConnection`/`FakeCursor` записывают весь SQL, in-memory SQLite с FK parent/child `authors`→`books`): 13 тестов — три ветки BLOCKED (нет env / нет opt-in / нет обоих); dry_run не подключается и не коммитит + dry_run это дефолт; реальный прогон применяет DDL и копирует корректные counts (authors=2, books=3) + commit + close + проверка `%s`-плейсхолдеров; FK-safe порядок INSERT (authors раньше books); `dry_run=False` без `sqlite_source` → `MigrationPlanError`; ошибка в середине копирования → `rollback`, без `commit`, проброс; батчинг 250 строк / batch=100 → `[100,100,50]`; `split_sql_statements` отбрасывает комментарии/пустые; DDL идемпотентен (`IF NOT EXISTS`).
+
+### Файлы
+Новые:
+- `spa_core/tests/test_pg_migration_execute.py` (13 тестов)
+
+Обновлены:
+- `spa_core/persistence/pg_migration.py` (`split_sql_statements`, `_default_pg_connection_factory`, реализован `execute_migration`; docstring/scope; `__all__`)
+
+### Результаты тестов
+- Новый execute-path suite `test_pg_migration_execute.py` — **13 PASS / 0 FAIL** (`pytest 8.4.2`, Python 3.10, offline, FakeConnection/FakeCursor + in-memory SQLite).
+- Полная suite `pg_migration` (новый + существующий plan-only `test_pg_migration.py`) — **41 PASS / 0 FAIL**.
+- CLI smoke: `python3 -m spa_core.persistence.pg_migration --json --sqlite spa_core/database/spa.db` — план строится против реальной `spa.db` (FK-safe copy_order: message_bus → incidents → state → …), ошибок нет.
+- AST-parse исходника и тест-файла — ok. `KANBAN.json` валиден (`json.load`).
+- Бэкапы `KANBAN.json.bak.v341` / `SPA_sprint_log.md.bak.v341` созданы. Done-карта `SPA-V341-001` добавлена в `columns.done` (done 134 → 135).
+- pytest установлен в sandbox через `pip install --break-system-packages pytest` (как в предыдущих спринтах — sandbox эфемерный).
+- Примечание по ходу рана: bash-слой sandbox периодически отдавал пустые ответы (лаг прогрева воркспейса), но полностью восстановился — все тесты прогнаны и зелёные.
+
+### Следующий спринт
+**SPA-V342:** расширение feed/covariance мониторинга — алерт на резкое падение числа протоколов в `historical_apy.json` между циклами (частичная деградация фида при свежем `generated_at`), ЛИБО агрегированный «feed health» summary в дашборде (APY-feed staleness + covariance health + pipeline_health в один индикатор). Альтернатива — реальный end-to-end прогон pg-миграции против тестового PostgreSQL-инстанса (за `SPA_PG_MIGRATION_EXECUTE=1`, dry_run=False) с psycopg2.
+
+---
+
 ## Sprint v3.40 — 2026-05-30 — APY-feed staleness monitoring + alerting (SPA-V340)
 
 **Цель:** Добавить ранний health-трекинг историко-APY фида `data/historical_apy.json` (источник covariance-bridge, пишется секцией 9b `export_data.py` каждый 4h-цикл с полями `generated_at` ISO и `data_source` ∈ {defillama, synthetic}) до того, как деградация дойдёт до covariance `synthetic_fallback`. ПРОБЛЕМА: если фид тихо деградирует — `generated_at` залипает (файл не обновляется / отдаётся кэш), возраст превышает несколько циклов, ИЛИ `data_source` свалился в synthetic — это было НЕВИДИМО для алертинга, пока не доходило до covariance synthetic_fallback (SPA-V339). Нужен APY-feed staleness health-трекинг + Telegram-алерт, зеркалящий `alert_covariance_degraded` 1-в-1.
