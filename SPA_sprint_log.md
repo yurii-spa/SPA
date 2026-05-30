@@ -4,6 +4,55 @@
 
 ---
 
+## Sprint v3.36 — 2026-05-30 — Live APY covariance export (FEAT-007 финал: apy_history_bridge + covariance_export)
+
+**Цель:** Закрыть последний end-to-end gap живой APY-ковариации для dynamic-Kelly / Markowitz сайзинга. Phase 1 (v3.12) дал `CovarianceEstimator` + `dynamic_kelly`; Phase 2 врезал их в `optimization/recommender.py` и `optimization/markowitz.py` за флагом `SPA_LIVE_COVARIANCE=1`. **Но `CovarianceEstimator` читает rolling-серии из `data/apy_history.json`, который пишется ТОЛЬКО инкрементально `APYTracker.record_snapshot` во время live-цикла — в sandbox/fresh-checkout его нет, поэтому каждый `SPA_LIVE_COVARIANCE=1` прогон молча падал в синтетику CV=10%.** Живая ковариация из DeFiLlama никогда фактически не считалась. V336 материализует store из уже существующего экспорта и эмитит dashboard-ready JSON.
+
+**Контекст:** Прямое продолжение «Следующего спринта» из v3.35 (FEAT-007 — live APY rolling covariance для Kelly). v3.35 заканчивается на 5 → периодический architect review: `python3 -m spa_core.dev_agents.architect --command review-backlog` падает с `ModuleNotFoundError: No module named 'anthropic'` (как в v3.30 — credentials LLM-агента в автономном sandbox нет), поэтому ревью backlog проведено оркестратором вручную. Все нумерованные спринты SPA-V326…V335 закрыты; HIGH-backlog = только `user_action` (Secrets / Pages / Telegram / Gnosis Safe / RPC ключи); FEAT-001/002 — mega-features v2.0 (live-капитал, вне scope dev-агента). FEAT-007 (MEDIUM, features) — единственная незакрытая код-задача → взята. Status pass недопустим.
+
+### Что сделано (SPA-V336-001)
+- **`spa_core/analytics/apy_history_bridge.py`** (new) — мост существующего `data/historical_apy.json` (`{protocols:{key:[{date,apy,tvl_usd}]}}`, реальный 90-дневный DeFiLlama/synthetic экспорт) в APYTracker-схему `data/apy_history.json` (`{protocol_history:{key:[{ts,apy,tvl_usd}]}, last_updated}`):
+  - `_date_to_iso_ts`: `YYYY-MM-DD` → tz-aware ISO `T00:00:00+00:00` (полные ISO/`Z`/naive тоже нормализуются), чтобы парситься через `estimator._parse_iso` и rolling-window фильтр; невалидное → `None` (запись дропается).
+  - `convert_history`: pure / side-effect free, никогда не падает (malformed sub-structures скипаются по-записи; протоколы без usable-точек опускаются); ключи `protocol_history` сортируются для детерминизма; `last_updated` берётся из `generated_at`.
+  - `load_historical` / `build_tracker_document` / `write_tracker_history`; `ensure_apy_history()` — идемпотентный helper (НЕ трогает существующий live-store, возвращает False). CLI `--source/--out/--write/--json`.
+- **`spa_core/analytics/covariance_export.py`** (new) — строит `CovarianceEstimator` над bridged store (авто-мост из `historical_apy.json`, если `apy_history.json` отсутствует), считает:
+  - per-protocol volatilities/mean/n_obs (через `estimator.summary`);
+  - полную **covariance + correlation матрицу** с tier-map (`tier_for` longest-prefix: aave/compound/morpho/sky→T1, yearn/euler/maple/pendle→T2);
+  - `source`-label: `live` (все ≥7 obs) / `partial` / `synthetic_fallback`;
+  - пишет `data/covariance_summary.json` (`schema_version=1`, `generated_at`, `window_days`, `min_observations`, `history_bridged`, `protocols`, матрицы). Матрицы округлены для diff-friendly вывода. CLI `--write/--json/--window/--source/--history/--out/--no-bridge`.
+- Существующие call-sites НЕ менялись — синтетический путь (флаг выключен) байт-в-байт прежний; новый код — строгий superset.
+
+### Verbatim (data/covariance_summary.json, перегенерирован)
+- `source=live`, `window_days=90`, `schema_version=1`, 7 протоколов, у всех `n_obs=81`, `fallback=false`.
+- volatility_pp: aave-v3-usdc 2.61 · aave-v3-usdt 2.63 · compound-v3-usdc 2.00 · euler-v2-usdc 2.23 · maple-usdc 2.98 · morpho-usdc 2.07 · yearn-v3-usdc 2.19.
+- Корреляционная матрица симметрична, диагональ=1.0; ковариационная — диагональ ≥0.
+
+### Интеграция подтверждена
+- `AllocationRecommender().recommend(..., SPA_LIVE_COVARIANCE=1)` → `covariance_source="live"` (раньше — `synthetic`), без крэша. Это прямое доказательство, что live-путь FEAT-007 теперь получает реальные данные.
+
+### Файлы
+Новые:
+- `spa_core/analytics/apy_history_bridge.py`
+- `spa_core/analytics/covariance_export.py`
+- `spa_core/tests/test_covariance_export.py` (58 тестов)
+- `data/covariance_summary.json` (артефакт)
+
+Обновлены/перегенерированы:
+- `data/apy_history.json` (через мост — 7 протоколов, 630 точек)
+- `KANBAN.json` (done +1 SPA-V336-001; FEAT-007 features→done; sprint_completed→v3.36; бэкап `KANBAN.json.bak.v336`)
+- `SPA_sprint_log.md` (этот раздел; бэкап `SPA_sprint_log.md.bak.v336`)
+
+### Результаты тестов
+- `test_covariance_export.py`: **58 PASS / 0 FAIL** (мост: ts-конверсия, schema-mapping, graceful malformed, идемпотентный ensure, детерминизм; export: tier resolution, source-классификация, симметрия/диагональ матриц, missing-source→synthetic, JSON-сериализуемость, CLI round-trip; estimator end-to-end на bridged данных — live, не fallback).
+- FEAT-007 регрессия (`test_covariance_estimator` 31 + `test_dynamic_kelly` 21 + `test_optimization` 20 + `test_covariance_export` 58 + recommender): **141 PASS / 0 FAIL**.
+- `test_engine_bridge`: **36 PASS / 1 FAIL** — единственное падение `test_malformed_returns_none[morpho-blue-usdc-base]` пред-существующее (baseline, вне scope).
+- `data/apy_history.json` и `data/covariance_summary.json` валидны (`json.load` OK). `KANBAN.json` валиден.
+
+### Следующий спринт
+**SPA-V337:** Отрендерить `data/covariance_summary.json` в дашборде (Analytics/Optimization таб): матрица корреляций (heatmap) + live volatility badges + `source` индикатор (live/synthetic) — зеркалит паттерн v3.34/35 (фронт читает backend-JSON через fetch). Альтернатива: исполнение плана PostgreSQL-миграции (v3.31), либо подключить `covariance_export` в 4h export-pipeline (`export_data.py`) для авто-обновления `covariance_summary.json` каждый цикл.
+
+---
+
 ## Sprint v3.35 — 2026-05-30 — Live APY enrichment (adapter_status.json встраивает реальные DeFiLlama значения + dashboard render)
 
 **Цель:** Закрыть последний gap живого APY-конвейера. В v3.27 создан `defillama_apy_feed.get_live_apy` (реальный фетч DeFiLlama `/pools` с TTL-кэшем), в v3.28 он подключён в live-путь `get_supply_apy` всех 5 T2-адаптеров, в v3.33/v3.34 создан `data/adapter_status.json` и дашборд читает его через fetch. **Но сам `adapter_status.py` собирал только `mock_apy` + флаг `live_enabled` — фактические live-значения никогда не попадали ни в JSON, ни на дашборд.** V335 встраивает реальные live APY в документ и рендерит их.
