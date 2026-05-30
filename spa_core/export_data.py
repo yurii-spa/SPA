@@ -1419,6 +1419,26 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _aae:
         log.error(f"APY feed per-protocol anomaly alert dispatch failed: {_aae}")
 
+    # ── APY feed schema drift alert (structure/keys/types validation) ──────────
+    try:
+        _apy_schema_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_schema_monitor.alert_apy_feed_schema_drift(
+            feed_path=OUTPUT_DIR / "historical_apy.json",
+            sender=TelegramSender(),
+        )
+    except Exception as _asd:
+        log.error(f"APY feed schema drift alert dispatch failed: {_asd}")
+
+    # ── APY feed per-protocol staleness alert (one protocol stops advancing) ───
+    try:
+        _apy_pstale_monitor = RiskMonitor(data_dir=OUTPUT_DIR)
+        _apy_pstale_monitor.alert_apy_feed_protocol_stale(
+            feed_path=OUTPUT_DIR / "historical_apy.json",
+            sender=TelegramSender(),
+        )
+    except Exception as _aps:
+        log.error(f"APY feed per-protocol staleness alert dispatch failed: {_aps}")
+
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
 
