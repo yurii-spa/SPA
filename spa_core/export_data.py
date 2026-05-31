@@ -1085,6 +1085,7 @@ def run_export(fetch: bool = False) -> None:
             "strategy_v2.json", "strategy_comparison.json",
             "optimization_recommendations.json", "covariance_summary.json",
             "golive_readiness.json", "golive_readiness_score.json",
+            "golive_combined_verdict.json",
         ]
         report_logger.log(
             decision_type='REPORT',
@@ -1494,6 +1495,30 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _grs:
         log.error(f"Go-Live readiness score export failed: {_grs}", exc_info=True)
         _section_fail("golive_readiness_score")
+
+    # ── Persisted combined go/no-go gate (SPA-V367) ───────────────────────────
+    # Persist the SPA-V366 combined gate (operational readiness × paper-trading
+    # checklist) to data/golive_combined_verdict.json so the gate is a durable
+    # artefact, not only computed client-side. Runs LAST because it consumes the
+    # two source docs (golive_readiness_score.json + golive_readiness.json) both
+    # written earlier this cycle. Pure read-only consolidation (SPA-V366 module)
+    # — no money-moving code, no new feed-health monitor (SPA-BL-011 respected).
+    # Wrapped graceful: never aborts the cycle.
+    try:
+        from golive.readiness_score import write_combined_golive_gate
+
+        gate_doc = write_combined_golive_gate(
+            str(OUTPUT_DIR / "golive_combined_verdict.json"),
+            data_dir=str(OUTPUT_DIR),
+        )
+        log.info(
+            f"golive_combined_verdict.json: gate={gate_doc.get('gate', '?')}, "
+            f"blocking={gate_doc.get('blocking', [])}"
+        )
+        _section_ok("golive_combined_verdict")
+    except Exception as _gcv:
+        log.error(f"Combined go-live gate export failed: {_gcv}", exc_info=True)
+        _section_fail("golive_combined_verdict")
 
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
