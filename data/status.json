@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-05-31T19:58:32.407595+00:00",
+  "timestamp": "2026-05-31T23:45:00.817095+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
     "deployed_usd": 95000.0,
     "cash_usd": 5000.0,
     "cash_pct": 0.05,
-    "total_pnl_usd": 102.6,
+    "total_pnl_usd": 104.05,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -14,27 +14,27 @@
       "tier": "T2",
       "amount_usd": 20000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 28.71,
-      "unrealized_pnl_pct": 0.0014,
-      "days_held": 10.9
+      "unrealized_pnl_usd": 29.12,
+      "unrealized_pnl_pct": 0.0015,
+      "days_held": 11.1
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 40000.0,
-      "current_apy": 3.27725,
-      "unrealized_pnl_usd": 39.24,
+      "current_apy": 3.27363,
+      "unrealized_pnl_usd": 39.76,
       "unrealized_pnl_pct": 0.001,
-      "days_held": 10.9
+      "days_held": 11.1
     },
     {
       "protocol_key": "compound-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 35000.0,
-      "current_apy": 3.30673,
-      "unrealized_pnl_usd": 34.65,
+      "current_apy": 3.30905,
+      "unrealized_pnl_usd": 35.17,
       "unrealized_pnl_pct": 0.001,
-      "days_held": 10.9
+      "days_held": 11.1
     }
   ],
   "risk": {
@@ -46,8 +46,8 @@
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 10,
-    "weeks_elapsed": 1.4,
+    "days_elapsed": 11,
+    "weeks_elapsed": 1.6,
     "min_weeks_required": 8,
     "go_live_ready": false,
     "first_trade": "2026-05-20T20:38:42.319566+00:00"
@@ -59,10 +59,10 @@
     "total_capital_usd": 100000.0,
     "deployed_capital_usd": 95000.0,
     "cash_usd": 5000.0,
-    "total_pnl_usd": 9.38992191780822,
+    "total_pnl_usd": 9.388179452054793,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -1.7028,
+    "sharpe_to_date": -1.7025,
     "max_drawdown_pct": 0.0,
     "trade_count": 6,
     "state_json": null
