@@ -56,11 +56,20 @@ TARGET_DATE = "2026-07-15"
 # Default data dir: <repo>/data (spa_core/golive/ -> parents[2] == repo root).
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
+# SPA-V363 -- persistent score history / trend (sparkline on the dashboard).
+# Compact append-only log of the headline score over time. MAX_HISTORY ~= 30
+# days at 6 export cycles/day; oldest entries are trimmed off the front.
+HISTORY_FILENAME = "golive_readiness_score_history.json"
+MAX_HISTORY = 180
+
 __all__ = [
     "SCHEMA_VERSION",
     "TARGET_DATE",
+    "HISTORY_FILENAME",
+    "MAX_HISTORY",
     "build_readiness_score_document",
     "write_readiness_score",
+    "append_history",
 ]
 
 
@@ -195,10 +204,53 @@ def build_readiness_score_document() -> Dict[str, Any]:
     }
 
 
+def append_history(doc: Dict[str, Any], data_dir: Optional[str] = None) -> None:
+    """Append a compact record of ``doc`` to the score-history log. Never raises.
+
+    Reads the existing history (``<data_dir>/golive_readiness_score_history.json``
+    or ``DEFAULT_DATA_DIR / HISTORY_FILENAME`` when ``data_dir`` is None), appends
+    a small ``{generated_at, overall_score, overall_status}`` record, dedups on
+    ``generated_at`` (a same-timestamp re-run replaces the last record rather than
+    duplicating it), trims to the last ``MAX_HISTORY`` records and writes it back.
+    A missing or corrupt history file is treated as an empty list -- any failure
+    is swallowed (logged at debug) so it can never break the main score write.
+    """
+    try:
+        target = (
+            Path(data_dir) / HISTORY_FILENAME
+            if data_dir is not None
+            else DEFAULT_DATA_DIR / HISTORY_FILENAME
+        )
+        history: List[Dict[str, Any]] = []
+        if target.exists():
+            try:
+                loaded = json.loads(target.read_text(encoding="utf-8"))
+                if isinstance(loaded, list):
+                    history = loaded
+            except Exception:  # noqa: BLE001 -- corrupt file -> start fresh
+                history = []
+        record = {
+            "generated_at": doc.get("generated_at"),
+            "overall_score": doc.get("overall_score"),
+            "overall_status": doc.get("overall_status"),
+        }
+        if history and history[-1].get("generated_at") == record["generated_at"]:
+            history[-1] = record
+        else:
+            history.append(record)
+        history = history[-MAX_HISTORY:]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(history, indent=2), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("append_history failed: %s", exc)
+        return
+
+
 def write_readiness_score(out_path: Optional[str] = None) -> Dict[str, Any]:
     """
     Build the score document and write it to ``out_path`` (default
-    ``<repo>/data/golive_readiness_score.json``). Returns the document.
+    ``<repo>/data/golive_readiness_score.json``). Also appends a compact record
+    to the score-history log next to it (SPA-V363). Returns the document.
     """
     target = (
         Path(out_path)
@@ -208,6 +260,12 @@ def write_readiness_score(out_path: Optional[str] = None) -> Dict[str, Any]:
     doc = build_readiness_score_document()
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    # History append is independently guarded so a history failure can never
+    # break the (already-completed) main score write.
+    try:
+        append_history(doc, data_dir=str(target.parent))
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("readiness history append failed: %s", exc)
     return doc
 
 
