@@ -20,12 +20,21 @@ from spa_core.execution.adapter_status import (
 )
 
 EXPECTED_PROTOCOL_KEYS = [
+    # T1 (Sprint v3.57 / SPA-V357) — listed first by tier priority.
+    "aave-v3",
+    "compound-v3",
+    # T2 (v3.52 / earlier).
     "yearn-v3",
     "euler-v2",
     "maple",
     "pendle-pt",
     "sky-susds",
 ]
+
+# T1 adapters wired in v3.57. Their mock APY is synthesised from the class-level
+# ``_MOCK_APYS`` (asset→apy) × SUPPORTED_CHAINS rather than a module-level
+# ``_DRY_RUN_APY`` dict.
+T1_PROTOCOL_KEYS = ["aave-v3", "compound-v3"]
 
 REQUIRED_FIELDS = (
     "protocol_key",
@@ -53,8 +62,8 @@ def by_key(adapters):
 # ─── Collection: count + identity ────────────────────────────────────────────
 
 class TestCollectAdapterStatus:
-    def test_returns_five_adapters(self, adapters):
-        assert len(adapters) == 5
+    def test_returns_seven_adapters(self, adapters):
+        assert len(adapters) == 7
 
     def test_protocol_keys(self, adapters):
         keys = [a["protocol_key"] for a in adapters]
@@ -108,6 +117,10 @@ class TestTiers:
     def test_others_are_t2(self, by_key, key):
         assert by_key[key]["tier"] == "T2"
 
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_adapters_are_t1(self, by_key, key):
+        assert by_key[key]["tier"] == "T1"
+
 
 # ─── Write-state values ──────────────────────────────────────────────────────
 
@@ -116,7 +129,7 @@ class TestWriteState:
         assert by_key["pendle-pt"]["write_state"] == "NOT_IMPLEMENTED"
 
     @pytest.mark.parametrize(
-        "key", ["yearn-v3", "euler-v2", "maple", "sky-susds"]
+        "key", ["aave-v3", "compound-v3", "yearn-v3", "euler-v2", "maple", "sky-susds"]
     )
     def test_others_blocked(self, by_key, key):
         assert by_key[key]["write_state"] == "BLOCKED"
@@ -133,6 +146,12 @@ class TestAllocationCap:
 
     def test_sky_cap_is_zero(self, by_key):
         assert by_key["sky-susds"]["allocation_cap"] == 0.0
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_cap_is_040(self, by_key, key):
+        # Canonical T1 per-protocol concentration cap (risk/policy.py
+        # max_concentration_t1 = 0.40).
+        assert by_key[key]["allocation_cap"] == 0.40
 
     def test_sky_has_allocation_note(self, by_key):
         assert "allocation_note" in by_key["sky-susds"]
@@ -170,6 +189,27 @@ class TestMockApyMatchesModules:
         from spa_core.execution.adapters import yearn_v3_adapter as m
         assert by_key["yearn-v3"]["chains"] == list(m.YearnV3Adapter.SUPPORTED_CHAINS)
 
+    # ── T1 mock-APY synthesis from class-level _MOCK_APYS (Sprint v3.57) ──────
+    def test_aave_mock_apy_synthesised_from_class(self, by_key):
+        from spa_core.execution import aave_v3_adapter as m
+        cls = m.AaveV3Adapter
+        expected = {
+            chain: dict(cls._MOCK_APYS) for chain in cls.SUPPORTED_CHAINS
+        }
+        assert by_key["aave-v3"]["mock_apy"] == expected
+
+    def test_compound_mock_apy_synthesised_from_class(self, by_key):
+        from spa_core.execution import compound_v3_adapter as m
+        cls = m.CompoundV3Adapter
+        expected = {
+            chain: dict(cls._MOCK_APYS) for chain in cls.SUPPORTED_CHAINS
+        }
+        assert by_key["compound-v3"]["mock_apy"] == expected
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_mock_apy_nonempty(self, by_key, key):
+        assert by_key[key]["mock_apy"], f"{key} mock_apy empty"
+
 
 # ─── Document assembly ───────────────────────────────────────────────────────
 
@@ -183,7 +223,7 @@ class TestBuildStatusDocument:
         assert "live_apy_enabled" in doc
 
     def test_adapters_count(self):
-        assert len(build_status_document()["adapters"]) == 5
+        assert len(build_status_document()["adapters"]) == 7
 
     def test_generated_at_is_iso8601_utc(self):
         from datetime import datetime
@@ -213,7 +253,7 @@ class TestWriteStatusJson:
         with out.open() as fh:
             data = json.load(fh)
         assert data["schema_version"] == 1
-        assert len(data["adapters"]) == 5
+        assert len(data["adapters"]) == 7
 
     def test_creates_parent_dir(self, tmp_path):
         out = tmp_path / "nested" / "deeper" / "adapter_status.json"
@@ -334,7 +374,7 @@ class TestLiveApyEnrichment:
         monkeypatch.setenv("SPA_LIVE_APY", "true")
 
         adapters = collect_adapter_status()  # must not raise
-        assert len(adapters) == 5
+        assert len(adapters) == 7
         for rec in adapters:
             assert "live_apy" not in rec
             assert rec["apy_source"]["mode"] == "mock"
@@ -432,7 +472,8 @@ class TestMevProtectionStatus:
 class TestMevRoutingApplicability:
     """Per-adapter MEV-routing flags + document-level routed/unrouted summary."""
 
-    ROUTED = ["yearn-v3", "euler-v2", "maple", "sky-susds"]
+    # T1 aave-v3 / compound-v3 route via mev_protection.send_protected (v3.57).
+    ROUTED = ["aave-v3", "compound-v3", "yearn-v3", "euler-v2", "maple", "sky-susds"]
     UNROUTED = ["pendle-pt"]
 
     def test_every_record_has_bool_mev_routed(self, adapters):
@@ -478,6 +519,20 @@ class TestMevRoutingApplicability:
 
     def test_document_with_routing_is_json_serialisable(self):
         json.dumps(build_status_document())  # must not raise
+
+    # ── T1 adapters present + routed (Sprint v3.57 / SPA-V357) ────────────────
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_present_in_document(self, by_key, key):
+        assert key in by_key
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_mev_routed_true(self, by_key, key):
+        assert by_key[key]["mev_routed"] is True
+
+    def test_t1_in_routed_adapters(self):
+        routed = build_status_document()["mev_protection"]["routed_adapters"]
+        assert "aave-v3" in routed
+        assert "compound-v3" in routed
 
 
 # ─── Resilience: broken adapter does not abort collection ────────────────────
