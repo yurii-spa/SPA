@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-31T15:57:40.300624+00:00",
+  "generated_at": "2026-05-31T19:59:19.823522+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
   "days_remaining": 44,
@@ -18,9 +18,9 @@
     {
       "name": "PnL Positive",
       "status": "PASS",
-      "value": 101.07,
+      "value": 102.6,
       "threshold": 0,
-      "note": "+$101.07 (+0.10%)"
+      "note": "+$102.60 (+0.10%)"
     },
     {
       "name": "No Critical Alerts",
@@ -99,9 +99,9 @@
     {
       "name": "Agent Stability",
       "status": "FAIL",
-      "value": 0.25,
+      "value": 0.42,
       "threshold": 28,
-      "note": "0.2/28 days stable \u2014 need 27.8 more days (7 prior failure(s))"
+      "note": "0.4/28 days stable \u2014 need 27.6 more days (7 prior failure(s))"
     }
   ],
   "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (45 days away). Review again after 2026-07-15.",
