@@ -2300,3 +2300,30 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V359:** домен adapter-status/MEV почти насыщён (coverage surface закрыт). Кандидаты: (a) рендер истории `feed_health_summary` per-signal `updated_at` на дашборде (UI, не новый монитор — SPA-BL-011 не нарушается); (b) консолидация adapter-status + feed-health + covariance-health в единый «Go-Live readiness score» (backend JSON + дашборд). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) — это user-action секреты (SPA-BL-007/008/009, BL-004/005/006), всё ещё blocked; код-работа остаётся surface/housekeeping до их разблокировки.
 
 ---
+
+> **Sync-note (2026-05-31):** спринты v3.59–v3.61 зафиксированы в `KANBAN.json` (dispatch-ноты `_v359/_v361_dispatch_note`) — этот markdown-лог отставал. Хронология: v3.59 per-signal `last_alert_age_hours` в `feed_health_summary` + tooltip-обогащение чипов (не новый монитор); v3.60 видимая per-signal `updated_at`/age строка под чипами Feed Health; v3.61 новый read-only модуль `spa_core/golive/readiness_score.py` → `data/golive_readiness_score.json`: композитный Go-Live operational readiness score (feed_health + MEV-coverage + live_apy, mean+worst-of) + бейдж `#golive-readiness-score` на дашборде. Money-moving код (eth_signer/mev_protection/адаптеры) на v3.59–v3.61 НЕ трогался; новых feed-health мониторов нет (SPA-BL-011 соблюдён).
+
+## Sprint v3.62 — 2026-05-31 — Wire consolidated Go-Live readiness score into 4h export pipeline (SPA-V362)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.61 (`sprint_completed: v3.61`, `updated_by: orchestrator-v361`). Status pass запрещён. v3.61 не оканчивается на 0/5 → периодический architect review не требуется. v3.61 создал `golive/readiness_score.py`, но модуль **не подключён** к экспорт-пайплайну: `data/golive_readiness_score.json` регенерируется только вручную через CLI — на 4h-цикле не обновляется. Это «висячий» модуль (тот же класс проблемы, что закрывал SPA-V338 для `covariance_export`). Безопасный разблокированный код-спринт: read-only консолидация, НЕ money-moving (eth_signer/mev_protection/адаптеры не трогаются), НЕ feed-health монитор (SPA-BL-011), НЕ user-action-blocked.
+
+### Что сделано
+- **`export_data.py` — wiring `readiness_score`.** В `run_export()` после блока `write_feed_health_summary` (SPA-V347) добавлен guarded-блок: `from golive.readiness_score import write_readiness_score` → `write_readiness_score(str(OUTPUT_DIR / "golive_readiness_score.json"))`. Размещён ПОСЛЕ feed-health summary осознанно — readiness score потребляет `feed_health_summary.json`. Логирует `overall_score`/`overall_status`; section-health через `_section_ok/_section_fail("golive_readiness_score")`; весь вызов в `try/except` → никогда не прерывает цикл экспорта.
+- **Манифест `files_written`** дополнен `"golive_readiness_score.json"` (передаётся в `DecisionLogger`-снапшот).
+
+### Файлы
+- `spa_core/export_data.py` (modified — wiring-блок + манифест)
+- `spa_core/tests/test_readiness_score.py` (modified — +6 source-introspection wiring-тестов по паттерну `test_covariance_export.TestPipelineWiring`)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v362` (export_data.py, test_readiness_score.py, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `test_readiness_score.py` — **25 passed** (включая 6 новых wiring-тестов: импорт writer, стандартный путь, регистрация в манифесте, section-health, try/except-guard).
+- Регрессия `test_readiness_score` + `test_covariance_export` + `test_feed_health_summary` — **121 passed, 0 фейлов**.
+- `py_compile export_data.py` — OK. Smoke `write_readiness_score(tmp)`: `overall_score=78.6`, `status=warn`, 3 компонента, JSON записан. KANBAN.json валиден (json round-trip OK).
+
+### Следующий спринт
+- **SPA-V363:** кандидаты — (a) рендер истории/тренда `golive_readiness_score` на дашборде (sparkline/бейдж-история, UI); (b) 4-й компонент readiness score (вердикт paper-trading checklist / day-counter 56 дней). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) — user-action секреты (SPA-BL-007/008/009, BL-004/005/006), всё ещё blocked; код-работа остаётся surface/housekeeping до их разблокировки. Feed-health монитор #10 ЗАПРЕЩЁН (SPA-BL-011) без нового класса отказа; money-moving — только вне автономного режима.
+
+---
