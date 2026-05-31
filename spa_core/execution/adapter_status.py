@@ -63,6 +63,36 @@ SCHEMA_VERSION = 1
 #                       "NOT_IMPLEMENTED" (no live signing path yet)
 #   apy_source_project— DeFiLlama "project" substring used for live APY reads
 _ADAPTER_SPECS: list[dict[str, Any]] = [
+    # ── T1 adapters (highest priority tier) — Sprint v3.57 / SPA-V357 ─────────
+    # Aave V3 & Compound V3 route live-broadcast through ``_send_raw_tx`` →
+    # ``mev_protection.send_protected``, so they surface in the Go-Live
+    # dashboard alongside the v3.52 T2 adapters.  allocation_cap = 0.40 is the
+    # canonical T1 per-protocol concentration cap from the risk policy
+    # (``spa_core/risk/policy.py`` ``max_concentration_t1 = 0.40``; mirrored in
+    # ``spa_core/risk/versions/v1_0_passive.py``).  These adapters expose mock
+    # APY via a class-level ``_MOCK_APYS`` (flat asset→apy) rather than a
+    # module-level ``_DRY_RUN_APY``; ``_adapter_record`` synthesises the
+    # chain→asset→apy map from it (see Step 2).
+    {
+        "protocol_key": "aave-v3",
+        "module": "spa_core.execution.aave_v3_adapter",
+        "name": "Aave V3",
+        "tier": "T1",
+        "allocation_cap": 0.40,
+        "allocation_note": None,
+        "write_state": "BLOCKED",
+        "apy_source_project": "aave",
+    },
+    {
+        "protocol_key": "compound-v3",
+        "module": "spa_core.execution.compound_v3_adapter",
+        "name": "Compound V3",
+        "tier": "T1",
+        "allocation_cap": 0.40,
+        "allocation_note": None,
+        "write_state": "BLOCKED",
+        "apy_source_project": "compound",
+    },
     {
         "protocol_key": "yearn-v3",
         "module": "spa_core.execution.adapters.yearn_v3_adapter",
@@ -267,6 +297,21 @@ def _adapter_record(spec: dict[str, Any], live_enabled: bool) -> dict[str, Any]:
         mock_apy = getattr(module, "_DRY_RUN_APY", {})
         record["chains"] = list(getattr(adapter_cls, "SUPPORTED_CHAINS", ()))
         record["assets"] = list(getattr(adapter_cls, "SUPPORTED_ASSETS", ()))
+        # ── T1 mock-APY synthesis (Sprint v3.57 / SPA-V357) ──────────────────
+        # T2 adapters expose a module-level ``_DRY_RUN_APY`` (chain→asset→apy);
+        # T1 adapters (aave_v3 / compound_v3) instead carry a class-level
+        # ``_MOCK_APYS`` (flat asset→apy).  When the module-level map is absent
+        # or empty, synthesise the same chain→asset→apy shape from the class
+        # ``_MOCK_APYS`` × ``SUPPORTED_CHAINS`` so the dashboard renders real
+        # numbers for T1 too.  Guarded inside the try-block; any failure leaves
+        # ``mock_apy`` as the original (possibly empty) value — never-raises.
+        if not mock_apy:
+            class_apys = getattr(adapter_cls, "_MOCK_APYS", None)
+            if class_apys:
+                mock_apy = {
+                    chain: dict(class_apys)
+                    for chain in record["chains"]
+                }
         # Deep-copy the nested chain→asset→apy mapping (plain dict, json-safe).
         record["mock_apy"] = {
             chain: dict(assets) for chain, assets in dict(mock_apy).items()
