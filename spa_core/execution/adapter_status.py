@@ -28,6 +28,12 @@ Sprint v3.35 (SPA-V335) — optional live APY enrichment: when ``SPA_LIVE_APY`` 
 on, each adapter record gains a ``live_apy`` chain→asset→apy map fetched from
 DeFiLlama (graceful — empty/omitted on any failure) and ``apy_source.mode``
 flips to ``"live"`` with ``live_values_present=True``.
+
+Sprint v3.58 (SPA-V358) — MEV-routing coverage summary: the top-level
+``mev_protection`` block gains a derived ``coverage`` sub-block
+``{routed, total, coverage_pct}`` (ZeroDivision-safe) so the Go-Live dashboard
+renders one headline figure, and each adapter's ``mev_routed`` flag is surfaced
+row-by-row in the dashboard table (front-end only).
 """
 from __future__ import annotations
 
@@ -361,6 +367,17 @@ def build_status_document() -> dict[str, Any]:
     mev = _mev_protection_status()
     mev["routed_adapters"] = [a["protocol_key"] for a in adapters if a.get("mev_routed")]
     mev["unrouted_adapters"] = [a["protocol_key"] for a in adapters if not a.get("mev_routed")]
+    # ── MEV-routing coverage summary (Sprint v3.58 / SPA-V358) ───────────────
+    # Derived headline numbers so the Go-Live dashboard can show a single
+    # "N/M adapters routed (P%)" figure without recomputing on the front-end.
+    # ZeroDivision-safe: an empty adapter set yields coverage_pct = 0.0.
+    _routed_n = len(mev["routed_adapters"])
+    _total_n = _routed_n + len(mev["unrouted_adapters"])
+    mev["coverage"] = {
+        "routed": _routed_n,
+        "total": _total_n,
+        "coverage_pct": round(100.0 * _routed_n / _total_n, 1) if _total_n else 0.0,
+    }
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": SCHEMA_VERSION,
