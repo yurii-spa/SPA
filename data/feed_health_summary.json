@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-05-30T23:40:26.553987Z",
-  "overall_status": "degraded",
+  "generated_at": "2026-05-31T03:13:28.701621Z",
+  "overall_status": "ok",
   "signal_count": 9,
   "counts": {
-    "ok": 3,
+    "ok": 9,
     "warn": 0,
-    "degraded": 6,
+    "degraded": 0,
     "unknown": 0
   },
   "signals": [
@@ -17,9 +17,10 @@
       "threshold": 3,
       "streak": 0,
       "status": "ok",
-      "last_alerted_cycle": 0,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "apy_feed_stale",
@@ -28,9 +29,10 @@
       "threshold": 2,
       "streak": 0,
       "status": "ok",
-      "last_alerted_cycle": 0,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "protocol_drop",
@@ -39,75 +41,82 @@
       "threshold": 1,
       "streak": 0,
       "status": "ok",
-      "last_alerted_cycle": 0,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "tvl_drop",
       "label": "TVL drop",
       "state_file": "apy_feed_tvl_health_state.json",
       "threshold": 1,
-      "streak": 4,
-      "status": "degraded",
-      "last_alerted_cycle": 4,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "protocol_anomaly",
       "label": "Per-protocol anomaly",
       "state_file": "apy_feed_anomaly_health_state.json",
       "threshold": 1,
-      "streak": 3,
-      "status": "degraded",
-      "last_alerted_cycle": 3,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "schema_drift",
       "label": "Feed schema drift",
       "state_file": "apy_feed_schema_health_state.json",
       "threshold": 1,
-      "streak": 3,
-      "status": "degraded",
-      "last_alerted_cycle": 3,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "protocol_stale",
       "label": "Per-protocol staleness",
       "state_file": "apy_feed_protocol_stale_health_state.json",
       "threshold": 1,
-      "streak": 3,
-      "status": "degraded",
-      "last_alerted_cycle": 3,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "value_bounds",
       "label": "Value bounds",
       "state_file": "apy_feed_bounds_health_state.json",
       "threshold": 1,
-      "streak": 2,
-      "status": "degraded",
-      "last_alerted_cycle": 2,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     },
     {
       "key": "date_monotonicity",
       "label": "Date monotonicity",
       "state_file": "apy_feed_monotonicity_health_state.json",
       "threshold": 1,
-      "streak": 2,
-      "status": "degraded",
-      "last_alerted_cycle": 2,
-      "updated_at": "2026-05-30T23:40:26Z",
-      "present": true
+      "streak": 0,
+      "status": "ok",
+      "last_alerted_cycle": null,
+      "updated_at": null,
+      "last_alert_age_hours": null,
+      "present": false
     }
   ]
 }
