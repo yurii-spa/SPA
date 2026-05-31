@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-31T15:58:02.318946Z",
+  "gate": "NO_GO",
+  "operational_status": "unknown",
+  "operational_score": 0.0,
+  "checklist_verdict": "NOT_READY",
+  "criteria_passed": 6,
+  "criteria_total": 12,
+  "blocking": [
+    "operational readiness unknown",
+    "checklist not_ready"
+  ]
+}
