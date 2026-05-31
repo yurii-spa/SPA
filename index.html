@@ -1787,6 +1787,8 @@
   <!-- Verdict + Donut -->
   <div style="display:grid;grid-template-columns:1fr auto;gap:20px;margin-bottom:20px;align-items:start">
     <div class="db-full" style="margin-bottom:0">
+      <!-- SPA-V366 — combined go/no-go gate header (fuses operational readiness + checklist verdict) -->
+      <div id="combined-golive-gate" style="margin-bottom:12px;display:none"></div>
       <div id="golive-verdict" style="font-size:22px;font-weight:700;margin-bottom:8px">
         <div class="skeleton skel-line" style="width:40%;height:36px"></div>
       </div>
@@ -3888,6 +3890,7 @@ async function loadGoLive() {
       fetch(BASE + '/golive_readiness_score_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_history.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
+    renderCombinedGoLiveHeader(readiness, scoreData);
     renderGoLiveVerdict(readiness);
     renderChecklistTrend(checklistHistory);
     renderReadinessScore(scoreData);
@@ -3901,6 +3904,70 @@ async function loadGoLive() {
     console.error('GoLive load error:', e);
     const el = document.getElementById('golive-verdict');
     if (el) el.innerHTML = '<div style="color:#B91C1C;font-size:14px">⚠ Could not load go-live data</div>';
+  }
+}
+
+// SPA-V366 — combined go/no-go gate header. Fuses the two independent go-live
+// axes (operational readiness score + paper-trading checklist verdict) into one
+// top-line GO / NO-GO answer. Mirrors readiness_score.build_combined_golive_gate
+// on the client from the two already-fetched docs (no extra fetch). Null-safe,
+// never throws; hidden until at least one source is present.
+function renderCombinedGoLiveHeader(readiness, scoreData) {
+  try {
+    const el = document.getElementById('combined-golive-gate');
+    if (!el) return;
+    if (!readiness && !scoreData) { el.style.display = 'none'; return; }
+
+    // operational readiness axis
+    const SEV = { ok: 0, warn: 1, degraded: 2, unknown: 3 };
+    let opStatus = 'unknown', opScore = null;
+    if (scoreData && typeof scoreData === 'object') {
+      const s = String(scoreData.overall_status || 'unknown').toLowerCase();
+      opStatus = (s in SEV) ? s : 'unknown';
+      if (scoreData.overall_score != null) opScore = scoreData.overall_score;
+    }
+    const operationalOk = opStatus === 'ok';
+
+    // checklist axis
+    let verdict = null, passed = null, total = null;
+    if (readiness && typeof readiness === 'object') {
+      if (readiness.verdict != null) verdict = String(readiness.verdict).toUpperCase();
+      if (Array.isArray(readiness.criteria)) {
+        total = readiness.criteria.length;
+        passed = readiness.criteria.filter(
+          c => c && String(c.status || '').toLowerCase().startsWith('pass')).length;
+      }
+    }
+    const checklistReady = verdict === 'READY';
+
+    const isGo = operationalOk && checklistReady;
+    const blocking = [];
+    if (!operationalOk) blocking.push('operational readiness ' + opStatus);
+    if (!checklistReady) blocking.push('checklist ' + (verdict ? verdict.toLowerCase() : 'unknown'));
+
+    const COL = { ok: '#16a34a', warn: '#f59e0b', degraded: '#B91C1C', unknown: '#9ca3af' };
+    const gateColor = isGo ? '#16a34a' : '#B91C1C';
+    const gateIcon = isGo ? '🟢' : '🔴';
+    const gateText = isGo ? 'GO' : 'NO-GO';
+
+    const opColor = COL[opStatus] || COL.unknown;
+    const opChip = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;background:${opColor};color:#fff;font-size:12px;font-weight:700">Operational: ${opScore != null ? opScore + '/100' : '—'} (${opStatus.toUpperCase()})</span>`;
+    const vColor = checklistReady ? '#16a34a' : (verdict ? '#B91C1C' : '#9ca3af');
+    const critTxt = (passed != null && total != null) ? ` ${passed}/${total}` : '';
+    const vChip = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;background:${vColor};color:#fff;font-size:12px;font-weight:700">Checklist: ${verdict || 'UNKNOWN'}${critTxt}</span>`;
+
+    const blockingTxt = (!isGo && blocking.length)
+      ? `<div style="font-size:12px;color:#777;margin-top:6px">Blocking: ${blocking.join(' · ')}</div>`
+      : '';
+
+    el.style.display = 'block';
+    el.innerHTML =
+      `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;border:2px solid ${gateColor};background:${isGo ? 'rgba(22,163,74,0.06)' : 'rgba(185,28,28,0.05)'}">
+        <div style="font-size:20px;font-weight:800;color:${gateColor};white-space:nowrap">${gateIcon} GO-LIVE GATE: ${gateText}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${opChip}${vChip}</div>
+      </div>${blockingTxt}`;
+  } catch (e) {
+    console.error('renderCombinedGoLiveHeader error:', e);
   }
 }
 
