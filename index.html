@@ -3888,7 +3888,7 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory, combinedVerdict] = await Promise.all([
+    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory, combinedVerdict, apyGap] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
@@ -3896,12 +3896,14 @@ async function loadGoLive() {
       fetch(BASE + '/golive_readiness_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_combined_verdict_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_combined_verdict.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/apy_gap_report.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     renderCombinedGoLiveHeader(readiness, scoreData, combinedVerdict);
     renderCombinedGateTrend(combinedHistory);
     renderGoLiveVerdict(readiness);
     renderChecklistTrend(checklistHistory);
     renderReadinessScore(scoreData);
+    renderApyGapWidget(apyGap);
     renderReadinessTrend(scoreHistory);
     renderGoLiveCriteria(readiness);
     loadAdapterStatus();
@@ -4046,6 +4048,64 @@ function renderReadinessScore(data) {
   el.innerHTML =
     `<span style="font-weight:700;color:#333">Operational readiness: ${score}/100</span> ${badge}${scheduleChip}` +
     (parts ? `<div style="font-size:11px;color:#777;margin-top:3px">${parts}</div>` : '');
+}
+
+// SPA-V372 — APY gap-to-target widget. Surfaces the persisted data/apy_gap_report.json
+// (emitted each 4h cycle by export_data.py) as a Go-Live dashboard card: current
+// weighted portfolio APY vs the 7.3% target, the remaining gap, on_track status,
+// and the status of the two yield levers (Pendle PT, Sky/sUSDS). All values in the
+// JSON are already in PERCENT units (apy_gap_report.py contract) — no *100 scaling.
+// Null-safe, never throws; hidden when there is nothing valid to show.
+function renderApyGapWidget(apyGap) {
+  const el = document.getElementById('apy-gap-widget');
+  if (!el) return;
+  try {
+    if (!apyGap || typeof apyGap !== 'object' || Array.isArray(apyGap)) { el.style.display = 'none'; return; }
+    const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : null;
+    const current = num(apyGap.current_weighted_apy);
+    const target = num(apyGap.target_apy);
+    const remaining = num(apyGap.remaining_gap);
+    const onTrack = apyGap.on_track === true;
+    // Nothing meaningful to display -> hide.
+    if (current === null && target === null) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+
+    const fmt = (v) => (v === null) ? '—' : v.toFixed(2) + '%';
+    const COL = { ok: '#16a34a', warn: '#f59e0b', gray: '#9ca3af' };
+    const gateColor = onTrack ? COL.ok : COL.warn;
+    const gateText = onTrack ? 'ON TRACK' : 'GAP TO TARGET';
+    const gateChip = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;background:${gateColor};color:#fff;font-size:12px;font-weight:700">${gateText}</span>`;
+
+    const targetTxt = (target === null) ? '7.30%' : fmt(target);
+    const remTxt = onTrack ? '0.00%' : fmt(remaining);
+    const remColor = onTrack ? COL.ok : COL.warn;
+
+    // lever status chip — reuse the same status->colour mapping style as the gate.
+    const leverChip = (label, status) => {
+      const st = String(status || 'unknown').toLowerCase();
+      let c = COL.gray;
+      if (st === 'eligible') c = COL.ok;
+      else if (st === 'partial') c = COL.warn;
+      else if (st === 'pending_whitelist' || st === 'none') c = COL.gray;
+      return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${c};color:#fff;font-size:11px;font-weight:600;margin-right:6px">${label}: ${st}</span>`;
+    };
+    const pendleChip = leverChip('Pendle PT', apyGap.pendle_status);
+    const skyChip = leverChip('Sky/sUSDS', apyGap.sky_status);
+
+    el.innerHTML =
+      `<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;border:1.5px solid ${gateColor};background:${onTrack ? 'rgba(22,163,74,0.06)' : 'rgba(245,158,11,0.06)'};flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:800;color:#333;white-space:nowrap">APY GAP TO TARGET</div>
+        ${gateChip}
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:#333">
+          <span>Current: <strong style="color:#16a34a">${fmt(current)}</strong></span>
+          <span>Target: <strong style="color:#185FA5">${targetTxt}</strong></span>
+          <span>Remaining gap: <strong style="color:${remColor}">${remTxt}</strong></span>
+        </div>
+      </div>
+      <div style="margin-top:6px">${pendleChip}${skyChip}</div>`;
+  } catch (e) {
+    console.error('renderApyGapWidget error:', e);
+  }
 }
 
 // SPA-V363 — mini trend sparkline of the headline readiness score over time.
