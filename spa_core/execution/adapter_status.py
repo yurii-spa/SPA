@@ -157,6 +157,34 @@ def _mev_protection_status() -> dict[str, Any]:
         }
 
 
+def _adapter_mev_routed(module: Any) -> bool:
+    """Return whether the adapter module routes live-broadcast via MEV-protection.
+
+    Sprint v3.56 / SPA-V356 — source of truth is the actual wiring: inspect the
+    adapter module's source and report whether it references any MEV-broadcast
+    helper (``send_raw_transaction_auto`` / ``broadcast_protected_hash`` /
+    ``send_protected``). This distinguishes adapters whose live-send path was
+    wired through Flashbots Protect (v3.52 T2 adapters) from those that are not
+    (e.g. pendle_pt, which is BLOCKED/NotImplemented). stdlib-only, never raises:
+    any failure (e.g. ``inspect.getsource`` on a sourceless object) yields False.
+    """
+    try:
+        import inspect
+
+        src = inspect.getsource(module)
+        return any(
+            name in src
+            for name in (
+                "send_raw_transaction_auto",
+                "broadcast_protected_hash",
+                "send_protected",
+            )
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("mev-routed inspection failed (%s) — defaulting False", exc)
+        return False
+
+
 def _fetch_live_apy_map(
     protocol_key: str,
     mock_apy: dict[str, dict[str, float]],
@@ -215,6 +243,9 @@ def _adapter_record(spec: dict[str, Any], live_enabled: bool) -> dict[str, Any]:
         "tier": spec["tier"],
         "allocation_cap": spec["allocation_cap"],
         "write_state": spec["write_state"],
+        # MEV-routing applicability (Sprint v3.56 / SPA-V356) — always present;
+        # set True on the happy path when the module wires a protected send.
+        "mev_routed": False,
         "apy_source": {
             "mode": "mock",
             "live_project": spec["apy_source_project"],
@@ -240,12 +271,15 @@ def _adapter_record(spec: dict[str, Any], live_enabled: bool) -> dict[str, Any]:
         record["mock_apy"] = {
             chain: dict(assets) for chain, assets in dict(mock_apy).items()
         }
+        # MEV-routing applicability (Sprint v3.56 / SPA-V356).
+        record["mev_routed"] = _adapter_mev_routed(module)
     except Exception as exc:
         log.warning("adapter %s collection failed: %s", spec["protocol_key"], exc)
         record["error"] = str(exc)
         record.setdefault("chains", [])
         record.setdefault("assets", [])
         record.setdefault("mock_apy", {})
+        record.setdefault("mev_routed", False)
 
     # ── Live APY enrichment (Sprint v3.35 / SPA-V335) ────────────────────────
     # Only when the SPA_LIVE_APY gate is on AND the adapter imported cleanly.
@@ -276,13 +310,19 @@ def collect_adapter_status() -> list[dict[str, Any]]:
 
 def build_status_document() -> dict[str, Any]:
     """Assemble the full adapter-status JSON document."""
+    adapters = collect_adapter_status()
+    # MEV-routing summary (Sprint v3.56 / SPA-V356) — inject per-adapter routing
+    # applicability into the top-level mev_protection block.
+    mev = _mev_protection_status()
+    mev["routed_adapters"] = [a["protocol_key"] for a in adapters if a.get("mev_routed")]
+    mev["unrouted_adapters"] = [a["protocol_key"] for a in adapters if not a.get("mev_routed")]
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": SCHEMA_VERSION,
         "execution_mode": os.environ.get("SPA_EXECUTION_MODE", "dry_run"),
         "live_apy_enabled": _live_apy_enabled(),
-        "mev_protection": _mev_protection_status(),
-        "adapters": collect_adapter_status(),
+        "mev_protection": mev,
+        "adapters": adapters,
     }
 
 
