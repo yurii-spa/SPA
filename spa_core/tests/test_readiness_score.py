@@ -56,11 +56,12 @@ def test_document_top_level_keys_and_types():
     assert doc["target_date"] == "2026-07-15"
 
 
-def test_three_components_with_required_fields():
+def test_components_with_required_fields():
+    # SPA-V364: four components now (three operational + informational schedule).
     doc = rs.build_readiness_score_document()
-    assert len(doc["components"]) == 3
+    assert len(doc["components"]) == 4
     keys = {c["key"] for c in doc["components"]}
-    assert keys == {"feed_health", "mev_coverage", "live_apy"}
+    assert keys == {"feed_health", "mev_coverage", "live_apy", "schedule"}
     for c in doc["components"]:
         assert "key" in c and "label" in c and "score" in c and "status" in c
 
@@ -234,7 +235,12 @@ def test_build_never_raises_when_all_sources_fail(monkeypatch):
     doc = rs.build_readiness_score_document()
     assert doc["overall_status"] == "unknown"
     assert doc["overall_score"] == 0.0
+    # overall_* are computed over the contributing operational components only;
+    # all three sources blew up, so each must be unknown/0 with an error note.
+    # The informational schedule component still computes fine and is excluded.
     for c in doc["components"]:
+        if not c.get("contributes_to_overall"):
+            continue
         assert c["status"] == "unknown"
         assert c["score"] == 0
         assert "error" in c
@@ -344,6 +350,140 @@ class TestAppendHistory:
         assert len(history) >= 1
         assert history[-1]["overall_score"] == doc["overall_score"]
         assert history[-1]["generated_at"] == doc["generated_at"]
+
+
+# --------------------------------------------------------------------------
+# SPA-V364 — informational schedule / countdown component
+# --------------------------------------------------------------------------
+
+class TestScheduleComponent:
+    """schedule day-counter: informational, NOT part of the operational mean."""
+
+    def test_record_shape_and_keys(self):
+        rec = rs._schedule_component()
+        for key in (
+            "key", "label", "target_date", "days_to_golive",
+            "contributes_to_overall", "scored", "status", "score",
+        ):
+            assert key in rec
+        assert rec["key"] == "schedule"
+        assert rec["label"] == "Days to go-live"
+        assert rec["target_date"] == rs.TARGET_DATE == "2026-07-15"
+        assert rec["contributes_to_overall"] is False
+        assert rec["scored"] is False
+
+    def test_days_to_golive_is_int_and_signed_per_formula(self):
+        from datetime import datetime, timezone
+        rec = rs._schedule_component()
+        assert isinstance(rec["days_to_golive"], int)
+        # for TARGET_DATE 2026-07-15 vs today, the value must equal the formula.
+        target = datetime.strptime(rs.TARGET_DATE, "%Y-%m-%d").date()
+        expected = (target - datetime.now(timezone.utc).date()).days
+        assert rec["days_to_golive"] == expected
+        # go-live is in the future relative to the project clock -> positive.
+        assert rec["days_to_golive"] > 0
+
+    def test_status_ok_when_far_out(self, monkeypatch):
+        monkeypatch.setattr(rs, "TARGET_DATE", "2099-01-01")
+        rec = rs._schedule_component()
+        assert rec["days_to_golive"] > 14
+        assert rec["status"] == "ok"
+        assert rec["score"] == 100
+
+    def test_status_warn_in_final_stretch(self, monkeypatch):
+        from datetime import datetime, timezone, timedelta
+        soon = (datetime.now(timezone.utc).date() + timedelta(days=7)).isoformat()
+        monkeypatch.setattr(rs, "TARGET_DATE", soon)
+        rec = rs._schedule_component()
+        assert 0 <= rec["days_to_golive"] <= 14
+        assert rec["status"] == "warn"
+        assert rec["score"] == 60
+
+    def test_status_warn_at_boundary_today(self, monkeypatch):
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).date().isoformat()
+        monkeypatch.setattr(rs, "TARGET_DATE", today)
+        rec = rs._schedule_component()
+        assert rec["days_to_golive"] == 0
+        assert rec["status"] == "warn"
+
+    def test_status_degraded_when_overdue(self, monkeypatch):
+        from datetime import datetime, timezone, timedelta
+        past = (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat()
+        monkeypatch.setattr(rs, "TARGET_DATE", past)
+        rec = rs._schedule_component()
+        assert rec["days_to_golive"] < 0
+        assert rec["status"] == "degraded"
+        assert rec["score"] == 0
+
+    def test_never_raises_on_broken_target_date(self, monkeypatch):
+        monkeypatch.setattr(rs, "TARGET_DATE", "not-a-date")
+        rec = rs._schedule_component()
+        assert rec["status"] == "unknown"
+        assert rec["score"] == 0
+        assert rec["days_to_golive"] is None
+        assert "error" in rec
+
+    # ---- document-level integration ---------------------------------------
+
+    def test_document_has_four_components_schedule_last(self):
+        doc = rs.build_readiness_score_document()
+        assert len(doc["components"]) == 4
+        keys = [c["key"] for c in doc["components"]]
+        assert keys[-1] == "schedule"
+        assert set(keys) == {
+            "feed_health", "mev_coverage", "live_apy", "schedule"}
+
+    def test_exactly_three_contribute_to_overall(self):
+        doc = rs.build_readiness_score_document()
+        contributing = [c for c in doc["components"]
+                        if c.get("contributes_to_overall")]
+        assert len(contributing) == 3
+        assert {c["key"] for c in contributing} == {
+            "feed_health", "mev_coverage", "live_apy"}
+        sched = next(c for c in doc["components"] if c["key"] == "schedule")
+        assert sched["contributes_to_overall"] is False
+
+    def test_schedule_does_not_shift_overall_score(self, monkeypatch):
+        """overall_score is the mean of the 3 operational scores only — adding
+        the schedule component (whatever its score) must not change it."""
+        _patch_components(
+            monkeypatch,
+            feed=_comp("feed_health", 100, "ok"),
+            mev=_comp("mev_coverage", 40, "degraded"),
+            live=_comp("live_apy", 50, "warn"),
+        )
+        # schedule scores 100 (far-out date) — would drag mean upward if counted.
+        monkeypatch.setattr(rs, "TARGET_DATE", "2099-01-01")
+        doc = rs.build_readiness_score_document()
+        assert doc["overall_score"] == round((100 + 40 + 50) / 3, 1)
+        # explicitly NOT the mean of all four:
+        assert doc["overall_score"] != round((100 + 40 + 50 + 100) / 4, 1)
+
+    def test_overall_status_ignores_schedule(self, monkeypatch):
+        """A degraded (overdue) schedule must not worsen overall_status when the
+        three operational components are all ok."""
+        _patch_components(
+            monkeypatch,
+            feed=_comp("feed_health", 100, "ok"),
+            mev=_comp("mev_coverage", 100, "ok"),
+            live=_comp("live_apy", 100, "ok"),
+        )
+        monkeypatch.setattr(rs, "TARGET_DATE", "2000-01-01")  # overdue -> degraded
+        doc = rs.build_readiness_score_document()
+        assert doc["overall_status"] == "ok"
+
+    def test_top_level_days_to_golive_present(self):
+        doc = rs.build_readiness_score_document()
+        assert "days_to_golive" in doc
+        sched = next(c for c in doc["components"] if c["key"] == "schedule")
+        assert doc["days_to_golive"] == sched["days_to_golive"]
+
+    def test_top_level_days_to_golive_none_when_schedule_breaks(self, monkeypatch):
+        monkeypatch.setattr(rs, "TARGET_DATE", "garbage")
+        doc = rs.build_readiness_score_document()
+        # build must not raise and days_to_golive falls back to None.
+        assert doc["days_to_golive"] is None
 
 
 # --------------------------------------------------------------------------
