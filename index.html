@@ -1793,6 +1793,7 @@
       <div id="golive-readiness-score" style="font-size:13px;color:#555;margin-bottom:8px">
         <span style="color:#999">—</span>
       </div>
+      <div id="readiness-trend-wrap" style="height:38px;margin:4px 0 8px 0;display:none"><canvas id="readiness-trend-canvas"></canvas></div>
       <div id="golive-countdown" style="font-size:14px;color:#888;margin-bottom:10px"></div>
       <div class="day-progress-wrap" id="golive-day-progress-wrap">
         <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:3px"><span id="golive-day-label">Day — of 56</span></div>
@@ -3879,13 +3880,15 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, scoreData, latestReport] = await Promise.all([
+    const [readiness, scoreData, latestReport, scoreHistory] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/golive_readiness_score_history.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     renderGoLiveVerdict(readiness);
     renderReadinessScore(scoreData);
+    renderReadinessTrend(scoreHistory);
     renderGoLiveCriteria(readiness);
     loadAdapterStatus();
     renderGoLiveReport(latestReport);
@@ -3920,6 +3923,50 @@ function renderReadinessScore(data) {
   el.innerHTML =
     `<span style="font-weight:700;color:#333">Operational readiness: ${score}/100</span> ${badge}` +
     (parts ? `<div style="font-size:11px;color:#777;margin-top:3px">${parts}</div>` : '');
+}
+
+// SPA-V363 — mini trend sparkline of the headline readiness score over time.
+let _readinessTrendChart = null;
+function renderReadinessTrend(history) {
+  try {
+    const wrap = document.getElementById('readiness-trend-wrap');
+    if (!wrap) return;
+    if (!Array.isArray(history) || history.length < 2) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+    const pts = history.slice(-60);
+    const labels = pts.map(p => (p && p.generated_at) ? p.generated_at : '');
+    const values = pts.map(p => (p && p.overall_score != null) ? p.overall_score : null);
+    const canvas = document.getElementById('readiness-trend-canvas');
+    if (!canvas) return;
+    if (_readinessTrendChart) { _readinessTrendChart.destroy(); _readinessTrendChart = null; }
+    _readinessTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          borderColor: '#185FA5',
+          backgroundColor: 'rgba(24,95,165,0.10)',
+          borderWidth: 1.5,
+          fill: true,
+          tension: 0.3,
+          spanGaps: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } },
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        elements: { point: { radius: 0 } },
+      },
+    });
+  } catch (e) {
+    console.error('renderReadinessTrend error:', e);
+  }
 }
 
 function renderGoLiveVerdict(data) {
