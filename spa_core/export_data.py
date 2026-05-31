@@ -1084,7 +1084,7 @@ def run_export(fetch: bool = False) -> None:
             "historical_apy.json", "risk_alerts.json", "alerts.json",
             "strategy_v2.json", "strategy_comparison.json",
             "optimization_recommendations.json", "covariance_summary.json",
-            "golive_readiness.json",
+            "golive_readiness.json", "golive_readiness_score.json",
         ]
         report_logger.log(
             decision_type='REPORT',
@@ -1471,6 +1471,29 @@ def run_export(fetch: bool = False) -> None:
         )
     except Exception as _fhs:
         log.error(f"Feed-health summary aggregation failed: {_fhs}")
+
+    # ── Consolidated Go-Live readiness score (SPA-V362) ───────────────────────
+    # Roll feed_health + MEV-routing coverage + live_apy into ONE composite
+    # operational readiness score (data/golive_readiness_score.json) so the
+    # dashboard shows a single "NN/100" headline. Runs AFTER feed_health_summary
+    # because it consumes that doc. Pure read-only consolidation (SPA-V361
+    # module) — no money-moving code, no new feed-health monitor (SPA-BL-011
+    # governance freeze respected). Wrapped graceful: never aborts the cycle.
+    try:
+        from golive.readiness_score import write_readiness_score
+
+        score_doc = write_readiness_score(
+            str(OUTPUT_DIR / "golive_readiness_score.json"),
+        )
+        log.info(
+            f"golive_readiness_score.json: overall_score="
+            f"{score_doc.get('overall_score', '?')}, "
+            f"overall_status={score_doc.get('overall_status', '?')}"
+        )
+        _section_ok("golive_readiness_score")
+    except Exception as _grs:
+        log.error(f"Go-Live readiness score export failed: {_grs}", exc_info=True)
+        _section_fail("golive_readiness_score")
 
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
