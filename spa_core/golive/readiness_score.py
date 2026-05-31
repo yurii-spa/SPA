@@ -41,6 +41,12 @@ remain computed over the three operational components only -- feed_health,
 mev_coverage, live_apy -- so the headline number is unchanged / backwards
 compatible). A top-level ``days_to_golive`` is also surfaced for the dashboard
 (``None`` if the schedule component fails -- never-raise).
+
+SPA-V368 -- persist the HISTORY of the combined go/no-go gate
+(``append_combined_history`` -> ``golive_combined_verdict_history.json``) each
+export cycle, mirroring the SPA-V363 score history, so the dashboard can render a
+GO/NO_GO trend. Pure read-only persistence of already-emitted gate data; the
+append is independently guarded and never-raise.
 """
 from __future__ import annotations
 
@@ -75,6 +81,10 @@ MAX_HISTORY = 180
 # to disk each export cycle so the gate is a durable artefact and not only
 # computed client-side. Mirrors the SPA-V362 write_readiness_score wiring.
 COMBINED_VERDICT_FILENAME = "golive_combined_verdict.json"
+# SPA-V368 -- persistent combined-gate history / GO_NO_GO trend on the dashboard.
+# Compact append-only log of the combined go/no-go gate over time, mirroring the
+# SPA-V363 score history and SPA-V365 checklist history. Trimmed to MAX_HISTORY.
+COMBINED_HISTORY_FILENAME = "golive_combined_verdict_history.json"
 # Source documents the gate consolidates (read-only).
 _SCORE_FILENAME = "golive_readiness_score.json"
 _CHECKLIST_FILENAME = "golive_readiness.json"
@@ -85,12 +95,14 @@ __all__ = [
     "HISTORY_FILENAME",
     "MAX_HISTORY",
     "COMBINED_VERDICT_FILENAME",
+    "COMBINED_HISTORY_FILENAME",
     "_schedule_component",
     "build_readiness_score_document",
     "build_combined_golive_gate",
     "write_readiness_score",
     "write_combined_golive_gate",
     "append_history",
+    "append_combined_history",
 ]
 
 
@@ -421,6 +433,53 @@ def append_history(doc: Dict[str, Any], data_dir: Optional[str] = None) -> None:
         return
 
 
+def append_combined_history(
+    doc: Dict[str, Any], data_dir: Optional[str] = None
+) -> None:
+    """SPA-V368 -- append a compact record of the combined gate to its history log.
+
+    Mirror of ``append_history``: reads the existing combined-gate history
+    (``<data_dir>/golive_combined_verdict_history.json`` or
+    ``DEFAULT_DATA_DIR / COMBINED_HISTORY_FILENAME`` when ``data_dir`` is None),
+    appends a small ``{generated_at, gate, operational_status, checklist_verdict}``
+    record, dedups on ``generated_at`` (a same-timestamp re-run replaces the last
+    record rather than duplicating it), trims to the last ``MAX_HISTORY`` records
+    and writes it back. A missing or corrupt history file is treated as an empty
+    list -- any failure is swallowed (logged at debug) so it can never break the
+    main combined-gate write.
+    """
+    try:
+        target = (
+            Path(data_dir) / COMBINED_HISTORY_FILENAME
+            if data_dir is not None
+            else DEFAULT_DATA_DIR / COMBINED_HISTORY_FILENAME
+        )
+        history: List[Dict[str, Any]] = []
+        if target.exists():
+            try:
+                loaded = json.loads(target.read_text(encoding="utf-8"))
+                if isinstance(loaded, list):
+                    history = loaded
+            except Exception:  # noqa: BLE001 -- corrupt file -> start fresh
+                history = []
+        record = {
+            "generated_at": doc.get("generated_at"),
+            "gate": doc.get("gate"),
+            "operational_status": doc.get("operational_status"),
+            "checklist_verdict": doc.get("checklist_verdict"),
+        }
+        if history and history[-1].get("generated_at") == record["generated_at"]:
+            history[-1] = record
+        else:
+            history.append(record)
+        history = history[-MAX_HISTORY:]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(history, indent=2), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("append_combined_history failed: %s", exc)
+        return
+
+
 def write_readiness_score(out_path: Optional[str] = None) -> Dict[str, Any]:
     """
     Build the score document and write it to ``out_path`` (default
@@ -505,6 +564,12 @@ def write_combined_golive_gate(
     }
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    # SPA-V368 -- history append is independently guarded so a history failure
+    # can never break the (already-completed) main combined-gate write.
+    try:
+        append_combined_history(doc, data_dir=str(target.parent))
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("combined-gate history append failed: %s", exc)
     return doc
 
 
