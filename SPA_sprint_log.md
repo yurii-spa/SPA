@@ -2353,3 +2353,33 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V364:** кандидаты — (a) 4-й компонент readiness score (day-counter до 2026-07-15); (b) history-trend для других surface-метрик дашборда. **РЕКОМЕНДАЦИЯ:** критический путь к go-live остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping. Feed-health монитор ЗАПРЕЩЁН (SPA-BL-011); money-moving — только вне автономного режима.
 
 ---
+
+## Sprint v3.64 — 2026-05-31 — Schedule/countdown component в Go-Live readiness score (SPA-V364)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.63 (`sprint_completed: v3.63`, `updated_by: orchestrator-v363`). Status pass запрещён. v3.61 создал композитный operational readiness score (3 компонента: feed_health + mev_coverage + live_apy, mean+worst-of), v3.62 подключил его в 4h-пайплайн, v3.63 добавил историю/sparkline. Взят кандидат (a) из плана v3.63: 4-й компонент readiness score — day-counter/countdown до go-live (2026-07-15). Безопасный разблокированный код-спринт: НЕ money-moving (eth_signer/mev_protection/адаптеры не трогаются), НЕ feed-health монитор (SPA-BL-011) — только консолидация уже эмитируемой константы TARGET_DATE в информационный компонент.
+
+### Что сделано
+- **Решение (зафиксировано в коде и доке):** schedule — ИНФОРМАЦИОННЫЙ компонент, НЕ участвует в operational mean. Несёт флаги `contributes_to_overall=False` / `scored=False` и ОСОЗНАННО исключён из `overall_score` (mean) и `overall_status` (worst-of). Headline-число остаётся обратно совместимым (78.6).
+- **`readiness_score.py` — `_schedule_component()`.** Новый helper по образцу `_feed_health_component` / `_live_apy_component` (never-raise: top-level try/except → status="unknown", score=0, "error"-нота, days_to_golive=None). Логика: `days_to_golive = (datetime.strptime(TARGET_DATE,"%Y-%m-%d").date() - now_utc.date()).days`. Поля записи: `key="schedule"`, `label="Days to go-live"`, `target_date=TARGET_DATE`, `days_to_golive=<int>`, `contributes_to_overall=False`, `scored=False`. Информационный статус: `ok` при days>14; `warn` при 0≤days≤14 (финальная прямая); `degraded` при days<0 (просрочено). `score`: ok=100/warn=60/degraded=0 — только для единообразия карточки, в mean НЕ идёт.
+- **`build_readiness_score_document()`.** Три операционных компонента помечаются `contributes_to_overall=True` при сборке; `_schedule_component()` добавлен 4-м (последним). **КРИТИЧНО:** `overall_score`/`overall_status` считаются ТОЛЬКО по компонентам с `contributes_to_overall is True` (mean/worst-of по 3 операционным, schedule исключён). Добавлено top-level поле `days_to_golive` (дублирует из schedule-компонента, удобно для дашборда; never-raise — None если schedule упал). Docstring модуля дополнен записью SPA-V364. `_schedule_component` добавлен в `__all__`. История/`append_history` НЕ тронуты — формат записи {generated_at, overall_score, overall_status} прежний.
+- **`index.html` — days-to-go-live чип.** В `renderReadinessScore` добавлен null-safe (typeof/Array.isArray guards, try/catch) бейдж «🗓 N days to go-live» (или «N days overdue» при отрицательном), рядом с readiness-badge. Источник: top-level `days_to_golive`, иначе компонент с `key==="schedule"`. Не падает на старых фидах без поля; разметка/колонки не тронуты.
+
+### Файлы
+- `spa_core/golive/readiness_score.py` (+`_schedule_component`, флаги `contributes_to_overall` на 3 операционных, overall-* только по contributing, top-level `days_to_golive`, docstring, `__all__`)
+- `index.html` (+days-to-go-live чип в `renderReadinessScore`, null-safe)
+- `spa_core/tests/test_readiness_score.py` (+класс `TestScheduleComponent`, 13 тестов; адаптированы 2 существующих теста под 4 компонента)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v364` (readiness_score.py, index.html, test_readiness_score.py, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `test_readiness_score.py` — **45 passed** (включая новый `TestScheduleComponent` — 13 тестов: форма записи/ключи, days_to_golive int+знак по формуле, status ok/warn/degraded по границам >14/0..14/<0 через monkeypatch TARGET_DATE, граница today→0→warn, never-raise на битом TARGET_DATE → unknown/0/None/error, документ = 4 компонента (schedule последний), ровно 3 contributes_to_overall=True, schedule НЕ сдвигает overall_score [mean(3) а не mean(4)], overdue-schedule НЕ ухудшает overall_status, top-level days_to_golive присутствует и равен компонентному, None при сломанном schedule).
+- Регрессия `test_covariance_export.py` + `test_feed_health_summary.py` — **96 passed, 0 новых фейлов**.
+- `py_compile readiness_score.py` + `test_readiness_score.py` — OK. KANBAN.json валиден (json round-trip OK).
+- Smoke `build_readiness_score_document()`: `overall_score=78.6` (НЕ сдвинулся — подтверждено), `status=warn`, **4 компонента**, `days_to_golive=45` (today=2026-05-31 → 2026-07-15), contributes-флаги: feed_health/mev_coverage/live_apy=True, schedule=False.
+- LiveApy/сетевые тесты пропущены (таймаутят офлайн) — код этих путей в v3.64 не менялся.
+
+### Следующий спринт
+- **SPA-V365:** кандидаты — (a) history-trend (sparkline/история) для других surface-метрик дашборда (например MEV-coverage % или feed-health overall со временем — UI, не новый монитор); (b) рендер paper-trading checklist verdict как отдельный go/no-go бейдж рядом с operational readiness (две разные оси: операционная готовность vs checklist-вердикт). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011) без нового класса отказа; money-moving — только вне автономного режима.
+
+---
