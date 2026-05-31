@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-30T23:13:09.021863+00:00",
+  "generated_at": "2026-05-31T00:13:17.175847+00:00",
   "schema_version": 1,
   "execution_mode": "dry_run",
   "live_apy_enabled": false,
@@ -11,6 +11,15 @@
       "https://rpc.flashbots.net/fast",
       "https://rpc.flashbots.net",
       "https://rpc.mevblocker.io/noreverts"
+    ],
+    "routed_adapters": [
+      "yearn-v3",
+      "euler-v2",
+      "maple",
+      "sky-susds"
+    ],
+    "unrouted_adapters": [
+      "pendle-pt"
     ]
   },
   "adapters": [
@@ -20,6 +29,7 @@
       "tier": "T2",
       "allocation_cap": 0.2,
       "write_state": "BLOCKED",
+      "mev_routed": true,
       "apy_source": {
         "mode": "mock",
         "live_project": "yearn",
@@ -51,6 +61,7 @@
       "tier": "T2",
       "allocation_cap": 0.2,
       "write_state": "BLOCKED",
+      "mev_routed": true,
       "apy_source": {
         "mode": "mock",
         "live_project": "euler",
@@ -77,6 +88,7 @@
       "tier": "T2",
       "allocation_cap": 0.2,
       "write_state": "BLOCKED",
+      "mev_routed": true,
       "apy_source": {
         "mode": "mock",
         "live_project": "maple",
@@ -101,6 +113,7 @@
       "tier": "T2",
       "allocation_cap": 0.2,
       "write_state": "NOT_IMPLEMENTED",
+      "mev_routed": false,
       "apy_source": {
         "mode": "mock",
         "live_project": "pendle",
@@ -127,6 +140,7 @@
       "tier": "T2-conditional",
       "allocation_cap": 0.0,
       "write_state": "BLOCKED",
+      "mev_routed": true,
       "apy_source": {
         "mode": "mock",
         "live_project": "sky",
