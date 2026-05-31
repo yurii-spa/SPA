@@ -2408,3 +2408,32 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V366:** кандидаты — (a) history-trend для других surface-метрик (MEV-coverage % со временем — UI, не новый монитор); (b) консолидация operational readiness score + checklist verdict в единый комбинированный go/no-go хедер; (c) при разблокировке секретов SPA-BL-012 — переключение на FEAT-001 Phase 3 live execution (вне автономного режима). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011); money-moving — только вне автономного режима.
 
 ---
+
+## Sprint v3.66 — 2026-05-31 — Combined go/no-go gate header (SPA-V366)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.65 (`sprint_completed: v3.65`, `updated_by: orchestrator-v365`). Status pass запрещён. **v3.65 оканчивается на 5 → периодический architect review требуется.** LLM-архитектор (`python3 -m spa_core.dev_agents.architect`) НЕ запускается в этом scheduled-окружении: нет `ANTHROPIC_API_KEY`, сеть песочницы через SOCKS-прокси. Выполнен РУЧНОЙ эквивалент backlog-review: каждый HIGH-пункт либо done (SPA-BL-010 MEV), либо user_action-blocked (BL-004/005/006, SPA-BL-007/008/009, SPA-BL-012), либо governance-freeze (SPA-BL-011 feed-health) — новых архитекторских карточек не требуется. Взят кандидат (b) из плана v3.65: консолидация operational readiness score + checklist verdict в единый комбинированный go/no-go хедер. Безопасный разблокированный код-спринт: НЕ money-moving (eth_signer/mev_protection/адаптеры не трогаются), НЕ feed-health монитор (SPA-BL-011) — чистая read-only консолидация/визуализация двух уже эмитируемых документов.
+
+### Примечание по инфраструктуре пуша
+- Предыдущие два цикла (v366/v367 status-reports) отказались штамповать спринт, считая пуш-канал недоступным. Перепроверено в этом запуске: `curl localhost:8765` из песочницы действительно даёт 000, НО локальное Chrome-расширение **подключено** (`list_connected_browsers` → Browser 1, macOS, isLocal=true). Значит санкционированный метод пуша (`push_*.html → http://localhost:8765/ → Chrome navigate`) физически доступен через Chrome на машине пользователя. Спринт выполнен и запушен.
+
+### Что сделано
+- **`readiness_score.py` — `build_combined_golive_gate(score_doc, checklist_doc)`.** Чистая presentation-layer функция (never-raise): читает два УЖЕ эмитируемых документа (`golive_readiness_score.json` → `overall_status`/`overall_score`; `golive_readiness.json` → `verdict` + `criteria`), возвращает `{gate: "GO"|"NO_GO", operational_status, operational_score, checklist_verdict, criteria_passed, criteria_total, blocking[]}`. `GO` ТОЛЬКО когда `operational_status=="ok"` И `verdict=="READY"`; иначе `NO_GO` с перечислением лимитирующих осей в `blocking`. КЛЮЧЕВОЕ: функция НЕ мутирует входы и НЕ сливает источники данных — `overall_score` остаётся 78.6 (обратно совместимо), две оси остаются раздельными по дизайну (см. docstring модуля). Оба входа `None` → безопасный `NO_GO` (`blocking=["error"]`/missing-axis). Добавлена в `__all__`.
+- **`index.html` — комбинированный хедер.** Новый контейнер `#combined-golive-gate` НАД `#golive-verdict`; новая `renderCombinedGoLiveHeader(readiness, scoreData)` зеркалит бэкенд-логику на клиенте из двух уже-зафетченных в `loadGoLive` документов (без доп. fetch). Рендерит единый бордерный баннер «🟢/🔴 GO-LIVE GATE: GO/NO-GO» + чипы Operational (NN/100, статус) и Checklist (verdict, N/M) + строку «Blocking: …». Null-safe, try/catch, скрыт когда оба источника отсутствуют.
+
+### Файлы
+- `spa_core/golive/readiness_score.py` (+`build_combined_golive_gate`, +`__all__`)
+- `index.html` (+`#combined-golive-gate`, +`renderCombinedGoLiveHeader`, +вызов в `loadGoLive`)
+- `spa_core/tests/test_readiness_score.py` (+класс `TestCombinedGoLiveGate`, 11 тестов)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v366` (readiness_score.py, test_readiness_score.py, index.html, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `test_readiness_score.py` — **56 passed** (исключая сетевые LiveApy-тесты, таймаутят офлайн), включая новый `TestCombinedGoLiveGate` — 11 тестов: GO только при ok+READY; NO_GO при не-ok operational (только operational в blocking); NO_GO при не-READY checklist (только checklist в blocking, criteria 6/12); обе оси в blocking когда обе блокируют; неизвестный operational_status → "unknown"/NO_GO; оба None → безопасный NO_GO с 2 blocking; отсутствие criteria-списка → counts None но GO при READY+ok; не мутирует входы; JSON-сериализуемо; verdict регистронезависим; присутствие в `__all__`.
+- Регрессия `test_golive.py` + `test_golive_extended.py` + `test_feed_health_summary.py` + `test_covariance_export.py` — **188 passed, 0 фейлов**.
+- `py_compile readiness_score.py` — OK. `node --check` экстрактнутой `renderCombinedGoLiveHeader` — OK; runtime-smoke (мок DOM): warn/NOT_READY→NO-GO + «6/12» + Blocking; ok/READY→GO; null/null без throw. Live build: `overall_score=78.6/warn` НЕ сдвинулся; `gate=NO_GO` (operational warn + checklist NOT_READY, 6/12). KANBAN.json валиден (json round-trip).
+
+### Следующий спринт
+- **SPA-V367:** кандидаты — (a) history-trend для MEV-coverage % во времени (UI, не новый монитор); (b) эмитировать `data/golive_combined_verdict.json` из `build_combined_golive_gate` и подключить в 4h-export-пайплайн, чтобы гейт ПЕРСИСТИЛСЯ (а не только считался на клиенте) — тот же класс работы, что закрыл SPA-V362 для readiness_score; (c) при разблокировке секретов SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15, 45 дней) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping/консолидация. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011); money-moving — только вне автономного режима.
+
+---
