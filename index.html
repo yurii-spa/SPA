@@ -1790,6 +1790,9 @@
       <div id="golive-verdict" style="font-size:22px;font-weight:700;margin-bottom:8px">
         <div class="skeleton skel-line" style="width:40%;height:36px"></div>
       </div>
+      <div id="golive-readiness-score" style="font-size:13px;color:#555;margin-bottom:8px">
+        <span style="color:#999">—</span>
+      </div>
       <div id="golive-countdown" style="font-size:14px;color:#888;margin-bottom:10px"></div>
       <div class="day-progress-wrap" id="golive-day-progress-wrap">
         <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:3px"><span id="golive-day-label">Day — of 56</span></div>
@@ -3876,11 +3879,13 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, latestReport] = await Promise.all([
+    const [readiness, scoreData, latestReport] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     renderGoLiveVerdict(readiness);
+    renderReadinessScore(scoreData);
     renderGoLiveCriteria(readiness);
     loadAdapterStatus();
     renderGoLiveReport(latestReport);
@@ -3891,6 +3896,30 @@ async function loadGoLive() {
     const el = document.getElementById('golive-verdict');
     if (el) el.innerHTML = '<div style="color:#B91C1C;font-size:14px">⚠ Could not load go-live data</div>';
   }
+}
+
+function renderReadinessScore(data) {
+  // SPA-V361 — consolidated Go-Live operational readiness score badge.
+  const el = document.getElementById('golive-readiness-score');
+  if (!el) return;
+  const COLORS = { ok: '#16a34a', warn: '#f59e0b', degraded: '#B91C1C', unknown: '#9ca3af' };
+  if (!data) {
+    el.innerHTML = '<span style="color:#999">— readiness score unavailable</span>';
+    return;
+  }
+  const overall = (data.overall_status || 'unknown').toLowerCase();
+  const color = COLORS[overall] || COLORS.unknown;
+  const score = (data.overall_score != null) ? data.overall_score : '—';
+  const badge = `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${color};color:#fff;font-size:11px;font-weight:700">${overall.toUpperCase()}</span>`;
+  const parts = (data.components || []).map(c => {
+    const cst = (c.status || 'unknown').toLowerCase();
+    const ccolor = COLORS[cst] || COLORS.unknown;
+    const label = c.label || c.key || '?';
+    return `<span style="color:${ccolor}">${label}: ${c.score}/${cst}</span>`;
+  }).join(' · ');
+  el.innerHTML =
+    `<span style="font-weight:700;color:#333">Operational readiness: ${score}/100</span> ${badge}` +
+    (parts ? `<div style="font-size:11px;color:#777;margin-top:3px">${parts}</div>` : '');
 }
 
 function renderGoLiveVerdict(data) {
