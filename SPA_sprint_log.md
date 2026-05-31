@@ -4,6 +4,33 @@
 
 ---
 
+## Sprint v3.59 — 2026-05-31 — Per-signal updated_at history in feed-health summary + dashboard (SPA-V359)
+
+### Что сделано
+- **`spa_core/alerts/feed_health_summary.py` — Шаг 1 (backend, never-raise):** в `evaluate_signal` добавлено производное поле `last_alert_age_hours` — возраст (в часах, округл. до 2 знаков) последнего обновления state-файла. В record-словарь добавлена инициализация `"last_alert_age_hours": None` (рядом с `"updated_at": None`). Введён module-level helper `_age_hours(iso_str) -> Optional[float]` (top-level try/except → `None`): парсит ISO-строку, поддерживает суффикс `Z` (`.replace("Z","+00:00")`), naive datetime → UTC, считает `(now_utc - parsed).total_seconds()/3600.0`. ПОСЛЕ строки `record["updated_at"] = data.get("updated_at")` (внутри общего try) helper вызывается в ДОПОЛНИТЕЛЬНОМ внутреннем try/except, чтобы плохой `updated_at` не сбивал остальные поля. Семантика `present`/отсутствующего файла сохранена: missing → healthy, `last_alert_age_hours=None`. Helper использует уже импортированные `datetime`/`timezone`.
+- **`index.html` — Шаг 2 (frontend, точечный Edit `renderFeedHealth`):** tooltip каждого чипа обогащён null-safe-полями: `· updated <updated_at|n/a> · cycle <last_alerted_cycle|n/a>` и `· <age>h ago`, когда `Number.isFinite(s.last_alert_age_hours)`. Старые фиды без новых полей не падают (`s.updated_at || 'n/a'`, `s.last_alerted_cycle != null ? … : 'n/a'`). Вид чипа (label + streak-суффикс) и HTML-структура НЕ изменены — только обогащение tooltip.
+- **`spa_core/tests/test_feed_health_summary.py` — Шаг 3:** добавлен класс `TestLastAlertAgeHours` (6 тестов): возраст ≈5.0h (±0.2) для свежего `updated_at` с Z; `None` без `updated_at`; `None` на мусорном `updated_at` + остальные поля целы и evaluate_signal не бросает; missing state-файл → ключ присутствует со значением None; ключ присутствует у каждого из 9 сигналов `build_summary_document()`; helper `_age_hours` (naive/Z/None/мусор).
+- **`data/feed_health_summary.json` — Шаг 4:** регенерирован `python3 -m spa_core.alerts.feed_health_summary --write`. 9 сигналов, у каждого ключ `last_alert_age_hours` (локально все `None` — degradation state-файлов нет → healthy, overall ok). JSON валиден.
+- **NO new monitor** — соблюдён governance-фриз **SPA-BL-011**: это обогащение/презентация уже существующих данных аггрегатора, не новый feed-health монитор. Money-moving код (`eth_signer.py`, `mev_protection.py`, адаптеры) НЕ тронут.
+
+### Файлы
+- `spa_core/alerts/feed_health_summary.py` (изменён — Шаг 1: `_age_hours` helper + `last_alert_age_hours`)
+- `index.html` (изменён — Шаг 2: tooltip `renderFeedHealth`)
+- `spa_core/tests/test_feed_health_summary.py` (изменён — Шаг 3: `TestLastAlertAgeHours`)
+- `data/feed_health_summary.json` (регенерирован — Шаг 4)
+- Бэкапы `.bak.v359`: feed_health_summary.py, test_feed_health_summary.py, index.html, KANBAN.json, SPA_sprint_log.md.
+
+### Результаты тестов
+- `python3 -m py_compile spa_core/alerts/feed_health_summary.py` → OK.
+- `python3 -m pytest spa_core/tests/test_feed_health_summary.py -q` → **28 passed / 0 failed** (22 прежних + 6 новых `TestLastAlertAgeHours`). Сетевых/pre-existing фейлов в этом файле нет.
+- `data/feed_health_summary.json` валиден (json.load OK), `signal_count=9`, у каждого сигнала есть `last_alert_age_hours`.
+
+### Следующий спринт
+- **SPA-V360 (разблокированный код-шаг):** вынести per-signal updated_at history из tooltip в видимый ряд под чипами (потребует правок HTML-структуры `feed-health-signals`), ЛИБО консолидированный Go-Live readiness score.
+- Напоминание: HIGH go-live путь заблокирован на user-action секретах **SPA-BL-012**; feed-health домен заморожен governance-блокером **SPA-BL-011** (новые мониторы — только под новый класс отказа).
+
+---
+
 ## Sprint v3.57 — 2026-05-31 — Wire T1 aave/compound into adapter_status (SPA-V357)
 
 ### Что сделано
