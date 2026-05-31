@@ -2437,3 +2437,29 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V367:** кандидаты — (a) history-trend для MEV-coverage % во времени (UI, не новый монитор); (b) эмитировать `data/golive_combined_verdict.json` из `build_combined_golive_gate` и подключить в 4h-export-пайплайн, чтобы гейт ПЕРСИСТИЛСЯ (а не только считался на клиенте) — тот же класс работы, что закрыл SPA-V362 для readiness_score; (c) при разблокировке секретов SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15, 45 дней) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping/консолидация. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011); money-moving — только вне автономного режима.
 
 ---
+
+## Sprint v3.67 — 2026-05-31 — Persist combined go/no-go gate (golive_combined_verdict.json) (SPA-V367)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.66 (`sprint_completed: v3.66`, `updated_by: orchestrator-v366`). Status pass запрещён. v3.66 НЕ оканчивается на 0/5 → периодический architect review не требуется. Все HIGH-задачи backlog либо done (SPA-BL-010 MEV), либо user_action-blocked (BL-004/005/006, SPA-BL-007/008/009, SPA-BL-012), либо governance freeze (SPA-BL-011) — разблокированных HIGH код-спринтов нет. Взят кандидат (b) из плана v3.66: эмитировать `data/golive_combined_verdict.json` из `build_combined_golive_gate` и подключить в 4h-export-пайплайн, чтобы комбинированный гейт ПЕРСИСТИЛСЯ (а не только считался на клиенте). Тот же класс работы, что SPA-V362 для readiness_score. Безопасный разблокированный код-спринт: НЕ money-moving (eth_signer/mev_protection/адаптеры не трогаются), НЕ feed-health монитор (SPA-BL-011) — чистая read-only консолидация/персистенция двух уже эмитируемых документов.
+
+### Что сделано
+- **`readiness_score.py` — `write_combined_golive_gate(out_path=None, data_dir=None)`.** Новый писатель по образцу `write_readiness_score` (SPA-V362): читает два УЖЕ эмитируемых исходных документа (`golive_readiness_score.json` → `overall_status`/`overall_score`; `golive_readiness.json` → `verdict`+`criteria`) из `data_dir` через новый helper `_read_json_or_none(path)` (отсутствует/битый/не-dict → `None`, never-raise), прогоняет чистую SPA-V366 `build_combined_golive_gate`, добавляет `schema_version`+`generated_at` (UTC iso, `…Z`) и пишет `data/golive_combined_verdict.json`. Отсутствующие/битые источники деградируют в безопасный `NO_GO` (а не падение). НЕ мутирует и НЕ сливает исходники (`overall_score` остаётся 78.6, две оси раздельны по дизайну). Новые константы `COMBINED_VERDICT_FILENAME`/`_SCORE_FILENAME`/`_CHECKLIST_FILENAME`. `COMBINED_VERDICT_FILENAME` и `write_combined_golive_gate` добавлены в `__all__`.
+- **`export_data.py` — wiring.** Новый guarded-блок СРАЗУ ПОСЛЕ блока readiness-score (SPA-V362): он потребляет оба документа (`golive_readiness_score.json` + `golive_readiness.json`), оба пишутся раньше в этом же цикле → `write_combined_golive_gate(OUTPUT_DIR/golive_combined_verdict.json, data_dir=OUTPUT_DIR)`. Зарегистрирован в манифесте `files_written` и отслеживается section-health (`_section_ok`/`_section_fail` `golive_combined_verdict`); вызов в try/except — никогда не прерывает цикл. Зеркалит паттерн SPA-V362 1-в-1.
+
+### Файлы
+- `spa_core/golive/readiness_score.py` (+`write_combined_golive_gate`, +`_read_json_or_none`, +`COMBINED_VERDICT_FILENAME`/`_SCORE_FILENAME`/`_CHECKLIST_FILENAME`, +`__all__`)
+- `spa_core/export_data.py` (+guarded блок «Persisted combined go/no-go gate (SPA-V367)», +манифест `golive_combined_verdict.json`)
+- `spa_core/tests/test_readiness_score.py` (+класс `TestWriteCombinedGoLiveGate` — 9 тестов; +6 pipeline-wiring тестов)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v367` (readiness_score.py, export_data.py, test_readiness_score.py, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `test_readiness_score.py` — **69 passed** (исключая сетевые LiveApy, таймаутят офлайн), включая новый `TestWriteCombinedGoLiveGate` — 9 тестов: пишет файл и возвращает тот же doc; doc несёт `schema_version`+`generated_at`+gate-поля; `NO_GO` из warn+NOT_READY (6/12, обе оси в blocking); `GO` из ok+READY (blocking пуст); отсутствующие источники → безопасный `NO_GO`/unknown; битый источник деградирует без исключения; дефолтный out_path = `<data_dir>/COMBINED_VERDICT_FILENAME`; НЕ мутирует исходные файлы; присутствие в `__all__`. +6 pipeline-тестов: импорт писателя, путь файла, регистрация в манифесте, section-health `_section_ok`/`_section_fail`, guarded try/except, и ПОРЯДОК (combined-gate wired ПОСЛЕ readiness-score — он его потребляет).
+- Регрессия `test_golive.py` + `test_golive_extended.py` + `test_feed_health_summary.py` + `test_covariance_export.py` — **188 passed, 0 фейлов**.
+- `py_compile readiness_score.py` + `export_data.py` — OK. Smoke `write_combined_golive_gate`: warn+NOT_READY(6/12) → `NO_GO` с обеими осями в `blocking`; ok+READY → `GO`; отсутствующие источники → безопасный `NO_GO`/unknown; файл на диске == возвращённый doc. KANBAN.json валиден (json round-trip OK).
+
+### Следующий спринт
+- **SPA-V368:** кандидаты — (a) history-trend/sparkline персистированного combined-гейта (GO/NO_GO во времени) на дашборде — тот же класс, что v3.63/v3.65; (b) подключить `golive_combined_verdict.json` в index.html как авторитетный источник гейта (читать персистированный doc вместо клиентского пересчёта в `renderCombinedGoLiveHeader`); (c) при разблокировке секретов SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15, 45 дней) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping/консолидация. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011); money-moving — только вне автономного режима.
+
+---
