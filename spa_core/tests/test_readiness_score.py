@@ -552,3 +552,105 @@ def test_pipeline_call_is_guarded():
     assert any(line.strip() == "try:" for line in head.splitlines()[-4:])
     tail = src[idx:idx + 1200]
     assert "_section_fail(\"golive_readiness_score\")" in tail
+
+
+# ─── SPA-V366: combined go/no-go gate (operational readiness + checklist) ─────
+class TestCombinedGoLiveGate:
+    """build_combined_golive_gate fuses the two independent go-live axes into one
+    GO / NO_GO gate. Pure presentation-layer; never raises; does not mutate
+    either source document."""
+
+    def _score(self, status="ok", score=90.0):
+        return {"overall_status": status, "overall_score": score}
+
+    def _checklist(self, verdict="READY", passes=12, total=12):
+        criteria = [
+            {"name": "c%d" % i, "status": ("PASS" if i < passes else "FAIL")}
+            for i in range(total)
+        ]
+        return {"verdict": verdict, "criteria": criteria}
+
+    def test_go_only_when_operational_ok_and_checklist_ready(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("ok"), self._checklist("READY", 12, 12)
+        )
+        assert gate["gate"] == "GO"
+        assert gate["blocking"] == []
+        assert gate["operational_status"] == "ok"
+        assert gate["checklist_verdict"] == "READY"
+        assert gate["criteria_passed"] == 12
+        assert gate["criteria_total"] == 12
+
+    def test_no_go_when_operational_not_ok(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("warn"), self._checklist("READY", 12, 12)
+        )
+        assert gate["gate"] == "NO_GO"
+        assert any("operational readiness warn" in b for b in gate["blocking"])
+        assert not any("checklist" in b for b in gate["blocking"])
+
+    def test_no_go_when_checklist_not_ready(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("ok"), self._checklist("NOT_READY", 6, 12)
+        )
+        assert gate["gate"] == "NO_GO"
+        assert gate["criteria_passed"] == 6
+        assert any("checklist not_ready" in b for b in gate["blocking"])
+        assert not any("operational" in b for b in gate["blocking"])
+
+    def test_no_go_lists_both_axes_when_both_block(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("degraded"), self._checklist("NOT_READY", 3, 12)
+        )
+        assert gate["gate"] == "NO_GO"
+        assert len(gate["blocking"]) == 2
+
+    def test_unknown_operational_status_is_not_go(self):
+        gate = rs.build_combined_golive_gate(
+            {"overall_status": "weird", "overall_score": 50},
+            self._checklist("READY", 12, 12),
+        )
+        assert gate["operational_status"] == "unknown"
+        assert gate["gate"] == "NO_GO"
+
+    def test_both_none_is_safe_no_go(self):
+        gate = rs.build_combined_golive_gate(None, None)
+        assert gate["gate"] == "NO_GO"
+        assert gate["operational_status"] == "unknown"
+        assert gate["checklist_verdict"] is None
+        # both axes are blocking (operational unknown + checklist unknown)
+        assert len(gate["blocking"]) == 2
+
+    def test_missing_criteria_list_keeps_counts_none(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("ok"), {"verdict": "READY"}
+        )
+        assert gate["criteria_passed"] is None
+        assert gate["criteria_total"] is None
+        # verdict READY + operational ok -> GO even without criteria detail
+        assert gate["gate"] == "GO"
+
+    def test_does_not_mutate_inputs(self):
+        score = self._score("ok")
+        checklist = self._checklist("READY", 12, 12)
+        score_copy = json.loads(json.dumps(score))
+        checklist_copy = json.loads(json.dumps(checklist))
+        rs.build_combined_golive_gate(score, checklist)
+        assert score == score_copy
+        assert checklist == checklist_copy
+
+    def test_result_json_serialisable(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("ok"), self._checklist("READY", 12, 12)
+        )
+        assert json.loads(json.dumps(gate))["gate"] == "GO"
+
+    def test_verdict_case_insensitive(self):
+        gate = rs.build_combined_golive_gate(
+            self._score("ok"), {"verdict": "ready", "criteria": []}
+        )
+        assert gate["checklist_verdict"] == "READY"
+        assert gate["gate"] == "GO"
+
+    def test_in_all_exports(self):
+        assert "build_combined_golive_gate" in rs.__all__
