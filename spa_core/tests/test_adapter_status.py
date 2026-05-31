@@ -427,6 +427,59 @@ class TestMevProtectionStatus:
         json.dumps(build_status_document())  # must not raise
 
 
+# ─── MEV-routing applicability (Sprint v3.56 / SPA-V356) ─────────────────────
+
+class TestMevRoutingApplicability:
+    """Per-adapter MEV-routing flags + document-level routed/unrouted summary."""
+
+    ROUTED = ["yearn-v3", "euler-v2", "maple", "sky-susds"]
+    UNROUTED = ["pendle-pt"]
+
+    def test_every_record_has_bool_mev_routed(self, adapters):
+        for rec in adapters:
+            assert "mev_routed" in rec
+            assert isinstance(rec["mev_routed"], bool)
+
+    @pytest.mark.parametrize("key", ROUTED)
+    def test_routed_adapters_true(self, by_key, key):
+        assert by_key[key]["mev_routed"] is True
+
+    @pytest.mark.parametrize("key", UNROUTED)
+    def test_unrouted_adapters_false(self, by_key, key):
+        assert by_key[key]["mev_routed"] is False
+
+    def test_mev_block_has_routing_lists(self):
+        mev = build_status_document()["mev_protection"]
+        assert isinstance(mev["routed_adapters"], list)
+        assert isinstance(mev["unrouted_adapters"], list)
+
+    def test_pendle_in_unrouted_not_routed(self):
+        mev = build_status_document()["mev_protection"]
+        assert "pendle-pt" in mev["unrouted_adapters"]
+        assert "pendle-pt" not in mev["routed_adapters"]
+
+    def test_routed_plus_unrouted_partition_all_keys(self):
+        mev = build_status_document()["mev_protection"]
+        routed = set(mev["routed_adapters"])
+        unrouted = set(mev["unrouted_adapters"])
+        assert routed | unrouted == set(EXPECTED_PROTOCOL_KEYS)
+        assert routed & unrouted == set()
+
+    def test_broken_import_record_mev_routed_false(self):
+        broken = dict(adapter_status._ADAPTER_SPECS[0])
+        broken["module"] = "spa_core.execution.adapters.does_not_exist"
+        rec = adapter_status._adapter_record(broken, live_enabled=False)
+        # Must not KeyError and must default to False.
+        assert rec["mev_routed"] is False
+
+    def test_adapter_mev_routed_never_raises_on_sourceless(self):
+        # An object with no retrievable source → False, no exception.
+        assert adapter_status._adapter_mev_routed(object()) is False
+
+    def test_document_with_routing_is_json_serialisable(self):
+        json.dumps(build_status_document())  # must not raise
+
+
 # ─── Resilience: broken adapter does not abort collection ────────────────────
 
 class TestResilience:
