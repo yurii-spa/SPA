@@ -4,6 +4,33 @@
 
 ---
 
+## Sprint v3.56 — 2026-05-31 — Per-adapter MEV-routing applicability (SPA-V356)
+
+### Что сделано
+- **`spa_core/execution/adapter_status.py`:** добавлен module-level helper `_adapter_mev_routed(module) -> bool` (стиль `_mev_protection_status`, пометка `Sprint v3.56 / SPA-V356`, top-level try/except → НИКОГДА не бросает). Источник истины — фактическая проводка: `inspect.getsource(module)` и проверка `any(name in src for name in (...))` по MEV-broadcast-хелперам `send_raw_transaction_auto` / `broadcast_protected_hash` / `send_protected`. Если `getsource` падает (объект без исходника) → `False`.
+- `_adapter_record`: ключ `mev_routed` присутствует ВСЕГДА — инициализируется `False` в начале словаря record (до try); на happy-пути после успешного импорта модуля выставляется `record["mev_routed"] = _adapter_mev_routed(module)`; в except-ветке `record.setdefault("mev_routed", False)`.
+- `build_status_document()`: adapters собираются ОДИН раз (`collect_adapter_status()` больше не дублируется); вычислены `mev["routed_adapters"]` / `mev["unrouted_adapters"]` и инжектнуты в top-level блок `mev_protection`. Результат: yearn-v3 / euler-v2 / maple / sky-susds → routed; pendle-pt → unrouted (BLOCKED/NotImplemented, 0 ссылок на MEV-хелперы).
+- **`index.html`:** в `mevBadge` добавлен null-safe суффикс ` · N/M adapters routed` (через `Array.isArray(m.routed_adapters)` — старые фиды без поля не падают). Применён к обеим веткам (ON/OFF). Точечный Edit, HTML таблицы не тронут.
+- **`spa_core/tests/test_adapter_status.py`:** новый класс `TestMevRoutingApplicability` (9 тестов); существующие 6 тестов `TestMevProtectionStatus` не тронуты.
+- **`data/adapter_status.json`** перегенерирован — у каждого адаптера `mev_routed`, в `mev_protection` присутствуют `routed_adapters` / `unrouted_adapters`.
+
+### Файлы
+- `spa_core/execution/adapter_status.py` (modified — helper + поле mev_routed + routing-summary)
+- `index.html` (modified — routedSuffix в mevBadge)
+- `spa_core/tests/test_adapter_status.py` (modified — +класс TestMevRoutingApplicability)
+- `data/adapter_status.json` (regenerated)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v356` (KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `pytest test_adapter_status.py + test_mev_protection.py + test_mev_wiring.py` — **139 PASS / 0 FAIL** (включая новый класс `TestMevRoutingApplicability`).
+- `py_compile adapter_status.py` — OK. `data/adapter_status.json` валиден; `mev_protection.routed_adapters = [yearn-v3, euler-v2, maple, sky-susds]`, `unrouted_adapters = [pendle-pt]`. `KANBAN.json` валиден.
+
+### Следующий спринт
+- **SPA-V357:** разумные разблокированные код-шаги — (а) показать per-adapter MEV-routing в Go-Live таблице построчно (колонка / бейдж на строку адаптера); ЛИБО (б) проброс T1-адаптеров aave/compound в `adapter_status` (`_ADAPTER_SPECS`), которые маршрутятся через `_send_raw_tx`, но сейчас отсутствуют в дашборде. HIGH go-live путь по-прежнему упирается в user-action секреты (SPA-BL-012); feed-health домен заморожен (SPA-BL-011).
+
+---
+
 ## Sprint v3.55 — 2026-05-31 — Surface MEV-protection status in adapter_status.json + dashboard (SPA-V355)
 
 ### Цель
