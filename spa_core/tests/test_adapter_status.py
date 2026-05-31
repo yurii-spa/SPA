@@ -535,6 +535,58 @@ class TestMevRoutingApplicability:
         assert "compound-v3" in routed
 
 
+# ─── MEV-routing coverage summary (Sprint v3.58 / SPA-V358) ──────────────────
+
+class TestMevCoverageSummary:
+    """Derived mev_protection.coverage {routed, total, coverage_pct}."""
+
+    def _coverage(self):
+        return build_status_document()["mev_protection"]["coverage"]
+
+    def test_coverage_block_present_with_keys(self):
+        cov = self._coverage()
+        assert isinstance(cov, dict)
+        assert set(cov.keys()) == {"routed", "total", "coverage_pct"}
+
+    def test_coverage_types(self):
+        cov = self._coverage()
+        assert isinstance(cov["routed"], int)
+        assert isinstance(cov["total"], int)
+        assert isinstance(cov["coverage_pct"], float)
+
+    def test_routed_not_greater_than_total(self):
+        cov = self._coverage()
+        assert 0 <= cov["routed"] <= cov["total"]
+
+    def test_total_matches_all_protocol_keys(self):
+        cov = self._coverage()
+        assert cov["total"] == len(EXPECTED_PROTOCOL_KEYS)
+
+    def test_coverage_consistent_with_routing_lists(self):
+        mev = build_status_document()["mev_protection"]
+        cov = mev["coverage"]
+        assert cov["routed"] == len(mev["routed_adapters"])
+        assert cov["total"] == len(mev["routed_adapters"]) + len(mev["unrouted_adapters"])
+
+    def test_coverage_pct_matches_formula(self):
+        cov = self._coverage()
+        expected = round(100.0 * cov["routed"] / cov["total"], 1) if cov["total"] else 0.0
+        assert cov["coverage_pct"] == expected
+
+    def test_coverage_pct_within_bounds(self):
+        cov = self._coverage()
+        assert 0.0 <= cov["coverage_pct"] <= 100.0
+
+    def test_empty_adapter_set_is_zerodivision_safe(self, monkeypatch):
+        # No adapters → coverage_pct must be 0.0, not a ZeroDivisionError.
+        monkeypatch.setattr(adapter_status, "_ADAPTER_SPECS", [])
+        cov = build_status_document()["mev_protection"]["coverage"]
+        assert cov == {"routed": 0, "total": 0, "coverage_pct": 0.0}
+
+    def test_document_with_coverage_is_json_serialisable(self):
+        json.dumps(build_status_document())  # must not raise
+
+
 # ─── Resilience: broken adapter does not abort collection ────────────────────
 
 class TestResilience:
