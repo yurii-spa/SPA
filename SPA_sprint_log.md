@@ -2171,3 +2171,33 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V352 = SPA-BL-010 MEV Protection (Flashbots Protect RPC)** — единственный разблокированный HIGH код-спринт. Альтернатива: при появлении user-action секретов — переключиться на FEAT-001 Phase 3 live execution. Feed-health монитор #10 ЗАПРЕЩЁН (SPA-BL-011) без нового класса отказа.
 
 ---
+
+> **Sync-note (2026-05-31):** спринты v3.52–v3.57 выполнены и зафиксированы в `KANBAN.json` (dispatch-ноты `_v355/_v356_dispatch_note`, `last_dispatch_note`) — этот markdown-лог временно отставал. Краткая хронология: v3.52 MEV-protection wired во все adapter live-send пути; v3.53/v3.54 fix `eth_signer` 0x-prefix / `lstrip('0x')` baseline-багов; v3.55 MEV-статус в `adapter_status.json` + дашборд; v3.56 per-adapter `mev_routed` applicability (routed/unrouted списки); v3.57 проброс T1-адаптеров Aave V3 + Compound V3 в `adapter_status`. Money-moving код (`eth_signer`/`mev_protection`/адаптеры) на протяжении v3.55–v3.58 НЕ трогался — только read-only inspection + JSON-shaping + дашборд.
+
+## Sprint v3.58 — 2026-05-31 — MEV-routing coverage summary + per-row MEV chip (SPA-V358)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.57 (`sprint_completed: v3.57`, `updated_by: orchestrator-v357`). Status pass запрещён → взят следующий разблокированный код-спринт. Это направление прямо названо в dispatch-нотах v3.55 («expose per-adapter MEV-routing applicability … in the same block») и v3.56 («per-adapter MEV in Go-Live table row-by-row»). НЕ feed-health (SPA-BL-011 заморозка соблюдена), НЕ money-moving (eth_signer/mev_protection/адаптеры не трогались), НЕ user-action-blocked.
+
+### Что сделано
+- **Backend `adapter_status.py` — derived `coverage` sub-block.** В `build_status_document()` после v3.56-формирования `routed_adapters`/`unrouted_adapters` добавлен `mev["coverage"] = {routed, total, coverage_pct}`. `coverage_pct = round(100.0 * routed / total, 1)` с защитой от деления на ноль (`if total else 0.0`) — пустой набор адаптеров даёт `0.0`, не `ZeroDivisionError`. Чисто stdlib, never-raises, JSON-safe. Дашборд теперь читает один headline-показатель вместо пересчёта на фронте. Текущее значение: **6/7 routed = 85.7%** (pendle-pt — единственный unrouted, BLOCKED/NotImplemented). Docstring модуля дополнен записью v3.58.
+- **Front-end `index.html` — per-row MEV-чип.** `mapAdapterRecord` пробрасывает `mevRouted: !!rec.mev_routed`; добавлен helper `mevCell(a)` (зелёный `🛡 Protected` при routed, нейтральный `—` иначе и для embedded fallback-константы, где флага нет); в таблицу Go-Live добавлена колонка `<th>MEV</th>` (9-я) + соответствующий `<td>`. `mevBadge` теперь предпочитает backend-`coverage` (`N/M adapters routed (P%)`), с null-safe откатом на v3.56-математику `routed_adapters.length` для старых фидов.
+
+### Файлы
+- `spa_core/execution/adapter_status.py` (modified — `coverage` sub-block + docstring)
+- `index.html` (modified — `mapAdapterRecord` mevRouted, `mevCell`, MEV-колонка, coverage в mevBadge)
+- `spa_core/tests/test_adapter_status.py` (modified — +`TestMevCoverageSummary`, 9 тестов)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v358` (adapter_status.py, index.html, test_adapter_status.py, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `test_adapter_status.py` (без сетевых LiveApy) — **102 passed**, включая новый `TestMevCoverageSummary` (9 тестов: наличие/типы ключей, `routed ≤ total`, `total == len(EXPECTED_PROTOCOL_KEYS)`, согласованность с routed/unrouted-списками, формула pct, границы 0–100, ZeroDivision-safe на пустом `_ADAPTER_SPECS`, JSON-сериализуемость).
+- `MevCoverage`/`MevRouting`/`MevProtection`/`BuildStatus`-классы — **39 passed**.
+- Регрессия `test_mev_wiring.py` + `test_mev_protection.py` — **57 passed, 0 новых фейлов**.
+- `py_compile adapter_status.py` — OK. Smoke `build_status_document()`: `coverage={'routed':6,'total':7,'coverage_pct':85.7}`, все `mev_routed` булевы, `json.dumps` OK. `node --check` неприменим к `.html` (трактуется как модуль) — проверка пропущена осознанно; колонки header(9 th)/row(9 td) сбалансированы.
+- LiveApy-тесты пропущены (сетевые, таймаутят в офлайн-песочнице) — код этих путей в v3.58 не менялся.
+
+### Следующий спринт
+- **SPA-V359:** домен adapter-status/MEV почти насыщён (coverage surface закрыт). Кандидаты: (a) рендер истории `feed_health_summary` per-signal `updated_at` на дашборде (UI, не новый монитор — SPA-BL-011 не нарушается); (b) консолидация adapter-status + feed-health + covariance-health в единый «Go-Live readiness score» (backend JSON + дашборд). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) — это user-action секреты (SPA-BL-007/008/009, BL-004/005/006), всё ещё blocked; код-работа остаётся surface/housekeeping до их разблокировки.
+
+---
