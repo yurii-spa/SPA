@@ -654,3 +654,143 @@ class TestCombinedGoLiveGate:
 
     def test_in_all_exports(self):
         assert "build_combined_golive_gate" in rs.__all__
+
+
+# ─── SPA-V367: persisted combined go/no-go gate (write_combined_golive_gate) ──
+class TestWriteCombinedGoLiveGate:
+    """write_combined_golive_gate reads the two already-emitted source documents
+    from data_dir, runs build_combined_golive_gate over them and persists the
+    result to golive_combined_verdict.json. Mirrors the SPA-V362 wiring of
+    write_readiness_score. Missing/corrupt sources degrade to a safe NO_GO."""
+
+    def _write_sources(self, d, op_status="warn", op_score=78.6,
+                       verdict="NOT_READY", passes=6, total=12):
+        score = {"overall_status": op_status, "overall_score": op_score}
+        criteria = [
+            {"name": "c%d" % i, "status": ("PASS" if i < passes else "FAIL")}
+            for i in range(total)
+        ]
+        checklist = {"verdict": verdict, "criteria": criteria}
+        (d / rs._SCORE_FILENAME).write_text(json.dumps(score), encoding="utf-8")
+        (d / rs._CHECKLIST_FILENAME).write_text(
+            json.dumps(checklist), encoding="utf-8"
+        )
+
+    def test_writes_file_and_returns_doc(self, tmp_path):
+        self._write_sources(tmp_path)
+        out = tmp_path / "golive_combined_verdict.json"
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        assert out.exists()
+        on_disk = json.loads(out.read_text(encoding="utf-8"))
+        assert on_disk == doc
+
+    def test_doc_carries_schema_and_timestamp(self, tmp_path):
+        self._write_sources(tmp_path)
+        out = tmp_path / "golive_combined_verdict.json"
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        assert doc["schema_version"] == rs.SCHEMA_VERSION
+        assert isinstance(doc["generated_at"], str) and doc["generated_at"]
+        # carries the gate fields through
+        assert doc["gate"] in ("GO", "NO_GO")
+        assert "blocking" in doc and "operational_status" in doc
+
+    def test_gate_no_go_from_warn_plus_not_ready(self, tmp_path):
+        self._write_sources(tmp_path, op_status="warn", verdict="NOT_READY",
+                            passes=6, total=12)
+        out = tmp_path / "golive_combined_verdict.json"
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        assert doc["gate"] == "NO_GO"
+        assert doc["criteria_passed"] == 6
+        assert doc["criteria_total"] == 12
+        assert len(doc["blocking"]) == 2
+
+    def test_gate_go_from_ok_plus_ready(self, tmp_path):
+        self._write_sources(tmp_path, op_status="ok", verdict="READY",
+                            passes=12, total=12)
+        out = tmp_path / "golive_combined_verdict.json"
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        assert doc["gate"] == "GO"
+        assert doc["blocking"] == []
+
+    def test_missing_sources_safe_no_go(self, tmp_path):
+        # no source files written at all
+        out = tmp_path / "golive_combined_verdict.json"
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        assert out.exists()
+        assert doc["gate"] == "NO_GO"
+        assert doc["operational_status"] == "unknown"
+        assert doc["checklist_verdict"] is None
+
+    def test_corrupt_source_degrades_not_raises(self, tmp_path):
+        (tmp_path / rs._SCORE_FILENAME).write_text("{not json", encoding="utf-8")
+        (tmp_path / rs._CHECKLIST_FILENAME).write_text("[]", encoding="utf-8")
+        out = tmp_path / "golive_combined_verdict.json"
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        # corrupt score -> None -> unknown; list (non-dict) checklist -> None
+        assert doc["gate"] == "NO_GO"
+        assert doc["operational_status"] == "unknown"
+
+    def test_default_out_path_uses_data_dir(self, tmp_path):
+        self._write_sources(tmp_path)
+        # out_path omitted -> <data_dir>/COMBINED_VERDICT_FILENAME
+        doc = rs.write_combined_golive_gate(data_dir=str(tmp_path))
+        target = tmp_path / rs.COMBINED_VERDICT_FILENAME
+        assert target.exists()
+        assert json.loads(target.read_text(encoding="utf-8")) == doc
+
+    def test_does_not_mutate_source_files(self, tmp_path):
+        self._write_sources(tmp_path)
+        before_score = (tmp_path / rs._SCORE_FILENAME).read_text(encoding="utf-8")
+        before_chk = (tmp_path / rs._CHECKLIST_FILENAME).read_text(encoding="utf-8")
+        rs.write_combined_golive_gate(
+            str(tmp_path / "golive_combined_verdict.json"), data_dir=str(tmp_path)
+        )
+        assert (tmp_path / rs._SCORE_FILENAME).read_text(encoding="utf-8") == before_score
+        assert (tmp_path / rs._CHECKLIST_FILENAME).read_text(encoding="utf-8") == before_chk
+
+    def test_in_all_exports(self):
+        assert "write_combined_golive_gate" in rs.__all__
+        assert "COMBINED_VERDICT_FILENAME" in rs.__all__
+
+
+# ─── SPA-V367: export pipeline wiring of write_combined_golive_gate ───────────
+def test_pipeline_imports_combined_gate_writer():
+    src = _pipeline_source()
+    assert "from golive.readiness_score import write_combined_golive_gate" in src
+    assert "write_combined_golive_gate(" in src
+
+
+def test_pipeline_writes_combined_verdict_path():
+    src = _pipeline_source()
+    assert "golive_combined_verdict.json" in src
+
+
+def test_pipeline_registers_combined_in_manifest():
+    src = _pipeline_source()
+    assert '"golive_combined_verdict.json"' in src
+
+
+def test_pipeline_combined_section_health_tracked():
+    src = _pipeline_source()
+    assert '_section_ok("golive_combined_verdict")' in src
+    assert '_section_fail("golive_combined_verdict")' in src
+
+
+def test_pipeline_combined_call_is_guarded():
+    src = _pipeline_source()
+    idx = src.index(
+        "from golive.readiness_score import write_combined_golive_gate"
+    )
+    head = src[:idx]
+    assert any(line.strip() == "try:" for line in head.splitlines()[-4:])
+    tail = src[idx:idx + 1200]
+    assert '_section_fail("golive_combined_verdict")' in tail
+
+
+def test_pipeline_combined_runs_after_readiness_score():
+    """The combined gate consumes golive_readiness_score.json, so its writer
+    must be wired AFTER the readiness-score writer in the export pipeline."""
+    src = _pipeline_source()
+    i_score = src.index("write_readiness_score(")
+    i_gate = src.index("write_combined_golive_gate(")
+    assert i_score < i_gate
