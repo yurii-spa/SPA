@@ -4081,6 +4081,7 @@ function mapAdapterRecord(rec) {
     state,
     stateLabel,
     stateNote,
+    mevRouted: !!rec.mev_routed,   // v3.58: per-adapter MEV-routing applicability
   };
 }
 
@@ -4130,6 +4131,16 @@ function renderAdapterStatus() {
     }
     return a.apy;
   };
+  // v3.58: per-row MEV-routing chip. Green "Protected" when the adapter's live
+  // send path routes through Flashbots Protect (send_protected); neutral "—"
+  // otherwise (incl. the embedded fallback constant where the flag is absent).
+  const mevCell = a => {
+    if (a.mevRouted) {
+      const col = '#16a34a';
+      return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">🛡 Protected</span>`;
+    }
+    return `<span style="font-size:11px;color:#aaa">—</span>`;
+  };
   const syncedNote = ADAPTER_STATUS_DATA
     ? `<div style="font-size:10px;color:#999;margin-top:4px">synced from data/adapter_status.json${ADAPTER_STATUS_GENERATED_AT ? ` · generated ${ADAPTER_STATUS_GENERATED_AT.slice(0,16).replace('T',' ')}` : ''}</div>`
     : '';
@@ -4139,10 +4150,13 @@ function renderAdapterStatus() {
     const m = ADAPTER_STATUS_MEV;
     if (!m) return '';
     const mode = m.flashbots_mode || 'fast';
-    // v3.56: per-adapter routing applicability suffix (null-safe for old feeds).
-    const routedSuffix = Array.isArray(m.routed_adapters)
-      ? ` · ${m.routed_adapters.length}/${m.routed_adapters.length + (Array.isArray(m.unrouted_adapters) ? m.unrouted_adapters.length : 0)} adapters routed`
-      : '';
+    // v3.58: prefer the backend-derived coverage block; fall back to the v3.56
+    // routed_adapters length math for older feeds (both null-safe).
+    const routedSuffix = (m.coverage && typeof m.coverage.total === 'number' && m.coverage.total > 0)
+      ? ` · ${m.coverage.routed}/${m.coverage.total} adapters routed (${m.coverage.coverage_pct}%)`
+      : Array.isArray(m.routed_adapters)
+        ? ` · ${m.routed_adapters.length}/${m.routed_adapters.length + (Array.isArray(m.unrouted_adapters) ? m.unrouted_adapters.length : 0)} adapters routed`
+        : '';
     if (m.enabled) {
       const col = '#16a34a';
       const txt = `MEV Protection: ON · ${m.endpoint || '—'} (${mode})${routedSuffix}`;
@@ -4153,7 +4167,7 @@ function renderAdapterStatus() {
     return `<div style="margin-top:6px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span></div>`;
   })();
   el.innerHTML = `<table class="pendle-table"><thead><tr>
-    <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>APY</th><th>APY Source</th><th>Write State</th>
+    <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>APY</th><th>APY Source</th><th>MEV</th><th>Write State</th>
   </tr></thead><tbody>
     ${rows.map(a => `<tr>
       <td style="font-weight:600">${a.name}</td>
@@ -4163,6 +4177,7 @@ function renderAdapterStatus() {
       <td style="font-size:11px;color:#555">${a.assets}</td>
       <td style="font-size:11px;color:#333">${apyCell(a)}</td>
       <td>${srcBadge(a)}</td>
+      <td>${mevCell(a)}</td>
       <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
     </tr>`).join('')}
   </tbody></table>${mevBadge}${syncedNote}`;
