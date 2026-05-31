@@ -4139,13 +4139,17 @@ function renderAdapterStatus() {
     const m = ADAPTER_STATUS_MEV;
     if (!m) return '';
     const mode = m.flashbots_mode || 'fast';
+    // v3.56: per-adapter routing applicability suffix (null-safe for old feeds).
+    const routedSuffix = Array.isArray(m.routed_adapters)
+      ? ` · ${m.routed_adapters.length}/${m.routed_adapters.length + (Array.isArray(m.unrouted_adapters) ? m.unrouted_adapters.length : 0)} adapters routed`
+      : '';
     if (m.enabled) {
       const col = '#16a34a';
-      const txt = `MEV Protection: ON · ${m.endpoint || '—'} (${mode})`;
+      const txt = `MEV Protection: ON · ${m.endpoint || '—'} (${mode})${routedSuffix}`;
       return `<div style="margin-top:6px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span></div>`;
     }
     const col = '#f59e0b';
-    const txt = `MEV Protection: OFF (public mempool)${m.endpoint ? ` · would use ${m.endpoint} (${mode}) when enabled` : ''}`;
+    const txt = `MEV Protection: OFF (public mempool)${m.endpoint ? ` · would use ${m.endpoint} (${mode}) when enabled` : ''}${routedSuffix}`;
     return `<div style="margin-top:6px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:${col};background:${col}1a">${txt}</span></div>`;
   })();
   el.innerHTML = `<table class="pendle-table"><thead><tr>
