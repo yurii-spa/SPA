@@ -4,6 +4,43 @@
 
 ---
 
+## Sprint v3.60 — 2026-05-31 — Visible per-signal updated_at/age row under Feed Health chips (SPA-V360)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.59 (`sprint_completed: v3.59`). Заканчивается на «9» → architect review НЕ запускался (только на 0/5). Status pass запрещён → взят следующий разблокированный код-спринт. Разблокированных HIGH код-карточек нет (user_action / governance / tracker / FEAT блокированы SPA-BL-012). Взята dispatch-note **option A** из v3.59. НЕ новый монитор (SPA-BL-011), НЕ money-moving, НЕ user-action-blocked.
+
+### Что сделано
+- Цель (dispatch-note option A): вынести уже эмитируемые агрегатором поля `updated_at` / `last_alert_age_hours` из tooltip чипов в ВИДИМЫЙ компактный ряд под `#feed-health-signals` на дашборде.
+- **`index.html` — правка применена (точечные Edit оркестратором):**
+  - В HTML после `<div id="feed-health-signals">` (строка 1659) добавлен `<div id="feed-health-ages" ...>` (строка 1660, мелкий шрифт `#bbb`, flex-wrap); у `#feed-health-signals` `margin-bottom` уменьшен 14px→6px, отступ перенесён на ages-ряд.
+  - В `renderFeedHealth(data)`: добавлен `const ages = document.getElementById('feed-health-ages')`; в no-data ветке `ages.innerHTML = ''`; после рендера чипов добавлен ages-рендер — для каждого сигнала `label` + возраст (`<x.x>h ago` при `Number.isFinite(s.last_alert_age_hours)` через `toFixed(1)`, иначе null-safe откат на короткую форму `updated_at`, иначе `n/a`), tooltip = `label · updated <updated_at|n/a>`.
+  - Существующие чипы и их tooltip (v3.59) НЕ изменены. Баланс фигурных скобок `renderFeedHealth` 38/38; единственный `renderFeedHealth`/`loadFeedHealth`, единственные ID — подтверждено grep.
+- **Бэкенд `spa_core/alerts/feed_health_summary.py` — НЕ менялся** (read-only агрегатор; поля `label`/`updated_at`/`last_alert_age_hours` уже есть с v3.59).
+- Регенерирован `data/feed_health_summary.json`: 9 сигналов, у каждого `label`/`updated_at`/`last_alert_age_hours`.
+- Добавлен класс `TestV360FeedHealthContract` (3 теста) в `spa_core/tests/test_feed_health_summary.py` — регрессионная страховка контракта, который потребляет видимый UI-ряд.
+- **NO new monitor** — соблюдён governance-фриз **SPA-BL-011** (презентация существующих данных). Money-moving код (`eth_signer.py`, `mev_protection.py`, `*_adapter.py`) НЕ тронут.
+
+### Файлы
+- `index.html` (изменён — `#feed-health-ages` div + ages-рендер в `renderFeedHealth`)
+- `spa_core/tests/test_feed_health_summary.py` (изменён — +`TestV360FeedHealthContract`, 3 теста)
+- `data/feed_health_summary.json` (регенерирован)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v360`: index.html, feed_health_summary.py, test_feed_health_summary.py, KANBAN.json, SPA_sprint_log.md.
+
+### Результаты тестов
+- `python3 -m pytest spa_core/tests/test_feed_health_summary.py -q` → **31 passed / 0 failed** (28 прежних + 3 новых `TestV360FeedHealthContract`).
+- `python3 -m py_compile spa_core/alerts/feed_health_summary.py` → OK.
+- `data/feed_health_summary.json` валиден, `signal_count=9`, overall `ok`. `KANBAN.json` валиден. `renderFeedHealth` braces 38/38, ages-ряд проводка подтверждена. `node --check` к `.html` неприменим — пропущено осознанно.
+
+### Замечание о под-прогоне
+- Рабочий sub-агент ошибочно посчитал `index.html` «повреждённым» и НЕ применил фронтенд-правку. Оркестратор перепроверил: файл цел (единственные `renderFeedHealth`/`loadFeedHealth`, сбалансированные скобки), и применил правку напрямую. Также устранён дубль карточки `SPA-V360-001` в `KANBAN.json` (осталась одна).
+
+### Следующий спринт
+- **SPA-V361 (разблокированный код-шаг):** консолидированный «Go-Live readiness score» — backend JSON сводит adapter-status + feed-health + covariance-health + go-live checklist в один индикатор + рендер на дашборде. Альтернатива: иной презентационный surface-шаг.
+- Напоминание: HIGH go-live путь заблокирован на user-action секретах **SPA-BL-012**; feed-health домен заморожен **SPA-BL-011**.
+
+---
+
 ## Sprint v3.59 — 2026-05-31 — Per-signal updated_at history in feed-health summary + dashboard (SPA-V359)
 
 ### Что сделано
