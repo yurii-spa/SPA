@@ -2327,3 +2327,29 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V363:** кандидаты — (a) рендер истории/тренда `golive_readiness_score` на дашборде (sparkline/бейдж-история, UI); (b) 4-й компонент readiness score (вердикт paper-trading checklist / day-counter 56 дней). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) — user-action секреты (SPA-BL-007/008/009, BL-004/005/006), всё ещё blocked; код-работа остаётся surface/housekeeping до их разблокировки. Feed-health монитор #10 ЗАПРЕЩЁН (SPA-BL-011) без нового класса отказа; money-moving — только вне автономного режима.
 
 ---
+
+## Sprint v3.63 — 2026-05-31 — Readiness-score history/trend (sparkline) (SPA-V363)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.62 (`sprint_completed: v3.62`). v3.61 создал композитный operational readiness score, v3.62 подключил его в 4h-пайплайн — но score всегда был ОДНОЙ точкой (последнее значение); тренд во времени нигде не сохранялся и не был виден. Взят кандидат (a) из плана v3.62: персист ИСТОРИИ score + мини-тренд на дашборде. Безопасный разблокированный код-спринт: НЕ money-moving (eth_signer/mev_protection/адаптеры не трогаются), НЕ feed-health монитор (SPA-BL-011) — только консолидация/визуализация уже эмитируемых данных.
+
+### Что сделано
+- **`readiness_score.py` — история.** Добавлены константы `HISTORY_FILENAME = "golive_readiness_score_history.json"` и `MAX_HISTORY = 180` (~30 дней при 6 циклах/сутки). Новая функция `append_history(doc, data_dir=None)` (never-raise, top-level try/except→`log.debug`+return): читает существующую историю (битый/отсутствующий файл → `[]`), формирует компактную запись `{generated_at, overall_score, overall_status}`, дедуп по `generated_at` (повторный прогон с тем же таймстампом ЗАМЕНЯЕТ последнюю запись, а не дублирует), обрезает до `history[-MAX_HISTORY:]`, пишет назад `json.dumps(indent=2)`. `write_readiness_score()` после записи основного файла вызывает `append_history(doc, data_dir=str(target.parent))` в ОТДЕЛЬНОМ try/except (сбой истории не ломает уже-завершённую основную запись), возвращает `doc` без изменений. `HISTORY_FILENAME`/`MAX_HISTORY`/`append_history` добавлены в `__all__`.
+- **`index.html` — sparkline.** Под бейджем `#golive-readiness-score` добавлен контейнер `#readiness-trend-wrap` (height:38px, display:none) с `<canvas id="readiness-trend-canvas">`. `loadGoLive()` тянет историю 4-м fetch'ем в `Promise.all` (`scoreHistory`) и после `renderReadinessScore` вызывает `renderReadinessTrend(scoreHistory)`. Новая функция-модуль `renderReadinessTrend(history)` (null-safe, try/catch): при `!Array.isArray` или `<2` точках скрывает wrap; иначе показывает и строит Chart.js line-sparkline по последним ~60 точкам (`overall_score`, цвет `#185FA5`, лёгкая заливка, без осей/легенды/grid, y 0..100, tooltip on, point radius 0, responsive/!maintainAspectRatio). Перед пересозданием уничтожает предыдущий инстанс (`let _readinessTrendChart=null; if(_readinessTrendChart) _readinessTrendChart.destroy();`) — иначе Chart.js ругается на повторный вход в таб.
+
+### Файлы
+- `spa_core/golive/readiness_score.py` (+`append_history`, +`HISTORY_FILENAME`/`MAX_HISTORY`, +`__all__`, hook в `write_readiness_score`)
+- `spa_core/tests/test_readiness_score.py` (+класс `TestAppendHistory`, 7 тестов)
+- `index.html` (+sparkline-контейнер, +4-й fetch, +`renderReadinessTrend`/`_readinessTrendChart`)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v363` (readiness_score.py, test_readiness_score.py, index.html, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `test_readiness_score.py` — **44 passed** (37 старых + 7 новых `TestAppendHistory`: первый вызов создаёт файл с 1 записью; новый `generated_at` добавляет 2-ю; тот же `generated_at` заменяет, не дублирует; обрезка до `MAX_HISTORY` с сохранением последних; never-raise на битом существующем файле; компактность ключей; `write_readiness_score` создаёт И основной JSON, И историю рядом).
+- Регрессия `test_covariance_export.py` + `test_feed_health_summary.py` — **50 passed, 0 новых фейлов**.
+- `py_compile readiness_score.py` + `test_readiness_score.py` — OK. KANBAN.json валиден (json round-trip). Регенерация `write_readiness_score()`: `overall_score=78.6`, `status=warn`, 3 компонента; `data/golive_readiness_score.json` и `data/golive_readiness_score_history.json` записаны — история валидный JSON-list (1 запись, ключи ровно `generated_at`/`overall_score`/`overall_status`).
+
+### Следующий спринт
+- **SPA-V364:** кандидаты — (a) 4-й компонент readiness score (day-counter до 2026-07-15); (b) history-trend для других surface-метрик дашборда. **РЕКОМЕНДАЦИЯ:** критический путь к go-live остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping. Feed-health монитор ЗАПРЕЩЁН (SPA-BL-011); money-moving — только вне автономного режима.
+
+---
