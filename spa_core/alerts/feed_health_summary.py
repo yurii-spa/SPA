@@ -82,6 +82,27 @@ __all__ = [
 ]
 
 
+def _age_hours(iso_str: Optional[str]) -> Optional[float]:
+    """
+    Age in hours between ``iso_str`` (a state-file ``updated_at`` ISO string)
+    and now (UTC), rounded to 2 places. Returns ``None`` on any parse failure
+    or missing input — never raises (keeps the never-raise contract intact).
+
+    Accepts a trailing ``Z`` (mapped to ``+00:00``); a naive datetime (no
+    timezone) is treated as UTC.
+    """
+    try:
+        if not iso_str:
+            return None
+        parsed = datetime.fromisoformat(str(iso_str).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+        return round((now_utc - parsed).total_seconds() / 3600.0, 2)
+    except Exception:
+        return None
+
+
 def classify_streak(streak: int, threshold: int) -> str:
     """ok if no streak, degraded at/above threshold, warn in between."""
     try:
@@ -120,6 +141,7 @@ def evaluate_signal(
         "status": "ok",
         "last_alerted_cycle": None,
         "updated_at": None,
+        "last_alert_age_hours": None,
         "present": False,
     }
     try:
@@ -138,6 +160,12 @@ def evaluate_signal(
         record["status"] = classify_streak(record["streak"], threshold)
         record["last_alerted_cycle"] = data.get("last_alerted_cycle")
         record["updated_at"] = data.get("updated_at")
+        # Derived: age of the last state-file update in hours. Inner guard so a
+        # bad ``updated_at`` can never knock out the other fields above.
+        try:
+            record["last_alert_age_hours"] = _age_hours(record["updated_at"])
+        except Exception:  # pragma: no cover - _age_hours already swallows
+            record["last_alert_age_hours"] = None
     except Exception as exc:  # corrupt JSON, unreadable, etc.
         log.debug("evaluate_signal(%s): %s", key, exc)
         record["status"] = "unknown"
