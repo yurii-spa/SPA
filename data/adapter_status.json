@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-31T00:13:17.175847+00:00",
+  "generated_at": "2026-05-31T01:19:52.146654+00:00",
   "schema_version": 1,
   "execution_mode": "dry_run",
   "live_apy_enabled": false,
@@ -13,6 +13,8 @@
       "https://rpc.mevblocker.io/noreverts"
     ],
     "routed_adapters": [
+      "aave-v3",
+      "compound-v3",
       "yearn-v3",
       "euler-v2",
       "maple",
@@ -23,6 +25,80 @@
     ]
   },
   "adapters": [
+    {
+      "protocol_key": "aave-v3",
+      "name": "Aave V3",
+      "tier": "T1",
+      "allocation_cap": 0.4,
+      "write_state": "BLOCKED",
+      "mev_routed": true,
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "aave",
+        "live_enabled": false,
+        "live_values_present": false
+      },
+      "chains": [
+        "ethereum",
+        "arbitrum",
+        "base"
+      ],
+      "assets": [
+        "USDC",
+        "USDT",
+        "DAI"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 4.2,
+          "USDT": 3.8,
+          "DAI": 3.5
+        },
+        "arbitrum": {
+          "USDC": 4.2,
+          "USDT": 3.8,
+          "DAI": 3.5
+        },
+        "base": {
+          "USDC": 4.2,
+          "USDT": 3.8,
+          "DAI": 3.5
+        }
+      }
+    },
+    {
+      "protocol_key": "compound-v3",
+      "name": "Compound V3",
+      "tier": "T1",
+      "allocation_cap": 0.4,
+      "write_state": "BLOCKED",
+      "mev_routed": true,
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "compound",
+        "live_enabled": false,
+        "live_values_present": false
+      },
+      "chains": [
+        "ethereum",
+        "arbitrum",
+        "base"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 4.5
+        },
+        "arbitrum": {
+          "USDC": 4.5
+        },
+        "base": {
+          "USDC": 4.5
+        }
+      }
+    },
     {
       "protocol_key": "yearn-v3",
       "name": "Yearn V3",
