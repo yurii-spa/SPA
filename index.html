@@ -1789,6 +1789,11 @@
     <div class="db-full" style="margin-bottom:0">
       <!-- SPA-V366 — combined go/no-go gate header (fuses operational readiness + checklist verdict) -->
       <div id="combined-golive-gate" style="margin-bottom:12px;display:none"></div>
+      <!-- SPA-V368 — combined gate GO/NO_GO trend -->
+      <div id="combined-trend-wrap" style="margin:0 0 12px 0;display:none">
+        <div style="font-size:11px;color:#777;margin-bottom:2px">Combined gate trend (GO/NO_GO)</div>
+        <div style="height:42px"><canvas id="combined-trend-canvas"></canvas></div>
+      </div>
       <div id="golive-verdict" style="font-size:22px;font-weight:700;margin-bottom:8px">
         <div class="skeleton skel-line" style="width:40%;height:36px"></div>
       </div>
@@ -3883,14 +3888,16 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory] = await Promise.all([
+    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_history.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/golive_combined_verdict_history.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     renderCombinedGoLiveHeader(readiness, scoreData);
+    renderCombinedGateTrend(combinedHistory);
     renderGoLiveVerdict(readiness);
     renderChecklistTrend(checklistHistory);
     renderReadinessScore(scoreData);
@@ -4104,6 +4111,64 @@ function renderChecklistTrend(history) {
     });
   } catch (e) {
     console.error('renderChecklistTrend error:', e);
+  }
+}
+
+// SPA-V368 — mini stepped trend of the combined go/no-go gate over time
+// (GO -> 1, anything else -> 0). Reads the persisted combined-gate history
+// (golive_combined_verdict_history.json). Mirror of renderChecklistTrend.
+let _combinedTrendChart = null;
+function renderCombinedGateTrend(history) {
+  try {
+    const wrap = document.getElementById('combined-trend-wrap');
+    if (!wrap) return;
+    if (!Array.isArray(history) || history.length < 2) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+    const pts = history.slice(-60);
+    const labels = pts.map(p => (p && p.generated_at) ? p.generated_at : '');
+    const values = pts.map(p => (p && p.gate === 'GO') ? 1 : 0);
+    const canvas = document.getElementById('combined-trend-canvas');
+    if (!canvas) return;
+    if (_combinedTrendChart) { _combinedTrendChart.destroy(); _combinedTrendChart = null; }
+    _combinedTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          borderColor: '#1d4ed8',
+          backgroundColor: 'rgba(29,78,216,0.10)',
+          borderWidth: 1.5,
+          fill: true,
+          stepped: true,
+          spanGaps: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { display: false },
+          y: {
+            display: true,
+            min: 0,
+            max: 1,
+            ticks: {
+              stepSize: 1,
+              font: { size: 9 },
+              callback: function (v) { return v === 1 ? 'GO' : (v === 0 ? 'NO_GO' : ''); },
+            },
+          },
+        },
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        elements: { point: { radius: 0 } },
+      },
+    });
+  } catch (e) {
+    console.error('renderCombinedGateTrend error:', e);
   }
 }
 
