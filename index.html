@@ -3888,15 +3888,16 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory] = await Promise.all([
+    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory, combinedVerdict] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_combined_verdict_history.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/golive_combined_verdict.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
-    renderCombinedGoLiveHeader(readiness, scoreData);
+    renderCombinedGoLiveHeader(readiness, scoreData, combinedVerdict);
     renderCombinedGateTrend(combinedHistory);
     renderGoLiveVerdict(readiness);
     renderChecklistTrend(checklistHistory);
@@ -3916,42 +3917,73 @@ async function loadGoLive() {
 
 // SPA-V366 — combined go/no-go gate header. Fuses the two independent go-live
 // axes (operational readiness score + paper-trading checklist verdict) into one
-// top-line GO / NO-GO answer. Mirrors readiness_score.build_combined_golive_gate
-// on the client from the two already-fetched docs (no extra fetch). Null-safe,
-// never throws; hidden until at least one source is present.
-function renderCombinedGoLiveHeader(readiness, scoreData) {
+// top-line GO / NO-GO answer.
+// SPA-V369 — now PREFERS the persisted authoritative doc
+// `golive_combined_verdict.json` (written each 4h cycle by
+// readiness_score.write_combined_golive_gate) when present & valid, and FALLS
+// BACK to the existing client-side recompute (from the two already-fetched
+// readiness+scoreData docs) only when the persisted doc is absent/corrupt. This
+// closes the "computed client-side vs persisted" gap. Null-safe, never throws;
+// hidden only when there is NOTHING to show (no persisted doc AND no readiness/
+// scoreData). The chip/banner markup is identical regardless of source.
+function renderCombinedGoLiveHeader(readiness, scoreData, combinedVerdict) {
   try {
     const el = document.getElementById('combined-golive-gate');
     if (!el) return;
-    if (!readiness && !scoreData) { el.style.display = 'none'; return; }
 
-    // operational readiness axis
     const SEV = { ok: 0, warn: 1, degraded: 2, unknown: 3 };
-    let opStatus = 'unknown', opScore = null;
-    if (scoreData && typeof scoreData === 'object') {
-      const s = String(scoreData.overall_status || 'unknown').toLowerCase();
+    const havePersisted = combinedVerdict && typeof combinedVerdict === 'object'
+      && combinedVerdict.gate != null;
+
+    // Nothing to show at all -> hide. A persisted doc always renders.
+    if (!havePersisted && !readiness && !scoreData) { el.style.display = 'none'; return; }
+
+    let isGo, opStatus, opScore, verdict, passed, total, blocking, source;
+
+    if (havePersisted) {
+      // ── authoritative persisted axis (SPA-V369) ──
+      source = 'persisted';
+      isGo = String(combinedVerdict.gate).toUpperCase() === 'GO';
+      const s = String(combinedVerdict.operational_status || 'unknown').toLowerCase();
       opStatus = (s in SEV) ? s : 'unknown';
-      if (scoreData.overall_score != null) opScore = scoreData.overall_score;
-    }
-    const operationalOk = opStatus === 'ok';
-
-    // checklist axis
-    let verdict = null, passed = null, total = null;
-    if (readiness && typeof readiness === 'object') {
-      if (readiness.verdict != null) verdict = String(readiness.verdict).toUpperCase();
-      if (Array.isArray(readiness.criteria)) {
-        total = readiness.criteria.length;
-        passed = readiness.criteria.filter(
-          c => c && String(c.status || '').toLowerCase().startsWith('pass')).length;
+      opScore = combinedVerdict.operational_score != null ? combinedVerdict.operational_score : null;
+      verdict = combinedVerdict.checklist_verdict != null
+        ? String(combinedVerdict.checklist_verdict).toUpperCase() : null;
+      passed = typeof combinedVerdict.criteria_passed === 'number' ? combinedVerdict.criteria_passed : null;
+      total = typeof combinedVerdict.criteria_total === 'number' ? combinedVerdict.criteria_total : null;
+      blocking = Array.isArray(combinedVerdict.blocking) ? combinedVerdict.blocking.slice() : [];
+    } else {
+      // ── client-side recompute fallback (SPA-V366) ──
+      source = 'client';
+      // operational readiness axis
+      opStatus = 'unknown'; opScore = null;
+      if (scoreData && typeof scoreData === 'object') {
+        const s = String(scoreData.overall_status || 'unknown').toLowerCase();
+        opStatus = (s in SEV) ? s : 'unknown';
+        if (scoreData.overall_score != null) opScore = scoreData.overall_score;
       }
+      const operationalOk = opStatus === 'ok';
+
+      // checklist axis
+      verdict = null; passed = null; total = null;
+      if (readiness && typeof readiness === 'object') {
+        if (readiness.verdict != null) verdict = String(readiness.verdict).toUpperCase();
+        if (Array.isArray(readiness.criteria)) {
+          total = readiness.criteria.length;
+          passed = readiness.criteria.filter(
+            c => c && String(c.status || '').toLowerCase().startsWith('pass')).length;
+        }
+      }
+      const checklistReady = verdict === 'READY';
+
+      isGo = operationalOk && checklistReady;
+      blocking = [];
+      if (!operationalOk) blocking.push('operational readiness ' + opStatus);
+      if (!checklistReady) blocking.push('checklist ' + (verdict ? verdict.toLowerCase() : 'unknown'));
     }
+
+    // ── shared rendering block (identical markup for both sources) ──
     const checklistReady = verdict === 'READY';
-
-    const isGo = operationalOk && checklistReady;
-    const blocking = [];
-    if (!operationalOk) blocking.push('operational readiness ' + opStatus);
-    if (!checklistReady) blocking.push('checklist ' + (verdict ? verdict.toLowerCase() : 'unknown'));
-
     const COL = { ok: '#16a34a', warn: '#f59e0b', degraded: '#B91C1C', unknown: '#9ca3af' };
     const gateColor = isGo ? '#16a34a' : '#B91C1C';
     const gateIcon = isGo ? '🟢' : '🔴';
@@ -3968,6 +4000,7 @@ function renderCombinedGoLiveHeader(readiness, scoreData) {
       : '';
 
     el.style.display = 'block';
+    el.setAttribute('data-gate-source', source);
     el.innerHTML =
       `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;border:2px solid ${gateColor};background:${isGo ? 'rgba(22,163,74,0.06)' : 'rgba(185,28,28,0.05)'}">
         <div style="font-size:20px;font-weight:800;color:${gateColor};white-space:nowrap">${gateIcon} GO-LIVE GATE: ${gateText}</div>
