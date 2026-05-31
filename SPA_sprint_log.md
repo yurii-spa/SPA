@@ -4,6 +4,41 @@
 
 ---
 
+## Sprint v3.61 — 2026-05-31 — Consolidated Go-Live operational readiness score (backend JSON + dashboard badge) (SPA-V361)
+
+### Триггер
+- Предыдущий завершённый спринт по KANBAN — v3.60 (`sprint_completed: v3.60`), заканчивается на «0» → architect review ПОЛОЖЕН. `architect.py` недоступен в этой среде → ревью проведено оркестратором: разблокированных HIGH код-карточек нет (go-live путь заблокирован на user-action секретах **SPA-BL-012/BL-007..009/BL-004..006**; feed-health домен заморожен **SPA-BL-011**). Взят следующий разблокированный презентационный код-шаг из dispatch-note v3.60: консолидированный Go-Live readiness score. НЕ новый монитор (SPA-BL-011), НЕ money-moving, НЕ user-action-blocked.
+
+### Что сделано
+- **Новый модуль `spa_core/golive/readiness_score.py`** — read-only консолидация ТРЁХ уже эмитируемых операционных surface-ов в один композитный документ `data/golive_readiness_score.json` (отдельный от paper-trading checklist verdict в `golive/checklist.py` → `golive_readiness.json`):
+  1. **feed_health** — из `alerts.feed_health_summary.build_summary_document()`; `overall_status` → score (ok=100, warn=60, unknown=40, degraded=0), переносятся status + counts.
+  2. **mev_coverage** — из `execution.adapter_status.build_status_document()` → `mev_protection.coverage.coverage_pct`; status ok≥80 / warn≥50 / degraded.
+  3. **live_apy** — из того же adapter-status doc → `live_apy_enabled` (bool); score 100/50, dry-run=warn (не hard-fail).
+  - Композит: `overall_score = round(mean(3 sub-scores), 1)`; `overall_status` = worst-of по severity {ok:0, warn:1, degraded:2, unknown:3} (зеркалит worst-of паттерн `feed_health_summary.py`). Каждый component-fetch обёрнут в свой helper (`_feed_health_component` / `_mev_coverage_component` / `_live_apy_component`) с try/except → при сбое source: status=unknown, score=0, поле `error`; верхний `build_readiness_score_document()` НИКОГДА не бросает. API: `SCHEMA_VERSION=1`, `build_readiness_score_document()`, `write_readiness_score()`, `DEFAULT_DATA_DIR = parents[2]/"data"`, `_cli(argv)` с `--json`/`--write [PATH]`, `__all__`. Pure stdlib, JSON-safe.
+- **`spa_core/tests/test_readiness_score.py`** — 20 офлайн-тестов: схема/типы документа; overall_score = mean компонентов и в [0,100]; worst-of логика (монкипатч компонентов под контролируемые значения); пороги mev/live/feed; never-raises при падающих source-ах; JSON round-trip; `write_readiness_score`; CLI `--json`/`--write` smoke.
+- **`index.html`** — в `loadGoLive()` добавлен fetch `/golive_readiness_score.json?_=ts` (`.catch(()=>null)`) и вызов нового `renderReadinessScore(scoreData)`. Добавлена функция `renderReadinessScore(data)` (рядом с `renderGoLiveVerdict`): null-safe, рендерит «Operational readiness: NN/100» + цветной badge overall_status (COLORS как в `renderFeedHealth`: ok #16a34a, warn #f59e0b, degraded #B91C1C, unknown #9ca3af) + построчный per-component breakdown (label: score/status). Добавлен host-элемент `<div id="golive-readiness-score">` сразу после блока `#golive-verdict`. Баланс скобок/скобок/бэктиков проверен (braces 13/13, parens 14/14, backticks even), `<script>` теги целы (2/2).
+- Регенерирован `data/golive_readiness_score.json`: `overall_score=78.6`, `overall_status=warn` (feed_health 100/ok, mev_coverage 85.7/ok, live_apy 50/warn — dry-run ожидаем pre-go-live).
+- **NO new monitor** — соблюдён governance-фриз **SPA-BL-011** (чистая презентация/консолидация существующих данных). Money-moving код (`eth_signer.py`, `mev_protection.py`, `*_adapter.py`) НЕ тронут.
+
+### Файлы
+- `spa_core/golive/readiness_score.py` (новый — backend-консолидатор)
+- `spa_core/tests/test_readiness_score.py` (новый — 20 тестов)
+- `index.html` (изменён — fetch + `renderReadinessScore` + host-div `#golive-readiness-score`)
+- `data/golive_readiness_score.json` (создан/регенерирован)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v361`: index.html, KANBAN.json, SPA_sprint_log.md (новые файлы readiness_score.py / test_readiness_score.py бэкапа не требуют).
+
+### Результаты тестов
+- `python3 -m pytest spa_core/tests/test_readiness_score.py -q` → **20 passed / 0 failed**.
+- `python3 -m pytest spa_core/tests/test_feed_health_summary.py spa_core/tests/test_adapter_status.py -q -k "not LiveApy"` → **133 passed / 0 failed / 11 deselected** (исключены сетевые LiveApy-тесты adapter-status фильтром `-k`).
+- `python3 -m py_compile spa_core/golive/readiness_score.py` → OK.
+- `data/golive_readiness_score.json` валиден; `KANBAN.json` валиден (json round-trip). `node --check` к `.html` неприменим — пропущено осознанно, баланс JS проверён вручную.
+
+### Следующий спринт
+- Кандидаты (всё surface/housekeeping — критический go-live путь остаётся заблокирован user-action секретами SPA-BL-012, feed-health заморожен SPA-BL-011): рендер истории/спарклайнов уже эмитируемых метрик; консолидация covariance-health в единый score; либо housekeeping. **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) — user-action секреты, всё ещё blocked; код-работа остаётся презентационной до их разблокировки.
+
+---
+
 ## Sprint v3.60 — 2026-05-31 — Visible per-signal updated_at/age row under Feed Health chips (SPA-V360)
 
 ### Триггер
