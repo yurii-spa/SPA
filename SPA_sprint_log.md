@@ -4,6 +4,38 @@
 
 ---
 
+## Sprint v3.70 — 2026-05-31 — Консолидация трёх trend-рендереров дашборда в один helper (SPA-V370)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.69 (`sprint_completed: v3.69`). Не оканчивается на 0/5 → architect review не требуется. Status pass запрещён. Разблокированной HIGH код-работы нет (go-live путь user-action-blocked: SPA-BL-012, секреты SPA-BL-007/008/009, BL-004/005/006; feed-health заморожен SPA-BL-011). Взят housekeeping/refactor — кандидат (a) из v369-dispatch-note. НЕ money-moving, НЕ новый монитор, НЕ user-action-blocked.
+
+### Что сделано
+- **index.html — консолидация дублирования:** три почти идентичные функции `renderReadinessTrend` / `renderChecklistTrend` / `renderCombinedGateTrend` (каждая со своим клоном ~45 строк Chart.js-boilerplate и своей глобалкой `_readinessTrendChart`/`_checklistTrendChart`/`_combinedTrendChart`) сведены к ОДНОМУ общему helper-у `renderTrendSparkline(opts)`.
+  - `renderTrendSparkline` принимает `{key, wrapId, canvasId, history, labelKey, valueFn, color, bg, stepped, yScale}`: null-safe (`Array.isArray` + `length<2` → скрыть wrap), `slice(-60)`, per-key destroy предыдущего инстанса через общий `_trendCharts` map (вместо трёх глобалок), `tension:0.3` для line / `stepped:true` для combined, top-level try/catch → `console.error` (никогда не бросает).
+  - Три старые функции стали тонкими обёртками с ИСХОДНЫМИ сигнатурами и поведением БАЙТ-В-БАЙТ. Call-sites в `loadGoLive` (`renderCombinedGateTrend(combinedHistory)` и т.д.) не менялись. `renderChecklistTrend` сохранила логику yMax (latest `criteria_total` → max seen → 12); `renderCombinedGateTrend` — `stepped` + y-ticks callback (`1→GO`, `0→NO_GO`).
+- Бэкенд НЕ тронут (чисто presentation-layer index.html). НЕ money-moving (eth_signer/mev_protection/adapters не тронуты). НЕ новый feed-health монитор (SPA-BL-011 freeze соблюдён).
+
+### Файлы
+- `index.html` (изменён — `renderTrendSparkline` + 3 обёртки взамен 3 копий boilerplate; `_trendCharts` map взамен 3 глобалок)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v370`: index.html, KANBAN.json, SPA_sprint_log.md
+
+### Результаты тестов
+- `node --check` всего извлечённого из index.html JS → **JS_SYNTAX_OK**.
+- node DOM-stub смоук → **17/17 passed**: значения данных, цвета, yScale, tension-vs-stepped, GO/NO_GO ticks callback, destroy-before-recreate, скрытие при <2 точках, garbage-never-throws.
+- Структурная проверка index.html: braces **1675/1675**, parens **2769/2769**, `<script>` **2/2**, `renderTrendSparkline` определён 1×, каждая обёртка 1 def + 1 call-site, старые глобалки удалены полностью.
+- `pytest` недоступен в этом sandbox (`No module named pytest`) → Python-регрессия пропущена осознанно (бэкенд не менялся).
+
+### Примечание оркестратора (накоплено, требует действий пользователя)
+- Критический путь к go-live (2026-07-15) остаётся **user-action-blocked** (SPA-BL-012). Незаблокированной HIGH код-работы нет — взят полезный housekeeping вместо очередной косметики (на раздувание дашборда указывал HALT-отчёт v368).
+- ⚠️ **GitHub PAT лежит в plaintext в теле scheduled-task** — это утечка. Рекомендуется отозвать токен и хранить в секрет-хранилище.
+- Housekeeping-кандидат: 93 файла `*.bak.*` + старые `push_v*.html` + `httpserver.log` можно почистить (не делалось автономно во избежание деструктивных действий без подтверждения).
+
+### Следующий спринт
+- **SPA-V371:** при разблокировке SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима); иначе — дальнейший housekeeping (трим `.bak.*`/`push_*.html` по подтверждению) либо статус-отчёт.
+
+---
+
 ## Sprint v3.61 — 2026-05-31 — Consolidated Go-Live operational readiness score (backend JSON + dashboard badge) (SPA-V361)
 
 ### Триггер
