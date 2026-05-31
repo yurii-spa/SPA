@@ -4049,160 +4049,110 @@ function renderReadinessScore(data) {
 }
 
 // SPA-V363 — mini trend sparkline of the headline readiness score over time.
-let _readinessTrendChart = null;
-function renderReadinessTrend(history) {
+// SPA-V370 — shared sparkline-trend renderer. Consolidates the three formerly
+// near-identical trend renderers (readiness-score / checklist / combined-gate)
+// so the Chart.js boilerplate lives in ONE place. Each caller passes its element
+// ids, per-point value extractor, colour and y-axis config. Null-safe, never
+// throws, destroys the prior chart instance (kept per-key) before re-creating.
+// Backwards compatible: the three wrappers below keep their original signatures
+// and behaviour byte-for-byte (verified by node smoke).
+const _trendCharts = {};
+function renderTrendSparkline(opts) {
   try {
-    const wrap = document.getElementById('readiness-trend-wrap');
+    const wrap = document.getElementById(opts.wrapId);
     if (!wrap) return;
+    const history = opts.history;
     if (!Array.isArray(history) || history.length < 2) {
       wrap.style.display = 'none';
       return;
     }
     wrap.style.display = 'block';
     const pts = history.slice(-60);
-    const labels = pts.map(p => (p && p.generated_at) ? p.generated_at : '');
-    const values = pts.map(p => (p && p.overall_score != null) ? p.overall_score : null);
-    const canvas = document.getElementById('readiness-trend-canvas');
+    const labels = pts.map(p => (p && p[opts.labelKey]) ? p[opts.labelKey] : '');
+    const values = pts.map(opts.valueFn);
+    const canvas = document.getElementById(opts.canvasId);
     if (!canvas) return;
-    if (_readinessTrendChart) { _readinessTrendChart.destroy(); _readinessTrendChart = null; }
-    _readinessTrendChart = new Chart(canvas.getContext('2d'), {
+    if (_trendCharts[opts.key]) { _trendCharts[opts.key].destroy(); _trendCharts[opts.key] = null; }
+    const dataset = {
+      data: values,
+      borderColor: opts.color,
+      backgroundColor: opts.bg,
+      borderWidth: 1.5,
+      fill: true,
+      spanGaps: true,
+    };
+    if (opts.stepped) { dataset.stepped = true; } else { dataset.tension = 0.3; }
+    _trendCharts[opts.key] = new Chart(canvas.getContext('2d'), {
       type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: values,
-          borderColor: '#185FA5',
-          backgroundColor: 'rgba(24,95,165,0.10)',
-          borderWidth: 1.5,
-          fill: true,
-          tension: 0.3,
-          spanGaps: true,
-        }],
-      },
+      data: { labels: labels, datasets: [dataset] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } },
+        scales: { x: { display: false }, y: opts.yScale },
         plugins: { legend: { display: false }, tooltip: { enabled: true } },
         elements: { point: { radius: 0 } },
       },
     });
   } catch (e) {
-    console.error('renderReadinessTrend error:', e);
+    console.error('renderTrendSparkline error (' + (opts && opts.key) + '):', e);
   }
+}
+
+function renderReadinessTrend(history) {
+  renderTrendSparkline({
+    key: 'readiness', wrapId: 'readiness-trend-wrap', canvasId: 'readiness-trend-canvas',
+    history: history, labelKey: 'generated_at',
+    valueFn: p => (p && p.overall_score != null) ? p.overall_score : null,
+    color: '#185FA5', bg: 'rgba(24,95,165,0.10)',
+    yScale: { display: false, min: 0, max: 100 },
+  });
 }
 
 // SPA-V365 — mini trend sparkline of the paper-trading checklist verdict over
 // time (plots criteria_passed). Separate from the operational-score sparkline.
-let _checklistTrendChart = null;
 function renderChecklistTrend(history) {
-  try {
-    const wrap = document.getElementById('checklist-trend-wrap');
-    if (!wrap) return;
-    if (!Array.isArray(history) || history.length < 2) {
-      wrap.style.display = 'none';
-      return;
-    }
-    wrap.style.display = 'block';
+  // y-axis max = the latest criteria_total, else the max seen in history, else 12.
+  let yMax = null;
+  if (Array.isArray(history)) {
     const pts = history.slice(-60);
-    const labels = pts.map(p => (p && p.checked_at) ? p.checked_at : '');
-    const values = pts.map(p => (p && p.criteria_passed != null) ? p.criteria_passed : null);
-    // y-axis max = the latest criteria_total, else the max seen in history, else 12.
-    let yMax = null;
     for (let i = pts.length - 1; i >= 0; i--) {
       if (pts[i] && typeof pts[i].criteria_total === 'number') { yMax = pts[i].criteria_total; break; }
     }
     if (yMax === null) {
-      const seen = values.filter(v => typeof v === 'number');
+      const seen = pts.map(p => (p && p.criteria_passed != null) ? p.criteria_passed : null)
+                      .filter(v => typeof v === 'number');
       yMax = seen.length ? Math.max.apply(null, seen) : 12;
     }
-    if (!yMax || yMax < 1) yMax = 12;
-    const canvas = document.getElementById('checklist-trend-canvas');
-    if (!canvas) return;
-    if (_checklistTrendChart) { _checklistTrendChart.destroy(); _checklistTrendChart = null; }
-    _checklistTrendChart = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: values,
-          borderColor: '#065f46',
-          backgroundColor: 'rgba(6,95,70,0.10)',
-          borderWidth: 1.5,
-          fill: true,
-          tension: 0.3,
-          spanGaps: true,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { x: { display: false }, y: { display: false, min: 0, max: yMax } },
-        plugins: { legend: { display: false }, tooltip: { enabled: true } },
-        elements: { point: { radius: 0 } },
-      },
-    });
-  } catch (e) {
-    console.error('renderChecklistTrend error:', e);
   }
+  if (!yMax || yMax < 1) yMax = 12;
+  renderTrendSparkline({
+    key: 'checklist', wrapId: 'checklist-trend-wrap', canvasId: 'checklist-trend-canvas',
+    history: history, labelKey: 'checked_at',
+    valueFn: p => (p && p.criteria_passed != null) ? p.criteria_passed : null,
+    color: '#065f46', bg: 'rgba(6,95,70,0.10)',
+    yScale: { display: false, min: 0, max: yMax },
+  });
 }
 
 // SPA-V368 — mini stepped trend of the combined go/no-go gate over time
 // (GO -> 1, anything else -> 0). Reads the persisted combined-gate history
-// (golive_combined_verdict_history.json). Mirror of renderChecklistTrend.
-let _combinedTrendChart = null;
+// (golive_combined_verdict_history.json).
 function renderCombinedGateTrend(history) {
-  try {
-    const wrap = document.getElementById('combined-trend-wrap');
-    if (!wrap) return;
-    if (!Array.isArray(history) || history.length < 2) {
-      wrap.style.display = 'none';
-      return;
-    }
-    wrap.style.display = 'block';
-    const pts = history.slice(-60);
-    const labels = pts.map(p => (p && p.generated_at) ? p.generated_at : '');
-    const values = pts.map(p => (p && p.gate === 'GO') ? 1 : 0);
-    const canvas = document.getElementById('combined-trend-canvas');
-    if (!canvas) return;
-    if (_combinedTrendChart) { _combinedTrendChart.destroy(); _combinedTrendChart = null; }
-    _combinedTrendChart = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: values,
-          borderColor: '#1d4ed8',
-          backgroundColor: 'rgba(29,78,216,0.10)',
-          borderWidth: 1.5,
-          fill: true,
-          stepped: true,
-          spanGaps: true,
-        }],
+  renderTrendSparkline({
+    key: 'combined', wrapId: 'combined-trend-wrap', canvasId: 'combined-trend-canvas',
+    history: history, labelKey: 'generated_at',
+    valueFn: p => (p && p.gate === 'GO') ? 1 : 0,
+    color: '#1d4ed8', bg: 'rgba(29,78,216,0.10)',
+    stepped: true,
+    yScale: {
+      display: true, min: 0, max: 1,
+      ticks: {
+        stepSize: 1,
+        font: { size: 9 },
+        callback: function (v) { return v === 1 ? 'GO' : (v === 0 ? 'NO_GO' : ''); },
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { display: false },
-          y: {
-            display: true,
-            min: 0,
-            max: 1,
-            ticks: {
-              stepSize: 1,
-              font: { size: 9 },
-              callback: function (v) { return v === 1 ? 'GO' : (v === 0 ? 'NO_GO' : ''); },
-            },
-          },
-        },
-        plugins: { legend: { display: false }, tooltip: { enabled: true } },
-        elements: { point: { radius: 0 } },
-      },
-    });
-  } catch (e) {
-    console.error('renderCombinedGateTrend error:', e);
-  }
+    },
+  });
 }
 
 function renderGoLiveVerdict(data) {
