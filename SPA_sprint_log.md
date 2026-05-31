@@ -4,6 +4,38 @@
 
 ---
 
+## Sprint v3.57 — 2026-05-31 — Wire T1 aave/compound into adapter_status (SPA-V357)
+
+### Что сделано
+- **`spa_core/execution/adapter_status.py` — Шаг 1:** в `_ADAPTER_SPECS` добавлены ДВЕ T1-записи (в начало списка, T1 идут первыми по приоритету tier; порядок детерминирован): `aave-v3` (module `spa_core.execution.aave_v3_adapter`, name `Aave V3`, tier `T1`, write_state `BLOCKED`, apy_source_project `aave`, allocation_note `None`) и `compound-v3` (module `spa_core.execution.compound_v3_adapter`, name `Compound V3`, tier `T1`, write_state `BLOCKED`, apy_source_project `compound`, allocation_note `None`).
+- **`allocation_cap = 0.40` для обоих T1 — КАНОНИЧЕСКИЙ источник найден** (не дефолт). Per-protocol T1 concentration cap прописан в коде risk-движка: `spa_core/risk/policy.py` `max_concentration_t1: float = 0.40` (зеркально в `spa_core/risk/versions/v1_0_passive.py:39`). Это программный лимит на один T1-протокол в портфеле. (Документ `04_Whitelist_Policy_v0.3.md` §9.1 даёт per-протокол портфельные лимиты в процентах для конкретного whitelist, а `Risk_Policy_v0.3.md` §4.1 — target/max/hard 15/20/25% generic; но именно `policy.py max_concentration_t1=0.40` — это исполняемая T1-планка, которую и используем.) Задачный дефолт 0.30 НЕ применялся, т.к. канонический источник в коде найден.
+- **`spa_core/execution/adapter_status.py` — Шаг 2 (graceful mock_apy для T1):** в `_adapter_record` внутри существующего try-блока добавлен синтез: если module-level `_DRY_RUN_APY` отсутствует/пуст (`if not mock_apy:`), берём class-level `_MOCK_APYS` адаптера (плоский asset→apy) и строим `{chain: dict(_MOCK_APYS) for chain in SUPPORTED_CHAINS}` — тот же chain→asset→apy формат, что у T2. T2-путь не тронут (у них module-level `_DRY_RUN_APY` есть → синтез не срабатывает). Never-raise сохранён: синтез внутри try, любая ошибка → mock_apy остаётся как было ({}).
+- Следствие (бесплатно): live-APY enrichment (`SPA_LIVE_APY`) и `mev_routed` теперь работают для T1 автоматически — `mev_routed=True` у обоих, т.к. `inspect.getsource` их модулей содержит `send_protected` (live-broadcast через `_send_raw_tx` → `mev_protection.send_protected`).
+- **`index.html` — Шаг 3: правок НЕ требуется (подтверждено чтением).** `renderAdapterStatus()` (строка ~4107) рендерит tier как простую строку `${a.tier}` в фиксированном бейдже (строка ~4160), без хардкода списка tier-ов; `mapAdapterRecord()` вычисляет cap из `rec.allocation_cap`. Новые protocol_key `aave-v3`/`compound-v3` рендерятся корректно, null-safe.
+- **`spa_core/tests/test_adapter_status.py` — Шаг 4:** `EXPECTED_PROTOCOL_KEYS` расширен до 7 (T1 первыми), добавлен `T1_PROTOCOL_KEYS`. Счётчики 5→7 (`test_returns_seven_adapters`, `test_adapters_count`, `test_writes_valid_json`, `test_live_apy_never_raises_on_feed_error`). Параметризации `test_others_blocked` и `ROUTED` расширены T1. Добавлены позитивные тесты: T1 tier=="T1", allocation_cap==0.40, mock_apy синтезируется из `_MOCK_APYS` (`test_aave_mock_apy_synthesised_from_class`/`test_compound_...`), mock_apy непустой, T1 присутствуют в документе, `mev_routed is True`, оба в `routed_adapters`. Классы `TestMevProtectionStatus` / `TestMevRoutingApplicability` не сломаны.
+- **`data/adapter_status.json` — Шаг 5:** регенерирован через `python3 -m spa_core.execution.adapter_status --write`. 7 адаптеров; у `aave-v3`/`compound-v3`: `tier:"T1"`, `mev_routed:true`, `allocation_cap:0.4`, непустой `mock_apy` (ethereum/arbitrum/base × asset). `mev_protection.routed_adapters` теперь содержит `aave-v3` и `compound-v3`; `unrouted_adapters` — только `pendle-pt`.
+- Money-moving код (`eth_signer.py`, `mev_protection.py`, сами адаптеры) НЕ тронут.
+
+### Файлы
+- `spa_core/execution/adapter_status.py` (изменён — Шаг 1+2)
+- `spa_core/tests/test_adapter_status.py` (изменён — Шаг 4)
+- `data/adapter_status.json` (регенерирован — Шаг 5)
+- `index.html` (проверен, правок не требовалось)
+- Бэкапы `.bak.v357`: adapter_status.py, test_adapter_status.py, KANBAN.json, SPA_sprint_log.md.
+
+### Результаты тестов
+- `python3 -m py_compile spa_core/execution/adapter_status.py` → OK.
+- `test_adapter_status.py`: целевые классы (Tiers / AllocationCap / WriteState / MockApyMatchesModules / MevRoutingApplicability) — 52 passed; остальные классы (Collect / RequiredFields / BuildStatusDocument / WriteStatusJson / LiveApyEnrichment / MevProtectionStatus / Resilience) — все зелёные. ЕДИНСТВЕННОЕ исключение: `TestLiveApyGate::test_live_apy_enabled_via_env` зависает в sandbox по таймауту — этот тест выставляет `SPA_LIVE_APY=true` и дергает реальный DeFiLlama без сети. ПРОВЕРЕНО: бэкап-baseline (`adapter_status.py.bak.v357` + старый тест) зависает на нём ИДЕНТИЧНО → это pre-existing network-артефакт sandbox, НЕ регрессия v3.57. В среде с сетью / при мокнутом фиде проходит (см. `TestLiveApyEnrichment` — 8 passed с monkeypatch фида).
+- `test_mev_protection.py` + `test_mev_wiring.py`: 58 passed.
+- Регресс money-moving адаптеров: `test_aave_v3_adapter.py` 13 passed, `test_compound_v3_adapter.py` 17 passed.
+
+### Следующий спринт
+- **Разблокированный код-шаг А:** per-adapter MEV-routing построчно в Go-Live adapter-таблице (`index.html renderAdapterStatus`) — показывать значок routed/unrouted прямо в строке каждого адаптера (данные уже есть в `mev_routed` и `mev_protection.routed_adapters`), сейчас отражается только агрегатом в mevBadge.
+- **Разблокированный код-шаг Б:** live-APY enrichment-валидация для T1 — sanity-проверка, что синтезированный из `_MOCK_APYS` mock_apy и live-значения по T1 (aave/compound) попадают в разумные bounds (переиспользовать VALUE-RANGE монитор feed-health).
+- Напоминание: HIGH go-live путь упирается в user-action секреты **SPA-BL-012** (приватный ключ / wallet env для live-write), а feed-health расширение заморожено блокером **SPA-BL-011**.
+
+---
+
 ## Sprint v3.56 — 2026-05-31 — Per-adapter MEV-routing applicability (SPA-V356)
 
 ### Что сделано
