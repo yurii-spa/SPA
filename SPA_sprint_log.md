@@ -2383,3 +2383,28 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **SPA-V365:** кандидаты — (a) history-trend (sparkline/история) для других surface-метрик дашборда (например MEV-coverage % или feed-health overall со временем — UI, не новый монитор); (b) рендер paper-trading checklist verdict как отдельный go/no-go бейдж рядом с operational readiness (две разные оси: операционная готовность vs checklist-вердикт). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011) без нового класса отказа; money-moving — только вне автономного режима.
 
 ---
+
+## Sprint v3.65 — 2026-05-31 — История checklist-вердикта + sparkline-тренд (SPA-V365)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.64 (`sprint_completed: v3.64`, `updated_by: orchestrator-v364`). Status pass запрещён. v3.64 НЕ оканчивается на 0/5 → периодический architect review не требуется. Все HIGH-задачи backlog либо done (SPA-BL-010), либо user_action-blocked (BL-004/005/006, SPA-BL-007/008/009, SPA-BL-012), либо governance freeze (SPA-BL-011) — разблокированных HIGH код-спринтов нет. Взят кандидат из плана v3.64: вторая ось — paper-trading checklist verdict. Установлено, что operational readiness score (`golive_readiness_score.json`) уже имеет историю+sparkline (v3.63), а checklist verdict (`golive_readiness.json`, пишется каждый цикл `daily_check.run_daily_golive_check`) — НЕ имеет персистируемой истории и тренда. Безопасный разблокированный код-спринт: НЕ money-moving (eth_signer/mev_protection/адаптеры не трогаются), НЕ feed-health монитор (SPA-BL-011) — только консолидация/визуализация уже эмитируемых данных.
+
+### Что сделано
+- **`golive/daily_check.py` — история checklist-вердикта.** Добавлены `HISTORY_FILENAME = "golive_readiness_history.json"` и `MAX_HISTORY = 180`. Новая `append_checklist_history(payload, data_dir=None)` — зеркало `readiness_score.append_history`: компактная запись `{checked_at(fallback generated_at), verdict, criteria_passed, criteria_total}`, дедуп по `checked_at` (повторный прогон с тем же таймстампом ЗАМЕНЯЕТ последнюю запись), обрезка `history[-MAX_HISTORY:]`, битый/отсутствующий файл → `[]`, top-level try/except → `log.debug`, never-raise. `run_daily_golive_check` вызывает её в ОТДЕЛЬНОМ guarded try/except сразу после записи `golive_readiness.json` — сбой истории не ломает уже завершённую основную запись и не меняет возвращаемый `payload`. Docstring модуля дополнен записью SPA-V365.
+- **`index.html` — checklist-sparkline.** Под `#golive-verdict` добавлен `#checklist-trend-wrap`/`#checklist-trend-canvas`; в `loadGoLive`-`Promise.all` добавлен 5-й fetch `golive_readiness_history.json` → `checklistHistory`; после `renderGoLiveVerdict` вызывается новая `renderChecklistTrend(history)` — зеркало `renderReadinessTrend`: Chart.js-линия по `criteria_passed` за последние ~60 точек, y 0..(criteria_total→max→12 fallback), цвет `#065f46` + лёгкая заливка, без осей/легенды/grid, point radius 0, tooltip on; null-safe (`<2` точек → скрыть), собственный инстанс `_checklistTrendChart` с `.destroy()` перед пересозданием.
+
+### Файлы
+- `spa_core/golive/daily_check.py` (+`append_checklist_history`, +`HISTORY_FILENAME`/`MAX_HISTORY`, hook в `run_daily_golive_check`, docstring)
+- `index.html` (+sparkline-контейнер, +5-й fetch, +`renderChecklistTrend`/`_checklistTrendChart`)
+- `spa_core/tests/test_golive_extended.py` (+класс `TestAppendChecklistHistory`, 8 тестов)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v365` (daily_check.py, index.html, test_golive_extended.py)
+
+### Результаты тестов
+- `test_golive.py` + `test_golive_extended.py` + `test_readiness_score.py` — **137 passed, 0 failed**. Новый `TestAppendChecklistHistory` — 8 тестов (создание файла с 1 записью; добавление при новом `checked_at`; замена при совпадении; обрезка до `MAX_HISTORY` с сохранением последних; never-raise на битом файле; компактность 4 ключей; фолбэк `checked_at→generated_at`; `run_daily_golive_check` пишет И `golive_readiness.json`, И `golive_readiness_history.json` рядом).
+- `py_compile daily_check.py` — OK. Smoke: двойной `run_daily_golive_check(<tmp>)` → `golive_readiness_history.json` создан, валидный JSON-list, запись ровно 4 ключа. KANBAN.json валиден (json round-trip OK).
+
+### Следующий спринт
+- **SPA-V366:** кандидаты — (a) history-trend для других surface-метрик (MEV-coverage % со временем — UI, не новый монитор); (b) консолидация operational readiness score + checklist verdict в единый комбинированный go/no-go хедер; (c) при разблокировке секретов SPA-BL-012 — переключение на FEAT-001 Phase 3 live execution (вне автономного режима). **РЕКОМЕНДАЦИЯ:** критический путь к go-live (2026-07-15) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); код-работа — surface/housekeeping. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011); money-moving — только вне автономного режима.
+
+---
