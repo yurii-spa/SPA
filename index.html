@@ -1656,7 +1656,8 @@
         <span id="feed-health-badge" style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:600;color:#fff;background:#9ca3af">—</span>
         <span id="feed-health-detail" style="font-size:10px;color:#bbb"></span>
       </div>
-      <div id="feed-health-signals" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px"></div>
+      <div id="feed-health-signals" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+      <div id="feed-health-ages" style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-bottom:14px;font-size:10px;color:#bbb"></div>
     </div>
     <!-- ══ v3.37: Live APY Covariance / Correlation Matrix ══ -->
     <div>
@@ -3979,11 +3980,13 @@ function renderFeedHealth(data) {
   const badge = document.getElementById('feed-health-badge');
   const detail = document.getElementById('feed-health-detail');
   const wrap = document.getElementById('feed-health-signals');
+  const ages = document.getElementById('feed-health-ages');
   const COLORS = { ok: '#16a34a', warn: '#f59e0b', degraded: '#B91C1C', unknown: '#9ca3af' };
   if (!data) {
     if (badge) { badge.textContent = 'unavailable'; badge.style.background = COLORS.unknown; }
     if (detail) detail.textContent = '';
     if (wrap) wrap.innerHTML = '';
+    if (ages) ages.innerHTML = '';
     return;
   }
   const overall = (data.overall_status || 'unknown').toLowerCase();
@@ -4007,6 +4010,22 @@ function renderFeedHealth(data) {
       const title = `${s.label || s.key}: ${st} — streak ${s.streak} / threshold ${s.threshold}` +
         ` · updated ${upd} · cycle ${cyc}${ageStr}`;
       return `<span title="${title}" style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;color:#fff;background:${COLORS[st] || COLORS.unknown}">${label}</span>`;
+    }).join('');
+  }
+  // SPA-V360: visible per-signal updated_at/age row (was tooltip-only in v3.59).
+  if (ages) {
+    ages.innerHTML = (data.signals || []).map(s => {
+      const label = s.label || s.key || '?';
+      let ageTxt;
+      if (Number.isFinite(s.last_alert_age_hours)) {
+        ageTxt = `${Number(s.last_alert_age_hours).toFixed(1)}h ago`;
+      } else if (s.updated_at) {
+        ageTxt = String(s.updated_at).replace('T', ' ').replace('Z', '');
+      } else {
+        ageTxt = 'n/a';
+      }
+      const tip = `${label} · updated ${s.updated_at || 'n/a'}`;
+      return `<span title="${tip}"><span style="color:#9ca3af">${label}:</span> ${ageTxt}</span>`;
     }).join('');
   }
 }
