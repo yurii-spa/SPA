@@ -259,6 +259,94 @@ def test_write_round_trips(tmp_path):
 
 
 # --------------------------------------------------------------------------
+# SPA-V363 — persistent score history / trend (append_history)
+# --------------------------------------------------------------------------
+
+class TestAppendHistory:
+    """append_history: compact append-only log, dedup, trim, never-raise."""
+
+    def _doc(self, generated_at, score=72.5, status="warn"):
+        return {
+            "generated_at": generated_at,
+            "overall_score": score,
+            "overall_status": status,
+            # extra keys that must NOT leak into the compact record:
+            "components": [{"key": "feed_health"}],
+            "schema_version": 1,
+        }
+
+    def test_first_call_creates_file_with_one_record(self, tmp_path):
+        rs.append_history(self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        target = tmp_path / rs.HISTORY_FILENAME
+        assert target.exists()
+        history = json.loads(target.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) == 1
+        assert history[0]["overall_score"] == 72.5
+
+    def test_second_distinct_timestamp_appends(self, tmp_path):
+        rs.append_history(self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        rs.append_history(self._doc("2026-05-31T04:00:00Z", score=80.0),
+                          data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / rs.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == 2
+        assert history[-1]["overall_score"] == 80.0
+
+    def test_same_timestamp_replaces_not_duplicates(self, tmp_path):
+        rs.append_history(self._doc("2026-05-31T00:00:00Z", score=72.5),
+                          data_dir=str(tmp_path))
+        rs.append_history(self._doc("2026-05-31T00:00:00Z", score=99.9),
+                          data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / rs.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == 1
+        assert history[0]["overall_score"] == 99.9
+
+    def test_trims_to_max_history_keeping_latest(self, tmp_path):
+        n = rs.MAX_HISTORY + 25
+        for i in range(n):
+            rs.append_history(
+                self._doc(f"2026-05-31T{i:05d}", score=float(i)),
+                data_dir=str(tmp_path),
+            )
+        history = json.loads(
+            (tmp_path / rs.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == rs.MAX_HISTORY
+        # the most recent entry survives; the oldest were trimmed off the front
+        assert history[-1]["overall_score"] == float(n - 1)
+        assert history[0]["overall_score"] == float(n - rs.MAX_HISTORY)
+
+    def test_never_raises_on_corrupt_existing_file(self, tmp_path):
+        target = tmp_path / rs.HISTORY_FILENAME
+        target.write_text("not json {{{", encoding="utf-8")
+        # must not raise, and must overwrite with a valid single-record list
+        rs.append_history(self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        history = json.loads(target.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) == 1
+
+    def test_record_is_compact(self, tmp_path):
+        rs.append_history(self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / rs.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert set(history[0].keys()) == {
+            "generated_at", "overall_score", "overall_status"}
+
+    def test_write_readiness_score_creates_main_and_history(self, tmp_path):
+        out = tmp_path / "golive_readiness_score.json"
+        doc = rs.write_readiness_score(str(out))
+        assert out.exists()
+        hist_file = tmp_path / rs.HISTORY_FILENAME
+        assert hist_file.exists()
+        history = json.loads(hist_file.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) >= 1
+        assert history[-1]["overall_score"] == doc["overall_score"]
+        assert history[-1]["generated_at"] == doc["generated_at"]
+
+
+# --------------------------------------------------------------------------
 # CLI smoke
 # --------------------------------------------------------------------------
 
