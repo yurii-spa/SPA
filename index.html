@@ -3914,6 +3914,19 @@ function renderReadinessScore(data) {
   const color = COLORS[overall] || COLORS.unknown;
   const score = (data.overall_score != null) ? data.overall_score : '—';
   const badge = `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${color};color:#fff;font-size:11px;font-weight:700">${overall.toUpperCase()}</span>`;
+  // SPA-V364 — informational days-to-go-live chip (null-safe; not part of score).
+  let scheduleChip = '';
+  try {
+    let days = (typeof data.days_to_golive === 'number') ? data.days_to_golive : null;
+    if (days === null && Array.isArray(data.components)) {
+      const sched = data.components.find(c => c && c.key === 'schedule');
+      if (sched && typeof sched.days_to_golive === 'number') days = sched.days_to_golive;
+    }
+    if (typeof days === 'number') {
+      const label = days >= 0 ? `${days} days to go-live` : `${Math.abs(days)} days overdue`;
+      scheduleChip = ` <span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#eef2f7;color:#445;font-size:11px;font-weight:600">🗓 ${label}</span>`;
+    }
+  } catch (e) { /* null-safe: never break the badge render */ }
   const parts = (data.components || []).map(c => {
     const cst = (c.status || 'unknown').toLowerCase();
     const ccolor = COLORS[cst] || COLORS.unknown;
@@ -3921,7 +3934,7 @@ function renderReadinessScore(data) {
     return `<span style="color:${ccolor}">${label}: ${c.score}/${cst}</span>`;
   }).join(' · ');
   el.innerHTML =
-    `<span style="font-weight:700;color:#333">Operational readiness: ${score}/100</span> ${badge}` +
+    `<span style="font-weight:700;color:#333">Operational readiness: ${score}/100</span> ${badge}${scheduleChip}` +
     (parts ? `<div style="font-size:11px;color:#777;margin-top:3px">${parts}</div>` : '');
 }
 
