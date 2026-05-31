@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-31T05:14:50.660134Z",
+  "overall_score": 78.6,
+  "overall_status": "warn",
+  "components": [
+    {
+      "key": "feed_health",
+      "label": "Feed / covariance health",
+      "score": 100,
+      "status": "ok",
+      "overall_status": "ok",
+      "counts": {
+        "ok": 9,
+        "warn": 0,
+        "degraded": 0,
+        "unknown": 0
+      },
+      "signal_count": 9
+    },
+    {
+      "key": "mev_coverage",
+      "label": "MEV-routing coverage",
+      "score": 85.7,
+      "status": "ok",
+      "coverage_pct": 85.7,
+      "routed": 6,
+      "total": 7
+    },
+    {
+      "key": "live_apy",
+      "label": "Live APY enrichment",
+      "score": 50,
+      "status": "warn",
+      "live_apy_enabled": false
+    }
+  ],
+  "target_date": "2026-07-15"
+}
