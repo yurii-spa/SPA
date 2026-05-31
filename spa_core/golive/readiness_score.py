@@ -78,6 +78,7 @@ __all__ = [
     "MAX_HISTORY",
     "_schedule_component",
     "build_readiness_score_document",
+    "build_combined_golive_gate",
     "write_readiness_score",
     "append_history",
 ]
@@ -280,6 +281,92 @@ def build_readiness_score_document() -> Dict[str, Any]:
         "target_date": TARGET_DATE,
         "days_to_golive": days_to_golive,
     }
+
+
+def build_combined_golive_gate(
+    score_doc: Optional[Dict[str, Any]],
+    checklist_doc: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """SPA-V366 — fuse the two independent go-live axes into one go/no-go gate.
+
+    The dashboard surfaces two DELIBERATELY DISTINCT readiness axes (kept as
+    separate data sources by design -- see this module's docstring):
+
+      * operational readiness  -- ``golive_readiness_score.json`` (this module):
+        ``overall_status`` / ``overall_score`` over feed_health + mev_coverage +
+        live_apy.
+      * paper-trading checklist -- ``golive_readiness.json``
+        (``spa_core/golive`` checklist): ``verdict`` + criteria PASS/total.
+
+    This is a PURE PRESENTATION-LAYER consolidation: it reads the two
+    already-emitted documents and answers the single operator question "are we
+    GO for go-live?" without merging the underlying data sources (so neither
+    ``overall_score`` nor the checklist verdict is mutated). The gate is ``GO``
+    ONLY when operational readiness is ``ok`` AND the checklist verdict is
+    ``READY``; otherwise ``NO_GO`` with each limiting axis named in ``blocking``.
+
+    Pure, deterministic, never raises -- any failure (or both inputs None)
+    yields a safe ``NO_GO`` gate with ``blocking=["error"]`` (or the missing-axis
+    reasons). It is NOT a new feed-health monitor (SPA-BL-011 respected) and
+    touches NO money-moving code.
+    """
+    gate: Dict[str, Any] = {
+        "gate": "NO_GO",
+        "operational_status": "unknown",
+        "operational_score": None,
+        "checklist_verdict": None,
+        "criteria_passed": None,
+        "criteria_total": None,
+        "blocking": [],
+    }
+    try:
+        # --- operational readiness axis ---
+        op_status = "unknown"
+        op_score = None
+        if isinstance(score_doc, dict):
+            op_status = str(score_doc.get("overall_status", "unknown")).lower()
+            if op_status not in _SEVERITY:
+                op_status = "unknown"
+            op_score = score_doc.get("overall_score")
+        gate["operational_status"] = op_status
+        gate["operational_score"] = op_score
+        operational_ok = op_status == "ok"
+
+        # --- paper-trading checklist axis ---
+        verdict = None
+        passed = None
+        total = None
+        if isinstance(checklist_doc, dict):
+            raw = checklist_doc.get("verdict")
+            verdict = str(raw).upper() if raw is not None else None
+            criteria = checklist_doc.get("criteria")
+            if isinstance(criteria, list):
+                total = len(criteria)
+                passed = sum(
+                    1
+                    for c in criteria
+                    if isinstance(c, dict)
+                    and str(c.get("status", "")).lower().startswith("pass")
+                )
+        gate["checklist_verdict"] = verdict
+        gate["criteria_passed"] = passed
+        gate["criteria_total"] = total
+        checklist_ready = verdict == "READY"
+
+        # --- combined gate ---
+        blocking: List[str] = []
+        if not operational_ok:
+            blocking.append("operational readiness %s" % op_status)
+        if not checklist_ready:
+            blocking.append("checklist %s" % (verdict or "unknown").lower())
+        gate["blocking"] = blocking
+        gate["gate"] = "GO" if (operational_ok and checklist_ready) else "NO_GO"
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("build_combined_golive_gate failed: %s", exc)
+        gate["gate"] = "NO_GO"
+        gate["blocking"] = ["error"]
+        gate["error"] = str(exc)
+    return gate
 
 
 def append_history(doc: Dict[str, Any], data_dir: Optional[str] = None) -> None:
