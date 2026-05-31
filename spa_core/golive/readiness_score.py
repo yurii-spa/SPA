@@ -71,15 +71,25 @@ DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 HISTORY_FILENAME = "golive_readiness_score_history.json"
 MAX_HISTORY = 180
 
+# SPA-V367 -- persist the combined go/no-go gate (SPA-V366 build_combined_golive_gate)
+# to disk each export cycle so the gate is a durable artefact and not only
+# computed client-side. Mirrors the SPA-V362 write_readiness_score wiring.
+COMBINED_VERDICT_FILENAME = "golive_combined_verdict.json"
+# Source documents the gate consolidates (read-only).
+_SCORE_FILENAME = "golive_readiness_score.json"
+_CHECKLIST_FILENAME = "golive_readiness.json"
+
 __all__ = [
     "SCHEMA_VERSION",
     "TARGET_DATE",
     "HISTORY_FILENAME",
     "MAX_HISTORY",
+    "COMBINED_VERDICT_FILENAME",
     "_schedule_component",
     "build_readiness_score_document",
     "build_combined_golive_gate",
     "write_readiness_score",
+    "write_combined_golive_gate",
     "append_history",
 ]
 
@@ -431,6 +441,70 @@ def write_readiness_score(out_path: Optional[str] = None) -> Dict[str, Any]:
         append_history(doc, data_dir=str(target.parent))
     except Exception as exc:  # noqa: BLE001 -- never propagate
         log.debug("readiness history append failed: %s", exc)
+    return doc
+
+
+def _read_json_or_none(path: Path) -> Optional[Dict[str, Any]]:
+    """Read a JSON object from ``path``; return None on missing/corrupt/non-dict.
+
+    Helper for the combined-gate writer: the two source documents are produced
+    earlier in the same export cycle, but a missing or malformed file must not
+    abort the gate -- ``build_combined_golive_gate`` already degrades a ``None``
+    input to a safe ``NO_GO``.
+    """
+    try:
+        if not path.exists():
+            return None
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+        return loaded if isinstance(loaded, dict) else None
+    except Exception as exc:  # noqa: BLE001 -- corrupt/unreadable -> None
+        log.debug("combined-gate source read failed (%s): %s", path, exc)
+        return None
+
+
+def write_combined_golive_gate(
+    out_path: Optional[str] = None,
+    data_dir: Optional[str] = None,
+) -> Dict[str, Any]:
+    """SPA-V367 -- persist the combined go/no-go gate as a durable artefact.
+
+    Reads the two already-emitted source documents
+    (``golive_readiness_score.json`` and ``golive_readiness.json``) from
+    ``data_dir`` (defaults to the output dir, i.e. ``out_path``'s parent, else
+    ``DEFAULT_DATA_DIR``), runs the pure SPA-V366 ``build_combined_golive_gate``
+    over them and writes the result to ``out_path`` (default
+    ``<data_dir>/golive_combined_verdict.json``). A ``schema_version`` and a
+    ``generated_at`` timestamp are added so the persisted gate matches the shape
+    of the other readiness artefacts.
+
+    This is a PURE read-only consolidation (no money-moving code, not a new
+    feed-health monitor -- SPA-BL-011 respected); it does not mutate or merge the
+    source documents. Missing/corrupt sources degrade to a safe ``NO_GO`` gate
+    rather than raising. Returns the persisted gate document.
+    """
+    target = (
+        Path(out_path)
+        if out_path is not None
+        else (
+            (Path(data_dir) if data_dir is not None else DEFAULT_DATA_DIR)
+            / COMBINED_VERDICT_FILENAME
+        )
+    )
+    source_dir = (
+        Path(data_dir) if data_dir is not None else target.parent
+    )
+    score_doc = _read_json_or_none(source_dir / _SCORE_FILENAME)
+    checklist_doc = _read_json_or_none(source_dir / _CHECKLIST_FILENAME)
+    gate = build_combined_golive_gate(score_doc, checklist_doc)
+    doc = {
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        **gate,
+    }
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     return doc
 
 
