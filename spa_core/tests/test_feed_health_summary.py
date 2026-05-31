@@ -5,6 +5,7 @@ Offline tests for SPA-V347 aggregated feed-health summary
 No network, no real state files — everything is driven by tmp_path fixtures.
 """
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -215,6 +216,77 @@ def test_never_raises_on_unreadable_dir():
     # Pointing at a path that is a file, not a dir, must not raise.
     doc = fhs.build_summary_document("/nonexistent/path/xyz")
     assert doc["overall_status"] == "ok"  # all missing -> ok
+
+
+# --------------------------------------------------------------------------
+# SPA-V359: last_alert_age_hours (per-signal updated_at age)
+# --------------------------------------------------------------------------
+
+class TestLastAlertAgeHours:
+    def test_age_computed_from_recent_updated_at(self, tmp_path):
+        five_h_ago = (
+            datetime.now(timezone.utc) - timedelta(hours=5)
+        ).isoformat().replace("+00:00", "Z")
+        _write_state(tmp_path, _filename("covariance"),
+                     consecutive_degraded=3, last_alerted_cycle=3,
+                     updated_at=five_h_ago)
+        rec = fhs.evaluate_signal(
+            tmp_path, "covariance", _filename("covariance"),
+            "Covariance source", "consecutive_degraded", 3,
+        )
+        assert rec["last_alert_age_hours"] is not None
+        assert rec["last_alert_age_hours"] == pytest.approx(5.0, abs=0.2)
+
+    def test_age_none_when_no_updated_at(self, tmp_path):
+        _write_state(tmp_path, _filename("covariance"), consecutive_degraded=3)
+        rec = fhs.evaluate_signal(
+            tmp_path, "covariance", _filename("covariance"),
+            "Covariance source", "consecutive_degraded", 3,
+        )
+        assert rec["last_alert_age_hours"] is None
+
+    def test_age_none_on_garbage_updated_at_and_other_fields_intact(self, tmp_path):
+        _write_state(tmp_path, _filename("covariance"),
+                     consecutive_degraded=3, last_alerted_cycle=7,
+                     updated_at="not-a-date")
+        # must not raise
+        rec = fhs.evaluate_signal(
+            tmp_path, "covariance", _filename("covariance"),
+            "Covariance source", "consecutive_degraded", 3,
+        )
+        assert rec["last_alert_age_hours"] is None
+        # other fields stay correct despite the bad timestamp
+        assert rec["status"] == "degraded"
+        assert rec["streak"] == 3
+        assert rec["present"] is True
+        assert rec["last_alerted_cycle"] == 7
+        assert rec["updated_at"] == "not-a-date"
+
+    def test_missing_state_has_age_key_none(self, tmp_path):
+        rec = fhs.evaluate_signal(
+            tmp_path, "covariance", _filename("covariance"),
+            "Covariance source", "consecutive_degraded", 3,
+        )
+        assert "last_alert_age_hours" in rec
+        assert rec["last_alert_age_hours"] is None
+
+    def test_age_key_present_in_every_summary_signal(self, tmp_path):
+        doc = fhs.build_summary_document(tmp_path)
+        assert len(doc["signals"]) == 9
+        for s in doc["signals"]:
+            assert "last_alert_age_hours" in s
+
+    def test_age_hours_helper_handles_naive_and_z(self):
+        naive = (datetime.now(timezone.utc) - timedelta(hours=2)).replace(
+            tzinfo=None
+        ).isoformat()
+        assert fhs._age_hours(naive) == pytest.approx(2.0, abs=0.2)
+        z = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat().replace(
+            "+00:00", "Z"
+        )
+        assert fhs._age_hours(z) == pytest.approx(1.0, abs=0.2)
+        assert fhs._age_hours(None) is None
+        assert fhs._age_hours("not-a-date") is None
 
 
 if __name__ == "__main__":  # pragma: no cover
