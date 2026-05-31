@@ -289,5 +289,55 @@ class TestLastAlertAgeHours:
         assert fhs._age_hours("not-a-date") is None
 
 
+
+class TestV360FeedHealthContract:
+    """
+    SPA-V360 contract guarantee (pytest-style, matching this file's conventions).
+
+    The dashboard renders a VISIBLE per-signal updated_at / age row beneath the
+    Feed Health chips. That UI consumes three fields from every signal entry in
+    build_summary_document(): 'label', 'updated_at' and 'last_alert_age_hours'.
+    These tests pin that contract so a future backend change cannot silently
+    break the (presentation-only) UI row. No new monitor is introduced and no
+    money-moving code is touched (governance freeze SPA-BL-011 respected).
+    """
+
+    def test_every_signal_exposes_ui_contract_keys(self, tmp_path):
+        doc = fhs.build_summary_document(tmp_path)
+        assert len(doc["signals"]) == len(fhs.SIGNALS)
+        for s in doc["signals"]:
+            assert "label" in s
+            assert "updated_at" in s
+            assert "last_alert_age_hours" in s
+
+    def test_contract_keys_are_null_safe_when_no_timestamp(self, tmp_path):
+        # With no ledger timestamps the UI must still receive the keys, just None.
+        doc = fhs.build_summary_document(tmp_path)
+        for s in doc["signals"]:
+            assert isinstance(s["label"], str) and s["label"]
+            assert s["updated_at"] is None or isinstance(s["updated_at"], str)
+            assert (
+                s["last_alert_age_hours"] is None
+                or isinstance(s["last_alert_age_hours"], (int, float))
+            )
+
+    def test_age_is_finite_number_when_timestamp_present(self, tmp_path):
+        # Mirrors what the visible row checks via Number.isFinite(last_alert_age_hours).
+        from datetime import datetime, timedelta, timezone
+        recent = (
+            datetime.now(timezone.utc) - timedelta(hours=3)
+        ).isoformat().replace("+00:00", "Z")
+        _write_state(tmp_path, _filename("covariance"),
+                     consecutive_degraded=3, last_alerted_cycle=3,
+                     updated_at=recent)
+        rec = fhs.evaluate_signal(
+            tmp_path, "covariance", _filename("covariance"),
+            "Covariance source", "consecutive_degraded", 3,
+        )
+        assert isinstance(rec["last_alert_age_hours"], float)
+        assert rec["updated_at"] is not None
+        assert rec["last_alert_age_hours"] >= 0.0
+
+
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
