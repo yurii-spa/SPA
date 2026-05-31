@@ -32,6 +32,15 @@ and an ``"error"`` note -- the top-level build NEVER raises.
 Pure stdlib, no network beyond what the underlying read-only sources already do,
 deterministic on the happy path. Mirrors the standalone-aggregator pattern of
 ``alerts/feed_health_summary.py`` and ``execution/adapter_status.py``.
+
+SPA-V364 -- added a FOURTH ``schedule`` component (day-counter / countdown to
+the go-live ``TARGET_DATE``). It is purely INFORMATIONAL: it carries
+``contributes_to_overall=False`` / ``scored=False`` and is DELIBERATELY excluded
+from the operational ``overall_score`` mean and ``overall_status`` worst-of (which
+remain computed over the three operational components only -- feed_health,
+mev_coverage, live_apy -- so the headline number is unchanged / backwards
+compatible). A top-level ``days_to_golive`` is also surfaced for the dashboard
+(``None`` if the schedule component fails -- never-raise).
 """
 from __future__ import annotations
 
@@ -67,6 +76,7 @@ __all__ = [
     "TARGET_DATE",
     "HISTORY_FILENAME",
     "MAX_HISTORY",
+    "_schedule_component",
     "build_readiness_score_document",
     "write_readiness_score",
     "append_history",
@@ -182,16 +192,83 @@ def _live_apy_component() -> Dict[str, Any]:
     return record
 
 
+def _schedule_component() -> Dict[str, Any]:
+    """schedule day-counter / countdown to the go-live ``TARGET_DATE``.
+
+    INFORMATIONAL ONLY -- carries ``contributes_to_overall=False`` /
+    ``scored=False`` and is excluded from the operational ``overall_score`` mean
+    and ``overall_status`` worst-of (see ``build_readiness_score_document``).
+
+    ``days_to_golive`` = ``(date(TARGET_DATE) - now_utc.date()).days``. The status
+    is informational: ok if > 14 days out, warn in the final stretch
+    (0..14 days), degraded if overdue (< 0). ``score`` (ok=100 / warn=60 /
+    degraded=0) exists only for card-rendering uniformity and is NOT averaged.
+    Never raises: any failure yields status="unknown", score=0 with an
+    ``"error"`` note.
+    """
+    record: Dict[str, Any] = {
+        "key": "schedule",
+        "label": "Days to go-live",
+        "score": 0,
+        "status": "unknown",
+        "target_date": TARGET_DATE,
+        "contributes_to_overall": False,
+        "scored": False,
+    }
+    try:
+        target = datetime.strptime(TARGET_DATE, "%Y-%m-%d").date()
+        days = (target - datetime.now(timezone.utc).date()).days
+        record["days_to_golive"] = days
+        if days > 14:
+            record["status"] = "ok"
+            record["score"] = 100
+        elif days >= 0:
+            record["status"] = "warn"
+            record["score"] = 60
+        else:
+            record["status"] = "degraded"
+            record["score"] = 0
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("schedule component failed: %s", exc)
+        record["status"] = "unknown"
+        record["score"] = 0
+        record["days_to_golive"] = None
+        record["error"] = str(exc)
+    return record
+
+
 def build_readiness_score_document() -> Dict[str, Any]:
-    """Build the full consolidated readiness-score document. Never raises."""
-    components = [
+    """Build the full consolidated readiness-score document. Never raises.
+
+    The three operational components (feed_health, mev_coverage, live_apy) are
+    each flagged ``contributes_to_overall=True`` and the headline
+    ``overall_score`` (mean) / ``overall_status`` (worst-of) are computed
+    EXCLUSIVELY over those flagged components. The fourth ``schedule`` component
+    (SPA-V364) is informational (``contributes_to_overall=False``) and is
+    excluded from the mean/worst-of so the headline number stays backwards
+    compatible.
+    """
+    operational = [
         _feed_health_component(),
         _mev_coverage_component(),
         _live_apy_component(),
     ]
-    scores = [float(c.get("score", 0) or 0) for c in components]
+    for record in operational:
+        record["contributes_to_overall"] = True
+    schedule = _schedule_component()
+    components = operational + [schedule]
+
+    # overall_* are computed ONLY over components that contribute to overall
+    # (the three operational ones); schedule is excluded by design.
+    scored = [c for c in components if c.get("contributes_to_overall")]
+    scores = [float(c.get("score", 0) or 0) for c in scored]
     overall_score = round(sum(scores) / len(scores), 1) if scores else 0.0
-    overall_status = _worst([str(c.get("status", "unknown")) for c in components])
+    overall_status = _worst([str(c.get("status", "unknown")) for c in scored])
+
+    # Surface days_to_golive at top level for the dashboard (never-raise: None
+    # if the schedule component failed to compute it).
+    days_to_golive = schedule.get("days_to_golive")
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc)
@@ -201,6 +278,7 @@ def build_readiness_score_document() -> Dict[str, Any]:
         "overall_status": overall_status,
         "components": components,
         "target_date": TARGET_DATE,
+        "days_to_golive": days_to_golive,
     }
 
 
