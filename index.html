@@ -1790,6 +1790,7 @@
       <div id="golive-verdict" style="font-size:22px;font-weight:700;margin-bottom:8px">
         <div class="skeleton skel-line" style="width:40%;height:36px"></div>
       </div>
+      <div id="checklist-trend-wrap" style="height:38px;margin:4px 0 8px 0;display:none"><canvas id="checklist-trend-canvas"></canvas></div>
       <div id="golive-readiness-score" style="font-size:13px;color:#555;margin-bottom:8px">
         <span style="color:#999">—</span>
       </div>
@@ -3880,13 +3881,15 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, scoreData, latestReport, scoreHistory] = await Promise.all([
+    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score_history.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/golive_readiness_history.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     renderGoLiveVerdict(readiness);
+    renderChecklistTrend(checklistHistory);
     renderReadinessScore(scoreData);
     renderReadinessTrend(scoreHistory);
     renderGoLiveCriteria(readiness);
@@ -3979,6 +3982,61 @@ function renderReadinessTrend(history) {
     });
   } catch (e) {
     console.error('renderReadinessTrend error:', e);
+  }
+}
+
+// SPA-V365 — mini trend sparkline of the paper-trading checklist verdict over
+// time (plots criteria_passed). Separate from the operational-score sparkline.
+let _checklistTrendChart = null;
+function renderChecklistTrend(history) {
+  try {
+    const wrap = document.getElementById('checklist-trend-wrap');
+    if (!wrap) return;
+    if (!Array.isArray(history) || history.length < 2) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+    const pts = history.slice(-60);
+    const labels = pts.map(p => (p && p.checked_at) ? p.checked_at : '');
+    const values = pts.map(p => (p && p.criteria_passed != null) ? p.criteria_passed : null);
+    // y-axis max = the latest criteria_total, else the max seen in history, else 12.
+    let yMax = null;
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (pts[i] && typeof pts[i].criteria_total === 'number') { yMax = pts[i].criteria_total; break; }
+    }
+    if (yMax === null) {
+      const seen = values.filter(v => typeof v === 'number');
+      yMax = seen.length ? Math.max.apply(null, seen) : 12;
+    }
+    if (!yMax || yMax < 1) yMax = 12;
+    const canvas = document.getElementById('checklist-trend-canvas');
+    if (!canvas) return;
+    if (_checklistTrendChart) { _checklistTrendChart.destroy(); _checklistTrendChart = null; }
+    _checklistTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          borderColor: '#065f46',
+          backgroundColor: 'rgba(6,95,70,0.10)',
+          borderWidth: 1.5,
+          fill: true,
+          tension: 0.3,
+          spanGaps: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { display: false }, y: { display: false, min: 0, max: yMax } },
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        elements: { point: { radius: 0 } },
+      },
+    });
+  } catch (e) {
+    console.error('renderChecklistTrend error:', e);
   }
 }
 
