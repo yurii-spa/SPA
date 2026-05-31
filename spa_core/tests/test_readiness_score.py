@@ -353,6 +353,119 @@ class TestAppendHistory:
 
 
 # --------------------------------------------------------------------------
+# SPA-V368 — persistent combined-gate history (append_combined_history)
+# --------------------------------------------------------------------------
+
+class TestAppendCombinedHistory:
+    """append_combined_history: compact gate log, dedup, trim, never-raise."""
+
+    def _doc(self, generated_at, gate="NO_GO",
+             operational_status="warn", checklist_verdict="NOT_READY"):
+        return {
+            "generated_at": generated_at,
+            "gate": gate,
+            "operational_status": operational_status,
+            "checklist_verdict": checklist_verdict,
+            # extra keys that must NOT leak into the compact record:
+            "blocking": ["checklist not_ready"],
+            "schema_version": 1,
+        }
+
+    def test_first_call_creates_file_with_one_record(self, tmp_path):
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        target = tmp_path / rs.COMBINED_HISTORY_FILENAME
+        assert target.exists()
+        history = json.loads(target.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) == 1
+        assert set(history[0].keys()) == {
+            "generated_at", "gate", "operational_status", "checklist_verdict"}
+        assert history[0]["gate"] == "NO_GO"
+
+    def test_second_distinct_timestamp_appends(self, tmp_path):
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        rs.append_combined_history(
+            self._doc("2026-05-31T04:00:00Z", gate="GO"), data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / rs.COMBINED_HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == 2
+        assert history[-1]["gate"] == "GO"
+
+    def test_same_timestamp_replaces_not_duplicates(self, tmp_path):
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z", gate="NO_GO"),
+            data_dir=str(tmp_path))
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z", gate="GO"),
+            data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / rs.COMBINED_HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == 1
+        assert history[0]["gate"] == "GO"
+
+    def test_trims_to_max_history_keeping_latest(self, tmp_path):
+        n = rs.MAX_HISTORY + 25
+        for i in range(n):
+            rs.append_combined_history(
+                self._doc(f"2026-05-31T{i:05d}",
+                          gate=("GO" if i % 2 == 0 else "NO_GO")),
+                data_dir=str(tmp_path),
+            )
+        history = json.loads(
+            (tmp_path / rs.COMBINED_HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == rs.MAX_HISTORY
+        assert history[-1]["generated_at"] == f"2026-05-31T{n - 1:05d}"
+        assert history[0]["generated_at"] == f"2026-05-31T{n - rs.MAX_HISTORY:05d}"
+
+    def test_never_raises_on_corrupt_existing_file(self, tmp_path):
+        target = tmp_path / rs.COMBINED_HISTORY_FILENAME
+        target.write_text("not json {{{", encoding="utf-8")
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        history = json.loads(target.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) == 1
+
+    def test_missing_file_starts_empty(self, tmp_path):
+        # no pre-existing file -> starts from empty list, single record written
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z"), data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / rs.COMBINED_HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert history == [{
+            "generated_at": "2026-05-31T00:00:00Z",
+            "gate": "NO_GO",
+            "operational_status": "warn",
+            "checklist_verdict": "NOT_READY",
+        }]
+
+    def test_never_raises_on_impossible_data_dir(self, tmp_path):
+        # a data_dir whose parent is an existing FILE makes mkdir impossible;
+        # the append must swallow it and never raise.
+        blocker = tmp_path / "blocker"
+        blocker.write_text("x", encoding="utf-8")
+        bad_dir = str(blocker / "subdir")  # blocker is a file, not a dir
+        rs.append_combined_history(
+            self._doc("2026-05-31T00:00:00Z"), data_dir=bad_dir)
+        # nothing written, no exception
+        assert not (blocker / "subdir").exists()
+
+    def test_write_combined_gate_creates_main_and_history(self, tmp_path):
+        out = tmp_path / rs.COMBINED_VERDICT_FILENAME
+        doc = rs.write_combined_golive_gate(str(out), data_dir=str(tmp_path))
+        assert out.exists()
+        hist_file = tmp_path / rs.COMBINED_HISTORY_FILENAME
+        assert hist_file.exists()
+        history = json.loads(hist_file.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) >= 1
+        assert history[-1]["gate"] == doc["gate"]
+        assert history[-1]["generated_at"] == doc["generated_at"]
+
+
+# --------------------------------------------------------------------------
 # SPA-V364 — informational schedule / countdown component
 # --------------------------------------------------------------------------
 
