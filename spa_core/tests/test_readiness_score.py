@@ -276,3 +276,51 @@ def test_cli_write_smoke(tmp_path, capsys):
     assert rc == 0
     assert out.exists()
     assert json.loads(out.read_text(encoding="utf-8"))["schema_version"] == 1
+
+
+# --------------------------------------------------------------------------
+# SPA-V362 — wiring into the 4h export pipeline (export_data.py)
+# Source-introspection (mirrors test_covariance_export.TestPipelineWiring):
+# the readiness score must be regenerated each export cycle, registered in the
+# files_written manifest, section-health tracked, and guarded by try/except.
+# --------------------------------------------------------------------------
+
+from pathlib import Path  # noqa: E402
+
+
+def _pipeline_source() -> str:
+    p = Path(__file__).resolve().parent.parent / "export_data.py"
+    return p.read_text(encoding="utf-8")
+
+
+def test_pipeline_imports_readiness_writer():
+    src = _pipeline_source()
+    assert "from golive.readiness_score import write_readiness_score" in src
+    assert "write_readiness_score(" in src
+
+
+def test_pipeline_writes_standard_path():
+    src = _pipeline_source()
+    assert "golive_readiness_score.json" in src
+
+
+def test_pipeline_registers_in_manifest():
+    src = _pipeline_source()
+    assert '"golive_readiness_score.json"' in src
+
+
+def test_pipeline_section_health_tracked():
+    src = _pipeline_source()
+    assert '_section_ok("golive_readiness_score")' in src
+    assert '_section_fail("golive_readiness_score")' in src
+
+
+def test_pipeline_call_is_guarded():
+    """The readiness-score call sits inside a try/except (graceful section)."""
+    src = _pipeline_source()
+    idx = src.index("from golive.readiness_score import write_readiness_score")
+    head = src[:idx]
+    # A 'try:' must precede the import within the last few lines.
+    assert any(line.strip() == "try:" for line in head.splitlines()[-4:])
+    tail = src[idx:idx + 1200]
+    assert "_section_fail(\"golive_readiness_score\")" in tail
