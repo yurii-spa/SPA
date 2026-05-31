@@ -4001,7 +4001,11 @@ function renderFeedHealth(data) {
       const st = (s.status || 'unknown').toLowerCase();
       const note = st === 'ok' ? '' : ` (${s.streak}/${s.threshold})`;
       const label = (s.label || s.key) + note;
-      const title = `${s.label || s.key}: ${st} — streak ${s.streak} / threshold ${s.threshold}`;
+      const upd = (s.updated_at || 'n/a');
+      const cyc = (s.last_alerted_cycle != null ? s.last_alerted_cycle : 'n/a');
+      const ageStr = Number.isFinite(s.last_alert_age_hours) ? ` · ${s.last_alert_age_hours}h ago` : '';
+      const title = `${s.label || s.key}: ${st} — streak ${s.streak} / threshold ${s.threshold}` +
+        ` · updated ${upd} · cycle ${cyc}${ageStr}`;
       return `<span title="${title}" style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;color:#fff;background:${COLORS[st] || COLORS.unknown}">${label}</span>`;
     }).join('');
   }
