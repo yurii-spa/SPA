@@ -493,3 +493,123 @@ class TestActivationGuard:
             act_module.check_all_criteria_pass = original
 
         assert is_activated(str(tmp_path)) is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 8. SPA-V365 — persistent checklist-verdict history / trend
+#    (golive/daily_check.append_checklist_history) — mirrors
+#    test_readiness_score.TestAppendHistory.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestAppendChecklistHistory:
+    """append_checklist_history: compact append-only log, dedup, trim, never-raise."""
+
+    def _payload(self, checked_at, passed=8, total=12, verdict="ALMOST_READY"):
+        return {
+            "checked_at": checked_at,
+            "verdict": verdict,
+            "criteria_passed": passed,
+            "criteria_total": total,
+            # extra keys that must NOT leak into the compact record:
+            "criteria": [{"name": "C0", "status": "PASS"}],
+            "days_remaining": 45,
+        }
+
+    def test_first_call_creates_file_with_one_record(self, tmp_path):
+        from golive import daily_check as dc
+        dc.append_checklist_history(self._payload("2026-05-31T00:00:00Z"),
+                                    data_dir=str(tmp_path))
+        target = tmp_path / dc.HISTORY_FILENAME
+        assert target.exists()
+        history = json.loads(target.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) == 1
+        assert history[0]["criteria_passed"] == 8
+
+    def test_second_distinct_timestamp_appends(self, tmp_path):
+        from golive import daily_check as dc
+        dc.append_checklist_history(self._payload("2026-05-31T00:00:00Z"),
+                                    data_dir=str(tmp_path))
+        dc.append_checklist_history(self._payload("2026-05-31T04:00:00Z", passed=10),
+                                    data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / dc.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == 2
+        assert history[-1]["criteria_passed"] == 10
+
+    def test_same_timestamp_replaces_not_duplicates(self, tmp_path):
+        from golive import daily_check as dc
+        dc.append_checklist_history(self._payload("2026-05-31T00:00:00Z", passed=8),
+                                    data_dir=str(tmp_path))
+        dc.append_checklist_history(self._payload("2026-05-31T00:00:00Z", passed=12,
+                                                  verdict="READY"),
+                                    data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / dc.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == 1
+        assert history[0]["criteria_passed"] == 12
+        assert history[0]["verdict"] == "READY"
+
+    def test_trims_to_max_history_keeping_latest(self, tmp_path):
+        from golive import daily_check as dc
+        n = dc.MAX_HISTORY + 25
+        for i in range(n):
+            dc.append_checklist_history(
+                self._payload(f"2026-05-31T{i:05d}", passed=i),
+                data_dir=str(tmp_path),
+            )
+        history = json.loads(
+            (tmp_path / dc.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert len(history) == dc.MAX_HISTORY
+        # most recent survives; oldest were trimmed off the front
+        assert history[-1]["criteria_passed"] == n - 1
+        assert history[0]["criteria_passed"] == n - dc.MAX_HISTORY
+
+    def test_never_raises_on_corrupt_existing_file(self, tmp_path):
+        from golive import daily_check as dc
+        target = tmp_path / dc.HISTORY_FILENAME
+        target.write_text("not json {{{", encoding="utf-8")
+        # must not raise, and must overwrite with a valid single-record list
+        dc.append_checklist_history(self._payload("2026-05-31T00:00:00Z"),
+                                    data_dir=str(tmp_path))
+        history = json.loads(target.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) == 1
+
+    def test_record_is_compact(self, tmp_path):
+        from golive import daily_check as dc
+        dc.append_checklist_history(self._payload("2026-05-31T00:00:00Z"),
+                                    data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / dc.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert set(history[0].keys()) == {
+            "checked_at", "verdict", "criteria_passed", "criteria_total"}
+
+    def test_falls_back_to_generated_at_when_no_checked_at(self, tmp_path):
+        from golive import daily_check as dc
+        payload = {
+            "generated_at": "2026-05-31T09:00:00Z",
+            "verdict": "NOT_READY",
+            "criteria_passed": 5,
+            "criteria_total": 12,
+        }
+        dc.append_checklist_history(payload, data_dir=str(tmp_path))
+        history = json.loads(
+            (tmp_path / dc.HISTORY_FILENAME).read_text(encoding="utf-8"))
+        assert history[0]["checked_at"] == "2026-05-31T09:00:00Z"
+
+    def test_run_daily_check_writes_main_and_history(self, tmp_path):
+        """run_daily_golive_check writes BOTH golive_readiness.json AND the
+        compact golive_readiness_history.json next to it."""
+        from golive.daily_check import run_daily_golive_check
+        from golive import daily_check as dc
+        run_daily_golive_check(str(tmp_path))
+        main = tmp_path / "golive_readiness.json"
+        hist = tmp_path / dc.HISTORY_FILENAME
+        assert main.exists()
+        assert hist.exists()
+        history = json.loads(hist.read_text(encoding="utf-8"))
+        assert isinstance(history, list)
+        assert len(history) >= 1
+        assert set(history[-1].keys()) == {
+            "checked_at", "verdict", "criteria_passed", "criteria_total"}
