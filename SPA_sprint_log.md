@@ -4,6 +4,70 @@
 
 ---
 
+## Sprint v3.72 — 2026-05-31 — Surface apy_gap_report widget (SPA-V372)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.71 (`sprint_completed: v3.71`, `updated_by: orchestrator-v371`). **Номер версии не оканчивается на 0/5 → периодический architect review НЕ требуется.** Status `pass` запрещён. Разблокированной HIGH код-работы нет (критический путь к go-live остаётся user-action-blocked: SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006; feed-health заморожен SPA-BL-011). Взят **кандидат (a) из плана v3.71**: подключить уже-эмитируемый `data/apy_gap_report.json` как виджет в Go-Live дашборде (чисто presentation-layer). НЕ money-moving, НЕ новый монитор, НЕ user-action-blocked.
+
+### Что сделано
+- **`index.html` → `loadGoLive()`**: в конец `Promise.all` добавлен фетч `fetch(BASE + '/apy_gap_report.json?_=' + ts).then(r=>r.json()).catch(()=>null)`; новая переменная `apyGap` добавлена в КОНЕЦ деструктуризации массива (существующая деструктуризация не сломана). Зеркалит стиль соседних go-live фетчей 1-в-1.
+- **Новый контейнер** `<div id="apy-gap-widget" style="margin-bottom:14px"></div>` в Go-Live вкладке — сразу под `#golive-readiness-score`, перед `#golive-readiness-trend`.
+- **Новая функция `renderApyGapWidget(apyGap)`**: null-safe (скрывает виджет `display='none'` если не объект / null / массив / нет `current_weighted_apy`+`target_apy`); показывает текущий weighted APY, целевой APY (7.3%), остаточный gap (`remaining_gap`), статус `on_track` (зелёный «ON TRACK» если достигнут, иначе amber «GAP TO TARGET», gap обнуляется при on_track) и чипы статусов рычагов **Pendle PT** (`pendle_status`: eligible→green / partial→amber / none→gray) и **Sky/sUSDS** (`sky_status`: pending_whitelist→gray). Тело обёрнуто в try/catch → `console.error('renderApyGapWidget error:', e)` — никогда не бросает. Использованы те же inline-цвета (`#16a34a`/`#f59e0b`/`#9ca3af`/`#185FA5`) и markup-паттерн чипов/бейджей, что у соседних `renderCombinedGoLiveHeader`/`renderReadinessScore`.
+- **Вызов** `renderApyGapWidget(apyGap)` добавлен в `loadGoLive()` между `renderReadinessScore(scoreData)` и `renderReadinessTrend(scoreHistory)`.
+- **Единицы:** все значения в `apy_gap_report.json` уже в ПРОЦЕНТАХ (подтверждено по `apy_gap_report.py`: `TARGET_APY = 7.3`, weighted APY и gap в %). Умножение на 100 НЕ применялось.
+- Бэкенд (`apy_gap_report.py`, `export_data.py`) и money-moving код (`eth_signer.py`, `mev_protection`, адаптеры) НЕ трогались. Новый feed-health монитор НЕ создавался (SPA-BL-011 freeze соблюдён).
+
+### Файлы
+- `index.html` (только presentation-layer: +фетч, +контейнер `#apy-gap-widget`, +`renderApyGapWidget`, +вызов)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v372` (index.html, KANBAN.json, SPA_sprint_log.md)
+
+### Результаты тестов
+- `node --check` на извлечённом из index.html inline-JS — **JS_SYNTAX_OK**.
+- Node DOM-стаб смоук `renderApyGapWidget` (застаблен `document.getElementById` объектом с settable `innerHTML`/`style`; функция извлечена через `new Function`) — **14 passed, 0 failed**: (a) валидный apyGap с gap>0 → виджет видим, содержит target 7.30% + remaining gap + «GAP TO TARGET» + оба lever-чипа; (b) `on_track=true` → видим, «ON TRACK», зелёный `#16a34a`, gap обнулён `0.00%`; (c) `null` → скрыт (`display:none`); (d) мусор (`123`, `'x'`, `[]`, `true`, `NaN`, `undefined`, `{}`) → не бросает, `{}` корректно скрывается.
+- Структурная проверка index.html: баланс скобок `{}` 1696/1696, `()` 2809/2809, `[]` 324/324; ровно 1 inline `<script>` (2 тега всего, включая Chart.js CDN); `renderApyGapWidget` определён 1 раз и вызван 1 раз (3-е упоминание — строка в `console.error`); фетч `apy_gap_report.json` добавлен 1 раз (2-е упоминание — комментарий); контейнер `#apy-gap-widget` 1 раз.
+- KANBAN.json — json round-trip OK (валиден).
+- pytest недоступен в этом окружении — **Python-регрессия осознанно пропущена** (бэкенд НЕ менялся, изменения только в presentation-layer index.html).
+
+### Следующий спринт
+- Кандидаты для **SPA-V373**:
+  - (a) Персистировать историю apy-gap + sparkline-тренд `current_weighted_apy` (по образцу `renderReadinessTrend`/`renderTrendSparkline`).
+  - (b) Housekeeping `.bak.*` / `push_v*.html` / `httpserver.log` — только по явному подтверждению пользователя.
+  - (c) FEAT-001 при разблокировке SPA-BL-012.
+
+---
+
+## Sprint v3.71 — 2026-05-31 — APY gap report persisted в 4h-пайплайн (SPA-V371)
+
+### Триггер
+- Последний завершённый спринт по KANBAN — v3.70 (`sprint_completed: v3.70`, `updated_by: orchestrator-v370`). Status pass запрещён. **v3.70 оканчивается на 0 → периодический architect review требуется.** LLM-архитектор (`python3 -m spa_core.dev_agents.architect`) НЕ запускается в этом scheduled-окружении (нет `ANTHROPIC_API_KEY`, сеть песочницы через прокси) — выполнен РУЧНОЙ эквивалент backlog-review: все кандидаты из стартового списка задачи (SPA-V326..V332) уже завершены (v3.26–v3.32 в логе: MEV, DeFiLlama live APY, Pendle PT, Sky/sUSDS, architect review, PG-migration prep, dashboard update). Разблокированной HIGH код-работы нет (критический путь к go-live user-action-blocked: SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006; feed-health заморожен SPA-BL-011). Взята полезная read-only аналитика: `apy_gap_report` (модуль `data_pipeline/apy_gap_report.py`) существовал, но использовался лишь в тестах/`github_pusher` и НЕ эмитировался в `data/` — подключён в 4h-пайплайн, чтобы прогресс к целевому APY 7.3% стал durable, видимым на дашборде артефактом. НЕ money-moving, НЕ новый монитор, НЕ user-action-blocked.
+
+### Что сделано
+- **`export_data.py` — guarded-блок «APY gap report (SPA-V371)»** СРАЗУ ПОСЛЕ блока `golive_combined_verdict` (SPA-V367). Импортирует `data_pipeline.apy_gap_report.apy_gap_report`, прогоняет его на уже-полученном `trader.get_status()`, оборачивает результат `schema_version=1` + `generated_at` (UTC `…Z`) и пишет `data/apy_gap_report.json` через `write_json`. Зарегистрирован в манифесте `files_written` и section-health (`_section_ok`/`_section_fail` `apy_gap_report`); вызов в try/except — никогда не прерывает цикл. Зеркалит паттерн SPA-V362/V367 1-в-1.
+- **`apy_gap_report.py` — НЕ менялся.** Бэкенд-модуль уже корректен (weighted APY портфеля vs цель 7.3%, оценка закрытия гэпа рычагами Pendle PT + Sky/sUSDS). Чистая read-only аналитика — НЕ money-moving (eth_signer/mev_protection/адаптеры не тронуты), НЕ feed-health монитор (SPA-BL-011 freeze соблюдён).
+
+### Файлы
+- `spa_core/export_data.py` (+guarded блок «APY gap report (SPA-V371)», +манифест `apy_gap_report.json`)
+- `spa_core/tests/test_apy_gap_export.py` (новый — 13 тестов)
+- `KANBAN.json`, `SPA_sprint_log.md` (bookkeeping)
+- Бэкапы `.bak.v371` (export_data.py, KANBAN.json, SPA_sprint_log.md)
+- `apy_gap_report.py` НЕ изменялся (модуль уже корректен)
+
+### Результаты тестов
+- `test_apy_gap_export.py` — **13 passed**: 9 контракт report-а (все ожидаемые ключи; пустой портфель → 0% + below-target; арифметика weighted APY и gap; on_track при ≥target; `sky_status==pending_whitelist`; pendle_status none/eligible; `remaining_gap>=0`; never-raise на пустом `{}`); 4 wiring (вызов `write_json("apy_gap_report.json")` + импорт; section-health ok/fail; регистрация в манифесте `files_written`; блок обёрнут в try/except).
+- Регрессия `test_readiness_score.py` + `test_covariance_export.py` — **116 passed, 0 failed** (исключая сетевые LiveApy).
+- `py_compile export_data.py` + `apy_gap_report.py` + тест — OK. Smoke: synthetic `status` (60k@4% T1 + 20k@7.5% T2 fixed_rate) → JSON-сериализуемый doc, `weighted=3.9%`/`gap=3.4%`/`pendle=eligible` — арифметика верна. KANBAN.json валиден (json round-trip OK).
+
+### Примечание оркестратора (накоплено, требует действий пользователя)
+- ⚠️ **GitHub PAT лежит в plaintext в теле scheduled-task И в каждом `push_v*.html`** — это утечка секрета. Настоятельно рекомендуется отозвать токен и хранить в секрет-хранилище.
+- Критический путь к go-live (2026-07-15) остаётся **user-action-blocked** (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006). Незаблокированной HIGH код-работы нет — автономный цикл устойчиво в режиме «полезный surface/аналитика» (≈v3.61→v3.71). Стартовый список кандидатов задачи (SPA-V326..V332) полностью закрыт ещё на v3.26–v3.32.
+- Housekeeping-долг (НЕ выполнен автономно во избежание деструктивных действий без подтверждения): ≈100 файлов `*.bak.*` + десятки `push_v*.html` + `httpserver.log` (7 МБ) можно почистить по подтверждению пользователя.
+
+### Следующий спринт
+- **SPA-V372:** кандидаты — (a) подключить `apy_gap_report.json` в `index.html` как дашборд-виджет (gap-to-target + рычаги Pendle/Sky) — закрывает «persisted vs surfaced»; (b) персистировать историю apy-gap + sparkline-тренд current_weighted_apy во времени (тот же паттерн v3.63/v3.65/v3.68); (c) по подтверждению пользователя — housekeeping-чистка `.bak.*`/`push_v*.html`/`httpserver.log`; (d) при разблокировке SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима). **РЕКОМЕНДАЦИЯ:** критический путь user-action-blocked; код-работа — surface/аналитика/housekeeping. Feed-health монитор ЗАМОРОЖЕН (SPA-BL-011); money-moving — только вне автономного режима.
+
+---
+
 ## Sprint v3.70 — 2026-05-31 — Консолидация трёх trend-рендереров дашборда в один helper (SPA-V370)
 
 ### Триггер
