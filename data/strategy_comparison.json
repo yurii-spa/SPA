@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-05-31T23:45:52.890638+00:00",
+  "generated_at": "2026-06-01T19:29:46.384908+00:00",
   "strategies": {
     "v1_passive": {
-      "total_return_pct": 0.1041,
-      "current_apy": 3.7927,
+      "total_return_pct": 0.1109,
+      "current_apy": 3.7698,
       "positions_count": 3,
       "cash_pct": 0.05,
-      "total_pnl_usd": 104.06,
+      "total_pnl_usd": 110.88,
       "deployed_usd": 95000.0
     },
     "v2_aggressive": {
-      "total_return_pct": 0.0645,
-      "current_apy": 4.3897,
+      "total_return_pct": 0.0695,
+      "current_apy": 4.3673,
       "positions_count": 3,
       "cash_pct": 0.4,
-      "total_pnl_usd": 64.51,
+      "total_pnl_usd": 69.5,
       "deployed_usd": 60000.0
     }
   }

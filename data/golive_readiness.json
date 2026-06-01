@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-31T23:45:53.022639+00:00",
+  "generated_at": "2026-06-01T19:29:46.530169+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
-  "days_remaining": 44,
+  "days_remaining": 43,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
@@ -11,16 +11,16 @@
     {
       "name": "Paper Duration",
       "status": "PENDING",
-      "value": 11,
+      "value": 12,
       "threshold": 56,
-      "note": "11/56 days elapsed \u2014 keep paper trading"
+      "note": "12/56 days elapsed \u2014 keep paper trading"
     },
     {
       "name": "PnL Positive",
       "status": "PASS",
-      "value": 104.05,
+      "value": 110.88,
       "threshold": 0,
-      "note": "+$104.05 (+0.10%)"
+      "note": "+$110.88 (+0.11%)"
     },
     {
       "name": "No Critical Alerts",
@@ -99,12 +99,12 @@
     {
       "name": "Agent Stability",
       "status": "FAIL",
-      "value": 0.57,
+      "value": 0.0,
       "threshold": 28,
-      "note": "0.6/28 days stable \u2014 need 27.4 more days (7 prior failure(s))"
+      "note": "0.0/28 days stable \u2014 need 28.0 more days (8 prior failure(s))"
     }
   ],
-  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (45 days away). Review again after 2026-07-15.",
+  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (44 days away). Review again after 2026-07-15.",
   "owner_action_required": false,
   "criteria_passed": 6,
   "criteria_total": 12,
@@ -115,5 +115,5 @@
     "Strategy Tournament",
     "Agent Stability"
   ],
-  "next_check_date": "2026-06-01"
+  "next_check_date": "2026-06-02"
 }
