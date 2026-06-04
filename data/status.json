@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-06-04T19:47:50.315303+00:00",
+  "timestamp": "2026-06-04T23:56:18.387595+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
     "deployed_usd": 95000.0,
     "cash_usd": 5000.0,
     "cash_pct": 0.05,
-    "total_pnl_usd": 134.96,
+    "total_pnl_usd": 136.03,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -14,27 +14,27 @@
       "tier": "T2",
       "amount_usd": 20000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 39.2,
+      "unrealized_pnl_usd": 39.65,
       "unrealized_pnl_pct": 0.002,
-      "days_held": 14.9
+      "days_held": 15.1
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 40000.0,
-      "current_apy": 3.20727,
-      "unrealized_pnl_usd": 52.44,
+      "current_apy": 3.18079,
+      "unrealized_pnl_usd": 52.6,
       "unrealized_pnl_pct": 0.0013,
-      "days_held": 14.9
+      "days_held": 15.1
     },
     {
       "protocol_key": "compound-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 35000.0,
-      "current_apy": 3.02844,
-      "unrealized_pnl_usd": 43.32,
-      "unrealized_pnl_pct": 0.0012,
-      "days_held": 14.9
+      "current_apy": 3.02485,
+      "unrealized_pnl_usd": 43.77,
+      "unrealized_pnl_pct": 0.0013,
+      "days_held": 15.1
     }
   ],
   "risk": {
@@ -46,8 +46,8 @@
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 14,
-    "weeks_elapsed": 2.0,
+    "days_elapsed": 15,
+    "weeks_elapsed": 2.1,
     "min_weeks_required": 8,
     "go_live_ready": false,
     "first_trade": "2026-05-20T20:38:42.319566+00:00"
@@ -59,10 +59,10 @@
     "total_capital_usd": 100000.0,
     "deployed_capital_usd": 95000.0,
     "cash_usd": 5000.0,
-    "total_pnl_usd": 9.04637808219178,
+    "total_pnl_usd": 9.013916438356164,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -1.666,
+    "sharpe_to_date": -1.6654,
     "max_drawdown_pct": 0.0,
     "trade_count": 6,
     "state_json": null

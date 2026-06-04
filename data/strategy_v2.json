@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-04T19:48:40.096345+00:00",
+  "generated_at": "2026-06-04T23:57:07.783776+00:00",
   "strategy_id": "paper-v2",
   "strategy_name": "v2 \u2014 Growth Aggressive",
   "portfolio": {
@@ -7,7 +7,7 @@
     "deployed_usd": 60000.0,
     "cash_usd": 40000.0,
     "cash_pct": 0.4,
-    "total_pnl_usd": 89.7,
+    "total_pnl_usd": 90.56,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -16,27 +16,27 @@
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 5.1,
-      "unrealized_pnl_usd": 28.05,
+      "unrealized_pnl_usd": 28.41,
       "unrealized_pnl_pct": 0.0019,
-      "days_held": 13.4
+      "days_held": 13.6
     },
     {
       "protocol_key": "maple-usdc-ethereum",
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 26.37,
+      "unrealized_pnl_usd": 26.71,
       "unrealized_pnl_pct": 0.0018,
-      "days_held": 13.4
+      "days_held": 13.6
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 30000.0,
-      "current_apy": 3.20727,
-      "unrealized_pnl_usd": 35.28,
+      "current_apy": 3.18079,
+      "unrealized_pnl_usd": 35.44,
       "unrealized_pnl_pct": 0.0012,
-      "days_held": 13.4
+      "days_held": 13.6
     }
   ],
   "trades": [
@@ -50,8 +50,8 @@
       "action": "OPEN",
       "amount_usd": 30000.0,
       "apy_at_open": 4.0189,
-      "net_apy_annualized": 3.20727,
-      "pnl_usd": 35.277500322314886,
+      "net_apy_annualized": 3.18079,
+      "pnl_usd": 35.43732722035571,
       "reason": null
     },
     {
@@ -65,7 +65,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 4.79533,
       "net_apy_annualized": 4.79533,
-      "pnl_usd": 26.372469035983027,
+      "pnl_usd": 26.712495989072252,
       "reason": null
     },
     {
@@ -79,7 +79,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 5.11,
       "net_apy_annualized": 5.1,
-      "pnl_usd": 28.048038976085902,
+      "pnl_usd": 28.409669450107025,
       "reason": null
     }
   ],

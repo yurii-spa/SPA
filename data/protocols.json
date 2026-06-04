@@ -6,11 +6,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.93606,
-    "apy_base": 3.93606,
+    "apy_total": 4.07943,
+    "apy_base": 4.07943,
     "apy_reward": 0.0,
-    "tvl_usd": 104956971.0,
-    "last_snapshot": "2026-06-04T19:47:50.293419+00:00"
+    "tvl_usd": 104944846.0,
+    "last_snapshot": "2026-06-04T23:56:18.357070+00:00"
   },
   {
     "key": "spark-usdc-ethereum",
@@ -45,11 +45,11 @@
     "chain": "Base",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.22862,
-    "apy_base": 3.22862,
+    "apy_total": 3.25697,
+    "apy_base": 3.25697,
     "apy_reward": 0.0,
-    "tvl_usd": 27326618.0,
-    "last_snapshot": "2026-06-04T19:47:50.294741+00:00"
+    "tvl_usd": 26634994.0,
+    "last_snapshot": "2026-06-04T23:56:18.358697+00:00"
   },
   {
     "key": "aave-v3-usdc-ethereum",
@@ -58,11 +58,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.20727,
-    "apy_base": 3.20727,
+    "apy_total": 3.18079,
+    "apy_base": 3.18079,
     "apy_reward": 0.0,
-    "tvl_usd": 195924702.0,
-    "last_snapshot": "2026-06-04T19:47:50.288508+00:00"
+    "tvl_usd": 204100034.0,
+    "last_snapshot": "2026-06-04T23:56:18.353629+00:00"
   },
   {
     "key": "compound-v3-usdc-ethereum",
@@ -71,11 +71,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.02844,
-    "apy_base": 2.92219,
-    "apy_reward": 0.10625,
-    "tvl_usd": 61935597.0,
-    "last_snapshot": "2026-06-04T19:47:50.292729+00:00"
+    "apy_total": 3.02485,
+    "apy_base": 2.92115,
+    "apy_reward": 0.1037,
+    "tvl_usd": 62020687.0,
+    "last_snapshot": "2026-06-04T23:56:18.356318+00:00"
   },
   {
     "key": "aave-v3-usdt-ethereum",
@@ -110,11 +110,11 @@
     "chain": "Arbitrum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 2.48657,
-    "apy_base": 2.48657,
+    "apy_total": 2.49235,
+    "apy_base": 2.49235,
     "apy_reward": 0.0,
-    "tvl_usd": 37814869.0,
-    "last_snapshot": "2026-06-04T19:47:50.294040+00:00"
+    "tvl_usd": 37692043.0,
+    "last_snapshot": "2026-06-04T23:56:18.357928+00:00"
   },
   {
     "key": "fluid-usdc-ethereum",
@@ -188,10 +188,10 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 2.71618,
-    "apy_base": 2.71618,
+    "apy_total": 2.71619,
+    "apy_base": 2.71619,
     "apy_reward": 0.0,
-    "tvl_usd": 16440786.0,
-    "last_snapshot": "2026-06-04T19:47:50.297785+00:00"
+    "tvl_usd": 16439800.0,
+    "last_snapshot": "2026-06-04T23:56:18.362595+00:00"
   }
 ]
