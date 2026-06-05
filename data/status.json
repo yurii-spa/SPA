@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-06-04T23:56:18.387595+00:00",
+  "timestamp": "2026-06-05T11:50:33.660739+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
     "deployed_usd": 95000.0,
     "cash_usd": 5000.0,
     "cash_pct": 0.05,
-    "total_pnl_usd": 136.03,
+    "total_pnl_usd": 141.72,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -14,27 +14,27 @@
       "tier": "T2",
       "amount_usd": 20000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 39.65,
+      "unrealized_pnl_usd": 40.96,
       "unrealized_pnl_pct": 0.002,
-      "days_held": 15.1
+      "days_held": 15.6
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 40000.0,
-      "current_apy": 3.18079,
-      "unrealized_pnl_usd": 52.6,
-      "unrealized_pnl_pct": 0.0013,
-      "days_held": 15.1
+      "current_apy": 3.19714,
+      "unrealized_pnl_usd": 54.61,
+      "unrealized_pnl_pct": 0.0014,
+      "days_held": 15.6
     },
     {
       "protocol_key": "compound-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 35000.0,
-      "current_apy": 3.02485,
-      "unrealized_pnl_usd": 43.77,
+      "current_apy": 3.08781,
+      "unrealized_pnl_usd": 46.15,
       "unrealized_pnl_pct": 0.0013,
-      "days_held": 15.1
+      "days_held": 15.6
     }
   ],
   "risk": {
@@ -59,10 +59,10 @@
     "total_capital_usd": 100000.0,
     "deployed_capital_usd": 95000.0,
     "cash_usd": 5000.0,
-    "total_pnl_usd": 9.013916438356164,
+    "total_pnl_usd": 9.092206849315069,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -1.6654,
+    "sharpe_to_date": -1.6741,
     "max_drawdown_pct": 0.0,
     "trade_count": 6,
     "state_json": null
