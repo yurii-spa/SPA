@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-07T10:14:34.714568+00:00",
+  "generated_at": "2026-06-07T16:54:54.365747+00:00",
   "strategy_id": "paper-v2",
   "strategy_name": "v2 \u2014 Growth Aggressive",
   "portfolio": {
@@ -7,7 +7,7 @@
     "deployed_usd": 60000.0,
     "cash_usd": 40000.0,
     "cash_pct": 0.4,
-    "total_pnl_usd": 105.74,
+    "total_pnl_usd": 107.7,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -16,27 +16,27 @@
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 5.1,
-      "unrealized_pnl_usd": 33.5,
-      "unrealized_pnl_pct": 0.0022,
-      "days_held": 16.0
+      "unrealized_pnl_usd": 34.08,
+      "unrealized_pnl_pct": 0.0023,
+      "days_held": 16.3
     },
     {
       "protocol_key": "maple-usdc-ethereum",
       "tier": "T2",
       "amount_usd": 15000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 31.5,
+      "unrealized_pnl_usd": 32.05,
       "unrealized_pnl_pct": 0.0021,
-      "days_held": 16.0
+      "days_held": 16.3
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 30000.0,
-      "current_apy": 3.10153,
-      "unrealized_pnl_usd": 40.75,
+      "current_apy": 3.10985,
+      "unrealized_pnl_usd": 41.57,
       "unrealized_pnl_pct": 0.0014,
-      "days_held": 16.0
+      "days_held": 16.3
     }
   ],
   "trades": [
@@ -50,8 +50,8 @@
       "action": "OPEN",
       "amount_usd": 30000.0,
       "apy_at_open": 4.0189,
-      "net_apy_annualized": 3.10153,
-      "pnl_usd": 40.74575052706009,
+      "net_apy_annualized": 3.10985,
+      "pnl_usd": 41.5656456795701,
       "reason": null
     },
     {
@@ -65,7 +65,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 4.79533,
       "net_apy_annualized": 4.79533,
-      "pnl_usd": 31.49886051768922,
+      "pnl_usd": 32.046720830529146,
       "reason": null
     },
     {
@@ -79,7 +79,7 @@
       "amount_usd": 15000.0,
       "apy_at_open": 5.11,
       "net_apy_annualized": 5.1,
-      "pnl_usd": 33.500134359914384,
+      "pnl_usd": 34.08280283017266,
       "reason": null
     }
   ],
@@ -92,8 +92,8 @@
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 15,
-    "weeks_elapsed": 2.1,
+    "days_elapsed": 16,
+    "weeks_elapsed": 2.3,
     "min_weeks_required": 8,
     "go_live_ready": false,
     "first_trade": "2026-05-22T10:38:00.925532+00:00"
