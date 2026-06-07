@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-06-06T20:19:58.227217+00:00",
+  "timestamp": "2026-06-07T10:13:47.935199+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
     "deployed_usd": 95000.0,
     "cash_usd": 5000.0,
     "cash_pct": 0.05,
-    "total_pnl_usd": 149.03,
+    "total_pnl_usd": 155.95,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -14,27 +14,27 @@
       "tier": "T2",
       "amount_usd": 20000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 44.51,
-      "unrealized_pnl_pct": 0.0022,
-      "days_held": 16.9
+      "unrealized_pnl_usd": 46.04,
+      "unrealized_pnl_pct": 0.0023,
+      "days_held": 17.5
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 40000.0,
-      "current_apy": 3.01037,
-      "unrealized_pnl_usd": 55.89,
-      "unrealized_pnl_pct": 0.0014,
-      "days_held": 16.9
+      "current_apy": 3.10153,
+      "unrealized_pnl_usd": 59.55,
+      "unrealized_pnl_pct": 0.0015,
+      "days_held": 17.5
     },
     {
       "protocol_key": "compound-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 35000.0,
-      "current_apy": 2.99329,
-      "unrealized_pnl_usd": 48.63,
+      "current_apy": 2.99792,
+      "unrealized_pnl_usd": 50.37,
       "unrealized_pnl_pct": 0.0014,
-      "days_held": 16.9
+      "days_held": 17.5
     }
   ],
   "risk": {
@@ -46,8 +46,8 @@
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 16,
-    "weeks_elapsed": 2.3,
+    "days_elapsed": 17,
+    "weeks_elapsed": 2.4,
     "min_weeks_required": 8,
     "go_live_ready": false,
     "first_trade": "2026-05-20T20:38:42.319566+00:00"
@@ -59,10 +59,10 @@
     "total_capital_usd": 100000.0,
     "deployed_capital_usd": 95000.0,
     "cash_usd": 5000.0,
-    "total_pnl_usd": 8.796891780821918,
+    "total_pnl_usd": 8.901232876712328,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -1.6562,
+    "sharpe_to_date": -1.6607,
     "max_drawdown_pct": 0.0,
     "trade_count": 6,
     "state_json": null

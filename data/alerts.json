@@ -1,116 +1,116 @@
 {
-  "generated_at": "2026-06-06T20:20:46.897496+00:00",
+  "generated_at": "2026-06-07T10:14:34.566788+00:00",
   "count": 10,
   "alerts": [
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "aave-v3-usdt-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.213150+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897435+00:00"
+      "timestamp": "2026-06-07T10:14:34.566667+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "LOW_TVL",
       "protocol_key": "compound-v3-usdc-arbitrum",
-      "message": "TVL $5.9M below warning threshold $10M",
+      "message": "TVL $4.3M below warning threshold $10M",
       "details": {
-        "tvl_usd": 5903417.0,
+        "tvl_usd": 4346099.0,
         "threshold_usd": 10000000
       },
-      "timestamp": "2026-06-06T20:20:46.897444+00:00"
+      "timestamp": "2026-06-07T10:14:34.566681+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "ethena-susde-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.220277+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897451+00:00"
+      "timestamp": "2026-06-07T10:14:34.566692+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "fluid-usdc-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.218872+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897463+00:00"
+      "timestamp": "2026-06-07T10:14:34.566733+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "fluid-usdt-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.219577+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897468+00:00"
+      "timestamp": "2026-06-07T10:14:34.566742+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "maple-usdc-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.221683+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897472+00:00"
+      "timestamp": "2026-06-07T10:14:34.566748+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "sky-susds-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.218281+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897478+00:00"
+      "timestamp": "2026-06-07T10:14:34.566759+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "spark-usdc-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.216968+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897482+00:00"
+      "timestamp": "2026-06-07T10:14:34.566766+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "spark-usdt-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.217570+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897485+00:00"
+      "timestamp": "2026-06-07T10:14:34.566772+00:00"
     },
     {
       "severity": "WARNING",
       "event_type": "STALE_DATA",
       "protocol_key": "yearn-v3-usdc-ethereum",
-      "message": "Data is 362.0h old (threshold: 6.0h)",
+      "message": "Data is 375.9h old (threshold: 6.0h)",
       "details": {
-        "age_hours": 362.0,
+        "age_hours": 375.9,
         "timestamp": "2026-05-22T18:20:42.220872+00:00"
       },
-      "timestamp": "2026-06-06T20:20:46.897489+00:00"
+      "timestamp": "2026-06-07T10:14:34.566778+00:00"
     }
   ]
 }
