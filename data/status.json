@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-06-07T16:54:07.235189+00:00",
+  "timestamp": "2026-06-07T23:42:17.231688+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
     "deployed_usd": 95000.0,
     "cash_usd": 5000.0,
     "cash_pct": 0.05,
-    "total_pnl_usd": 159.33,
+    "total_pnl_usd": 162.16,
     "total_drawdown_pct": 0.0
   },
   "positions": [
@@ -14,27 +14,27 @@
       "tier": "T2",
       "amount_usd": 20000.0,
       "current_apy": 4.79533,
-      "unrealized_pnl_usd": 46.77,
-      "unrealized_pnl_pct": 0.0023,
-      "days_held": 17.8
+      "unrealized_pnl_usd": 47.51,
+      "unrealized_pnl_pct": 0.0024,
+      "days_held": 18.1
     },
     {
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 40000.0,
-      "current_apy": 3.10985,
-      "unrealized_pnl_usd": 60.66,
+      "current_apy": 3.12242,
+      "unrealized_pnl_usd": 61.87,
       "unrealized_pnl_pct": 0.0015,
-      "days_held": 17.8
+      "days_held": 18.1
     },
     {
       "protocol_key": "compound-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 35000.0,
-      "current_apy": 3.04154,
-      "unrealized_pnl_usd": 51.91,
+      "current_apy": 3.04411,
+      "unrealized_pnl_usd": 52.78,
       "unrealized_pnl_pct": 0.0015,
-      "days_held": 17.8
+      "days_held": 18.1
     }
   ],
   "risk": {
@@ -46,8 +46,8 @@
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 17,
-    "weeks_elapsed": 2.4,
+    "days_elapsed": 18,
+    "weeks_elapsed": 2.6,
     "min_weeks_required": 8,
     "go_live_ready": false,
     "first_trade": "2026-05-20T20:38:42.319566+00:00"
@@ -59,10 +59,10 @@
     "total_capital_usd": 100000.0,
     "deployed_capital_usd": 95000.0,
     "cash_usd": 5000.0,
-    "total_pnl_usd": 8.95217808219178,
+    "total_pnl_usd": 8.968417808219177,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -1.6657,
+    "sharpe_to_date": -1.6665,
     "max_drawdown_pct": 0.0,
     "trade_count": 6,
     "state_json": null
