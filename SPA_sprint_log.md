@@ -4,6 +4,19 @@
 
 ---
 
+## v3.86 (SPA-V387) — 2026-06-09 — Go-Live Readiness Checker
+
+Автоматическая проверка готовности к go-live (15 июля 2026) с единым вердиктом READY / CONDITIONAL / NOT_READY и взвешенным score.
+
+- `spa_core/golive/criteria.py` — декларативный реестр из 13 критериев (`Criterion`: id/name/category/weight/description) по 4 категориям: paper_trading, adapters, risk, infrastructure. Веса: blocker / high / medium / low.
+- `spa_core/golive/readiness_checker.py` — `ReadinessChecker.check_all()`. Читает `data/risk_metrics.json`, `drawdown_analysis.json`, `equity_curve_daily.json`, `adapter_orchestrator_status.json`, `orchestrator_runs.json`, `return_distribution.json` + наличие infra-файлов и `sprint_completed` из KANBAN. Статусы PASS/WARN/FAIL/SKIP. Вердикт: READY (все blocker PASS, score ≥ 0.75), CONDITIONAL (0.5–0.75), NOT_READY (любой blocker FAIL). `check_all()` никогда не бросает исключение; `today` инъектируется для детерминизма тестов.
+- `spa_core/golive/readiness_report.py` — ASCII-отчёт + сохранение в `data/golive_readiness.json`.
+- `spa_core/tests/test_readiness_checker.py` — **22/22 passed** (unittest, изолированные temp-директории с mock-данными). Покрытие: all-pass→READY, blocker-fail→NOT_READY, отсутствие файлов→SKIP, пороги win-rate/drawdown, Sharpe любого знака (negative→WARN), расчёт score, CONDITIONAL-band, infra/adapter/risk-проверки, запись JSON, sprint_completed, days_to_golive, устойчивость к битому JSON.
+- **Реальный вердикт на текущих данных: 🔴 NOT_READY, score 0.78/1.00.** Единственный blocker — C001 (paper trading 20/30 дней). 1 WARN: C004 Sharpe = -5.38 (стратегия требует ревью). 10/13 PASS.
+- **Ограничения соблюдены:** только read-only / analytics; execution/, risk-агенты, feed_health/ не тронуты. Модуль не дублирует `checklist.py` по логике, но пишет в тот же `data/golive_readiness.json` согласно ТЗ спринта.
+
+---
+
 ## Sprint v3.75 (SPA-V375) — PAT Security Fix + Push Mechanism Refactor
 **Дата:** 2026-06-09
 **Статус:** ✅ COMPLETED (выполнено вручную пользователем в сессии Cowork)
