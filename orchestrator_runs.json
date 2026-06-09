@@ -1,0 +1,31 @@
+{
+  "runs": [
+    {
+      "run_ts": "2026-06-09T17:27:26.761479+00:00",
+      "duration_sec": 0.5694,
+      "summary": {
+        "total": 4,
+        "ok": 4,
+        "partial": 0,
+        "error": 0,
+        "avg_health_score": 1.0,
+        "grade": "A",
+        "best_apy": {
+          "protocol": "maple",
+          "apy_pct": 10.5
+        },
+        "total_tvl_usd": 0.0
+      },
+      "overall_health": {
+        "score": 1.0,
+        "grade": "A",
+        "total": 4,
+        "ok_count": 4,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 0
+      }
+    }
+  ],
+  "max_runs": 30
+}
