@@ -20,8 +20,29 @@ See: docs/v2_architecture.md, docs/v2_activation_checklist.md
 
 from __future__ import annotations
 
+import logging
 import os
+from datetime import datetime, timezone
+from enum import Enum
 from typing import Optional
+
+log = logging.getLogger("spa.wallet")
+
+
+class WalletMode(Enum):
+    """Operating mode for SPAWallet.
+
+    PAPER      — paper trading; execute() logs the trade and returns a record
+                 without raising, mirroring the paper-trading engine behaviour.
+    SIMULATION — local simulation; execute() also logs without raising, used
+                 for integration tests and pre-deployment dry-runs.
+    LIVE       — real capital; execute() raises NotImplementedError until the
+                 activation script (spa_core/golive/activate.py) has been run
+                 and all 11 go-live criteria PASS.
+    """
+    PAPER      = "paper"
+    SIMULATION = "simulation"
+    LIVE       = "live"
 
 
 # ── Gas estimation constants (based on historical mainnet data) ───────────────
@@ -64,13 +85,25 @@ class SPAWallet:
     """
 
     def __init__(self, mode: str = "simulation"):
-        if mode != "simulation":
-            raise NotImplementedError(
-                "Real execution is not yet active. "
-                "Paper trading is running until 2026-07-15. "
-                "See docs/v2_architecture.md for the activation checklist."
+        """Initialise SPAWallet.
+
+        Args:
+            mode: One of "paper", "simulation", or "live" (case-insensitive).
+                  "paper" and "simulation" are safe to use at any time.
+                  "live" is accepted without raising here, but execute() will
+                  raise NotImplementedError until the activation script is run.
+
+        Raises:
+            ValueError: If mode is not a recognised WalletMode value.
+        """
+        try:
+            self.wallet_mode = WalletMode(mode.lower())
+        except ValueError:
+            valid = [m.value for m in WalletMode]
+            raise ValueError(
+                f"Invalid wallet mode '{mode}'. Must be one of: {valid}"
             )
-        self.mode = mode
+        self.mode = self.wallet_mode.value
         self._wallet_address: Optional[str] = os.environ.get("WALLET_ADDRESS")
         self._safe_address:   Optional[str] = os.environ.get("SAFE_ADDRESS")
 
@@ -235,7 +268,7 @@ class SPAWallet:
             "sim_id":     None,  # populated in v2.0 when Tenderly is wired up
         }
 
-    # ── Execution (BLOCKED) ───────────────────────────────────────────────────
+    # ── Execution ─────────────────────────────────────────────────────────────
 
     def execute(
         self,
@@ -245,29 +278,51 @@ class SPAWallet:
         approved_by: Optional[str] = None,
     ) -> dict:
         """
-        Execute a real on-chain transaction.
+        Execute (or log) an on-chain transaction depending on WalletMode.
 
-        BLOCKED — raises NotImplementedError until v2.0 is fully activated.
+        PAPER / SIMULATION modes:
+            Logs the trade and returns a paper trade record.  Never raises.
+            Suitable for paper trading and pre-deployment integration tests.
 
-        When activated in v2.0, this method will:
-          1. Build the encoded calldata for the protocol contract
-          2. Route via Gnosis Safe (if amount_usd > $500) or hot wallet (≤ $500)
-          3. Use Flashbots RPC for amounts > $1,000
-          4. Wait for transaction confirmation (1 block)
-          5. Return the tx hash and confirmation data
+        LIVE mode:
+            Always raises NotImplementedError with an instruction to run the
+            activation script.  Real execution is blocked until:
+              1. All 11 go-live criteria PASS
+              2. Owner types "I CONFIRM LIVE TRADING" in the activation script
+            To activate: ``python -m spa_core.golive.activate``
 
         Args:
             protocol:    Protocol key (e.g. "aave-v3")
             action:      "supply" | "withdraw"
             amount_usd:  Amount to transact in USD
-            approved_by: Safe owner signature (required for amounts > $500)
+            approved_by: Safe owner signature (required for amounts > $500 in LIVE mode)
+
+        Returns:
+            Paper trade log dict in PAPER / SIMULATION modes.
 
         Raises:
-            NotImplementedError: Always — real execution is not yet implemented.
+            NotImplementedError: In LIVE mode — always, until activation.
         """
+        if self.wallet_mode in (WalletMode.PAPER, WalletMode.SIMULATION):
+            record = {
+                "mode":        self.wallet_mode.value,
+                "protocol":    protocol,
+                "action":      action,
+                "amount_usd":  amount_usd,
+                "approved_by": approved_by,
+                "timestamp":   datetime.now(timezone.utc).isoformat(),
+                "status":      "PAPER_LOGGED",
+                "tx_hash":     None,
+                "real":        False,
+            }
+            log.info(
+                "[%s TRADE LOG] %s $%.2f on %s",
+                self.wallet_mode.value.upper(), action, amount_usd, protocol,
+            )
+            return record
+
+        # LIVE mode — hard block until activation script is run
         raise NotImplementedError(
-            "Real execution is not yet active. "
-            "Paper trading is running until 2026-07-15. "
-            "See docs/v2_architecture.md for the activation checklist and safety pipeline. "
-            "Use simulate_transaction() to test transaction logic without execution."
+            "LIVE mode requires manual activation. "
+            "Run python -m spa_core.golive.activate"
         )
