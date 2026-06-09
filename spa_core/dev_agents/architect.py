@@ -229,7 +229,7 @@ def main():
         choices=["review-backlog", "plan-sprint", "review-ideas", "weekly-status"],
         default="review-backlog",
     )
-    p.add_argument("--idea", type=str, help="Idea text to review (for breview-ideas)")
+    p.add_argument("--idea", type=str, help="Idea text to review (for review-ideas)")
     args = p.parse_args()
 
     arch = SpaArchitect()
