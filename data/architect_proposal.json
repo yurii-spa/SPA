@@ -1,0 +1,182 @@
+{
+  "generated_at": "2026-05-28T02:13:47.692838+00:00",
+  "agent": "architect_agent",
+  "analysis": {
+    "ts": "2026-05-28T02:13:47.693245+00:00",
+    "totals": {
+      "ideas": 4,
+      "features": 8,
+      "backlog": 5,
+      "in_progress": 0,
+      "review": 6,
+      "done": 98
+    },
+    "high_priority_open": [
+      {
+        "id": "BL-004",
+        "title": "Enable GitHub Pages (User Action)",
+        "estimate": "0.1h",
+        "column": "backlog",
+        "tags": [
+          "infra"
+        ]
+      },
+      {
+        "id": "BL-005",
+        "title": "Telegram Bot Setup (User Action)",
+        "estimate": "0.5h",
+        "column": "backlog",
+        "tags": [
+          "infra"
+        ]
+      },
+      {
+        "id": "BL-006",
+        "title": "Workflow Scope Token Push (User Action)",
+        "estimate": "0.2h",
+        "column": "backlog",
+        "tags": [
+          "infra"
+        ]
+      },
+      {
+        "id": "FEAT-001",
+        "title": "Phase 3: Real Capital Execution (v2.0)",
+        "estimate": "80h",
+        "column": "features",
+        "tags": [
+          "backend",
+          "infra"
+        ]
+      },
+      {
+        "id": "FEAT-002",
+        "title": "Phase 4: Multi-Strategy Live Portfolio",
+        "estimate": "60h",
+        "column": "features",
+        "tags": [
+          "backend"
+        ]
+      },
+      {
+        "id": "FEAT-004",
+        "title": "Aave V3 Live SDK Integration",
+        "estimate": "20h",
+        "column": "features",
+        "tags": [
+          "backend"
+        ]
+      },
+      {
+        "id": "FEAT-005",
+        "title": "Compound V3 Live SDK Integration",
+        "estimate": "16h",
+        "column": "features",
+        "tags": [
+          "backend"
+        ]
+      }
+    ],
+    "stale_review": [
+      {
+        "id": "REV-001",
+        "title": "Push Dashboard v1.6 (index.html)",
+        "age_days": 6
+      },
+      {
+        "id": "REV-002",
+        "title": "Push Core Python Modules (20+ files)",
+        "age_days": 6
+      },
+      {
+        "id": "REV-003",
+        "title": "Push Test Suites (~140 tests, 20+ files)",
+        "age_days": 6
+      },
+      {
+        "id": "REV-004",
+        "title": "Push Documentation Suite (10+ files)",
+        "age_days": 6
+      },
+      {
+        "id": "REV-005",
+        "title": "Push GitHub Actions Workflow (workflow scope)",
+        "age_days": 6
+      },
+      {
+        "id": "REV-006",
+        "title": "Push KANBAN.json + kanban.html",
+        "age_days": 6
+      }
+    ],
+    "go_live_status": {
+      "verdict": "PENDING \u2014 7/56 days complete",
+      "criteria_pass_count": 3,
+      "criteria_total": 11,
+      "days_remaining": 49
+    },
+    "next_sprint_candidates": [
+      {
+        "id": "BL-007",
+        "title": "Sky/sUSDS T1 Upgrade (Conditional)",
+        "priority": "MEDIUM",
+        "estimate": "2h",
+        "tags": [
+          "backend"
+        ],
+        "why_picked": "MEDIUM other"
+      },
+      {
+        "id": "FEAT-003",
+        "title": "Phase 5: Investor Reporting",
+        "priority": "MEDIUM",
+        "estimate": "60h",
+        "tags": [
+          "frontend",
+          "docs"
+        ],
+        "why_picked": "MEDIUM other"
+      },
+      {
+        "id": "FEAT-006",
+        "title": "Real-Time Price Feeds",
+        "priority": "MEDIUM",
+        "estimate": "12h",
+        "tags": [
+          "backend",
+          "infra"
+        ],
+        "why_picked": "MEDIUM other"
+      }
+    ]
+  },
+  "proposal": {
+    "sprint_name": "v2.5-proposed-20260528",
+    "target_hours": 8.0,
+    "tasks": [
+      {
+        "id": "BL-007",
+        "title": "Sky/sUSDS T1 Upgrade (Conditional)",
+        "estimate": "2h",
+        "estimate_hours": 2.0,
+        "priority": "MEDIUM",
+        "tags": [
+          "backend"
+        ]
+      },
+      {
+        "id": "FEAT-006",
+        "title": "Real-Time Price Feeds",
+        "estimate": "12h",
+        "estimate_hours": 12.0,
+        "priority": "MEDIUM",
+        "tags": [
+          "backend",
+          "infra"
+        ]
+      }
+    ],
+    "total_estimate": 14.0,
+    "rationale": "Picked 2 task(s) totalling 14.0h under a target of 8.0h. Selection prioritises HIGH backlog work, then non-v2.0 HIGH features, then MEDIUM golive/bug. Tasks: BL-007, FEAT-006."
+  }
+}
