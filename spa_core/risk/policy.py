@@ -334,10 +334,23 @@ class RiskPolicy:
         self._log_result(result)
         return result
 
-    def check_portfolio_health(self, state: PortfolioState) -> RiskCheckResult:
+    def check_portfolio_health(
+        self,
+        state: PortfolioState,
+        stablecoin_prices: dict[str, float] | None = None,
+    ) -> RiskCheckResult:
         """
         Общая проверка здоровья портфеля.
         Запускать при каждом обновлении данных.
+
+        Args:
+            state: текущее состояние портфеля.
+            stablecoin_prices: optional dict {symbol -> spot price (USD)}. When
+                provided, stablecoin depeg detection is run via
+                PriceFeedFetcher.detect_depeg(). CRITICAL events become
+                violations (kill-switch); WARN events become warnings.
+                When None (default), depeg check is skipped — preserves
+                byte-for-byte backwards compatibility with existing call-sites.
         """
         violations = []
         warnings = []
@@ -355,6 +368,28 @@ class RiskPolicy:
                 f"Drawdown {state.total_drawdown_pct:.1%} approaching kill switch "
                 f"{self.config.max_drawdown_stop:.1%}"
             )
+
+        # ── Stablecoin depeg kill-switch (FEAT-006 Phase 3) ──────────────────
+        # Run only when caller supplied stablecoin_prices — backwards-compatible.
+        if stablecoin_prices is not None:
+            # Lazy import to avoid any potential import cycle with data_pipeline.
+            from data_pipeline.price_feeds import PriceFeedFetcher
+
+            depeg_events = PriceFeedFetcher().detect_depeg(stablecoin_prices)
+            for ev in depeg_events:
+                sym = ev["symbol"]
+                price = ev["price"]
+                dev = ev["deviation_pct"]
+                severity = ev["severity"]
+                if severity == "CRITICAL":
+                    violations.append(
+                        f"DEPEG KILL SWITCH: {sym} at ${price:.4f} ({dev:+.2f}%) — "
+                        f"CRITICAL depeg, close exposed positions"
+                    )
+                elif severity == "WARN":
+                    warnings.append(
+                        f"DEPEG WARN: {sym} at ${price:.4f} ({dev:+.2f}%) — monitor closely"
+                    )
 
         # Проверка концентрации всех позиций
         seen_protocols: set[str] = set()
@@ -393,6 +428,54 @@ class RiskPolicy:
             violations=violations,
             warnings=warnings,
             check_name="portfolio_health",
+        )
+        self._log_result(result)
+        return result
+
+    def check_stablecoin_depeg(
+        self,
+        prices: dict[str, float],
+        threshold: float | None = None,
+    ) -> RiskCheckResult:
+        """
+        Standalone stablecoin depeg check (FEAT-006 Phase 3).
+
+        Returns a RiskCheckResult so this can be wired into any orchestration
+        loop without requiring a full PortfolioState. CRITICAL events become
+        violations (approved=False); WARN events become warnings (approved=True).
+
+        Args:
+            prices: mapping symbol → spot price (USD).
+            threshold: optional override for depeg threshold (fraction). Falls
+                back to PriceFeedFetcher.DEFAULT_DEPEG_THRESHOLD when None.
+        """
+        from data_pipeline.price_feeds import PriceFeedFetcher
+
+        violations: list[str] = []
+        warnings: list[str] = []
+
+        events = PriceFeedFetcher().detect_depeg(prices, threshold)
+        for ev in events:
+            sym = ev["symbol"]
+            price = ev["price"]
+            dev = ev["deviation_pct"]
+            severity = ev["severity"]
+            if severity == "CRITICAL":
+                violations.append(
+                    f"DEPEG KILL SWITCH: {sym} at ${price:.4f} ({dev:+.2f}%) — "
+                    f"CRITICAL depeg, close exposed positions"
+                )
+            elif severity == "WARN":
+                warnings.append(
+                    f"DEPEG WARN: {sym} at ${price:.4f} ({dev:+.2f}%) — monitor closely"
+                )
+
+        approved = len(violations) == 0
+        result = RiskCheckResult(
+            approved=approved,
+            violations=violations,
+            warnings=warnings,
+            check_name="stablecoin_depeg",
         )
         self._log_result(result)
         return result
