@@ -1085,7 +1085,8 @@ def run_export(fetch: bool = False) -> None:
             "strategy_v2.json", "strategy_comparison.json",
             "optimization_recommendations.json", "covariance_summary.json",
             "golive_readiness.json", "golive_readiness_score.json",
-            "golive_combined_verdict.json",
+            "golive_combined_verdict.json", "apy_gap_report.json",
+            "apy_gap_report_history.json",
         ]
         report_logger.log(
             decision_type='REPORT',
@@ -1519,6 +1520,41 @@ def run_export(fetch: bool = False) -> None:
     except Exception as _gcv:
         log.error(f"Combined go-live gate export failed: {_gcv}", exc_info=True)
         _section_fail("golive_combined_verdict")
+
+    # ── APY gap report (SPA-V371) ─────────────────────────────────────────────
+    # Persist the APY gap analysis (current weighted APY vs the 7.3% target, plus
+    # the estimated uplift from the Pendle PT and Sky/sUSDS levers) to
+    # data/apy_gap_report.json so progress toward the target is a durable,
+    # dashboard-visible artefact instead of being recomputed ad-hoc. Consumes the
+    # paper-trader status already produced this cycle. Pure read-only analytics
+    # (data_pipeline.apy_gap_report module) — no money-moving code, no new
+    # feed-health monitor (SPA-BL-011 governance freeze respected). Wrapped
+    # graceful: never aborts the cycle.
+    try:
+        from data_pipeline.apy_gap_report import apy_gap_report, append_apy_gap_history
+
+        _gap_doc = apy_gap_report(trader.get_status())
+        _gap_doc = {
+            "schema_version": 1,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            **_gap_doc,
+        }
+        write_json("apy_gap_report.json", _gap_doc)
+        # SPA-V373 — persist a compact history of the APY-gap headline so the
+        # dashboard can render a current_weighted_apy sparkline. Separate guarded
+        # try so a history failure can never abort the already-written report.
+        try:
+            append_apy_gap_history(_gap_doc, data_dir=str(OUTPUT_DIR))
+        except Exception as _agh:  # noqa: BLE001 -- never abort the cycle
+            log.error(f"APY gap history append failed: {_agh}", exc_info=True)
+        log.info(
+            f"apy_gap_report.json: current={_gap_doc.get('current_weighted_apy', '?')}%, "
+            f"gap={_gap_doc.get('gap', '?')}%, on_track={_gap_doc.get('on_track', '?')}"
+        )
+        _section_ok("apy_gap_report")
+    except Exception as _agr:
+        log.error(f"APY gap report export failed: {_agr}", exc_info=True)
+        _section_fail("apy_gap_report")
 
     log.info(f"✅ Export complete → {OUTPUT_DIR}/")
 
