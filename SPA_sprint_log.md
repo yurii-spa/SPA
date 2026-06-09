@@ -4,6 +4,31 @@
 
 ---
 
+## Sprint B + C — Honest Metrics + Backtest Pre-Screening (v3.91) — 2026-06-09
+
+Two sprints landed together. **Sprint B** replaces bare point-estimate Sharpe (dangerously noisy on a handful of paper-trading points) with confidence-aware metrics. **Sprint C** adds a historical pre-screening contour that replays any candidate strategy before it is admitted to the live shadow-paper fan-out. Stdlib only; atomic writes (`tempfile` + `os.replace`); advisory/read-only — nothing imports `execution/`, `feed_health/` or the deterministic risk agents.
+
+**Sprint B — `spa_core/analytics/honest_metrics.py`**
+- `compute_sortino(returns, rf=0.0, min_periods=5)` — downside-deviation-only Sortino. `n < min_periods` → `{"value": None, "confidence": "insufficient_data", "n"}`; no negative returns (or a single negative with no spread) → `value=None`; otherwise the float ratio with a sample-size confidence label.
+- `compute_sharpe_with_ci(returns, rf=0.0)` — point Sharpe + 95% **percentile bootstrap CI** (1000 resamples, stdlib `random`) when `n ≥ 10`, else `value/ci=None`. Adds `low_sample_warning=True` whenever `n < 30`.
+- `compute_calmar(equity_curve, period_days)` — annualised return ÷ |max drawdown|; `None` when drawdown is zero (undefined) or curve too short. Accepts dict- or number-valued curves.
+- `min_sample_check(n, metric_name)` — human-readable LOW CONFIDENCE warning when `n < 30`, else `""`.
+- `label_metric(value, metric_name)` — one-line labelled value with ✓ (trustworthy) / ⚠ (LOW CONFIDENCE, n=…) flag; accepts a bare float or any metric dict.
+- Confidence thresholds (by `n`): `<15` low · `15–30` medium · `>30` high.
+
+**Sprint C — `spa_core/strategies/backtester.py` + `run_screening.py`**
+- `StrategyBacktester.run(strategy, historical_snapshots)` → `BacktestResult` (`equity_curve` `[{ts, equity, pnl_pct}]`, `final_equity`, `total_return_pct`, `sortino`, `sharpe_with_ci`, `max_drawdown_pct`, `n_rebalances`, `passed_screening`, `screening_notes`). Replays each snapshot through an ephemeral `VirtualPortfolio` (raw weights → uniform risk guard → accrual + rebalance), reusing the v3.90 strategy machinery unchanged. `passed_screening = True` when Sortino > 0 **or** `n < 5` (insufficient evidence to reject).
+- `_normalize_snapshot()` bridges the compact historical form `{"ts", "adapters": {pool_id: {"apy", "tvl"}}}` to the orchestrator-status shape the strategies expect (unknown tier → T2, the stricter cap); list-shaped snapshots pass through.
+- `generate_synthetic_history(n_steps=30, pools=None)` — bounded APY random walk (base: morpho_blue 8.3 / yearn_v3 7.2 / euler_v2 9.1 / maple 10.5; drift ±0.5 pp/step, clamp [1%, 25%]), `random.seed(42)` for reproducibility.
+- `run_strategy_screening()` — backtests all 6 shadow strategies (S0–S5) on 30-step synthetic history and atomically writes `data/strategy_screening.json`. `spa_core/strategies/run_screening.py` is the CLI entry: `python3 -m spa_core.strategies.run_screening --verbose`.
+- **Real run:** 6/6 strategies PASS on synthetic history. With universally-positive APY the equity curves are monotone → no downside → Sortino is honestly `None` (passed as non-negative), maxDD 0.00% — the metrics correctly refuse to fabricate a downside ratio where there is none.
+
+**Tests:** `spa_core/tests/test_honest_metrics.py` (24) + `spa_core/tests/test_backtester.py` (22) = **46/46 passed** (unittest, stdlib, no I/O — screening exercised with `write=False`). Regression: `test_strategies` **49/49** still green.
+
+KANBAN: `sprint_completed → v3.91`; `SPA-SPRINT-BC` added to `done`.
+
+---
+
 ## Sprint A — Multi-Strategy Shadow Framework (v3.90) — 2026-06-09
 
 Advisory-only framework that fans **one** read-only orchestrator snapshot out across **six** virtual $100K portfolios (S0–S5), so candidate allocation policies can be compared on identical live data before any capital is committed. Read-only/advisory: nothing imports or mutates `execution/`, `feed_health/` or the deterministic risk agents. Stdlib only, atomic writes (`tempfile` + `os.replace`) throughout.
