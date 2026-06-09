@@ -1,101 +1,30 @@
 {
-  "generated_at": "2026-06-09T11:44:33.906510+00:00",
+  "generated_at": "2026-05-21T18:24:07.445723+00:00",
   "strategy_id": "paper-v2",
   "strategy_name": "v2 \u2014 Growth Aggressive",
   "portfolio": {
     "total_capital_usd": 100000.0,
-    "deployed_usd": 60000.0,
-    "cash_usd": 40000.0,
-    "cash_pct": 0.4,
-    "total_pnl_usd": 117.62,
+    "deployed_usd": 0,
+    "cash_usd": 100000.0,
+    "cash_pct": 1.0,
+    "total_pnl_usd": 0,
     "total_drawdown_pct": 0.0
   },
-  "positions": [
-    {
-      "protocol_key": "fluid-usdc-ethereum",
-      "tier": "T2",
-      "amount_usd": 15000.0,
-      "current_apy": 5.1,
-      "unrealized_pnl_usd": 37.82,
-      "unrealized_pnl_pct": 0.0025,
-      "days_held": 18.1
-    },
-    {
-      "protocol_key": "maple-usdc-ethereum",
-      "tier": "T2",
-      "amount_usd": 15000.0,
-      "current_apy": 4.79533,
-      "unrealized_pnl_usd": 35.56,
-      "unrealized_pnl_pct": 0.0024,
-      "days_held": 18.1
-    },
-    {
-      "protocol_key": "aave-v3-usdc-ethereum",
-      "tier": "T1",
-      "amount_usd": 30000.0,
-      "current_apy": 2.98194,
-      "unrealized_pnl_usd": 44.23,
-      "unrealized_pnl_pct": 0.0015,
-      "days_held": 18.1
-    }
-  ],
-  "trades": [
-    {
-      "trade_id": "PT-20260522103801-C6F323",
-      "strategy_id": "paper-v2",
-      "timestamp_open": "2026-05-22T10:38:01.030178+00:00",
-      "timestamp_close": null,
-      "protocol_key": "aave-v3-usdc-ethereum",
-      "asset": "USDC",
-      "action": "OPEN",
-      "amount_usd": 30000.0,
-      "apy_at_open": 4.0189,
-      "net_apy_annualized": 2.98194,
-      "pnl_usd": 44.22963809278203,
-      "reason": null
-    },
-    {
-      "trade_id": "PT-20260522103801-87185D",
-      "strategy_id": "paper-v2",
-      "timestamp_open": "2026-05-22T10:38:01.017160+00:00",
-      "timestamp_close": null,
-      "protocol_key": "maple-usdc-ethereum",
-      "asset": "USDC",
-      "action": "OPEN",
-      "amount_usd": 15000.0,
-      "apy_at_open": 4.79533,
-      "net_apy_annualized": 4.79533,
-      "pnl_usd": 35.56337689756758,
-      "reason": null
-    },
-    {
-      "trade_id": "PT-20260522103800-7FE78D",
-      "strategy_id": "paper-v2",
-      "timestamp_open": "2026-05-22T10:38:00.925532+00:00",
-      "timestamp_close": null,
-      "protocol_key": "fluid-usdc-ethereum",
-      "asset": "USDC",
-      "action": "OPEN",
-      "amount_usd": 15000.0,
-      "apy_at_open": 5.11,
-      "net_apy_annualized": 5.1,
-      "pnl_usd": 37.82288869324773,
-      "reason": null
-    }
-  ],
+  "positions": [],
+  "trades": [],
   "risk": {
     "health_approved": true,
     "violations": [],
     "warnings": [],
-    "var_usd": 273.37,
-    "var_pct": 0.456,
+    "var_usd": 0.0,
+    "var_pct": 0.0,
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 18,
-    "weeks_elapsed": 2.6,
+    "days_elapsed": 0,
+    "weeks_elapsed": 0.0,
     "min_weeks_required": 8,
     "go_live_ready": false,
-    "first_trade": "2026-05-22T10:38:00.925532+00:00"
+    "first_trade": null
   }
 }
