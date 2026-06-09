@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-06-09T17:27:26.761479+00:00",
+  "schema_version": 1,
+  "source": "adapter_orchestrator",
+  "execution_mode": "read_only_simulation",
+  "run_ts": "2026-06-09T17:27:26.761479+00:00",
+  "duration_sec": 0.5694,
+  "adapters": [
+    {
+      "protocol": "morpho_blue",
+      "adapter_class": "MorphoBlueAdapter",
+      "tier": "T2",
+      "apy_pct": 8.3,
+      "tvl_usd": 0.0,
+      "status": "ok",
+      "last_updated": "2026-06-09T17:27:26.761479+00:00",
+      "error": null,
+      "warning": null,
+      "health_score": 1.0
+    },
+    {
+      "protocol": "yearn_v3",
+      "adapter_class": "YearnV3Adapter",
+      "tier": "T2",
+      "apy_pct": 7.2,
+      "tvl_usd": 0.0,
+      "status": "ok",
+      "last_updated": "2026-06-09T17:27:26.761479+00:00",
+      "error": null,
+      "warning": null,
+      "health_score": 1.0
+    },
+    {
+      "protocol": "euler_v2",
+      "adapter_class": "EulerV2Adapter",
+      "tier": "T2",
+      "apy_pct": 9.1,
+      "tvl_usd": 0.0,
+      "status": "ok",
+      "last_updated": "2026-06-09T17:27:26.761479+00:00",
+      "error": null,
+      "warning": null,
+      "health_score": 1.0
+    },
+    {
+      "protocol": "maple",
+      "adapter_class": "MapleAdapter",
+      "tier": "T2",
+      "apy_pct": 10.5,
+      "tvl_usd": 0.0,
+      "status": "ok",
+      "last_updated": "2026-06-09T17:27:26.761479+00:00",
+      "error": null,
+      "warning": null,
+      "health_score": 1.0
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "ok": 4,
+    "partial": 0,
+    "error": 0,
+    "avg_health_score": 1.0,
+    "grade": "A",
+    "best_apy": {
+      "protocol": "maple",
+      "apy_pct": 10.5
+    },
+    "total_tvl_usd": 0.0
+  },
+  "overall_health": {
+    "score": 1.0,
+    "grade": "A",
+    "total": 4,
+    "ok_count": 4,
+    "partial_count": 0,
+    "stale_count": 0,
+    "error_count": 0
+  }
+}
