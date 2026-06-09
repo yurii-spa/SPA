@@ -112,12 +112,12 @@ class PendleFetcher:
             days_to_maturity (int or None)
         """
         try:
-            req = urllib.request.Request(
-                DEFILLAMA_YIELDS_URL,
-                headers={"User-Agent": "SPA/1.0"},
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read())
+            from data_pipeline.defillama_fetcher import retry_request
+            data_bytes, err = retry_request(DEFILLAMA_YIELDS_URL, timeout=15, max_attempts=3, backoff=2.0)
+            if err is not None:
+                log.warning(f"PendleFetcher.fetch_pt_pools: all retries failed — {err}")
+                return []
+            data = json.loads(data_bytes)
             pools = data.get("data", [])
             log.info(f"PendleFetcher: fetched {len(pools)} total pools from DeFiLlama")
             return self._filter_pt_pools(pools)
@@ -223,6 +223,19 @@ class PendleFetcher:
             f"returning top {len(result)}"
         )
         return result
+
+    def filter_pools(self, raw_pools: list[dict]) -> list[dict]:
+        """
+        Public wrapper for _filter_pt_pools — filters a raw DeFiLlama pool list
+        to SPA-eligible Pendle PT pools.  Useful for unit testing with mock data.
+
+        Args:
+            raw_pools: list of pool dicts in DeFiLlama /pools format
+
+        Returns:
+            Filtered + sorted list of eligible pools (same shape as fetch_pt_pools)
+        """
+        return self._filter_pt_pools(raw_pools)
 
     def get_best_pt(self) -> Optional[dict]:
         """
