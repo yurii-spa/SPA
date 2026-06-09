@@ -1,9 +1,10 @@
 # Setting Up Telegram Alerts for SPA
 
 Telegram alerts are simpler and faster than email — no SMTP, no app passwords, instant delivery.
-The bot sends three types of messages:
+The bot sends four types of messages:
 
-- **Risk alerts** — immediate, whenever concentration or drawdown limits are breached
+- **Immediate risk alerts** — fires instantly when any threshold is breached (concentration > 45%, daily drawdown > 2%, APY drop > 1pp, cash < 3%)
+- **Daily digest** — comprehensive once-per-day portfolio summary (APY vs target, positions, analytics, go-live status)
 - **4h cycle summary** — compact snapshot after every data export
 - **Weekly go-live update** — Monday morning readiness check
 
@@ -75,7 +76,18 @@ The bot sends three types of messages:
 
 ## What the bot sends
 
-### Risk alert (immediate, if thresholds are breached)
+### Immediate risk alert (fires on threshold breach, every 4h run)
+
+Thresholds checked on every GitHub Actions run:
+
+| Check | Trigger | Severity |
+|---|---|---|
+| Concentration | Any position > 45% of portfolio | 🔴 Critical |
+| Concentration | Any position > 35% of portfolio | ⚠️ Warning |
+| Daily drawdown | Capital drops > 2% in one day | 🔴 Critical |
+| APY drop | Any position APY falls > 1pp vs last run | ⚠️ Warning |
+| Cash buffer | Cash < 3% of total capital | ⚠️ Warning |
+
 ```
 🚨 SPA Risk Alert
 
@@ -86,6 +98,28 @@ The bot sends three types of messages:
 
 💰 Portfolio: $100,138 | PnL: +$138 (+0.14%)
 📊 View Dashboard
+```
+
+### Daily digest (once per UTC day, first 4h run of the day)
+
+```
+📊 SPA Daily Report — 2026-05-22
+
+💰 Portfolio: $100,247 (+0.25% / +$247)
+📈 APY (weighted): 4.82%  Target: 7.30%
+🎯 Gap: -2.48%
+
+📍 Positions:
+  Aave V3 USDC           $   40,000  4.23% APY
+  Compound V3            $   35,000  4.02% APY
+  Maple Finance          $   20,000  4.80% APY
+  Cash buffer            $    5,247  (5.2%)
+
+⚠️  Risk Alerts: 0 critical
+📊 Sharpe: 1.24  MaxDD: -0.3%
+
+⏱  Paper trading: Day 2/56
+🔴 Go-live: NOT READY (5/8 criteria)
 ```
 
 ### 4h cycle summary (every run)
