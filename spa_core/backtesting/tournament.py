@@ -49,14 +49,25 @@ class TournamentResult:
 # ─── Tournament ────────────────────────────────────────────────────────────────
 
 # Strategy name → RiskConfig overrides applied before running the backtest.
-# v1_passive: default conservative config.
-# v2_aggressive: higher concentration limits, lower APY floor → more allocation.
+# v1_passive:        default conservative config.
+# v2_aggressive:     higher concentration limits, lower APY floor → more allocation.
+# v3_pendle_focused: Pendle-focused yield maximiser — high APY floor (6%),
+#                    T1-style concentration cap (40%), but T2 budget capped at
+#                    20% to mirror PENDLE_MAX_PCT from v3_pendle_focused module.
+#                    Since BacktestEngine only consumes RiskConfig, this is the
+#                    closest faithful simulation of the v3 paper-trade strategy
+#                    inside the existing backtester (IDEA-006, sprint v2.3).
 _STRATEGY_CONFIGS: dict[str, dict] = {
     "v1_passive": {},           # use RiskConfig defaults
     "v2_aggressive": {          # looser limits to match live paper-v2 behaviour
         "max_single_protocol": 0.45,
         "min_apy_for_new_position": 2.0,
         "max_total_t2_allocation": 0.50,
+    },
+    "v3_pendle_focused": {      # Pendle-focused: high APY floor + small T2 cap
+        "max_single_protocol": 0.40,       # T1 cap like v1
+        "min_apy_for_new_position": 6.0,   # PENDLE_MIN_APY — high entry bar
+        "max_total_t2_allocation": 0.20,   # PENDLE_MAX_PCT — 20% in T2 (Pendle)
     },
 }
 
@@ -84,7 +95,13 @@ class StrategyTournament:
     """
 
     def __init__(self, strategies: list[str] = None):
-        self.strategies = strategies or ["v1_passive", "v2_aggressive"]
+        # Default is the full 3-strategy tournament (v1 vs v2 vs v3) per
+        # IDEA-006 / sprint v2.3. Callers may still pass a custom subset.
+        self.strategies = strategies or [
+            "v1_passive",
+            "v2_aggressive",
+            "v3_pendle_focused",
+        ]
 
     def run(
         self,
@@ -211,26 +228,36 @@ def _build_recommendation(
     """
     Build a human-readable recommendation sentence describing why the winner won.
 
-    Example:
-        "v1_passive recommended: superior Sharpe (24.76 vs 18.20) compensates
+    Works with 2 or more strategies: the winner is compared against the top
+    runner-up (the highest-scoring non-winner). If 3+ strategies are present,
+    a brief trailing parenthetical lists the also-rans for context.
+
+    Example (2-way):
+        "v1_passive recommended: superior Sharpe (24.76 vs 18.20) — compensates
          for lower return (1.38% vs 1.89%)"
+
+    Example (3-way):
+        "v1_passive recommended (vs v3_pendle_focused): superior Sharpe ... ;
+         also ahead of v2_aggressive (score 0.42)"
     """
     losers = [n for n in scores if n != winner]
     if not losers:
         return f"{winner} recommended: sole strategy evaluated."
 
-    loser = losers[0]  # first / primary competitor
+    # Top runner-up = highest-scoring non-winner.
+    runner_up = max(losers, key=lambda n: scores.get(n, 0.0))
+    others    = [n for n in losers if n != runner_up]
 
     winner_sharpe  = sharpes.get(winner, 0.0)
-    loser_sharpe   = sharpes.get(loser, 0.0)
+    loser_sharpe   = sharpes.get(runner_up, 0.0)
     winner_return  = returns.get(winner, 0.0)
-    loser_return   = returns.get(loser, 0.0)
+    loser_return   = returns.get(runner_up, 0.0)
     winner_dd      = drawdowns.get(winner, 0.0)
-    loser_dd       = drawdowns.get(loser, 0.0)
+    loser_dd       = drawdowns.get(runner_up, 0.0)
     winner_wr      = winrates.get(winner, 0.0)
-    loser_wr       = winrates.get(loser, 0.0)
+    loser_wr       = winrates.get(runner_up, 0.0)
 
-    # Find winner's strengths and weaknesses
+    # Find winner's strengths and weaknesses vs the top runner-up
     strengths = []
     weaknesses = []
 
@@ -260,7 +287,16 @@ def _build_recommendation(
         parts.append(f"{verb} {weaknesses[0]}")
 
     detail = " — ".join(parts) if parts else "highest composite score"
-    return f"{winner} recommended: {detail}"
+
+    # When 3+ strategies are in play, append a brief "also ahead of …" tail.
+    head = f"{winner} recommended (vs {runner_up}): " if others else f"{winner} recommended: "
+    tail = ""
+    if others:
+        tail = "; also ahead of " + ", ".join(
+            f"{n} (score {scores.get(n, 0.0):.2f})" for n in others
+        )
+
+    return f"{head}{detail}{tail}"
 
 
 def _zero_metrics() -> dict:
