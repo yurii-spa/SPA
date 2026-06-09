@@ -1,0 +1,91 @@
+{
+  "updated_at": "2026-06-09T19:18:10.216550+00:00",
+  "strategies": [
+    {
+      "name": "s0_baseline",
+      "label": "Baseline (Equal Weight)",
+      "equity": 100000.0,
+      "pnl_pct": 0.0,
+      "days_running": 1,
+      "sharpe": null,
+      "sortino": null,
+      "max_drawdown": 0.0,
+      "best_day_pct": null,
+      "worst_day_pct": null,
+      "rank": 1,
+      "rank_by_sortino": 1
+    },
+    {
+      "name": "s1_concentration",
+      "label": "Concentration",
+      "equity": 100000.0,
+      "pnl_pct": 0.0,
+      "days_running": 1,
+      "sharpe": null,
+      "sortino": null,
+      "max_drawdown": 0.0,
+      "best_day_pct": null,
+      "worst_day_pct": null,
+      "rank": 2,
+      "rank_by_sortino": 2
+    },
+    {
+      "name": "s2_momentum",
+      "label": "APY Momentum",
+      "equity": 100000.0,
+      "pnl_pct": 0.0,
+      "days_running": 1,
+      "sharpe": null,
+      "sortino": null,
+      "max_drawdown": 0.0,
+      "best_day_pct": null,
+      "worst_day_pct": null,
+      "rank": 3,
+      "rank_by_sortino": 3
+    },
+    {
+      "name": "s3_risk_parity",
+      "label": "Risk Parity+",
+      "equity": 100000.0,
+      "pnl_pct": 0.0,
+      "days_running": 1,
+      "sharpe": null,
+      "sortino": null,
+      "max_drawdown": 0.0,
+      "best_day_pct": null,
+      "worst_day_pct": null,
+      "rank": 4,
+      "rank_by_sortino": 4
+    },
+    {
+      "name": "s4_kelly",
+      "label": "Half-Kelly",
+      "equity": 100000.0,
+      "pnl_pct": 0.0,
+      "days_running": 1,
+      "sharpe": null,
+      "sortino": null,
+      "max_drawdown": 0.0,
+      "best_day_pct": null,
+      "worst_day_pct": null,
+      "rank": 5,
+      "rank_by_sortino": 5
+    },
+    {
+      "name": "s5_yield_spread",
+      "label": "Yield Spread",
+      "equity": 100000.0,
+      "pnl_pct": 0.0,
+      "days_running": 1,
+      "sharpe": null,
+      "sortino": null,
+      "max_drawdown": 0.0,
+      "best_day_pct": null,
+      "worst_day_pct": null,
+      "rank": 6,
+      "rank_by_sortino": 6
+    }
+  ],
+  "best_strategy": "s0_baseline",
+  "days_running": 1
+}
