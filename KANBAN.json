@@ -8,7 +8,7 @@
   "_v373_push_held_reason": "Push DELIBERATELY held this cycle. The only sanctioned push method (push_v*.html -> http://localhost:8765 -> Chrome navigate) requires embedding the live GitHub PAT (ghp_...) in plaintext into a new HTML file and transmitting it. That exact credential is flagged as leaked (it sits in plaintext in the scheduled-task body and in 92 existing push_v*.html files) and is still un-rotated across cycles v368->v373. Re-exposing a known-leaked secret autonomously is not done. SPA-V373 code + tests landed LOCALLY ONLY; commit is staged and ready to push once the user rotates the PAT. ACTION REQUIRED: revoke ghp_REDACTED in GitHub now, reissue into a secret store, then push.",
   "_v373_dispatch_note": "v3.73 (SPA-V373) — LOCAL ONLY, NOT PUSHED (see _v373_push_held_reason). Persisted APY-gap headline history + dashboard sparkline (same proven pattern as v3.63 readiness-trend / v3.65 checklist-trend / v3.68 combined-gate-trend). BACKEND: data_pipeline/apy_gap_report.py gained APY_GAP_HISTORY_FILENAME='apy_gap_report_history.json', MAX_HISTORY=180, DEFAULT_DATA_DIR, and append_apy_gap_history(doc, data_dir) — mirror of readiness_score.append_combined_history: compact record {generated_at, current_weighted_apy, gap, on_track}, dedup on generated_at (same-timestamp re-run replaces last record, no dup), trim to last 180, corrupt/missing file -> [], top-level try/except -> log.debug (never-raise). export_data.py: inside the existing SPA-V371 apy_gap block, after write_json('apy_gap_report.json'), a SEPARATE guarded try calls append_apy_gap_history(_gap_doc, data_dir=str(OUTPUT_DIR)); 'apy_gap_report_history.json' added to files_written manifest. FRONTEND: index.html loadGoLive Promise.all gained a 9th fetch apy_gap_report_history.json -> apyGapHistory; new #apy-gap-trend-wrap/canvas under #combined-trend-wrap ('Weighted APY trend (toward 7.30% target)'); new renderApyGapTrend(history) delegates to existing renderTrendSparkline (line, current_weighted_apy in percent, colour #16a34a, y min:0 suggestedMax:7.3, %-tick callback, null-safe <2 pts hides). NOTE: pre-existing latent bug observed — the SPA-V372 #apy-gap-widget DOM container was never added to index.html, so renderApyGapWidget() no-ops (getElementById returns null). NOT fixed here (out of scope); the new sparkline uses its own container so it mounts independently. NOT money-moving (eth_signer/mev_protection/adapters untouched); NOT a new feed-health monitor (SPA-BL-011 freeze respected) — pure read-only analytics persistence + presentation. Tests: pytest test_apy_gap_export.py 21 passed (incl. new TestAppendApyGapHistory 7 + wiring), regression test_golive_extended.py+test_apy_gap_export.py 74 passed 0 failed; py_compile apy_gap_report.py+export_data.py OK; writer smoke round-trip (dedup + trim + 4 keys) OK; node --check all inline index.html JS -> JS_SYNTAX_OK. Backups .bak.v373 (apy_gap_report.py, export_data.py, index.html, test_apy_gap_export.py, KANBAN.json, SPA_sprint_log.md). v3.72 does not end in 0/5 -> no architect review. ORCHESTRATOR NOTE: critical go-live path (2026-07-15) remains user-action-blocked (SPA-BL-012; secrets SPA-BL-007/008/009, BL-004/005/006); no unblocked HIGH code work since ~v3.52; feed-health frozen (SPA-BL-011); money-moving only outside autonomous mode. STRONGEST RECOMMENDATION: rotate the leaked PAT, then close the user-action blockers.",
   "_v372_dispatch_note": "v3.72 (SPA-V372): surfaced data/apy_gap_report.json as Go-Live dashboard widget. index.html ONLY (presentation-layer): appended apy_gap_report.json fetch to loadGoLive Promise.all (var apyGap at end of destructuring), added #apy-gap-widget container under #golive-readiness-score, added renderApyGapWidget(apyGap) (null-safe try/catch, shows current/target weighted APY vs 7.3% target + remaining_gap + on_track green/amber + Pendle PT/Sky-sUSDS lever-status chips; values already in percent per apy_gap_report.py, no *100), wired the call between renderReadinessScore and renderReadinessTrend. NOT money-moving (eth_signer/mev_protection/adapters untouched), NOT a new feed-health monitor (SPA-BL-011 freeze respected), backend apy_gap_report.py/export_data.py NOT changed. Tests: node --check JS_SYNTAX_OK; DOM-stub smoke 14/14; braces/parens/brackets balanced; 1 def+1 call+1 fetch+1 container; KANBAN round-trip OK; pytest unavailable -> Python regression consciously skipped (backend unchanged). Version not ending in 0/5 -> no architect review; took candidate (a) from v3.71 plan.",
-  "sprint_completed": "v3.86",
+  "sprint_completed": "v3.88",
   "last_dispatch_run": "2026-06-09T14:12:53.303322+00:00",
   "_v370_dispatch_note": "SPA-V370 done (housekeeping/refactor — кандидат (a) из v369-плана): консолидированы ТРИ почти идентичных trend-рендерера дашборда (renderReadinessTrend / renderChecklistTrend / renderCombinedGateTrend) в ОДИН общий helper renderTrendSparkline(opts) в index.html. Раньше каждый из трёх содержал свой клон Chart.js-boilerplate (~45 строк) + собственную глобалку (_readinessTrendChart/_checklistTrendChart/_combinedTrendChart). Теперь boilerplate живёт в одном месте; три старые функции стали тонкими обёртками, сохранившими ИСХОДНЫЕ сигнатуры (renderReadinessTrend(history) и т.д.) и поведение БАЙТ-В-БАЙТ — call-sites в loadGoLive не менялись. renderTrendSparkline принимает {key, wrapId, canvasId, history, labelKey, valueFn, color, bg, stepped, yScale}: null-safe (Array.isArray + length<2 -> скрыть wrap), slice(-60), per-key destroy предыдущего инстанса (общий _trendCharts map вместо трёх глобалок), tension:0.3 для line / stepped:true для combined, top-level try/catch -> console.error (никогда не бросает). checklist-обёртка сохранила свою логику yMax (latest criteria_total -> max seen -> 12). combined-обёртка сохранила stepped + y-ticks callback (1->GO,0->NO_GO). Бэкенд НЕ тронут (чисто index.html presentation-layer). НЕ money-moving (eth_signer/mev_protection/adapters не тронуты). НЕ новый feed-health монитор (SPA-BL-011 freeze соблюдён). Тесты: node --check всего извлечённого JS из index.html -> JS_SYNTAX_OK; node DOM-stub смоук 17/17 passed (значения данных, цвета, yScale, tension-vs-stepped, GO/NO_GO ticks callback, destroy-before-recreate, скрытие при <2 точках, garbage-never-throws); структурная проверка index.html: braces 1675/1675, parens 2769/2769, <script> 2/2, renderTrendSparkline определён 1x, каждая обёртка 1 def + 1 call-site, старые глобалки _readinessTrendChart/_checklistTrendChart/_combinedTrendChart полностью удалены. pytest недоступен в этом sandbox-окружении (No module named pytest) — Python-регрессия пропущена осознанно, т.к. бэкенд не менялся (изменён только index.html). Бэкапы .bak.v370 (index.html, KANBAN.json, SPA_sprint_log.md). v3.69 не оканчивается на 0/5 — architect review не требуется. ПРИМЕЧАНИЕ ОРКЕСТРАТОРА: критический путь к go-live (2026-07-15) остаётся user-action-blocked (SPA-BL-012; секреты SPA-BL-007/008/009, BL-004/005/006); feed-health заморожен (SPA-BL-011); незаблокированной HIGH код-работы по-прежнему нет — взят полезный housekeeping-рефактор (снижает дублирование/раздувание дашборда, на что указывал HALT-отчёт v368), а не очередная косметика. РЕКОМЕНДАЦИИ ПОЛЬЗОВАТЕЛЮ (накопленные, требуют действия): (1) закрыть user-action блокеры SPA-BL-012; (2) ОТОЗВАТЬ GitHub PAT, лежащий в plaintext в теле scheduled-task — это утечка, заменить на секрет-хранилище; (3) пересмотреть правило «status pass запрещён», т.к. без разблокировки остаётся только housekeeping; (4) housekeeping: 93 файла *.bak.* + старые push_v*.html + httpserver.log можно почистить (не делалось автономно во избежание деструктивных действий без подтверждения). Следующий SPA-V371: при разблокировке SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима); иначе — дальнейший housekeeping (трим .bak.*/push_*.html по подтверждению) или статус-отчёт.",
   "_v369_dispatch_note": "SPA-V369 done: персистированный golive_combined_verdict.json (пишется каждый 4ч цикл readiness_score.write_combined_golive_gate, SPA-V367) подключён как АВТОРИТЕТНЫЙ источник go/no-go гейта в index.html — закрывает разрыв «считается на клиенте vs персистировано» (кандидат (a) из плана v3.68). index.html loadGoLive: добавлен 7-й Promise.all фетч golive_combined_verdict.json (тот же ?_=ts cache-bust + .then(r=>r.json()).catch(()=>null)) -> combinedVerdict; вызов renderCombinedGoLiveHeader(readiness, scoreData) -> renderCombinedGoLiveHeader(readiness, scoreData, combinedVerdict) (новый аргумент ПОСЛЕДНИМ — сигнатура обратно-совместима). renderCombinedGoLiveHeader получил 3-й параметр combinedVerdict (default undefined): havePersisted = combinedVerdict — non-null object с полем gate. Если есть персист (source='persisted'): isGo = String(gate).toUpperCase()==='GO'; opStatus = clamp(operational_status, ok/warn/degraded/unknown); opScore = operational_score ?? null; verdict = checklist_verdict?.toUpperCase() ?? null; passed/total = criteria_passed/criteria_total (только если number, иначе null); blocking = Array.isArray(blocking)?slice():[]. Иначе FALLBACK на существующий клиентский пересчёт SPA-V366 (operational axis из scoreData, checklist axis из readiness, isGo=operationalOk&&checklistReady, blocking[] собирается) — source='client'. Правило видимости: скрывать элемент ТОЛЬКО когда нечего показывать — нет персиста И !readiness && !scoreData; если персист есть — всегда рендерим. Рефактор чистый: isGo/opStatus/opScore/verdict/passed/total/blocking вычисляются в одной из двух веток, затем ОДИН общий блок рендеринга (COL/SEV maps, gateColor/gateIcon/gateText, opChip/vChip, blockingTxt joined ' · ') — markup БАЙТ-В-БАЙТ как раньше (никаких видимых изменений), blocking-строки из персиста рендерятся как есть. Добавлен невидимый data-gate-source атрибут на внешний div для отладки. Сохранены null-safety и внешний try/catch -> console.error('renderCombinedGoLiveHeader error:', e), никогда не бросает. Бэкенд НЕ менялся (doc уже персистируется SPA-V367; новый writer не нужен). НЕ тронут money-moving код (eth_signer/mev_protection/adapters); НЕ создан feed-health монитор (SPA-BL-011 freeze соблюдён — чисто read-only surface-wiring). Тесты: node --check всего извлечённого JS из index.html -> JS_SYNTAX_OK; node-смоук renderCombinedGoLiveHeader (DOM-стаб с getElementById -> stub с settable innerHTML/style + setAttribute) — 16/16 passed: (a) персист GO -> banner 'GO' + source=persisted; (b) персист NO_GO с blocking -> 'NO-GO' + Blocking text с ' · '; (c) нет персиста, readiness+scoreData есть -> fallback на клиентский расчёт, рендерится, source=client (GO и NO-GO+blocking варианты); (d) всё null -> элемент скрыт (display:none); (e) мусор на входе (123/'garbage'/[], {gate:{}}, {} без gate) -> никогда не бросает, пустой объект без readiness/scoreData скрыт. Python-регрессия: test_readiness_score.py = 79 passed, 0 failed (бэкенд не менялся, сетевой LiveApy не падал); py_compile readiness_score.py OK. Бэкапы .bak.v369 (index.html, test_readiness_score.py, KANBAN.json, SPA_sprint_log.md); бэкенд-файл не менялся. v3.68 не оканчивается на 0/5 — architect review не требуется. Следующий SPA-V370: (a) другой surface/housekeeping (трим устаревших .bak.*, консолидация trend-рендереров renderReadinessTrend/renderChecklistTrend/renderCombinedGateTrend в один helper); (b) подключить персистированный golive_combined_verdict.json также в любой другой consumer; (c) при разблокировке SPA-BL-012 — FEAT-001 Phase 3 live execution (вне автономного режима). Критический путь к go-live (2026-07-15) остаётся user-action-blocked (SPA-BL-012); feed-health заморожен (SPA-BL-011); money-moving — только вне автономного режима.",
@@ -135,64 +135,6 @@
       }
     ],
     "backlog": [
-      {
-        "id": "SPA-V388",
-        "title": "Strategy Allocator — equal / Kelly / risk-parity dry-run веса",
-        "priority": "MEDIUM",
-        "type": "code",
-        "status": "ready",
-        "eisenhower": "important-not-urgent",
-        "quadrant": "Q2",
-        "estimated_files": 4,
-        "estimate": "6h",
-        "sprint": "V388",
-        "tags": [
-          "strategy",
-          "allocation",
-          "analytics"
-        ],
-        "added": "2026-06-09",
-        "files": [
-          "spa_core/allocator/allocation_models.py",
-          "spa_core/allocator/allocator.py",
-          "spa_core/allocator/__init__.py",
-          "spa_core/tests/test_allocator.py"
-        ],
-        "data": [
-          "data/target_allocation.json"
-        ],
-        "description": "Расчёт целевых весов аллокации между адаптерами тремя моделями: equal-weight, Kelly-based, risk-parity. allocator.py применяет tier-cap'ы и ограничения Risk Policy (T1 ≤40%, T2 ≤20%/35% total) и выдаёт dry-run рекомендацию в data/target_allocation.json. Использует APY/TVL из adapter_status.json и ковариацию из return_distribution.py. Advisory only — без execution, не трогает risk agent. Бизнес-ценность: конкретное 'сколько % куда', основа для drift-трекинга."
-      },
-      {
-        "id": "SPA-V389",
-        "title": "Portfolio State Tracker — позиции, drift, rebalance signals",
-        "priority": "MEDIUM",
-        "type": "code",
-        "status": "ready",
-        "eisenhower": "important-not-urgent",
-        "quadrant": "Q2",
-        "estimated_files": 5,
-        "estimate": "6h",
-        "sprint": "V389",
-        "tags": [
-          "portfolio",
-          "drift",
-          "analytics"
-        ],
-        "added": "2026-06-09",
-        "files": [
-          "spa_core/portfolio/state_tracker.py",
-          "spa_core/portfolio/drift_calculator.py",
-          "spa_core/portfolio/rebalance_signal.py",
-          "spa_core/portfolio/__init__.py",
-          "spa_core/tests/test_portfolio_state.py"
-        ],
-        "data": [
-          "data/portfolio_state.json",
-          "data/rebalance_signals.json"
-        ],
-        "description": "Трекер состояния портфеля. state_tracker.py держит текущие (mock) позиции и их оценку; drift_calculator.py считает дрейф текущих весов vs целевых из target_allocation.json (V388); rebalance_signal.py выдаёт пороговые rebalance-сигналы (advisory). Read-only, без исполнения сделок. Бизнес-ценность: видимость дрейфа портфеля и сигналы к ребалансу до go-live."
-      },
       {
         "id": "SPA-V390",
         "title": "Email Alert System — SMTP через GitHub Actions, триггеры VaR/drawdown/adapter",
@@ -3034,6 +2976,18 @@
         "title": "Go-Live Readiness Checker",
         "priority": "HIGH",
         "completed": "2026-06-09T17:47:37.614370+00:00"
+      },
+      {
+        "id": "SPA-V388",
+        "title": "Strategy Allocator",
+        "priority": "HIGH",
+        "completed": "2026-06-09T18:06:20.062588"
+      },
+      {
+        "id": "SPA-V389",
+        "title": "Portfolio State Tracker",
+        "priority": "HIGH",
+        "completed": "2026-06-09T18:06:20.062748"
       }
     ]
   },
