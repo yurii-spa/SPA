@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-06-09T12:12:04.571869+00:00",
+  "source": "/sessions/determined-nifty-ritchie/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "metrics": {
+    "num_return_days": 7,
+    "mean_daily_return_pct": -0.1712,
+    "daily_volatility_pct": 0.4546,
+    "downside_deviation_pct": 0.5998,
+    "annualized_return_pct": -46.6903,
+    "annualized_vol_pct": 8.686,
+    "sharpe_ratio": -5.3753,
+    "sortino_ratio": -4.0745,
+    "calmar_ratio": -29.3908,
+    "win_rate_pct": 42.8571,
+    "profit_factor": 0.3857,
+    "avg_win_pct": 0.2508,
+    "avg_loss_pct": -0.4876,
+    "win_loss_ratio": 0.5143,
+    "best_day": {
+      "date": "2026-05-19",
+      "daily_return_pct": 0.358
+    },
+    "worst_day": {
+      "date": "2026-05-20",
+      "daily_return_pct": -1.0426
+    },
+    "max_drawdown_pct": -1.5886,
+    "risk_free_annual_pct": 0.0,
+    "annualization_days": 365
+  }
+}
