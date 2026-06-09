@@ -1,0 +1,21 @@
+{
+  "name": "s5_yield_spread",
+  "initial_capital": 100000.0,
+  "cash": 61818.181818,
+  "positions": {
+    "euler_v2": 18181.818182,
+    "maple": 20000.0
+  },
+  "equity": 100000.0,
+  "last_ts": "2026-06-09T17:27:26.761479+00:00",
+  "equity_curve": [
+    {
+      "ts": "2026-06-09T17:27:26.761479+00:00",
+      "equity": 100000.0,
+      "positions": {
+        "euler_v2": 18181.818182,
+        "maple": 20000.0
+      }
+    }
+  ]
+}
