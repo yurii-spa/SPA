@@ -118,6 +118,20 @@
   .alerts-clear { text-align: center; padding: 20px 0; color: #3B6D11; font-size: 13px; }
   .trades-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   .trades-table th { color: #999; font-weight: 500; text-align: left; padding: 4px 6px; border-bottom: 1px solid #eee; }
+
+  /* ── Strategy Race ── */
+  .race-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .race-table th { color: #999; font-weight: 500; text-align: right; padding: 6px 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
+  .race-table th:nth-child(1), .race-table th:nth-child(2) { text-align: left; }
+  .race-table td { padding: 7px 8px; border-bottom: 0.5px solid #f0f0f0; text-align: right; }
+  .race-table td:nth-child(1), .race-table td:nth-child(2) { text-align: left; }
+  .race-table tr:last-child td { border-bottom: none; }
+  .race-row-lead td { background: #eaf3de; }
+  .race-row-lead td:first-child { border-left: 3px solid #3B6D11; }
+  .race-row-last td { color: #999; }
+  .race-rank { font-weight: 600; color: #555; }
+  .race-name { font-weight: 500; color: #1a1a1a; }
+  .race-sub { font-size: 11px; color: #aaa; }
   .trades-table td { padding: 6px 6px; border-bottom: 0.5px solid #f5f5f5; vertical-align: middle; }
   .trades-table tr:last-child td { border-bottom: none; }
   .trade-open { color: #185FA5; font-weight: 600; font-size: 11px; }
@@ -1060,6 +1074,14 @@
     </div>
     <div id="trades-body">
       <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- Strategy Race — shadow strategy comparison -->
+  <div class="db-full" id="strategy-race-card">
+    <div class="db-section" id="strategy-race-title">🏁 Strategy Race</div>
+    <div id="strategy-race-body">
+      <div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Дані збираються…</div>
     </div>
   </div>
 
@@ -2294,6 +2316,7 @@ async function loadDashboard() {
     updateDataFreshnessBadge(meta);
     renderApyGapTracker(status, portfolioStatus);
     renderApyTrends();
+    loadStrategyRace();
   } catch(e) {
     document.getElementById('health-badge').className = 'status-err';
     document.getElementById('health-badge').textContent = '⚠ Нет данных';
@@ -2324,6 +2347,78 @@ async function renderApyTrends() {
   }).join('');
 
   container.innerHTML = `<div class="db-full"><div class="db-section">📊 APY Trends (7d)</div>${rows || '<p style="opacity:.5;font-size:13px;padding:8px 0">No trend data yet — will populate after first fetch run</p>'}</div>`;
+}
+
+// ─── Strategy Race ──────────────────────────────────────────────────────────
+// Live comparison of the 6 shadow strategies from strategy_shadow_comparison.json.
+// Read-only/advisory — these are virtual portfolios, not live capital.
+async function loadStrategyRace() {
+  const body = document.getElementById('strategy-race-body');
+  const titleEl = document.getElementById('strategy-race-title');
+  if (!body) return;
+  try {
+    const data = await fetch(BASE + '/strategy_shadow_comparison.json?_=' + Date.now())
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+
+    const strategies = data && Array.isArray(data.strategies) ? data.strategies.slice() : [];
+    if (!strategies.length) {
+      body.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Дані збираються…</div>';
+      if (titleEl) titleEl.textContent = '🏁 Strategy Race';
+      return;
+    }
+
+    // Sort by Sortino desc; strategies with null Sortino fall back to PnL %.
+    const score = s => (typeof s.sortino === 'number') ? s.sortino
+                     : (typeof s.pnl_pct === 'number') ? s.pnl_pct : -Infinity;
+    const hasSortino = s => typeof s.sortino === 'number';
+    strategies.sort((a, b) => {
+      if (hasSortino(a) !== hasSortino(b)) return hasSortino(a) ? -1 : 1; // ranked metric first
+      return score(b) - score(a);
+    });
+
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const pct = v => (typeof v === 'number') ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '—';
+    const ddPct = v => (typeof v === 'number') ? (v * 100).toFixed(2) + '%' : '—';
+    const sortinoTxt = v => (typeof v === 'number') ? v.toFixed(2) : '—';
+    const equityTxt = v => (typeof v === 'number') ? fmt(v) : '—';
+    const medals = ['🥇', '🥈', '🥉'];
+    const last = strategies.length - 1;
+
+    const rows = strategies.map((s, i) => {
+      const cls = i === 0 ? ' class="race-row-lead"' : (i === last ? ' class="race-row-last"' : '');
+      const rankBadge = medals[i] || (i + 1);
+      const pnlClass = (typeof s.pnl_pct === 'number' && s.pnl_pct < 0) ? 'red'
+                     : (typeof s.pnl_pct === 'number' && s.pnl_pct > 0) ? 'green' : 'gray';
+      return `<tr${cls}>
+        <td class="race-rank">${rankBadge}</td>
+        <td><span class="race-name">${esc(s.label || s.name)}</span>` +
+        (s.label && s.name ? ` <span class="race-sub">${esc(s.name)}</span>` : '') + `</td>
+        <td>${equityTxt(s.equity)}</td>
+        <td class="${pnlClass}">${pct(s.pnl_pct)}</td>
+        <td>${sortinoTxt(s.sortino)}</td>
+        <td>${ddPct(s.max_drawdown)}</td>
+        <td>${typeof s.days_running === 'number' ? s.days_running : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `<table class="race-table">
+      <thead><tr>
+        <th>Rank</th><th>Strategy</th><th>Equity</th><th>PnL %</th>
+        <th>Sortino</th><th>Max DD</th><th>Days</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    if (titleEl) {
+      const best = strategies[0].label || strategies[0].name || '—';
+      const upd = data.updated_at ? data.updated_at.replace('T', ' ').slice(0, 16) + ' UTC' : '—';
+      titleEl.textContent = `🏁 Strategy Race · ${best} leading · updated ${upd}`;
+    }
+  } catch (e) {
+    console.error('Strategy Race load error:', e);
+    body.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Дані збираються…</div>';
+  }
 }
 
 // ─── Рендер ───────────────────────────────────────────────────────────────────
