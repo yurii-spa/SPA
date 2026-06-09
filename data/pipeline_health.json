@@ -1,16 +1,12 @@
 {
-  "timestamp": "2026-06-09T11:44:56Z",
-  "sections_run": 28,
-  "sections_ok": 25,
-  "sections_failed": 3,
-  "failed_sections": [
-    "apy_tracking",
-    "decision_log",
-    "backtest_comparison"
-  ],
-  "total_pools_fetched": 8,
-  "pendle_pools_found": 0,
-  "export_duration_seconds": 71.38,
+  "timestamp": "2026-05-22T05:07:27Z",
+  "sections_run": 20,
+  "sections_ok": 20,
+  "sections_failed": 0,
+  "failed_sections": [],
+  "total_pools_fetched": 12,
+  "pendle_pools_found": 3,
+  "export_duration_seconds": 3.8,
   "next_run_eta": "4h",
-  "covariance_source": "live"
+  "is_demo": true
 }
