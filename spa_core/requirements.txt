@@ -21,3 +21,10 @@ websockets>=12.0
 
 # Multipart form data (FastAPI file uploads)
 python-multipart>=0.0.9
+
+# PostgreSQL driver (BL-008 Phase 1) — optional, only needed if SPA_DATABASE_URL is set
+psycopg2-binary>=2.9.0
+
+# Schema migrations (BL-008 Phase 3) — alembic CLI in spa_core/database/
+# Run: cd spa_core/database && alembic upgrade head
+alembic>=1.13.0
