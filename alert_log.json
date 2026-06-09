@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "source": "alert_dispatcher",
+  "updated_at": "2026-06-09T18:21:19.085409+00:00",
+  "count": 6,
+  "max_entries": 100,
+  "entries": [
+    {
+      "severity": "CRITICAL",
+      "title": "Go-live blocker FAIL: C001 Paper trading duration ≥ 30 days",
+      "body": "Blocker criterion C001 (Paper trading duration ≥ 30 days) is FAIL. Detail: 20/30 days elapsed. Go-live is blocked until this clears.",
+      "timestamp": "2026-06-09T18:14:50.654688+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-09T18:14:50.654862+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Strategy Sharpe very negative: -5.38",
+      "body": "Backtest/paper Sharpe ratio is -5.38 (< -3.0). Strategy risk-adjusted performance needs review.",
+      "timestamp": "2026-06-09T18:14:50.654815+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-09T18:14:50.654865+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Go-live blocker FAIL: C001 Paper trading duration ≥ 30 days",
+      "body": "Blocker criterion C001 (Paper trading duration ≥ 30 days) is FAIL. Detail: 20/30 days elapsed. Go-live is blocked until this clears.",
+      "timestamp": "2026-06-09T18:21:19.084062+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-09T18:21:19.084279+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Strategy Sharpe very negative: -5.38",
+      "body": "Backtest/paper Sharpe ratio is -5.38 (< -3.0). Strategy risk-adjusted performance needs review.",
+      "timestamp": "2026-06-09T18:21:19.084074+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-09T18:21:19.084281+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Go-live blocker FAIL: C001 Paper trading duration ≥ 30 days",
+      "body": "Blocker criterion C001 (Paper trading duration ≥ 30 days) is FAIL. Detail: 20/30 days elapsed. Go-live is blocked until this clears.",
+      "timestamp": "2026-06-09T18:21:19.085345+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-09T18:21:19.085407+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Strategy Sharpe very negative: -5.38",
+      "body": "Backtest/paper Sharpe ratio is -5.38 (< -3.0). Strategy risk-adjusted performance needs review.",
+      "timestamp": "2026-06-09T18:21:19.085355+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-09T18:21:19.085408+00:00",
+      "sent_via": "dry_run"
+    }
+  ]
+}
