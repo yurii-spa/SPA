@@ -1,261 +1,261 @@
 {
-  "generated_at": "2026-06-09T11:44:11.798665+00:00",
+  "generated_at": "2026-05-21T18:24:07.328394+00:00",
   "data_source": "synthetic",
   "policy_version": "v1.0",
   "metrics": {
-    "sharpe_ratio": -18.7241,
+    "sharpe_ratio": 24.7594,
     "max_drawdown_pct": 0.0,
-    "total_return_pct": 0.7449,
-    "annualised_return_pct": 3.0555,
+    "total_return_pct": 1.3787,
+    "annualised_return_pct": 5.7102,
     "win_rate": 1.0,
-    "total_trades": 7,
-    "avg_position_size_usd": 27956.11,
+    "total_trades": 14,
+    "avg_position_size_usd": 24466.4,
     "initial_capital_usd": 100000.0,
-    "final_capital_usd": 100744.88,
-    "total_interest_usd": 744.88,
+    "final_capital_usd": 101378.69,
+    "total_interest_usd": 1378.69,
     "backtest_days": 90
   },
   "equity_curve": [
     {
-      "date": "2026-05-11",
-      "total_capital": 100538.58,
-      "deployed": 35186.44,
-      "cash": 65352.14,
-      "pnl_pct": 0.5386,
+      "date": "2026-04-22",
+      "total_capital": 100970.93,
+      "deployed": 95739.42,
+      "cash": 5231.51,
+      "pnl_pct": 0.9709,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-23",
+      "total_capital": 100989.32,
+      "deployed": 95739.42,
+      "cash": 5249.9,
+      "pnl_pct": 0.9893,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-24",
+      "total_capital": 101005.72,
+      "deployed": 95739.42,
+      "cash": 5266.3,
+      "pnl_pct": 1.0057,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-25",
+      "total_capital": 101018.91,
+      "deployed": 95739.42,
+      "cash": 5279.49,
+      "pnl_pct": 1.0189,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-26",
+      "total_capital": 101033.06,
+      "deployed": 95739.42,
+      "cash": 5293.64,
+      "pnl_pct": 1.0331,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-27",
+      "total_capital": 101045.52,
+      "deployed": 95739.42,
+      "cash": 5306.1,
+      "pnl_pct": 1.0455,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-28",
+      "total_capital": 101060.53,
+      "deployed": 95739.42,
+      "cash": 5321.11,
+      "pnl_pct": 1.0605,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-29",
+      "total_capital": 101073.85,
+      "deployed": 95739.42,
+      "cash": 5334.43,
+      "pnl_pct": 1.0738,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-04-30",
+      "total_capital": 101083.41,
+      "deployed": 96029.24,
+      "cash": 5054.17,
+      "pnl_pct": 1.0834,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-01",
+      "total_capital": 101092.9,
+      "deployed": 96029.24,
+      "cash": 5063.66,
+      "pnl_pct": 1.0929,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-02",
+      "total_capital": 101108.44,
+      "deployed": 96029.24,
+      "cash": 5079.2,
+      "pnl_pct": 1.1084,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-03",
+      "total_capital": 101125.16,
+      "deployed": 96029.24,
+      "cash": 5095.92,
+      "pnl_pct": 1.1252,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-04",
+      "total_capital": 101144.29,
+      "deployed": 96029.24,
+      "cash": 5115.05,
+      "pnl_pct": 1.1443,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-05",
+      "total_capital": 101160.37,
+      "deployed": 96029.24,
+      "cash": 5131.13,
+      "pnl_pct": 1.1604,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-06",
+      "total_capital": 101175.82,
+      "deployed": 96029.24,
+      "cash": 5146.58,
+      "pnl_pct": 1.1758,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-07",
+      "total_capital": 101184.69,
+      "deployed": 50528.0,
+      "cash": 50656.69,
+      "pnl_pct": 1.1847,
       "open_positions": 3
+    },
+    {
+      "date": "2026-05-08",
+      "total_capital": 101193.52,
+      "deployed": 70703.66,
+      "cash": 30489.86,
+      "pnl_pct": 1.1935,
+      "open_positions": 4
+    },
+    {
+      "date": "2026-05-09",
+      "total_capital": 101205.83,
+      "deployed": 96145.54,
+      "cash": 5060.29,
+      "pnl_pct": 1.2058,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-10",
+      "total_capital": 101224.92,
+      "deployed": 96145.54,
+      "cash": 5079.38,
+      "pnl_pct": 1.2249,
+      "open_positions": 5
+    },
+    {
+      "date": "2026-05-11",
+      "total_capital": 101240.45,
+      "deployed": 96178.43,
+      "cash": 5062.02,
+      "pnl_pct": 1.2405,
+      "open_positions": 5
     },
     {
       "date": "2026-05-12",
-      "total_capital": 100545.09,
-      "deployed": 35186.44,
-      "cash": 65358.65,
-      "pnl_pct": 0.5451,
-      "open_positions": 3
+      "total_capital": 101258.77,
+      "deployed": 96178.43,
+      "cash": 5080.34,
+      "pnl_pct": 1.2588,
+      "open_positions": 5
     },
     {
       "date": "2026-05-13",
-      "total_capital": 100550.67,
-      "deployed": 35186.44,
-      "cash": 65364.23,
-      "pnl_pct": 0.5507,
-      "open_positions": 3
+      "total_capital": 101274.07,
+      "deployed": 96178.43,
+      "cash": 5095.64,
+      "pnl_pct": 1.2741,
+      "open_positions": 5
     },
     {
       "date": "2026-05-14",
-      "total_capital": 100556.19,
-      "deployed": 35186.44,
-      "cash": 65369.75,
-      "pnl_pct": 0.5562,
-      "open_positions": 3
+      "total_capital": 101289.94,
+      "deployed": 96178.43,
+      "cash": 5111.51,
+      "pnl_pct": 1.2899,
+      "open_positions": 5
     },
     {
       "date": "2026-05-15",
-      "total_capital": 100562.13,
-      "deployed": 35186.44,
-      "cash": 65375.69,
-      "pnl_pct": 0.5621,
-      "open_positions": 3
+      "total_capital": 101303.57,
+      "deployed": 96178.43,
+      "cash": 5125.14,
+      "pnl_pct": 1.3036,
+      "open_positions": 5
     },
     {
       "date": "2026-05-16",
-      "total_capital": 100567.79,
-      "deployed": 35186.44,
-      "cash": 65381.35,
-      "pnl_pct": 0.5678,
-      "open_positions": 3
+      "total_capital": 101315.18,
+      "deployed": 96178.43,
+      "cash": 5136.75,
+      "pnl_pct": 1.3152,
+      "open_positions": 5
     },
     {
       "date": "2026-05-17",
-      "total_capital": 100574.48,
-      "deployed": 35186.44,
-      "cash": 65388.04,
-      "pnl_pct": 0.5745,
-      "open_positions": 3
+      "total_capital": 101327.76,
+      "deployed": 96192.52,
+      "cash": 5135.24,
+      "pnl_pct": 1.3278,
+      "open_positions": 5
     },
     {
       "date": "2026-05-18",
-      "total_capital": 100579.86,
-      "deployed": 35186.44,
-      "cash": 65393.42,
-      "pnl_pct": 0.5799,
-      "open_positions": 3
+      "total_capital": 101338.98,
+      "deployed": 96192.52,
+      "cash": 5146.46,
+      "pnl_pct": 1.339,
+      "open_positions": 5
     },
     {
       "date": "2026-05-19",
-      "total_capital": 100583.17,
-      "deployed": 35186.44,
-      "cash": 65396.73,
-      "pnl_pct": 0.5832,
-      "open_positions": 3
+      "total_capital": 101352.7,
+      "deployed": 96192.52,
+      "cash": 5160.18,
+      "pnl_pct": 1.3527,
+      "open_positions": 5
     },
     {
       "date": "2026-05-20",
-      "total_capital": 100586.58,
-      "deployed": 35186.44,
-      "cash": 65400.14,
-      "pnl_pct": 0.5866,
-      "open_positions": 3
+      "total_capital": 101365.23,
+      "deployed": 96192.52,
+      "cash": 5172.71,
+      "pnl_pct": 1.3652,
+      "open_positions": 5
     },
     {
       "date": "2026-05-21",
-      "total_capital": 100592.57,
-      "deployed": 35186.44,
-      "cash": 65406.13,
-      "pnl_pct": 0.5926,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-22",
-      "total_capital": 100599.39,
-      "deployed": 35186.44,
-      "cash": 65412.95,
-      "pnl_pct": 0.5994,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-23",
-      "total_capital": 100606.99,
-      "deployed": 35186.44,
-      "cash": 65420.55,
-      "pnl_pct": 0.607,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-24",
-      "total_capital": 100614.51,
-      "deployed": 35186.44,
-      "cash": 65428.07,
-      "pnl_pct": 0.6145,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-25",
-      "total_capital": 100621.15,
-      "deployed": 35186.44,
-      "cash": 65434.71,
-      "pnl_pct": 0.6211,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-26",
-      "total_capital": 100624.94,
-      "deployed": 15186.44,
-      "cash": 85438.5,
-      "pnl_pct": 0.6249,
-      "open_positions": 2
-    },
-    {
-      "date": "2026-05-27",
-      "total_capital": 100628.63,
-      "deployed": 55437.89,
-      "cash": 45190.74,
-      "pnl_pct": 0.6286,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-28",
-      "total_capital": 100639.18,
-      "deployed": 55437.89,
-      "cash": 45201.29,
-      "pnl_pct": 0.6392,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-29",
-      "total_capital": 100652.99,
-      "deployed": 55437.89,
-      "cash": 45215.1,
-      "pnl_pct": 0.653,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-30",
-      "total_capital": 100664.36,
-      "deployed": 55437.89,
-      "cash": 45226.47,
-      "pnl_pct": 0.6644,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-05-31",
-      "total_capital": 100676.84,
-      "deployed": 55437.89,
-      "cash": 45238.95,
-      "pnl_pct": 0.6768,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-01",
-      "total_capital": 100686.21,
-      "deployed": 55437.89,
-      "cash": 45248.32,
-      "pnl_pct": 0.6862,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-02",
-      "total_capital": 100695.54,
-      "deployed": 55437.89,
-      "cash": 45257.65,
-      "pnl_pct": 0.6955,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-03",
-      "total_capital": 100703.79,
-      "deployed": 55437.89,
-      "cash": 45265.9,
-      "pnl_pct": 0.7038,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-04",
-      "total_capital": 100711.79,
-      "deployed": 55437.89,
-      "cash": 45273.9,
-      "pnl_pct": 0.7118,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-05",
-      "total_capital": 100722.46,
-      "deployed": 55437.89,
-      "cash": 45284.57,
-      "pnl_pct": 0.7225,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-06",
-      "total_capital": 100729.24,
-      "deployed": 55437.89,
-      "cash": 45291.35,
-      "pnl_pct": 0.7292,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-07",
-      "total_capital": 100733.92,
-      "deployed": 55437.89,
-      "cash": 45296.03,
-      "pnl_pct": 0.7339,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-08",
-      "total_capital": 100739.1,
-      "deployed": 55437.89,
-      "cash": 45301.21,
-      "pnl_pct": 0.7391,
-      "open_positions": 3
-    },
-    {
-      "date": "2026-06-09",
-      "total_capital": 100744.88,
-      "deployed": 55437.89,
-      "cash": 45306.99,
-      "pnl_pct": 0.7449,
-      "open_positions": 3
+      "total_capital": 101378.69,
+      "deployed": 96192.52,
+      "cash": 5186.17,
+      "pnl_pct": 1.3787,
+      "open_positions": 5
     }
   ],
-  "total_trades": 7
+  "total_trades": 14
 }
