@@ -6378,3 +6378,68 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 2. Удалить файлы с токеном: push_*.html (92) + .bak* — см. SECURITY_REMEDIATION.md.
 3. Переписать тело scheduled-task: убрать PAT; убрать «status pass запрещён»; убрать список V326–V332 (всё сделано); push-канал → ./secure_git_push.sh (токен из env/Keychain).
 4. Только после 1–3 — снова включить task (enabled=true).
+
+## Sprint v3.79 — 2026-06-09 — ✅ CODE SHIPPED (LOCAL) + push blocked by environment
+- **Переоценка ситуации:** тело scheduled-task больше НЕ содержит plaintext PAT — оно переписано на Keychain (GITHUB_PAT_SPA) + push_to_github.py и явно запрещает hardcoded токены. Прежний halt-цикл (v3.66→v5.29) исходил из устаревшего задания, заставлявшего встраивать живой PAT в push_*.html. Эта причина устранена — поэтому в этом цикле сделана реальная безопасная код-работа, а не очередной пустой HALT.
+- **Сделано (SPA-V379 — Paper trading P&L tracker, daily equity curve):**
+  - `spa_core/paper_trading/equity_curve.py` — read-only аналитика над `data/pnl_history.json`: дневная equity-кривая (OHLC equity, daily/cumulative return, drawdown) + summary (total return, max drawdown, best/worst day, волатильность). Только stdlib, без web3/pandas. НЕ трогает execution/risk/wallet/деньги.
+  - `spa_core/tests/test_equity_curve.py` — 10 тестов (PASS/FAIL-раннер как в test_paper_trading.py, pytest в репо нет). **10/10 passed.**
+  - `data/equity_curve_daily.json` — сгенерированный отчёт. На реальной истории: 8 дней, 42 снапшота, total_return −1.17%, max_drawdown −1.59%.
+  - Выбор V379 (а не V376/V377/V378): V376 — чисто push (физически невозможен здесь); V377 (изменение APY-расчёта Compound) и V378 (circuit breaker адаптеров) затрагивают live money/execution-путь → вне безопасного автономного scope. V379 — чисто аддитивная read-only аналитика, нулевой риск для live-операций.
+- **Push НЕ выполнен — причина теперь ЧИСТО средовая, не отказ по безопасности:**
+  - `api.github.com` из песочницы → HTTP 000 (нет сети к GitHub).
+  - `security`/macOS Keychain недоступны в Linux-песочнице → push_to_github.py не сможет прочитать PAT.
+  - Поэтому push_to_github.py здесь не запустить. Согласно правилам задания — НЕ создавал никаких push_*.html, сообщаю пользователю.
+- **Остаточная безопасность (без изменений, нужен пользователь):** на диске всё ещё 95 файлов с plaintext-токеном `ghp_...` (в т.ч. 92 push_*.html). Удаление файлов ≠ отзыв токена. Рекомендация: отозвать старый PAT в GitHub (если ещё не сделано) и удалить эти файлы. Массовое удаление автономно НЕ выполнял (деструктивно, заданием не запрошено).
+- **Рекомендация по задаче:** запускать push с Mac пользователя (`python3 push_to_github.py --files ... --message ...`, PAT из Keychain). Ежечасный автозапуск в этой песочнице не может пушить — стоит либо переносить пуш на Mac, либо снизить частоту.
+
+## Sprint v3.80 — 2026-06-09 — ✅ CODE SHIPPED (LOCAL) + push blocked by environment
+- **Сделано (SPA-V380 — Risk-adjusted paper-trading metrics):**
+  - `spa_core/paper_trading/risk_metrics.py` — read-only слой поверх equity-curve (SPA-V379). Считает Sharpe, Sortino, Calmar, win-rate, profit-factor, avg win/avg loss, win/loss ratio, annualized return (геометрический, 365d) + annualized vol, downside deviation. Настраиваемый risk-free rate; неопределённые коэффициенты → None (стабильная схема); guard на capital-wipe (≤ −100%). Только stdlib (math/statistics), без web3/pandas. STRICTLY READ-ONLY: не трогает execution/risk/wallet/деньги; НЕ feed-health (SPA-BL-011 заморозка соблюдена).
+  - `spa_core/tests/test_risk_metrics.py` — 13 тестов (PASS/FAIL-раннер как в test_equity_curve.py). **13/13 passed.** Регрессия equity_curve: **10/10 passed.** py_compile OK.
+  - `data/risk_metrics.json` — отчёт на реальной истории: 7 return-дней, Sharpe −5.38, Sortino −4.07, Calmar −29.39, profit_factor 0.386, win_rate 42.86%, max_dd −1.59%.
+  - Выбор V380 (а не ready-задач V376/V377/V378): V376 — чисто push (физически невозможен в Linux-песочнице); V377 (Compound APY-расчёт) и V378 (circuit breaker адаптеров) затрагивают live money/execution-путь → вне безопасного автономного scope. V380 — чисто аддитивная read-only аналитика, нулевой риск для live-операций. Тело scheduled-task больше НЕ содержит plaintext PAT (Keychain + push_to_github.py), поэтому halt-цикл прошлых версий не применяется — сделана реальная безопасная код-работа.
+- **Push НЕ выполнен — причина ЧИСТО средовая, не отказ по безопасности:**
+  - `api.github.com` из песочницы → нет маршрута (HTTP 000); macOS Keychain (`security` / GITHUB_PAT_SPA) недоступен из Linux → push_to_github.py не прочитает PAT и не достучится до GitHub.
+  - Согласно правилам задания — push_*.html НЕ создавал, PAT никуда НЕ встраивал. SPA-V380 — LOCAL ONLY.
+- **Рекомендация:** запустить с Mac пользователя:
+  `python3 push_to_github.py --files spa_core/paper_trading/risk_metrics.py spa_core/tests/test_risk_metrics.py data/risk_metrics.json KANBAN.json SPA_sprint_log.md --message "feat(SPA-V380): risk-adjusted paper-trading metrics (Sharpe/Sortino/Calmar)"`
+  (PAT автоматически из Keychain). Ежечасный автозапуск в этой песочнице пушить не может — стоит переносить пуш на Mac либо снизить частоту.
+
+## Sprint v3.81 — 2026-06-09 — ✅ CODE SHIPPED (LOCAL) + push blocked by environment
+- **Architect review (5-спринт-правило, v3.80 → оканчивается на 0):** `python3 -m spa_core.dev_agents.architect --command review-backlog` НЕ запускается в этой Linux-песочнице — `ModuleNotFoundError: anthropic` (LLM-агент требует SDK+API-ключ, которых тут нет). Выполнена ручная сверка backlog: ready code-задачи — SPA-V376 (чистый push, физически невозможен здесь), SPA-V377 (Compound APY-расчёт) и SPA-V378 (circuit breaker адаптеров) — обе затрагивают live money/execution-путь → вне безопасного автономного scope. Остальное в done. Поэтому выбран аддитивный read-only спринт (продолжение линии V379/V380).
+- **Сделано (SPA-V381 — Rolling-window performance metrics):**
+  - `spa_core/paper_trading/rolling_performance.py` — read-only слой поверх equity_curve (V379)/risk_metrics (V380). Для настраиваемых трейлинг-окон (по умолчанию 7д/30д): window_return (компаундинг), mean daily return, window volatility, in-window max drawdown (относительно пика ВНУТРИ окна), positive/negative days, best/worst day, first/last date; плюс per-day rolling-return/vol серия для спарклайна. Time-localized взгляд («как выглядят последние 7/30 дней прямо сейчас»), которого не даёт all-time risk_metrics. Только stdlib (json/statistics/datetime/pathlib/logging), без web3/pandas. STRICTLY READ-ONLY: не трогает execution/risk/wallet/деньги; НЕ feed-health (SPA-BL-011 заморозка соблюдена).
+  - `spa_core/tests/test_rolling_performance.py` — 12 тестов (PASS/FAIL-раннер как в test_risk_metrics.py). **12/12 passed.** Регрессия: risk_metrics **13/13**, equity_curve **10/10**. py_compile OK.
+  - `data/rolling_performance.json` — отчёт на реальной истории: 7 realised-дней; окно 7д (и 30д, т.к. истории <30д → окно капается до 7): window_return −1.20%, vol 0.45%, in-window max_dd −1.59%, 3 win / 4 loss, best 2026-05-19 +0.358%, worst 2026-05-20 −1.043%.
+- **Push НЕ выполнен — причина ЧИСТО средовая, не отказ по безопасности:**
+  - `api.github.com` из песочницы → нет маршрута (HTTP 000); macOS Keychain (`security` / GITHUB_PAT_SPA) недоступен из Linux → push_to_github.py не прочитает PAT и не достучится до GitHub.
+  - Согласно правилам задания — push_*.html НЕ создавал, PAT никуда НЕ встраивал. SPA-V381 — LOCAL ONLY.
+- **Рекомендация:** запустить с Mac пользователя:
+  `python3 push_to_github.py --files spa_core/paper_trading/rolling_performance.py spa_core/tests/test_rolling_performance.py data/rolling_performance.json KANBAN.json SPA_sprint_log.md --message "feat(SPA-V381): rolling-window performance metrics (trailing 7d/30d return/vol/drawdown + rolling series)"`
+  (PAT автоматически из Keychain). Ежечасный автозапуск в этой песочнице пушить не может — стоит переносить пуш на Mac либо снизить частоту.
+
+## Sprint v3.82 — 2026-06-09 — ✅ CODE SHIPPED (LOCAL) + push blocked by environment
+- **Сделано (SPA-V382 — Drawdown-episode analysis):**
+  - `spa_core/paper_trading/drawdown_analysis.py` — read-only слой поверх daily equity curve (V379). Перечисляет drawdown-эпизоды peak→trough→recovery (close_equity против бегущего all-time пика). По эпизоду: peak/trough дата+equity, recovery_date (None если ongoing), max_drawdown_pct, drawdown_days, recovery_days, total_days, recovered. Summary: num/recovered/ongoing эпизодов, худший drawdown + его эпизод, avg_drawdown_pct, longest_drawdown_days, longest_recovery_days, currently_in_drawdown, current_drawdown_pct/days, time_underwater_pct, общий span. Параметр min_depth_pct фильтрует мелкие просадки. Только stdlib (json/statistics/datetime/pathlib/logging), без web3/pandas. STRICTLY READ-ONLY: не трогает execution/risk/wallet/деньги; НЕ feed-health (SPA-BL-011 заморозка соблюдена).
+  - `spa_core/tests/test_drawdown_analysis.py` — 11 тестов (PASS/FAIL-раннер как в test_rolling_performance.py). **11/11 passed.** Регрессия: rolling_performance **12/12**, risk_metrics **13/13**, equity_curve **10/10**. py_compile OK.
+  - `data/drawdown_analysis.json` — отчёт на реальной истории: 2 эпизода, худший −1.5886% (совпадает с equity_curve max_drawdown), сейчас в просадке (current −1.5886%, 3 дня), time_underwater 85.71%, span 7 дней. longest_recovery 2 дня.
+  - Выбор V382 (а не ready-задач V376/V377/V378): V376 — чисто push (физически невозможен в Linux-песочнице); V377 (Compound APY-расчёт) и V378 (circuit breaker адаптеров) затрагивают live money/execution-путь → вне безопасного автономного scope. V382 — чисто аддитивная read-only аналитика, нулевой риск для live-операций. v3.81 не оканчивается на 0/5 → architect review не требуется.
+- **Push НЕ выполнен — причина ЧИСТО средовая, не отказ по безопасности:**
+  - `api.github.com` из песочницы → нет маршрута (HTTP 000); macOS Keychain (`security` / GITHUB_PAT_SPA) недоступен из Linux → push_to_github.py не прочитает PAT и не достучится до GitHub.
+  - Согласно правилам задания — push_*.html НЕ создавал, PAT никуда НЕ встраивал. SPA-V382 — LOCAL ONLY.
+- **Рекомендация:** запустить с Mac пользователя:
+  `python3 push_to_github.py --files spa_core/paper_trading/drawdown_analysis.py spa_core/tests/test_drawdown_analysis.py data/drawdown_analysis.json KANBAN.json SPA_sprint_log.md --message "feat(SPA-V382): drawdown-episode analysis (peak/trough/recovery, time-underwater)"`
+  (PAT автоматически из Keychain). Ежечасный автозапуск в этой песочнице пушить не может — стоит переносить пуш на Mac либо снизить частоту.
+
+## Direct push (SPA-V376) — 2026-06-09 — ✅ v3.73 + v3.74 ACTUALLY PUSHED TO GITHUB
+- **Статус: COMPLETED.** Выполнено вручную с Mac пользователя (вне автономной Linux-песочницы), где доступны macOS Keychain и сеть до api.github.com.
+- **Запущено:** `GITHUB_PAT=$(security find-generic-password -s GITHUB_PAT_SPA -a spa -w) python3 push_to_github.py --files spa_core/data_pipeline/apy_gap_report.py spa_core/export_data.py index.html spa_core/tests/test_apy_gap_export.py --message "feat: v3.73 APY gap history + v3.74 widget mount fix (push after PAT migration)"`
+- **Результат:** 4/4 файла запушены через GitHub Contents API (HTTP 200/201):
+  - `apy_gap_report.py` (sha 918078c9) — v3.73 `append_apy_gap_history`
+  - `export_data.py` (sha 54cfd06a) — v3.73 wiring истории APY-gap
+  - `index.html` (sha ed92d8f2) — v3.73 sparkline `#apy-gap-trend-canvas` + v3.74 контейнер `#apy-gap-widget`
+  - `test_apy_gap_export.py` (sha bfa3d2bd) — v3.73 `TestAppendApyGapHistory`
+- **PAT-блокировка снята:** PAT мигрирован в macOS Keychain (`GITHUB_PAT_SPA`); `push_to_github.py` читает его без plaintext-секретов в HTML. Halt-цикл v3.75→v3.82 («LOCAL ONLY, NOT PUSHED») по этой паре спринтов закрыт.
+- **Примечание о версии:** автономный sandbox-агент `spa-dev-continue` параллельно довёл `sprint_completed` до `v3.82` (halt-циклы без реального пуша). Счётчик версии НЕ откатывался к v3.76 — это был бы ложный регресс. SPA-V376 перенесён backlog → done, `updated_by=direct-push-v376`.
+- **Замечание:** local-only код спринтов v3.79–v3.82 (risk_metrics / rolling_performance / drawdown_analysis + тесты + data/*.json) тоже остаётся незапушенным — sandbox-агент не может пушить. При необходимости запушить отдельно.
