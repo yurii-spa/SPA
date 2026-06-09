@@ -1,119 +1,104 @@
 {
-  "generated_at": "2026-06-09T11:44:34.041691+00:00",
+  "generated_at": "2026-05-28T07:15:52.429488+00:00",
   "verdict": "NOT_READY",
-  "verdict_emoji": "\ud83d\udd34",
-  "days_remaining": 35,
+  "verdict_emoji": "🔴",
+  "days_remaining": 47,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
-  "summary": "6/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 3 failing (Strategy Sharpe, Strategy Tournament, Agent Stability); 1 warning (APY Gap)",
+  "summary": "6/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 2 failing (Data Freshness, Agent Stability); 2 warning (Strategy Tournament, APY Gap)",
   "criteria": [
     {
       "name": "Paper Duration",
       "status": "PENDING",
-      "value": 20,
+      "value": 8,
       "threshold": 56,
-      "note": "20/56 days elapsed \u2014 keep paper trading"
+      "note": "8/56 days elapsed — keep paper trading"
     },
     {
       "name": "PnL Positive",
       "status": "PASS",
-      "value": 172.94,
+      "value": 13.42,
       "threshold": 0,
-      "note": "+$172.94 (+0.17%)"
+      "note": "+$13.42 (+0.01%)"
     },
     {
       "name": "No Critical Alerts",
       "status": "PASS",
       "value": 0,
       "threshold": 0,
-      "note": "0 critical alerts (1 warnings)"
+      "note": "0 critical alerts"
     },
     {
       "name": "Strategy Sharpe",
-      "status": "FAIL",
-      "value": -18.7241,
+      "status": "PASS",
+      "value": 24.7594,
       "threshold": 2.0,
-      "note": "Sharpe: -18.72 \u2014 below minimum 2.0"
+      "note": "Sharpe: 24.76 ≥ 2.0"
     },
     {
       "name": "Policy v1.0",
       "status": "PASS",
       "value": "v1.0",
       "threshold": "v1.0",
-      "note": "RiskConfig v1.0 active \u2014 no unapproved changes"
+      "note": "RiskConfig v1.0 active — no unapproved changes"
     },
     {
       "name": "Max Drawdown",
       "status": "PASS",
       "value": 0.0,
       "threshold": 0.05,
-      "note": "0.00% \u2264 3.0% threshold"
+      "note": "0.00% ≤ 3.0% threshold"
     },
     {
       "name": "Diversification",
       "status": "PASS",
       "value": {
-        "protocols": 3,
-        "max_concentration": 0.4
+        "protocols": 5,
+        "max_concentration": 0.3
       },
       "threshold": {
         "min_protocols": 2,
         "max_single_pct": 0.45
       },
-      "note": "3 protocols, max concentration 40% (aave-v3-usdc-ethereum)"
+      "note": "5 protocols, max concentration 30% (aave-v3)"
     },
     {
       "name": "Data Freshness",
-      "status": "PASS",
-      "value": "0.0h ago",
+      "status": "FAIL",
+      "value": "146.1h ago",
       "threshold": "< 6h",
-      "note": "Updated 0.0h ago"
+      "note": "Data is 146.1h old — stale (threshold: 12h)"
     },
     {
       "name": "Wallet Ready",
       "status": "PENDING",
       "value": "not_verified",
       "threshold": "manual_setup",
-      "note": "Manual setup required \u2014 run: python -m spa_core.golive.approve_wallet  (SPA-F003). Complete Section B of docs/v2_activation_checklist.md: Gnosis Safe creation, hot wallet setup, Safe delegate configuration, and GitHub Secrets (SAFE_ADDRESS, WALLET_ADDRESS)."
+      "note": "Manual setup required — run: python -m spa_core.golive.approve_wallet  (SPA-F003). Complete Section B of docs/v2_activation_checklist.md: Gnosis Safe creation, hot wallet setup, Safe delegate configuration, and GitHub Secrets (SAFE_ADDRESS, WALLET_ADDRESS)."
     },
     {
       "name": "Strategy Tournament",
-      "status": "FAIL",
-      "value": {
-        "winner": "v2_aggressive",
-        "v1_score": 0.15,
-        "v2_score": 0.85,
-        "v3_score": 0.0
-      },
+      "status": "WARN",
+      "value": "unavailable",
       "threshold": "v1_passive or v3_pendle_focused winning or tied",
-      "note": "v2_aggressive WINNING (confidence: HIGH) \u2014 conservative strategies losing (scores: v1=0.150, v2=0.850, v3=0.000)"
+      "note": "Tournament data unavailable — cannot evaluate"
     },
     {
       "name": "APY Gap",
       "status": "WARN",
       "value": null,
       "threshold": "within 2.0% of 7.3% target",
-      "note": "APY data unavailable \u2014 cannot evaluate (no analytics or portfolio data)"
+      "note": "APY data unavailable — cannot evaluate (no analytics or portfolio data)"
     },
     {
       "name": "Agent Stability",
       "status": "FAIL",
-      "value": 0.0,
+      "value": 8.3,
       "threshold": 28,
-      "note": "0.0/28 days stable \u2014 need 28.0 more days (23 prior failure(s))"
+      "note": "8.3/28 days stable — need 19.7 more days"
     }
   ],
-  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (36 days away). Review again after 2026-07-15.",
-  "owner_action_required": false,
-  "criteria_passed": 6,
-  "criteria_total": 12,
-  "blocking_criteria": [
-    "Paper Duration",
-    "Strategy Sharpe",
-    "Wallet Ready",
-    "Strategy Tournament",
-    "Agent Stability"
-  ],
-  "next_check_date": "2026-06-10"
+  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (48 days away). Review again after 2026-07-15.",
+  "owner_action_required": false
 }
