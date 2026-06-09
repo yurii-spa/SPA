@@ -7,9 +7,9 @@ SPA CEO Agent (M4)
 
 Логика:
   1. Проверяет HEALTH_ALERT — если CRITICAL, блокирует новые позиции
-  2. Читает STRATEGY_SIGNAL — оценивает рекомендации стратегии Strategy Agent
+  2. Читает STRATEGY_SIGNAL — оценивает рекомендации Strategy Agent
   3. Публикует TRADE_DECISION для каждой одобренной рекомендации
-  4. Решение финализируется в  PaperTrader.open_position() через Risk Policy
+  4. Решение финализируется в PaperTrader.open_position() через Risk Policy
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from message_bus.topics import Priority, Topic, trade_decision_payload
 
 class CEOAgent(BaseAgent):
     """
-    CEO Agent — решение и финальный decision maker.
+    CEO Agent — координатор и финальный decision maker.
     Не обходит Risk Policy — финальная проверка в PaperTrader.
     """
 
