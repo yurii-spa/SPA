@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-09T16:30:00+00:00",
-  "updated_by": "architect-agent (Eisenhower review V385-V390)",
+  "last_updated": "2026-06-09",
+  "updated_by": "architect-review 2026-06-09 (Eisenhower sprint planning, V384/V391-V393 added on top of autonomous V385-V390)",
   "_v374_pushed_to_repo": false,
   "_v374_push_held_reason": "Push DELIBERATELY held (same standing reason as v368->v373). The only sanctioned push method (push_v*.html -> http://localhost:8765 -> Chrome navigate) requires embedding the live, KNOWN-LEAKED GitHub PAT (ghp_REDACTED) in plaintext into a new HTML file. That credential already sits in plaintext in the scheduled-task body and in 63 existing push_v*.html files on disk, un-rotated across cycles v368->v374. Re-exposing a known-leaked secret autonomously is not done. SPA-V374 landed LOCALLY ONLY. ACTION REQUIRED: revoke the PAT in GitHub, reissue into a secret store, then push.",
   "_v374_dispatch_note": "v3.74 (SPA-V374) — LOCAL ONLY, NOT PUSHED. REAL bug fix (not cosmetic accretion): restored the missing #apy-gap-widget DOM container in index.html. The SPA-V372 dispatch note claimed it 'added #apy-gap-widget container' but the element was in fact never present; renderApyGapWidget() (defined + called in loadGoLive) therefore did getElementById('apy-gap-widget') -> null -> silent no-op for two full cycles (v3.72, v3.73). v3.73 explicitly flagged this latent bug as out-of-scope. Fix: one element <div id=\"apy-gap-widget\" style=\"display:none\"> inserted between #combined-trend-wrap and #apy-gap-trend-wrap; the function manages its own show/hide. No JS changes — renderApyGapWidget was already correct, it just had no mount point. NOT money-moving (eth_signer/mev_protection/adapters untouched); NOT a feed-health monitor (SPA-BL-011 freeze respected); pure presentation-layer mount-point fix. Tests: node --check all inline index.html JS -> JS_SYNTAX_OK; braces 1702/1702, parens 2825/2825, brackets 324/324 balanced; container present exactly once; DOM-stub smoke 4/4 (valid data -> display:block + 'APY GAP TO TARGET' header + correct remaining-gap %; null -> hidden; garbage -> never throws + hidden; on_track:true -> 'ON TRACK' chip + block). Backups .bak.v374 (index.html, KANBAN.json, SPA_sprint_log.md). v3.73 does not end in 0/5 -> no architect review. ORCHESTRATOR ESCALATION: this loop is degenerate. Every unblocked HIGH item has been done since ~v3.52; the go-live critical path (2026-07-15) is user-action-blocked (SPA-BL-012; secrets SPA-BL-007/008/009, BL-004/005/006); feed-health is frozen (SPA-BL-011); money-moving is out of autonomous scope. With those blocks in place the agent can only produce small local-only frontend fixes that cannot even be pushed. TOP PRIORITY USER ACTIONS: (1) ROTATE the leaked PAT (revoke ghp_... in GitHub, move to a secret store) — it is exposed in 63 on-disk push files + the task body; (2) clear the user-action blockers so real go-live work can resume; (3) reconsider the 'status pass forbidden' rule — without unblocking, mandated work is cosmetic-only.",
@@ -476,8 +476,49 @@
         "title": "Circuit breaker + health watchdog for all adapters",
         "priority": "MEDIUM",
         "type": "code",
+        "status": "superseded",
+        "description": "Add circuit_breaker.py that tracks adapter failure rates and disables unhealthy adapters automatically.",
+        "superseded_by": "SPA-V392"
+      },
+      {
+        "id": "SPA-V384",
+        "title": "Live Execution E2E Validation Harness (mainnet-fork / anvil, dry-run)",
+        "priority": "CRITICAL",
+        "type": "code",
         "status": "ready",
-        "description": "Add circuit_breaker.py that tracks adapter failure rates and disables unhealthy adapters automatically."
+        "eisenhower": "urgent-important",
+        "estimated_files": 4,
+        "description": "Прогнать полный live-путь router → safety_checks → adapter против форка mainnet (anvil или публичный fork-RPC) в dry-run, БЕЗ реального капитала. Это единственный способ доказать, что execution-стек (eth_signer, wallet, mev_protection, 6 адаптеров) реально исполнит сделку до go-live 2026-07-15. Файлы: spa_core/execution/fork_harness.py, spa_core/tests/test_fork_execution_e2e.py, data/fork_validation.json (+ wire в safety_checks). Зависит: SPA-BL-007 (RPC keys) — деградирует на публичный fork-RPC если ключей нет."
+      },
+      {
+        "id": "SPA-V391",
+        "title": "Performance Recovery — Pendle PT ramp + backtest-validated allocation tuner",
+        "priority": "CRITICAL",
+        "type": "code",
+        "status": "ready",
+        "eisenhower": "urgent-important",
+        "estimated_files": 4,
+        "description": "Прямой удар по двум FAIL-критериям go-live: criterion 11 (APY gap 4.2%→7.3%, ~3.1pp FAIL) и criterion 2/4 (PnL>0 / Sharpe≥1.0 — сейчас Sharpe −5.38, win_rate 42.86%). Allocation tuner подбирает backtest-валидированный перевес Pendle PT (+ хук на Sky T1 upgrade при GSM≥48h) поверх существующих recommender/backtesting/tournament. Файлы: spa_core/paper_trading/allocation_tuner.py, spa_core/strategies/s4_pendle_ramp.py, spa_core/tests/test_allocation_tuner.py, data/allocation_plan.json. Зависит: SPA-V385 (backtester), SPA-V388 (allocator), optimization/recommender.py."
+      },
+      {
+        "id": "SPA-V392",
+        "title": "Circuit Breaker + Adapter Health Watchdog (consolidates SPA-V378)",
+        "priority": "HIGH",
+        "type": "code",
+        "status": "ready",
+        "eisenhower": "urgent-important",
+        "estimated_files": 4,
+        "description": "Единый детерминированный circuit_breaker.py: отслеживает failure-rate каждого адаптера/feed, авто-отключает нездоровые источники, интегрируется с safety_checks и kill-switch (max_drawdown_stop 5%). Обязательная защита перед live capital. Поглощает ready-задачу SPA-V378. Файлы: spa_core/execution/circuit_breaker.py, spa_core/execution/safety_checks.py (wire), spa_core/tests/test_circuit_breaker.py, data/circuit_breaker_state.json. LLM FORBIDDEN (execution-path). Зависит: SPA-V386 (health score)."
+      },
+      {
+        "id": "SPA-V393",
+        "title": "Investor-grade Reporting + Decision Audit Trail export (FEAT-003 / Phase 5)",
+        "priority": "MEDIUM",
+        "type": "code",
+        "status": "ready",
+        "eisenhower": "important-not-urgent",
+        "estimated_files": 4,
+        "description": "Реализует Phase 5 (FEAT-003): ежедневный investor report с PnL-attribution по протоколам, таблицей risk-grade из scoring_engine (A/B/C/D) и audit trail из decision_logger. Нужен для go-live verdict review 2026-07-15 и доверия владельца. Файлы: spa_core/reports/investor_report.py, spa_core/reports/pnl_attribution.py, spa_core/tests/test_investor_report.py, data/investor_report.json. Зависит: reports/pdf_generator.py, risk/scoring_engine.py, agents/decision_logger.py."
       }
     ],
     "in_progress": [],
@@ -3047,5 +3088,7 @@
   "_v383_dispatch_note": "SPA-V383 return_distribution.py shipped LOCAL ONLY (v3.83). Push blocked by sandbox env (no net + no Keychain). Run from Mac: python3 push_to_github.py --files spa_core/paper_trading/return_distribution.py spa_core/tests/test_return_distribution.py data/return_distribution.json KANBAN.json SPA_sprint_log.md --message \"feat(SPA-V383): return-distribution + historical VaR/CVaR analytics\"",
   "_v383_push_held_reason": "sandbox: api.github.com HTTP 000 + macOS Keychain unavailable in Linux. No push_*.html created (task rule). LOCAL ONLY.",
   "_v384_dispatch_note": "SPA-V384 calendar/periodic returns + streak analysis (monthly/weekly compounding, day-of-week seasonality, win/loss streaks). Read-only over equity_curve (V379). 10/10 tests pass; full regression green (60/60 across 6 paper_trading modules). LOCAL ONLY — push env-blocked (no GitHub route + no Keychain in Linux sandbox).",
-  "_v384_push_held_reason": "environment: api.github.com unreachable (HTTP 000) and macOS Keychain (GITHUB_PAT_SPA) unavailable in Linux sandbox; push_to_github.py cannot run here. No push_*.html created, no PAT embedded."
+  "_v384_push_held_reason": "environment: api.github.com unreachable (HTTP 000) and macOS Keychain (GITHUB_PAT_SPA) unavailable in Linux sandbox; push_to_github.py cannot run here. No push_*.html created, no PAT embedded.",
+  "_v384_390_dispatch_note": "Architect review 2026-06-09: codebase mature (backtesting/strategy/execution/PG all exist). Added 7 go-live-hardening sprints V384-V390 prioritized by Eisenhower matrix. Removed SPA-BL-013 (PAT rotated, in Keychain). SPA-V378 superseded by SPA-V389.",
+  "_v391_393_dispatch_note": "Architect review 2026-06-09 (interactive): codebase confirmed mature (backtesting/strategy/execution/PG-migration all exist). Concurrent autonomous cycle had populated V385-V390; preserved them. Added unique go-live-hardening sprints V384 (live E2E fork harness), V391 (perf recovery / APY-gap+Sharpe), V392 (circuit breaker, absorbs V378), V393 (investor reporting / FEAT-003). Removed SPA-BL-013 (PAT rotated, in Keychain)."
 }
