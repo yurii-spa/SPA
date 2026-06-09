@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-30T02:17:43.862209+00:00",
+  "window_days": 90,
+  "min_observations": 7,
+  "source": "synthetic_fallback",
+  "history_store": "data/apy_history.json",
+  "history_bridged": false,
+  "protocols": {},
+  "covariance_matrix": {},
+  "correlation_matrix": {}
+}
