@@ -252,10 +252,17 @@ class TestExecutionGuard(unittest.TestCase):
         with self.assertRaises(M.MigrationExecutionBlocked):
             M.execute_migration(self.plan, "postgresql://x/y", i_understand_this_writes_data=True)
 
-    def test_not_implemented_when_fully_opted_in(self):
+    def test_dry_run_when_fully_opted_in(self):
+        # V341: fully opted in now performs a dry run (no NotImplementedError).
+        # Default dry_run=True returns a plan dict and never connects/writes.
         os.environ["SPA_PG_MIGRATION_EXECUTE"] = "1"
-        with self.assertRaises(NotImplementedError):
-            M.execute_migration(self.plan, "postgresql://x/y", i_understand_this_writes_data=True)
+        res = M.execute_migration(
+            self.plan, "postgresql://x/y", i_understand_this_writes_data=True
+        )
+        self.assertTrue(res["dry_run"])
+        self.assertFalse(res["committed"])
+        self.assertIn("ddl_statements", res)
+        self.assertIn("copy_order", res)
 
 
 class TestCLI(unittest.TestCase):
