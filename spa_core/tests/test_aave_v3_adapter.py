@@ -84,12 +84,21 @@ class TestSupply:
         with pytest.raises(ValueError, match="Invalid amount"):
             adapter.supply("USDC", -100.0)
 
-    def test_live_mode_returns_not_implemented(self, live_adapter):
-        """dry_run=False must short-circuit to NOT_IMPLEMENTED, never raise."""
+    def test_live_mode_returns_not_implemented(self, live_adapter, monkeypatch):
+        """dry_run=False without SPA_EXECUTION_MODE=live must short-circuit.
+
+        Phase 3 contract: write methods short-circuit to BLOCKED when the
+        execution-mode env flag is unset (no live tx ever attempted). The
+        legacy ``NOT_IMPLEMENTED`` status is treated as an equivalent
+        short-circuit for backward-compat — both signal "we did not
+        broadcast a transaction".
+        """
+        monkeypatch.delenv("SPA_EXECUTION_MODE", raising=False)
         result = live_adapter.supply("USDC", 500.0)
-        assert result["status"] == "NOT_IMPLEMENTED"
-        assert result["tx_hash"] is None
+        assert result["status"] in ("NOT_IMPLEMENTED", "BLOCKED")
         assert result["asset"] == "USDC"
+        # tx_hash key is gone in Phase 3; either absent or None is fine.
+        assert result.get("tx_hash") is None
 
 
 # ─── TestWithdraw ─────────────────────────────────────────────────────────────
