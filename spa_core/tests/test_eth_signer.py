@@ -69,6 +69,25 @@ class TestGetAddress:
         with pytest.raises(ValueError):
             get_address_from_private_key("0x" + "ab" * 10)  # only 20 bytes
 
+    def test_private_key_prefix_strip_preserves_leading_zero(self):
+        """v3.54 regression: pk with leading zero after 0x must keep the zero.
+
+        The pk-normalisation path must strip ONLY the 0x prefix, not leading
+        0/x chars. A pk like 0x00ab... must yield the same 32-byte key — and
+        thus the same address — as the bare form 00ab... Previously
+        `.lstrip("0x")` ate the leading "00", corrupting the key.
+        """
+        from spa_core.execution.eth_signer import get_address_from_private_key
+        pk_with_prefix = "0x" + "00" + "ab" * 31   # 64 hex chars after 0x
+        pk_bare = "00" + "ab" * 31                  # identical 64 hex, no prefix
+        assert len(pk_bare) == 64
+        addr_with_prefix = get_address_from_private_key(pk_with_prefix)
+        addr_bare = get_address_from_private_key(pk_bare)
+        # Leading zero preserved → both forms derive the same address.
+        assert addr_with_prefix == addr_bare
+        assert addr_with_prefix.startswith("0x")
+        assert len(addr_with_prefix) == 42
+
 
 # ─── 2. sign_transaction ──────────────────────────────────────────────────────
 
@@ -229,3 +248,40 @@ class TestEncodeFunctionCall:
         # True → 0x0...01, False → 0x0...00
         assert data[4:36] == (1).to_bytes(32, "big")
         assert data[36:68] == (0).to_bytes(32, "big")
+
+
+def test_private_key_prefix_strip_preserves_leading_zero():
+    """v3.54 regression: 0x-prefixed pk with a leading zero nibble is preserved.
+
+    Same defect class as the v3.53 selector bug: the inline
+    private_key_hex.lstrip('0x') on the signing/pk paths (lines ~105/143/201)
+    stripped ANY leading 0/x chars, eating significant leading zeros after the
+    0x prefix (e.g. 0x00ab... -> ab...), shortening the key below 32 bytes.
+    """
+    body = "00" + "ab" * 31  # 64 hex chars, leading zero is significant
+    prefixed = "0x" + body
+
+    b_prefixed = eth_signer._pk_to_bytes(prefixed)
+    b_plain = eth_signer._pk_to_bytes(body)
+
+    # leading zero byte must survive the prefix strip
+    assert len(b_prefixed) == 32
+    assert b_prefixed == b_plain
+    assert b_prefixed.hex() == body
+    assert b_prefixed[0] == 0  # leading zero byte preserved
+    assert b_prefixed.hex().startswith("00")
+
+
+def test_private_key_upper_prefix_strip_preserves_leading_zero():
+    """0X (uppercase) prefix is also stripped, leading zeros preserved."""
+    body = "00" + "cd" * 31
+    b_upper = eth_signer._pk_to_bytes("0X" + body)
+    assert len(b_upper) == 32
+    assert b_upper.hex() == body
+
+
+def test_private_key_strip_does_not_eat_zeros_via_helper():
+    """_strip_hex_prefix on a pk-shaped value keeps every leading zero."""
+    body = "00" + "ef" * 31
+    assert eth_signer._strip_hex_prefix("0x" + body) == body
+    assert len(eth_signer._strip_hex_prefix("0x" + body)) == 64
