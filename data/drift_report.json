@@ -1,18 +1,9 @@
 {
-  "timestamp": "2026-06-09T11:43:46.711425+00:00",
-  "needs_rebalance": false,
+  "timestamp": "2026-06-09T19:35:25.074801+00:00",
+  "needs_rebalance": true,
   "positions": [
     {
-      "protocol": "maple-usdc-ethereum",
-      "current_pct": 20.0,
-      "target_pct": 20.0,
-      "drift_pct": 0.0,
-      "drift_usd": 0.0,
-      "action": "OK",
-      "urgency": "LOW"
-    },
-    {
-      "protocol": "aave-v3-usdc-ethereum",
+      "protocol": "morpho-usdc-ethereum",
       "current_pct": 40.0,
       "target_pct": 40.0,
       "drift_pct": 0.0,
@@ -21,9 +12,9 @@
       "urgency": "LOW"
     },
     {
-      "protocol": "compound-v3-usdc-ethereum",
-      "current_pct": 35.0,
-      "target_pct": 35.0,
+      "protocol": "euler-v2-usdc-ethereum",
+      "current_pct": 20.0,
+      "target_pct": 20.0,
       "drift_pct": 0.0,
       "drift_usd": 0.0,
       "action": "OK",

@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "trade_id": "PT-20260609193524-7E8820",
+    "strategy_id": "paper-v1",
+    "timestamp_open": "2026-06-09T19:35:24.838964+00:00",
+    "timestamp_close": null,
+    "protocol_key": "euler-v2-usdc-ethereum",
+    "asset": "USDC",
+    "action": "OPEN",
+    "amount_usd": 20000.0,
+    "apy_at_open": 2.79861,
+    "net_apy_annualized": 2.79861,
+    "pnl_usd": null,
+    "reason": null
+  },
+  {
+    "trade_id": "PT-20260609193524-22642B",
+    "strategy_id": "paper-v1",
+    "timestamp_open": "2026-06-09T19:35:24.819903+00:00",
+    "timestamp_close": null,
+    "protocol_key": "morpho-usdc-ethereum",
+    "asset": "USDC",
+    "action": "OPEN",
+    "amount_usd": 40000.0,
+    "apy_at_open": 3.53882,
+    "net_apy_annualized": 3.53882,
+    "pnl_usd": null,
+    "reason": null
+  }
+]

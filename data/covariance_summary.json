@@ -1,189 +1,189 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-05-30T00:13:30.088745+00:00",
+  "generated_at": "2026-06-09T19:36:13.401874+00:00",
   "window_days": 90,
   "min_observations": 7,
   "source": "live",
-  "history_store": "../data/apy_history.json",
+  "history_store": "data/apy_history.json",
   "history_bridged": false,
   "protocols": {
     "aave-v3-usdc-ethereum": {
       "tier": "T1",
-      "n_obs": 81,
-      "mean_apy": 4.97,
-      "volatility_pp": 2.6122,
+      "n_obs": 71,
+      "mean_apy": 5.4812,
+      "volatility_pp": 2.3366,
       "fallback": false
     },
     "aave-v3-usdt-ethereum": {
       "tier": "T1",
-      "n_obs": 81,
-      "mean_apy": 5.27,
-      "volatility_pp": 2.6307,
+      "n_obs": 71,
+      "mean_apy": 4.607,
+      "volatility_pp": 1.9663,
       "fallback": false
     },
     "compound-v3-usdc-ethereum": {
       "tier": "T1",
-      "n_obs": 81,
-      "mean_apy": 3.8684,
-      "volatility_pp": 1.9976,
+      "n_obs": 71,
+      "mean_apy": 4.0459,
+      "volatility_pp": 2.0558,
       "fallback": false
     },
     "euler-v2-usdc-ethereum": {
       "tier": "T2",
-      "n_obs": 81,
-      "mean_apy": 6.7444,
-      "volatility_pp": 2.2337,
+      "n_obs": 71,
+      "mean_apy": 6.8084,
+      "volatility_pp": 2.3052,
       "fallback": false
     },
     "maple-usdc-ethereum": {
       "tier": "T2",
-      "n_obs": 81,
-      "mean_apy": 6.8546,
-      "volatility_pp": 2.982,
+      "n_obs": 71,
+      "mean_apy": 6.8917,
+      "volatility_pp": 3.1074,
       "fallback": false
     },
     "morpho-usdc-ethereum": {
       "tier": "T1",
-      "n_obs": 81,
-      "mean_apy": 4.4847,
-      "volatility_pp": 2.0708,
+      "n_obs": 71,
+      "mean_apy": 4.3745,
+      "volatility_pp": 2.1472,
       "fallback": false
     },
     "yearn-v3-usdc-ethereum": {
       "tier": "T2",
-      "n_obs": 81,
-      "mean_apy": 7.0545,
-      "volatility_pp": 2.1902,
+      "n_obs": 71,
+      "mean_apy": 7.1241,
+      "volatility_pp": 2.224,
       "fallback": false
     }
   },
   "covariance_matrix": {
     "aave-v3-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": 6.82367433,
-      "aave-v3-usdt-ethereum": -2.46604423,
-      "compound-v3-usdc-ethereum": -1.11005427,
-      "euler-v2-usdc-ethereum": -1.07154647,
-      "maple-usdc-ethereum": -2.09742833,
-      "morpho-usdc-ethereum": -0.95514079,
-      "yearn-v3-usdc-ethereum": 1.68539538
+      "aave-v3-usdc-ethereum": 5.45984217,
+      "aave-v3-usdt-ethereum": -0.15471412,
+      "compound-v3-usdc-ethereum": -1.96985275,
+      "euler-v2-usdc-ethereum": -1.62451189,
+      "maple-usdc-ethereum": -2.41216042,
+      "morpho-usdc-ethereum": -0.54011835,
+      "yearn-v3-usdc-ethereum": 1.71201946
     },
     "aave-v3-usdt-ethereum": {
-      "aave-v3-usdc-ethereum": -2.46604423,
-      "aave-v3-usdt-ethereum": 6.92044903,
-      "compound-v3-usdc-ethereum": -0.45555691,
-      "euler-v2-usdc-ethereum": 0.72757852,
-      "maple-usdc-ethereum": -1.25567574,
-      "morpho-usdc-ethereum": -0.64268569,
-      "yearn-v3-usdc-ethereum": 0.78717155
+      "aave-v3-usdc-ethereum": -0.15471412,
+      "aave-v3-usdt-ethereum": 3.86619912,
+      "compound-v3-usdc-ethereum": 0.46134325,
+      "euler-v2-usdc-ethereum": 1.22422192,
+      "maple-usdc-ethereum": -1.03902314,
+      "morpho-usdc-ethereum": -1.15463111,
+      "yearn-v3-usdc-ethereum": 1.42845666
     },
     "compound-v3-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -1.11005427,
-      "aave-v3-usdt-ethereum": -0.45555691,
-      "compound-v3-usdc-ethereum": 3.99044303,
-      "euler-v2-usdc-ethereum": 0.133544,
-      "maple-usdc-ethereum": 1.89859755,
-      "morpho-usdc-ethereum": 0.83498984,
-      "yearn-v3-usdc-ethereum": -0.02637279
+      "aave-v3-usdc-ethereum": -1.96985275,
+      "aave-v3-usdt-ethereum": 0.46134325,
+      "compound-v3-usdc-ethereum": 4.22614457,
+      "euler-v2-usdc-ethereum": 0.13624335,
+      "maple-usdc-ethereum": 2.01136613,
+      "morpho-usdc-ethereum": 1.09563909,
+      "yearn-v3-usdc-ethereum": -0.22371131
     },
     "euler-v2-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -1.07154647,
-      "aave-v3-usdt-ethereum": 0.72757852,
-      "compound-v3-usdc-ethereum": 0.133544,
-      "euler-v2-usdc-ethereum": 4.98946956,
-      "maple-usdc-ethereum": -0.86305037,
-      "morpho-usdc-ethereum": -0.34609609,
-      "yearn-v3-usdc-ethereum": 1.17725283
+      "aave-v3-usdc-ethereum": -1.62451189,
+      "aave-v3-usdt-ethereum": 1.22422192,
+      "compound-v3-usdc-ethereum": 0.13624335,
+      "euler-v2-usdc-ethereum": 5.31382319,
+      "maple-usdc-ethereum": -0.98043296,
+      "morpho-usdc-ethereum": -0.30653116,
+      "yearn-v3-usdc-ethereum": 1.22623105
     },
     "maple-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -2.09742833,
-      "aave-v3-usdt-ethereum": -1.25567574,
-      "compound-v3-usdc-ethereum": 1.89859755,
-      "euler-v2-usdc-ethereum": -0.86305037,
-      "maple-usdc-ethereum": 8.8923173,
-      "morpho-usdc-ethereum": 0.86311003,
-      "yearn-v3-usdc-ethereum": -1.10982291
+      "aave-v3-usdc-ethereum": -2.41216042,
+      "aave-v3-usdt-ethereum": -1.03902314,
+      "compound-v3-usdc-ethereum": 2.01136613,
+      "euler-v2-usdc-ethereum": -0.98043296,
+      "maple-usdc-ethereum": 9.65571774,
+      "morpho-usdc-ethereum": 0.8282947,
+      "yearn-v3-usdc-ethereum": -1.74791092
     },
     "morpho-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -0.95514079,
-      "aave-v3-usdt-ethereum": -0.64268569,
-      "compound-v3-usdc-ethereum": 0.83498984,
-      "euler-v2-usdc-ethereum": -0.34609609,
-      "maple-usdc-ethereum": 0.86311003,
-      "morpho-usdc-ethereum": 4.28830971,
-      "yearn-v3-usdc-ethereum": -0.11282606
+      "aave-v3-usdc-ethereum": -0.54011835,
+      "aave-v3-usdt-ethereum": -1.15463111,
+      "compound-v3-usdc-ethereum": 1.09563909,
+      "euler-v2-usdc-ethereum": -0.30653116,
+      "maple-usdc-ethereum": 0.8282947,
+      "morpho-usdc-ethereum": 4.61033511,
+      "yearn-v3-usdc-ethereum": -0.22033179
     },
     "yearn-v3-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": 1.68539538,
-      "aave-v3-usdt-ethereum": 0.78717155,
-      "compound-v3-usdc-ethereum": -0.02637279,
-      "euler-v2-usdc-ethereum": 1.17725283,
-      "maple-usdc-ethereum": -1.10982291,
-      "morpho-usdc-ethereum": -0.11282606,
-      "yearn-v3-usdc-ethereum": 4.79676561
+      "aave-v3-usdc-ethereum": 1.71201946,
+      "aave-v3-usdt-ethereum": 1.42845666,
+      "compound-v3-usdc-ethereum": -0.22371131,
+      "euler-v2-usdc-ethereum": 1.22623105,
+      "maple-usdc-ethereum": -1.74791092,
+      "morpho-usdc-ethereum": -0.22033179,
+      "yearn-v3-usdc-ethereum": 4.94634815
     }
   },
   "correlation_matrix": {
     "aave-v3-usdc-ethereum": {
       "aave-v3-usdc-ethereum": 1.0,
-      "aave-v3-usdt-ethereum": -0.35886,
-      "compound-v3-usdc-ethereum": -0.212728,
-      "euler-v2-usdc-ethereum": -0.183643,
-      "maple-usdc-ethereum": -0.269259,
-      "morpho-usdc-ethereum": -0.176569,
-      "yearn-v3-usdc-ethereum": 0.29459
+      "aave-v3-usdt-ethereum": -0.033674,
+      "compound-v3-usdc-ethereum": -0.410083,
+      "euler-v2-usdc-ethereum": -0.301599,
+      "maple-usdc-ethereum": -0.332219,
+      "morpho-usdc-ethereum": -0.107655,
+      "yearn-v3-usdc-ethereum": 0.32944
     },
     "aave-v3-usdt-ethereum": {
-      "aave-v3-usdc-ethereum": -0.35886,
+      "aave-v3-usdc-ethereum": -0.033674,
       "aave-v3-usdt-ethereum": 1.0,
-      "compound-v3-usdc-ethereum": -0.086689,
-      "euler-v2-usdc-ethereum": 0.123819,
-      "maple-usdc-ethereum": -0.160067,
-      "morpho-usdc-ethereum": -0.117975,
-      "yearn-v3-usdc-ethereum": 0.136624
+      "compound-v3-usdc-ethereum": 0.114133,
+      "euler-v2-usdc-ethereum": 0.270094,
+      "maple-usdc-ethereum": -0.170056,
+      "morpho-usdc-ethereum": -0.273486,
+      "yearn-v3-usdc-ethereum": 0.32665
     },
     "compound-v3-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -0.212728,
-      "aave-v3-usdt-ethereum": -0.086689,
+      "aave-v3-usdc-ethereum": -0.410083,
+      "aave-v3-usdt-ethereum": 0.114133,
       "compound-v3-usdc-ethereum": 1.0,
-      "euler-v2-usdc-ethereum": 0.029929,
-      "maple-usdc-ethereum": 0.318724,
-      "morpho-usdc-ethereum": 0.201849,
-      "yearn-v3-usdc-ethereum": -0.006028
+      "euler-v2-usdc-ethereum": 0.02875,
+      "maple-usdc-ethereum": 0.314867,
+      "morpho-usdc-ethereum": 0.248216,
+      "yearn-v3-usdc-ethereum": -0.04893
     },
     "euler-v2-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -0.183643,
-      "aave-v3-usdt-ethereum": 0.123819,
-      "compound-v3-usdc-ethereum": 0.029929,
+      "aave-v3-usdc-ethereum": -0.301599,
+      "aave-v3-usdt-ethereum": 0.270094,
+      "compound-v3-usdc-ethereum": 0.02875,
       "euler-v2-usdc-ethereum": 1.0,
-      "maple-usdc-ethereum": -0.129569,
-      "morpho-usdc-ethereum": -0.074822,
-      "yearn-v3-usdc-ethereum": 0.24064
+      "maple-usdc-ethereum": -0.136874,
+      "morpho-usdc-ethereum": -0.061931,
+      "yearn-v3-usdc-ethereum": 0.239181
     },
     "maple-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -0.269259,
-      "aave-v3-usdt-ethereum": -0.160067,
-      "compound-v3-usdc-ethereum": 0.318724,
-      "euler-v2-usdc-ethereum": -0.129569,
+      "aave-v3-usdc-ethereum": -0.332219,
+      "aave-v3-usdt-ethereum": -0.170056,
+      "compound-v3-usdc-ethereum": 0.314867,
+      "euler-v2-usdc-ethereum": -0.136874,
       "maple-usdc-ethereum": 1.0,
-      "morpho-usdc-ethereum": 0.139771,
-      "yearn-v3-usdc-ethereum": -0.169931
+      "morpho-usdc-ethereum": 0.124144,
+      "yearn-v3-usdc-ethereum": -0.252921
     },
     "morpho-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": -0.176569,
-      "aave-v3-usdt-ethereum": -0.117975,
-      "compound-v3-usdc-ethereum": 0.201849,
-      "euler-v2-usdc-ethereum": -0.074822,
-      "maple-usdc-ethereum": 0.139771,
+      "aave-v3-usdc-ethereum": -0.107655,
+      "aave-v3-usdt-ethereum": -0.273486,
+      "compound-v3-usdc-ethereum": 0.248216,
+      "euler-v2-usdc-ethereum": -0.061931,
+      "maple-usdc-ethereum": 0.124144,
       "morpho-usdc-ethereum": 1.0,
-      "yearn-v3-usdc-ethereum": -0.024877
+      "yearn-v3-usdc-ethereum": -0.046139
     },
     "yearn-v3-usdc-ethereum": {
-      "aave-v3-usdc-ethereum": 0.29459,
-      "aave-v3-usdt-ethereum": 0.136624,
-      "compound-v3-usdc-ethereum": -0.006028,
-      "euler-v2-usdc-ethereum": 0.24064,
-      "maple-usdc-ethereum": -0.169931,
-      "morpho-usdc-ethereum": -0.024877,
+      "aave-v3-usdc-ethereum": 0.32944,
+      "aave-v3-usdt-ethereum": 0.32665,
+      "compound-v3-usdc-ethereum": -0.04893,
+      "euler-v2-usdc-ethereum": 0.239181,
+      "maple-usdc-ethereum": -0.252921,
+      "morpho-usdc-ethereum": -0.046139,
       "yearn-v3-usdc-ethereum": 1.0
     }
   }
