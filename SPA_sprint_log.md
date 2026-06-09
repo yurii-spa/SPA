@@ -4,6 +4,26 @@
 
 ---
 
+## Sprint — Compound V3 Adapter + Strategy Race Panel (v3.93) — 2026-06-09
+
+Two deliverables in one sprint. Both stdlib-only and read-only/advisory — nothing imports or mutates `execution/`, `feed_health/` or the deterministic risk agents.
+
+**Deliverable 1 — Compound V3 (Comet USDC) adapter (`SPA-V377`)**
+- `spa_core/adapters/compound_v3.py` — `CompoundV3Adapter` (`pool_id="compound_v3"`, `name="Compound V3 (Comet USDC)"`, `tier="T2"`), modelled on the existing T2 adapters but **stdlib-only** (`urllib`/`json`, no `requests`).
+- `fetch() -> dict` GETs DeFiLlama `/pools` (`timeout=5s`) and filters `project==compound-v3` AND `symbol==USDC` AND `chain==Ethereum` (case-insensitive); on multiple matches it keeps the highest-`tvlUsd` pool. Returns the flat status dict `{pool_id, apy, tvl, protocol, tier, ts, status: "ok"|"error", source: "defillama"}`. `apy` is the raw DeFiLlama percentage, `tvl` is USD; both `None` when unavailable. **Never raises** — graceful on network error, empty/garbage payload, malformed entries, or no match (→ `status="error"`, `apy/tvl=None`).
+- `get_apy() -> float|None`, `get_tvl() -> float|None` thin wrappers over `fetch()`. Comet contract `0xc3d688B66703497DAA19211EEdff47f25384cdc3` tracked as a reference constant.
+- Registered additively in `spa_core/adapters/__init__.py` (now 5 adapter classes). Distinct from the capital-touching `execution/compound_v3_adapter.py` (which it does **not** import).
+- **Tests:** `spa_core/tests/test_compound_v3.py` — **23/23 pass** (`unittest`, `urllib.urlopen` mocked; constants, structure, float-or-None, highest-TVL selection, project/symbol/chain filtering, case-insensitivity, and all graceful-error paths).
+
+**Deliverable 2 — Strategy Race dashboard panel (`SPA-RACE-UI`)**
+- New `#strategy-race-card` section in the Paper Trading tab of `index.html`; `loadStrategyRace()` added and wired into `loadDashboard()`.
+- Reads `data/strategy_shadow_comparison.json` (from Sprint A) and renders a live table: **Rank · Strategy · Equity · PnL % · Sortino · Max DD · Days**, sorted by Sortino desc (strategies with `sortino=null` fall back to PnL %). Leader row gets a green accent + medal, last row goes gray. Header reads `🏁 Strategy Race · {best} leading · updated {ts}`. Missing/empty file → placeholder `Дані збираються…`. CSS reuses the existing light-theme palette.
+- **Tests:** `node --check` of all inline `index.html` JS → `JS_SYNTAX_OK`; DOM-stub smoke 5/5 (real data file, Sortino sort order incl. null fallback, and fetch-fail / empty / null → placeholder).
+
+KANBAN: `sprint_completed → v3.93`; `SPA-V377` moved `backlog → done`; `SPA-RACE-UI` added to `done` (atomic `tmp + os.replace`, reloaded fresh before write).
+
+---
+
 ## Sprint B + C — Honest Metrics + Backtest Pre-Screening (v3.91) — 2026-06-09
 
 Two sprints landed together. **Sprint B** replaces bare point-estimate Sharpe (dangerously noisy on a handful of paper-trading points) with confidence-aware metrics. **Sprint C** adds a historical pre-screening contour that replays any candidate strategy before it is admitted to the live shadow-paper fan-out. Stdlib only; atomic writes (`tempfile` + `os.replace`); advisory/read-only — nothing imports `execution/`, `feed_health/` or the deterministic risk agents.
@@ -6593,3 +6613,22 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **Рекомендация:** запустить с Mac пользователя:
   `python3 push_to_github.py --files spa_core/paper_trading/benchmark_comparison.py spa_core/tests/test_benchmark_comparison.py data/benchmark_comparison.json KANBAN.json SPA_sprint_log.md --message "feat(SPA-V394): benchmark-relative performance analytics (excess return, tracking error, information ratio, beta/correlation, capture ratios)"`
   (PAT автоматически из Keychain). Незапушенными также остаются v3.79–v3.89 (paper_trading/orchestrator/allocator/portfolio/reports/alerts модули) — можно запушить тем же скриптом одним батчем.
+
+## Sprint v3.92 — 2026-06-09 — ✅ CODE SHIPPED (LOCAL) + push blocked by environment
+- **Выбор спринта:** sprint_completed был **v3.91** (оканчивается на 1 → architect review НЕ требовался). Все ready code-задачи backlog затрагивают запрещённый для автономного LLM-агента домен (LLM_FORBIDDEN_AGENTS = {risk, execution, monitoring}) и/или live-money путь:
+  - SPA-V377 (Compound V3 adapter / USDC rate accuracy) — execution-домен.
+  - SPA-V384 (Live Execution E2E Validation Harness, mainnet-fork/anvil) — CRITICAL, execution-путь.
+  - SPA-V391 (Performance Recovery — Pendle PT ramp + allocation) — CRITICAL, live-money/allocation execution.
+  - SPA-V392 (Circuit Breaker + Adapter Health Watchdog) — HIGH, monitoring/execution-домен.
+  Все вне безопасного автономного scope. По правилу Шага 2.3 добавлена и взята в работу новая чисто аддитивная read-only задача **SPA-V395**.
+- **Сделано (SPA-V395 — Monte Carlo / bootstrap forward equity projection):**
+  - `spa_core/paper_trading/monte_carlo_projection.py` — read-only слой поверх daily equity curve (V379). По серии РЕАЛИЗОВАННЫХ дневных доходностей (seed-день day-1 исключён) делает forward-проекцию портфеля методом **bootstrap Monte Carlo**: на каждый день горизонта случайно сэмплит историческую дневную доходность (sampling with replacement, `random.Random(seed)` для воспроизводимости) и компаундит equity по N симуляциям. Репортит: перцентили конечного капитала и total-return % (p5/p25/p50/p75/p95 + mean/min/max/stdev), probability_of_profit / probability_of_loss, expected_max_drawdown_pct (средний intra-path drawdown ≤0), и `equity_percentile_bands` (p5/p50/p95 капитала по ~10 контрольным дням — для графиков confidence bands; полные пути по умолчанию НЕ пишутся, чтобы JSON не раздувался). Дополняет risk_metrics (V380), rolling_performance (V381), drawdown_analysis (V382), return_distribution (V383), calendar_returns (V384), benchmark_comparison (V394): даёт **forward-looking** взгляд (распределение будущего капитала), которого не было — все прочие модули описывают прошлое. Атомарная запись (tmp + os.replace). CLI `python3 -m spa_core.paper_trading.monte_carlo_projection [--horizon --simulations --seed --start-equity --history --out]`, дефолтный seed=42 → отчёт детерминирован. Только stdlib (json/math/statistics/random/datetime/pathlib/logging/argparse), без web3/pandas/numpy/scipy/сети. Degenerate-входы (пустая история / 1 день / horizon≤0 / simulations≤0) → стабильная схема без падений. STRICTLY READ-ONLY: не трогает execution/risk/wallet/деньги; НЕ feed-health (SPA-BL-011 заморозка соблюдена).
+  - `spa_core/tests/test_monte_carlo_projection.py` — 21 тест (самописный PASS/FAIL-раннер как в test_return_distribution.py; pytest в репо не установлен). **21/21 passed.** Покрыто: пустой/одно-дневный вход → стабильная схема, детерминизм по seed (равный seed → идентично; разный → различается), start_equity из последнего close / явный start_equity, монотонность перцентилей (p5≤p25≤p50≤p75≤p95), все-нулевые доходности → terminal==start и P(profit)=P(loss)=0, все-положительные → P(profit)=1, все-отрицательные → P(loss)=1, expected_max_drawdown≤0, horizon/simulations=0 → не падает, equity_percentile_bands непуст и p5≤p50≤p95 в каждой точке, знаковая согласованность terminal_return с terminal_equity, запись отчёта в файл, smoke на реальном pnl_history.json.
+  - Регрессия (8 sibling-сьютов): return_distribution **14/14**, calendar_returns **10/10**, benchmark_comparison **19/19**, drawdown_analysis **11/11**, rolling_performance **12/12**, risk_metrics **13/13**, equity_curve **10/10**, historical_replay **18/18** — **всего 107/107 регрессия**. py_compile OK.
+  - `data/monte_carlo_projection.json` — отчёт на реальной истории (seed=42): start_equity $98 815.79, horizon 30 дней, 10 000 симуляций, 7 исторических доходностей (mean −0.171%/день, vol 0.455%/день). terminal_equity p5/p50/p95 = **$89 960.01 / $93 901.53 / $97 664.17**; terminal_return p5/p50/p95 = −8.96% / −4.97% / −1.17%; **probability_of_profit 0.0167** (P(loss) 0.9833); expected_max_drawdown −5.63%. Реальная история отрицательная → 30-дневная проекция ожидаемо смещена в убыток.
+- **Push НЕ выполнен — причина ЧИСТО средовая, не отказ по безопасности:**
+  - `api.github.com` из песочницы → нет маршрута; macOS Keychain (`security` / GITHUB_PAT_SPA) недоступен из Linux → push_to_github.py не прочитает PAT и не достучится до GitHub.
+  - Согласно правилам задания — push_*.html НЕ создавал, PAT никуда НЕ встраивал. SPA-V395 — LOCAL ONLY.
+- **Рекомендация:** запустить с Mac пользователя:
+  `python3 push_to_github.py --files spa_core/paper_trading/monte_carlo_projection.py spa_core/tests/test_monte_carlo_projection.py data/monte_carlo_projection.json KANBAN.json SPA_sprint_log.md --message "feat(SPA-V395): Monte Carlo bootstrap forward equity projection (terminal-equity percentiles, P(profit/loss), expected drawdown, equity confidence bands)"`
+  (PAT автоматически из Keychain). Незапушенными также остаются v3.79–v3.91 модули — можно запушить тем же скриптом одним батчем.
