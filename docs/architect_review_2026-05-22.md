@@ -266,7 +266,7 @@ DEV_STRATEGY go-live requirement: "All agents stable ≥4 weeks." The 11-criteri
 
 **Risk:** Any criterion still FAIL on Jul 1 leaves only 14 days to remediate.
 
-**Success criteria:** Dry run `activate.py` outputs "All criteria PASS", agent stability ₕ28 days, all tests green.
+**Success criteria:** Dry run `activate.py` outputs "All criteria PASS", agent stability ≥28 days, all tests green.
 
 ---
 
