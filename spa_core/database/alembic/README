@@ -1,0 +1,23 @@
+SPA Alembic migrations — BL-008 Phase 3
+
+Backend selection lives in env.py and is driven by the same env var the
+rest of the app uses: SPA_DATABASE_URL.
+
+  unset                        -> spa_core/database/spa.db  (SQLite)
+  sqlite:///path.db            -> SQLite at that path
+  postgresql://user:pw@host/db -> PostgreSQL via psycopg2
+
+CLI cheat sheet (run from spa_core/database/):
+
+  alembic upgrade head                 # apply all pending migrations
+  alembic downgrade -1                 # revert one migration
+  alembic current                      # show currently applied revision
+  alembic history                      # list all revisions
+  alembic upgrade head --sql > out.sql # offline mode: emit SQL only
+
+Override the URL per-invocation without exporting an env var:
+
+  alembic -x url=postgresql://user:pw@localhost/spa upgrade head
+
+The cutover procedure for production is documented in
+docs/postgres_cutover.md.
