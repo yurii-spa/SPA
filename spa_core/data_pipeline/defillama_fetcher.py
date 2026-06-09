@@ -69,7 +69,7 @@ DB_PATH = Path(__file__).parent.parent / "database" / "spa.db"
 
 # Пороги валидации
 MAX_APY = 50.0       # % — выше считается аномалией
-MIN_TVL_USD = 1_000_000  # $1M — ниже считается подозрительныи
+MIN_TVL_USD = 1_000_000  # $1M — ниже считается подозрительным
 STALE_HOURS = 48     # часов без обновления — данные устарели
 
 logging.basicConfig(
