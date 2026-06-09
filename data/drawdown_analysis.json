@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-06-09T14:12:29.058445+00:00",
+  "source": "/sessions/confident-gallant-thompson/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "min_depth_pct": 0.0,
+  "summary": {
+    "num_episodes": 2,
+    "recovered_episodes": 1,
+    "ongoing_episodes": 1,
+    "max_drawdown_pct": -1.5886,
+    "max_drawdown_episode": {
+      "peak_date": "2026-05-19",
+      "peak_equity": 100410.94,
+      "trough_date": "2026-05-22",
+      "trough_equity": 98815.79,
+      "recovery_date": null,
+      "max_drawdown_pct": -1.5886,
+      "drawdown_days": 3,
+      "recovery_days": null,
+      "total_days": 3,
+      "recovered": false
+    },
+    "avg_drawdown_pct": -0.9722,
+    "longest_drawdown_days": 3,
+    "longest_recovery_days": 2,
+    "currently_in_drawdown": true,
+    "current_drawdown_pct": -1.5886,
+    "current_drawdown_days": 3,
+    "time_underwater_pct": 85.7143,
+    "total_days": 7,
+    "first_date": "2026-05-15",
+    "last_date": "2026-05-22"
+  },
+  "episodes": [
+    {
+      "peak_date": "2026-05-15",
+      "peak_equity": 100015.09,
+      "trough_date": "2026-05-16",
+      "trough_equity": 99659.31,
+      "recovery_date": "2026-05-18",
+      "max_drawdown_pct": -0.3557,
+      "drawdown_days": 1,
+      "recovery_days": 2,
+      "total_days": 3,
+      "recovered": true
+    },
+    {
+      "peak_date": "2026-05-19",
+      "peak_equity": 100410.94,
+      "trough_date": "2026-05-22",
+      "trough_equity": 98815.79,
+      "recovery_date": null,
+      "max_drawdown_pct": -1.5886,
+      "drawdown_days": 3,
+      "recovery_days": null,
+      "total_days": 3,
+      "recovered": false
+    }
+  ]
+}
