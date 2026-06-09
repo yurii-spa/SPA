@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-06-09T15:12:11.053527+00:00",
+  "source": "/sessions/intelligent-eloquent-newton/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "distribution": {
+    "count": 7,
+    "mean_pct": -0.1712,
+    "median_pct": -0.085,
+    "stdev_pct": 0.4546,
+    "min_pct": -1.0426,
+    "max_pct": 0.358,
+    "skewness": -0.6651,
+    "excess_kurtosis": -0.6376,
+    "positive_days": 3,
+    "negative_days": 4,
+    "zero_days": 0,
+    "percentiles": {
+      "p5": -0.87,
+      "p25": -0.4114,
+      "p50": -0.085,
+      "p75": 0.1972,
+      "p95": 0.3275
+    },
+    "histogram": [
+      {
+        "lower": -1.0426,
+        "upper": -0.90254,
+        "count": 1
+      },
+      {
+        "lower": -0.90254,
+        "upper": -0.76248,
+        "count": 0
+      },
+      {
+        "lower": -0.76248,
+        "upper": -0.62242,
+        "count": 0
+      },
+      {
+        "lower": -0.62242,
+        "upper": -0.48236,
+        "count": 0
+      },
+      {
+        "lower": -0.48236,
+        "upper": -0.3423,
+        "count": 2
+      },
+      {
+        "lower": -0.3423,
+        "upper": -0.20224,
+        "count": 0
+      },
+      {
+        "lower": -0.20224,
+        "upper": -0.06218,
+        "count": 1
+      },
+      {
+        "lower": -0.06218,
+        "upper": 0.07788,
+        "count": 0
+      },
+      {
+        "lower": 0.07788,
+        "upper": 0.21794,
+        "count": 1
+      },
+      {
+        "lower": 0.21794,
+        "upper": 0.358,
+        "count": 2
+      }
+    ],
+    "var": {
+      "95": -0.87,
+      "99": -1.0081
+    },
+    "cvar": {
+      "95": -1.0426,
+      "99": -1.0426
+    },
+    "bins": 10,
+    "confidence_levels": [
+      95,
+      99
+    ]
+  }
+}
