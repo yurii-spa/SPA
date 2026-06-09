@@ -34,9 +34,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _parse_iso(s: str) -> datetime:
+def _parse_iso(ts: str) -> datetime:
     """Parse ISO-8601 string to timezone-aware datetime."""
-    dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
@@ -83,7 +83,7 @@ class StabilityTracker:
             encoding="utf-8",
         )
 
-    # ── Public API ₔ�───────────────────────────────────────────────────────────
+    # ── Public API ────────────────────────────────────────────────────────────
 
     def start_tracking(self) -> bool:
         """Start the stability clock if not already started.
@@ -93,7 +93,7 @@ class StabilityTracker:
 
         Returns:
             True  — clock was just started for the first time.
-            False — clock was already running (nuo`change to start_time).
+            False — clock was already running (no change to start_time).
         """
         state = self._load()
         now   = _now_iso()
