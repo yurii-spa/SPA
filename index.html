@@ -1794,6 +1794,13 @@
         <div style="font-size:11px;color:#777;margin-bottom:2px">Combined gate trend (GO/NO_GO)</div>
         <div style="height:42px"><canvas id="combined-trend-canvas"></canvas></div>
       </div>
+      <!-- SPA-V374 — missing #apy-gap-widget container (renderApyGapWidget from SPA-V372 had no mount point -> silently no-op'd v3.72->v3.73). Restored here; the function manages its own display. -->
+      <div id="apy-gap-widget" style="margin:0 0 12px 0;display:none"></div>
+      <!-- SPA-V373 — APY-gap headline trend (current weighted APY toward 7.3% target) -->
+      <div id="apy-gap-trend-wrap" style="margin:0 0 12px 0;display:none">
+        <div style="font-size:11px;color:#777;margin-bottom:2px">Weighted APY trend (toward 7.30% target)</div>
+        <div style="height:42px"><canvas id="apy-gap-trend-canvas"></canvas></div>
+      </div>
       <div id="golive-verdict" style="font-size:22px;font-weight:700;margin-bottom:8px">
         <div class="skeleton skel-line" style="width:40%;height:36px"></div>
       </div>
@@ -3888,7 +3895,7 @@ async function loadAgentCommentary() {
 async function loadGoLive() {
   try {
     const ts = Date.now();
-    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory, combinedVerdict, apyGap] = await Promise.all([
+    const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory, combinedVerdict, apyGap, apyGapHistory] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
@@ -3897,6 +3904,7 @@ async function loadGoLive() {
       fetch(BASE + '/golive_combined_verdict_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_combined_verdict.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/apy_gap_report.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/apy_gap_report_history.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     renderCombinedGoLiveHeader(readiness, scoreData, combinedVerdict);
     renderCombinedGateTrend(combinedHistory);
@@ -3904,6 +3912,7 @@ async function loadGoLive() {
     renderChecklistTrend(checklistHistory);
     renderReadinessScore(scoreData);
     renderApyGapWidget(apyGap);
+    renderApyGapTrend(apyGapHistory);
     renderReadinessTrend(scoreHistory);
     renderGoLiveCriteria(readiness);
     loadAdapterStatus();
@@ -4210,6 +4219,29 @@ function renderCombinedGateTrend(history) {
         stepSize: 1,
         font: { size: 9 },
         callback: function (v) { return v === 1 ? 'GO' : (v === 0 ? 'NO_GO' : ''); },
+      },
+    },
+  });
+}
+
+// SPA-V373 — APY-gap headline sparkline. Surfaces the persisted
+// data/apy_gap_report_history.json (written each export cycle by
+// apy_gap_report.append_apy_gap_history) as a current_weighted_apy line trend.
+// Values in the history JSON are already in PERCENT units — no scaling.
+function renderApyGapTrend(history) {
+  renderTrendSparkline({
+    key: 'apyGap', wrapId: 'apy-gap-trend-wrap', canvasId: 'apy-gap-trend-canvas',
+    history: history, labelKey: 'generated_at',
+    valueFn: p => (p && typeof p.current_weighted_apy === 'number' && isFinite(p.current_weighted_apy))
+      ? p.current_weighted_apy : null,
+    color: '#16a34a', bg: 'rgba(22,163,74,0.10)',
+    stepped: false,
+    yScale: {
+      display: true, min: 0,
+      suggestedMax: 7.3,
+      ticks: {
+        font: { size: 9 },
+        callback: function (v) { return v + '%'; },
       },
     },
   });
