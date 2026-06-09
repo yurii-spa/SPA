@@ -5,6 +5,9 @@ Falls back to canned responses if key not available — zero downtime on missing
 
 Uses raw urllib only — no anthropic SDK, no requests.
 Compatible with GitHub Actions without extra pip installs.
+
+Model assignments are read from agents/model_config.py — edit that file to
+swap models per agent without touching this file.
 """
 from __future__ import annotations
 
@@ -17,24 +20,41 @@ from typing import Optional
 
 log = logging.getLogger("spa.llm_agent")
 
+try:
+    from agents.model_config import get_model_for_agent, is_llm_forbidden, DEFAULT_MODEL
+except ImportError:
+    try:
+        from model_config import get_model_for_agent, is_llm_forbidden, DEFAULT_MODEL
+    except ImportError:
+        # Absolute fallback — keeps module importable with zero dependencies
+        DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+        def get_model_for_agent(name: str) -> str:  # type: ignore[misc]
+            return DEFAULT_MODEL
+        def is_llm_forbidden(name: str) -> bool:    # type: ignore[misc]
+            return False
+
 
 class LLMAgent:
     """
     Thin wrapper around the Anthropic Messages API.
     One instance per agent persona (Trader, Data, Risk, Report).
+
+    The model used is resolved from agents/model_config.AGENT_MODELS at
+    construction time so each persona can use a different model tier.
     """
 
-    MODEL = "claude-haiku-4-5-20251001"   # fast + cheap for agent reasoning
-    API_URL = "https://api.anthropic.com/v1/messages"
-    MAX_TOKENS = 300                       # cost control — keep responses concise
+    API_URL    = "https://api.anthropic.com/v1/messages"
+    MAX_TOKENS = 300   # cost control — keep responses concise
 
     def __init__(self, agent_name: str, role_prompt: str):
         self.agent_name = agent_name
         self.role_prompt = role_prompt
+        # Resolve model from central config (falls back to DEFAULT_MODEL)
+        self.model = get_model_for_agent(agent_name)
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
         self.available = bool(self.api_key)
         if self.available:
-            log.info(f"{agent_name}: ANTHROPIC_API_KEY found — LLM mode active")
+            log.info(f"{agent_name}: ANTHROPIC_API_KEY found — LLM mode active (model={self.model})")
         else:
             log.info(f"{agent_name}: no ANTHROPIC_API_KEY — canned-response fallback mode")
 
@@ -70,7 +90,7 @@ class LLMAgent:
             user_content = f"Here is the current portfolio state:\n{ctx_json}\n\n{question}"
 
         payload = json.dumps({
-            "model": self.MODEL,
+            "model": self.model,
             "max_tokens": self.MAX_TOKENS,
             "system": self.role_prompt,
             "messages": [
