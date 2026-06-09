@@ -1,0 +1,142 @@
+{
+  "generated_at": "2026-06-09T13:12:33.182661+00:00",
+  "source": "/sessions/wonderful-clever-mccarthy/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "windows": [
+    7,
+    30
+  ],
+  "by_window": {
+    "7": {
+      "summary": {
+        "window": 7,
+        "days_in_window": 7,
+        "window_return_pct": -1.1992,
+        "mean_daily_return_pct": -0.1712,
+        "window_volatility_pct": 0.4546,
+        "window_max_drawdown_pct": -1.5886,
+        "positive_days": 3,
+        "negative_days": 4,
+        "best_day": {
+          "date": "2026-05-19",
+          "daily_return_pct": 0.358
+        },
+        "worst_day": {
+          "date": "2026-05-20",
+          "daily_return_pct": -1.0426
+        },
+        "first_date": "2026-05-16",
+        "last_date": "2026-05-22"
+      },
+      "series": [
+        {
+          "date": "2026-05-16",
+          "days_in_window": 1,
+          "window_return_pct": -0.3557,
+          "window_volatility_pct": 0.0
+        },
+        {
+          "date": "2026-05-17",
+          "days_in_window": 2,
+          "window_return_pct": -0.1002,
+          "window_volatility_pct": 0.3061
+        },
+        {
+          "date": "2026-05-18",
+          "days_in_window": 3,
+          "window_return_pct": 0.0376,
+          "window_volatility_pct": 0.2651
+        },
+        {
+          "date": "2026-05-19",
+          "days_in_window": 4,
+          "window_return_pct": 0.3958,
+          "window_volatility_pct": 0.2739
+        },
+        {
+          "date": "2026-05-20",
+          "days_in_window": 5,
+          "window_return_pct": -0.6509,
+          "window_volatility_pct": 0.5183
+        },
+        {
+          "date": "2026-05-21",
+          "days_in_window": 6,
+          "window_return_pct": -1.1151,
+          "window_volatility_pct": 0.4896
+        },
+        {
+          "date": "2026-05-22",
+          "days_in_window": 7,
+          "window_return_pct": -1.1992,
+          "window_volatility_pct": 0.4546
+        }
+      ]
+    },
+    "30": {
+      "summary": {
+        "window": 30,
+        "days_in_window": 7,
+        "window_return_pct": -1.1992,
+        "mean_daily_return_pct": -0.1712,
+        "window_volatility_pct": 0.4546,
+        "window_max_drawdown_pct": -1.5886,
+        "positive_days": 3,
+        "negative_days": 4,
+        "best_day": {
+          "date": "2026-05-19",
+          "daily_return_pct": 0.358
+        },
+        "worst_day": {
+          "date": "2026-05-20",
+          "daily_return_pct": -1.0426
+        },
+        "first_date": "2026-05-16",
+        "last_date": "2026-05-22"
+      },
+      "series": [
+        {
+          "date": "2026-05-16",
+          "days_in_window": 1,
+          "window_return_pct": -0.3557,
+          "window_volatility_pct": 0.0
+        },
+        {
+          "date": "2026-05-17",
+          "days_in_window": 2,
+          "window_return_pct": -0.1002,
+          "window_volatility_pct": 0.3061
+        },
+        {
+          "date": "2026-05-18",
+          "days_in_window": 3,
+          "window_return_pct": 0.0376,
+          "window_volatility_pct": 0.2651
+        },
+        {
+          "date": "2026-05-19",
+          "days_in_window": 4,
+          "window_return_pct": 0.3958,
+          "window_volatility_pct": 0.2739
+        },
+        {
+          "date": "2026-05-20",
+          "days_in_window": 5,
+          "window_return_pct": -0.6509,
+          "window_volatility_pct": 0.5183
+        },
+        {
+          "date": "2026-05-21",
+          "days_in_window": 6,
+          "window_return_pct": -1.1151,
+          "window_volatility_pct": 0.4896
+        },
+        {
+          "date": "2026-05-22",
+          "days_in_window": 7,
+          "window_return_pct": -1.1992,
+          "window_volatility_pct": 0.4546
+        }
+      ]
+    }
+  }
+}
