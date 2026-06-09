@@ -154,6 +154,8 @@ class SPAOrchestrator:
             msg_ids = self.data_agent.run()
             state["published_ids"] = state.get("published_ids", []) + msg_ids
 
+            # Читаем данные напрямую из последнего MARKET_DATA сообщения
+            # (без consume, чтобы не "съедать" для Strategy Agent)
             from database.init_db import get_connection
             with get_connection(self.db_path) as conn:
                 rows = conn.execute("""
@@ -180,6 +182,7 @@ class SPAOrchestrator:
             msg_ids = self.monitoring_agent.run()
             state["published_ids"] = state.get("published_ids", []) + msg_ids
 
+            # Читаем результат из health check напрямую
             from monitor.health_check import HealthCheck
             checker = HealthCheck(db_path=self.db_path)
             result  = checker.run()
@@ -197,7 +200,12 @@ class SPAOrchestrator:
         try:
             msg_ids = self.strategy_agent.run()
             state["published_ids"] = state.get("published_ids", []) + msg_ids
+
+            # Читаем рекомендации из последнего опубликованного STRATEGY_SIGNAL
+            # StrategyAgent уже consume-нул MARKET_DATA
             if msg_ids:
+                # Данные из Strategy Agent через поле bus stats (не consume!)
+                # Просто используем его внутреннюю логику для state
                 from agents.strategy_agent import StrategyAgent as SA, MIN_APY_THRESHOLD
                 snaps = state.get("snapshots", [])
                 sa_temp = SA(self.bus, self.db_path)
@@ -210,16 +218,19 @@ class SPAOrchestrator:
         return state
 
     def _ceo_node(self, state: SPAState) -> SPAState:
-        """Node 4: CEAgent → принять решение."""
+        """Node 4: CEOAgent → принять решение."""
         log.info("[ceo_node] start")
         try:
             msg_ids = self.ceo_agent.run()
             state["published_ids"] = state.get("published_ids", []) + msg_ids
+
+            # Берём decisions из signals (CEO уже опубликовал в шину)
             is_blocked = state.get("is_blocked", False)
             decisions  = []
             for rec in state.get("signals", []):
                 if is_blocked:
-                    decisions.append({**rec, "action": "HOLD", "approved": False, "rejection_reason": "Health CRITICAL"})
+                    decisions.append({**rec, "action": "HOLD", "approved": False,
+                                      "rejection_reason": "Health CRITICAL"})
                 else:
                     decisions.append({**rec, "approved": True})
             state["decisions"] = decisions
@@ -232,39 +243,93 @@ class SPAOrchestrator:
         """Node 5: PaperTrader → исполнить решения CEO."""
         log.info("[execution_node] start")
         results = []
+
         for decision in state.get("decisions", []):
             if not decision.get("approved", False):
-                results.append({"protocol_key": decision.get("protocol_key"), "action": decision.get("action", "HOLD"), "approved": False, "amount_usd": 0, "rejection_reason": decision.get("rejection_reason", "Not approved by CEO")})
+                results.append({
+                    "protocol_key":    decision.get("protocol_key"),
+                    "action":          decision.get("action", "HOLD"),
+                    "approved":        False,
+                    "amount_usd":      0,
+                    "rejection_reason": decision.get("rejection_reason", "Not approved by CEO"),
+                })
                 continue
-            key = decision.get("protocol_key", "")
+
+            key    = decision.get("protocol_key", "")
             action = decision.get("action", "OPEN")
             amount = decision.get("amount_usd", 0)
-            apy = decision.get("apy", 0)
+            apy    = decision.get("apy", 0)
+
             try:
                 if action == "OPEN":
+                    # Проверяем не открыта ли уже позиция
                     status = self.trader.get_status()
                     existing = {p["protocol_key"] for p in status.get("positions", [])}
                     if key in existing:
-                        results.append({"protocol_key": key, "action": action, "approved": False, "amount_usd": amount, "rejection_reason": "Position already open"})
+                        results.append({
+                            "protocol_key":    key, "action": action,
+                            "approved":        False, "amount_usd": amount,
+                            "rejection_reason": "Position already open",
+                        })
                         continue
-                    self.trader.open_position(protocol_key=key, amount_usd=amount, current_apy=apy, tvl_usd=decision.get("tvl_usd", 100_000_000))
-                    results.append({"protocol_key": key, "action": action, "approved": True, "amount_usd": amount})
+
+                    # open_position returns RiskCheckResult (approved=True here)
+                    self.trader.open_position(
+                        protocol_key = key,
+                        amount_usd   = amount,
+                        current_apy  = apy,
+                        tvl_usd      = decision.get("tvl_usd", 100_000_000),
+                    )
+                    results.append({
+                        "protocol_key": key, "action": action,
+                        "approved":     True, "amount_usd": amount,
+                    })
                     log.info("Opened position: %s $%.0f @ %.2f%%", key, amount, apy)
+
                 elif action == "CLOSE":
                     close_result = self.trader.close_position(key, reason="CEO decision")
                     pnl_usd = close_result.get("realized_pnl_usd", 0.0)
-                    results.append({"protocol_key": key, "action": action, "approved": True, "pnl_usd": pnl_usd, "amount_usd": close_result.get("total_amount_usd", 0.0)})
+                    results.append({
+                        "protocol_key": key, "action": action,
+                        "approved":     True, "pnl_usd": pnl_usd,
+                        "amount_usd":   close_result.get("total_amount_usd", 0.0),
+                    })
                     log.info("Closed position: %s PnL=$%.2f", key, pnl_usd)
-                else:
-                    results.append({"protocol_key": key, "action": "HOLD", "approved": False, "rejection_reason": "HOLD decision"})
+
+                else:  # HOLD
+                    results.append({
+                        "protocol_key": key, "action": "HOLD",
+                        "approved":     False,
+                        "rejection_reason": "HOLD decision",
+                    })
+
             except RiskPolicyViolation as rpv:
                 log.warning("Risk Policy blocked %s: %s", key, rpv)
-                results.append({"protocol_key": key, "action": action, "approved": False, "amount_usd": amount, "rejection_reason": f"Risk Policy: {rpv}"})
+                results.append({
+                    "protocol_key":    key, "action": action,
+                    "approved":        False, "amount_usd": amount,
+                    "rejection_reason": f"Risk Policy: {rpv}",
+                })
             except Exception as e:
                 log.error("Execution error for %s: %s", key, e, exc_info=True)
-                results.append({"protocol_key": key, "action": action, "approved": False, "rejection_reason": f"Error: {e}"})
+                results.append({
+                    "protocol_key":    key, "action": action,
+                    "approved":        False,
+                    "rejection_reason": f"Error: {e}",
+                })
+
+        # Публикуем EXECUTION_RESULT
         from message_bus.topics import execution_result_payload
         for r in results:
-            self.bus.publish(Topic.EXECUTION_RESULT, "execution_node", execution_result_payload(**{k: r.get(k) for k in ["protocol_key","action","approved","amount_usd","pnl_usd","rejection_reason","trade_id"] if k in r}))
+            self.bus.publish(
+                Topic.EXECUTION_RESULT,
+                "execution_node",
+                execution_result_payload(**{
+                    k: r.get(k) for k in
+                    ["protocol_key","action","approved","amount_usd","pnl_usd","rejection_reason","trade_id"]
+                    if k in r
+                }),
+            )
+
         state["execution_results"] = results
         return state
