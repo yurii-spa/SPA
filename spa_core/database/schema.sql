@@ -150,3 +150,24 @@ CREATE INDEX IF NOT EXISTS idx_bus_topic_status
 
 CREATE INDEX IF NOT EXISTS idx_bus_message_id
     ON message_bus (message_id);
+
+-- ─── agent_decisions ──────────────────────────────────────────────────────────
+-- Audit trail: every agent reasoning step and decision (v0.16)
+CREATE TABLE IF NOT EXISTS agent_decisions (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp           TEXT NOT NULL,
+    agent_name          TEXT NOT NULL,          -- 'DataAgent', 'TraderAgent', 'RiskAgent', 'ReportAgent'
+    decision_type       TEXT NOT NULL,          -- 'ALLOCATE', 'PASS', 'REBALANCE', 'ALERT', 'CLOSE', 'HOLD', 'REPORT'
+    protocol_key        TEXT,                   -- nullable (not all decisions are protocol-specific)
+    amount_usd          REAL,                   -- nullable
+    reasoning           TEXT NOT NULL,          -- human-readable explanation
+    data_snapshot       TEXT,                   -- JSON blob: the data that led to this decision
+    policy_version      TEXT DEFAULT 'v1.0',
+    strategy_id         TEXT DEFAULT 'paper-v1',
+    risk_check_result   TEXT,                   -- 'APPROVED', 'REJECTED', 'WARNING', null
+    outcome             TEXT                    -- filled in later: 'EXECUTED', 'SKIPPED', 'FAILED'
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_decisions_agent ON agent_decisions(agent_name);
+CREATE INDEX IF NOT EXISTS idx_agent_decisions_time  ON agent_decisions(timestamp);
+CREATE INDEX IF NOT EXISTS idx_agent_decisions_type  ON agent_decisions(decision_type, protocol_key);
