@@ -1,0 +1,25 @@
+{
+  "target_weights": {
+    "morpho_blue": 0.2,
+    "yearn_v3": 0.2,
+    "euler_v2": 0.2,
+    "maple": 0.2
+  },
+  "target_usd": {
+    "morpho_blue": 20000.0,
+    "yearn_v3": 20000.0,
+    "euler_v2": 20000.0,
+    "maple": 20000.0
+  },
+  "expected_apy_pct": 7.02,
+  "model_used": "equal_weight",
+  "timestamp": "2026-06-09T18:01:28.693603+00:00",
+  "capital_usd": 100000.0,
+  "allocated_pct": 0.8,
+  "unallocated_pct": 0.2,
+  "unallocated_usd": 20000.0,
+  "notes": [
+    "Веса ограничены cap'ами по тирам (T1≤40%, T2≤20%).",
+    "Нераспределённый кэш-буфер: 20.00% (остаток после применения cap'ов)."
+  ]
+}
