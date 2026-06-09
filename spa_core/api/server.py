@@ -21,10 +21,12 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import sys
+from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,8 +41,9 @@ for _p in [str(_SPA_CORE), str(_PROJECT_ROOT)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from spa_core.api.agent_broadcaster import broadcaster
@@ -86,6 +89,53 @@ def _get_live_portfolio() -> dict | None:
         return None
 
 
+# ─── Event Queue (SSE ring buffer) ───────────────────────────────────────────
+
+class _EventQueue:
+    """
+    In-memory ring buffer (last 50 events) + async fan-out to SSE subscribers.
+
+    push(event)    — add event, fan-out to all active SSE listeners
+    subscribe()    — returns an asyncio.Queue for one SSE client
+    unsubscribe()  — remove a client queue on disconnect
+    history()      — snapshot of the ring buffer as a plain list
+    """
+
+    def __init__(self, maxsize: int = 50) -> None:
+        self._history: deque = deque(maxlen=maxsize)
+        self._subscribers: list[asyncio.Queue] = []
+
+    async def push(self, event: dict[str, Any]) -> None:
+        self._history.append(event)
+        for q in list(self._subscribers):
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass  # slow consumer — drop rather than block
+
+    def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=200)
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        try:
+            self._subscribers.remove(q)
+        except ValueError:
+            pass
+
+    def history(self) -> list[dict]:
+        return list(self._history)
+
+    def clear(self) -> None:
+        """Clear history and subscribers (used in tests)."""
+        self._history.clear()
+        self._subscribers.clear()
+
+
+event_queue = _EventQueue(maxsize=50)
+
+
 # ─── Lifespan ────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,7 +143,7 @@ async def lifespan(app: FastAPI):
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     )
-    log.info(f"SPA API v0.15 starting — data dir: {_DATA_DIR}")
+    log.info(f"SPA API v0.16 starting — data dir: {_DATA_DIR}")
     broadcaster.start()
     yield
     broadcaster.stop()
@@ -103,7 +153,7 @@ async def lifespan(app: FastAPI):
 # ─── App ─────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="SPA — Smart Passive Aggregator",
-    version="v0.15",
+    version="v0.16",
     description=(
         "Real-time DeFi yield aggregation API. "
         "Dashboard auto-detects this server and switches from static JSON to live data."
@@ -146,7 +196,7 @@ def health():
     """
     return {
         "status": "ok",
-        "version": "v0.15",
+        "version": "v0.16",
         "timestamp": _now(),
     }
 
@@ -256,6 +306,83 @@ def get_backtest():
         "metrics": {},
         "equity_curve": [],
     })
+
+
+@app.get("/api/backtest/replay", tags=["backtesting"])
+def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
+    """
+    Full historical replay data — one frame per day.
+
+    Reads from data/pnl_history.json (real paper-trading history) or falls
+    back to a synthetic OU simulation of the requested length.
+
+    Query params:
+        days: number of synthetic days if real history is unavailable (default 90)
+
+    Response: {source, total_days, frames: [{day, date, portfolio_value, ...}]}
+    """
+    try:
+        from spa_core.backtesting.replay import ReplayEngine
+        engine = ReplayEngine(data_dir=_DATA_DIR, synthetic_days=days)
+        frames = engine.full_replay()
+        return {
+            "generated_at": _now(),
+            "source": engine.source,
+            "total_days": engine.total_days,
+            "frames": frames,
+        }
+    except Exception as e:
+        log.warning(f"/api/backtest/replay error: {e}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+@app.get("/api/backtest/summary", tags=["backtesting"])
+def get_backtest_summary():
+    """
+    Replay summary metrics computed from the full pnl_history equity curve.
+
+    Response: {total_days, total_return_pct, annualized_return, sharpe_ratio,
+               max_drawdown, win_rate, best_day, worst_day, data_source}
+    """
+    try:
+        from spa_core.backtesting.replay import ReplayEngine
+        engine = ReplayEngine(data_dir=_DATA_DIR)
+        summary = engine.replay_summary()
+        summary["generated_at"] = _now()
+        return summary
+    except Exception as e:
+        log.warning(f"/api/backtest/summary error: {e}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+@app.get("/api/backtest/compare", tags=["backtesting"])
+def get_backtest_compare(
+    days: int = Query(default=90, ge=1, le=365),
+    seed: int = Query(default=42, ge=0),
+):
+    """
+    Side-by-side strategy comparison: v1_passive vs v2_aggressive.
+
+    Both strategies run on the same synthetic dataset (same seed) so any
+    performance difference is purely due to strategy parameters.
+
+    Query params:
+        days: backtest window length (default 90)
+        seed: random seed for reproducibility (default 42)
+
+    Response: {winner, delta, strategies: {v1_passive, v2_aggressive}}
+    """
+    try:
+        from spa_core.backtesting.scenario_runner import compare_scenarios
+        result = compare_scenarios(days=days, seed=seed)
+        # Strip bulky equity_curves from nested strategy dicts for the API response
+        for key in ("v1_passive", "v2_aggressive"):
+            result[key].pop("equity_curve", None)
+        result["generated_at"] = _now()
+        return result
+    except Exception as e:
+        log.warning(f"/api/backtest/compare error: {e}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
 @app.get("/api/optimization", tags=["data"])
@@ -433,6 +560,125 @@ async def ws_agents(websocket: WebSocket):
         log.warning(f"WebSocket error: {e}")
     finally:
         broadcaster.disconnect(websocket)
+
+
+# ─── SSE + Agent Thought Events ──────────────────────────────────────────────
+
+class _ThoughtRequest(BaseModel):
+    """Payload for POST /api/agent/thought."""
+    agent:   str
+    message: str
+    type:    str = "agent_thought"
+    data:    dict | None = None
+
+
+@app.post("/api/agent/thought", tags=["events"])
+async def post_agent_thought(body: _ThoughtRequest):
+    """
+    Push a structured agent event into the SSE stream and ring buffer.
+
+    Called by export_data.py during its run so the dashboard shows live
+    agent activity in real time.
+
+    Supported types: agent_thought, agent_action, portfolio_update, risk_alert
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail={"error": "message must not be empty"})
+
+    event: dict[str, Any] = {
+        "agent":     body.agent,
+        "message":   body.message.strip(),
+        "type":      body.type,
+        "timestamp": _now(),
+        "data":      body.data or {},
+    }
+    await event_queue.push(event)
+    await broadcaster.broadcast(event)   # also fan-out to WebSocket clients
+    log.info(f"[{body.type}] {body.agent}: {body.message[:80]}")
+    return {"ok": True, "event_count": len(event_queue.history())}
+
+
+@app.get("/api/events/history", tags=["events"])
+def get_events_history():
+    """
+    Return the last 50 agent events as JSON.
+    Useful for catch-up on page load or testing without SSE.
+    """
+    history = event_queue.history()
+    return {"events": history, "count": len(history)}
+
+
+@app.get("/api/events", tags=["events"])
+async def sse_stream(request: Request):
+    """
+    Server-Sent Events stream for real-time agent activity.
+
+    Connect via: EventSource('http://localhost:8765/api/events')
+
+    Each event is a JSON object with fields:
+        agent, message, type, timestamp, data
+
+    Event types:
+        agent_thought     — agent reasoning / status during export
+        agent_action      — trade / allocation action taken
+        portfolio_update  — portfolio value changed
+        risk_alert        — risk policy violation
+    """
+    queue = event_queue.subscribe()
+
+    async def generator():
+        # Send last 5 historical events as catch-up on connect
+        for evt in event_queue.history()[-5:]:
+            yield f"data: {json.dumps(evt)}\n\n"
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    evt = await asyncio.wait_for(queue.get(), timeout=25.0)
+                    yield f"data: {json.dumps(evt)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"   # SSE comment — keeps proxy connections alive
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+        finally:
+            event_queue.unsubscribe(queue)
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control":     "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection":        "keep-alive",
+        },
+    )
+
+
+# ─── APY Trend Endpoints ─────────────────────────────────────────────────────
+
+@app.get("/api/apy/trends", tags=["apy"])
+async def get_apy_trends():
+    """
+    Return 7-day APY trends for all tracked protocols.
+    Reads from data/apy_trends.json (written by export_data.py each run).
+    """
+    try:
+        with open(str(_DATA_DIR / "apy_trends.json")) as f:
+            return json.load(f)
+    except Exception:
+        return {"trends": {}, "protocols_tracked": 0}
+
+
+@app.get("/api/apy/history/{protocol_key}", tags=["apy"])
+async def get_protocol_history(protocol_key: str):
+    """
+    Return 30-day APY trend for a single protocol.
+    Use '__' in the path instead of ':' (e.g. 'aave-v3__USDC').
+    """
+    from spa_core.analytics.apy_tracker import APYTracker
+    tracker = APYTracker(history_file=str(_DATA_DIR / "apy_history.json"))
+    return tracker.get_trend(protocol_key.replace("__", ":"), days=30)
 
 
 # ─── Dev entrypoint ──────────────────────────────────────────────────────────
