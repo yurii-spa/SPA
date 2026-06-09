@@ -36,17 +36,40 @@ estimate_gas(tx_dict, rpc_url) -> int
 get_base_fee(rpc_url) -> int
     Latest block baseFeePerGas (wei).
 
-send_raw_transaction(signed_tx_hex, rpc_url) -> str
-    eth_sendRawTransaction → tx hash string.
+send_raw_transaction(signed_tx_hex, rpc_url, chain_id=None) -> str
+    eth_sendRawTransaction → tx hash string.  When MEV protection is enabled
+    (see below) and ``chain_id == 1`` (Ethereum mainnet), the signed tx is
+    routed through the Flashbots Protect RPC instead of the public RPC to
+    defend against frontrunning / sandwich attacks.
+
+MEV protection (Sprint v3.26 / SPA-V326)
+----------------------------------------
+Configured via :mod:`spa_core.adapters.config` (env-driven):
+    MEV_PROTECTION_ENABLED   enable Flashbots routing       (default: True)
+    FLASHBOTS_PROTECT_RPC    Protect RPC endpoint           (default:
+                             https://rpc.flashbots.net/fast)
+    MEV_PROTECT_FALLBACK     fall back to the public RPC if the Protect RPC
+                             call fails                     (default: True)
+
+Backwards compatibility: when MEV protection is disabled, or the tx is not on
+Ethereum mainnet, or no ``chain_id`` is supplied, ``send_raw_transaction``
+behaves exactly as before — a plain ``eth_sendRawTransaction`` to *rpc_url*.
 
 Sprint v3.24 — replaced bespoke ECDSA/Keccak with eth_account.
+Sprint v3.26 (SPA-V326) — route mainnet txs through Flashbots Protect RPC.
 """
 from __future__ import annotations
 
 import json
+import logging
 import urllib.error
 import urllib.request
 from typing import Any
+
+log = logging.getLogger("spa.eth_signer")
+
+# Ethereum mainnet chain id — MEV protection only applies here.
+_ETHEREUM_MAINNET_CHAIN_ID = 1
 
 
 # ─── eth_account lazy loader ──────────────────────────────────────────────────
@@ -102,7 +125,7 @@ def get_address_from_private_key(private_key_hex: str) -> str:
         ValueError: If the key length is wrong or not valid hex.
         ImportError: If eth_account is not installed.
     """
-    pk_hex = private_key_hex.lstrip("0x") if private_key_hex.startswith("0x") else private_key_hex
+    pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
         raise ValueError(
             f"Private key must be 64 hex chars (0x prefix optional); "
@@ -140,7 +163,7 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
         ValueError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
-    pk_hex = private_key_hex.lstrip("0x") if private_key_hex.startswith("0x") else private_key_hex
+    pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
         raise ValueError(
             f"Private key must be 64 hex chars; got length {len(pk_hex)}"
@@ -198,7 +221,7 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
         ValueError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
-    pk_hex = private_key_hex.lstrip("0x") if private_key_hex.startswith("0x") else private_key_hex
+    pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
         raise ValueError(
             f"Private key must be 64 hex chars; got length {len(pk_hex)}"
@@ -258,6 +281,33 @@ def encode_function_call(selector_hex: str, *args: Any) -> bytes:
                 "encode_function_call supports int, bool, and '0x...' address strings."
             )
     return b"".join(parts)
+
+
+# ─── MEV protection config ────────────────────────────────────────────────────
+
+# Default Flashbots Protect endpoint, used when config cannot be imported.
+_DEFAULT_FLASHBOTS_PROTECT_RPC = "https://rpc.flashbots.net/fast"
+
+
+def _mev_config() -> tuple[bool, str, bool]:
+    """Resolve the MEV-protection settings from :mod:`spa_core.adapters.config`.
+
+    Returns a ``(enabled, protect_rpc, fallback)`` tuple.  The config module is
+    imported lazily so this file keeps working even if the adapters package is
+    unavailable (in which case safe defaults are used: protection OFF, default
+    Protect RPC, fallback ON).
+    """
+    try:
+        from spa_core.adapters import config  # type: ignore
+    except ImportError:
+        return (False, _DEFAULT_FLASHBOTS_PROTECT_RPC, True)
+
+    enabled = bool(getattr(config, "MEV_PROTECTION_ENABLED", False))
+    protect_rpc = getattr(
+        config, "FLASHBOTS_PROTECT_RPC", _DEFAULT_FLASHBOTS_PROTECT_RPC
+    )
+    fallback = bool(getattr(config, "MEV_PROTECT_FALLBACK", True))
+    return (enabled, protect_rpc, fallback)
 
 
 # ─── JSON-RPC helpers ─────────────────────────────────────────────────────────
@@ -331,16 +381,85 @@ def estimate_gas(tx_dict: dict, rpc_url: str) -> int:
     return int(result, 16)
 
 
-def send_raw_transaction(signed_tx_hex: str, rpc_url: str) -> str:
-    """Broadcast *signed_tx_hex* via ``eth_sendRawTransaction``.
-
-    *signed_tx_hex* must include the ``0x`` prefix.
-
-    Returns the transaction hash string (``0x...``).
-    """
+def _broadcast(signed_tx_hex: str, rpc_url: str) -> str:
+    """Low-level ``eth_sendRawTransaction`` to *rpc_url*; returns the tx hash."""
     result = _rpc_call(rpc_url, "eth_sendRawTransaction", [signed_tx_hex])
     if not isinstance(result, str) or not result.startswith("0x"):
         raise RuntimeError(
             f"eth_sendRawTransaction returned unexpected result: {result!r}"
         )
     return result
+
+
+def send_raw_transaction(
+    signed_tx_hex: str,
+    rpc_url: str,
+    chain_id: int | None = None,
+) -> str:
+    """Broadcast *signed_tx_hex* via ``eth_sendRawTransaction``.
+
+    *signed_tx_hex* must include the ``0x`` prefix.
+
+    MEV protection (Sprint v3.26 / SPA-V326)
+    ----------------------------------------
+    When MEV protection is enabled (``MEV_PROTECTION_ENABLED``) *and*
+    ``chain_id == 1`` (Ethereum mainnet), the transaction is routed through the
+    Flashbots Protect RPC (``FLASHBOTS_PROTECT_RPC``) so it never enters the
+    public mempool and cannot be frontrun / sandwich-attacked.
+
+    - If the network is not Ethereum mainnet (``chain_id`` is ``None`` or not
+      ``1``), a warning is logged and the tx is sent to the public *rpc_url*.
+    - If the Protect RPC call fails and ``MEV_PROTECT_FALLBACK`` is True
+      (default), the tx is re-broadcast to the public *rpc_url*; otherwise the
+      error is re-raised.
+
+    Args:
+        signed_tx_hex: 0x-prefixed signed raw transaction.
+        rpc_url: Public RPC endpoint (used directly when protection is off, or
+            as the fallback when Protect RPC fails).
+        chain_id: Network chain id.  MEV routing only applies when this is
+            ``1`` (mainnet).  Optional for backwards compatibility.
+
+    Returns:
+        The transaction hash string (``0x...``).
+
+    Raises:
+        RuntimeError: On broadcast failure (Protect RPC failure when fallback
+            is disabled, or public RPC failure).
+    """
+    enabled, protect_rpc, fallback = _mev_config()
+
+    if not enabled:
+        # Protection off — original behaviour, plain public broadcast.
+        return _broadcast(signed_tx_hex, rpc_url)
+
+    if chain_id != _ETHEREUM_MAINNET_CHAIN_ID:
+        # Flashbots Protect is mainnet-only — fall back to the public RPC.
+        log.warning(
+            "MEV protection enabled but chain_id=%r is not Ethereum mainnet "
+            "(%d); broadcasting via public RPC instead.",
+            chain_id,
+            _ETHEREUM_MAINNET_CHAIN_ID,
+        )
+        return _broadcast(signed_tx_hex, rpc_url)
+
+    # Mainnet + protection on → route through Flashbots Protect RPC.
+    log.info("MEV protection: routing mainnet tx through Protect RPC %s", protect_rpc)
+    try:
+        return _broadcast(signed_tx_hex, protect_rpc)
+    except RuntimeError as exc:
+        if fallback:
+            log.warning(
+                "Flashbots Protect RPC failed (%s); MEV_PROTECT_FALLBACK is on, "
+                "re-broadcasting via public RPC %s — tx will be visible in the "
+                "public mempool.",
+                exc,
+                rpc_url,
+            )
+            return _broadcast(signed_tx_hex, rpc_url)
+        log.error(
+            "Flashbots Protect RPC failed (%s) and MEV_PROTECT_FALLBACK is off; "
+            "not falling back to public RPC.",
+            exc,
+        )
+        raise
