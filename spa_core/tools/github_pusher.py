@@ -251,8 +251,6 @@ PUSH_MANIFEST = [
      "feat: orchestrator package init"),
     ("spa_core/orchestrator/graph.py", "spa_core/orchestrator/graph.py",
      "feat: LangGraph agent graph"),
-    ("spa_core/orchestrator/runner.py", "spa_core/orchestrator/runner.py",
-     "feat: orchestrator runner"),
     ("spa_core/orchestrator/state.py", "spa_core/orchestrator/state.py",
      "feat: shared orchestrator state"),
 
