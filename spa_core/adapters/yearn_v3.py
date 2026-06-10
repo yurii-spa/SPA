@@ -22,6 +22,12 @@ class YearnV3Adapter(BaseAdapter):
     DEFILLAMA_SYMBOL = "USDC"
     RISK_SCORE = 0.30
 
+    # SPA-V412: near-instant exit. Yearn V3 USDC vault redemptions are usually
+    # same-block from idle vault liquidity, but can be throttled when the
+    # underlying strategies are fully deployed. Declared at 1h as a conservative
+    # value that still stays well under the 72h illiquidity threshold.
+    EXIT_LATENCY_HOURS = 1.0
+
     def __init__(self, asset: str = "USDC", feed: Optional[DeFiLlamaFeed] = None):
         super().__init__(asset)
         self.tier = "T2"
@@ -79,6 +85,7 @@ class YearnV3Adapter(BaseAdapter):
             tvl_usd=float(tvl) if isinstance(tvl, (int, float)) else None,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
+            exit_latency_hours=self.EXIT_LATENCY_HOURS,
         )
 
     # end of class
