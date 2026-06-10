@@ -21,6 +21,11 @@ class EulerV2Adapter(BaseAdapter):
     DEFILLAMA_SYMBOL = "USDC"
     RISK_SCORE = 0.40
 
+    # SPA-V412: instant exit. Euler V2 USDC supply is a liquid lending position —
+    # withdrawals settle same-block subject only to transient vault utilization,
+    # so the declared exit latency is 0h.
+    EXIT_LATENCY_HOURS = 0.0
+
     def __init__(self, asset: str = "USDC", feed: Optional[DeFiLlamaFeed] = None):
         super().__init__(asset)
         self.tier = "T2"
@@ -77,6 +82,7 @@ class EulerV2Adapter(BaseAdapter):
             tvl_usd=float(tvl) if isinstance(tvl, (int, float)) else None,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
+            exit_latency_hours=self.EXIT_LATENCY_HOURS,
         )
 
     # end of class
