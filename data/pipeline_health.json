@@ -1,12 +1,14 @@
 {
-  "timestamp": "2026-05-22T05:07:27Z",
-  "sections_run": 20,
-  "sections_ok": 20,
-  "sections_failed": 0,
-  "failed_sections": [],
-  "total_pools_fetched": 12,
-  "pendle_pools_found": 3,
-  "export_duration_seconds": 3.8,
+  "timestamp": "2026-06-10T08:57:04Z",
+  "sections_run": 27,
+  "sections_ok": 26,
+  "sections_failed": 1,
+  "failed_sections": [
+    "pdf_report"
+  ],
+  "total_pools_fetched": 0,
+  "pendle_pools_found": 0,
+  "export_duration_seconds": 68.52,
   "next_run_eta": "4h",
-  "is_demo": true
+  "covariance_source": "live"
 }
