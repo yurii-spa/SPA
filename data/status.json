@@ -1,84 +1,42 @@
 {
-  "timestamp": "2026-05-22T05:07:27.152506+00:00",
+  "timestamp": "2026-06-10T08:55:55.698600+00:00",
   "portfolio": {
-    "total_capital_usd": 100000,
-    "deployed_usd": 85000.0,
-    "cash_usd": 15000.0,
-    "cash_pct": 0.15,
-    "total_pnl_usd": 13.42,
+    "total_capital_usd": 100000.0,
+    "deployed_usd": 0,
+    "cash_usd": 100000.0,
+    "cash_pct": 1.0,
+    "total_pnl_usd": 0,
     "total_drawdown_pct": 0.0
   },
-  "positions": [
-    {
-      "protocol_key": "aave-v3",
-      "tier": "T1",
-      "amount_usd": 30000,
-      "current_apy": 5.23,
-      "unrealized_pnl_usd": 30.0904,
-      "unrealized_pnl_pct": 0.001003,
-      "days_held": 7.0
-    },
-    {
-      "protocol_key": "compound-v3",
-      "tier": "T1",
-      "amount_usd": 25000,
-      "current_apy": 4.87,
-      "unrealized_pnl_usd": 23.3493,
-      "unrealized_pnl_pct": 0.000934,
-      "days_held": 7.0
-    },
-    {
-      "protocol_key": "morpho",
-      "tier": "T1",
-      "amount_usd": 15000,
-      "current_apy": 5.61,
-      "unrealized_pnl_usd": 16.1384,
-      "unrealized_pnl_pct": 0.001076,
-      "days_held": 7.0
-    },
-    {
-      "protocol_key": "yearn-v3",
-      "tier": "T2",
-      "amount_usd": 10000,
-      "current_apy": 6.42,
-      "unrealized_pnl_usd": 12.3123,
-      "unrealized_pnl_pct": 0.001231,
-      "days_held": 7.0
-    },
-    {
-      "protocol_key": "pendle",
-      "tier": "T2",
-      "amount_usd": 5000,
-      "current_apy": 8.15,
-      "unrealized_pnl_usd": 7.8151,
-      "unrealized_pnl_pct": 0.001563,
-      "days_held": 7.0
-    }
-  ],
+  "positions": [],
   "risk": {
     "health_approved": true,
     "violations": [],
     "warnings": [],
-    "var_usd": 500.0,
-    "var_pct": 0.5,
+    "var_usd": 0.0,
+    "var_pct": 0.0,
     "var_breach": false
   },
   "paper_trading": {
-    "days_elapsed": 7,
-    "weeks_elapsed": 1.0,
+    "days_elapsed": 0,
+    "weeks_elapsed": 0.0,
     "min_weeks_required": 8,
     "go_live_ready": false,
-    "first_trade": "2026-05-15T05:07:27.152506+00:00"
+    "first_trade": null
   },
   "strategy": {
+    "id": 4,
     "strategy_id": "paper-v1",
-    "total_capital_usd": 100000,
-    "deployed_capital_usd": 85000.0,
-    "cash_usd": 15000.0,
-    "total_pnl_usd": 13.42,
+    "timestamp": "2026-05-21 06:39:39",
+    "total_capital_usd": 100000.0,
+    "deployed_capital_usd": 0.0,
+    "cash_usd": 100000.0,
+    "total_pnl_usd": 0.0,
+    "total_pnl_pct": 0.0,
+    "current_apy": null,
+    "sharpe_to_date": 0.0,
     "max_drawdown_pct": 0.0,
-    "sharpe_to_date": 1.42,
-    "trade_count": 5
-  },
-  "is_demo": true
+    "trade_count": 0,
+    "state_json": null
+  }
 }
