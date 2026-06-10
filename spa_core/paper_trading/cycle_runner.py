@@ -658,6 +658,48 @@ def _refresh_risk_scores(
         return False
 
 
+def _default_track_persister(data_dir: Path) -> None:
+    """MP-109: mirror the track into SQLite + run the daily off-site backup.
+
+    Invocation only — ALL persistence logic lives in
+    ``spa_core/persistence/track_store.py`` (idempotent SQLite mirror of
+    ``trades.json`` / ``equity_curve_daily.json``; the JSON files stay the
+    source of truth and are NEVER modified) and
+    ``spa_core/persistence/backup.py`` (dated folder on iCloud Drive /
+    ``$SPA_BACKUP_DIR``, sha256 manifest, 14-folder rotation). Both modules
+    are themselves fail-safe, but the wrapper below catches everything anyway."""
+    from spa_core.persistence.backup import run_backup
+    from spa_core.persistence.track_store import TrackStore
+
+    ddir = Path(data_dir)
+    TrackStore(db_path=ddir / "track.db").sync_from_json(ddir)
+    run_backup(ddir)
+
+
+def _persist_track(
+    ddir: Path,
+    track_persister_fn: Callable[[Path], Any] | None,
+    notes: list[str],
+) -> bool:
+    """MP-109 fail-safe wrapper: any exception → WARNING + note
+    ``track_persist_failed``, the cycle NEVER fails because of
+    persistence/backup. Never raises."""
+    try:
+        (track_persister_fn or _default_track_persister)(ddir)
+        return True
+    except Exception as exc:  # noqa: BLE001 — persistence must never crash the cycle
+        log.warning(
+            "track persistence/backup failed (%s) — cycle continues; the JSON "
+            "track record is unaffected",
+            exc,
+        )
+        notes.append(
+            f"track_persist_failed: {type(exc).__name__}: {exc} — "
+            "cycle continues; JSON track record unaffected."
+        )
+        return False
+
+
 # ─── Public entry point ──────────────────────────────────────────────────────
 
 
@@ -671,6 +713,7 @@ def run_cycle(
     orchestrator_fn: Callable[[Path], Any] | None = None,
     allocator: Any | None = None,
     risk_scorer_fn: Callable[[Path], Any] | None = None,
+    track_persister_fn: Callable[[Path], Any] | None = None,
     write: bool = True,
 ) -> CycleResult:
     """Execute one paper-trading cycle.
@@ -691,6 +734,13 @@ def run_cycle(
                  the real scoring engine (``spa_core/risk/scoring_engine``).
                  Fail-safe: an exception inside it is logged as WARNING and the
                  cycle continues on the previous (stale) snapshot.
+    track_persister_fn : MP-109 — ``(data_dir) -> None`` mirroring the track
+                 into SQLite and running the daily off-site backup AFTER all
+                 track artefacts are persisted (post analytics/shadow). Default
+                 = ``_default_track_persister`` (TrackStore.sync_from_json +
+                 backup.run_backup). Fail-safe: an exception is logged as
+                 WARNING + note ``track_persist_failed``; the cycle never fails
+                 because of persistence. Skipped on dry-run.
     write      : if False, computes everything but writes nothing (dry-run;
                  risk_scores.json is NOT regenerated either).
     """
@@ -969,6 +1019,12 @@ def run_cycle(
         except Exception as exc:  # noqa: BLE001 — shadow must never crash the cycle
             log.warning("shadow tracker failed (%s) — cycle continues", exc)
 
+        # ── MP-109: SQLite mirror + off-site backup of the track ──────────
+        # Runs LAST, after analytics/shadow, once every track artefact for
+        # today is on disk. Fail-safe: a failure → WARNING + note
+        # ``track_persist_failed``; the cycle never fails because of it.
+        _persist_track(ddir, track_persister_fn, notes)
+
     return result
 
 
@@ -1040,6 +1096,70 @@ def _run_daily_monitors(
         results["incidents"] = f"error: {type(exc).__name__}: {exc}"
 
     return results
+
+
+# ─── MP-016: Telegram alerts (fail-safe, advisory — never crash the cycle) ───
+
+
+def _run_cycle_alerts(
+    data_dir: str | os.PathLike | None = None, *, date: str
+) -> dict[str, bool]:
+    """Send the post-cycle Telegram alerts (MP-016).
+
+    Network-bound (Keychain + Telegram Bot API) — invoked from the CLI
+    ``main()`` like the MP-107 monitors, NOT from ``run_cycle()``, so unit
+    tests of the cycle stay network-free and never message the live chat.
+
+    Three alerts, each individually fail-safe (one failure never blocks the
+    others or the cycle):
+
+    * daily summary  — ``data/daily_report_{date}.json`` (when available)
+    * red flags      — ``data/red_flags.json`` (when non-empty)
+    * gap alert      — ``data/gap_monitor.json`` (when ``gap_detected``)
+
+    Returns a per-alert sent-status map. Never raises.
+    """
+    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    sent: dict[str, bool] = {}
+    try:
+        from spa_core.alerts import alert_manager
+    except Exception as exc:  # noqa: BLE001 — alerts must never crash the cycle
+        log.warning("alert_manager unavailable (%s) — alerts skipped", exc)
+        return sent
+
+    try:
+        report = _read_json(ddir / f"daily_report_{date}.json", None)
+        if isinstance(report, dict):
+            sent["daily_summary"] = alert_manager.send_daily_summary(report)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("daily summary alert failed (%s) — cycle continues", exc)
+
+    try:
+        doc = _read_json(ddir / "red_flags.json", {})
+        raw = doc.get("red_flags") if isinstance(doc, dict) else None
+        flags = [
+            f"{f.get('severity', '?')} {f.get('protocol', '?')}: {f.get('message', '')}"
+            for f in (raw or [])
+            if isinstance(f, dict)
+        ]
+        if flags:
+            # Cap the digest at 10 bullets to stay within Telegram limits.
+            if len(flags) > 10:
+                flags = flags[:10] + [f"… и ещё {len(flags) - 10}"]
+            sent["red_flags"] = alert_manager.send_red_flag(flags)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("red-flag alert failed (%s) — cycle continues", exc)
+
+    try:
+        gm = _read_json(ddir / "gap_monitor.json", {})
+        if isinstance(gm, dict) and gm.get("gap_detected"):
+            sent["gap"] = alert_manager.send_gap_alert(
+                float(gm.get("hours_since_last_entry", 0.0) or 0.0)
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gap alert failed (%s) — cycle continues", exc)
+
+    return sent
 
 
 def _write_status(
@@ -1138,6 +1258,13 @@ def main(argv: list[str] | None = None) -> int:
         monitors = _run_daily_monitors(args.data_dir)
         for name, status in monitors.items():
             print(f"  monitor {name:<12}: {status}")
+
+    # MP-016: Telegram alerts after the cycle & monitors (fail-safe;
+    # network-bound, hence here in the CLI and not inside run_cycle()).
+    if not args.dry_run:
+        alerts = _run_cycle_alerts(args.data_dir, date=result.date)
+        for name, ok in alerts.items():
+            print(f"  alert   {name:<12}: {'sent' if ok else 'FAILED'}")
 
     if args.dry_run:
         print("(dry-run: no files written)")
