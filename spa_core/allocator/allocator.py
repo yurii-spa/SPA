@@ -80,6 +80,9 @@ class AllocationResult:
     strategy_loop_active: bool = False
     selected_strategy_id: str | None = None
     strategy_confidence: str | None = None
+    # MP-011: соблюдение RiskPolicy на стороне аллокатора (TVL-floor + T2-total).
+    tvl_filtered_protocols: list[str] = field(default_factory=list)
+    t2_cap_enforced: bool = False
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -92,6 +95,11 @@ class StrategyAllocator:
     CAPITAL = 100_000  # USD paper trading
     T1_CAP = 0.40      # макс 40% на один T1 протокол
     T2_CAP = 0.20      # макс 20% на один T2 протокол (T3 трактуем как T2)
+    # MP-011: зеркала лимитов RiskPolicy (policy.py: min_tvl_usd,
+    # max_total_t2_allocation). Аллокатор обязан соблюдать их сам, иначе
+    # детерминированный гейт MP-005 блокирует каждый target и сделок нет.
+    TVL_FLOOR_USD = 5_000_000   # минимальный TVL пула для входа
+    T2_TOTAL_CAP = 0.35         # T2 совокупно не более 35% портфеля
 
     def __init__(
         self,
@@ -242,6 +250,97 @@ class StrategyAllocator:
                     w[p] = min(w[p] + excess * (w[p] / base), caps[p])
         return w, was_capped
 
+    # ── MP-011: TVL-floor фильтр ──────────────────────────────────────────
+    def _filter_by_tvl(
+        self, adapters: list[dict]
+    ) -> tuple[list[dict], list[str]]:
+        """Исключает адаптеры с TVL ниже :data:`TVL_FLOOR_USD`.
+
+        RiskPolicy (``min_tvl_usd``) отклоняет любую позицию в пуле с TVL
+        < $5M, поэтому такие адаптеры нельзя даже рассматривать при расчёте
+        весов. Возвращает ``(прошедшие, имена отклонённых)``.
+        """
+        ok: list[dict] = []
+        rejected: list[str] = []
+        for a in adapters:
+            tvl = float(a.get("tvl_usd") or a.get("tvl") or 0.0)
+            if tvl >= self.TVL_FLOOR_USD:
+                ok.append(a)
+            else:
+                rejected.append(a.get("protocol", "?"))
+        if rejected:
+            log.warning(
+                "MP-011: TVL-floor ($%s) отфильтровал адаптеры: %s",
+                f"{self.TVL_FLOOR_USD:,.0f}", rejected,
+            )
+        if not ok and adapters:
+            # Fallback: все адаптеры ниже floor — не возвращаем пустую вселенную
+            # (иначе аллокатор молча уйдёт в 100% кэш). RiskPolicy-гейт всё равно
+            # отклонит такие позиции — но это будет видно в risk_policy_blocks.json.
+            log.warning(
+                "MP-011: ВСЕ адаптеры ниже TVL-floor — fallback на исходный список"
+            )
+            return adapters, rejected
+        return ok, rejected
+
+    # ── MP-011: совокупный T2-кап ─────────────────────────────────────────
+    def _enforce_t2_total_cap(
+        self, weights: dict[str, float], tier_map: dict[str, str]
+    ) -> tuple[dict[str, float], bool]:
+        """Ограничивает суммарный вес T2 значением :data:`T2_TOTAL_CAP`.
+
+        Если совокупный T2 > 35% — T2-веса срезаются пропорционально, а
+        освобождённый вес перераспределяется в headroom T1-адаптеров
+        (не превышая :data:`T1_CAP` на протокол). Если T1-ёмкости не хватает,
+        остаток честно остаётся кэшем. Возвращает ``(weights, enforced)``.
+        """
+
+        def _is_t2(p: str) -> bool:
+            return str(tier_map.get(p, "T2")).upper() != "T1"
+
+        t2_total = sum(wt for p, wt in weights.items() if _is_t2(p))
+        if t2_total <= self.T2_TOTAL_CAP + _EPS:
+            return dict(weights), False
+
+        scale = self.T2_TOTAL_CAP / t2_total
+        w = dict(weights)
+        freed = 0.0
+        for p, wt in w.items():
+            if _is_t2(p):
+                new_wt = wt * scale
+                freed += wt - new_wt
+                w[p] = new_wt
+
+        # Water-fill освобождённого веса в T1 с учётом per-protocol cap.
+        t1 = [p for p in w if not _is_t2(p)]
+        for _ in range(100):
+            if freed <= _EPS:
+                break
+            room = {p: self.T1_CAP - w[p] for p in t1 if self.T1_CAP - w[p] > _EPS}
+            if not room:
+                break  # T1 упёрся в cap'ы — остаток уходит в кэш
+            base = sum(w[p] for p in room)
+            if base <= _EPS:
+                share = freed / len(room)
+                added = sum(
+                    min(share, room[p]) for p in room
+                )
+                for p in room:
+                    w[p] += min(share, room[p])
+            else:
+                added = 0.0
+                for p, headroom in room.items():
+                    add = min(freed * (w[p] / base), headroom)
+                    w[p] += add
+                    added += add
+            freed = max(0.0, freed - added)
+
+        log.info(
+            "MP-011: T2-total cap применён: %.1f%% → %.1f%%",
+            t2_total * 100, self.T2_TOTAL_CAP * 100,
+        )
+        return w, True
+
     # ── заполнение остатка T1-якорем (SPA-V405) ───────────────────────────
     def _fill_remainder(
         self,
@@ -316,6 +415,22 @@ class StrategyAllocator:
         ts = datetime.now(timezone.utc).isoformat()
         notes: list[str] = []
 
+        # MP-011: TVL-floor ДО расчёта весов — пулы ниже $5M RiskPolicy всё
+        # равно отклонит, поэтому им нельзя получить вес вообще.
+        adapters, tvl_rejected = self._filter_by_tvl(adapters)
+        survivors = {a["protocol"] for a in adapters}
+        tvl_filtered = [p for p in tvl_rejected if p not in survivors]
+        if tvl_filtered:
+            notes.append(
+                f"MP-011: TVL-floor ${self.TVL_FLOOR_USD:,.0f} исключил: "
+                + str(sorted(tvl_filtered))
+            )
+        elif tvl_rejected:
+            notes.append(
+                "MP-011 WARNING: все адаптеры ниже TVL-floor — fallback на "
+                "исходный список (RiskPolicy-гейт заблокирует такие позиции)."
+            )
+
         if not adapters:
             notes.append("Нет активных адаптеров — пустое распределение.")
             return AllocationResult(
@@ -337,6 +452,8 @@ class StrategyAllocator:
                 strategy_loop_active=False,
                 selected_strategy_id=None,
                 strategy_confidence=None,
+                tvl_filtered_protocols=tvl_filtered,
+                t2_cap_enforced=False,
                 notes=notes,
             )
 
@@ -439,6 +556,16 @@ class StrategyAllocator:
         # Исключённые риском (grade D) протоколы НЕ получают этот остаток.
         capped, filled = self._fill_remainder(capped, tier_map, apy_map, exclude=excluded)
 
+        # MP-011: совокупный T2-кап ПОСЛЕ всех перераспределений (caps +
+        # remainder-fill могут поднять суммарный T2 выше 35%) — финальный
+        # инвариант перед возвратом: sum(T2) ≤ 35%.
+        capped, t2_cap_enforced = self._enforce_t2_total_cap(capped, tier_map)
+        if t2_cap_enforced:
+            notes.append(
+                f"MP-011: суммарный T2 срезан до {self.T2_TOTAL_CAP * 100:.0f}% "
+                "(излишек перераспределён в headroom T1 либо остался кэшем)."
+            )
+
         # Возвращаем исключённые риском протоколы в вывод с нулевым весом —
         # для прозрачности (видно, что они учтены и сознательно занулены).
         for p in excluded:
@@ -488,6 +615,8 @@ class StrategyAllocator:
             strategy_loop_active=strategy_loop_active,
             selected_strategy_id=selected_strategy_id,
             strategy_confidence=strategy_confidence,
+            tvl_filtered_protocols=tvl_filtered,
+            t2_cap_enforced=t2_cap_enforced,
             notes=notes,
         )
 
