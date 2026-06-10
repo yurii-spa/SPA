@@ -41,5 +41,7 @@
   "spa_core/tests/test_eth_signer.py::TestSignMessage::test_accepts_bytes_message": true,
   "spa_core/tests/test_eth_signer.py::TestKeccak256::test_empty_bytes_known_hash": true,
   "spa_core/tests/test_eth_signer.py::TestKeccak256::test_returns_32_bytes": true,
-  "spa_core/tests/test_eth_signer.py::TestKeccak256::test_known_vector": true
+  "spa_core/tests/test_eth_signer.py::TestKeccak256::test_known_vector": true,
+  "spa_core/tests/test_dashboard_adapter_sync.py::TestDocument::test_exactly_five_adapters": true,
+  "spa_core/tests/test_dashboard_adapter_sync.py::TestDocument::test_protocol_keys": true
 }
