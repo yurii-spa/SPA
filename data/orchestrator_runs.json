@@ -1,0 +1,97 @@
+{
+  "runs": [
+    {
+      "run_ts": "2026-06-09T17:27:26.761479+00:00",
+      "duration_sec": 0.5694,
+      "summary": {
+        "total": 4,
+        "ok": 4,
+        "partial": 0,
+        "error": 0,
+        "avg_health_score": 1.0,
+        "grade": "A",
+        "best_apy": {
+          "protocol": "maple",
+          "apy_pct": 10.5
+        },
+        "total_tvl_usd": 0.0
+      },
+      "overall_health": {
+        "score": 1.0,
+        "grade": "A",
+        "total": 4,
+        "ok_count": 4,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 0
+      }
+    },
+    {
+      "run_ts": "2026-06-10T01:19:34.276999+00:00",
+      "duration_sec": 0.8809,
+      "summary": {
+        "total": 4,
+        "ok": 4,
+        "partial": 0,
+        "error": 0,
+        "avg_health_score": 1.0,
+        "grade": "A",
+        "best_apy": {
+          "protocol": "maple",
+          "apy_pct": 4.7139
+        },
+        "total_tvl_usd": 3133880015.0,
+        "live_data": true,
+        "adapters_with_live_apy": 4,
+        "data_freshness": "live"
+      },
+      "overall_health": {
+        "score": 1.0,
+        "grade": "A",
+        "total": 4,
+        "ok_count": 4,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 0
+      },
+      "status": "ok",
+      "live_data": true,
+      "adapters_with_live_apy": 4,
+      "data_freshness": "live"
+    },
+    {
+      "run_ts": "2026-06-10T01:19:58.587950+00:00",
+      "duration_sec": 0.8791,
+      "summary": {
+        "total": 4,
+        "ok": 4,
+        "partial": 0,
+        "error": 0,
+        "avg_health_score": 1.0,
+        "grade": "A",
+        "best_apy": {
+          "protocol": "maple",
+          "apy_pct": 4.7139
+        },
+        "total_tvl_usd": 3133880015.0,
+        "live_data": true,
+        "adapters_with_live_apy": 4,
+        "data_freshness": "live"
+      },
+      "overall_health": {
+        "score": 1.0,
+        "grade": "A",
+        "total": 4,
+        "ok_count": 4,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 0
+      },
+      "status": "ok",
+      "live_data": true,
+      "adapters_with_live_apy": 4,
+      "data_freshness": "live"
+    }
+  ],
+  "max_runs": 30
+}
