@@ -23,6 +23,13 @@ class MapleAdapter(BaseAdapter):
     DEFILLAMA_SYMBOL = "USDC"
     RISK_SCORE = 0.50
 
+    # SPA-V412: illiquid exit. Maple redemptions go through an epoch-based
+    # withdrawal queue — capital is not instantly liquid and can take days to
+    # weeks to fully exit. Declared at 336h (~14 days) as a conservative upper
+    # bound; this exceeds the 72h policy threshold, so the allocator must cap
+    # the combined illiquid bucket at <=25% of the portfolio.
+    EXIT_LATENCY_HOURS = 336.0
+
     def __init__(self, asset: str = "USDC", feed: Optional[DeFiLlamaFeed] = None):
         super().__init__(asset)
         self.tier = "T2"
@@ -79,6 +86,7 @@ class MapleAdapter(BaseAdapter):
             tvl_usd=float(tvl) if isinstance(tvl, (int, float)) else None,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
+            exit_latency_hours=self.EXIT_LATENCY_HOURS,
         )
 
     # end of class
