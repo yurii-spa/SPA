@@ -1,6 +1,6 @@
 {
   "last_updated": "2026-06-10",
-  "updated_by": "dev-orchestrator (SPA-V412 / MP-113)",
+  "updated_by": "claude-session (PAT rotation + runbook)",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -848,55 +848,17 @@
     ],
     "backlog": [
       {
-        "id": "MP-001",
-        "title": "Ротация GitHub PAT (USER ACTION, сегодня)",
-        "description": "ex RB-001. Отозвать утёкший токен (plaintext в 76 push_*.html, был в KANBAN/CLAUDE.md, не ротирован с v3.68). Новый fine-grained PAT — ТОЛЬКО Keychain (GITHUB_PAT_SPA). Блокирует MP-002/003. Утёкший секрет = автоматический fail любого DD.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
+        "id": "MP-071",
+        "title": "Плановая ротация PAT spa-claude-fg (до 2026-09-08)",
+        "description": "Основной токен spa-claude-fg истекает 2026-09-08. GitHub пришлёт email ~за неделю. Процедура на 2 минуты: docs/TOKEN_ROTATION_RUNBOOK.md (TL;DR сверху). Симптом просрочки: 401 в ~/.spa_push.log, автопуши молчат. Заодно проверить: legacy-токены spa (2026-06-20), New token (2026-06-25), spa-claude (2026-07-10) умерли сами — если при их истечении что-то сломалось, мигрировать потребителя на Keychain.",
+        "priority": "scheduled",
+        "due": "2026-09-01",
+        "created_at": "2026-06-10",
         "tags": [
           "security",
-          "user-action"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-002",
-        "title": "Удалить 100+ push_*.html и push_batch_*.json",
-        "description": "ex RB-002. push_*.html (98, из них 76 с PAT), check_pat.html, list_repos.html, push_batch_1..4.json, push_v22_files.json. Удалять ПОСЛЕ ротации. DoD: grep -r 'ghp_' → 0.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [
-          "MP-001"
-        ],
-        "estimate": "0.5d",
-        "tags": [
-          "security",
-          "cleanup"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-003",
-        "title": "PAT из CLAUDE.md + решение по git-истории",
-        "description": "ex RB-004. Убрать plaintext-токен; после ротации решить: BFG-чистка истории или принять как ротированный.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [
-          "MP-001"
-        ],
-        "estimate": "0.5d",
-        "tags": [
-          "security"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
+          "ops",
+          "recurring"
+        ]
       },
       {
         "id": "MP-004",
@@ -1361,6 +1323,60 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-003",
+        "title": "PAT из CLAUDE.md + решение по git-истории [DONE 2026-06-10: см. docs/TOKEN_ROTATION_RUNBOOK.md]",
+        "description": "ex RB-004. Убрать plaintext-токен; после ротации решить: BFG-чистка истории или принять как ротированный. || Выполнено: CLAUDE.md зачищен и запушен; git-история — оставлена как есть (токены отозваны, безвредно).",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-001"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "security"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "completed_at": "2026-06-10"
+      },
+      {
+        "id": "MP-002",
+        "title": "Удалить 100+ push_*.html и push_batch_*.json [DONE 2026-06-10: см. docs/TOKEN_ROTATION_RUNBOOK.md]",
+        "description": "ex RB-002. push_*.html (98, из них 76 с PAT), check_pat.html, list_repos.html, push_batch_1..4.json, push_v22_files.json. Удалять ПОСЛЕ ротации. DoD: grep -r 'ghp_' → 0. || Выполнено: 97 пушеров в ~/.Trash/SPA_leaked_pushers_2026-06-10; push_v23.html удалён из репо.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-001"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "security",
+          "cleanup"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "completed_at": "2026-06-10"
+      },
+      {
+        "id": "MP-001",
+        "title": "Ротация GitHub PAT (USER ACTION, сегодня) [DONE 2026-06-10: см. docs/TOKEN_ROTATION_RUNBOOK.md]",
+        "description": "ex RB-001. Отозвать утёкший токен (plaintext в 76 push_*.html, был в KANBAN/CLAUDE.md, не ротирован с v3.68). Новый fine-grained PAT — ТОЛЬКО Keychain (GITHUB_PAT_SPA). Блокирует MP-002/003. Утёкший секрет = автоматический fail любого DD. || Выполнено: ...N31r отозван, ...3vGZ был мёртв; новый fine-grained spa-claude-fg (до 2026-09-08) в Keychain.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "security",
+          "user-action"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "completed_at": "2026-06-10"
+      },
       {
         "id": "RB-000",
         "title": "Teardown-аудит + Rebuild Plan v1",
