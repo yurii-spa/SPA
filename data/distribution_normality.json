@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-06-10T04:13:04.108973+00:00",
+  "source": "/sessions/cool-trusting-curie/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "metrics": {
+    "count": 7,
+    "num_days": 8,
+    "first_date": "2026-05-15",
+    "last_date": "2026-05-22",
+    "mean_pct": -0.171157,
+    "stdev_pct": 0.454646,
+    "skewness": -0.665056,
+    "excess_kurtosis": -0.637585,
+    "jarque_bera": {
+      "statistic": 0.634583,
+      "p_value": 0.728119,
+      "is_normal": true,
+      "alpha": 0.05
+    },
+    "levels": [
+      {
+        "confidence": 0.95,
+        "z": -1.644854,
+        "gaussian_var_pct": -0.918984,
+        "gaussian_cvar_pct": -1.108962,
+        "cf_z": -1.83846,
+        "modified_var_pct": -1.007006,
+        "modified_cvar_pct": -0.840533,
+        "tail_inflation_pct": -0.088022
+      },
+      {
+        "confidence": 0.99,
+        "z": -2.326348,
+        "gaussian_var_pct": -1.228823,
+        "gaussian_cvar_pct": -1.382887,
+        "cf_z": -2.49986,
+        "modified_var_pct": -1.30771,
+        "modified_cvar_pct": -0.968353,
+        "tail_inflation_pct": -0.078887
+      }
+    ],
+    "normality_grade": "B",
+    "verdict": "skewed",
+    "confidences": [
+      0.95,
+      0.99
+    ],
+    "execution_mode": "read_only_simulation"
+  }
+}
