@@ -1,0 +1,1755 @@
+{
+  "generated_at": "2026-06-09T17:15:19Z",
+  "source": "/sessions/brave-peaceful-brahmagupta/mnt/Documents/SPA_Claude/data/historical_apy.json",
+  "data_source": "synthetic",
+  "start_date": "2026-02-21",
+  "end_date": "2026-05-21",
+  "num_days": 90,
+  "num_protocols": 7,
+  "starting_capital_usd": 10000.0,
+  "strategies": {
+    "equal_weight": {
+      "start_equity": 10000.0,
+      "end_equity": 10133.7141,
+      "total_return_pct": 1.337141,
+      "annualized_apy_pct": 5.534649,
+      "num_days": 90,
+      "mean_daily_return_pct": 0.01476,
+      "daily_volatility_pct": 0.002074,
+      "best_day": {
+        "date": "2026-04-04",
+        "daily_return_pct": 0.019235
+      },
+      "worst_day": {
+        "date": "2026-05-01",
+        "daily_return_pct": 0.009203
+      },
+      "max_drawdown_pct": 0.0,
+      "curve": [
+        {
+          "date": "2026-02-21",
+          "equity": 10001.5133,
+          "daily_return_pct": 0.015133,
+          "cumulative_return_pct": 0.015133
+        },
+        {
+          "date": "2026-02-22",
+          "equity": 10003.1362,
+          "daily_return_pct": 0.016227,
+          "cumulative_return_pct": 0.031362
+        },
+        {
+          "date": "2026-02-23",
+          "equity": 10004.6743,
+          "daily_return_pct": 0.015377,
+          "cumulative_return_pct": 0.046743
+        },
+        {
+          "date": "2026-02-24",
+          "equity": 10006.2707,
+          "daily_return_pct": 0.015956,
+          "cumulative_return_pct": 0.062707
+        },
+        {
+          "date": "2026-02-25",
+          "equity": 10007.7334,
+          "daily_return_pct": 0.014617,
+          "cumulative_return_pct": 0.077334
+        },
+        {
+          "date": "2026-02-26",
+          "equity": 10008.9065,
+          "daily_return_pct": 0.011722,
+          "cumulative_return_pct": 0.089065
+        },
+        {
+          "date": "2026-02-27",
+          "equity": 10010.0502,
+          "daily_return_pct": 0.011427,
+          "cumulative_return_pct": 0.100502
+        },
+        {
+          "date": "2026-02-28",
+          "equity": 10011.3212,
+          "daily_return_pct": 0.012697,
+          "cumulative_return_pct": 0.113212
+        },
+        {
+          "date": "2026-03-01",
+          "equity": 10012.4817,
+          "daily_return_pct": 0.011592,
+          "cumulative_return_pct": 0.124817
+        },
+        {
+          "date": "2026-03-02",
+          "equity": 10013.5932,
+          "daily_return_pct": 0.011101,
+          "cumulative_return_pct": 0.135932
+        },
+        {
+          "date": "2026-03-03",
+          "equity": 10014.9339,
+          "daily_return_pct": 0.013388,
+          "cumulative_return_pct": 0.149339
+        },
+        {
+          "date": "2026-03-04",
+          "equity": 10016.4054,
+          "daily_return_pct": 0.014693,
+          "cumulative_return_pct": 0.164054
+        },
+        {
+          "date": "2026-03-05",
+          "equity": 10017.933,
+          "daily_return_pct": 0.015251,
+          "cumulative_return_pct": 0.17933
+        },
+        {
+          "date": "2026-03-06",
+          "equity": 10019.4613,
+          "daily_return_pct": 0.015256,
+          "cumulative_return_pct": 0.194613
+        },
+        {
+          "date": "2026-03-07",
+          "equity": 10020.765,
+          "daily_return_pct": 0.013011,
+          "cumulative_return_pct": 0.20765
+        },
+        {
+          "date": "2026-03-08",
+          "equity": 10022.2606,
+          "daily_return_pct": 0.014925,
+          "cumulative_return_pct": 0.222606
+        },
+        {
+          "date": "2026-03-09",
+          "equity": 10023.7571,
+          "daily_return_pct": 0.014932,
+          "cumulative_return_pct": 0.237571
+        },
+        {
+          "date": "2026-03-10",
+          "equity": 10025.4459,
+          "daily_return_pct": 0.016848,
+          "cumulative_return_pct": 0.254459
+        },
+        {
+          "date": "2026-03-11",
+          "equity": 10027.1175,
+          "daily_return_pct": 0.016674,
+          "cumulative_return_pct": 0.271175
+        },
+        {
+          "date": "2026-03-12",
+          "equity": 10028.8523,
+          "daily_return_pct": 0.017301,
+          "cumulative_return_pct": 0.288523
+        },
+        {
+          "date": "2026-03-13",
+          "equity": 10030.5716,
+          "daily_return_pct": 0.017143,
+          "cumulative_return_pct": 0.305716
+        },
+        {
+          "date": "2026-03-14",
+          "equity": 10032.2684,
+          "daily_return_pct": 0.016917,
+          "cumulative_return_pct": 0.322684
+        },
+        {
+          "date": "2026-03-15",
+          "equity": 10034.1274,
+          "daily_return_pct": 0.018529,
+          "cumulative_return_pct": 0.341274
+        },
+        {
+          "date": "2026-03-16",
+          "equity": 10035.6171,
+          "daily_return_pct": 0.014846,
+          "cumulative_return_pct": 0.356171
+        },
+        {
+          "date": "2026-03-17",
+          "equity": 10037.1162,
+          "daily_return_pct": 0.014938,
+          "cumulative_return_pct": 0.371162
+        },
+        {
+          "date": "2026-03-18",
+          "equity": 10038.6607,
+          "daily_return_pct": 0.015388,
+          "cumulative_return_pct": 0.386607
+        },
+        {
+          "date": "2026-03-19",
+          "equity": 10040.2822,
+          "daily_return_pct": 0.016152,
+          "cumulative_return_pct": 0.402822
+        },
+        {
+          "date": "2026-03-20",
+          "equity": 10041.836,
+          "daily_return_pct": 0.015476,
+          "cumulative_return_pct": 0.41836
+        },
+        {
+          "date": "2026-03-21",
+          "equity": 10043.4147,
+          "daily_return_pct": 0.015721,
+          "cumulative_return_pct": 0.434147
+        },
+        {
+          "date": "2026-03-22",
+          "equity": 10044.9578,
+          "daily_return_pct": 0.015364,
+          "cumulative_return_pct": 0.449578
+        },
+        {
+          "date": "2026-03-23",
+          "equity": 10046.37,
+          "daily_return_pct": 0.014059,
+          "cumulative_return_pct": 0.4637
+        },
+        {
+          "date": "2026-03-24",
+          "equity": 10047.8275,
+          "daily_return_pct": 0.014508,
+          "cumulative_return_pct": 0.478275
+        },
+        {
+          "date": "2026-03-25",
+          "equity": 10049.1155,
+          "daily_return_pct": 0.012818,
+          "cumulative_return_pct": 0.491155
+        },
+        {
+          "date": "2026-03-26",
+          "equity": 10050.6095,
+          "daily_return_pct": 0.014868,
+          "cumulative_return_pct": 0.506095
+        },
+        {
+          "date": "2026-03-27",
+          "equity": 10052.0969,
+          "daily_return_pct": 0.014799,
+          "cumulative_return_pct": 0.520969
+        },
+        {
+          "date": "2026-03-28",
+          "equity": 10053.4586,
+          "daily_return_pct": 0.013546,
+          "cumulative_return_pct": 0.534586
+        },
+        {
+          "date": "2026-03-29",
+          "equity": 10054.99,
+          "daily_return_pct": 0.015232,
+          "cumulative_return_pct": 0.5499
+        },
+        {
+          "date": "2026-03-30",
+          "equity": 10056.3099,
+          "daily_return_pct": 0.013127,
+          "cumulative_return_pct": 0.563099
+        },
+        {
+          "date": "2026-03-31",
+          "equity": 10057.8826,
+          "daily_return_pct": 0.015638,
+          "cumulative_return_pct": 0.578826
+        },
+        {
+          "date": "2026-04-01",
+          "equity": 10059.5054,
+          "daily_return_pct": 0.016135,
+          "cumulative_return_pct": 0.595054
+        },
+        {
+          "date": "2026-04-02",
+          "equity": 10061.3532,
+          "daily_return_pct": 0.018369,
+          "cumulative_return_pct": 0.613532
+        },
+        {
+          "date": "2026-04-03",
+          "equity": 10063.1808,
+          "daily_return_pct": 0.018164,
+          "cumulative_return_pct": 0.631808
+        },
+        {
+          "date": "2026-04-04",
+          "equity": 10065.1164,
+          "daily_return_pct": 0.019235,
+          "cumulative_return_pct": 0.651164
+        },
+        {
+          "date": "2026-04-05",
+          "equity": 10066.8631,
+          "daily_return_pct": 0.017354,
+          "cumulative_return_pct": 0.668631
+        },
+        {
+          "date": "2026-04-06",
+          "equity": 10068.4213,
+          "daily_return_pct": 0.015479,
+          "cumulative_return_pct": 0.684213
+        },
+        {
+          "date": "2026-04-07",
+          "equity": 10069.8991,
+          "daily_return_pct": 0.014677,
+          "cumulative_return_pct": 0.698991
+        },
+        {
+          "date": "2026-04-08",
+          "equity": 10071.1601,
+          "daily_return_pct": 0.012522,
+          "cumulative_return_pct": 0.711601
+        },
+        {
+          "date": "2026-04-09",
+          "equity": 10072.4837,
+          "daily_return_pct": 0.013143,
+          "cumulative_return_pct": 0.724837
+        },
+        {
+          "date": "2026-04-10",
+          "equity": 10073.8697,
+          "daily_return_pct": 0.01376,
+          "cumulative_return_pct": 0.738697
+        },
+        {
+          "date": "2026-04-11",
+          "equity": 10075.3516,
+          "daily_return_pct": 0.014711,
+          "cumulative_return_pct": 0.753516
+        },
+        {
+          "date": "2026-04-12",
+          "equity": 10076.6929,
+          "daily_return_pct": 0.013313,
+          "cumulative_return_pct": 0.766929
+        },
+        {
+          "date": "2026-04-13",
+          "equity": 10078.3456,
+          "daily_return_pct": 0.016401,
+          "cumulative_return_pct": 0.783456
+        },
+        {
+          "date": "2026-04-14",
+          "equity": 10079.9573,
+          "daily_return_pct": 0.015992,
+          "cumulative_return_pct": 0.799573
+        },
+        {
+          "date": "2026-04-15",
+          "equity": 10081.4989,
+          "daily_return_pct": 0.015294,
+          "cumulative_return_pct": 0.814989
+        },
+        {
+          "date": "2026-04-16",
+          "equity": 10083.1439,
+          "daily_return_pct": 0.016317,
+          "cumulative_return_pct": 0.831439
+        },
+        {
+          "date": "2026-04-17",
+          "equity": 10084.6374,
+          "daily_return_pct": 0.014812,
+          "cumulative_return_pct": 0.846374
+        },
+        {
+          "date": "2026-04-18",
+          "equity": 10086.2324,
+          "daily_return_pct": 0.015816,
+          "cumulative_return_pct": 0.862324
+        },
+        {
+          "date": "2026-04-19",
+          "equity": 10087.8951,
+          "daily_return_pct": 0.016485,
+          "cumulative_return_pct": 0.878951
+        },
+        {
+          "date": "2026-04-20",
+          "equity": 10089.4182,
+          "daily_return_pct": 0.015099,
+          "cumulative_return_pct": 0.894182
+        },
+        {
+          "date": "2026-04-21",
+          "equity": 10091.092,
+          "daily_return_pct": 0.016589,
+          "cumulative_return_pct": 0.91092
+        },
+        {
+          "date": "2026-04-22",
+          "equity": 10092.654,
+          "daily_return_pct": 0.015479,
+          "cumulative_return_pct": 0.92654
+        },
+        {
+          "date": "2026-04-23",
+          "equity": 10094.3689,
+          "daily_return_pct": 0.016992,
+          "cumulative_return_pct": 0.943689
+        },
+        {
+          "date": "2026-04-24",
+          "equity": 10095.9761,
+          "daily_return_pct": 0.015922,
+          "cumulative_return_pct": 0.959761
+        },
+        {
+          "date": "2026-04-25",
+          "equity": 10097.4503,
+          "daily_return_pct": 0.014602,
+          "cumulative_return_pct": 0.974503
+        },
+        {
+          "date": "2026-04-26",
+          "equity": 10098.9032,
+          "daily_return_pct": 0.01439,
+          "cumulative_return_pct": 0.989032
+        },
+        {
+          "date": "2026-04-27",
+          "equity": 10100.3008,
+          "daily_return_pct": 0.013839,
+          "cumulative_return_pct": 1.003008
+        },
+        {
+          "date": "2026-04-28",
+          "equity": 10101.8086,
+          "daily_return_pct": 0.014928,
+          "cumulative_return_pct": 1.018086
+        },
+        {
+          "date": "2026-04-29",
+          "equity": 10103.2564,
+          "daily_return_pct": 0.014332,
+          "cumulative_return_pct": 1.032564
+        },
+        {
+          "date": "2026-04-30",
+          "equity": 10104.353,
+          "daily_return_pct": 0.010854,
+          "cumulative_return_pct": 1.04353
+        },
+        {
+          "date": "2026-05-01",
+          "equity": 10105.2829,
+          "daily_return_pct": 0.009203,
+          "cumulative_return_pct": 1.052829
+        },
+        {
+          "date": "2026-05-02",
+          "equity": 10106.4653,
+          "daily_return_pct": 0.0117,
+          "cumulative_return_pct": 1.064653
+        },
+        {
+          "date": "2026-05-03",
+          "equity": 10107.7703,
+          "daily_return_pct": 0.012913,
+          "cumulative_return_pct": 1.077703
+        },
+        {
+          "date": "2026-05-04",
+          "equity": 10109.3615,
+          "daily_return_pct": 0.015742,
+          "cumulative_return_pct": 1.093615
+        },
+        {
+          "date": "2026-05-05",
+          "equity": 10111.0343,
+          "daily_return_pct": 0.016547,
+          "cumulative_return_pct": 1.110343
+        },
+        {
+          "date": "2026-05-06",
+          "equity": 10112.6351,
+          "daily_return_pct": 0.015832,
+          "cumulative_return_pct": 1.126351
+        },
+        {
+          "date": "2026-05-07",
+          "equity": 10113.9825,
+          "daily_return_pct": 0.013325,
+          "cumulative_return_pct": 1.139825
+        },
+        {
+          "date": "2026-05-08",
+          "equity": 10115.5998,
+          "daily_return_pct": 0.01599,
+          "cumulative_return_pct": 1.155998
+        },
+        {
+          "date": "2026-05-09",
+          "equity": 10117.427,
+          "daily_return_pct": 0.018063,
+          "cumulative_return_pct": 1.17427
+        },
+        {
+          "date": "2026-05-10",
+          "equity": 10119.3688,
+          "daily_return_pct": 0.019193,
+          "cumulative_return_pct": 1.193688
+        },
+        {
+          "date": "2026-05-11",
+          "equity": 10121.1678,
+          "daily_return_pct": 0.017777,
+          "cumulative_return_pct": 1.211678
+        },
+        {
+          "date": "2026-05-12",
+          "equity": 10122.8406,
+          "daily_return_pct": 0.016528,
+          "cumulative_return_pct": 1.228406
+        },
+        {
+          "date": "2026-05-13",
+          "equity": 10124.1604,
+          "daily_return_pct": 0.013038,
+          "cumulative_return_pct": 1.241604
+        },
+        {
+          "date": "2026-05-14",
+          "equity": 10125.4177,
+          "daily_return_pct": 0.012419,
+          "cumulative_return_pct": 1.254177
+        },
+        {
+          "date": "2026-05-15",
+          "equity": 10126.5634,
+          "daily_return_pct": 0.011315,
+          "cumulative_return_pct": 1.265634
+        },
+        {
+          "date": "2026-05-16",
+          "equity": 10127.656,
+          "daily_return_pct": 0.010789,
+          "cumulative_return_pct": 1.27656
+        },
+        {
+          "date": "2026-05-17",
+          "equity": 10128.8462,
+          "daily_return_pct": 0.011753,
+          "cumulative_return_pct": 1.288462
+        },
+        {
+          "date": "2026-05-18",
+          "equity": 10129.8918,
+          "daily_return_pct": 0.010323,
+          "cumulative_return_pct": 1.298918
+        },
+        {
+          "date": "2026-05-19",
+          "equity": 10131.1877,
+          "daily_return_pct": 0.012792,
+          "cumulative_return_pct": 1.311877
+        },
+        {
+          "date": "2026-05-20",
+          "equity": 10132.4527,
+          "daily_return_pct": 0.012486,
+          "cumulative_return_pct": 1.324527
+        },
+        {
+          "date": "2026-05-21",
+          "equity": 10133.7141,
+          "daily_return_pct": 0.012449,
+          "cumulative_return_pct": 1.337141
+        }
+      ]
+    },
+    "best_apy": {
+      "start_equity": 10000.0,
+      "end_equity": 10222.9894,
+      "total_return_pct": 2.229894,
+      "annualized_apy_pct": 9.356285,
+      "num_days": 90,
+      "mean_daily_return_pct": 0.024507,
+      "daily_volatility_pct": 0.004572,
+      "best_day": {
+        "date": "2026-03-18",
+        "daily_return_pct": 0.036909
+      },
+      "worst_day": {
+        "date": "2026-05-01",
+        "daily_return_pct": 0.014673
+      },
+      "max_drawdown_pct": 0.0,
+      "curve": [
+        {
+          "date": "2026-02-21",
+          "equity": 10001.901,
+          "daily_return_pct": 0.01901,
+          "cumulative_return_pct": 0.01901
+        },
+        {
+          "date": "2026-02-22",
+          "equity": 10003.998,
+          "daily_return_pct": 0.020966,
+          "cumulative_return_pct": 0.03998
+        },
+        {
+          "date": "2026-02-23",
+          "equity": 10005.9843,
+          "daily_return_pct": 0.019855,
+          "cumulative_return_pct": 0.059843
+        },
+        {
+          "date": "2026-02-24",
+          "equity": 10008.3671,
+          "daily_return_pct": 0.023814,
+          "cumulative_return_pct": 0.083671
+        },
+        {
+          "date": "2026-02-25",
+          "equity": 10010.6885,
+          "daily_return_pct": 0.023195,
+          "cumulative_return_pct": 0.106885
+        },
+        {
+          "date": "2026-02-26",
+          "equity": 10013.0871,
+          "daily_return_pct": 0.02396,
+          "cumulative_return_pct": 0.130871
+        },
+        {
+          "date": "2026-02-27",
+          "equity": 10015.9173,
+          "daily_return_pct": 0.028265,
+          "cumulative_return_pct": 0.159173
+        },
+        {
+          "date": "2026-02-28",
+          "equity": 10018.4803,
+          "daily_return_pct": 0.025589,
+          "cumulative_return_pct": 0.184803
+        },
+        {
+          "date": "2026-03-01",
+          "equity": 10020.7965,
+          "daily_return_pct": 0.023119,
+          "cumulative_return_pct": 0.207965
+        },
+        {
+          "date": "2026-03-02",
+          "equity": 10023.1375,
+          "daily_return_pct": 0.023362,
+          "cumulative_return_pct": 0.231375
+        },
+        {
+          "date": "2026-03-03",
+          "equity": 10025.6757,
+          "daily_return_pct": 0.025323,
+          "cumulative_return_pct": 0.256757
+        },
+        {
+          "date": "2026-03-04",
+          "equity": 10028.5068,
+          "daily_return_pct": 0.028239,
+          "cumulative_return_pct": 0.285068
+        },
+        {
+          "date": "2026-03-05",
+          "equity": 10031.1258,
+          "daily_return_pct": 0.026115,
+          "cumulative_return_pct": 0.311258
+        },
+        {
+          "date": "2026-03-06",
+          "equity": 10034.7066,
+          "daily_return_pct": 0.035697,
+          "cumulative_return_pct": 0.347066
+        },
+        {
+          "date": "2026-03-07",
+          "equity": 10037.5137,
+          "daily_return_pct": 0.027974,
+          "cumulative_return_pct": 0.375137
+        },
+        {
+          "date": "2026-03-08",
+          "equity": 10040.0934,
+          "daily_return_pct": 0.025701,
+          "cumulative_return_pct": 0.400934
+        },
+        {
+          "date": "2026-03-09",
+          "equity": 10042.4346,
+          "daily_return_pct": 0.023318,
+          "cumulative_return_pct": 0.424346
+        },
+        {
+          "date": "2026-03-10",
+          "equity": 10045.1233,
+          "daily_return_pct": 0.026774,
+          "cumulative_return_pct": 0.451233
+        },
+        {
+          "date": "2026-03-11",
+          "equity": 10047.5619,
+          "daily_return_pct": 0.024276,
+          "cumulative_return_pct": 0.475619
+        },
+        {
+          "date": "2026-03-12",
+          "equity": 10050.5203,
+          "daily_return_pct": 0.029444,
+          "cumulative_return_pct": 0.505203
+        },
+        {
+          "date": "2026-03-13",
+          "equity": 10053.2918,
+          "daily_return_pct": 0.027576,
+          "cumulative_return_pct": 0.532918
+        },
+        {
+          "date": "2026-03-14",
+          "equity": 10056.0933,
+          "daily_return_pct": 0.027866,
+          "cumulative_return_pct": 0.560933
+        },
+        {
+          "date": "2026-03-15",
+          "equity": 10059.4595,
+          "daily_return_pct": 0.033474,
+          "cumulative_return_pct": 0.594595
+        },
+        {
+          "date": "2026-03-16",
+          "equity": 10062.4121,
+          "daily_return_pct": 0.029351,
+          "cumulative_return_pct": 0.624121
+        },
+        {
+          "date": "2026-03-17",
+          "equity": 10065.5094,
+          "daily_return_pct": 0.030781,
+          "cumulative_return_pct": 0.655094
+        },
+        {
+          "date": "2026-03-18",
+          "equity": 10069.2245,
+          "daily_return_pct": 0.036909,
+          "cumulative_return_pct": 0.692245
+        },
+        {
+          "date": "2026-03-19",
+          "equity": 10072.5081,
+          "daily_return_pct": 0.032611,
+          "cumulative_return_pct": 0.725081
+        },
+        {
+          "date": "2026-03-20",
+          "equity": 10075.6427,
+          "daily_return_pct": 0.03112,
+          "cumulative_return_pct": 0.756427
+        },
+        {
+          "date": "2026-03-21",
+          "equity": 10078.8736,
+          "daily_return_pct": 0.032066,
+          "cumulative_return_pct": 0.788736
+        },
+        {
+          "date": "2026-03-22",
+          "equity": 10081.5155,
+          "daily_return_pct": 0.026212,
+          "cumulative_return_pct": 0.815155
+        },
+        {
+          "date": "2026-03-23",
+          "equity": 10083.8767,
+          "daily_return_pct": 0.02342,
+          "cumulative_return_pct": 0.838767
+        },
+        {
+          "date": "2026-03-24",
+          "equity": 10086.092,
+          "daily_return_pct": 0.021969,
+          "cumulative_return_pct": 0.86092
+        },
+        {
+          "date": "2026-03-25",
+          "equity": 10088.1008,
+          "daily_return_pct": 0.019916,
+          "cumulative_return_pct": 0.881008
+        },
+        {
+          "date": "2026-03-26",
+          "equity": 10090.1776,
+          "daily_return_pct": 0.020587,
+          "cumulative_return_pct": 0.901776
+        },
+        {
+          "date": "2026-03-27",
+          "equity": 10092.839,
+          "daily_return_pct": 0.026376,
+          "cumulative_return_pct": 0.92839
+        },
+        {
+          "date": "2026-03-28",
+          "equity": 10094.9035,
+          "daily_return_pct": 0.020455,
+          "cumulative_return_pct": 0.949035
+        },
+        {
+          "date": "2026-03-29",
+          "equity": 10097.3369,
+          "daily_return_pct": 0.024105,
+          "cumulative_return_pct": 0.973369
+        },
+        {
+          "date": "2026-03-30",
+          "equity": 10099.7127,
+          "daily_return_pct": 0.023529,
+          "cumulative_return_pct": 0.997127
+        },
+        {
+          "date": "2026-03-31",
+          "equity": 10102.2783,
+          "daily_return_pct": 0.025403,
+          "cumulative_return_pct": 1.022783
+        },
+        {
+          "date": "2026-04-01",
+          "equity": 10104.7423,
+          "daily_return_pct": 0.024391,
+          "cumulative_return_pct": 1.047423
+        },
+        {
+          "date": "2026-04-02",
+          "equity": 10107.1535,
+          "daily_return_pct": 0.023862,
+          "cumulative_return_pct": 1.071535
+        },
+        {
+          "date": "2026-04-03",
+          "equity": 10109.2828,
+          "daily_return_pct": 0.021067,
+          "cumulative_return_pct": 1.092828
+        },
+        {
+          "date": "2026-04-04",
+          "equity": 10112.1499,
+          "daily_return_pct": 0.028361,
+          "cumulative_return_pct": 1.121499
+        },
+        {
+          "date": "2026-04-05",
+          "equity": 10114.8879,
+          "daily_return_pct": 0.027076,
+          "cumulative_return_pct": 1.148879
+        },
+        {
+          "date": "2026-04-06",
+          "equity": 10117.332,
+          "daily_return_pct": 0.024163,
+          "cumulative_return_pct": 1.17332
+        },
+        {
+          "date": "2026-04-07",
+          "equity": 10120.065,
+          "daily_return_pct": 0.027013,
+          "cumulative_return_pct": 1.20065
+        },
+        {
+          "date": "2026-04-08",
+          "equity": 10122.3378,
+          "daily_return_pct": 0.022458,
+          "cumulative_return_pct": 1.223378
+        },
+        {
+          "date": "2026-04-09",
+          "equity": 10124.4644,
+          "daily_return_pct": 0.02101,
+          "cumulative_return_pct": 1.244644
+        },
+        {
+          "date": "2026-04-10",
+          "equity": 10126.533,
+          "daily_return_pct": 0.020431,
+          "cumulative_return_pct": 1.26533
+        },
+        {
+          "date": "2026-04-11",
+          "equity": 10128.7264,
+          "daily_return_pct": 0.02166,
+          "cumulative_return_pct": 1.287264
+        },
+        {
+          "date": "2026-04-12",
+          "equity": 10131.3487,
+          "daily_return_pct": 0.02589,
+          "cumulative_return_pct": 1.313487
+        },
+        {
+          "date": "2026-04-13",
+          "equity": 10134.3936,
+          "daily_return_pct": 0.030054,
+          "cumulative_return_pct": 1.343936
+        },
+        {
+          "date": "2026-04-14",
+          "equity": 10137.1704,
+          "daily_return_pct": 0.027399,
+          "cumulative_return_pct": 1.371704
+        },
+        {
+          "date": "2026-04-15",
+          "equity": 10139.7985,
+          "daily_return_pct": 0.025926,
+          "cumulative_return_pct": 1.397985
+        },
+        {
+          "date": "2026-04-16",
+          "equity": 10142.7881,
+          "daily_return_pct": 0.029484,
+          "cumulative_return_pct": 1.427881
+        },
+        {
+          "date": "2026-04-17",
+          "equity": 10144.8615,
+          "daily_return_pct": 0.020442,
+          "cumulative_return_pct": 1.448615
+        },
+        {
+          "date": "2026-04-18",
+          "equity": 10147.4464,
+          "daily_return_pct": 0.025481,
+          "cumulative_return_pct": 1.474464
+        },
+        {
+          "date": "2026-04-19",
+          "equity": 10149.6547,
+          "daily_return_pct": 0.021762,
+          "cumulative_return_pct": 1.496547
+        },
+        {
+          "date": "2026-04-20",
+          "equity": 10151.8826,
+          "daily_return_pct": 0.021951,
+          "cumulative_return_pct": 1.518826
+        },
+        {
+          "date": "2026-04-21",
+          "equity": 10154.2381,
+          "daily_return_pct": 0.023202,
+          "cumulative_return_pct": 1.542381
+        },
+        {
+          "date": "2026-04-22",
+          "equity": 10156.1724,
+          "daily_return_pct": 0.019049,
+          "cumulative_return_pct": 1.561724
+        },
+        {
+          "date": "2026-04-23",
+          "equity": 10158.1936,
+          "daily_return_pct": 0.019901,
+          "cumulative_return_pct": 1.581936
+        },
+        {
+          "date": "2026-04-24",
+          "equity": 10160.1495,
+          "daily_return_pct": 0.019255,
+          "cumulative_return_pct": 1.601495
+        },
+        {
+          "date": "2026-04-25",
+          "equity": 10162.2717,
+          "daily_return_pct": 0.020888,
+          "cumulative_return_pct": 1.622717
+        },
+        {
+          "date": "2026-04-26",
+          "equity": 10164.5471,
+          "daily_return_pct": 0.022391,
+          "cumulative_return_pct": 1.645471
+        },
+        {
+          "date": "2026-04-27",
+          "equity": 10166.8347,
+          "daily_return_pct": 0.022505,
+          "cumulative_return_pct": 1.668347
+        },
+        {
+          "date": "2026-04-28",
+          "equity": 10168.8984,
+          "daily_return_pct": 0.020298,
+          "cumulative_return_pct": 1.688984
+        },
+        {
+          "date": "2026-04-29",
+          "equity": 10170.8248,
+          "daily_return_pct": 0.018944,
+          "cumulative_return_pct": 1.708248
+        },
+        {
+          "date": "2026-04-30",
+          "equity": 10172.5241,
+          "daily_return_pct": 0.016708,
+          "cumulative_return_pct": 1.725241
+        },
+        {
+          "date": "2026-05-01",
+          "equity": 10174.0167,
+          "daily_return_pct": 0.014673,
+          "cumulative_return_pct": 1.740167
+        },
+        {
+          "date": "2026-05-02",
+          "equity": 10175.7775,
+          "daily_return_pct": 0.017307,
+          "cumulative_return_pct": 1.757775
+        },
+        {
+          "date": "2026-05-03",
+          "equity": 10178.4145,
+          "daily_return_pct": 0.025914,
+          "cumulative_return_pct": 1.784145
+        },
+        {
+          "date": "2026-05-04",
+          "equity": 10181.2465,
+          "daily_return_pct": 0.027824,
+          "cumulative_return_pct": 1.812465
+        },
+        {
+          "date": "2026-05-05",
+          "equity": 10183.9981,
+          "daily_return_pct": 0.027025,
+          "cumulative_return_pct": 1.839981
+        },
+        {
+          "date": "2026-05-06",
+          "equity": 10186.5995,
+          "daily_return_pct": 0.025544,
+          "cumulative_return_pct": 1.865995
+        },
+        {
+          "date": "2026-05-07",
+          "equity": 10189.1795,
+          "daily_return_pct": 0.025328,
+          "cumulative_return_pct": 1.891795
+        },
+        {
+          "date": "2026-05-08",
+          "equity": 10192.5202,
+          "daily_return_pct": 0.032787,
+          "cumulative_return_pct": 1.925202
+        },
+        {
+          "date": "2026-05-09",
+          "equity": 10196.0483,
+          "daily_return_pct": 0.034615,
+          "cumulative_return_pct": 1.960483
+        },
+        {
+          "date": "2026-05-10",
+          "equity": 10199.299,
+          "daily_return_pct": 0.031881,
+          "cumulative_return_pct": 1.99299
+        },
+        {
+          "date": "2026-05-11",
+          "equity": 10201.9991,
+          "daily_return_pct": 0.026474,
+          "cumulative_return_pct": 2.019991
+        },
+        {
+          "date": "2026-05-12",
+          "equity": 10204.7031,
+          "daily_return_pct": 0.026504,
+          "cumulative_return_pct": 2.047031
+        },
+        {
+          "date": "2026-05-13",
+          "equity": 10206.5382,
+          "daily_return_pct": 0.017984,
+          "cumulative_return_pct": 2.065382
+        },
+        {
+          "date": "2026-05-14",
+          "equity": 10208.4818,
+          "daily_return_pct": 0.019043,
+          "cumulative_return_pct": 2.084818
+        },
+        {
+          "date": "2026-05-15",
+          "equity": 10210.1906,
+          "daily_return_pct": 0.016738,
+          "cumulative_return_pct": 2.101906
+        },
+        {
+          "date": "2026-05-16",
+          "equity": 10212.293,
+          "daily_return_pct": 0.020592,
+          "cumulative_return_pct": 2.12293
+        },
+        {
+          "date": "2026-05-17",
+          "equity": 10214.2528,
+          "daily_return_pct": 0.01919,
+          "cumulative_return_pct": 2.142528
+        },
+        {
+          "date": "2026-05-18",
+          "equity": 10215.8638,
+          "daily_return_pct": 0.015772,
+          "cumulative_return_pct": 2.158638
+        },
+        {
+          "date": "2026-05-19",
+          "equity": 10218.0844,
+          "daily_return_pct": 0.021737,
+          "cumulative_return_pct": 2.180844
+        },
+        {
+          "date": "2026-05-20",
+          "equity": 10220.4954,
+          "daily_return_pct": 0.023596,
+          "cumulative_return_pct": 2.204954
+        },
+        {
+          "date": "2026-05-21",
+          "equity": 10222.9894,
+          "daily_return_pct": 0.024402,
+          "cumulative_return_pct": 2.229894
+        }
+      ]
+    },
+    "buy_and_hold_best": {
+      "start_equity": 10000.0,
+      "end_equity": 10166.1106,
+      "total_return_pct": 1.661106,
+      "annualized_apy_pct": 6.909626,
+      "num_days": 90,
+      "mean_daily_return_pct": 0.018307,
+      "daily_volatility_pct": 0.005677,
+      "best_day": {
+        "date": "2026-05-09",
+        "daily_return_pct": 0.034615
+      },
+      "worst_day": {
+        "date": "2026-03-21",
+        "daily_return_pct": 0.008032
+      },
+      "max_drawdown_pct": 0.0,
+      "selected_protocol": "euler-v2-usdc-ethereum",
+      "curve": [
+        {
+          "date": "2026-02-21",
+          "equity": 10001.5112,
+          "daily_return_pct": 0.015112,
+          "cumulative_return_pct": 0.015112
+        },
+        {
+          "date": "2026-02-22",
+          "equity": 10003.6081,
+          "daily_return_pct": 0.020966,
+          "cumulative_return_pct": 0.036081
+        },
+        {
+          "date": "2026-02-23",
+          "equity": 10005.5943,
+          "daily_return_pct": 0.019855,
+          "cumulative_return_pct": 0.055943
+        },
+        {
+          "date": "2026-02-24",
+          "equity": 10007.977,
+          "daily_return_pct": 0.023814,
+          "cumulative_return_pct": 0.07977
+        },
+        {
+          "date": "2026-02-25",
+          "equity": 10010.2983,
+          "daily_return_pct": 0.023195,
+          "cumulative_return_pct": 0.102983
+        },
+        {
+          "date": "2026-02-26",
+          "equity": 10012.6969,
+          "daily_return_pct": 0.02396,
+          "cumulative_return_pct": 0.126969
+        },
+        {
+          "date": "2026-02-27",
+          "equity": 10015.5269,
+          "daily_return_pct": 0.028265,
+          "cumulative_return_pct": 0.155269
+        },
+        {
+          "date": "2026-02-28",
+          "equity": 10018.0898,
+          "daily_return_pct": 0.025589,
+          "cumulative_return_pct": 0.180898
+        },
+        {
+          "date": "2026-03-01",
+          "equity": 10020.403,
+          "daily_return_pct": 0.02309,
+          "cumulative_return_pct": 0.20403
+        },
+        {
+          "date": "2026-03-02",
+          "equity": 10021.8372,
+          "daily_return_pct": 0.014313,
+          "cumulative_return_pct": 0.218372
+        },
+        {
+          "date": "2026-03-03",
+          "equity": 10023.8191,
+          "daily_return_pct": 0.019776,
+          "cumulative_return_pct": 0.238191
+        },
+        {
+          "date": "2026-03-04",
+          "equity": 10025.9465,
+          "daily_return_pct": 0.021223,
+          "cumulative_return_pct": 0.259465
+        },
+        {
+          "date": "2026-03-05",
+          "equity": 10027.8732,
+          "daily_return_pct": 0.019218,
+          "cumulative_return_pct": 0.278732
+        },
+        {
+          "date": "2026-03-06",
+          "equity": 10029.6882,
+          "daily_return_pct": 0.0181,
+          "cumulative_return_pct": 0.296882
+        },
+        {
+          "date": "2026-03-07",
+          "equity": 10030.8198,
+          "daily_return_pct": 0.011282,
+          "cumulative_return_pct": 0.308198
+        },
+        {
+          "date": "2026-03-08",
+          "equity": 10031.8744,
+          "daily_return_pct": 0.010514,
+          "cumulative_return_pct": 0.318744
+        },
+        {
+          "date": "2026-03-09",
+          "equity": 10033.1479,
+          "daily_return_pct": 0.012695,
+          "cumulative_return_pct": 0.331479
+        },
+        {
+          "date": "2026-03-10",
+          "equity": 10034.842,
+          "daily_return_pct": 0.016885,
+          "cumulative_return_pct": 0.34842
+        },
+        {
+          "date": "2026-03-11",
+          "equity": 10037.135,
+          "daily_return_pct": 0.022851,
+          "cumulative_return_pct": 0.37135
+        },
+        {
+          "date": "2026-03-12",
+          "equity": 10040.0904,
+          "daily_return_pct": 0.029444,
+          "cumulative_return_pct": 0.400904
+        },
+        {
+          "date": "2026-03-13",
+          "equity": 10042.8513,
+          "daily_return_pct": 0.027499,
+          "cumulative_return_pct": 0.428513
+        },
+        {
+          "date": "2026-03-14",
+          "equity": 10045.05,
+          "daily_return_pct": 0.021894,
+          "cumulative_return_pct": 0.4505
+        },
+        {
+          "date": "2026-03-15",
+          "equity": 10047.0744,
+          "daily_return_pct": 0.020153,
+          "cumulative_return_pct": 0.470744
+        },
+        {
+          "date": "2026-03-16",
+          "equity": 10048.6122,
+          "daily_return_pct": 0.015306,
+          "cumulative_return_pct": 0.486122
+        },
+        {
+          "date": "2026-03-17",
+          "equity": 10050.4793,
+          "daily_return_pct": 0.01858,
+          "cumulative_return_pct": 0.504793
+        },
+        {
+          "date": "2026-03-18",
+          "equity": 10052.4261,
+          "daily_return_pct": 0.01937,
+          "cumulative_return_pct": 0.524261
+        },
+        {
+          "date": "2026-03-19",
+          "equity": 10053.7964,
+          "daily_return_pct": 0.013632,
+          "cumulative_return_pct": 0.537964
+        },
+        {
+          "date": "2026-03-20",
+          "equity": 10054.9592,
+          "daily_return_pct": 0.011566,
+          "cumulative_return_pct": 0.549592
+        },
+        {
+          "date": "2026-03-21",
+          "equity": 10055.7668,
+          "daily_return_pct": 0.008032,
+          "cumulative_return_pct": 0.557668
+        },
+        {
+          "date": "2026-03-22",
+          "equity": 10056.8988,
+          "daily_return_pct": 0.011257,
+          "cumulative_return_pct": 0.568988
+        },
+        {
+          "date": "2026-03-23",
+          "equity": 10058.3778,
+          "daily_return_pct": 0.014707,
+          "cumulative_return_pct": 0.583778
+        },
+        {
+          "date": "2026-03-24",
+          "equity": 10060.2372,
+          "daily_return_pct": 0.018486,
+          "cumulative_return_pct": 0.602372
+        },
+        {
+          "date": "2026-03-25",
+          "equity": 10062.2408,
+          "daily_return_pct": 0.019916,
+          "cumulative_return_pct": 0.622408
+        },
+        {
+          "date": "2026-03-26",
+          "equity": 10064.2459,
+          "daily_return_pct": 0.019926,
+          "cumulative_return_pct": 0.642459
+        },
+        {
+          "date": "2026-03-27",
+          "equity": 10066.9005,
+          "daily_return_pct": 0.026376,
+          "cumulative_return_pct": 0.669005
+        },
+        {
+          "date": "2026-03-28",
+          "equity": 10068.9596,
+          "daily_return_pct": 0.020455,
+          "cumulative_return_pct": 0.689596
+        },
+        {
+          "date": "2026-03-29",
+          "equity": 10071.2917,
+          "daily_return_pct": 0.023161,
+          "cumulative_return_pct": 0.712917
+        },
+        {
+          "date": "2026-03-30",
+          "equity": 10073.6613,
+          "daily_return_pct": 0.023529,
+          "cumulative_return_pct": 0.736613
+        },
+        {
+          "date": "2026-03-31",
+          "equity": 10076.2203,
+          "daily_return_pct": 0.025403,
+          "cumulative_return_pct": 0.762203
+        },
+        {
+          "date": "2026-04-01",
+          "equity": 10078.678,
+          "daily_return_pct": 0.024391,
+          "cumulative_return_pct": 0.78678
+        },
+        {
+          "date": "2026-04-02",
+          "equity": 10080.9113,
+          "daily_return_pct": 0.022159,
+          "cumulative_return_pct": 0.809113
+        },
+        {
+          "date": "2026-04-03",
+          "equity": 10082.7482,
+          "daily_return_pct": 0.018222,
+          "cumulative_return_pct": 0.827482
+        },
+        {
+          "date": "2026-04-04",
+          "equity": 10084.5571,
+          "daily_return_pct": 0.01794,
+          "cumulative_return_pct": 0.845571
+        },
+        {
+          "date": "2026-04-05",
+          "equity": 10086.7663,
+          "daily_return_pct": 0.021907,
+          "cumulative_return_pct": 0.867663
+        },
+        {
+          "date": "2026-04-06",
+          "equity": 10088.7385,
+          "daily_return_pct": 0.019552,
+          "cumulative_return_pct": 0.887385
+        },
+        {
+          "date": "2026-04-07",
+          "equity": 10090.4803,
+          "daily_return_pct": 0.017265,
+          "cumulative_return_pct": 0.904803
+        },
+        {
+          "date": "2026-04-08",
+          "equity": 10092.0712,
+          "daily_return_pct": 0.015767,
+          "cumulative_return_pct": 0.920712
+        },
+        {
+          "date": "2026-04-09",
+          "equity": 10093.501,
+          "daily_return_pct": 0.014167,
+          "cumulative_return_pct": 0.93501
+        },
+        {
+          "date": "2026-04-10",
+          "equity": 10095.4279,
+          "daily_return_pct": 0.019091,
+          "cumulative_return_pct": 0.954279
+        },
+        {
+          "date": "2026-04-11",
+          "equity": 10096.9978,
+          "daily_return_pct": 0.01555,
+          "cumulative_return_pct": 0.969978
+        },
+        {
+          "date": "2026-04-12",
+          "equity": 10098.0369,
+          "daily_return_pct": 0.010291,
+          "cumulative_return_pct": 0.980369
+        },
+        {
+          "date": "2026-04-13",
+          "equity": 10100.0612,
+          "daily_return_pct": 0.020046,
+          "cumulative_return_pct": 1.000612
+        },
+        {
+          "date": "2026-04-14",
+          "equity": 10101.8358,
+          "daily_return_pct": 0.01757,
+          "cumulative_return_pct": 1.018358
+        },
+        {
+          "date": "2026-04-15",
+          "equity": 10103.17,
+          "daily_return_pct": 0.013208,
+          "cumulative_return_pct": 1.0317
+        },
+        {
+          "date": "2026-04-16",
+          "equity": 10104.3699,
+          "daily_return_pct": 0.011877,
+          "cumulative_return_pct": 1.043699
+        },
+        {
+          "date": "2026-04-17",
+          "equity": 10105.6262,
+          "daily_return_pct": 0.012433,
+          "cumulative_return_pct": 1.056262
+        },
+        {
+          "date": "2026-04-18",
+          "equity": 10106.4934,
+          "daily_return_pct": 0.008581,
+          "cumulative_return_pct": 1.064934
+        },
+        {
+          "date": "2026-04-19",
+          "equity": 10107.6323,
+          "daily_return_pct": 0.01127,
+          "cumulative_return_pct": 1.076323
+        },
+        {
+          "date": "2026-04-20",
+          "equity": 10108.4807,
+          "daily_return_pct": 0.008393,
+          "cumulative_return_pct": 1.084807
+        },
+        {
+          "date": "2026-04-21",
+          "equity": 10109.5858,
+          "daily_return_pct": 0.010932,
+          "cumulative_return_pct": 1.095858
+        },
+        {
+          "date": "2026-04-22",
+          "equity": 10111.5116,
+          "daily_return_pct": 0.019049,
+          "cumulative_return_pct": 1.115116
+        },
+        {
+          "date": "2026-04-23",
+          "equity": 10113.5238,
+          "daily_return_pct": 0.019901,
+          "cumulative_return_pct": 1.135238
+        },
+        {
+          "date": "2026-04-24",
+          "equity": 10115.3461,
+          "daily_return_pct": 0.018018,
+          "cumulative_return_pct": 1.153461
+        },
+        {
+          "date": "2026-04-25",
+          "equity": 10117.1136,
+          "daily_return_pct": 0.017473,
+          "cumulative_return_pct": 1.171136
+        },
+        {
+          "date": "2026-04-26",
+          "equity": 10118.4941,
+          "daily_return_pct": 0.013646,
+          "cumulative_return_pct": 1.184941
+        },
+        {
+          "date": "2026-04-27",
+          "equity": 10119.9897,
+          "daily_return_pct": 0.01478,
+          "cumulative_return_pct": 1.199897
+        },
+        {
+          "date": "2026-04-28",
+          "equity": 10121.396,
+          "daily_return_pct": 0.013896,
+          "cumulative_return_pct": 1.21396
+        },
+        {
+          "date": "2026-04-29",
+          "equity": 10122.8496,
+          "daily_return_pct": 0.014363,
+          "cumulative_return_pct": 1.228496
+        },
+        {
+          "date": "2026-04-30",
+          "equity": 10124.5409,
+          "daily_return_pct": 0.016708,
+          "cumulative_return_pct": 1.245409
+        },
+        {
+          "date": "2026-05-01",
+          "equity": 10125.5007,
+          "daily_return_pct": 0.00948,
+          "cumulative_return_pct": 1.255007
+        },
+        {
+          "date": "2026-05-02",
+          "equity": 10126.4975,
+          "daily_return_pct": 0.009845,
+          "cumulative_return_pct": 1.264975
+        },
+        {
+          "date": "2026-05-03",
+          "equity": 10127.5184,
+          "daily_return_pct": 0.010081,
+          "cumulative_return_pct": 1.275184
+        },
+        {
+          "date": "2026-05-04",
+          "equity": 10128.9061,
+          "daily_return_pct": 0.013703,
+          "cumulative_return_pct": 1.289061
+        },
+        {
+          "date": "2026-05-05",
+          "equity": 10131.1576,
+          "daily_return_pct": 0.022228,
+          "cumulative_return_pct": 1.311576
+        },
+        {
+          "date": "2026-05-06",
+          "equity": 10133.1765,
+          "daily_return_pct": 0.019927,
+          "cumulative_return_pct": 1.331765
+        },
+        {
+          "date": "2026-05-07",
+          "equity": 10135.743,
+          "daily_return_pct": 0.025328,
+          "cumulative_return_pct": 1.35743
+        },
+        {
+          "date": "2026-05-08",
+          "equity": 10139.0661,
+          "daily_return_pct": 0.032787,
+          "cumulative_return_pct": 1.390661
+        },
+        {
+          "date": "2026-05-09",
+          "equity": 10142.5758,
+          "daily_return_pct": 0.034615,
+          "cumulative_return_pct": 1.425758
+        },
+        {
+          "date": "2026-05-10",
+          "equity": 10145.6331,
+          "daily_return_pct": 0.030143,
+          "cumulative_return_pct": 1.456331
+        },
+        {
+          "date": "2026-05-11",
+          "equity": 10148.0227,
+          "daily_return_pct": 0.023554,
+          "cumulative_return_pct": 1.480227
+        },
+        {
+          "date": "2026-05-12",
+          "equity": 10150.0027,
+          "daily_return_pct": 0.019511,
+          "cumulative_return_pct": 1.500027
+        },
+        {
+          "date": "2026-05-13",
+          "equity": 10151.6244,
+          "daily_return_pct": 0.015977,
+          "cumulative_return_pct": 1.516244
+        },
+        {
+          "date": "2026-05-14",
+          "equity": 10153.0204,
+          "daily_return_pct": 0.013752,
+          "cumulative_return_pct": 1.530204
+        },
+        {
+          "date": "2026-05-15",
+          "equity": 10154.1477,
+          "daily_return_pct": 0.011103,
+          "cumulative_return_pct": 1.541477
+        },
+        {
+          "date": "2026-05-16",
+          "equity": 10155.4737,
+          "daily_return_pct": 0.013059,
+          "cumulative_return_pct": 1.554737
+        },
+        {
+          "date": "2026-05-17",
+          "equity": 10157.4226,
+          "daily_return_pct": 0.01919,
+          "cumulative_return_pct": 1.574226
+        },
+        {
+          "date": "2026-05-18",
+          "equity": 10159.0246,
+          "daily_return_pct": 0.015772,
+          "cumulative_return_pct": 1.590246
+        },
+        {
+          "date": "2026-05-19",
+          "equity": 10161.2329,
+          "daily_return_pct": 0.021737,
+          "cumulative_return_pct": 1.612329
+        },
+        {
+          "date": "2026-05-20",
+          "equity": 10163.6305,
+          "daily_return_pct": 0.023596,
+          "cumulative_return_pct": 1.636305
+        },
+        {
+          "date": "2026-05-21",
+          "equity": 10166.1106,
+          "daily_return_pct": 0.024402,
+          "cumulative_return_pct": 1.661106
+        }
+      ]
+    }
+  },
+  "best_strategy": {
+    "name": "best_apy",
+    "total_return_pct": 2.229894
+  },
+  "per_protocol": {
+    "aave-v3-usdc-ethereum": {
+      "mean_apy": 4.998373,
+      "min_apy": 0.5,
+      "max_apy": 11.5922,
+      "apy_volatility": 2.485623,
+      "num_points": 90,
+      "period_return_pct": 1.202921
+    },
+    "aave-v3-usdt-ethereum": {
+      "mean_apy": 5.364416,
+      "min_apy": 0.5,
+      "max_apy": 13.9136,
+      "apy_volatility": 2.537521,
+      "num_points": 90,
+      "period_return_pct": 1.289613
+    },
+    "compound-v3-usdc-ethereum": {
+      "mean_apy": 3.796818,
+      "min_apy": 0.5,
+      "max_apy": 9.0605,
+      "apy_volatility": 1.98568,
+      "num_points": 90,
+      "period_return_pct": 0.918578
+    },
+    "euler-v2-usdc-ethereum": {
+      "mean_apy": 6.932631,
+      "min_apy": 2.9749,
+      "max_apy": 13.4648,
+      "apy_volatility": 2.224047,
+      "num_points": 90,
+      "period_return_pct": 1.661106
+    },
+    "maple-usdc-ethereum": {
+      "mean_apy": 6.608209,
+      "min_apy": 0.6094,
+      "max_apy": 14.4185,
+      "apy_volatility": 2.967957,
+      "num_points": 90,
+      "period_return_pct": 1.580668
+    },
+    "morpho-usdc-ethereum": {
+      "mean_apy": 4.537022,
+      "min_apy": 0.5,
+      "max_apy": 8.5602,
+      "apy_volatility": 2.054105,
+      "num_points": 90,
+      "period_return_pct": 1.095267
+    },
+    "yearn-v3-usdc-ethereum": {
+      "mean_apy": 6.734707,
+      "min_apy": 0.9732,
+      "max_apy": 12.3386,
+      "apy_volatility": 2.32462,
+      "num_points": 90,
+      "period_return_pct": 1.61414
+    }
+  }
+}
