@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10T18:41:57.799670+00:00",
-  "updated_by": "claude-mp106-mp107",
+  "last_updated": "2026-06-10T19:16:22.673913+00:00",
+  "updated_by": "claude_code (MP-015/MP-016 done)",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -877,40 +877,6 @@
         "status": "done"
       },
       {
-        "id": "MP-015",
-        "title": "Секреты алертов: Telegram + SMTP (USER ACTION)",
-        "description": "ex UA-003. TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, SMTP-креды в GitHub Secrets + локальный env. Разблокирует MP-016.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.2,
-        "depends_on": [],
-        "estimate": "0.2d",
-        "tags": [
-          "user-action",
-          "secrets"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-016",
-        "title": "Алерты из dry_run в бой",
-        "description": "ex RB-102. Выключить dry_run, верифицировать end-to-end реальную доставку CRITICAL-алерта в Telegram/email. Сейчас при инциденте никто не узнает.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 1,
-        "depends_on": [
-          "MP-015"
-        ],
-        "estimate": "1d",
-        "tags": [
-          "monitoring",
-          "critical-path"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-017",
         "title": "RPC-ключи Alchemy/Infura (USER ACTION)",
         "description": "ex UA-002. В Secrets + env. Нужны для on-chain проверок (Sky GSM, MP-202) и Phase 4.",
@@ -1531,6 +1497,48 @@
         "status": "done",
         "completed": "2026-06-10",
         "result": "Done 2026-06-10: red_flag_monitor + governance_watcher + incidents_fetcher подключены в ежедневный цикл — _run_daily_monitors() в cycle_runner main() (launchd com.spa.daily_cycle 08:00), каждый монитор fail-safe; снапшоты red_flags.json/governance_proposals.json/incidents.json пишутся атомарно (legacy-модули вызываются в dry-run, запись через tmp+os.replace). Флаг --no-monitors для ручных прогонов. 5 тестов в test_governance.py."
+      },
+      {
+        "id": "MP-015",
+        "title": "Секреты алертов: Telegram + SMTP (USER ACTION)",
+        "description": "ex UA-003. TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, SMTP-креды в GitHub Secrets + локальный env. Разблокирует MP-016.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.2,
+        "depends_on": [],
+        "estimate": "0.2d",
+        "tags": [
+          "user-action",
+          "secrets"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "completed_by": "claude_code",
+        "resolution": "Секреты в macOS Keychain (TELEGRAM_BOT_TOKEN_SPA / TELEGRAM_CHAT_ID_SPA); spa_core/alerts/telegram_client.py читает их в runtime, нигде в файлах."
+      },
+      {
+        "id": "MP-016",
+        "title": "Алерты из dry_run в бой",
+        "description": "ex RB-102. Выключить dry_run, верифицировать end-to-end реальную доставку CRITICAL-алерта в Telegram/email. Сейчас при инциденте никто не узнает.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-015"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "monitoring",
+          "critical-path"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "completed_by": "claude_code",
+        "resolution": "spa_core/alerts/alert_manager.py (daily summary / red flags / gap / golive change / startup test), dispatch в cycle_runner main() после MP-107 мониторов; 20 unit-тестов. Доставка ждёт /start пользователя в @SPA_Monitor_bot (chat not found)."
       }
     ]
   },
