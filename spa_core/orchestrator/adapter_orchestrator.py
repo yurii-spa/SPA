@@ -35,6 +35,7 @@ from typing import Any, Callable
 
 from spa_core.adapters import (
     AaveV3Adapter,
+    CompoundV3Adapter,
     EulerV2Adapter,
     MapleAdapter,
     MorphoBlueAdapter,
@@ -69,6 +70,10 @@ ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
     # SPA-V405: Aave V3 is the T1 anchor (40% cap) that lets the allocator fill
     # the structural remainder left by the four 20%-capped T2 adapters.
     ("aave_v3", "T1", AaveV3Adapter),
+    # SPA-V411: Compound V3 (Comet USDC) is the second T1 anchor — blue-chip
+    # lending market alongside Aave. Diversifies the T1 anchor (no single point
+    # of failure) and gives the allocator more headroom to fill the remainder.
+    ("compound_v3", "T1", CompoundV3Adapter),
     ("morpho_blue", "T2", MorphoBlueAdapter),
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
