@@ -8,6 +8,7 @@ import pytest
 from spa_core.adapters.defillama_feed import DeFiLlamaFeed
 from spa_core.adapters.euler_v2 import EulerV2Adapter
 from spa_core.adapters.maple import MapleAdapter
+from spa_core.adapters.morpho_blue import MorphoBlueAdapter
 from spa_core.adapters.yearn_v3 import YearnV3Adapter
 
 
@@ -150,25 +151,31 @@ class TestDeFiLlamaFeed:
         mock_get.assert_not_called()
 
 
+ALL_ADAPTERS = [MorphoBlueAdapter, YearnV3Adapter, EulerV2Adapter, MapleAdapter]
+
+
 class TestAdapterWiring:
-    @pytest.mark.parametrize(
-        "adapter_cls",
-        [YearnV3Adapter, EulerV2Adapter, MapleAdapter],
-    )
-    def test_fallback_to_mock_when_feed_none(self, adapter_cls):
+    @pytest.mark.parametrize("adapter_cls", ALL_ADAPTERS)
+    def test_no_mock_attribute(self, adapter_cls):
+        # SPA-V398: MOCK_APY removed everywhere — feed is mandatory.
+        assert not hasattr(adapter_cls, "MOCK_APY")
+
+    @pytest.mark.parametrize("adapter_cls", ALL_ADAPTERS)
+    def test_no_live_data_reports_error_not_mock(self, adapter_cls):
         feed = MagicMock()
         feed.get_apy.return_value = None
         feed.get_tvl.return_value = None
         adapter = adapter_cls(feed=feed)
-        assert adapter.get_apy() == adapter_cls.MOCK_APY
+        # Honest "no live data": apy is None, never a hard-coded value.
+        assert adapter.get_apy() is None
         info = adapter.get_yield_info()
-        assert info.apy == adapter_cls.MOCK_APY
-        assert info.tvl_usd == 0.0
+        assert info.apy is None
+        data = adapter.fetch()
+        assert data["status"] == "error"
+        assert data["live_data"] is False
+        assert data["error"] == "live_feed_unavailable"
 
-    @pytest.mark.parametrize(
-        "adapter_cls",
-        [YearnV3Adapter, EulerV2Adapter, MapleAdapter],
-    )
+    @pytest.mark.parametrize("adapter_cls", ALL_ADAPTERS)
     def test_uses_live_value(self, adapter_cls):
         feed = MagicMock()
         feed.get_apy.return_value = 0.1234
@@ -182,10 +189,13 @@ class TestAdapterWiring:
             adapter_cls.DEFILLAMA_PROJECT, adapter_cls.DEFILLAMA_SYMBOL
         )
 
-    def test_yearn_no_duplicate_method(self):
-        # The duplicate get_apy bug used to ignore the feed; ensure live value is used.
+    @pytest.mark.parametrize("adapter_cls", ALL_ADAPTERS)
+    def test_feed_exception_is_graceful(self, adapter_cls):
         feed = MagicMock()
-        feed.get_apy.return_value = 0.055
-        feed.get_tvl.return_value = None
-        adapter = YearnV3Adapter(feed=feed)
-        assert adapter.get_apy() == pytest.approx(0.055)
+        feed.get_apy.side_effect = RuntimeError("net down")
+        adapter = adapter_cls(feed=feed)
+        # fetch() must never propagate — it reports an error record instead.
+        data = adapter.fetch()
+        assert data["status"] == "error"
+        assert data["apy"] is None
+        assert adapter.get_apy() is None
