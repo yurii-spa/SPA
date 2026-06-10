@@ -1011,21 +1011,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "MP-104",
-        "title": "Ядро аналитики: ~8 модулей в post-cycle хук",
-        "description": "ex RB-104/V415. risk_metrics, drawdown_analysis, rolling_performance, performance_tearsheet, benchmark_comparison, probabilistic_sharpe, return_distribution, advanced_ratios — на реальном треке после цикла. ~30 мёртвых модулей удалить/архив. risk_metrics.json перестаёт быть пустым (его читают go-live критерии).",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 2,
-        "depends_on": [],
-        "estimate": "2d",
-        "tags": [
-          "analytics"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-106",
         "title": "Shadow S0-S5 на реальном треке",
         "description": "ex RB-106. Раннер ежедневно на реальных данных (сейчас 30-step синтетика). StrategySelector активируется на 15-й день при confidence=medium.",
@@ -1518,6 +1503,24 @@
         "status": "done",
         "completed": "2026-06-10",
         "result": "Done 2026-06-10 (консервативный проход): удалён мёртвый spa_core/orchestrator/runner.py (legacy M4 CLI, 0 ссылок) + его запись в PUSH_MANIFEST; убраны 3 dead imports (engine.py: json; export_data.py: build_pendle_position, RISK_AGENT). НЕ тронуто из-за живых ссылок: comparator (strategy_selector), run_alerts (spa_alerts.yml), approve_wallet (checklist.py), pg_migration/incidents_fetcher (живые тесты+ADR), github_pusher (push_to_github.command), shadow-фреймворк Jun-9. Большой скоуп (engine.py/monitor/ дубликаты, s1-s3) требует MP-104 миграции — не выполнялся. Тесты: 64/64 paper_trading+integration pass; 23 pre-existing фейла (eth_signer deps, adapter_sync data) не связаны."
+      },
+      {
+        "id": "MP-104",
+        "title": "Ядро аналитики: ~8 модулей в post-cycle хук",
+        "description": "ex RB-104/V415. risk_metrics, drawdown_analysis, rolling_performance, performance_tearsheet, benchmark_comparison, probabilistic_sharpe, return_distribution, advanced_ratios — на реальном треке после цикла. ~30 мёртвых модулей удалить/архив. risk_metrics.json перестаёт быть пустым (его читают go-live критерии).",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "analytics"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "result": "Done 2026-06-10: создано ядро аналитики spa_core/analytics/ — 7 метрик (sharpe, drawdown, volatility, benchmark vs 5% APY, streaks, calmar, concentration/HHI) + analytics_runner (post-cycle хук в cycle_runner, fail-safe, атомарная запись data/analytics_summary.json). 36 новых тестов в test_analytics.py, 80/80 pass. Stdlib only, read-only."
       }
     ]
   },
