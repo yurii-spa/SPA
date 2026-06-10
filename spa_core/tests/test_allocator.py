@@ -22,12 +22,16 @@ from spa_core.allocator.allocator import AllocationResult, StrategyAllocator
 
 
 def make_adapters() -> list[dict]:
-    """4 T2-адаптера как в реальном снимке оркестратора."""
+    """4 T2-адаптера как в реальном снимке оркестратора.
+
+    TVL ≥ $5M, чтобы проходить MP-011 TVL-floor: эти тесты проверяют cap'ы,
+    а не фильтр (фильтр покрыт в test_allocator_filters.py).
+    """
     return [
-        {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 0.0, "tier": "T2"},
-        {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 0.0, "tier": "T2"},
-        {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 0.0, "tier": "T2"},
-        {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 0.0, "tier": "T2"},
+        {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 5e7, "tier": "T2"},
+        {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 5e7, "tier": "T2"},
+        {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 5e7, "tier": "T2"},
+        {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 5e7, "tier": "T2"},
     ]
 
 
@@ -125,14 +129,18 @@ class TestStrategyAllocator(unittest.TestCase):
         return StrategyAllocator(status_path=self.status)
 
     def test_t2_cap_enforced(self):
-        # 4×T2 equal weight = 0.25 каждый > 0.20 cap → каждый капается на 0.20
+        # 4×T2 equal weight = 0.25 каждый > 0.20 cap → каждый капается на 0.20.
+        # MP-011: совокупный T2 ограничен 35% — без T1-якоря остальное в кэш.
         alloc = self._allocator(make_adapters())
         res = alloc.allocate(model="equal_weight")
         for p, w in res.target_weights.items():
             self.assertLessEqual(w, StrategyAllocator.T2_CAP + 1e-9)
-        # 4×0.20 = 0.80 распределено, 0.20 в кэш
-        self.assertAlmostEqual(res.allocated_pct, 0.80, places=6)
-        self.assertAlmostEqual(res.unallocated_pct, 0.20, places=6)
+        self.assertAlmostEqual(
+            res.allocated_pct, StrategyAllocator.T2_TOTAL_CAP, places=6
+        )
+        self.assertAlmostEqual(
+            res.unallocated_pct, 1.0 - StrategyAllocator.T2_TOTAL_CAP, places=6
+        )
 
     def test_t1_cap_enforced(self):
         # один T1 при best_apy top-1 хотел бы 1.0 → капается на 0.40
@@ -161,22 +169,26 @@ class TestStrategyAllocator(unittest.TestCase):
         self.assertAlmostEqual(res.unallocated_pct, 1.0, places=6)
 
     def test_all_zero_apy(self):
-        # 5×T2 по equal weight = 0.20 каждый (ровно cap, без обрезки) → сумма 1.0
+        # 5×T2 по equal weight = 0.20 каждый (ровно cap, без обрезки).
+        # MP-011: суммарный T2 срезается до 35% — без T1 остальное в кэш.
         adapters = [
-            {"protocol": f"p{i}", "apy_pct": 0.0, "tvl_usd": 1e6, "tier": "T2"}
+            {"protocol": f"p{i}", "apy_pct": 0.0, "tvl_usd": 1e7, "tier": "T2"}
             for i in range(5)
         ]
         alloc = self._allocator(adapters)
         res = alloc.allocate(model="equal_weight")
         self.assertEqual(res.expected_apy_pct, 0.0)
-        self.assertAlmostEqual(sum(res.target_weights.values()), 1.0, places=6)
+        self.assertAlmostEqual(
+            sum(res.target_weights.values()), StrategyAllocator.T2_TOTAL_CAP,
+            places=6,
+        )
 
     def test_expected_apy_correct(self):
         # 3×T1, equal weight ≈0.333 (≤0.40 cap, без обрезки), APY 6/9/12 → среднее 9.0
         adapters = [
-            {"protocol": "a", "apy_pct": 6.0, "tvl_usd": 1e6, "tier": "T1"},
-            {"protocol": "b", "apy_pct": 9.0, "tvl_usd": 1e6, "tier": "T1"},
-            {"protocol": "c", "apy_pct": 12.0, "tvl_usd": 1e6, "tier": "T1"},
+            {"protocol": "a", "apy_pct": 6.0, "tvl_usd": 1e7, "tier": "T1"},
+            {"protocol": "b", "apy_pct": 9.0, "tvl_usd": 1e7, "tier": "T1"},
+            {"protocol": "c", "apy_pct": 12.0, "tvl_usd": 1e7, "tier": "T1"},
         ]
         alloc = self._allocator(adapters)
         res = alloc.allocate(model="equal_weight")
