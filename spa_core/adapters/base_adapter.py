@@ -21,6 +21,13 @@ class YieldInfo:
     ``apy`` is ``None`` (and ``tvl_usd`` may be ``None``) when the live feed is
     unavailable — adapters never substitute a mock value (SPA-V398). Consumers
     must treat ``apy is None`` as "no live data", not as 0%.
+
+    ``exit_latency_hours`` (SPA-V412) declares the protocol's exit profile — the
+    typical wall-clock time to fully withdraw a USDC position back to liquid
+    cash. ``0.0`` means same-block/instant (blue-chip lending pools); a large
+    value means a withdrawal queue (e.g. Maple's epoch-based redemption). It is
+    declarative metadata only — this module never moves capital. A value of
+    ``None`` means the adapter has not declared a profile.
     """
 
     protocol: str
@@ -29,12 +36,19 @@ class YieldInfo:
     tvl_usd: Optional[float]
     tier: str
     risk_score: float
+    # SPA-V412: declarative exit profile (hours to fully exit to liquid cash).
+    # Optional with a default so the field is strictly additive — existing
+    # YieldInfo(...) call sites that omit it keep working unchanged.
+    exit_latency_hours: Optional[float] = None
 
 
 class BaseAdapter(ABC):
     """Abstract base for all protocol adapters."""
 
     PROTOCOL: str = "base"
+    # SPA-V412: default exit profile; concrete adapters override with a measured
+    # value (e.g. Aave ~0h instant, Maple ~weeks via withdrawal queue).
+    EXIT_LATENCY_HOURS: Optional[float] = None
 
     def __init__(self, asset: str = "USDC"):
         self.asset = asset
