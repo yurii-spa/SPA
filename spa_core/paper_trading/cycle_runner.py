@@ -86,6 +86,8 @@ POSITIONS_FILENAME = "current_positions.json"
 STATUS_FILENAME = "paper_trading_status.json"
 ORCH_STATUS_FILENAME = "adapter_orchestrator_status.json"
 RISK_BLOCKS_FILENAME = "risk_policy_blocks.json"
+# MP-012: risk-score snapshot regenerated each cycle BEFORE allocation.
+RISK_SCORES_FILENAME = "risk_scores.json"
 
 MAX_TRADES = 500           # ring-buffer cap for trades.json
 MAX_EQUITY_POINTS = 365    # ring-buffer cap for the daily equity curve
@@ -585,6 +587,23 @@ def _run_golive_gate(ddir: Path, now_dt: datetime, write: bool) -> None:
         log.warning("GoLiveChecker failed (%s) — cycle continues", exc)
 
 
+# ─── MP-102: daily report (fail-safe, advisory — never blocks the cycle) ─────
+
+
+def _run_daily_report(ddir: Path, date: str) -> None:
+    """Generate ``data/daily_report_{date}.json`` for the cycle just run.
+
+    Fail-safe per MP-102: any exception is logged as WARNING and swallowed —
+    a broken report must never crash the daily cycle.
+    """
+    try:
+        from spa_core.reporting.daily_report import generate_daily_report
+
+        generate_daily_report(date, data_dir=ddir)
+    except Exception as exc:  # noqa: BLE001 — reporting must never crash the cycle
+        log.warning("daily report generation failed (%s) — cycle continues", exc)
+
+
 # ─── Default orchestrator / allocator wiring (overridable for tests) ─────────
 
 
@@ -602,6 +621,43 @@ def _default_allocator(data_dir: Path):
     return StrategyAllocator(status_path=str(data_dir / ORCH_STATUS_FILENAME))
 
 
+def _default_risk_scorer(data_dir: Path) -> None:
+    """MP-012: regenerate ``data/risk_scores.json`` via the scoring engine.
+
+    Invocation only — ALL scoring logic stays in
+    ``spa_core/risk/scoring_engine.py`` (the cycle runner never computes a
+    score itself; the allocator then reads the refreshed JSON snapshot).
+    The engine writes atomically (tmpfile + os.replace) and is itself
+    offline-tolerant (network failure → bootstrap fallback, never raises for
+    that reason)."""
+    from spa_core.risk.scoring_engine import RiskScoringEngine
+
+    RiskScoringEngine().export(output_file=Path(data_dir) / RISK_SCORES_FILENAME)
+
+
+def _refresh_risk_scores(
+    ddir: Path,
+    risk_scorer_fn: Callable[[Path], Any] | None,
+    notes: list[str],
+) -> bool:
+    """MP-012 fail-safe wrapper: any exception → WARNING + note, cycle
+    continues on the previous (stale) ``risk_scores.json``. Never raises."""
+    try:
+        (risk_scorer_fn or _default_risk_scorer)(ddir)
+        return True
+    except Exception as exc:  # noqa: BLE001 — regen must never crash the cycle
+        log.warning(
+            "risk_scores.json regeneration failed (%s) — allocator continues "
+            "on the previous snapshot",
+            exc,
+        )
+        notes.append(
+            f"risk_scores_regen_failed: {type(exc).__name__}: {exc} — "
+            "cycle continues on the stale risk_scores.json."
+        )
+        return False
+
+
 # ─── Public entry point ──────────────────────────────────────────────────────
 
 
@@ -614,6 +670,7 @@ def run_cycle(
     trade_threshold_pct: float = DEFAULT_TRADE_THRESHOLD_PCT,
     orchestrator_fn: Callable[[Path], Any] | None = None,
     allocator: Any | None = None,
+    risk_scorer_fn: Callable[[Path], Any] | None = None,
     write: bool = True,
 ) -> CycleResult:
     """Execute one paper-trading cycle.
@@ -629,7 +686,13 @@ def run_cycle(
                  (dict pool→USD), ``.expected_apy_pct``, ``.model_used``,
                  ``.strategy_loop_active``. Default = real StrategyAllocator
                  reading this data dir's orchestrator snapshot.
-    write      : if False, computes everything but writes nothing (dry-run).
+    risk_scorer_fn : MP-012 — ``(data_dir) -> None`` regenerating
+                 ``risk_scores.json`` BEFORE the allocation step. Default runs
+                 the real scoring engine (``spa_core/risk/scoring_engine``).
+                 Fail-safe: an exception inside it is logged as WARNING and the
+                 cycle continues on the previous (stale) snapshot.
+    write      : if False, computes everything but writes nothing (dry-run;
+                 risk_scores.json is NOT regenerated either).
     """
     ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
     now_dt = now or datetime.now(timezone.utc)
@@ -641,6 +704,13 @@ def run_cycle(
 
     # ── Step 0 (MP-006): go-live anti-demo gate — advisory, never blocks ──
     _run_golive_gate(ddir, now_dt, write)
+
+    # ── Step 0b (MP-012): regenerate risk_scores.json BEFORE allocation ───
+    # Fail-safe: a failure here degrades to a WARNING + note, and the
+    # allocator (Step 2) keeps reading the previous snapshot. Skipped on
+    # dry-run (write=False) so a dry-run leaves no files behind.
+    if write:
+        _refresh_risk_scores(ddir, risk_scorer_fn, notes)
 
     # ── Step 1: orchestrator → live APY snapshot ──────────────────────────
     orch = orchestrator_fn(ddir)
@@ -709,6 +779,8 @@ def run_cycle(
         )
         if write:
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+            # MP-102: daily report after all steps (fail-safe, advisory).
+            _run_daily_report(ddir, today)
         return result
 
     # ── Step 2: allocator → target allocation ─────────────────────────────
@@ -866,7 +938,108 @@ def run_cycle(
         except Exception:
             pass  # fail-open
 
+        # MP-102: daily report after all steps (fail-safe, advisory).
+        _run_daily_report(ddir, today)
+
+        # MP-104: post-cycle analytics → analytics_summary.json (fail-safe,
+        # advisory — a failure is a WARNING, never crashes the cycle).
+        try:
+            from spa_core.analytics.analytics_runner import (
+                run_post_cycle_analytics,
+            )
+
+            run_post_cycle_analytics(data_dir=ddir, now=now_dt)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("post-cycle analytics failed (%s) — cycle continues", exc)
+
+        # ── MP-106: shadow strategies S0–S5 (advisory, local-only) ────────
+        # Runs AFTER the real track is persisted; a failure here can never
+        # affect trades.json / equity_curve_daily.json (fail-safe).
+        try:
+            from spa_core.shadow.shadow_tracker import run_shadow_cycle
+
+            run_shadow_cycle(
+                adapters,
+                effective_positions,
+                equity=close_equity,
+                data_dir=ddir,
+                date=today,
+                now=now_dt,
+            )
+        except Exception as exc:  # noqa: BLE001 — shadow must never crash the cycle
+            log.warning("shadow tracker failed (%s) — cycle continues", exc)
+
     return result
+
+
+# ─── MP-107: daily external monitors (red flags / governance / incidents) ────
+
+
+def _run_daily_monitors(
+    data_dir: str | os.PathLike | None = None, *, offline: bool = False
+) -> dict[str, str]:
+    """Refresh the external-signal snapshots once per daily cycle (MP-107).
+
+    Runs three existing monitors — each individually fail-safe, so one broken
+    feed never blocks the others or the cycle:
+
+    * ``RedFlagMonitor``     → ``data/red_flags.json``
+    * ``GovernanceWatcher``  → ``data/governance_proposals.json``
+    * ``incidents_fetcher``  → ``data/incidents.json``
+
+    The legacy modules write their own files NON-atomically, so they are
+    invoked in dry-run/build mode and the snapshot is persisted here via the
+    atomic helper (tmp + os.replace), per the repo-wide atomic-write rule.
+
+    Network-bound (DeFiLlama / Snapshot / Tally) — therefore invoked from the
+    CLI ``main()`` (the launchd daily job), NOT from ``run_cycle()``, so unit
+    tests of the cycle stay network-free. Advisory only: results feed risk
+    scoring / alerting; nothing here gates or mutates paper-trading state.
+    Returns a per-monitor status map ("ok" / "error: …"). Never raises.
+    """
+    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    results: dict[str, str] = {}
+
+    try:
+        from spa_core.alerts.red_flag_monitor import RedFlagMonitor
+
+        snapshot = RedFlagMonitor(
+            output_file=ddir / "red_flags.json",
+            risk_scores_file=ddir / RISK_SCORES_FILENAME,
+        ).export(dry_run=True, offline=offline)
+        _atomic_write_json(ddir / "red_flags.json", snapshot)
+        results["red_flags"] = "ok"
+    except Exception as exc:  # noqa: BLE001 — monitors must never crash the cycle
+        log.warning("red_flag monitor failed (%s) — cycle continues", exc)
+        results["red_flags"] = f"error: {type(exc).__name__}: {exc}"
+
+    try:
+        from spa_core.alerts.governance_watcher import GovernanceWatcher
+
+        doc = GovernanceWatcher(
+            output_file=ddir / "governance_proposals.json",
+            risk_scores_file=ddir / RISK_SCORES_FILENAME,
+        ).export(dry_run=True, offline=offline)
+        if isinstance(doc, dict) and doc.get("error"):
+            results["governance"] = f"error: {doc['error']}"
+        else:
+            _atomic_write_json(ddir / "governance_proposals.json", doc)
+            results["governance"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        log.warning("governance watcher failed (%s) — cycle continues", exc)
+        results["governance"] = f"error: {type(exc).__name__}: {exc}"
+
+    try:
+        from spa_core.data_pipeline.incidents_fetcher import build_incidents_snapshot
+
+        snapshot = build_incidents_snapshot(offline=offline)
+        _atomic_write_json(ddir / "incidents.json", snapshot)
+        results["incidents"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        log.warning("incidents fetcher failed (%s) — cycle continues", exc)
+        results["incidents"] = f"error: {type(exc).__name__}: {exc}"
+
+    return results
 
 
 def _write_status(
@@ -944,6 +1117,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="compute but write nothing")
     parser.add_argument("--verbose", action="store_true", help="verbose per-step output")
     parser.add_argument("--data-dir", default=None, help="override data directory")
+    parser.add_argument(
+        "--no-monitors",
+        action="store_true",
+        help="skip the MP-107 external monitors (red flags / governance / incidents)",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -953,6 +1131,14 @@ def main(argv: list[str] | None = None) -> int:
 
     result = run_cycle(data_dir=args.data_dir, write=not args.dry_run)
     _print_report(result)
+
+    # MP-107: refresh external-signal snapshots once per daily run (fail-safe;
+    # network-bound, hence here in the CLI and not inside run_cycle()).
+    if not args.dry_run and not args.no_monitors:
+        monitors = _run_daily_monitors(args.data_dir)
+        for name, status in monitors.items():
+            print(f"  monitor {name:<12}: {status}")
+
     if args.dry_run:
         print("(dry-run: no files written)")
     return 0 if result.status == "ok" else 1
