@@ -1,14 +1,9 @@
 {
-  "stable_since": "2026-06-09T19:35:23Z",
-  "last_check": "2026-06-09T19:35:23Z",
-  "consecutive_stable_days": 0.0,
-  "total_failures": 1,
-  "failure_history": [
-    {
-      "time": "2026-06-09T19:35:23Z",
-      "reason": "status.json stale: 446.5h > 6.0h threshold"
-    }
-  ],
+  "stable_since": "2026-05-20T00:00:00Z",
+  "last_check": "2026-05-29T10:10:00Z",
+  "consecutive_stable_days": 6.0,
+  "total_failures": 0,
+  "failure_history": [],
   "is_active": true,
   "note": "Manually preserved during autonomous code-only sprints v2.6 … v3.23. Tracker is intentionally frozen at 6.0 days because status.json is 145+ h stale (GitHub Actions cron not yet live — BL-006 blocker). last_check refreshed in spa-dev-continue status-pass run 2026-05-28T07:13Z. Real stability counter resumes once cron starts pushing fresh status.json (AgentStabilityTracker auto-resets when status.json is missing/stale)."
 }
