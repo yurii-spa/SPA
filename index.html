@@ -784,6 +784,21 @@
   }
   .spa-tip:hover::after { opacity: 1; }
 
+  /* MP-007: go-live status bar (live from data/golive_status.json) */
+  #golive-status-bar { display:none; border-radius:10px; padding:10px 14px; margin:10px 0 14px;
+    font-size:13px; line-height:1.5; border:1px solid transparent; }
+  #golive-status-bar.golive-ready    { background:#eaf7ec; border-color:#bbe5c4; color:#166534; display:block; }
+  #golive-status-bar.golive-notready { background:#fdecec; border-color:#f5c2c2; color:#991b1b; display:block; }
+  #golive-status-bar .golive-blockers { font-size:12px; margin-top:4px; opacity:.9; }
+  #golive-status-bar .golive-blockers li { margin-left:18px; }
+
+  /* MP-007: LIVE / DEMO data-mode badge */
+  #data-mode-badge { font-size:11px; padding:4px 10px; border-radius:20px; cursor:default;
+    background:#f3f4f6; border:1px solid #eee; color:#888; }
+  #data-mode-badge.mode-live { background:#eaf7ec; border-color:#bbe5c4; color:#166534; font-weight:600; }
+  #data-mode-badge.mode-demo { background:#fef3c7; border-color:#fcd34d; color:#92400e; font-weight:600; }
+  #data-mode-badge.mode-stale { background:#fdecec; border-color:#f5c2c2; color:#991b1b; font-weight:600; }
+
 </style>
 </head>
 <body>
@@ -791,6 +806,7 @@
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
   <h1>Smart Passive Aggregator — SPA</h1>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <div id="data-mode-badge" title="Источник: data/paper_trading_status.json">⏳ mode…</div>
     <div id="data-freshness-badge" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default;color:#888" title="Checking data freshness…">⏳ Checking…</div>
     <div id="live-indicator" style="font-size:11px;color:#9ca3af;padding:4px 10px;background:#f5f4f0;border:1px solid #eee;border-radius:20px;cursor:default" title="Using static JSON files">
       <span style="color:#9ca3af">●</span> Static
@@ -798,6 +814,10 @@
   </div>
 </div>
 <p class="subtitle" id="ts-subtitle">Проект · Загрузка данных... · Стратегия v1.0</p>
+
+<!-- MP-007: Go-Live Status Bar — честный статус из data/golive_status.json
+     (фолбэк: golive_combined_verdict.json). Автообновление каждые 5 минут. -->
+<div id="golive-status-bar"></div>
 
 <!-- TABS -->
 <div class="tabs">
@@ -992,6 +1012,9 @@
     </div>
   </div>
 
+  <!-- MP-007: live статус реального трека из data/paper_trading_status.json -->
+  <div class="db-full" id="paper-status-strip" style="display:none;margin-bottom:14px"></div>
+
   <!-- Метрики -->
   <div class="db-grid4">
     <div class="db-metric">
@@ -1076,11 +1099,12 @@
     </div>
   </div>
 
-  <!-- Portfolio Chart -->
+  <!-- Portfolio Chart (MP-007: только реальная кривая из data/equity_curve_daily.json) -->
   <div class="db-full">
-    <div class="db-section">портфель — динамика капитала</div>
+    <div class="db-section">портфель — динамика капитала (equity_curve_daily.json)</div>
     <div style="position:relative;height:180px">
       <canvas id="portfolioChart" role="img" aria-label="Динамика капитала портфеля"></canvas>
+      <div id="portfolio-chart-empty" style="display:none;padding:60px 20px;text-align:center;color:#aaa;font-size:13px">📈 Данные накапливаются с 2026-06-10 — кривая капитала строится по мере работы реального трека</div>
     </div>
   </div>
 
@@ -2351,7 +2375,7 @@ async function loadDashboard() {
   if (spinner) spinner.style.display = 'inline-block';
   try {
     const ts = Date.now();
-    const [status, protocols, stratState, meta, alertsData, tradesData, portfolioStatus] = await Promise.all([
+    const [status, protocols, stratState, meta, alertsData, tradesData, portfolioStatus, paperStatus, equityCurve] = await Promise.all([
       fetch(BASE + '/status.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/protocols.json?_=' + ts).then(r => r.json()),
       fetch(BASE + '/strategy_state.json?_=' + ts).then(r => r.json()),
@@ -2359,9 +2383,14 @@ async function loadDashboard() {
       fetch(BASE + '/alerts.json?_=' + ts).then(r => r.json()).catch(() => ({ count: 0, alerts: [] })),
       fetch(BASE + '/trades.json?_=' + ts).then(r => r.json()).catch(() => []),
       fetch(BASE + '/portfolio_status.json?_=' + ts).then(r => r.json()).catch(() => null),
+      // MP-007: реальный трек (cycle_runner) — приоритетный источник статуса
+      fetch(BASE + '/paper_trading_status.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(BASE + '/equity_curve_daily.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     _loadedOnce = true;
     renderDashboard(status, protocols, stratState, meta);
+    renderPaperStatusStrip(paperStatus);          // MP-007: live strip + LIVE/DEMO badge
+    buildPortfolioChart(equityCurve);             // MP-007: реальная equity-кривая, без демо-точек
     renderAlerts(alertsData);
     renderTrades(tradesData);
     updateDataFreshnessBadge(meta);
@@ -2589,8 +2618,8 @@ function renderDashboard(status, protocols, stratState, meta) {
     document.getElementById('conc-body').innerHTML = concHtml + `<div style="font-size:12px;color:#888;margin-top:8px">T2 совокупно: ${t2pct}% / лимит 35% · cash: ${cashPctNum}% / min 5%</div>`;
   }
 
-  // Portfolio chart
-  buildPortfolioChart(stratState);
+  // Portfolio chart: MP-007 — строится из equity_curve_daily.json в loadDashboard,
+  // strategy_state.json (легаси-снапшот 2026-05-21) больше не используется для графика.
 
   // APY chart
   buildApyChart(protocols, positions);
@@ -2679,22 +2708,28 @@ function renderTrades(trades) {
     '</tbody></table>';
 }
 
-function buildPortfolioChart(stratState) {
+// MP-007: единственный источник — data/equity_curve_daily.json (реальный трек
+// cycle_runner, is_demo:false). Демо-точки из strategy_state.json убраны.
+// Пустой массив / нет файла → сообщение «Данные накапливаются с 2026-06-10».
+function buildPortfolioChart(equityCurve) {
   const ctx = document.getElementById('portfolioChart');
   if (!ctx) return;
   if (_portChartInst) { _portChartInst.destroy(); _portChartInst = null; }
 
-  if (!stratState || stratState.length === 0) {
-    ctx.parentElement.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Нет данных истории</div>';
+  const daily = (equityCurve && Array.isArray(equityCurve.daily)) ? equityCurve.daily : [];
+  const emptyEl = document.getElementById('portfolio-chart-empty');
+  if (daily.length === 0) {
+    ctx.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'block';
     return;
   }
+  ctx.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
 
-  const labels = stratState.map(s => {
-    const d = new Date(s.timestamp);
-    return d.toLocaleDateString('ru-RU', {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
-  });
-  const capitals = stratState.map(s => s.total_capital_usd);
-  const pnls = stratState.map(s => s.total_pnl_usd);
+  const baseEquity = (daily[0].open_equity != null) ? daily[0].open_equity : daily[0].close_equity;
+  const labels = daily.map(d => d.date);
+  const capitals = daily.map(d => d.close_equity);
+  const pnls = daily.map(d => (d.close_equity != null && baseEquity != null) ? +(d.close_equity - baseEquity).toFixed(2) : null);
 
   _portChartInst = new Chart(ctx, {
     type: 'line',
@@ -4010,6 +4045,143 @@ const _todEl = document.getElementById('today-date');
 if (_todEl) _todEl.textContent = new Date().toISOString().slice(0,10);
 detectLiveMode();
 loadBacklog();   // live tab counter "BACKLOG (N)" + warm cache on page load
+
+// ─── MP-007: Go-Live Status Bar + live paper-trading статус ──────────────────
+// Честный статус go-live: data/golive_status.json (если появится) с фолбэком на
+// golive_combined_verdict.json (пишется каждые 4ч readiness_score). На GitHub
+// Pages первым пробуем raw.githubusercontent.com (свежее, чем Pages CDN).
+const RAW_DATA_BASE = 'https://raw.githubusercontent.com/yurii-spa/SPA/main/data';
+const REAL_TRACK_START = '2026-06-10';  // старт реального трека (KANBAN real_track_start)
+const PHASE0_TRACK_DAYS = 56;
+const STALE_DATA_MS = 24 * 3600 * 1000; // staleness-порог 24h
+
+const _mpEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function _mpFetchFirst(paths) {
+  for (const url of paths) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) { const j = await r.json(); if (j && typeof j === 'object') return j; }
+    } catch (e) { /* пробуем следующий источник */ }
+  }
+  return null;
+}
+
+async function loadGoLiveStatusBar() {
+  const el = document.getElementById('golive-status-bar');
+  if (!el) return;
+  try {
+    const cb = '?cb=' + Date.now();
+    const isLocal = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    const local = [BASE + '/golive_status.json' + cb, BASE + '/golive_combined_verdict.json' + cb];
+    const remote = [RAW_DATA_BASE + '/golive_status.json' + cb, RAW_DATA_BASE + '/golive_combined_verdict.json' + cb];
+    const doc = await _mpFetchFirst(isLocal ? local.concat(remote) : remote.concat(local));
+
+    if (!doc) {
+      el.className = 'golive-notready';
+      el.innerHTML = '⚠️ Статус go-live недоступен — не удалось загрузить data/golive_status.json';
+      return;
+    }
+    const ready = (doc.ready === true) || String(doc.gate || '').toUpperCase() === 'GO';
+    const blockers = Array.isArray(doc.blockers) ? doc.blockers
+                   : Array.isArray(doc.blocking) ? doc.blocking : [];
+    const genAt = doc.generated_at ? String(doc.generated_at).slice(0, 16).replace('T', ' ') + ' UTC' : null;
+
+    if (ready) {
+      el.className = 'golive-ready';
+      el.innerHTML = '🟢 <strong>LIVE</strong> — система в боевом режиме' +
+        (genAt ? ` <span style="font-size:11px;opacity:.7">· ${_mpEsc(genAt)}</span>` : '');
+    } else {
+      const shown = blockers.slice(0, 3).map(b => `<li>${_mpEsc(b)}</li>`).join('');
+      const more = blockers.length > 3
+        ? `<li style="list-style:none;opacity:.7">…и ещё ${blockers.length - 3} причин</li>` : '';
+      el.className = 'golive-notready';
+      el.innerHTML = '🔴 <strong>PRE-LIVE</strong> — накопление трека' +
+        (genAt ? ` <span style="font-size:11px;opacity:.7">· ${_mpEsc(genAt)}</span>` : '') +
+        (shown ? `<ul class="golive-blockers">${shown}${more}</ul>` : '');
+    }
+  } catch (e) {
+    el.className = 'golive-notready';
+    el.innerHTML = '⚠️ Статус go-live недоступен';
+  }
+}
+
+// LIVE/DEMO бейдж в шапке + live-полоса на вкладке Paper Trading.
+function renderPaperStatusStrip(ps) {
+  const badge = document.getElementById('data-mode-badge');
+  const strip = document.getElementById('paper-status-strip');
+
+  if (!ps || typeof ps !== 'object') {
+    if (badge) { badge.className = ''; badge.textContent = '⚠ данные недоступны'; badge.title = 'data/paper_trading_status.json не загрузился'; }
+    if (strip) { strip.style.display = 'block'; strip.innerHTML = '<div style="padding:8px;text-align:center;color:#aaa;font-size:13px">данные недоступны — data/paper_trading_status.json</div>'; }
+    return;
+  }
+
+  const isDemo = ps.is_demo === true;
+  const cycleTs = ps.last_cycle_ts ? new Date(ps.last_cycle_ts).getTime() : NaN;
+  const isStale = isFinite(cycleTs) && (Date.now() - cycleTs > STALE_DATA_MS);
+
+  if (badge) {
+    if (isDemo) { badge.className = 'mode-demo'; badge.textContent = '🟠 DEMO'; badge.title = 'paper_trading_status.json: is_demo=true'; }
+    else if (isStale) { badge.className = 'mode-stale'; badge.textContent = '🔴 LIVE · STALE'; badge.title = 'Данные реальные, но последний цикл старше 24h'; }
+    else { badge.className = 'mode-live'; badge.textContent = '🟢 LIVE DATA'; badge.title = 'paper_trading_status.json: is_demo=false · source: ' + (ps.source || '—'); }
+  }
+  if (!strip) return;
+
+  // День реального трека: от REAL_TRACK_START (Phase 0 = 56 дней)
+  const startMs = new Date(REAL_TRACK_START + 'T00:00:00Z').getTime();
+  const dayN = Math.max(1, Math.floor((Date.now() - startMs) / 86400000) + 1);
+  const equity = (typeof ps.current_equity === 'number') ? fmt(ps.current_equity) : '—';
+  const retPct = (typeof ps.total_return_pct === 'number')
+    ? (ps.total_return_pct >= 0 ? '+' : '') + ps.total_return_pct.toFixed(4) + '%' : '—';
+  const apyToday = (typeof ps.apy_today_pct === 'number') ? ps.apy_today_pct.toFixed(2) + '%' : '—';
+  const nPos = ps.current_positions ? Object.keys(ps.current_positions).length : 0;
+  const cycleStr = ps.last_cycle_ts ? String(ps.last_cycle_ts).slice(0, 16).replace('T', ' ') + ' UTC' : '—';
+  const modeBadge = isDemo
+    ? '<span style="background:#fef3c7;color:#92400e;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600">DEMO</span>'
+    : '<span style="background:#eaf7ec;color:#166534;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600">LIVE</span>';
+  const staleNote = isStale
+    ? '<div style="margin-top:6px;font-size:12px;color:#991b1b">⚠️ последний цикл старше 24h (' + _mpEsc(cycleStr) + ') — данные могли устареть</div>' : '';
+
+  strip.style.display = 'block';
+  strip.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:13px">
+      <span>${modeBadge}</span>
+      <span>equity: <strong>${equity}</strong></span>
+      <span>return: <strong>${retPct}</strong></span>
+      <span>APY today: <strong>${apyToday}</strong></span>
+      <span>день <strong>${dayN}</strong> / ${PHASE0_TRACK_DAYS} <span style="color:#888">(реальный трек с ${REAL_TRACK_START})</span></span>
+      <span>${nPos} позиций</span>
+      <span style="color:#888;font-size:11px">цикл: ${_mpEsc(cycleStr)} · ${_mpEsc(ps.source || '—')}</span>
+    </div>${staleNote}`;
+
+  // 8-week clock: реальные дни трека вместо легаси status.json (weeks_elapsed=0)
+  try {
+    const weeks = dayN / 7;
+    const clockLabel = document.getElementById('clock-label');
+    const clockFill = document.getElementById('clock-fill');
+    const clockSub = document.getElementById('clock-sub');
+    const clockStart = document.getElementById('clock-start');
+    if (clockLabel) clockLabel.textContent = 'неделя ' + weeks.toFixed(1) + ' / 8 требуется';
+    if (clockFill) clockFill.style.width = Math.min(100, (weeks / 8) * 100) + '%';
+    if (clockSub) clockSub.textContent = 'день ' + dayN + ' / ' + PHASE0_TRACK_DAYS + ' реального трека';
+    if (clockStart) clockStart.textContent = 'старт: ' + REAL_TRACK_START;
+  } catch (e) { /* clock не критичен */ }
+}
+
+async function loadPaperStatus() {
+  let ps = null;
+  try {
+    const r = await fetch(BASE + '/paper_trading_status.json?cb=' + Date.now());
+    if (r.ok) ps = await r.json();
+  } catch (e) { /* fallback ниже */ }
+  renderPaperStatusStrip(ps);
+}
+
+loadGoLiveStatusBar();
+setInterval(loadGoLiveStatusBar, 5 * 60 * 1000);  // автообновление каждые 5 минут
+loadPaperStatus();  // бейдж LIVE/DEMO в шапке доступен с любой вкладки
 
 // ─── Mobile init ─────────────────────────────────────────────────────────────
 function initMobile() {
