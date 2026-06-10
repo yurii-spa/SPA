@@ -35,6 +35,11 @@ class AaveV3Adapter(BaseAdapter):
     DEFILLAMA_CHAIN = "Ethereum"
     RISK_SCORE = 0.20  # T1 anchor — lowest-risk whitelisted protocol.
 
+    # SPA-V412: instant exit. Aave V3 USDC is a liquid supply position —
+    # withdrawals settle in the same block (subject only to transient pool
+    # utilization), so the declared exit latency is 0h.
+    EXIT_LATENCY_HOURS = 0.0
+
     TIER = "T1"
     T1_CAP = 0.40  # max 40% of portfolio in this single T1 protocol.
 
@@ -103,6 +108,7 @@ class AaveV3Adapter(BaseAdapter):
             tvl_usd=float(tvl) if isinstance(tvl, (int, float)) else None,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
+            exit_latency_hours=self.EXIT_LATENCY_HOURS,
         )
 
     # end of class
