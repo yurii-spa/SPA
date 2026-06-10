@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10T08:58:41.352595+00:00",
-  "updated_by": "claude-sprint-mp004-mp008",
+  "last_updated": "2026-06-10T09:03:44.309785+00:00",
+  "updated_by": "claude-sprint-mp005",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -861,22 +861,6 @@
         ]
       },
       {
-        "id": "MP-005",
-        "title": "RiskPolicy.check() — блокирующий гейт в cycle_runner",
-        "description": "ex RB-007. КАЖДАЯ сделка через policy.check(); FAIL → blocked + алерт. ADR: min_cash 5% vs 0% cash-drag (текущие позиции $0 cash нарушают политику v1.0 — remainder-fill обходит min_cash). 'Policy на каждом capital decision без bypass' — пункт №1 риск-DD.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 1,
-        "depends_on": [],
-        "estimate": "1d",
-        "tags": [
-          "risk",
-          "critical-path"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-006",
         "title": "Go-live критерии: только реальные файлы + anti-demo гейт",
         "description": "ex RB-009/V412. Критерии читают paper_trading_status/equity_curve_daily/trades (is_demo:false). is_demo:true в источнике → автоматический FAIL. Добавить: real-Sharpe (отриц.=FAIL), мин. 15 реальных сделок, APY-gap критерий.",
@@ -1448,6 +1432,24 @@
         "status": "done",
         "completed": "2026-06-10",
         "completed_by": "dev-orchestrator (SPA-V412)"
+      },
+      {
+        "id": "MP-005",
+        "title": "RiskPolicy.check() — блокирующий гейт в cycle_runner",
+        "description": "ex RB-007. КАЖДАЯ сделка через policy.check(); FAIL → blocked + алерт. ADR: min_cash 5% vs 0% cash-drag (текущие позиции $0 cash нарушают политику v1.0 — remainder-fill обходит min_cash). 'Policy на каждом capital decision без bypass' — пункт №1 риск-DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "critical-path"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "completed": "2026-06-10",
+        "resolution": "Done: _apply_risk_policy_gate() в cycle_runner — каждая сделка через RiskPolicy.check_new_position() (concentration, T2-total, TVL, APY, drawdown). Violations → blocked_by_policy (сделка не пишется) + аудит в data/risk_policy_blocks.json (ring 100). min_cash → пропорциональная обрезка до 95%, не блок. Исключение в гейте → fail-open WARNING, цикл не падает. 17 новых тестов (test_risk_policy_gate.py). Факт: на живых данных гейт блокирует текущий target (morpho TVL $402K<$5M, T2 total 66%>35%) — follow-up: аллокатор должен соблюдать T2-total/TVL-floor (см. MP-006/backlog)."
       }
     ]
   },
