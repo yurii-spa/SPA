@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from spa_core.adapters import (
+    AaveV3Adapter,
     EulerV2Adapter,
     MapleAdapter,
     MorphoBlueAdapter,
@@ -65,6 +66,9 @@ DEFAULT_MAX_RUNS = 30
 # Тир дублируется здесь как fallback на случай, если адаптер упадёт ещё при
 # инстанцировании (тогда get_yield_info().tier недоступен).
 ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
+    # SPA-V405: Aave V3 is the T1 anchor (40% cap) that lets the allocator fill
+    # the structural remainder left by the four 20%-capped T2 adapters.
+    ("aave_v3", "T1", AaveV3Adapter),
     ("morpho_blue", "T2", MorphoBlueAdapter),
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
