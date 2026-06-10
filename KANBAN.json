@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10T18:20:07.874713+00:00",
-  "updated_by": "dev-orchestrator (SPA-V414)",
+  "last_updated": "2026-06-10",
+  "updated_by": "claude-code (MP-013 archive + MP-105 legacy cleanup)",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -877,22 +877,6 @@
         "status": "done"
       },
       {
-        "id": "MP-013",
-        "title": "Архивация одноразовых отчётов и v0.3-доков",
-        "description": "ex RB-005. DISPATCH_REPORT_*.md (23), ESCALATION_v375, orchestrator_run_*_HALT (2), peer_chat_review, REVIEW_SUMMARY, STATUS_2026-06-01, CHANGELOG v0.3/v0.4, deep_research_*.md, папка SPA/ → docs/archive/. 115 .md при 8 живых — нечитаемо для DD.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 1,
-        "depends_on": [],
-        "estimate": "1d",
-        "tags": [
-          "cleanup",
-          "docs"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-015",
         "title": "Секреты алертов: Telegram + SMTP (USER ACTION)",
         "description": "ex UA-003. TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, SMTP-креды в GitHub Secrets + локальный env. Разблокирует MP-016.",
@@ -1037,24 +1021,6 @@
         "estimate": "2d",
         "tags": [
           "analytics"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-105",
-        "title": "Выпилить legacy-код",
-        "description": "ex RB-105. paper_trading/engine.py (1382 строки, питает мёртвый status.json), spa_core/monitor/ (дубликат alerts/), стратегии s1/s2/s3/bull_cycle_detector. Решение по optimization/: Kelly → MP-306 или удалить. Миграция export_data перед удалением.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 1.5,
-        "depends_on": [
-          "MP-104"
-        ],
-        "estimate": "1.5d",
-        "tags": [
-          "cleanup",
-          "code"
         ],
         "sprint": null,
         "added": "2026-06-10"
@@ -1512,6 +1478,46 @@
         "added": "2026-06-10",
         "status": "done",
         "completed": "2026-06-10"
+      },
+      {
+        "id": "MP-013",
+        "title": "Архивация одноразовых отчётов и v0.3-доков",
+        "description": "ex RB-005. DISPATCH_REPORT_*.md (23), ESCALATION_v375, orchestrator_run_*_HALT (2), peer_chat_review, REVIEW_SUMMARY, STATUS_2026-06-01, CHANGELOG v0.3/v0.4, deep_research_*.md, папка SPA/ → docs/archive/. 115 .md при 8 живых — нечитаемо для DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "cleanup",
+          "docs"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "result": "Done 2026-06-10: создан archive/ в корне; перемещено 52 объекта: 23 DISPATCH_REPORT, ESCALATION_v375, 2 orchestrator_run_HALT, STATUS_2026-06-01, CHANGELOG v0.3 и v0.4/v0.4.5, peer_chat_review_v0.4.5, REVIEW_SUMMARY, deep_research, REBUILD_PLAN_v1 (заменён MASTER_PLAN_v1), DEV_STRATEGY_v1.0, PUSH_INSTRUCTIONS, KANBAN_ARCHIVE_2026-06-10.json, spa_dashboard.html, SPA_Kanban.html, sync_to_github.sh, architect_review (из docs/), 10 временных _v3xx/_tmp файлов, =0.10.0, SPA_report_test.pdf, папка SPA/. Ничего не удалено."
+      },
+      {
+        "id": "MP-105",
+        "title": "Выпилить legacy-код",
+        "description": "ex RB-105. paper_trading/engine.py (1382 строки, питает мёртвый status.json), spa_core/monitor/ (дубликат alerts/), стратегии s1/s2/s3/bull_cycle_detector. Решение по optimization/: Kelly → MP-306 или удалить. Миграция export_data перед удалением.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-104"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "cleanup",
+          "code"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "result": "Done 2026-06-10 (консервативный проход): удалён мёртвый spa_core/orchestrator/runner.py (legacy M4 CLI, 0 ссылок) + его запись в PUSH_MANIFEST; убраны 3 dead imports (engine.py: json; export_data.py: build_pendle_position, RISK_AGENT). НЕ тронуто из-за живых ссылок: comparator (strategy_selector), run_alerts (spa_alerts.yml), approve_wallet (checklist.py), pg_migration/incidents_fetcher (живые тесты+ADR), github_pusher (push_to_github.command), shadow-фреймворк Jun-9. Большой скоуп (engine.py/monitor/ дубликаты, s1-s3) требует MP-104 миграции — не выполнялся. Тесты: 64/64 paper_trading+integration pass; 23 pre-existing фейла (eth_signer deps, adapter_sync data) не связаны."
       }
     ]
   },
