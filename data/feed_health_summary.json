@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-05-31T04:27:24.194107Z",
-  "overall_status": "ok",
+  "generated_at": "2026-06-10T09:07:31.185319Z",
+  "overall_status": "degraded",
   "signal_count": 9,
   "counts": {
-    "ok": 9,
+    "ok": 3,
     "warn": 0,
-    "degraded": 0,
+    "degraded": 6,
     "unknown": 0
   },
   "signals": [
@@ -17,10 +17,10 @@
       "threshold": 3,
       "streak": 0,
       "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "last_alerted_cycle": 0,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "apy_feed_stale",
@@ -29,10 +29,10 @@
       "threshold": 2,
       "streak": 0,
       "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "last_alerted_cycle": 0,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "protocol_drop",
@@ -41,82 +41,82 @@
       "threshold": 1,
       "streak": 0,
       "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "last_alerted_cycle": 0,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "tvl_drop",
       "label": "TVL drop",
       "state_file": "apy_feed_tvl_health_state.json",
       "threshold": 1,
-      "streak": 0,
-      "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "streak": 29,
+      "status": "degraded",
+      "last_alerted_cycle": 29,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "protocol_anomaly",
       "label": "Per-protocol anomaly",
       "state_file": "apy_feed_anomaly_health_state.json",
       "threshold": 1,
-      "streak": 0,
-      "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "streak": 28,
+      "status": "degraded",
+      "last_alerted_cycle": 28,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "schema_drift",
       "label": "Feed schema drift",
       "state_file": "apy_feed_schema_health_state.json",
       "threshold": 1,
-      "streak": 0,
-      "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "streak": 28,
+      "status": "degraded",
+      "last_alerted_cycle": 28,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "protocol_stale",
       "label": "Per-protocol staleness",
       "state_file": "apy_feed_protocol_stale_health_state.json",
       "threshold": 1,
-      "streak": 0,
-      "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "streak": 28,
+      "status": "degraded",
+      "last_alerted_cycle": 28,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "value_bounds",
       "label": "Value bounds",
       "state_file": "apy_feed_bounds_health_state.json",
       "threshold": 1,
-      "streak": 0,
-      "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "streak": 27,
+      "status": "degraded",
+      "last_alerted_cycle": 27,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     },
     {
       "key": "date_monotonicity",
       "label": "Date monotonicity",
       "state_file": "apy_feed_monotonicity_health_state.json",
       "threshold": 1,
-      "streak": 0,
-      "status": "ok",
-      "last_alerted_cycle": null,
-      "updated_at": null,
-      "last_alert_age_hours": null,
-      "present": false
+      "streak": 27,
+      "status": "degraded",
+      "last_alerted_cycle": 27,
+      "updated_at": "2026-06-10T09:07:31Z",
+      "last_alert_age_hours": 0.0,
+      "present": true
     }
   ]
 }

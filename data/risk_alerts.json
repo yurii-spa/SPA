@@ -1,6 +1,15 @@
 {
-  "generated_at": "2026-06-10T08:56:41.756946+00:00",
-  "count": 0,
-  "status": "ok",
-  "alerts": []
+  "generated_at": "2026-06-10T09:07:08.782877+00:00",
+  "count": 1,
+  "status": "warning",
+  "alerts": [
+    {
+      "severity": "warning",
+      "type": "concentration",
+      "protocol": "morpho-usdc-ethereum",
+      "message": "\u041a\u043e\u043d\u0446\u0435\u043d\u0442\u0440\u0430\u0446\u0438\u044f 40.0% \u043f\u0440\u0438\u0431\u043b\u0438\u0436\u0430\u0435\u0442\u0441\u044f \u043a \u043b\u0438\u043c\u0438\u0442\u0443 45%",
+      "amount_usd": 40000.0,
+      "pct": 40.0
+    }
+  ]
 }

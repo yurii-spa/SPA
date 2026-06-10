@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-06-10T08:57:04Z",
-  "sections_run": 27,
-  "sections_ok": 26,
+  "timestamp": "2026-06-10T09:07:31Z",
+  "sections_run": 28,
+  "sections_ok": 27,
   "sections_failed": 1,
   "failed_sections": [
-    "pdf_report"
+    "apy_tracking"
   ],
-  "total_pools_fetched": 0,
+  "total_pools_fetched": 8,
   "pendle_pools_found": 0,
-  "export_duration_seconds": 68.52,
+  "export_duration_seconds": 72.08,
   "next_run_eta": "4h",
   "covariance_source": "live"
 }

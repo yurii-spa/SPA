@@ -1,20 +1,39 @@
 {
-  "timestamp": "2026-06-10T08:55:55.698600+00:00",
+  "timestamp": "2026-06-10T09:06:20.855805+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
-    "deployed_usd": 0,
-    "cash_usd": 100000.0,
-    "cash_pct": 1.0,
-    "total_pnl_usd": 0,
+    "deployed_usd": 60000.0,
+    "cash_usd": 40000.0,
+    "cash_pct": 0.4,
+    "total_pnl_usd": 0.0,
     "total_drawdown_pct": 0.0
   },
-  "positions": [],
+  "positions": [
+    {
+      "protocol_key": "morpho-usdc-ethereum",
+      "tier": "T1",
+      "amount_usd": 40000.0,
+      "current_apy": 3.59166,
+      "unrealized_pnl_usd": 0.0,
+      "unrealized_pnl_pct": 0.0,
+      "days_held": 0.0
+    },
+    {
+      "protocol_key": "euler-v2-usdc-ethereum",
+      "tier": "T2",
+      "amount_usd": 20000.0,
+      "current_apy": 2.79862,
+      "unrealized_pnl_usd": 0.0,
+      "unrealized_pnl_pct": 0.0,
+      "days_held": 0.0
+    }
+  ],
   "risk": {
     "health_approved": true,
     "violations": [],
     "warnings": [],
-    "var_usd": 0.0,
-    "var_pct": 0.0,
+    "var_usd": 273.37,
+    "var_pct": 0.456,
     "var_breach": false
   },
   "paper_trading": {
@@ -22,21 +41,21 @@
     "weeks_elapsed": 0.0,
     "min_weeks_required": 8,
     "go_live_ready": false,
-    "first_trade": null
+    "first_trade": "2026-06-10T09:06:20.615928+00:00"
   },
   "strategy": {
     "id": 4,
     "strategy_id": "paper-v1",
     "timestamp": "2026-05-21 06:39:39",
     "total_capital_usd": 100000.0,
-    "deployed_capital_usd": 0.0,
-    "cash_usd": 100000.0,
-    "total_pnl_usd": 0.0,
+    "deployed_capital_usd": 60000.0,
+    "cash_usd": 40000.0,
+    "total_pnl_usd": 5.469556164383562,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": 0.0,
+    "sharpe_to_date": -4.5518,
     "max_drawdown_pct": 0.0,
-    "trade_count": 0,
+    "trade_count": 2,
     "state_json": null
   }
 }

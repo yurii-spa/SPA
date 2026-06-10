@@ -1,16 +1,31 @@
 {
-  "generated_at": "2026-05-21T18:24:07.373811+00:00",
-  "count": 1,
+  "generated_at": "2026-06-10T09:07:08.785575+00:00",
+  "count": 2,
   "alerts": [
     {
-      "severity": "CRITICAL",
-      "event_type": "NO_DATA",
-      "protocol_key": null,
-      "message": "No snapshots in database \u2014 data pipeline may be down",
+      "severity": "WARNING",
+      "event_type": "LOW_TVL",
+      "protocol_key": "compound-v3-usdc-arbitrum",
+      "message": "TVL $3.8M below warning threshold $10M",
       "details": {
-        "expected_protocols": 7
+        "tvl_usd": 3750691.0,
+        "threshold_usd": 10000000
       },
-      "timestamp": "2026-05-21T18:24:07.373796+00:00"
+      "timestamp": "2026-06-10T09:07:08.785546+00:00"
+    },
+    {
+      "severity": "WARNING",
+      "event_type": "MISSING_PROTOCOL_DATA",
+      "protocol_key": null,
+      "message": "Missing data for 3 protocol(s): aave-v3-usdt-ethereum, maple-usdc-ethereum, yearn-v3-usdc-ethereum",
+      "details": {
+        "missing": [
+          "yearn-v3-usdc-ethereum",
+          "maple-usdc-ethereum",
+          "aave-v3-usdt-ethereum"
+        ]
+      },
+      "timestamp": "2026-06-10T09:07:08.785571+00:00"
     }
   ]
 }
