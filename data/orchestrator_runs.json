@@ -91,6 +91,72 @@
       "live_data": true,
       "adapters_with_live_apy": 4,
       "data_freshness": "live"
+    },
+    {
+      "run_ts": "2026-06-10T06:47:58.858430+00:00",
+      "duration_sec": 1.113,
+      "summary": {
+        "total": 5,
+        "ok": 5,
+        "partial": 0,
+        "error": 0,
+        "avg_health_score": 1.0,
+        "grade": "A",
+        "best_apy": {
+          "protocol": "maple",
+          "apy_pct": 4.7139
+        },
+        "total_tvl_usd": 3348872952.0,
+        "live_data": true,
+        "adapters_with_live_apy": 5,
+        "data_freshness": "live"
+      },
+      "overall_health": {
+        "score": 1.0,
+        "grade": "A",
+        "total": 5,
+        "ok_count": 5,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 0
+      },
+      "status": "ok",
+      "live_data": true,
+      "adapters_with_live_apy": 5,
+      "data_freshness": "live"
+    },
+    {
+      "run_ts": "2026-06-10T06:49:38.362179+00:00",
+      "duration_sec": 1.0887,
+      "summary": {
+        "total": 5,
+        "ok": 5,
+        "partial": 0,
+        "error": 0,
+        "avg_health_score": 1.0,
+        "grade": "A",
+        "best_apy": {
+          "protocol": "maple",
+          "apy_pct": 4.7139
+        },
+        "total_tvl_usd": 3348872952.0,
+        "live_data": true,
+        "adapters_with_live_apy": 5,
+        "data_freshness": "live"
+      },
+      "overall_health": {
+        "score": 1.0,
+        "grade": "A",
+        "total": 5,
+        "ok_count": 5,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 0
+      },
+      "status": "ok",
+      "live_data": true,
+      "adapters_with_live_apy": 5,
+      "data_freshness": "live"
     }
   ],
   "max_runs": 30
