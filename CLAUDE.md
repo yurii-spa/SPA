@@ -25,7 +25,7 @@ separate ADR is accepted — go-live decision date is **2026-07-15**.
 | GitHub repo | `github.com/yurii-spa/SPA` — branch `main` |
 | Dashboard | `index.html` (open locally or GitHub Pages) — **v1.6, 6 tabs** |
 | Kanban | `kanban.html` |
-| Go-live verdict | **NOT_READY** —  5/11 criteria passing; blocked by paper duration (2/50 days) |
+| Go-live verdict | **NOT_READY** — 5/11 criteria passing; blocked by paper duration (2/50 days) |
 
 ---
 
@@ -33,7 +33,7 @@ separate ADR is accepted — go-live decision date is **2026-07-15**.
 
 ```
 DeFiLlama API ──┐
-               ├──┺ data_pipeline/ ──► data/*.json ──► index.html (GitHub Pages)
+                ├──► data_pipeline/ ──► data/*.json ──► index.html (GitHub Pages)
 Pendle API ─────┘         │
                           ▼
                     export_data.py  (runs every 4h via GitHub Actions)
@@ -267,10 +267,20 @@ APY_GAP_MAX      = 2.0  (pp)
 ## GitHub Push Process
 
 ```
-Token (repo scope):  ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Token (repo scope):  stored in macOS Keychain — NEVER write it into any file.
+                     Retrieve at runtime: security find-generic-password -s GITHUB_PAT_SPA -w
+                     Save/rotate: bash setup_pat.sh  (interactive, hidden input)
 Token (workflow scope): needed separately for .github/workflows/ files
 Repo:  github.com/yurii-spa/SPA   branch: main
 ```
+
+**SECRETS POLICY (incident 2026-06-10 — PAT leaked into 90+ generated files):**
+1. NEVER write tokens, keys, or passwords into ANY file — including CLAUDE.md, HTML
+   pushers, .command scripts, docs, or generated artifacts. No exceptions.
+2. Scripts must read the PAT at runtime from Keychain (`GITHUB_PAT_SPA`) or an env var.
+3. Never generate `push_*.html`-style artifacts with embedded credentials.
+4. If a secret ever lands in a file: revoke it immediately at github.com/settings/tokens,
+   then clean the files and git history.
 
 | Script | Scope | Use |
 |---|---|---|
@@ -340,8 +350,8 @@ python -m spa_core.dev_agents.tester
 # Dry-run GitHub push (lists present/missing files)
 python -m spa_core.tools.github_pusher --token ghp_xxx --dry-run
 
-# Full GitHub push
-python -m spa_core.tools.github_pusher --token ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Full GitHub push (reads PAT from Keychain)
+python -m spa_core.tools.github_pusher --token "$(security find-generic-password -s GITHUB_PAT_SPA -w)"
 
 # Check Sky/sUSDS GSM Pause Delay on-chain
 python -m spa_core.data_pipeline.sky_monitor
@@ -400,7 +410,7 @@ Base URL: `http://localhost:8000` (run `python run_server.py`)
    When 48h is confirmed: upgrade Sky to T1 at 30% weight → expect APY to jump ~2–3 pp.
 
 2. **Workflow scope token** — `.github/workflows/` files require a GitHub token with `workflow`
-   scope. The standard `repo`-scope token (`ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`) cannot
+   scope. The standard `repo`-scope token (in Keychain as `GITHUB_PAT_SPA`) cannot
    push these. Use `push_workflow.command` with a separate workflow-scope token.
 
 3. **APY gap** — Current ~4.2% vs 7.3% target (gap ~3.1 pp). Primary closure lever: Pendle PT
