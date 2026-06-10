@@ -860,6 +860,12 @@ def run_cycle(
         )
         _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
 
+        from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
+        try:
+            _check_gaps()
+        except Exception:
+            pass  # fail-open
+
     return result
 
 
