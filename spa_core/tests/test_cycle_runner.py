@@ -18,8 +18,15 @@ from spa_core.paper_trading import cycle_runner as cr
 
 
 def _fake_orch_result(apy_map, status="ok"):
+    # aave_v3 is the T1 anchor (как в реальном снимке оркестратора); остальные T2.
     adapters = [
-        {"protocol": p, "apy_pct": a, "tvl_usd": 1e7, "tier": "T2", "status": "ok"}
+        {
+            "protocol": p,
+            "apy_pct": a,
+            "tvl_usd": 1e7,
+            "tier": "T1" if p == "aave_v3" else "T2",
+            "status": "ok",
+        }
         for p, a in apy_map.items()
     ]
     return SimpleNamespace(adapters=adapters, status=status, data_freshness="live")
@@ -64,7 +71,8 @@ def _load(tmp_path, name):
 
 
 APY = {"aave_v3": 4.0, "morpho_blue": 5.0, "yearn_v3": 3.0, "maple": 4.7}
-TARGET = {"aave_v3": 40000.0, "morpho_blue": 20000.0, "yearn_v3": 20000.0}
+# RiskPolicy-compliant target (MP-005): T1 aave 40% (== cap), T2 total 34% < 35%.
+TARGET = {"aave_v3": 40000.0, "morpho_blue": 20000.0, "yearn_v3": 14000.0}
 
 
 # ─── Core loop ──────────────────────────────────────────────────────────────
@@ -129,8 +137,8 @@ def test_current_positions_written(tmp_path):
     _run(tmp_path, APY, TARGET)
     pos = _load(tmp_path, "current_positions.json")
     assert pos["is_demo"] is False
-    assert pos["deployed_usd"] == pytest.approx(80000.0, abs=1e-6)
-    assert pos["cash_usd"] == pytest.approx(20000.0, abs=1e-6)
+    assert pos["deployed_usd"] == pytest.approx(74000.0, abs=1e-6)
+    assert pos["cash_usd"] == pytest.approx(26000.0, abs=1e-6)
     assert pos["positions"]["morpho_blue"] == 20000.0
 
 
@@ -246,8 +254,9 @@ def test_days_running_counts_from_paper_start(tmp_path):
 
 def test_small_allocation_drift_under_threshold_no_trade(tmp_path):
     _run(tmp_path, APY, TARGET)  # positions = TARGET
-    # Drift each pool by a tiny amount (< 1% of capital total L1 distance).
-    drifted = {p: v + 100.0 for p, v in TARGET.items()}  # L1 = 300 < 1000
+    # Drift one pool by a tiny amount (< 1% of capital total L1 distance);
+    # yearn stays well under its T2 cap so the policy gate keeps approving.
+    drifted = {**TARGET, "yearn_v3": TARGET["yearn_v3"] + 300.0}  # L1 = 300 < 1000
     res = _run(
         tmp_path,
         APY,
@@ -259,7 +268,7 @@ def test_small_allocation_drift_under_threshold_no_trade(tmp_path):
 
 def test_large_allocation_change_triggers_trade(tmp_path):
     _run(tmp_path, APY, TARGET)
-    changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 20000.0}  # big swap
+    changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}  # big swap
     res = _run(
         tmp_path,
         APY,
