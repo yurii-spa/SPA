@@ -553,6 +553,38 @@ def _policy_version() -> str:
         return "unknown"
 
 
+# ─── MP-006: go-live anti-demo gate (advisory, never blocks the cycle) ───────
+
+
+def _run_golive_gate(ddir: Path, now_dt: datetime, write: bool) -> None:
+    """Refresh ``data/golive_status.json`` via ``GoLiveChecker`` (MP-006).
+
+    Advisory only: a ``ready=False`` verdict is logged as a WARNING on the
+    first run of each UTC day, and the cycle ALWAYS continues — it must keep
+    running to accumulate the real track record the criteria wait for. Any
+    failure inside the checker itself is logged and swallowed (fail-open).
+    """
+    try:
+        from spa_core.paper_trading.golive_checker import (
+            STATUS_OUT_FILENAME,
+            GoLiveChecker,
+        )
+
+        prev = _read_json(ddir / STATUS_OUT_FILENAME, {})
+        prev_date = (
+            str(prev.get("timestamp", ""))[:10] if isinstance(prev, dict) else ""
+        )
+        result = GoLiveChecker(data_dir=ddir, now=now_dt).check(write=write)
+        if not result.ready and prev_date != now_dt.strftime("%Y-%m-%d"):
+            log.warning(
+                "Go-live NOT ready (%d blockers): %s",
+                len(result.blockers),
+                "; ".join(result.blockers),
+            )
+    except Exception as exc:  # the gate must never crash the cycle
+        log.warning("GoLiveChecker failed (%s) — cycle continues", exc)
+
+
 # ─── Default orchestrator / allocator wiring (overridable for tests) ─────────
 
 
@@ -606,6 +638,9 @@ def run_cycle(
     notes: list[str] = []
 
     orchestrator_fn = orchestrator_fn or _default_orchestrator
+
+    # ── Step 0 (MP-006): go-live anti-demo gate — advisory, never blocks ──
+    _run_golive_gate(ddir, now_dt, write)
 
     # ── Step 1: orchestrator → live APY snapshot ──────────────────────────
     orch = orchestrator_fn(ddir)
