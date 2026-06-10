@@ -1,0 +1,243 @@
+{
+  "generated_at": "2026-06-09T21:12:48.115213+00:00",
+  "data_dir": "data",
+  "stale_hours": 24.0,
+  "coverage": {
+    "expected": 8,
+    "available": 8,
+    "missing": 0,
+    "stale": 0,
+    "coverage_pct": 100.0,
+    "complete": true
+  },
+  "sources": {
+    "equity_curve": {
+      "file": "equity_curve_daily.json",
+      "available": true,
+      "generated_at": "2026-06-09T11:14:53.239358+00:00",
+      "age_hours": 9.9652,
+      "stale": false
+    },
+    "risk_metrics": {
+      "file": "risk_metrics.json",
+      "available": true,
+      "generated_at": "2026-06-09T12:12:04.571869+00:00",
+      "age_hours": 9.0121,
+      "stale": false
+    },
+    "rolling_performance": {
+      "file": "rolling_performance.json",
+      "available": true,
+      "generated_at": "2026-06-09T13:12:33.182661+00:00",
+      "age_hours": 8.0041,
+      "stale": false
+    },
+    "drawdown_analysis": {
+      "file": "drawdown_analysis.json",
+      "available": true,
+      "generated_at": "2026-06-09T14:12:29.058445+00:00",
+      "age_hours": 7.0053,
+      "stale": false
+    },
+    "return_distribution": {
+      "file": "return_distribution.json",
+      "available": true,
+      "generated_at": "2026-06-09T15:12:11.053527+00:00",
+      "age_hours": 6.0103,
+      "stale": false
+    },
+    "calendar_returns": {
+      "file": "calendar_returns.json",
+      "available": true,
+      "generated_at": "2026-06-09T16:11:44.014334+00:00",
+      "age_hours": 5.0178,
+      "stale": false
+    },
+    "benchmark_comparison": {
+      "file": "benchmark_comparison.json",
+      "available": true,
+      "generated_at": "2026-06-09T19:13:49.285693+00:00",
+      "age_hours": 1.983,
+      "stale": false
+    },
+    "monte_carlo_projection": {
+      "file": "monte_carlo_projection.json",
+      "available": true,
+      "generated_at": "2026-06-09T20:14:04.491358+00:00",
+      "age_hours": 0.9788,
+      "stale": false
+    }
+  },
+  "tearsheet": {
+    "overview": {
+      "available": true,
+      "num_days": 8,
+      "first_date": "2026-05-15",
+      "last_date": "2026-05-22",
+      "start_equity": 99988.92,
+      "end_equity": 98815.79,
+      "total_return_pct": -1.1733,
+      "annualized_return_pct": -46.6903,
+      "positive_days": 3,
+      "negative_days": 4,
+      "win_rate_pct": 42.8571
+    },
+    "risk": {
+      "available": true,
+      "sharpe_ratio": -5.3753,
+      "sortino_ratio": -4.0745,
+      "calmar_ratio": -29.3908,
+      "profit_factor": 0.3857,
+      "win_loss_ratio": 0.5143,
+      "daily_volatility_pct": 0.4546,
+      "annualized_vol_pct": 8.686,
+      "downside_deviation_pct": 0.5998,
+      "max_drawdown_pct": -1.5886,
+      "best_day": {
+        "date": "2026-05-19",
+        "daily_return_pct": 0.358
+      },
+      "worst_day": {
+        "date": "2026-05-20",
+        "daily_return_pct": -1.0426
+      }
+    },
+    "rolling_performance": {
+      "available": true,
+      "windows": [
+        7,
+        30
+      ],
+      "by_window": {
+        "7": {
+          "return_pct": null,
+          "annualized_return_pct": null,
+          "volatility_pct": null,
+          "sharpe_ratio": null,
+          "max_drawdown_pct": null,
+          "win_rate_pct": null,
+          "num_days": null
+        },
+        "30": {
+          "return_pct": null,
+          "annualized_return_pct": null,
+          "volatility_pct": null,
+          "sharpe_ratio": null,
+          "max_drawdown_pct": null,
+          "win_rate_pct": null,
+          "num_days": null
+        }
+      }
+    },
+    "drawdown_analysis": {
+      "available": true,
+      "max_drawdown_pct": -1.5886,
+      "avg_drawdown_pct": -0.9722,
+      "num_episodes": 2,
+      "recovered_episodes": 1,
+      "ongoing_episodes": 1,
+      "longest_drawdown_days": 3,
+      "longest_recovery_days": 2,
+      "currently_in_drawdown": true,
+      "current_drawdown_pct": -1.5886,
+      "time_underwater_pct": 85.7143
+    },
+    "return_distribution": {
+      "available": true,
+      "count": 7,
+      "mean_pct": -0.1712,
+      "median_pct": -0.085,
+      "stdev_pct": 0.4546,
+      "skewness": -0.6651,
+      "excess_kurtosis": -0.6376,
+      "min_pct": -1.0426,
+      "max_pct": 0.358,
+      "var": {
+        "95": -0.87,
+        "99": -1.0081
+      },
+      "cvar": {
+        "95": -1.0426,
+        "99": -1.0426
+      },
+      "percentiles": {
+        "p5": -0.87,
+        "p25": -0.4114,
+        "p50": -0.085,
+        "p75": 0.1972,
+        "p95": 0.3275
+      }
+    },
+    "calendar_returns": {
+      "available": true,
+      "num_realised_days": 7,
+      "num_months": 1,
+      "num_weeks": 2,
+      "best_month": {
+        "month": "2026-05",
+        "return_pct": -1.1992
+      },
+      "worst_month": {
+        "month": "2026-05",
+        "return_pct": -1.1992
+      },
+      "positive_months": 0,
+      "negative_months": 1,
+      "longest_win_streak": 3,
+      "longest_loss_streak": 3,
+      "current_streak_kind": "loss",
+      "current_streak_len": 3
+    },
+    "benchmark_comparison": {
+      "available": true,
+      "benchmark_kind": "flat_risk_free",
+      "benchmark_annual_pct": 4.0,
+      "portfolio_total_return_pct": -1.1992,
+      "benchmark_total_return_pct": 0.0752,
+      "excess_total_return_pct": -1.2744,
+      "tracking_error_pct": 0.454646,
+      "information_ratio": -0.4001,
+      "information_ratio_annualized": -7.6439,
+      "beta": null,
+      "correlation": null,
+      "up_capture": null,
+      "down_capture": null,
+      "days_outperformed": 3,
+      "days_underperformed": 4
+    },
+    "monte_carlo_projection": {
+      "available": true,
+      "inputs": {
+        "horizon_days": 30,
+        "num_simulations": 10000,
+        "start_equity": 98815.79,
+        "num_historical_returns": 7,
+        "seed": 42,
+        "mean_daily_return_pct": -0.171157,
+        "daily_volatility_pct": 0.454646
+      },
+      "terminal_equity": {
+        "p5": 89960.01,
+        "p25": 92335.1,
+        "p50": 93901.53,
+        "p75": 95514.42,
+        "p95": 97664.17,
+        "mean": 93886.82,
+        "min": 85273.98,
+        "max": 103189.87,
+        "stdev": 2347.52
+      },
+      "terminal_return_pct": {
+        "p5": -8.9619,
+        "p25": -6.5584,
+        "p50": -4.9732,
+        "p75": -3.3409,
+        "p95": -1.1654,
+        "mean": -4.988
+      },
+      "probability_of_profit": 0.0167,
+      "probability_of_loss": 0.9833,
+      "expected_max_drawdown_pct": -5.6264
+    }
+  }
+}
