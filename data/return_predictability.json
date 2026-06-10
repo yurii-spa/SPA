@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-06-10T06:14:38.636666+00:00",
+  "source": "/sessions/fervent-brave-mayer/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "metrics": {
+    "count": 7,
+    "num_days": 8,
+    "first_date": "2026-05-15",
+    "last_date": "2026-05-22",
+    "mean_pct": -0.171157,
+    "stdev_pct": 0.454646,
+    "embed_dim": 3,
+    "sampen_m": 2,
+    "sampen_r": 0.090929,
+    "shannon_entropy_bits": 1.378783,
+    "shannon_entropy_normalized": 0.869916,
+    "sign_entropy_bits": 0.985228,
+    "sign_entropy_normalized": 0.985228,
+    "permutation_entropy": 2.321928,
+    "permutation_entropy_normalized": 0.898244,
+    "sample_entropy": null,
+    "approximate_entropy": -0.182322,
+    "predictability_score": 0.101756,
+    "predictability_grade": "D",
+    "verdict": "random_walk_like",
+    "execution_mode": "read_only_simulation"
+  }
+}
