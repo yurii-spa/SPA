@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-06-09T18:03:41.240370+00:00",
+  "source": "portfolio_state_tracker",
+  "execution_mode": "read_only_simulation",
+  "total_actual_usd": 80000.0,
+  "total_target_usd": 80000.0,
+  "num_positions": 4,
+  "positions": [
+    {
+      "protocol": "morpho_blue",
+      "actual_usd": 20000.0,
+      "target_usd": 20000.0,
+      "actual_weight": 0.2,
+      "target_weight": 0.2
+    },
+    {
+      "protocol": "yearn_v3",
+      "actual_usd": 20000.0,
+      "target_usd": 20000.0,
+      "actual_weight": 0.2,
+      "target_weight": 0.2
+    },
+    {
+      "protocol": "euler_v2",
+      "actual_usd": 20000.0,
+      "target_usd": 20000.0,
+      "actual_weight": 0.2,
+      "target_weight": 0.2
+    },
+    {
+      "protocol": "maple",
+      "actual_usd": 20000.0,
+      "target_usd": 20000.0,
+      "actual_weight": 0.2,
+      "target_weight": 0.2
+    }
+  ]
+}
