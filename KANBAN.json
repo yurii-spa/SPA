@@ -1,1074 +1,1436 @@
 {
- "last_updated": "2026-06-10",
- "updated_by": "MASTER_PLAN_v1 (полная декомпозиция к 10/10)",
- "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
- "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
- "real_track_start": "2026-06-10",
- "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
- "columns": {
-  "ideas": [
-   {
-    "id": "IDEA-002",
-    "title": "Mobile App (React Native)",
-    "description": "DROP до стабильного боевого режима (ROADMAP v2.1).",
-    "priority": "LOW",
-    "phase": "post-live",
-    "estimated_days": 0,
-    "depends_on": [],
-    "estimate": "0d",
-    "tags": ["idea"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "IDEA-003",
-    "title": "Discord Bot Integration",
-    "description": "DROP до стабильного боевого режима.",
-    "priority": "LOW",
-    "phase": "post-live",
-    "estimated_days": 0,
-    "depends_on": [],
-    "estimate": "0d",
-    "tags": ["idea"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "IDEA-004",
-    "title": "Multi-User Portfolio Support",
-    "description": "DROP до стабильного боевого режима.",
-    "priority": "LOW",
-    "phase": "post-live",
-    "estimated_days": 0,
-    "depends_on": [],
-    "estimate": "0d",
-    "tags": ["idea"],
-    "sprint": null,
-    "added": "2026-06-10"
-   }
-  ],
-  "features": [
-   {
-    "id": "MP-201",
-    "title": "Pendle PT read-only фид в оркестратор",
-    "description": "ex RB-201/V409. Фид в spa_core/adapters/ (domain split, ADR-3). Discount-кривая, maturity ladder. Главный рычаг закрытия APY-gap.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 2,
-    "depends_on": [],
-    "estimate": "2d",
-    "tags": ["epic", "adapters", "apy-gap"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-202",
-    "title": "Sky/sUSDS read-only фид",
-    "description": "ex RB-202/V410. APY виден аллокатору; вес 0% до on-chain подтверждения GSM Pause Delay ≥48h (нужны RPC-ключи MP-017).",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 1.5,
-    "depends_on": ["MP-017"],
-    "estimate": "1.5d",
-    "tags": ["epic", "adapters", "apy-gap"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-203",
-    "title": "Multi-chain: Arbitrum + Base",
-    "description": "ex RB-203. Пулы существующих протоколов на L2. Лимиты: chain ≤70%, L2 суммарно ≤50%.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 2,
-    "depends_on": [],
-    "estimate": "2d",
-    "tags": ["epic", "adapters"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-204",
-    "title": "Adapter SDK: декларативные YAML-адаптеры",
-    "description": "Единый контракт ProtocolAdapter (fetch_pools / exit_latency / health). 80% протоколов — YAML-манифест поверх DeFiLlama ids. Единственный путь к 100+ протоколам без 100 файлов.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": ["MP-113"],
-    "estimate": "3d",
-    "tags": ["epic", "adapters", "sdk"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-205",
-    "title": "Candidate-tier автодискавери",
-    "description": "ex RB-205/V417. Скан DeFiLlama по quality-gates (TVL ≥$5M, возраст ≥6 мес, аудиты) → реестр кандидатов. В whitelist — только через ADR/человека.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": ["MP-204"],
-    "estimate": "3d",
-    "tags": ["epic", "adapters", "autonomy"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-206",
-    "title": "20+ адаптеров через SDK",
-    "description": "ex RB-204. Curve/Convex stable-пулы, crvUSD, Frax, Spark, Fluid, Notional, Gearbox passive, Ethena (capped, ось peg), Across LP и др. Каждый через candidate-tier гейты.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 5,
-    "depends_on": ["MP-204", "MP-205"],
-    "estimate": "5d",
-    "tags": ["epic", "adapters"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-207",
-    "title": "Тюнер аллокации + backtest-валидация (APY ≥5.5%)",
-    "description": "ex RB-206/V391. После Pendle: цель APY paper ≥5.5% устойчиво (7-дневное среднее), backtest-подтверждение.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": ["MP-201"],
-    "estimate": "3d",
-    "tags": ["epic", "apy-gap"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-208",
-    "title": "Risk Policy v2: оси риска",
-    "description": "credit ≤15% (Maple), peg ≤10% (Ethena), duration ≤30% + maturity ladder (Pendle), bridge per-cap. Тиры не различают природу риска. ADR + 2-недельный paper-тест по конституции.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": ["MP-005"],
-    "estimate": "3d",
-    "tags": ["epic", "risk"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-209",
-    "title": "Capacity limits (позиция ≤ % TVL пула)",
-    "description": "Позиция ≤1-2% TVL, ≤Y% дневного объёма выхода. Capacity-adjusted APY в отчётах — обязательный вопрос фонда про масштабируемость стратегии на $10M+.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 1.5,
-    "depends_on": ["MP-208"],
-    "estimate": "1.5d",
-    "tags": ["epic", "risk"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-210",
-    "title": "Postgres-миграция ядра",
-    "description": "ex RB-207, ADR_005. Multi-process safety до реального капитала. JSON остаётся для дашборда.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": [],
-    "estimate": "3d",
-    "tags": ["epic", "infra"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-211",
-    "title": "Uptime 24/7: сервер + incident playbook + DR",
-    "description": "ex RB-208. Выделенный сервер/Mac mini, мониторинг доступности, playbook v1, DR-процедура с замером восстановления (<4ч).",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": ["MP-109"],
-    "estimate": "3d",
-    "tags": ["epic", "infra"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-212",
-    "title": "2-летний бэктест на реальной истории DeFiLlama",
-    "description": "Replay auto_allocate() на 2022-2026: LUNA, FTX, USDC depeg внутри данных. Ответ на вопрос фонда 'как стратегия прошла бы 2022'.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 3,
-    "depends_on": ["MP-207"],
-    "estimate": "3d",
-    "tags": ["epic", "backtest"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-213",
-    "title": "Milestone: APY ≥5.5%, 15+ адаптеров, 60+ дней трека",
-    "description": "Гейт входа в Phase 4 (live-пилот). Верификация по данным + отчёт.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-206", "MP-207"],
-    "estimate": "0.5d",
-    "tags": ["epic", "milestone"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-301",
-    "title": "Agent runtime: мандаты, токен-бюджеты, forbidden-lists",
-    "description": "Каркас агентного слоя (MASTER_PLAN §2): письменный мандат per-агент, бюджет, список запретов, деградация при недоступности LLM. Основа автономии 95%.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 3,
-    "depends_on": [],
-    "estimate": "3d",
-    "tags": ["epic", "agents"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-302",
-    "title": "CEO Agent",
-    "description": "Еженедельно + при drawdown >2%. Читает equity/strategy_comparison/regime. Решает: стратегия, allocation model, эскалации. Логирует в data/ceo_decisions.json (решение + reasoning + snapshot_id). Запрещено: менять policy, инициировать tx.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301"],
-    "estimate": "2d",
-    "tags": ["epic", "agents"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-303",
-    "title": "Risk Sentinel Agent",
-    "description": "Каждый цикл (fast loop). Детерминированное ядро + малая LLM только для классификации алертов (шум/деградация/инцидент). Может инициировать kill-switch (детерминированная ветка). НЕ исполняет сделки.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301", "MP-016"],
-    "estimate": "2d",
-    "tags": ["epic", "agents", "risk"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-304",
-    "title": "Alpha Agent",
-    "description": "Еженедельно. Скан DeFiLlama + конкуренты → кандидаты в whitelist с обоснованием (устойчивость APY, ёмкость, риск-оси) → data/alpha_candidates.json → candidate-tier. Запрещено: листить напрямую.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301", "MP-205"],
-    "estimate": "2d",
-    "tags": ["epic", "agents"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-305",
-    "title": "Reporting Agent",
-    "description": "Ежедневный P&L email/Telegram 09:00 + monthly PDF 1-го числа. Числовые поля валидируются против сырых JSON (запрет искажения цифр).",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301", "MP-103"],
-    "estimate": "2d",
-    "tags": ["epic", "agents", "investor"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-306",
-    "title": "Strategy Agent",
-    "description": "Еженедельно. Historical data + shadow S0-S5 → параметры стратегий, Kelly-sizing (интеграция optimization/), рекомендации селектору. Активную стратегию меняет только детерминированный селектор.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301", "MP-106"],
-    "estimate": "2d",
-    "tags": ["epic", "agents", "strategies"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-307",
-    "title": "Protocol Research Agent",
-    "description": "По запросу CEO/Alpha. Due-diligence досье кандидата: аудиты, команда, инциденты, TVL-история, governance → data/research_dossiers/ → материал к ADR. Финальное решение о листинге — человек.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-304"],
-    "estimate": "2d",
-    "tags": ["epic", "agents"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-308",
-    "title": "Incident Commander Agent",
-    "description": "При CRITICAL-алерте: сбор контекста, таймлайн, черновик post-mortem, чеклист реагирования → data/incidents/. Запрещено: исполнять исправляющие транзакции.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301", "MP-016"],
-    "estimate": "2d",
-    "tags": ["epic", "agents"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-309",
-    "title": "CI-линт: LLM FORBIDDEN в risk/execution/allocator",
-    "description": "Запрет import anthropic/google.generativeai в L2/L3-код. Enforcement конституции кодом — продуктовый тезис для институционалов.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 0.5,
-    "depends_on": [],
-    "estimate": "0.5d",
-    "tags": ["epic", "security", "ci"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-310",
-    "title": "Единый decision audit trail",
-    "description": "Цепочка snapshot_id → proposal → risk-вердикт → trade с correlation_id; экспорт подписанного JSONL. База для on-chain Proof-of-Track (MP-406).",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2,
-    "depends_on": ["MP-301"],
-    "estimate": "2d",
-    "tags": ["epic", "agents", "investor"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-311",
-    "title": "Планировщик 3 контуров + self-healing",
-    "description": "fast loop (каждый цикл, БЕЗ LLM) / slow (daily, LLM) / strategic (weekly, LLM). Авторестарт упавших адаптеров. Деградация в безопасность: LLM недоступен → fast loop на последней одобренной конфигурации. DoD Phase 3: неделя без ручного вмешательства.",
-    "priority": "P2",
-    "phase": "phase3",
-    "estimated_days": 2.5,
-    "depends_on": ["MP-301"],
-    "estimate": "2.5d",
-    "tags": ["epic", "agents", "autonomy"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-401",
-    "title": "E2E fork-harness (anvil/mainnet-fork)",
-    "description": "ex RB-301/V384. Симуляция полного цикла исполнения на форке; CI-гейт каждого релиза execution-кода. Гейт входа: MP-213.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 5,
-    "depends_on": ["MP-213"],
-    "estimate": "5d",
-    "tags": ["epic", "execution"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-402",
-    "title": "Gnosis Safe + Zodiac Roles + key management policy",
-    "description": "ex RB-302. Safe владеет средствами; hot-key — только executor с whitelist контрактов/методов/лимитов. Документированная политика ключей и доступов.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 2,
-    "depends_on": ["MP-401"],
-    "estimate": "2d",
-    "tags": ["epic", "security", "execution"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-403",
-    "title": "Live-пилот $10-50K собственных средств",
-    "description": "Capital Ladder L1. Полный цикл на mainnet через Safe. Цель — доказать исполнение, не доход. Первый реальный доллар важнее десятого аналитического модуля.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 3,
-    "depends_on": ["MP-402"],
-    "estimate": "3d",
-    "tags": ["epic", "execution", "milestone"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-404",
-    "title": "ERC-4626 vault (Conservative) + fee-модуль",
-    "description": "ex RB-303. Vault хранит и учитывает; решения из off-chain ядра через executor-модуль с ограничениями. Mgmt fee стрим + perf fee high-watermark. Solidity-ревью внешним контрактором.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 20,
-    "depends_on": ["MP-403"],
-    "estimate": "20d",
-    "tags": ["epic", "contract", "product"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-405",
-    "title": "Smart contract audit #1 (tier-1 фирма)",
-    "description": "Spearbit/Cantina/ToB-класс, $100-250K, 4-6 недель + очередь 1-3 мес — БРОНИРОВАТЬ В 2026-Q3. Фиксы находок. Без аудита внешних денег не будет.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 10,
-    "depends_on": ["MP-404"],
-    "estimate": "10d (своих) + 4-6 нед внешних",
-    "tags": ["epic", "security", "external"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-406",
-    "title": "On-chain Proof-of-Track (Merkle root)",
-    "description": "ex RB-304. Merkle root decision-лога on-chain ежедневно (~1 tx/день). Трек невозможно переписать задним числом — убойный pitch-аргумент.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 3,
-    "depends_on": ["MP-310"],
-    "estimate": "3d",
-    "tags": ["epic", "investor", "trust"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-407",
-    "title": "White-label API v1",
-    "description": "ex RB-305. POST /v1/portfolio/analyze (риск-скоринг чужих позиций), GET /v1/allocations/recommended, webhook-сигналы. Auth + rate limits + billing-заготовка. Второй revenue stream без кастоди.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 10,
-    "depends_on": ["MP-310"],
-    "estimate": "10d",
-    "tags": ["epic", "product", "b2b"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-408",
-    "title": "Investor portal (Next.js)",
-    "description": "ex RB-306. Real-time P&L, equity curve, exposure по осям риска, отчёты, audit trail viewer.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 10,
-    "depends_on": ["MP-110", "MP-406"],
-    "estimate": "10d",
-    "tags": ["epic", "product", "investor"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-409",
-    "title": "Юридическая структура + compliance",
-    "description": "ex RB-307. SPV/фонд (BVI/Cayman-класс), гео-фильтры на депозиты, AML-скрининг (Chainalysis/TRM API). Цикл 3-6 мес — начинать консультации в 2026-Q4. Первый внешний депозит юридически чист.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 10,
-    "depends_on": [],
-    "estimate": "10d (своих) + 3-6 мес внешних",
-    "tags": ["epic", "legal", "external"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-410",
-    "title": "Bug bounty (Immunefi)",
-    "description": "Пул $50-250K (резерв). Scope: vault + executor. Запуск после аудита #1.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 1,
-    "depends_on": ["MP-405"],
-    "estimate": "1d",
-    "tags": ["epic", "security"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-411",
-    "title": "Timelock + rate limits исполнения",
-    "description": "Timelock 24-48ч на изменения whitelist/policy/fee; ≤X% AUM перемещается за 24ч без дополнительной подписи. Защита от компрометации hot-key.",
-    "priority": "P3",
-    "phase": "phase4",
-    "estimated_days": 2,
-    "depends_on": ["MP-402"],
-    "estimate": "2d",
-    "tags": ["epic", "security", "execution"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-501",
-    "title": "Публичный tear-sheet ежемесячно",
-    "description": "ex RB-402. APY net, Sharpe/Sortino/PSR, drawdown, exposure, инциденты. Автопубликация. Основа воронки доверия.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 1,
-    "depends_on": ["MP-406"],
-    "estimate": "1d + recurring",
-    "tags": ["epic", "investor"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-502",
-    "title": "Outreach-машина: DAO → family offices → fund-of-funds",
-    "description": "ex RB-401. CRM-список 50 целей, EN-версия INVESTOR_PITCH, демо портала, follow-up цикл. Первые $5-10M почти всегда DAO-казначейства.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 0,
-    "depends_on": ["MP-501"],
-    "estimate": "ongoing",
-    "tags": ["epic", "distribution"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-503",
-    "title": "Интеграции: Safe Apps, DeBank, Zapper",
-    "description": "ERC-4626 = автоматическая совместимость. Листинги и интеграционные PR — дистрибуция без BD.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 5,
-    "depends_on": ["MP-404"],
-    "estimate": "5d",
-    "tags": ["epic", "distribution"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-504",
-    "title": "Vault-профили Balanced + Aggressive, vault-фабрика",
-    "description": "spaUSD-B (6-8%) и spaUSD-A (8-12%, capped Ethena/credit) после 6 мес работы Conservative. Сегментация мандатов.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 0,
-    "depends_on": ["MP-404", "MP-405"],
-    "estimate": "epic",
-    "tags": ["epic", "product"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-505",
-    "title": "Capital Ladder enforcement в гейтах",
-    "description": "Лестница L0 paper → L5 institutional (ARCHITECTURE_v2 §8) кодом в go-live гейтах. Автоспуск на ступень при инциденте ≥1% AUM.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-006"],
-    "estimate": "0.5d",
-    "tags": ["epic", "governance"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-506",
-    "title": "Аудиты #2-3 + security-мониторинг (Hypernative/Forta)",
-    "description": "Второй аудит другой фирмой — требование ступеней L4/L5 Capital Ladder. Real-time security-фиды.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 0,
-    "depends_on": ["MP-405"],
-    "estimate": "epic",
-    "tags": ["epic", "security", "external"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-507",
-    "title": "Команда: +smart-contract инженер, +0.5 ops",
-    "description": "Bus factor = 1 — главный риск (GRAND_VISION §6). Найм с гейта live-пилота. Документация передаваемости.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 0,
-    "depends_on": ["MP-403"],
-    "estimate": "epic",
-    "tags": ["epic", "team", "user-action"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-508",
-    "title": "ADR: токен / equity-раунд",
-    "description": "Не раньше $10M AUM (~2027-Q4). Токен без AUM — пустой мультипликатор + регуляторный риск.",
-    "priority": "P3",
-    "phase": "phase5",
-    "estimated_days": 0,
-    "depends_on": [],
-    "estimate": "ADR",
-    "tags": ["epic", "governance", "user-action"],
-    "sprint": null,
-    "added": "2026-06-10"
-   }
-  ],
-  "backlog": [
-   {
-    "id": "MP-001",
-    "title": "Ротация GitHub PAT (USER ACTION, сегодня)",
-    "description": "ex RB-001. Отозвать утёкший токен (plaintext в 76 push_*.html, был в KANBAN/CLAUDE.md, не ротирован с v3.68). Новый fine-grained PAT — ТОЛЬКО Keychain (GITHUB_PAT_SPA). Блокирует MP-002/003. Утёкший секрет = автоматический fail любого DD.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": [],
-    "estimate": "0.5d",
-    "tags": ["security", "user-action"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-002",
-    "title": "Удалить 100+ push_*.html и push_batch_*.json",
-    "description": "ex RB-002. push_*.html (98, из них 76 с PAT), check_pat.html, list_repos.html, push_batch_1..4.json, push_v22_files.json. Удалять ПОСЛЕ ротации. DoD: grep -r 'ghp_' → 0.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-001"],
-    "estimate": "0.5d",
-    "tags": ["security", "cleanup"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-003",
-    "title": "PAT из CLAUDE.md + решение по git-истории",
-    "description": "ex RB-004. Убрать plaintext-токен; после ротации решить: BFG-чистка истории или принять как ротированный.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-001"],
-    "estimate": "0.5d",
-    "tags": ["security"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-004",
-    "title": "Мусор: 627 .fuse_hidden, .bak, временные скрипты",
-    "description": "ex RB-006. .fuse_hidden в spa_core/database (~20MB), *.bak, '=0.10.0', minipytest_tmp.py, _v407_kanban.py, push_kanban_v17.py, cleanup_fuse.py, spa_dashboard.html, SPA_Kanban.html, spa_frontend/. Гигиена репо — прокси-сигнал инженерной культуры для DD.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": [],
-    "estimate": "0.5d",
-    "tags": ["cleanup"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-005",
-    "title": "RiskPolicy.check() — блокирующий гейт в cycle_runner",
-    "description": "ex RB-007. КАЖДАЯ сделка через policy.check(); FAIL → blocked + алерт. ADR: min_cash 5% vs 0% cash-drag (текущие позиции $0 cash нарушают политику v1.0 — remainder-fill обходит min_cash). 'Policy на каждом capital decision без bypass' — пункт №1 риск-DD.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 1,
-    "depends_on": [],
-    "estimate": "1d",
-    "tags": ["risk", "critical-path"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-006",
-    "title": "Go-live критерии: только реальные файлы + anti-demo гейт",
-    "description": "ex RB-009/V412. Критерии читают paper_trading_status/equity_curve_daily/trades (is_demo:false). is_demo:true в источнике → автоматический FAIL. Добавить: real-Sharpe (отриц.=FAIL), мин. 15 реальных сделок, APY-gap критерий.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 1,
-    "depends_on": [],
-    "estimate": "1d",
-    "tags": ["golive", "critical-path"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-007",
-    "title": "Dashboard: только живые данные",
-    "description": "ex RB-010. Убрать чтение status.json/protocols.json (демо 2026-05-22). Staleness-баннер при данных >24h. Day-счётчик от реального старта 2026-06-10.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": [],
-    "estimate": "0.5d",
-    "tags": ["dashboard"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-008",
-    "title": "Удалить демо data/*.json",
-    "description": "ex RB-011. status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, bus_stats.json, decision_log.json (stale), optimization_recommendations.json, latest_report.json. ТОЛЬКО после перевода читателей (MP-006/007).",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-006", "MP-007"],
-    "estimate": "0.5d",
-    "tags": ["cleanup", "data"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-009",
-    "title": "Починить launchd httpserver (exit 78) и autopush (exit 2)",
-    "description": "ex RB-008. Системный /usr/bin/python3 без прав на ~/Documents. Перевести на miniconda-python (как daily_cycle) или Full Disk Access. 2/4 сервисов падают = uptime story мертва.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": [],
-    "estimate": "0.5d",
-    "tags": ["infra"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-010",
-    "title": "CLAUDE.md переписать по факту",
-    "description": "ex RB-012. Заморожен на 2026-05-22 ('День 2/56', v1.6, 4h-cron) — лжёт в каждом статусе. Отразить: cycle_runner/launchd, реальный трек с 2026-06-10, domain split, Keychain-пуш, MASTER_PLAN_v1 как источник плана.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-003"],
-    "estimate": "0.5d",
-    "tags": ["docs"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-011",
-    "title": "Compound V3: включить в runtime",
-    "description": "ex RB-013. Зарегистрирован в ADAPTER_REGISTRY, отсутствует в adapter_orchestrator_status. Диагностика fetch-ошибки, включение второго T1-якоря (критерий диверсификации).",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.5,
-    "depends_on": [],
-    "estimate": "0.5d",
-    "tags": ["adapters"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-012",
-    "title": "risk_scores.json — регенерация в ежедневном цикле",
-    "description": "ex RB-014. Stale с 2026-05-27 — аллокатор на устаревших оценках. scoring_engine в daily_cycle.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.3,
-    "depends_on": [],
-    "estimate": "0.3d",
-    "tags": ["risk"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-013",
-    "title": "Архивация одноразовых отчётов и v0.3-доков",
-    "description": "ex RB-005. DISPATCH_REPORT_*.md (23), ESCALATION_v375, orchestrator_run_*_HALT (2), peer_chat_review, REVIEW_SUMMARY, STATUS_2026-06-01, CHANGELOG v0.3/v0.4, deep_research_*.md, папка SPA/ → docs/archive/. 115 .md при 8 живых — нечитаемо для DD.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 1,
-    "depends_on": [],
-    "estimate": "1d",
-    "tags": ["cleanup", "docs"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-014",
-    "title": "ADR: правило переноса go-live (OWNER)",
-    "description": "30 честных дней истекают ~2026-07-10 — дата 2026-07-15 без запаса. Принять заранее: любой gap в треке → автоматический перенос; целевая дата решения ~2026-08-01.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.2,
-    "depends_on": [],
-    "estimate": "0.2d",
-    "tags": ["governance", "user-action"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-015",
-    "title": "Секреты алертов: Telegram + SMTP (USER ACTION)",
-    "description": "ex UA-003. TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, SMTP-креды в GitHub Secrets + локальный env. Разблокирует MP-016.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 0.2,
-    "depends_on": [],
-    "estimate": "0.2d",
-    "tags": ["user-action", "secrets"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-016",
-    "title": "Алерты из dry_run в бой",
-    "description": "ex RB-102. Выключить dry_run, верифицировать end-to-end реальную доставку CRITICAL-алерта в Telegram/email. Сейчас при инциденте никто не узнает.",
-    "priority": "P0",
-    "phase": "phase0",
-    "estimated_days": 1,
-    "depends_on": ["MP-015"],
-    "estimate": "1d",
-    "tags": ["monitoring", "critical-path"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-017",
-    "title": "RPC-ключи Alchemy/Infura (USER ACTION)",
-    "description": "ex UA-002. В Secrets + env. Нужны для on-chain проверок (Sky GSM, MP-202) и Phase 4.",
-    "priority": "P1",
-    "phase": "phase0",
-    "estimated_days": 0.2,
-    "depends_on": [],
-    "estimate": "0.2d",
-    "tags": ["user-action", "secrets"],
-    "sprint": "phase0",
-    "added": "2026-06-10"
-   },
-   {
-    "id": "UA-004",
-    "title": "Включить GitHub Pages (USER ACTION)",
-    "description": "Settings → Pages → main / root.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 0.1,
-    "depends_on": [],
-    "estimate": "0.1d",
-    "tags": ["user-action"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "UA-006",
-    "title": "Workflow-scope token (USER ACTION)",
-    "description": "Для пуша .github/workflows/.",
-    "priority": "P2",
-    "phase": "phase2",
-    "estimated_days": 0.1,
-    "depends_on": [],
-    "estimate": "0.1d",
-    "tags": ["user-action"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-101",
-    "title": "Gap-monitor трека",
-    "description": "ex RB-101. Пропущенный день цикла = CRITICAL алерт + попытка auto-recovery. Один gap в equity curve обесценивает трек; 30 дней истекают ~2026-07-10.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-005", "MP-016"],
-    "estimate": "0.5d",
-    "tags": ["monitoring", "critical-path"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-102",
-    "title": "Automated daily report",
-    "description": "ex RB-103. Ежедневно после цикла: P&L, позиции, APY, риск-флаги → Telegram/email. На базе daily_report.py + investor_report.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1,
-    "depends_on": ["MP-016"],
-    "estimate": "1d",
-    "tags": ["reporting"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-103",
-    "title": "Investor PDF (daily, базовый)",
-    "description": "pdf_generator в расписание: equity curve, метрики, exposure; хранение в data/reports/. Артефакт для ранних разговоров с инвесторами.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1.5,
-    "depends_on": ["MP-102"],
-    "estimate": "1.5d",
-    "tags": ["reporting", "investor"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-104",
-    "title": "Ядро аналитики: ~8 модулей в post-cycle хук",
-    "description": "ex RB-104/V415. risk_metrics, drawdown_analysis, rolling_performance, performance_tearsheet, benchmark_comparison, probabilistic_sharpe, return_distribution, advanced_ratios — на реальном треке после цикла. ~30 мёртвых модулей удалить/архив. risk_metrics.json перестаёт быть пустым (его читают go-live критерии).",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 2,
-    "depends_on": [],
-    "estimate": "2d",
-    "tags": ["analytics"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-105",
-    "title": "Выпилить legacy-код",
-    "description": "ex RB-105. paper_trading/engine.py (1382 строки, питает мёртвый status.json), spa_core/monitor/ (дубликат alerts/), стратегии s1/s2/s3/bull_cycle_detector. Решение по optimization/: Kelly → MP-306 или удалить. Миграция export_data перед удалением.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1.5,
-    "depends_on": ["MP-104"],
-    "estimate": "1.5d",
-    "tags": ["cleanup", "code"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-106",
-    "title": "Shadow S0-S5 на реальном треке",
-    "description": "ex RB-106. Раннер ежедневно на реальных данных (сейчас 30-step синтетика). StrategySelector активируется на 15-й день при confidence=medium.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1,
-    "depends_on": [],
-    "estimate": "1d",
-    "tags": ["strategies"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-107",
-    "title": "red_flag/incidents/governance в расписание",
-    "description": "ex RB-107. red_flags.json/incidents.json stale 13-14 дней. red_flag_monitor, incidents_fetcher, governance_watcher в daily_cycle или отдельный launchd. Внешние события (депег, дефолт) должны ловиться автоматически.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1,
-    "depends_on": [],
-    "estimate": "1d",
-    "tags": ["monitoring"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-108",
-    "title": "Kill-switch drill на реальных данных",
-    "description": "ex RB-108/V392/V416. E2E: 5% drawdown → закрыть всё; 3% позиция → закрыть позицию. Замер времени реакции (цель sub-1-min до решения). Документированный отчёт в docs/. Обязательный пункт риск-DD.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1,
-    "depends_on": ["MP-005"],
-    "estimate": "1d",
-    "tags": ["risk"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-109",
-    "title": "SQLite-персистенция трека + ежедневный offsite-бэкап",
-    "description": "ex RB-109/V419. trades/equity в SQLite + бэкап вне машины (iCloud/S3) ежедневно. Потеря трека = потеря главного актива компании. DR-минимум.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 2,
-    "depends_on": [],
-    "estimate": "2d",
-    "tags": ["infra", "data"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-110",
-    "title": "Investor view: один честный экран",
-    "description": "ex RB-110. Equity curve, APY, дни трека, риск-метрики — только live-данные. Первое, что показываем внешнему человеку.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1.5,
-    "depends_on": ["MP-007"],
-    "estimate": "1.5d",
-    "tags": ["dashboard", "investor"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-111",
-    "title": "Milestone: 30/30 дней трека без gap + честные метрики",
-    "description": "Верификация непрерывности (~2026-07-10); Sharpe/Sortino/maxDD на n≥30 публикуются; go-live решение по правилу ADR MP-014. Продаваемый минимум трека.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 0.5,
-    "depends_on": ["MP-101"],
-    "estimate": "0.5d",
-    "tags": ["milestone", "critical-path"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-112",
-    "title": "Стресс-движок v1 (COVID-2020, LUNA-2022, USDC depeg 2023)",
-    "description": "Сценарии: депег −2%, отток TVL −40% в 3 протоколах, дефолт Maple-пула, APY-коллапс до 1%, реплики 03.2020/05.2022/03.2023. Еженедельный прогон на текущем портфеле; результат в health/go-live гейты. Институциональный стандарт риск-менеджмента.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 2,
-    "depends_on": ["MP-104"],
-    "estimate": "2d",
-    "tags": ["risk", "stress"],
-    "sprint": null,
-    "added": "2026-06-10"
-   },
-   {
-    "id": "MP-113",
-    "title": "exit_latency атрибут во всех адаптерах",
-    "description": "Каждый адаптер декларирует exit-профиль (Aave ~0ч, Maple — очередь дни/недели, Pendle PT — до maturity/рынок с дисконтом). Правило: доля портфеля с exit >72ч ≤ 25%; kill-switch выходит сначала из ликвидного. Дёшево сейчас, невозможно дорого потом.",
-    "priority": "P1",
-    "phase": "phase1",
-    "estimated_days": 1,
-    "depends_on": [],
-    "estimate": "1d",
-    "tags": ["risk", "adapters"],
-    "sprint": null,
-    "added": "2026-06-10"
-   }
-  ],
-  "in_progress": [],
-  "review": [],
-  "done": [
-   {
-    "id": "RB-000",
-    "title": "Teardown-аудит + Rebuild Plan v1",
-    "description": "Полный послойный аудит (9 слоёв), Tier-1 checklist, REBUILD_PLAN_v1.md, SYSTEM_HEALTH.md, пересборка KANBAN (197 done-задач и _vXXX-ключи с утёкшим PAT архивированы в KANBAN_ARCHIVE_2026-06-10.json, локально).",
-    "priority": "P0",
-    "phase": "phase0",
-    "completed": "2026-06-10",
-    "added": "2026-06-10",
-    "tags": ["audit"]
-   },
-   {
-    "id": "RB-003",
-    "title": "KANBAN.json вычищен от _vXXX-ключей с PAT",
-    "description": "~80 служебных dispatch-ключей (включая plaintext утёкшего PAT в _v374_push_held_reason) удалены при пересборке.",
-    "priority": "P0",
-    "phase": "phase0",
-    "completed": "2026-06-10",
-    "added": "2026-06-10",
-    "tags": ["security"]
-   },
-   {
-    "id": "V408",
-    "title": "Реальный paper-trading цикл замкнут",
-    "description": "cycle_runner: orchestrator→allocator→trades.json (T001)→equity_curve (is_demo:false). Запущен на launchd daily 08:00. Честный трек стартовал 2026-06-10.",
-    "priority": "P1",
-    "phase": "phase0",
-    "completed": "2026-06-10",
-    "added": "2026-06-08",
-    "tags": ["critical-path"]
-   },
-   {
-    "id": "MP-000",
-    "title": "MASTER_PLAN_v1: полная декомпозиция к 10/10",
-    "description": "Определение 10/10 (10 измерений), честная финмодель ($1M ARR ≈ $40-50M AUM; $100M оценка ≈ $2.5-4M ARR на горизонте 30-36 мес), спецификация 8 суб-агентов, ~70 задач MP-xxx по 6 фазам, критический путь, бюджет $200-650K до внешнего AUM. + INVESTOR_PITCH_v1.md. KANBAN мигрирован RB-xxx → MP-xxx.",
-    "priority": "P0",
-    "phase": "phase0",
-    "completed": "2026-06-10",
-    "added": "2026-06-10",
-    "tags": ["strategy", "docs"]
-   }
-  ]
- }
+  "last_updated": "2026-06-10",
+  "updated_by": "dev-orchestrator (SPA-V412 / MP-113)",
+  "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
+  "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
+  "real_track_start": "2026-06-10",
+  "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
+  "columns": {
+    "ideas": [
+      {
+        "id": "IDEA-002",
+        "title": "Mobile App (React Native)",
+        "description": "DROP до стабильного боевого режима (ROADMAP v2.1).",
+        "priority": "LOW",
+        "phase": "post-live",
+        "estimated_days": 0,
+        "depends_on": [],
+        "estimate": "0d",
+        "tags": [
+          "idea"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "IDEA-003",
+        "title": "Discord Bot Integration",
+        "description": "DROP до стабильного боевого режима.",
+        "priority": "LOW",
+        "phase": "post-live",
+        "estimated_days": 0,
+        "depends_on": [],
+        "estimate": "0d",
+        "tags": [
+          "idea"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "IDEA-004",
+        "title": "Multi-User Portfolio Support",
+        "description": "DROP до стабильного боевого режима.",
+        "priority": "LOW",
+        "phase": "post-live",
+        "estimated_days": 0,
+        "depends_on": [],
+        "estimate": "0d",
+        "tags": [
+          "idea"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      }
+    ],
+    "features": [
+      {
+        "id": "MP-201",
+        "title": "Pendle PT read-only фид в оркестратор",
+        "description": "ex RB-201/V409. Фид в spa_core/adapters/ (domain split, ADR-3). Discount-кривая, maturity ladder. Главный рычаг закрытия APY-gap.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "adapters",
+          "apy-gap"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-202",
+        "title": "Sky/sUSDS read-only фид",
+        "description": "ex RB-202/V410. APY виден аллокатору; вес 0% до on-chain подтверждения GSM Pause Delay ≥48h (нужны RPC-ключи MP-017).",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-017"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "epic",
+          "adapters",
+          "apy-gap"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-203",
+        "title": "Multi-chain: Arbitrum + Base",
+        "description": "ex RB-203. Пулы существующих протоколов на L2. Лимиты: chain ≤70%, L2 суммарно ≤50%.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "adapters"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-204",
+        "title": "Adapter SDK: декларативные YAML-адаптеры",
+        "description": "Единый контракт ProtocolAdapter (fetch_pools / exit_latency / health). 80% протоколов — YAML-манифест поверх DeFiLlama ids. Единственный путь к 100+ протоколам без 100 файлов.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-113"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "adapters",
+          "sdk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-205",
+        "title": "Candidate-tier автодискавери",
+        "description": "ex RB-205/V417. Скан DeFiLlama по quality-gates (TVL ≥$5M, возраст ≥6 мес, аудиты) → реестр кандидатов. В whitelist — только через ADR/человека.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-204"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "adapters",
+          "autonomy"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-206",
+        "title": "20+ адаптеров через SDK",
+        "description": "ex RB-204. Curve/Convex stable-пулы, crvUSD, Frax, Spark, Fluid, Notional, Gearbox passive, Ethena (capped, ось peg), Across LP и др. Каждый через candidate-tier гейты.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 5,
+        "depends_on": [
+          "MP-204",
+          "MP-205"
+        ],
+        "estimate": "5d",
+        "tags": [
+          "epic",
+          "adapters"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-207",
+        "title": "Тюнер аллокации + backtest-валидация (APY ≥5.5%)",
+        "description": "ex RB-206/V391. После Pendle: цель APY paper ≥5.5% устойчиво (7-дневное среднее), backtest-подтверждение.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-201"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "apy-gap"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-208",
+        "title": "Risk Policy v2: оси риска",
+        "description": "credit ≤15% (Maple), peg ≤10% (Ethena), duration ≤30% + maturity ladder (Pendle), bridge per-cap. Тиры не различают природу риска. ADR + 2-недельный paper-тест по конституции.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-005"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "risk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-209",
+        "title": "Capacity limits (позиция ≤ % TVL пула)",
+        "description": "Позиция ≤1-2% TVL, ≤Y% дневного объёма выхода. Capacity-adjusted APY в отчётах — обязательный вопрос фонда про масштабируемость стратегии на $10M+.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-208"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "epic",
+          "risk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-210",
+        "title": "Postgres-миграция ядра",
+        "description": "ex RB-207, ADR_005. Multi-process safety до реального капитала. JSON остаётся для дашборда.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "infra"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-211",
+        "title": "Uptime 24/7: сервер + incident playbook + DR",
+        "description": "ex RB-208. Выделенный сервер/Mac mini, мониторинг доступности, playbook v1, DR-процедура с замером восстановления (<4ч).",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-109"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "infra"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-212",
+        "title": "2-летний бэктест на реальной истории DeFiLlama",
+        "description": "Replay auto_allocate() на 2022-2026: LUNA, FTX, USDC depeg внутри данных. Ответ на вопрос фонда 'как стратегия прошла бы 2022'.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-207"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "backtest"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-213",
+        "title": "Milestone: APY ≥5.5%, 15+ адаптеров, 60+ дней трека",
+        "description": "Гейт входа в Phase 4 (live-пилот). Верификация по данным + отчёт.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-206",
+          "MP-207"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "epic",
+          "milestone"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-301",
+        "title": "Agent runtime: мандаты, токен-бюджеты, forbidden-lists",
+        "description": "Каркас агентного слоя (MASTER_PLAN §2): письменный мандат per-агент, бюджет, список запретов, деградация при недоступности LLM. Основа автономии 95%.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 3,
+        "depends_on": [],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-302",
+        "title": "CEO Agent",
+        "description": "Еженедельно + при drawdown >2%. Читает equity/strategy_comparison/regime. Решает: стратегия, allocation model, эскалации. Логирует в data/ceo_decisions.json (решение + reasoning + snapshot_id). Запрещено: менять policy, инициировать tx.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-303",
+        "title": "Risk Sentinel Agent",
+        "description": "Каждый цикл (fast loop). Детерминированное ядро + малая LLM только для классификации алертов (шум/деградация/инцидент). Может инициировать kill-switch (детерминированная ветка). НЕ исполняет сделки.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-016"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "risk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-304",
+        "title": "Alpha Agent",
+        "description": "Еженедельно. Скан DeFiLlama + конкуренты → кандидаты в whitelist с обоснованием (устойчивость APY, ёмкость, риск-оси) → data/alpha_candidates.json → candidate-tier. Запрещено: листить напрямую.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-205"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-305",
+        "title": "Reporting Agent",
+        "description": "Ежедневный P&L email/Telegram 09:00 + monthly PDF 1-го числа. Числовые поля валидируются против сырых JSON (запрет искажения цифр).",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-103"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-306",
+        "title": "Strategy Agent",
+        "description": "Еженедельно. Historical data + shadow S0-S5 → параметры стратегий, Kelly-sizing (интеграция optimization/), рекомендации селектору. Активную стратегию меняет только детерминированный селектор.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-106"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "strategies"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-307",
+        "title": "Protocol Research Agent",
+        "description": "По запросу CEO/Alpha. Due-diligence досье кандидата: аудиты, команда, инциденты, TVL-история, governance → data/research_dossiers/ → материал к ADR. Финальное решение о листинге — человек.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-304"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-308",
+        "title": "Incident Commander Agent",
+        "description": "При CRITICAL-алерте: сбор контекста, таймлайн, черновик post-mortem, чеклист реагирования → data/incidents/. Запрещено: исполнять исправляющие транзакции.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-016"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-309",
+        "title": "CI-линт: LLM FORBIDDEN в risk/execution/allocator",
+        "description": "Запрет import anthropic/google.generativeai в L2/L3-код. Enforcement конституции кодом — продуктовый тезис для институционалов.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "epic",
+          "security",
+          "ci"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-310",
+        "title": "Единый decision audit trail",
+        "description": "Цепочка snapshot_id → proposal → risk-вердикт → trade с correlation_id; экспорт подписанного JSONL. База для on-chain Proof-of-Track (MP-406).",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-311",
+        "title": "Планировщик 3 контуров + self-healing",
+        "description": "fast loop (каждый цикл, БЕЗ LLM) / slow (daily, LLM) / strategic (weekly, LLM). Авторестарт упавших адаптеров. Деградация в безопасность: LLM недоступен → fast loop на последней одобренной конфигурации. DoD Phase 3: неделя без ручного вмешательства.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2.5,
+        "depends_on": [
+          "MP-301"
+        ],
+        "estimate": "2.5d",
+        "tags": [
+          "epic",
+          "agents",
+          "autonomy"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-401",
+        "title": "E2E fork-harness (anvil/mainnet-fork)",
+        "description": "ex RB-301/V384. Симуляция полного цикла исполнения на форке; CI-гейт каждого релиза execution-кода. Гейт входа: MP-213.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 5,
+        "depends_on": [
+          "MP-213"
+        ],
+        "estimate": "5d",
+        "tags": [
+          "epic",
+          "execution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-402",
+        "title": "Gnosis Safe + Zodiac Roles + key management policy",
+        "description": "ex RB-302. Safe владеет средствами; hot-key — только executor с whitelist контрактов/методов/лимитов. Документированная политика ключей и доступов.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-401"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "security",
+          "execution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-403",
+        "title": "Live-пилот $10-50K собственных средств",
+        "description": "Capital Ladder L1. Полный цикл на mainnet через Safe. Цель — доказать исполнение, не доход. Первый реальный доллар важнее десятого аналитического модуля.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-402"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "execution",
+          "milestone"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-404",
+        "title": "ERC-4626 vault (Conservative) + fee-модуль",
+        "description": "ex RB-303. Vault хранит и учитывает; решения из off-chain ядра через executor-модуль с ограничениями. Mgmt fee стрим + perf fee high-watermark. Solidity-ревью внешним контрактором.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 20,
+        "depends_on": [
+          "MP-403"
+        ],
+        "estimate": "20d",
+        "tags": [
+          "epic",
+          "contract",
+          "product"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-405",
+        "title": "Smart contract audit #1 (tier-1 фирма)",
+        "description": "Spearbit/Cantina/ToB-класс, $100-250K, 4-6 недель + очередь 1-3 мес — БРОНИРОВАТЬ В 2026-Q3. Фиксы находок. Без аудита внешних денег не будет.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [
+          "MP-404"
+        ],
+        "estimate": "10d (своих) + 4-6 нед внешних",
+        "tags": [
+          "epic",
+          "security",
+          "external"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-406",
+        "title": "On-chain Proof-of-Track (Merkle root)",
+        "description": "ex RB-304. Merkle root decision-лога on-chain ежедневно (~1 tx/день). Трек невозможно переписать задним числом — убойный pitch-аргумент.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-310"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "investor",
+          "trust"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-407",
+        "title": "White-label API v1",
+        "description": "ex RB-305. POST /v1/portfolio/analyze (риск-скоринг чужих позиций), GET /v1/allocations/recommended, webhook-сигналы. Auth + rate limits + billing-заготовка. Второй revenue stream без кастоди.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [
+          "MP-310"
+        ],
+        "estimate": "10d",
+        "tags": [
+          "epic",
+          "product",
+          "b2b"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-408",
+        "title": "Investor portal (Next.js)",
+        "description": "ex RB-306. Real-time P&L, equity curve, exposure по осям риска, отчёты, audit trail viewer.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [
+          "MP-110",
+          "MP-406"
+        ],
+        "estimate": "10d",
+        "tags": [
+          "epic",
+          "product",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-409",
+        "title": "Юридическая структура + compliance",
+        "description": "ex RB-307. SPV/фонд (BVI/Cayman-класс), гео-фильтры на депозиты, AML-скрининг (Chainalysis/TRM API). Цикл 3-6 мес — начинать консультации в 2026-Q4. Первый внешний депозит юридически чист.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [],
+        "estimate": "10d (своих) + 3-6 мес внешних",
+        "tags": [
+          "epic",
+          "legal",
+          "external"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-410",
+        "title": "Bug bounty (Immunefi)",
+        "description": "Пул $50-250K (резерв). Scope: vault + executor. Запуск после аудита #1.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-405"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "epic",
+          "security"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-411",
+        "title": "Timelock + rate limits исполнения",
+        "description": "Timelock 24-48ч на изменения whitelist/policy/fee; ≤X% AUM перемещается за 24ч без дополнительной подписи. Защита от компрометации hot-key.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-402"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "security",
+          "execution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-501",
+        "title": "Публичный tear-sheet ежемесячно",
+        "description": "ex RB-402. APY net, Sharpe/Sortino/PSR, drawdown, exposure, инциденты. Автопубликация. Основа воронки доверия.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-406"
+        ],
+        "estimate": "1d + recurring",
+        "tags": [
+          "epic",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-502",
+        "title": "Outreach-машина: DAO → family offices → fund-of-funds",
+        "description": "ex RB-401. CRM-список 50 целей, EN-версия INVESTOR_PITCH, демо портала, follow-up цикл. Первые $5-10M почти всегда DAO-казначейства.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [
+          "MP-501"
+        ],
+        "estimate": "ongoing",
+        "tags": [
+          "epic",
+          "distribution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-503",
+        "title": "Интеграции: Safe Apps, DeBank, Zapper",
+        "description": "ERC-4626 = автоматическая совместимость. Листинги и интеграционные PR — дистрибуция без BD.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 5,
+        "depends_on": [
+          "MP-404"
+        ],
+        "estimate": "5d",
+        "tags": [
+          "epic",
+          "distribution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-504",
+        "title": "Vault-профили Balanced + Aggressive, vault-фабрика",
+        "description": "spaUSD-B (6-8%) и spaUSD-A (8-12%, capped Ethena/credit) после 6 мес работы Conservative. Сегментация мандатов.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [
+          "MP-404",
+          "MP-405"
+        ],
+        "estimate": "epic",
+        "tags": [
+          "epic",
+          "product"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-505",
+        "title": "Capital Ladder enforcement в гейтах",
+        "description": "Лестница L0 paper → L5 institutional (ARCHITECTURE_v2 §8) кодом в go-live гейтах. Автоспуск на ступень при инциденте ≥1% AUM.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-006"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "epic",
+          "governance"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-506",
+        "title": "Аудиты #2-3 + security-мониторинг (Hypernative/Forta)",
+        "description": "Второй аудит другой фирмой — требование ступеней L4/L5 Capital Ladder. Real-time security-фиды.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [
+          "MP-405"
+        ],
+        "estimate": "epic",
+        "tags": [
+          "epic",
+          "security",
+          "external"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-507",
+        "title": "Команда: +smart-contract инженер, +0.5 ops",
+        "description": "Bus factor = 1 — главный риск (GRAND_VISION §6). Найм с гейта live-пилота. Документация передаваемости.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [
+          "MP-403"
+        ],
+        "estimate": "epic",
+        "tags": [
+          "epic",
+          "team",
+          "user-action"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-508",
+        "title": "ADR: токен / equity-раунд",
+        "description": "Не раньше $10M AUM (~2027-Q4). Токен без AUM — пустой мультипликатор + регуляторный риск.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [],
+        "estimate": "ADR",
+        "tags": [
+          "epic",
+          "governance",
+          "user-action"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      }
+    ],
+    "backlog": [
+      {
+        "id": "MP-001",
+        "title": "Ротация GitHub PAT (USER ACTION, сегодня)",
+        "description": "ex RB-001. Отозвать утёкший токен (plaintext в 76 push_*.html, был в KANBAN/CLAUDE.md, не ротирован с v3.68). Новый fine-grained PAT — ТОЛЬКО Keychain (GITHUB_PAT_SPA). Блокирует MP-002/003. Утёкший секрет = автоматический fail любого DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "security",
+          "user-action"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-002",
+        "title": "Удалить 100+ push_*.html и push_batch_*.json",
+        "description": "ex RB-002. push_*.html (98, из них 76 с PAT), check_pat.html, list_repos.html, push_batch_1..4.json, push_v22_files.json. Удалять ПОСЛЕ ротации. DoD: grep -r 'ghp_' → 0.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-001"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "security",
+          "cleanup"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-003",
+        "title": "PAT из CLAUDE.md + решение по git-истории",
+        "description": "ex RB-004. Убрать plaintext-токен; после ротации решить: BFG-чистка истории или принять как ротированный.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-001"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "security"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-004",
+        "title": "Мусор: 627 .fuse_hidden, .bak, временные скрипты",
+        "description": "ex RB-006. .fuse_hidden в spa_core/database (~20MB), *.bak, '=0.10.0', minipytest_tmp.py, _v407_kanban.py, push_kanban_v17.py, cleanup_fuse.py, spa_dashboard.html, SPA_Kanban.html, spa_frontend/. Гигиена репо — прокси-сигнал инженерной культуры для DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "cleanup"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-005",
+        "title": "RiskPolicy.check() — блокирующий гейт в cycle_runner",
+        "description": "ex RB-007. КАЖДАЯ сделка через policy.check(); FAIL → blocked + алерт. ADR: min_cash 5% vs 0% cash-drag (текущие позиции $0 cash нарушают политику v1.0 — remainder-fill обходит min_cash). 'Policy на каждом capital decision без bypass' — пункт №1 риск-DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "critical-path"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-006",
+        "title": "Go-live критерии: только реальные файлы + anti-demo гейт",
+        "description": "ex RB-009/V412. Критерии читают paper_trading_status/equity_curve_daily/trades (is_demo:false). is_demo:true в источнике → автоматический FAIL. Добавить: real-Sharpe (отриц.=FAIL), мин. 15 реальных сделок, APY-gap критерий.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "golive",
+          "critical-path"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-007",
+        "title": "Dashboard: только живые данные",
+        "description": "ex RB-010. Убрать чтение status.json/protocols.json (демо 2026-05-22). Staleness-баннер при данных >24h. Day-счётчик от реального старта 2026-06-10.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "dashboard"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-008",
+        "title": "Удалить демо data/*.json",
+        "description": "ex RB-011. status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, bus_stats.json, decision_log.json (stale), optimization_recommendations.json, latest_report.json. ТОЛЬКО после перевода читателей (MP-006/007).",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-006",
+          "MP-007"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "cleanup",
+          "data"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-009",
+        "title": "Починить launchd httpserver (exit 78) и autopush (exit 2)",
+        "description": "ex RB-008. Системный /usr/bin/python3 без прав на ~/Documents. Перевести на miniconda-python (как daily_cycle) или Full Disk Access. 2/4 сервисов падают = uptime story мертва.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "infra"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-010",
+        "title": "CLAUDE.md переписать по факту",
+        "description": "ex RB-012. Заморожен на 2026-05-22 ('День 2/56', v1.6, 4h-cron) — лжёт в каждом статусе. Отразить: cycle_runner/launchd, реальный трек с 2026-06-10, domain split, Keychain-пуш, MASTER_PLAN_v1 как источник плана.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-003"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "docs"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-011",
+        "title": "Compound V3: включить в runtime",
+        "description": "ex RB-013. Зарегистрирован в ADAPTER_REGISTRY, отсутствует в adapter_orchestrator_status. Диагностика fetch-ошибки, включение второго T1-якоря (критерий диверсификации).",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "adapters"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-012",
+        "title": "risk_scores.json — регенерация в ежедневном цикле",
+        "description": "ex RB-014. Stale с 2026-05-27 — аллокатор на устаревших оценках. scoring_engine в daily_cycle.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [],
+        "estimate": "0.3d",
+        "tags": [
+          "risk"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-013",
+        "title": "Архивация одноразовых отчётов и v0.3-доков",
+        "description": "ex RB-005. DISPATCH_REPORT_*.md (23), ESCALATION_v375, orchestrator_run_*_HALT (2), peer_chat_review, REVIEW_SUMMARY, STATUS_2026-06-01, CHANGELOG v0.3/v0.4, deep_research_*.md, папка SPA/ → docs/archive/. 115 .md при 8 живых — нечитаемо для DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "cleanup",
+          "docs"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-014",
+        "title": "ADR: правило переноса go-live (OWNER)",
+        "description": "30 честных дней истекают ~2026-07-10 — дата 2026-07-15 без запаса. Принять заранее: любой gap в треке → автоматический перенос; целевая дата решения ~2026-08-01.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.2,
+        "depends_on": [],
+        "estimate": "0.2d",
+        "tags": [
+          "governance",
+          "user-action"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-015",
+        "title": "Секреты алертов: Telegram + SMTP (USER ACTION)",
+        "description": "ex UA-003. TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, SMTP-креды в GitHub Secrets + локальный env. Разблокирует MP-016.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.2,
+        "depends_on": [],
+        "estimate": "0.2d",
+        "tags": [
+          "user-action",
+          "secrets"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-016",
+        "title": "Алерты из dry_run в бой",
+        "description": "ex RB-102. Выключить dry_run, верифицировать end-to-end реальную доставку CRITICAL-алерта в Telegram/email. Сейчас при инциденте никто не узнает.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-015"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "monitoring",
+          "critical-path"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-017",
+        "title": "RPC-ключи Alchemy/Infura (USER ACTION)",
+        "description": "ex UA-002. В Secrets + env. Нужны для on-chain проверок (Sky GSM, MP-202) и Phase 4.",
+        "priority": "P1",
+        "phase": "phase0",
+        "estimated_days": 0.2,
+        "depends_on": [],
+        "estimate": "0.2d",
+        "tags": [
+          "user-action",
+          "secrets"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "UA-004",
+        "title": "Включить GitHub Pages (USER ACTION)",
+        "description": "Settings → Pages → main / root.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 0.1,
+        "depends_on": [],
+        "estimate": "0.1d",
+        "tags": [
+          "user-action"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "UA-006",
+        "title": "Workflow-scope token (USER ACTION)",
+        "description": "Для пуша .github/workflows/.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 0.1,
+        "depends_on": [],
+        "estimate": "0.1d",
+        "tags": [
+          "user-action"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-101",
+        "title": "Gap-monitor трека",
+        "description": "ex RB-101. Пропущенный день цикла = CRITICAL алерт + попытка auto-recovery. Один gap в equity curve обесценивает трек; 30 дней истекают ~2026-07-10.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-005",
+          "MP-016"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "monitoring",
+          "critical-path"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-102",
+        "title": "Automated daily report",
+        "description": "ex RB-103. Ежедневно после цикла: P&L, позиции, APY, риск-флаги → Telegram/email. На базе daily_report.py + investor_report.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-016"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "reporting"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-103",
+        "title": "Investor PDF (daily, базовый)",
+        "description": "pdf_generator в расписание: equity curve, метрики, exposure; хранение в data/reports/. Артефакт для ранних разговоров с инвесторами.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-102"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "reporting",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-104",
+        "title": "Ядро аналитики: ~8 модулей в post-cycle хук",
+        "description": "ex RB-104/V415. risk_metrics, drawdown_analysis, rolling_performance, performance_tearsheet, benchmark_comparison, probabilistic_sharpe, return_distribution, advanced_ratios — на реальном треке после цикла. ~30 мёртвых модулей удалить/архив. risk_metrics.json перестаёт быть пустым (его читают go-live критерии).",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "analytics"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-105",
+        "title": "Выпилить legacy-код",
+        "description": "ex RB-105. paper_trading/engine.py (1382 строки, питает мёртвый status.json), spa_core/monitor/ (дубликат alerts/), стратегии s1/s2/s3/bull_cycle_detector. Решение по optimization/: Kelly → MP-306 или удалить. Миграция export_data перед удалением.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-104"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "cleanup",
+          "code"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-106",
+        "title": "Shadow S0-S5 на реальном треке",
+        "description": "ex RB-106. Раннер ежедневно на реальных данных (сейчас 30-step синтетика). StrategySelector активируется на 15-й день при confidence=medium.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "strategies"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-107",
+        "title": "red_flag/incidents/governance в расписание",
+        "description": "ex RB-107. red_flags.json/incidents.json stale 13-14 дней. red_flag_monitor, incidents_fetcher, governance_watcher в daily_cycle или отдельный launchd. Внешние события (депег, дефолт) должны ловиться автоматически.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "monitoring"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-108",
+        "title": "Kill-switch drill на реальных данных",
+        "description": "ex RB-108/V392/V416. E2E: 5% drawdown → закрыть всё; 3% позиция → закрыть позицию. Замер времени реакции (цель sub-1-min до решения). Документированный отчёт в docs/. Обязательный пункт риск-DD.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-005"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-109",
+        "title": "SQLite-персистенция трека + ежедневный offsite-бэкап",
+        "description": "ex RB-109/V419. trades/equity в SQLite + бэкап вне машины (iCloud/S3) ежедневно. Потеря трека = потеря главного актива компании. DR-минимум.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "infra",
+          "data"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-110",
+        "title": "Investor view: один честный экран",
+        "description": "ex RB-110. Equity curve, APY, дни трека, риск-метрики — только live-данные. Первое, что показываем внешнему человеку.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-007"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "dashboard",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-111",
+        "title": "Milestone: 30/30 дней трека без gap + честные метрики",
+        "description": "Верификация непрерывности (~2026-07-10); Sharpe/Sortino/maxDD на n≥30 публикуются; go-live решение по правилу ADR MP-014. Продаваемый минимум трека.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-101"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "milestone",
+          "critical-path"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      },
+      {
+        "id": "MP-112",
+        "title": "Стресс-движок v1 (COVID-2020, LUNA-2022, USDC depeg 2023)",
+        "description": "Сценарии: депег −2%, отток TVL −40% в 3 протоколах, дефолт Maple-пула, APY-коллапс до 1%, реплики 03.2020/05.2022/03.2023. Еженедельный прогон на текущем портфеле; результат в health/go-live гейты. Институциональный стандарт риск-менеджмента.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-104"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "risk",
+          "stress"
+        ],
+        "sprint": null,
+        "added": "2026-06-10"
+      }
+    ],
+    "in_progress": [],
+    "review": [],
+    "done": [
+      {
+        "id": "RB-000",
+        "title": "Teardown-аудит + Rebuild Plan v1",
+        "description": "Полный послойный аудит (9 слоёв), Tier-1 checklist, REBUILD_PLAN_v1.md, SYSTEM_HEALTH.md, пересборка KANBAN (197 done-задач и _vXXX-ключи с утёкшим PAT архивированы в KANBAN_ARCHIVE_2026-06-10.json, локально).",
+        "priority": "P0",
+        "phase": "phase0",
+        "completed": "2026-06-10",
+        "added": "2026-06-10",
+        "tags": [
+          "audit"
+        ]
+      },
+      {
+        "id": "RB-003",
+        "title": "KANBAN.json вычищен от _vXXX-ключей с PAT",
+        "description": "~80 служебных dispatch-ключей (включая plaintext утёкшего PAT в _v374_push_held_reason) удалены при пересборке.",
+        "priority": "P0",
+        "phase": "phase0",
+        "completed": "2026-06-10",
+        "added": "2026-06-10",
+        "tags": [
+          "security"
+        ]
+      },
+      {
+        "id": "V408",
+        "title": "Реальный paper-trading цикл замкнут",
+        "description": "cycle_runner: orchestrator→allocator→trades.json (T001)→equity_curve (is_demo:false). Запущен на launchd daily 08:00. Честный трек стартовал 2026-06-10.",
+        "priority": "P1",
+        "phase": "phase0",
+        "completed": "2026-06-10",
+        "added": "2026-06-08",
+        "tags": [
+          "critical-path"
+        ]
+      },
+      {
+        "id": "MP-000",
+        "title": "MASTER_PLAN_v1: полная декомпозиция к 10/10",
+        "description": "Определение 10/10 (10 измерений), честная финмодель ($1M ARR ≈ $40-50M AUM; $100M оценка ≈ $2.5-4M ARR на горизонте 30-36 мес), спецификация 8 суб-агентов, ~70 задач MP-xxx по 6 фазам, критический путь, бюджет $200-650K до внешнего AUM. + INVESTOR_PITCH_v1.md. KANBAN мигрирован RB-xxx → MP-xxx.",
+        "priority": "P0",
+        "phase": "phase0",
+        "completed": "2026-06-10",
+        "added": "2026-06-10",
+        "tags": [
+          "strategy",
+          "docs"
+        ]
+      },
+      {
+        "id": "MP-113",
+        "title": "exit_latency атрибут во всех адаптерах",
+        "description": "Каждый адаптер декларирует exit-профиль (Aave ~0ч, Maple — очередь дни/недели, Pendle PT — до maturity/рынок с дисконтом). Правило: доля портфеля с exit >72ч ≤ 25%; kill-switch выходит сначала из ликвидного. Дёшево сейчас, невозможно дорого потом.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "adapters"
+        ],
+        "sprint": "v4.12",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "completed_by": "dev-orchestrator (SPA-V412)"
+      }
+    ]
+  },
+  "sprint_completed": "v4.12",
+  "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011)."
 }
