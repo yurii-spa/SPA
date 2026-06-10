@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "sprint": "v3.91",
+  "n_steps": 30,
+  "n_strategies": 6,
+  "passed": 6,
+  "failed": 0,
+  "strategies": {
+    "s0_baseline": {
+      "label": "Baseline (Equal Weight)",
+      "risk_level": "low",
+      "sortino": {
+        "value": null,
+        "confidence": "medium",
+        "n": 29
+      },
+      "sharpe_with_ci": {
+        "value": 48.482113886761006,
+        "ci_lower": 39.085534701180876,
+        "ci_upper": 71.85890597470114,
+        "confidence": "medium",
+        "n": 29,
+        "low_sample_warning": true
+      },
+      "total_return_pct": 0.525937,
+      "max_drawdown_pct": 0.0,
+      "final_equity": 100525.93689,
+      "n_rebalances": 30,
+      "passed_screening": true,
+      "screening_notes": [
+        "Sortino is undefined (no downside observed) — treated as non-negative; passed"
+      ]
+    },
+    "s1_concentration": {
+      "label": "Concentration",
+      "risk_level": "high",
+      "sortino": {
+        "value": null,
+        "confidence": "medium",
+        "n": 29
+      },
+      "sharpe_with_ci": {
+        "value": 48.36203734987014,
+        "ci_lower": 40.10967924074917,
+        "ci_upper": 64.92207879341099,
+        "confidence": "medium",
+        "n": 29,
+        "low_sample_warning": true
+      },
+      "total_return_pct": 0.408271,
+      "max_drawdown_pct": 0.0,
+      "final_equity": 100408.270802,
+      "n_rebalances": 30,
+      "passed_screening": true,
+      "screening_notes": [
+        "Sortino is undefined (no downside observed) — treated as non-negative; passed"
+      ]
+    },
+    "s2_momentum": {
+      "label": "APY Momentum",
+      "risk_level": "high",
+      "sortino": {
+        "value": null,
+        "confidence": "medium",
+        "n": 29
+      },
+      "sharpe_with_ci": {
+        "value": 1.971365971633346,
+        "ci_lower": 1.7155560768378115,
+        "ci_upper": 2.5060941720888996,
+        "confidence": "medium",
+        "n": 29,
+        "low_sample_warning": true
+      },
+      "total_return_pct": 0.257677,
+      "max_drawdown_pct": 0.0,
+      "final_equity": 100257.677365,
+      "n_rebalances": 30,
+      "passed_screening": true,
+      "screening_notes": [
+        "Sortino is undefined (no downside observed) — treated as non-negative; passed"
+      ]
+    },
+    "s3_risk_parity": {
+      "label": "Risk Parity+",
+      "risk_level": "low",
+      "sortino": {
+        "value": null,
+        "confidence": "medium",
+        "n": 29
+      },
+      "sharpe_with_ci": {
+        "value": 20.912351447673124,
+        "ci_lower": 17.557269718419768,
+        "ci_upper": 28.239683130929553,
+        "confidence": "medium",
+        "n": 29,
+        "low_sample_warning": true
+      },
+      "total_return_pct": 0.501633,
+      "max_drawdown_pct": 0.0,
+      "final_equity": 100501.633314,
+      "n_rebalances": 30,
+      "passed_screening": true,
+      "screening_notes": [
+        "Sortino is undefined (no downside observed) — treated as non-negative; passed"
+      ]
+    },
+    "s4_kelly": {
+      "label": "Half-Kelly",
+      "risk_level": "medium",
+      "sortino": {
+        "value": null,
+        "confidence": "medium",
+        "n": 29
+      },
+      "sharpe_with_ci": {
+        "value": 48.48210270561135,
+        "ci_lower": 39.058078205743044,
+        "ci_upper": 71.27559401132581,
+        "confidence": "medium",
+        "n": 29,
+        "low_sample_warning": true
+      },
+      "total_return_pct": 0.328398,
+      "max_drawdown_pct": 0.0,
+      "final_equity": 100328.398344,
+      "n_rebalances": 30,
+      "passed_screening": true,
+      "screening_notes": [
+        "Sortino is undefined (no downside observed) — treated as non-negative; passed"
+      ]
+    },
+    "s5_yield_spread": {
+      "label": "Yield Spread",
+      "risk_level": "medium",
+      "sortino": {
+        "value": null,
+        "confidence": "medium",
+        "n": 29
+      },
+      "sharpe_with_ci": {
+        "value": 6.06905467561207,
+        "ci_lower": 4.8452616195645035,
+        "ci_upper": 9.284236290740147,
+        "confidence": "medium",
+        "n": 29,
+        "low_sample_warning": true
+      },
+      "total_return_pct": 0.254844,
+      "max_drawdown_pct": 0.0,
+      "final_equity": 100254.844056,
+      "n_rebalances": 30,
+      "passed_screening": true,
+      "screening_notes": [
+        "Sortino is undefined (no downside observed) — treated as non-negative; passed"
+      ]
+    }
+  }
+}
