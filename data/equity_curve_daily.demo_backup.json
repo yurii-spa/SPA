@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-06-10T06:49:31.136905+00:00",
+  "source": "/Users/yuriikulieshov/Documents/SPA_Claude/data/pnl_history.json",
+  "summary": {
+    "num_days": 8,
+    "num_snapshots": 42,
+    "start_equity": 99988.92,
+    "end_equity": 98815.79,
+    "total_return_pct": -1.1733,
+    "best_day": {
+      "date": "2026-05-19",
+      "daily_return_pct": 0.358
+    },
+    "worst_day": {
+      "date": "2026-05-20",
+      "daily_return_pct": -1.0426
+    },
+    "max_drawdown_pct": -1.5886,
+    "positive_days": 3,
+    "negative_days": 4,
+    "daily_volatility_pct": 0.4546,
+    "first_date": "2026-05-15",
+    "last_date": "2026-05-22"
+  },
+  "daily": [
+    {
+      "date": "2026-05-15",
+      "open_equity": 99988.92,
+      "close_equity": 100015.09,
+      "high_equity": 100015.09,
+      "low_equity": 99937.93,
+      "snapshots": 5,
+      "daily_return_pct": 0.0,
+      "cumulative_return_pct": 0.0262,
+      "drawdown_pct": 0.0
+    },
+    {
+      "date": "2026-05-16",
+      "open_equity": 99883.74,
+      "close_equity": 99659.31,
+      "high_equity": 99883.74,
+      "low_equity": 99659.09,
+      "snapshots": 6,
+      "daily_return_pct": -0.3557,
+      "cumulative_return_pct": -0.3296,
+      "drawdown_pct": -0.3557
+    },
+    {
+      "date": "2026-05-17",
+      "open_equity": 99776.42,
+      "close_equity": 99914.81,
+      "high_equity": 100049.8,
+      "low_equity": 99776.42,
+      "snapshots": 6,
+      "daily_return_pct": 0.2564,
+      "cumulative_return_pct": -0.0741,
+      "drawdown_pct": -0.1003
+    },
+    {
+      "date": "2026-05-18",
+      "open_equity": 100018.49,
+      "close_equity": 100052.72,
+      "high_equity": 100226.86,
+      "low_equity": 100018.49,
+      "snapshots": 6,
+      "daily_return_pct": 0.138,
+      "cumulative_return_pct": 0.0638,
+      "drawdown_pct": 0.0
+    },
+    {
+      "date": "2026-05-19",
+      "open_equity": 100040.2,
+      "close_equity": 100410.94,
+      "high_equity": 100410.94,
+      "low_equity": 100040.2,
+      "snapshots": 6,
+      "daily_return_pct": 0.358,
+      "cumulative_return_pct": 0.4221,
+      "drawdown_pct": 0.0
+    },
+    {
+      "date": "2026-05-20",
+      "open_equity": 100389.75,
+      "close_equity": 99364.09,
+      "high_equity": 100432.96,
+      "low_equity": 99364.09,
+      "snapshots": 6,
+      "daily_return_pct": -1.0426,
+      "cumulative_return_pct": -0.6249,
+      "drawdown_pct": -1.0426
+    },
+    {
+      "date": "2026-05-21",
+      "open_equity": 99242.4,
+      "close_equity": 98899.9,
+      "high_equity": 99242.4,
+      "low_equity": 98899.9,
+      "snapshots": 6,
+      "daily_return_pct": -0.4672,
+      "cumulative_return_pct": -1.0891,
+      "drawdown_pct": -1.5049
+    },
+    {
+      "date": "2026-05-22",
+      "open_equity": 98815.79,
+      "close_equity": 98815.79,
+      "high_equity": 98815.79,
+      "low_equity": 98815.79,
+      "snapshots": 1,
+      "daily_return_pct": -0.085,
+      "cumulative_return_pct": -1.1733,
+      "drawdown_pct": -1.5886
+    }
+  ]
+}
