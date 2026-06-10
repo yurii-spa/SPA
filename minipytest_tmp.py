@@ -1,3 +1,0 @@
-# Obsolete scratch file from SPA-V328 (offline pytest shim, no longer used).
-# Safe to delete. pytest is now installed in the sandbox; tests run via
-#   python3 -m pytest spa_core/tests/...
