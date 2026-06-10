@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10",
-  "updated_by": "claude-session (PAT rotation + runbook)",
+  "last_updated": "2026-06-10T08:58:41.352595+00:00",
+  "updated_by": "claude-sprint-mp004-mp008",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -861,21 +861,6 @@
         ]
       },
       {
-        "id": "MP-004",
-        "title": "Мусор: 627 .fuse_hidden, .bak, временные скрипты",
-        "description": "ex RB-006. .fuse_hidden в spa_core/database (~20MB), *.bak, '=0.10.0', minipytest_tmp.py, _v407_kanban.py, push_kanban_v17.py, cleanup_fuse.py, spa_dashboard.html, SPA_Kanban.html, spa_frontend/. Гигиена репо — прокси-сигнал инженерной культуры для DD.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
-        "tags": [
-          "cleanup"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-005",
         "title": "RiskPolicy.check() — блокирующий гейт в cycle_runner",
         "description": "ex RB-007. КАЖДАЯ сделка через policy.check(); FAIL → blocked + алерт. ADR: min_cash 5% vs 0% cash-drag (текущие позиции $0 cash нарушают политику v1.0 — remainder-fill обходит min_cash). 'Policy на каждом capital decision без bypass' — пункт №1 риск-DD.",
@@ -918,25 +903,6 @@
         "estimate": "0.5d",
         "tags": [
           "dashboard"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-008",
-        "title": "Удалить демо data/*.json",
-        "description": "ex RB-011. status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, bus_stats.json, decision_log.json (stale), optimization_recommendations.json, latest_report.json. ТОЛЬКО после перевода читателей (MP-006/007).",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [
-          "MP-006",
-          "MP-007"
-        ],
-        "estimate": "0.5d",
-        "tags": [
-          "cleanup",
-          "data"
         ],
         "sprint": "phase0",
         "added": "2026-06-10"
@@ -1323,6 +1289,44 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-008",
+        "title": "Удалить демо data/*.json",
+        "description": "ex RB-011. status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, bus_stats.json, decision_log.json (stale), optimization_recommendations.json, latest_report.json. ТОЛЬКО после перевода читателей (MP-006/007).",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-006",
+          "MP-007"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "cleanup",
+          "data"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-10"
+      },
+      {
+        "id": "MP-004",
+        "title": "Мусор: 627 .fuse_hidden, .bak, временные скрипты",
+        "description": "ex RB-006. .fuse_hidden в spa_core/database (~20MB), *.bak, '=0.10.0', minipytest_tmp.py, _v407_kanban.py, push_kanban_v17.py, cleanup_fuse.py, spa_dashboard.html, SPA_Kanban.html, spa_frontend/. Гигиена репо — прокси-сигнал инженерной культуры для DD.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "cleanup"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-10"
+      },
       {
         "id": "MP-003",
         "title": "PAT из CLAUDE.md + решение по git-истории [DONE 2026-06-10: см. docs/TOKEN_ROTATION_RUNBOOK.md]",
