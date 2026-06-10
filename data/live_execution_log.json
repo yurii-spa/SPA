@@ -516,5 +516,18 @@
     "protocol_key": "aave-v3-usdc-ethereum",
     "family": "aave_v3",
     "amount_usd": 3000.0
+  },
+  {
+    "status": "FAILED",
+    "reason": "eth_account not installed; pip install eth-account>=0.10.0 to enable Phase 3 live writes",
+    "phase": "approve",
+    "asset": "USDC",
+    "amount": 3000.0,
+    "chain": "ethereum",
+    "timestamp": "2026-06-10T06:50:01.882762+00:00",
+    "bridge_action": "supply",
+    "protocol_key": "aave-v3-usdc-ethereum",
+    "family": "aave_v3",
+    "amount_usd": 3000.0
   }
 ]
