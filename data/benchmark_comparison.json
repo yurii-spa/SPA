@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-06-09T19:13:49.285693+00:00",
+  "source": "/sessions/gracious-upbeat-shannon/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "comparison": {
+    "count": 7,
+    "benchmark_kind": "flat_risk_free",
+    "benchmark_annual_pct": 4.0,
+    "benchmark_daily_pct": 0.010746,
+    "periods_per_year": 365,
+    "portfolio_total_return_pct": -1.1992,
+    "benchmark_total_return_pct": 0.0752,
+    "excess_total_return_pct": -1.2744,
+    "portfolio_annualized_pct": -46.6903,
+    "benchmark_annualized_pct": 4.0,
+    "mean_active_return_pct": -0.181903,
+    "tracking_error_pct": 0.454646,
+    "information_ratio": -0.4001,
+    "information_ratio_annualized": -7.6439,
+    "beta": null,
+    "correlation": null,
+    "up_capture": null,
+    "down_capture": null,
+    "days_outperformed": 3,
+    "days_underperformed": 4,
+    "days_matched": 0,
+    "best_active_day": {
+      "date": "2026-05-19",
+      "active_return_pct": 0.3473
+    },
+    "worst_active_day": {
+      "date": "2026-05-20",
+      "active_return_pct": -1.0533
+    }
+  }
+}
