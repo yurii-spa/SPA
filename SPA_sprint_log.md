@@ -1,6 +1,27 @@
-# SPA Sprint Log — updated 2026-06-09
+# SPA Sprint Log — updated 2026-06-10
 
 ## Completed ✅
+
+---
+
+## Sprint — Aave V3 T1 Anchor + Cash-Drag Fill (v4.03) — 2026-06-10
+
+Eliminates the **structural 20% cash drag** in the Strategy Allocator. With four T2 adapters capped at 20% each (Yearn/Euler/Maple/Morpho), the allocator could deploy at most 4 × 20% = 80% of capital — the remaining 20% always sat idle in 0%-yield cash because no T1 anchor existed to absorb it. Stdlib-only, read-only/advisory; nothing imports or mutates `execution/`, `feed_health/` or the deterministic risk agents. Atomic writes throughout (`tempfile` + `os.replace`).
+
+**Deliverable 1 — Aave V3 T1-anchor adapter (`SPA-V405`)**
+- `spa_core/adapters/aave_v3.py` — `AaveV3Adapter(BaseAdapter)`, `TIER="T1"`, `T1_CAP=0.40`, `pool_id="aave-v3-usdc-ethereum"`, DeFiLlama selectors `project=aave-v3` / `symbol=USDC` / `chain=Ethereum`. Reads the live `DeFiLlamaFeed` (same source as Morpho). `get_yield_info()` returns a `YieldInfo` (apy as **decimal**); `fetch()` returns the flat status dict like the T2 adapters. **No mocks** — feed unavailable → `status="error"`, `apy=None`, `live_data=False`; never raises.
+- Registered additively: added to `spa_core/adapters/__init__.py` (`ADAPTER_REGISTRY`, tier `T1`) and to the orchestrator's `ADAPTER_REGISTRY` in `spa_core/orchestrator/adapter_orchestrator.py` (now 5 adapters, 1×T1 + 4×T2). Distinct from the capital-touching `execution/aave_v3_adapter.py` (which it does **not** import).
+
+**Deliverable 2 — Allocator remainder fill (`spa_core/allocator/allocator.py`)**
+- New `_fill_remainder(weights, tier_map, apy_map)` step runs after `_apply_caps`: routes the post-cap remainder into available headroom (`cap − current weight`) — **T1 anchor first** (40% cap), then T2 — ordered by APY desc. Weights never exceed tier caps; if no headroom exists anywhere, the remainder honestly stays cash.
+- `AllocationResult` gains `cash_pct`, `t1_pct`, `t2_pct`, `total_deployed_pct`. With 4 T2 + Aave live, `cash_pct → 0` and `total_deployed_pct → 1.0`; `best_apy` now parks its 40% remainder in the Aave anchor instead of cash. When the T1 feed is down it falls back to T2 headroom, then to honest cash.
+
+**Tests** (`unittest`, no network, atomic temp dirs)
+- `spa_core/tests/test_aave_v3.py` — 18 tests: tier/cap/pool_id/selectors, `fetch()` ok+error paths, no-mock fallback, feed-exception safety, `get_apy`/`get_yield_info` structure, registry registration.
+- `spa_core/tests/test_allocator_cash_drag.py` — 14 tests: drag present without anchor, `cash_pct==0` with all live, T1 fills remainder, `best_apy` remainder → anchor, cap invariants after fill, cash fallback when T1/all error, breakdown sums, persisted JSON fields.
+- Updated `test_adapter_orchestrator.py` (`test_default_registry_has_readonly_adapters`: now 5 adapters, Aave tier T1). Full suite green: **79/79** across aave + cash-drag + allocator + orchestrator.
+
+KANBAN: `sprint_completed → v4.03`, `sprint_current → v4.04`; `SPA-V405` added to `done` (reloaded fresh before atomic write — concurrent hourly writer).
 
 ---
 
