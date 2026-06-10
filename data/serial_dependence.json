@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-06-10T00:13:49.209695+00:00",
+  "source": "/sessions/gallant-gifted-dijkstra/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "diagnostics": {
+    "num_return_days": 7,
+    "mean_pct": -0.171157,
+    "stdev_pct": 0.454646,
+    "max_lag": 5,
+    "autocorrelation": [
+      {
+        "lag": 1,
+        "acf": -0.008141
+      },
+      {
+        "lag": 2,
+        "acf": -0.229421
+      },
+      {
+        "lag": 3,
+        "acf": -0.356741
+      },
+      {
+        "lag": 4,
+        "acf": 0.042075
+      },
+      {
+        "lag": 5,
+        "acf": 0.063217
+      }
+    ],
+    "ljung_box": {
+      "statistic": 2.831357,
+      "df": 5,
+      "p_value": 0.725966,
+      "lags": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "runs_test": {
+      "runs": 4,
+      "n_above": 4,
+      "n_below": 3,
+      "expected_runs": 4.428571,
+      "z_score": -0.363803,
+      "p_value": 0.716005
+    },
+    "variance_ratio": {
+      "2": 1.139796,
+      "3": 1.12377,
+      "5": 0.035919
+    },
+    "variance_ratio_lags": [
+      2,
+      3,
+      5
+    ],
+    "hurst_exponent": null,
+    "interpretation": "trending"
+  }
+}
