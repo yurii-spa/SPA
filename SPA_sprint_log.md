@@ -4,7 +4,18 @@
 
 ---
 
-## Sprint — Aave V3 T1 Anchor + Cash-Drag Fill (v4.03) — 2026-06-10
+## Sprint — Risk Scoring Engine → Allocator (SPA-V406, v4.04) — 2026-06-10 — ✅ CODE SHIPPED
+
+- **Проблема:** `spa_core/risk/scoring_engine.py` уже выставлял протоколам оценки A/B/C/D (в `data/risk_scores.json`), но `StrategyAllocator` НИКОГДА их не читал — капитал распределялся без учёта риск-профиля.
+- **Выбор спринта:** `sprint_completed` прочитан свежим из KANBAN (был **v4.03**) → +1 = **v4.04**. Задача чисто read-only/advisory, вне запрещённого execution/risk-agent/feed-health домена.
+- **Сделано:**
+  - `spa_core/allocator/allocation_models.py` — добавлены `risk_adjusted_weight()` и детальный `risk_adjusted_breakdown()`. Веса = `max(apy_pct,0) × grade_multiplier`, нормализация до 1.0. Дефолтные множители **A=1.0, B=0.85, C=0.60, D=0.0** (D → исключается, вес 0). Протокол без оценки → консервативно **B**. Нормализация ключей (`euler_v2` ↔ `euler-v2`) снимает регистр/разделители. Все исключены / нулевой APY → честный fallback на `equal_weight`. Breakdown отдаёт per-protocol `risk_grade / risk_multiplier / pre_risk_weight / post_risk_weight`.
+  - `spa_core/allocator/allocator.py` — `StrategyAllocator` читает `data/risk_scores.json` (read-only, **без импорта** scoring-engine/risk/execution-кода — только JSON-снимок). Модель по умолчанию переключена с `equal_weight` на **`risk_adjusted`** (`DEFAULT_MODEL`, новый параметр `allocation_model` в конструкторе). В `AllocationResult` добавлены `risk_model_applied: bool` и `risk_breakdown: dict`. grade-D логируется как `excluded_by_risk: [...]` и НЕ возвращается ни через cap-перераспределение (`_apply_caps`), ни через SPA-V405 remainder-fill (`_fill_remainder` получил `exclude`-сет; исключённые удаляются из весов до кап'ов и возвращаются как 0 для прозрачности). Защитные ветки: нет файла → `risk_model_applied=false` + equal_weight; битый JSON → warn в лог + equal_weight; все-D → `WARNING` в notes + equal_weight.
+  - `spa_core/tests/test_risk_adjusted_allocation.py` — **24 теста** (unittest, pytest в репо нет). Покрыто: D-исключение, A>B по весу, дефолт B для отсутствующих, all-excluded→equal_weight, missing-file/corrupt-json graceful fallback, наличие risk-полей в output, флаг `risk_model_applied` true/false, нормализация `_`/`-`, кастомные множители, cap'ы сохраняются, grade-D НЕ рефандится remainder-fill'ом, сумма весов ≤ 1.0, save-roundtrip. **24/24 passed**; регрессия `test_allocator` **19/19 passed**.
+  - Реальный прогон на живом снимке адаптеров: `risk_model_applied=True`, `risk_breakdown` с grade/multiplier по 4 протоколам (morpho_blue=A, yearn_v3=B, euler_v2=A, maple=B-дефолт), B-протоколы down-weighted vs A; запись атомарна (tmp + os.replace).
+- **Push:** см. результат ниже. `push_*.html` НЕ создавался, PAT нигде не встраивался.
+
+
 
 Eliminates the **structural 20% cash drag** in the Strategy Allocator. With four T2 adapters capped at 20% each (Yearn/Euler/Maple/Morpho), the allocator could deploy at most 4 × 20% = 80% of capital — the remaining 20% always sat idle in 0%-yield cash because no T1 anchor existed to absorb it. Stdlib-only, read-only/advisory; nothing imports or mutates `execution/`, `feed_health/` or the deterministic risk agents. Atomic writes throughout (`tempfile` + `os.replace`).
 
