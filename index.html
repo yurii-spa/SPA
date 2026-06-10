@@ -80,6 +80,36 @@
   .group-sep:first-child { margin-top: 0; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
 
+  /* ── Live Backlog (KANBAN.json via GitHub raw) ── */
+  .bk-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: start; }
+  .bk-col { border-radius: 12px; padding: 12px; }
+  .bk-col-p0       { background: #fdeaea; }
+  .bk-col-backlog  { background: #FAEEDA; }
+  .bk-col-features { background: #E2EDF7; }
+  .bk-col-done     { background: #E4F0D8; }
+  .bk-card { background: #fff; border: 0.5px solid #ddd; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  .bk-card:last-child { margin-bottom: 0; }
+  .bk-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .bk-id { font-family: monospace; font-size: 10px; font-weight: 700; color: #888; }
+  .bk-prio { font-size: 9px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 10px; }
+  .bk-prio-p0 { background: #fee2e2; color: #B91C1C; }
+  .bk-prio-p1 { background: #FAEEDA; color: #BA7517; }
+  .bk-prio-p2 { background: #E6F1FB; color: #185FA5; }
+  .bk-prio-p3 { background: #f3f4f6; color: #6b7280; }
+  .bk-user { font-size: 11px; margin-left: auto; cursor: help; }
+  .bk-title { font-size: 12.5px; color: #1a1a1a; line-height: 1.4; }
+  .bk-card-done .bk-title { color: #999; text-decoration: line-through; text-decoration-color: #ccc; }
+  .bk-meta { font-size: 10px; color: #aaa; margin-top: 4px; }
+  .bk-empty { text-align: center; padding: 16px 0; color: #bbb; font-size: 11px; }
+  body.night .bk-col-p0, body.night .bk-col-backlog,
+  body.night .bk-col-features, body.night .bk-col-done { background: #1a1a30; }
+  body.night .bk-card { background: #131328; border-color: #252540; }
+  body.night .bk-title { color: #c8ccda; }
+  @media (max-width: 768px) {
+    .bk-board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .bk-col { min-width: 250px; flex-shrink: 0; }
+  }
+
   /* ── Dashboard ── */
   .db-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
   .db-metric { background: #eeecea; border-radius: 8px; padding: 14px; }
@@ -772,6 +802,7 @@
 <!-- TABS -->
 <div class="tabs">
   <button class="tab-btn active" onclick="showTab('kanban', this)">📋 Канбан</button>
+  <button class="tab-btn"        onclick="showTab('backlog', this)">🗂 BACKLOG <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
   <button class="tab-btn"        onclick="showTab('dashboard', this)">📊 Paper Trading <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Аналітика <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"        onclick="showTab('team', this)">👾 Команда</button>
@@ -925,6 +956,25 @@
   </div>
 
 </div><!-- /tab-kanban -->
+
+
+<!-- ══════════════════ TAB: BACKLOG (live KANBAN.json) ══════════════════ -->
+<div id="tab-backlog" class="tab-pane">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-size:15px;font-weight:500">Live Backlog — KANBAN.json <span id="backlog-source-badge"></span></div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="backlog-status">Загрузка…</div>
+      <div style="font-size:11px;color:#aaa;margin-top:2px" id="backlog-sprint"></div>
+    </div>
+    <button class="refresh-btn" onclick="loadBacklog()">↻ Обновить</button>
+  </div>
+
+  <div class="bk-board" id="backlog-board">
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;font-size:13px"><span class="spinner"></span> Загрузка KANBAN.json из GitHub…</div>
+  </div>
+
+</div><!-- /tab-backlog -->
 
 
 <!-- ══════════════════ TAB: DASHBOARD ══════════════════ -->
@@ -2288,6 +2338,7 @@ function showTab(id, btn) {
   document.getElementById('tab-' + id).classList.add('active');
   btn.classList.add('active');
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
+  if (id === 'backlog') loadBacklog();
   if (id === 'analytics') loadAnalytics();
   if (id === 'golive') loadGoLive();
   if (id === 'team') loadAgentCommentary();
@@ -2847,8 +2898,8 @@ function closeAgentModal() {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabIds = ['kanban','dashboard','analytics','team','golive','system'];
-  if (e.key >= '1' && e.key <= '6') {
+  const tabIds = ['kanban','backlog','dashboard','analytics','team','golive','system'];
+  if (e.key >= '1' && e.key <= '7') {
     const idx = parseInt(e.key) - 1;
     if (tabIds[idx] && tabBtns[idx]) showTab(tabIds[idx], tabBtns[idx]);
   }
@@ -3796,12 +3847,169 @@ function renderStratComparison(stratV2, stratComp, pnlHistory) {
   renderEquityCompareChart(pnlHistory, stratComp);
 }
 
+// ─── Live Backlog (KANBAN.json via GitHub raw API) ────────────────────────────
+// Fetches KANBAN.json straight from the repo (raw.githubusercontent.com sends
+// Access-Control-Allow-Origin: *, so this works from GitHub Pages and file://).
+// On fetch failure falls back to the last successful copy in localStorage.
+const KANBAN_RAW_URL = 'https://raw.githubusercontent.com/yurii-spa/SPA/main/KANBAN.json';
+const BK_CACHE_KEY = 'spa_kanban_cache_v1';
+let _backlogLoading = false;
+
+const bkEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+const BK_PRIO_CLS = { P0:'bk-prio-p0', P1:'bk-prio-p1', P2:'bk-prio-p2', P3:'bk-prio-p3', HIGH:'bk-prio-p1', LOW:'bk-prio-p3' };
+const BK_PRIO_RANK = { P0:0, HIGH:0, P1:1, P2:2, P3:3, LOW:4 };
+
+function bkPhaseLabel(p) {
+  if (!p) return '';
+  const m = String(p).match(/^phase(\d+)$/);
+  return m ? 'Phase ' + m[1] : String(p);
+}
+
+// "Последнее обновление: …" from KANBAN.json last_updated (date or ISO datetime)
+function bkFmtUpdated(lu) {
+  if (!lu) return '—';
+  const hasTime = String(lu).includes('T');
+  const d = new Date(hasTime ? lu : lu + 'T00:00:00');
+  if (isNaN(d.getTime())) return String(lu);
+  const diffMs = Date.now() - d.getTime();
+  if (hasTime) {
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'только что';
+    if (mins < 60) return mins + ' мин назад';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + ' ч назад';
+    return Math.floor(hrs / 24) + ' дн назад (' + String(lu).slice(0, 10) + ')';
+  }
+  const days = Math.floor(diffMs / 86400000);
+  if (days <= 0) return 'сегодня (' + lu + ')';
+  if (days === 1) return 'вчера (' + lu + ')';
+  return days + ' дн назад (' + lu + ')';
+}
+
+function bkCard(item, opts) {
+  opts = opts || {};
+  const prio = (item.priority || '').toUpperCase();
+  const prioCls = BK_PRIO_CLS[prio] || 'bk-prio-p3';
+  const isUser = (item.tags || []).includes('user-action') || /USER ACTION/i.test(item.title || '');
+  const meta = [];
+  if (item.phase) meta.push(bkEsc(bkPhaseLabel(item.phase)));
+  if (item.estimated_days != null && item.estimated_days > 0) meta.push('~' + item.estimated_days + 'd');
+  if (opts.done && item.completed) meta.push('✅ ' + bkEsc(item.completed));
+  return `<div class="bk-card${opts.done ? ' bk-card-done' : ''}" title="${bkEsc(item.description || '')}">
+    <div class="bk-card-top">
+      <span class="bk-id">${bkEsc(item.id)}</span>
+      <span class="bk-prio ${prioCls}">${bkEsc(prio || '—')}</span>
+      ${isUser ? '<span class="bk-user" title="USER ACTION — не автоматизируется">👤</span>' : ''}
+    </div>
+    <div class="bk-title">${bkEsc(item.title)}</div>
+    ${meta.length ? `<div class="bk-meta">${meta.join(' · ')}</div>` : ''}
+  </div>`;
+}
+
+function renderBacklog(data, source, cachedAt) {
+  const board = document.getElementById('backlog-board');
+  if (!board || !data || !data.columns) return;
+  const cols = data.columns;
+  const backlogAll = cols.backlog || [];
+  const features   = cols.features || [];
+  const done       = cols.done || [];
+  const inprog     = cols.in_progress || [];
+  const review     = cols.review || [];
+
+  const sortItems = arr => [...arr].sort((a, b) =>
+    ((BK_PRIO_RANK[(a.priority || '').toUpperCase()] ?? 9) - (BK_PRIO_RANK[(b.priority || '').toUpperCase()] ?? 9))
+    || String(a.phase || '').localeCompare(String(b.phase || ''))
+    || String(a.id || '').localeCompare(String(b.id || '')));
+
+  // 🔴 Phase 0 — Срочно: backlog items with phase0 + priority P0
+  const isUrgent = it => it.phase === 'phase0' && (it.priority || '').toUpperCase() === 'P0';
+  const urgent = sortItems(backlogAll.filter(isUrgent));
+  const rest   = sortItems(backlogAll.filter(it => !isUrgent(it)));
+
+  // 🟡 Backlog: everything else (plus in_progress/review on top, when present)
+  let restHtml = '';
+  if (inprog.length) restHtml += '<div class="group-sep">В работе</div>' + sortItems(inprog).map(it => bkCard(it)).join('');
+  if (review.length) restHtml += '<div class="group-sep">На проверке</div>' + sortItems(review).map(it => bkCard(it)).join('');
+  if (rest.length)   restHtml += (inprog.length || review.length ? '<div class="group-sep">Backlog</div>' : '') + rest.map(it => bkCard(it)).join('');
+
+  // 🔵 Features: grouped by phase
+  const byPhase = {};
+  features.forEach(f => { const k = f.phase || 'other'; (byPhase[k] = byPhase[k] || []).push(f); });
+  const featHtml = Object.keys(byPhase).sort().map(ph =>
+    `<div class="group-sep">${bkEsc(bkPhaseLabel(ph))}</div>` + sortItems(byPhase[ph]).map(f => bkCard(f)).join('')
+  ).join('');
+
+  // ✅ Done: newest first
+  const doneSorted = [...done].sort((a, b) => String(b.completed || '').localeCompare(String(a.completed || '')));
+  const doneHtml = doneSorted.map(it => bkCard(it, { done: true })).join('');
+
+  const colHtml = (cls, title, count, inner) => `<div class="bk-col ${cls}">
+    <div class="kb-col-header">${title} <span class="kb-count">${count}</span></div>
+    ${inner || '<div class="bk-empty">пусто</div>'}
+  </div>`;
+
+  board.innerHTML =
+    colHtml('bk-col-p0',       '🔴 PHASE 0 — СРОЧНО', urgent.length, urgent.map(it => bkCard(it)).join('')) +
+    colHtml('bk-col-backlog',  '🟡 BACKLOG',          rest.length + inprog.length + review.length, restHtml) +
+    colHtml('bk-col-features', '🔵 FEATURES',         features.length, featHtml) +
+    colHtml('bk-col-done',     '✅ DONE',             done.length, doneHtml);
+
+  // Live counter in the tab header: "BACKLOG (31)"
+  const tabCount = document.getElementById('backlog-tab-count');
+  if (tabCount) tabCount.textContent = '(' + backlogAll.length + ')';
+
+  // Status line + source badge
+  const statusEl = document.getElementById('backlog-status');
+  if (statusEl) {
+    statusEl.textContent = 'Последнее обновление: ' + bkFmtUpdated(data.last_updated) +
+      (data.updated_by ? ' · ' + data.updated_by : '');
+  }
+  const srcEl = document.getElementById('backlog-source-badge');
+  if (srcEl) {
+    srcEl.innerHTML = source === 'live'
+      ? '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eaf3de;color:#3B6D11;vertical-align:middle">📡 live · GitHub raw</span>'
+      : '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#FAEEDA;color:#BA7517;vertical-align:middle" title="Нет соединения — показан локальный кэш от ' + bkEsc(cachedAt || '') + '">📴 офлайн-кэш</span>';
+  }
+  const sprintEl = document.getElementById('backlog-sprint');
+  if (sprintEl) sprintEl.textContent = data.sprint_current ? 'Спринт: ' + data.sprint_current : '';
+}
+
+async function loadBacklog() {
+  if (_backlogLoading) return;
+  _backlogLoading = true;
+  const statusEl = document.getElementById('backlog-status');
+  if (statusEl) statusEl.innerHTML = '<span class="spinner"></span> Загрузка KANBAN.json…';
+  try {
+    const r = await fetch(KANBAN_RAW_URL + '?_=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    try { localStorage.setItem(BK_CACHE_KEY, JSON.stringify({ cached_at: new Date().toISOString().slice(0, 16).replace('T', ' '), data })); } catch (_) {}
+    renderBacklog(data, 'live');
+  } catch (e) {
+    console.warn('KANBAN.json fetch failed:', e);
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(BK_CACHE_KEY)); } catch (_) {}
+    if (cached && cached.data) {
+      renderBacklog(cached.data, 'cache', cached.cached_at);
+    } else {
+      const board = document.getElementById('backlog-board');
+      if (board) board.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#B91C1C;font-size:14px">⚠ Нет соединения — не удалось загрузить KANBAN.json из GitHub</div>';
+      if (statusEl) statusEl.textContent = 'Нет соединения';
+    }
+  } finally {
+    _backlogLoading = false;
+  }
+}
+
 // ─── Ініціалізація ─────────────────────────────────────────────────────────────
 const nowStr = new Date().toISOString().replace('T',' ').slice(0,16) + ' UTC';
 document.getElementById('ts-subtitle').textContent = 'Проект · ' + nowStr + ' · Стратегия v1.0';
 const _todEl = document.getElementById('today-date');
 if (_todEl) _todEl.textContent = new Date().toISOString().slice(0,10);
 detectLiveMode();
+loadBacklog();   // live tab counter "BACKLOG (N)" + warm cache on page load
 
 // ─── Mobile init ─────────────────────────────────────────────────────────────
 function initMobile() {
