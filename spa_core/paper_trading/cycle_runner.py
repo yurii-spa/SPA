@@ -9,9 +9,19 @@ One run == one "day" of paper trading:
 
 1. Run the read-only adapter orchestrator → live APY/TVL snapshot.
 2. Run the StrategyAllocator → target allocation (USD per pool).
-3. If the target allocation differs from the currently-held positions by more
-   than ``trade_threshold_pct`` of capital → record a virtual ``rebalance``
-   trade in ``data/trades.json`` (ring-buffer, max 500).
+2b. MP-005: pass the target through the deterministic ``RiskPolicy`` gate
+   (``spa_core/risk/policy.py``) BEFORE any trade is recorded. A target that
+   over-deploys past the min-cash buffer is trimmed proportionally (not
+   blocked); any other violation (concentration caps, T2 total, TVL floor,
+   APY bounds, drawdown kill switch) BLOCKS the rebalance: no trade is
+   written, the block is appended to ``data/risk_policy_blocks.json``
+   (ring-buffer 100) and the cycle continues holding the previous positions
+   with ``status="blocked_by_policy"``. A failure inside the gate itself
+   (unexpected exception) is logged as WARNING and the gate is skipped
+   (fail-open) — the cycle never crashes because of the gate.
+3. If the (gate-approved) target allocation differs from the currently-held
+   positions by more than ``trade_threshold_pct`` of capital → record a
+   virtual ``rebalance`` trade in ``data/trades.json`` (ring-buffer, max 500).
 4. Accrue one day of yield on the effective positions:
    ``daily_yield = position_usd * apy_pct / 100 / 365``.
 5. Append/refresh today's point on the daily equity curve
@@ -26,8 +36,11 @@ Safety / scope
   the allocator's advisory output, then writes paper-trading JSON.
 * Does NOT import ``spa_core/execution/`` (wallet/router/signer/safety_checks),
   the feed-health stack, or any risk-agent capital-touching code. The only
-  product modules it imports are the read-only orchestrator and the advisory
-  allocator.
+  product modules it imports are the read-only orchestrator, the advisory
+  allocator and — MP-005 — the strictly deterministic ``spa_core/risk/policy``
+  (LLM-forbidden, pure in-memory checks: it reads no files, writes no files
+  and touches no capital; its verdict gates whether a *virtual* trade is
+  recorded).
 * Stdlib only. All writes are atomic (tmpfile + os.replace).
 * Idempotent per UTC day: re-running on the same calendar day refreshes that
   day's equity bar from the previous day's close rather than double-accruing,
@@ -48,6 +61,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import os
 import tempfile
 from dataclasses import dataclass, field
@@ -71,9 +85,11 @@ EQUITY_FILENAME = "equity_curve_daily.json"
 POSITIONS_FILENAME = "current_positions.json"
 STATUS_FILENAME = "paper_trading_status.json"
 ORCH_STATUS_FILENAME = "adapter_orchestrator_status.json"
+RISK_BLOCKS_FILENAME = "risk_policy_blocks.json"
 
 MAX_TRADES = 500           # ring-buffer cap for trades.json
 MAX_EQUITY_POINTS = 365    # ring-buffer cap for the daily equity curve
+MAX_POLICY_BLOCKS = 100    # ring-buffer cap for risk_policy_blocks.json
 # Rebalance only when |Δallocation| exceeds 1% of capital (turnover filter).
 DEFAULT_TRADE_THRESHOLD_PCT = 0.01
 
@@ -87,7 +103,7 @@ class CycleResult:
 
     run_ts: str
     date: str
-    status: str  # "ok" | "skipped_no_live_data"
+    status: str  # "ok" | "skipped_no_live_data" | "blocked_by_policy"
     traded: bool
     trade_id: str | None
     live_data: bool
@@ -102,6 +118,12 @@ class CycleResult:
     strategy_loop_active: bool
     positions: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    # MP-005: deterministic RiskPolicy gate (spa_core/risk/policy.py).
+    policy_checked: bool = False
+    policy_approved: bool = True
+    policy_trimmed: bool = False
+    policy_violations: list[str] = field(default_factory=list)
+    policy_warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -122,6 +144,11 @@ class CycleResult:
             "strategy_loop_active": self.strategy_loop_active,
             "positions": self.positions,
             "notes": self.notes,
+            "policy_checked": self.policy_checked,
+            "policy_approved": self.policy_approved,
+            "policy_trimmed": self.policy_trimmed,
+            "policy_violations": self.policy_violations,
+            "policy_warnings": self.policy_warnings,
         }
 
 
@@ -367,6 +394,165 @@ def _upsert_equity_point(
     return equity_doc, close_equity, daily_yield, daily_return_pct
 
 
+# ─── MP-005: deterministic RiskPolicy gate ───────────────────────────────────
+
+
+def _apply_risk_policy_gate(
+    target_usd: dict[str, float],
+    capital_usd: float,
+    adapters: list[dict],
+) -> dict:
+    """Validate the allocator's target against ``RiskPolicy`` (MP-005).
+
+    The target is replayed position-by-position through
+    ``RiskPolicy.check_new_position()`` on a fresh ``PortfolioState`` so the
+    cumulative limits (per-protocol concentration, total-T2 cap, cash buffer)
+    see the *whole* target allocation, not just one trade.
+
+    min-cash handling: a target that deploys past ``1 - min_cash_pct`` of
+    capital is trimmed proportionally instead of blocked (per MP-005 spec).
+
+    Returns a dict::
+
+        approved    bool — False → the rebalance trade must NOT be recorded
+        violations  list[str] — blocking violations ("<pool>: <reason>")
+        warnings    list[str] — non-blocking policy warnings
+        trimmed     bool — target was scaled down to the min-cash buffer
+        target_usd  dict — the (possibly trimmed) allocation to use downstream
+        error       str | None — the gate itself failed → fail-open, log only
+
+    Never raises: any unexpected exception is captured into ``error`` so a
+    broken gate degrades to a logged WARNING instead of crashing the cycle.
+    """
+    out: dict = {
+        "approved": True,
+        "violations": [],
+        "warnings": [],
+        "trimmed": False,
+        "target_usd": dict(target_usd),
+        "error": None,
+    }
+    try:
+        from spa_core.risk.policy import PortfolioState, Position, RiskPolicy
+
+        policy = RiskPolicy()
+        cfg = policy.config
+
+        meta: dict[str, dict] = {}
+        for a in adapters:
+            if isinstance(a, dict) and a.get("protocol"):
+                meta[str(a["protocol"])] = a
+
+        adjusted = {
+            str(p): float(v)
+            for p, v in target_usd.items()
+            if isinstance(v, (int, float)) and float(v) > 0
+        }
+
+        # min_cash: trim to the deployable maximum, do not block (MP-005 spec).
+        # floor() keeps the trimmed total strictly ≤ the cap despite rounding.
+        max_deploy = capital_usd * (1.0 - cfg.min_cash_pct)
+        total = sum(adjusted.values())
+        if total > max_deploy and total > 0:
+            scale = max_deploy / total
+            adjusted = {
+                p: math.floor(v * scale * 100) / 100.0 for p, v in adjusted.items()
+            }
+            out["trimmed"] = True
+
+        state = PortfolioState(total_capital_usd=capital_usd, positions=[])
+        violations: list[str] = []
+        warnings: list[str] = []
+        for pool, usd in sorted(adjusted.items(), key=lambda kv: (-kv[1], kv[0])):
+            m = meta.get(pool, {})
+            tier = str(m.get("tier") or "T2").upper()
+            apy = float(m.get("apy_pct") or 0.0)
+            tvl = float(m.get("tvl_usd") or 0.0)
+            # Chain-level limits apply only when the adapter reports its chain.
+            # Without it, a per-pool placeholder prevents the single-chain cap
+            # from falsely lumping every pool onto "ethereum".
+            chain = str(m.get("chain") or f"unknown:{pool}")
+            res = policy.check_new_position(
+                state,
+                protocol_key=pool,
+                tier=tier,
+                amount_usd=usd,
+                current_apy=apy,
+                tvl_usd=tvl,
+                chain=chain,
+            )
+            warnings.extend(res.warnings)
+            if not res.approved:
+                violations.extend(f"{pool}: {v}" for v in res.violations)
+            # Add the position regardless of the verdict so cumulative limits
+            # (T2 total, concentration) are evaluated over the full target.
+            state.positions.append(
+                Position(
+                    protocol_key=pool,
+                    tier=tier,
+                    asset="USDC",
+                    amount_usd=usd,
+                    apy_at_open=apy,
+                    current_apy=apy,
+                    chain=chain,
+                )
+            )
+
+        out["violations"] = violations
+        out["warnings"] = warnings
+        out["approved"] = not violations
+        out["target_usd"] = adjusted
+    except Exception as exc:  # gate must never crash the cycle (MP-005 spec)
+        log.warning("RiskPolicy gate failed (%s) — fail-open, cycle continues", exc)
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    return out
+
+
+def _record_policy_block(
+    ddir: Path,
+    *,
+    run_ts: str,
+    date: str,
+    gate: dict,
+    current_positions: dict[str, float],
+    capital_usd: float,
+) -> None:
+    """Append one audit record to ``risk_policy_blocks.json`` (ring-buffer 100)."""
+    blocks = _read_json(ddir / RISK_BLOCKS_FILENAME, [])
+    if not isinstance(blocks, list):
+        blocks = []
+    blocks.append(
+        {
+            "ts": run_ts,
+            "date": date,
+            "source": "cycle_runner",
+            "policy_version": _policy_version(),
+            "violations": list(gate.get("violations") or []),
+            "warnings": list(gate.get("warnings") or []),
+            "blocked_target_usd": {
+                p: round(float(v), 2)
+                for p, v in (gate.get("target_usd") or {}).items()
+            },
+            "held_positions_usd": {
+                p: round(float(v), 2) for p, v in current_positions.items()
+            },
+            "capital_usd": capital_usd,
+        }
+    )
+    blocks = blocks[-MAX_POLICY_BLOCKS:]  # ring-buffer
+    _atomic_write_json(ddir / RISK_BLOCKS_FILENAME, blocks)
+
+
+def _policy_version() -> str:
+    """Active RiskConfig version for audit records (best-effort)."""
+    try:
+        from spa_core.risk.policy import RiskConfig
+
+        return RiskConfig().version
+    except Exception:
+        return "unknown"
+
+
 # ─── Default orchestrator / allocator wiring (overridable for tests) ─────────
 
 
@@ -498,13 +684,47 @@ def run_cycle(
     model_used = getattr(alloc, "model_used", None)
     strategy_loop_active = bool(getattr(alloc, "strategy_loop_active", False))
 
+    # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
+    gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters)
+    policy_checked = gate["error"] is None
+    policy_blocked = False
+    if gate["error"] is not None:
+        notes.append(
+            f"risk_policy_gate_error: {gate['error']} — gate skipped "
+            "(fail-open, WARNING logged)."
+        )
+    else:
+        if gate["trimmed"]:
+            target_usd = dict(gate["target_usd"])
+            notes.append(
+                "risk_policy: target trimmed to respect the min-cash buffer "
+                f"(deployed capped at ${sum(target_usd.values()):,.0f})."
+            )
+        if not gate["approved"]:
+            policy_blocked = True
+            log.warning(
+                "Allocation blocked by RiskPolicy: %s", "; ".join(gate["violations"])
+            )
+            notes.append(
+                "blocked_by_policy: " + "; ".join(gate["violations"])
+            )
+            if write:
+                _record_policy_block(
+                    ddir,
+                    run_ts=run_ts,
+                    date=today,
+                    gate=gate,
+                    current_positions=current_positions,
+                    capital_usd=capital_usd,
+                )
+
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
     if not isinstance(trades, list):
         trades = []
     diff_usd = _allocation_diff_usd(current_positions, target_usd)
     threshold_usd = trade_threshold_pct * capital_usd
-    traded = diff_usd > threshold_usd
+    traded = (not policy_blocked) and diff_usd > threshold_usd
     trade_id: str | None = None
 
     if traded:
@@ -530,6 +750,10 @@ def run_cycle(
             f"rebalance {trade_id}: |Δ|=${diff_usd:,.0f} > "
             f"${threshold_usd:,.0f} threshold."
         )
+    elif policy_blocked:
+        # Blocked rebalance: hold the previous positions; a first-ever cycle
+        # that is blocked deploys nothing (the gate prevented the entry).
+        effective_positions = dict(current_positions)
     else:
         effective_positions = dict(current_positions) if current_positions else dict(target_usd)
         notes.append(
@@ -559,7 +783,7 @@ def run_cycle(
     result = CycleResult(
         run_ts=run_ts,
         date=today,
-        status="ok",
+        status="blocked_by_policy" if policy_blocked else "ok",
         traded=traded,
         trade_id=trade_id,
         live_data=True,
@@ -574,6 +798,11 @@ def run_cycle(
         strategy_loop_active=strategy_loop_active,
         positions=effective_positions,
         notes=notes,
+        policy_checked=policy_checked,
+        policy_approved=not policy_blocked,
+        policy_trimmed=bool(gate["trimmed"]) if policy_checked else False,
+        policy_violations=list(gate.get("violations") or []),
+        policy_warnings=list(gate.get("warnings") or []),
     )
 
     # ── Step 6: persist everything atomically ─────────────────────────────
@@ -626,6 +855,12 @@ def _write_status(
         "strategy_loop_active": result.strategy_loop_active,
         "last_trade_id": result.trade_id,
         "notes": result.notes,
+        # MP-005: deterministic RiskPolicy gate verdict for this cycle.
+        "risk_policy_checked": result.policy_checked,
+        "risk_policy_approved": result.policy_approved,
+        "risk_policy_trimmed": result.policy_trimmed,
+        "risk_policy_violations": result.policy_violations,
+        "risk_policy_warnings": result.policy_warnings,
     }
     _atomic_write_json(ddir / STATUS_FILENAME, doc)
 
@@ -641,6 +876,11 @@ def _print_report(result: CycleResult) -> None:
     print(f"  live adapters     : {r.num_adapters_live}")
     print(f"  model             : {r.model_used}  (strategy_loop={r.strategy_loop_active})")
     print(f"  traded            : {r.traded}  (trade_id={r.trade_id})")
+    policy = "skipped" if not r.policy_checked else (
+        "approved" if r.policy_approved else "BLOCKED"
+    )
+    print(f"  risk policy gate  : {policy}"
+          + (f"  ({len(r.policy_violations)} violations)" if r.policy_violations else ""))
     print(f"  daily yield       : ${r.daily_yield_usd:,.4f}")
     print(f"  apy today         : {r.apy_today_pct:.4f}%")
     print(f"  equity            : ${r.current_equity:,.2f}")
