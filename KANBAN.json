@@ -1,6 +1,6 @@
 {
   "last_updated": "2026-06-10",
-  "updated_by": "SPA-V408 (claude)",
+  "updated_by": "architect_full_decomposition_roadmap_v2",
   "_v374_pushed_to_repo": false,
   "_v374_push_held_reason": "Push DELIBERATELY held (same standing reason as v368->v373). The only sanctioned push method (push_v*.html -> http://localhost:8765 -> Chrome navigate) requires embedding the live, KNOWN-LEAKED GitHub PAT (ghp_REDACTED) in plaintext into a new HTML file. That credential already sits in plaintext in the scheduled-task body and in 63 existing push_v*.html files on disk, un-rotated across cycles v368->v374. Re-exposing a known-leaked secret autonomously is not done. SPA-V374 landed LOCALLY ONLY. ACTION REQUIRED: revoke the PAT in GitHub, reissue into a secret store, then push.",
   "_v374_dispatch_note": "v3.74 (SPA-V374) — LOCAL ONLY, NOT PUSHED. REAL bug fix (not cosmetic accretion): restored the missing #apy-gap-widget DOM container in index.html. The SPA-V372 dispatch note claimed it 'added #apy-gap-widget container' but the element was in fact never present; renderApyGapWidget() (defined + called in loadGoLive) therefore did getElementById('apy-gap-widget') -> null -> silent no-op for two full cycles (v3.72, v3.73). v3.73 explicitly flagged this latent bug as out-of-scope. Fix: one element <div id=\"apy-gap-widget\" style=\"display:none\"> inserted between #combined-trend-wrap and #apy-gap-trend-wrap; the function manages its own show/hide. No JS changes — renderApyGapWidget was already correct, it just had no mount point. NOT money-moving (eth_signer/mev_protection/adapters untouched); NOT a feed-health monitor (SPA-BL-011 freeze respected); pure presentation-layer mount-point fix. Tests: node --check all inline index.html JS -> JS_SYNTAX_OK; braces 1702/1702, parens 2825/2825, brackets 324/324 balanced; container present exactly once; DOM-stub smoke 4/4 (valid data -> display:block + 'APY GAP TO TARGET' header + correct remaining-gap %; null -> hidden; garbage -> never throws + hidden; on_track:true -> 'ON TRACK' chip + block). Backups .bak.v374 (index.html, KANBAN.json, SPA_sprint_log.md). v3.73 does not end in 0/5 -> no architect review. ORCHESTRATOR ESCALATION: this loop is degenerate. Every unblocked HIGH item has been done since ~v3.52; the go-live critical path (2026-07-15) is user-action-blocked (SPA-BL-012; secrets SPA-BL-007/008/009, BL-004/005/006); feed-health is frozen (SPA-BL-011); money-moving is out of autonomous scope. With those blocks in place the agent can only produce small local-only frontend fixes that cannot even be pushed. TOP PRIORITY USER ACTIONS: (1) ROTATE the leaked PAT (revoke ghp_... in GitHub, move to a secret store) — it is exposed in 63 on-disk push files + the task body; (2) clear the user-action blockers so real go-live work can resume; (3) reconsider the 'status pass forbidden' rule — without unblocking, mandated work is cosmetic-only.",
@@ -352,6 +352,160 @@
         ],
         "sprint": null,
         "added": "2026-06-09"
+      },
+      {
+        "id": "SPA-V408",
+        "type": "code",
+        "status": "ready",
+        "priority": "P1",
+        "title": "Замкнуть реальный paper-trading цикл — движок персистит настоящие сделки",
+        "sprint_target": "v4.06",
+        "blocks_golive": true,
+        "description": "КРИТИЧЕСКИЙ БЛОКЕР. data/trades.json = 0 записей; status.json/pnl_history.json/protocols.json/meta.json помечены is_demo:true. Движок paper_trading/engine.py auto_allocate() существует, но аллокатор пишет только advisory target_allocation.json — никто не превращает таргет в реальные сделки на расписании. Задача: замкнуть orchestrator(live)->allocator->engine->trades.json/pnl_history с РЕАЛЬНЫМИ данными, убрать is_demo-сиды, чтобы накапливался честный paper-trading трек. Без этого go-live-гейт оперирует фикцией.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V409",
+        "type": "code",
+        "status": "ready",
+        "priority": "P1",
+        "title": "Подключить Pendle PT read-only фид в реестр оркестратора",
+        "sprint_target": "v4.06",
+        "blocks_golive": true,
+        "description": "Pendle PT адаптер существует в spa_core/execution/adapters/pendle_pt_adapter.py, но НЕ подключён в read-only ADAPTER_REGISTRY оркестратора, поэтому аллокатор его не видит. Добавить read-only feed (граница доменов: read-only в spa_core/adapters, исполнение в execution) как T2-источник высокого APY. Прелюд к SPA-V391 (Pendle ramp). Закрывает структурный APY-gap (потолок сейчас 4.7% Maple vs цель 7.3%).",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V410",
+        "type": "code",
+        "status": "ready",
+        "priority": "P1",
+        "title": "Подключить Sky/sUSDS read-only фид в оркестратор (вес 0% до GSM ≥48h)",
+        "sprint_target": "v4.06",
+        "blocks_golive": true,
+        "description": "Sky/sUSDS адаптер есть в spa_core/execution/adapters/sky_susds_adapter.py, не подключён в read-only оркестратор. Подключить фид, чтобы APY был виден аллокатору; вес держать 0% до подтверждения GSM Pause Delay ≥48h on-chain (см. sky_monitor.py). Второй рычаг закрытия APY-gap.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V411",
+        "type": "code",
+        "status": "ready",
+        "priority": "P1",
+        "title": "Добавить Compound V3 в ADAPTER_REGISTRY",
+        "sprint_target": "v4.06",
+        "blocks_golive": true,
+        "description": "CompoundV3Adapter написан и импортирован в spa_core/adapters/__init__.py, но отсутствует в ADAPTER_REGISTRY (и в adapter_orchestrator.ADAPTER_REGISTRY). Добавить как второй T1-якорь — диверсификация T1 (сейчас только Aave) и больше headroom для remainder-fill аллокатора.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V412",
+        "type": "code",
+        "status": "ready",
+        "priority": "P1",
+        "title": "Усилить go-live критерии: real-Sharpe FAIL, min-trades, APY-gap, anti-demo",
+        "sprint_target": "v4.06",
+        "blocks_golive": true,
+        "description": "Текущий гейт слаб: длительность 30 дней (DEV_STRATEGY требовал 50/8 недель), Sharpe лишь 'посчитан' (отрицательный = WARN, не FAIL — сейчас Sharpe -5.38 проходит), нет критерия APY-gap, нет min числа реальных сделок, нет защиты от демо-данных. Добавить в spa_core/golive/criteria.py + readiness_checker.py: (1) real-Sharpe ≥ порога, отрицательный → FAIL; (2) min реальных сделок ≥ 15; (3) APY-gap к 7.3% ≤ порога; (4) anti-demo freshness — FAIL если источник is_demo или trades.json пуст.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V413",
+        "type": "infra",
+        "status": "ready",
+        "priority": "P1",
+        "title": "Локальный launchd-планировщик для оркестратора + export-пайплайна",
+        "sprint_target": "v4.06",
+        "blocks_golive": true,
+        "description": "Сейчас пайплайн запускается ТОЛЬКО через GitHub Actions (spa-run.yml каждые 4ч, spa_alerts.yml каждые 6ч). Локально launchd есть только для autopush (90 мин), cloudflared, httpserver — не для логики SPA. Зависимость от того, что репо запушен и Actions включены, хрупкая. Добавить com.spa.orchestrator.plist (run_cycle + export_data) на расписании, чтобы реальный трек копился ежедневно даже без CI.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V414",
+        "type": "bug",
+        "status": "ready",
+        "priority": "P2",
+        "title": "Чинить устаревший adapter_orchestrator_status.json (live=5 vs файл=4)",
+        "sprint_target": "v4.07",
+        "blocks_golive": true,
+        "description": "Live dry-run оркестратора отдаёт 5 адаптеров (Aave T1 + 4 T2), а data/adapter_orchestrator_status.json содержит только 4 (без Aave) — снимок устарел. Аллокатор читает этот файл, значит работает на устаревших данных. Привязать запись свежего снимка к scheduled run_cycle (связано с SPA-V413).",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V415",
+        "type": "code",
+        "status": "ready",
+        "priority": "P2",
+        "title": "Наполнять risk_metrics.json реальным выводом движка",
+        "sprint_target": "v4.07",
+        "blocks_golive": true,
+        "description": "data/risk_metrics.json пуст (sharpe/win_rate/max_dd = null), хотя go-live readiness_checker читает оттуда метрики (C002/C003/C004). Сейчас цифры в golive_readiness.json приходят из демо-кривой. После замыкания цикла (SPA-V408) наполнять risk_metrics.json реальными метриками из движка.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V416",
+        "type": "code",
+        "status": "ready",
+        "priority": "P2",
+        "title": "Kill-switch / circuit-breaker end-to-end drill на реальных данных",
+        "sprint_target": "v4.07",
+        "blocks_golive": false,
+        "description": "Drawdown-стопы в risk/policy.py есть (5% портфель / 3% позиция), но сквозного adapter-watchdog + проверенного drill нет. Консолидирует SPA-V392. Прогнать сценарий: симулировать просадку >5% и убедиться, что kill-switch закрывает позиции и пишет инцидент.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V417",
+        "type": "code",
+        "status": "ready",
+        "priority": "P2",
+        "title": "Candidate-tier автодискавери протоколов (DeFiLlama scan по quality-gates)",
+        "sprint_target": "v4.08",
+        "blocks_golive": false,
+        "description": "Whitelist статичен и зашит в код; нет механизма автопоиска новых протоколов. Добавить скан DeFiLlama по quality-gates (TVL ≥ $5M, APY 1–30%, возраст пула, аудит) → реестр кандидатов data/candidate_protocols.json для ручного промо Owner'ом в T1/T2.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V418",
+        "type": "code",
+        "status": "ready",
+        "priority": "P2",
+        "title": "Подключить shadow-стратегии S1/S2/S3 к scheduled-раннеру",
+        "sprint_target": "v4.08",
+        "blocks_golive": false,
+        "description": "Стратегии strategies/s1_conservative_lending.py, s2_lp_stable.py, s3_yield_loop.py зарегистрированы в strategy_registry, но .run() нигде не вызывается — orphaned. Подключить к раннеру на расписании для теневого сравнения vs боевой аллокатор (closes BL-SHADOW-CRON / BL-SHADOW-DASH).",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V419",
+        "type": "infra",
+        "status": "ready",
+        "priority": "P3",
+        "title": "SQLite-персистенция для сделок/equity ядра paper-trading",
+        "sprint_target": "v4.09",
+        "blocks_golive": false,
+        "description": "Ядро paper-trading хранит данные в разрозненных JSON; для multi-process safety и масштабирования перевести сделки/equity на SQLite (аналитика может остаться в JSON). Подготовка к боевому режиму, не блокирует paper go-live.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V420",
+        "type": "chore",
+        "status": "ready",
+        "priority": "P3",
+        "title": "Repo hygiene: вычистить *.bak.vXXX, push_*.html, _vXXX-ключи KANBAN",
+        "sprint_target": "v4.09",
+        "blocks_golive": false,
+        "description": "В корне 80+ файлов KANBAN.json.bak.vXXX / SPA_sprint_log.md.bak.vXXX / index.html.bak.vXXX, десятки push_vXXX.html, мусорные _vXXX_*.txt. KANBAN.json засорён десятками _vXXX_dispatch_note ключей. Архивировать DISPATCH_REPORT_*.md → docs/dispatch_archive/. Чистка для читаемости репо.",
+        "added": "2026-06-10"
+      },
+      {
+        "id": "SPA-V421",
+        "type": "docs",
+        "status": "ready",
+        "priority": "P3",
+        "title": "Синхронизировать CLAUDE.md + DEV_STRATEGY с реальностью",
+        "sprint_target": "v4.09",
+        "blocks_golive": false,
+        "description": "CLAUDE.md и DEV_STRATEGY_v1.0.md описывают 'День 2/56, sprint v1.6, 7 протоколов whitelist' — реальность: sprint v4.05, демо-данные, 5 живых адаптеров, 13 go-live критериев. Обновить статусные таблицы под фактическое состояние.",
+        "added": "2026-06-10"
       }
     ],
     "in_progress": [],
@@ -3325,5 +3479,6 @@
   "_v407_dispatch_note": "SPA-V407 (sprint v4.05) CODE SHIPPED LOCAL. Новый read-only paper_trading модуль return_predictability.py — информационно-энтропийная/нелинейная предсказуемость ряда дневных доходностей. Новый угол vs siblings: serial_dependence считает ЛИНЕЙНУЮ зависимость (ACF/variance-ratio/Hurst/runs/Ljung-Box), distribution_normality — форму распределения; ни один не меряет ЭНТРОПИЮ/сложность. Метрики: shannon_entropy (норм. в [0,1]), sign_entropy, permutation_entropy (Bandt-Pompe, embed_dim=3, норм. по log2(m!)), sample_entropy (SampEn m=2,r=0.2σ), approximate_entropy (ApEn), predictability_score=1-PE_norm, grade A-D, verdict insufficient_data/random_walk_like/weakly_structured/structured. Атомарная запись data/return_predictability.json, execution_mode=read_only_simulation. Degenerate-входы (0/1 ret, плоский ряд, мало окон) → стабильная схема, None, без падений. Отчёт на реальной истории (7 ret/8 дней): shannon_norm 0.870, sign_norm 0.985, permutation_norm 0.898, sampen=null (B/A=0 на малом n), apen -0.182, predictability_score 0.102 → grade D, verdict random_walk_like. Все ready backlog code-задачи (SPA-V384 execution E2E, SPA-V391 live allocation, SPA-V392 circuit-breaker/monitoring) в запрещённом для автономного LLM-агента домене (LLM_FORBIDDEN_AGENTS={risk,execution,monitoring}); по Шагу 2.3 взята новая чисто аддитивная read-only задача. Architect review (v4.05 оканч. на 5) — ЗАБЛОКИРОВАН СРЕДОЙ (ModuleNotFoundError: anthropic в Linux-песочнице), пропущен как средово-заблокированный, не как отказ.",
   "_v407_push_held_reason": "environment: push_to_github.py вернул «PAT не найден» (EXIT=2). Прогон из Linux-песочницы без доступа к macOS Keychain (GITHUB_PAT_SPA, аккаунт spa). push_*.html НЕ создавался, PAT никуда НЕ встраивался. Эскалация пользователю: запустить push с Mac.",
   "_v407_pushed_to_repo": false,
-  "_v408_dispatch_note": "Shadow->allocator feedback loop (StrategySelector) wired into StrategyAllocator; confidence-gated, caps+risk-D preserved. Shipped as V408 (V407 id taken by concurrent cycle). Pushed."
+  "_v408_dispatch_note": "Shadow->allocator feedback loop (StrategySelector) wired into StrategyAllocator; confidence-gated, caps+risk-D preserved. Shipped as V408 (V407 id taken by concurrent cycle). Pushed.",
+  "_roadmap_v2_dispatch_note": "2026-06-10 архитектурная декомпозиция: добавлены SPA-V408…V421 (P1 блокеры go-live: замыкание реального paper-trading цикла, подключение Pendle/Sky/Compound, усиление гейта, launchd-расписание). См. ROADMAP_v2.md."
 }
