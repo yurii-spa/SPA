@@ -1,0 +1,109 @@
+{
+  "date": "2026-06-10",
+  "generated_at": "2026-06-10T18:40:35.254234+00:00",
+  "source": "shadow_tracker",
+  "advisory_only": true,
+  "initial_capital": 100000.0,
+  "real_equity_usd": 100008.61,
+  "strategies": {
+    "S0": {
+      "name": "MaxYield",
+      "equity": 100013.54,
+      "daily_pnl": 13.5444,
+      "prev_equity": 100000.0,
+      "weighted_apy_pct": 4.9437,
+      "total_return_pct": 0.0135,
+      "weights": {
+        "morpho_blue": 1.0
+      },
+      "cash_pct": 0.0
+    },
+    "S1": {
+      "name": "MaxSharpe",
+      "equity": 100010.12,
+      "daily_pnl": 10.125,
+      "prev_equity": 100000.0,
+      "weighted_apy_pct": 3.6956,
+      "total_return_pct": 0.0101,
+      "weights": {
+        "aave_v3": 0.221666,
+        "compound_v3": 0.225094,
+        "euler_v2": 0.098051,
+        "maple": 0.167346,
+        "morpho_blue": 0.175095,
+        "yearn_v3": 0.112749
+      },
+      "cash_pct": 0.0
+    },
+    "S2": {
+      "name": "EqualWeight",
+      "equity": 100010.01,
+      "daily_pnl": 10.0125,
+      "prev_equity": 100000.0,
+      "weighted_apy_pct": 3.6546,
+      "total_return_pct": 0.01,
+      "weights": {
+        "aave_v3": 0.166667,
+        "compound_v3": 0.166667,
+        "euler_v2": 0.166667,
+        "maple": 0.166667,
+        "morpho_blue": 0.166667,
+        "yearn_v3": 0.166667
+      },
+      "cash_pct": 0.0
+    },
+    "S3": {
+      "name": "T1Only",
+      "equity": 100008.64,
+      "daily_pnl": 8.6397,
+      "prev_equity": 100000.0,
+      "weighted_apy_pct": 3.1535,
+      "total_return_pct": 0.0086,
+      "weights": {
+        "aave_v3": 0.5,
+        "compound_v3": 0.5
+      },
+      "cash_pct": 0.0
+    },
+    "S4": {
+      "name": "Conservative",
+      "equity": 100006.91,
+      "daily_pnl": 6.9118,
+      "prev_equity": 100000.0,
+      "weighted_apy_pct": 2.5228,
+      "total_return_pct": 0.0069,
+      "weights": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.4
+      },
+      "cash_pct": 20.0
+    },
+    "S5": {
+      "name": "CurrentSPA",
+      "equity": 100008.61,
+      "daily_pnl": 8.6082,
+      "prev_equity": 100000.0,
+      "weighted_apy_pct": 3.142,
+      "total_return_pct": 0.0086,
+      "weights": {
+        "aave_v3": 0.3314,
+        "compound_v3": 0.286047,
+        "euler_v2": 0.100542,
+        "maple": 0.116316,
+        "yearn_v3": 0.115613
+      },
+      "cash_pct": 5.01
+    }
+  },
+  "history": [
+    {
+      "date": "2026-06-10",
+      "S0": 100013.54,
+      "S1": 100010.12,
+      "S2": 100010.01,
+      "S3": 100008.64,
+      "S4": 100006.91,
+      "S5": 100008.61
+    }
+  ]
+}
