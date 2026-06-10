@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-06-10T01:19:58.587950+00:00",
+  "schema_version": 1,
+  "source": "adapter_orchestrator",
+  "execution_mode": "read_only_simulation",
+  "run_ts": "2026-06-10T01:19:58.587950+00:00",
+  "duration_sec": 0.8791,
+  "adapters": [
+    {
+      "protocol": "morpho_blue",
+      "adapter_class": "MorphoBlueAdapter",
+      "tier": "T2",
+      "apy_pct": 4.4501,
+      "tvl_usd": 402812.0,
+      "status": "ok",
+      "last_updated": "2026-06-10T01:19:58.587950+00:00",
+      "error": null,
+      "warning": null,
+      "live_data": true,
+      "health_score": 1.0
+    },
+    {
+      "protocol": "yearn_v3",
+      "adapter_class": "YearnV3Adapter",
+      "tier": "T2",
+      "apy_pct": 3.0926,
+      "tvl_usd": 26716894.0,
+      "status": "ok",
+      "last_updated": "2026-06-10T01:19:58.587950+00:00",
+      "error": null,
+      "warning": null,
+      "live_data": true,
+      "health_score": 1.0
+    },
+    {
+      "protocol": "euler_v2",
+      "adapter_class": "EulerV2Adapter",
+      "tier": "T2",
+      "apy_pct": 2.7986,
+      "tvl_usd": 15430553.0,
+      "status": "ok",
+      "last_updated": "2026-06-10T01:19:58.587950+00:00",
+      "error": null,
+      "warning": null,
+      "live_data": true,
+      "health_score": 1.0
+    },
+    {
+      "protocol": "maple",
+      "adapter_class": "MapleAdapter",
+      "tier": "T2",
+      "apy_pct": 4.7139,
+      "tvl_usd": 3091329756.0,
+      "status": "ok",
+      "last_updated": "2026-06-10T01:19:58.587950+00:00",
+      "error": null,
+      "warning": null,
+      "live_data": true,
+      "health_score": 1.0
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "ok": 4,
+    "partial": 0,
+    "error": 0,
+    "avg_health_score": 1.0,
+    "grade": "A",
+    "best_apy": {
+      "protocol": "maple",
+      "apy_pct": 4.7139
+    },
+    "total_tvl_usd": 3133880015.0,
+    "live_data": true,
+    "adapters_with_live_apy": 4,
+    "data_freshness": "live"
+  },
+  "overall_health": {
+    "score": 1.0,
+    "grade": "A",
+    "total": 4,
+    "ok_count": 4,
+    "partial_count": 0,
+    "stale_count": 0,
+    "error_count": 0
+  },
+  "status": "ok",
+  "data_freshness": "live"
+}
