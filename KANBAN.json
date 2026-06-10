@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10T09:03:44.309785+00:00",
-  "updated_by": "claude-sprint-mp005",
+  "last_updated": "2026-06-10T09:25:23.388195+00:00",
+  "updated_by": "claude_mp006",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -861,22 +861,6 @@
         ]
       },
       {
-        "id": "MP-006",
-        "title": "Go-live критерии: только реальные файлы + anti-demo гейт",
-        "description": "ex RB-009/V412. Критерии читают paper_trading_status/equity_curve_daily/trades (is_demo:false). is_demo:true в источнике → автоматический FAIL. Добавить: real-Sharpe (отриц.=FAIL), мин. 15 реальных сделок, APY-gap критерий.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 1,
-        "depends_on": [],
-        "estimate": "1d",
-        "tags": [
-          "golive",
-          "critical-path"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-007",
         "title": "Dashboard: только живые данные",
         "description": "ex RB-010. Убрать чтение status.json/protocols.json (демо 2026-05-22). Staleness-баннер при данных >24h. Day-счётчик от реального старта 2026-06-10.",
@@ -1274,6 +1258,46 @@
     "review": [],
     "done": [
       {
+        "id": "MP-006",
+        "title": "Go-live критерии: только реальные файлы + anti-demo гейт",
+        "description": "ex RB-009/V412. Критерии читают paper_trading_status/equity_curve_daily/trades (is_demo:false). is_demo:true в источнике → автоматический FAIL. Добавить: real-Sharpe (отриц.=FAIL), мин. 15 реальных сделок, APY-gap критерий.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "golive",
+          "critical-path"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-10",
+        "resolution": "GoLiveChecker (spa_core/paper_trading/golive_checker.py): 6 anti-demo критериев, golive_status.json (atomic), advisory-гейт в run_cycle (WARNING раз в день, цикл не блокирует), 17 тестов. Текущий вердикт 5/6 NOT READY: нет реальных сделок (MP-005 гейт)."
+      },
+      {
+        "id": "MP-209-prep",
+        "title": "Capacity analytics (capacity-adjusted APY + max deployable per pool) [SPA-V413]",
+        "description": "Read-only/advisory prep к MP-209 (per-cap enforcement остаётся за детерминированным risk-агентом). spa_core/paper_trading/capacity_analytics.py: per-pool max_position_usd = min(TVL*2%, daily_exit_volume*10%), capacity-adjusted APY (slippage-penalty линейно с utilization, до 30% на полной ёмкости), portfolio scalability ceiling = min(max_position_i/weight_i), grade A-D/verdict. Вход: adapter_orchestrator_status.json + target_allocation.json. Только stdlib, атомарная запись data/capacity_analytics.json. Отвечает на вопрос фонда про масштабируемость на $10M+.",
+        "priority": "P1",
+        "phase": "phase2",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "capacity",
+          "analytics",
+          "read-only"
+        ],
+        "sprint": "v4.13",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "completed_by": "dev-orchestrator (SPA-V413)"
+      },
+      {
         "id": "MP-008",
         "title": "Удалить демо data/*.json",
         "description": "ex RB-011. status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, bus_stats.json, decision_log.json (stale), optimization_recommendations.json, latest_report.json. ТОЛЬКО после перевода читателей (MP-006/007).",
@@ -1453,6 +1477,7 @@
       }
     ]
   },
-  "sprint_completed": "v4.12",
-  "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011)."
+  "sprint_completed": "v4.13",
+  "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
+  "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA)."
 }
