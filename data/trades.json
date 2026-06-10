@@ -1,30 +1,21 @@
 [
   {
-    "trade_id": "PT-20260609193524-7E8820",
-    "strategy_id": "paper-v1",
-    "timestamp_open": "2026-06-09T19:35:24.838964+00:00",
-    "timestamp_close": null,
-    "protocol_key": "euler-v2-usdc-ethereum",
-    "asset": "USDC",
-    "action": "OPEN",
-    "amount_usd": 20000.0,
-    "apy_at_open": 2.79861,
-    "net_apy_annualized": 2.79861,
-    "pnl_usd": null,
-    "reason": null
-  },
-  {
-    "trade_id": "PT-20260609193524-22642B",
-    "strategy_id": "paper-v1",
-    "timestamp_open": "2026-06-09T19:35:24.819903+00:00",
-    "timestamp_close": null,
-    "protocol_key": "morpho-usdc-ethereum",
-    "asset": "USDC",
-    "action": "OPEN",
-    "amount_usd": 40000.0,
-    "apy_at_open": 3.53882,
-    "net_apy_annualized": 3.53882,
-    "pnl_usd": null,
-    "reason": null
+    "trade_id": "T001",
+    "ts": "2026-06-10T06:49:38.322181+00:00",
+    "type": "rebalance",
+    "from_allocation": {},
+    "to_allocation": {
+      "aave_v3": 21536.48,
+      "morpho_blue": 20000.0,
+      "yearn_v3": 18746.17,
+      "euler_v2": 19717.35,
+      "maple": 20000.0
+    },
+    "diff_usd": 100000.0,
+    "reason": "orchestrator_cycle",
+    "model_used": "risk_adjusted",
+    "strategy_loop_active": false,
+    "capital": 100000.0,
+    "is_demo": false
   }
 ]
