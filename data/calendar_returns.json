@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-06-09T16:11:44.014334+00:00",
+  "source": "/sessions/brave-great-wright/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "summary": {
+    "num_realised_days": 7,
+    "num_months": 1,
+    "num_weeks": 2,
+    "best_month": {
+      "month": "2026-05",
+      "return_pct": -1.1992
+    },
+    "worst_month": {
+      "month": "2026-05",
+      "return_pct": -1.1992
+    },
+    "positive_months": 0,
+    "negative_months": 1,
+    "longest_win_streak": 3,
+    "longest_loss_streak": 3,
+    "current_streak_kind": "loss",
+    "current_streak_len": 3,
+    "first_date": "2026-05-16",
+    "last_date": "2026-05-22"
+  },
+  "monthly": [
+    {
+      "month": "2026-05",
+      "return_pct": -1.1992,
+      "num_days": 7,
+      "positive_days": 3,
+      "negative_days": 4,
+      "best_day": {
+        "date": "2026-05-19",
+        "daily_return_pct": 0.358
+      },
+      "worst_day": {
+        "date": "2026-05-20",
+        "daily_return_pct": -1.0426
+      },
+      "first_date": "2026-05-16",
+      "last_date": "2026-05-22"
+    }
+  ],
+  "weekly": [
+    {
+      "week": "2026-W20",
+      "return_pct": -0.1002,
+      "num_days": 2,
+      "positive_days": 1,
+      "negative_days": 1,
+      "first_date": "2026-05-16",
+      "last_date": "2026-05-17"
+    },
+    {
+      "week": "2026-W21",
+      "return_pct": -1.1,
+      "num_days": 5,
+      "positive_days": 2,
+      "negative_days": 3,
+      "first_date": "2026-05-18",
+      "last_date": "2026-05-22"
+    }
+  ],
+  "day_of_week": [
+    {
+      "weekday": "Mon",
+      "num_days": 1,
+      "mean_return_pct": 0.138,
+      "total_return_pct": 0.138,
+      "win_rate_pct": 100.0
+    },
+    {
+      "weekday": "Tue",
+      "num_days": 1,
+      "mean_return_pct": 0.358,
+      "total_return_pct": 0.358,
+      "win_rate_pct": 100.0
+    },
+    {
+      "weekday": "Wed",
+      "num_days": 1,
+      "mean_return_pct": -1.0426,
+      "total_return_pct": -1.0426,
+      "win_rate_pct": 0.0
+    },
+    {
+      "weekday": "Thu",
+      "num_days": 1,
+      "mean_return_pct": -0.4672,
+      "total_return_pct": -0.4672,
+      "win_rate_pct": 0.0
+    },
+    {
+      "weekday": "Fri",
+      "num_days": 1,
+      "mean_return_pct": -0.085,
+      "total_return_pct": -0.085,
+      "win_rate_pct": 0.0
+    },
+    {
+      "weekday": "Sat",
+      "num_days": 1,
+      "mean_return_pct": -0.3557,
+      "total_return_pct": -0.3557,
+      "win_rate_pct": 0.0
+    },
+    {
+      "weekday": "Sun",
+      "num_days": 1,
+      "mean_return_pct": 0.2564,
+      "total_return_pct": 0.2564,
+      "win_rate_pct": 100.0
+    }
+  ],
+  "streaks": {
+    "runs": [
+      {
+        "kind": "loss",
+        "length": 1,
+        "start_date": "2026-05-16",
+        "end_date": "2026-05-16",
+        "return_pct": -0.3557
+      },
+      {
+        "kind": "win",
+        "length": 3,
+        "start_date": "2026-05-17",
+        "end_date": "2026-05-19",
+        "return_pct": 0.7542
+      },
+      {
+        "kind": "loss",
+        "length": 3,
+        "start_date": "2026-05-20",
+        "end_date": "2026-05-22",
+        "return_pct": -1.5886
+      }
+    ],
+    "current_streak": {
+      "kind": "loss",
+      "length": 3,
+      "start_date": "2026-05-20",
+      "end_date": "2026-05-22",
+      "return_pct": -1.5886
+    },
+    "longest_win_streak": {
+      "kind": "win",
+      "length": 3,
+      "start_date": "2026-05-17",
+      "end_date": "2026-05-19",
+      "return_pct": 0.7542
+    },
+    "longest_loss_streak": {
+      "kind": "loss",
+      "length": 3,
+      "start_date": "2026-05-20",
+      "end_date": "2026-05-22",
+      "return_pct": -1.5886
+    }
+  }
+}
