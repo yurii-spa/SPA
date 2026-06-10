@@ -824,6 +824,7 @@
   <button class="tab-btn active" onclick="showTab('kanban', this)">📋 Канбан</button>
   <button class="tab-btn"        onclick="showTab('backlog', this)">🗂 BACKLOG <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
   <button class="tab-btn"        onclick="showTab('dashboard', this)">📊 Paper Trading <span class="spa-tip" data-tip="Paper Trading">?</span></button>
+  <button class="tab-btn"        onclick="showTab('investor', this)">💼 INVESTOR</button>
   <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Аналітика <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"        onclick="showTab('team', this)">👾 Команда</button>
   <button class="tab-btn"        onclick="showTab('golive', this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
@@ -1165,6 +1166,20 @@
   <div class="db-footer">SPA Paper Trading v0.4 · данные реальные, капитал виртуальный · обновляется каждые 4ч · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
 
 </div><!-- /tab-dashboard -->
+
+
+<!-- ══════════════════ TAB: INVESTOR (MP-110) ══════════════════ -->
+<!-- Один честный экран: только данные из data/daily_report_{date}.json
+     (его пишет cycle_runner, MP-102). Ничего захардкоженного. -->
+<div id="tab-investor" class="tab-pane">
+  <div style="max-width:560px;margin:0 auto">
+    <div style="font-size:15px;font-weight:500;margin-bottom:2px">Investor Summary</div>
+    <div style="font-size:12px;color:#888;margin-bottom:18px" id="inv-subtitle">paper trading · virtual capital · live data only</div>
+    <div id="investor-summary">
+      <div style="padding:40px 0;text-align:center;color:#aaa;font-size:13px">Loading…</div>
+    </div>
+  </div>
+</div><!-- /tab-investor -->
 
 
 <!-- ══════════════════ TAB: КОМАНДА ══════════════════ -->
@@ -2362,6 +2377,7 @@ function showTab(id, btn) {
   document.getElementById('tab-' + id).classList.add('active');
   btn.classList.add('active');
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
+  if (id === 'investor') loadInvestorSummary();
   if (id === 'backlog') loadBacklog();
   if (id === 'analytics') loadAnalytics();
   if (id === 'golive') loadGoLive();
@@ -2369,32 +2385,226 @@ function showTab(id, btn) {
   if (id === 'system') onSystemTabActivated();
 }
 
+// ─── MP-110: Investor Summary — один честный экран ───────────────────────────
+// Источник: data/daily_report_{date}.json (пишет cycle_runner, MP-102).
+// Сегодняшний отчёт (UTC), фоллбэк — вчерашний; нет ни того ни другого →
+// честное "No report yet today". Никаких захардкоженных чисел.
+async function loadInvestorSummary() {
+  const box = document.getElementById('investor-summary');
+  if (!box) return;
+  box.innerHTML = '<div style="padding:40px 0;text-align:center;color:#aaa;font-size:13px">Loading…</div>';
+
+  const utcDate = d => d.toISOString().slice(0, 10);
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86400e3);
+  const ts = Date.now();
+
+  let report = null, stale = false;
+  for (const [date, isStale] of [[utcDate(today), false], [utcDate(yesterday), true]]) {
+    try {
+      const r = await fetch(BASE + '/daily_report_' + date + '.json?_=' + ts);
+      if (r.ok) { report = await r.json(); stale = isStale; break; }
+    } catch (e) { /* файла нет — пробуем следующий */ }
+  }
+
+  if (!report) {
+    box.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#888;font-size:14px">' +
+      'No report yet today<div style="font-size:12px;color:#bbb;margin-top:6px">' +
+      'daily_report появляется после дневного цикла (08:00)</div></div>';
+    return;
+  }
+
+  const eq  = report.equity_usd;
+  const tr  = report.total_return_pct;
+  const days = report.days_running;
+  const ready = report.golive_status === 'READY';
+  const pnlColor = v => v == null ? '#888' : (v >= 0 ? '#16a34a' : '#dc2626');
+  const cell = (label, value, sub, color) =>
+    '<div class="db-metric"><div class="db-metric-label">' + label + '</div>' +
+    '<div class="db-metric-value" style="color:' + (color || 'inherit') + '">' + value + '</div>' +
+    (sub ? '<div class="db-metric-sub">' + sub + '</div>' : '') + '</div>';
+
+  box.innerHTML =
+    '<div class="db-grid4" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">' +
+      cell('current equity', eq == null ? '—' : fmt(eq), 'virtual USD') +
+      cell('total return', tr == null ? '—' : (tr >= 0 ? '+' : '') + Number(tr).toFixed(4) + '%',
+           'since track start', pnlColor(tr)) +
+      cell('days trading', days == null ? '—' : days, 'real track') +
+      cell('go-live', report.golive_status || '—', ready ? 'all checks passed' : 'building track record',
+           ready ? '#16a34a' : '#b45309') +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#999;margin-top:14px;text-align:center">' +
+      'report date: ' + (report.date || '—') +
+      (stale ? ' (yesterday — today’s cycle not run yet)' : '') +
+      (report.top_protocol ? ' · top allocation: ' + report.top_protocol : '') +
+    '</div>';
+}
+
 // ─── Загрузка данных ──────────────────────────────────────────────────────────
+// ─── MP-007 (SPA-V414): дашборд питается ТОЛЬКО живыми данными ────────────────
+// Демо-файлы status.json / protocols.json / strategy_state.json (снапшот
+// 2026-05-22) больше НЕ читаются. Источники: adapter_orchestrator_status.json,
+// current_positions.json, paper_trading_status.json, equity_curve_daily.json.
+// REAL_TRACK_START ('2026-06-10') объявлен ниже, в блоке go-live bar — используем его.
+
+function realTrackDay(now) {
+  const start = new Date(REAL_TRACK_START + 'T00:00:00Z');
+  const d = Math.floor(((now || Date.now()) - start.getTime()) / 86400000) + 1; // день 1 = 2026-06-10
+  return Math.max(0, d);
+}
+
+// adapter_orchestrator_status.json → массив в форме легаси protocols.json
+function mapOrchToProtocols(orch) {
+  const ads = (orch && orch.adapters) ? orch.adapters : [];
+  return ads.map(a => ({
+    key: a.protocol,
+    protocol: (a.protocol || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    asset: 'USDC',
+    chain: 'ethereum',
+    tier: a.tier || 'T2',
+    apy_total: a.apy_pct,
+    apy_base: a.apy_pct,
+    apy_reward: 0,
+    tvl_usd: a.tvl_usd,
+    status: a.status,
+    health_score: a.health_score,
+    live_data: !!a.live_data,
+  }));
+}
+
+// Живые JSON → объект в форме легаси status.json (для renderDashboard)
+function buildLiveStatus(orch, posData, paperStatus, equityCurve) {
+  const adapters = (orch && orch.adapters) ? orch.adapters : [];
+  const byProto = {};
+  adapters.forEach(a => { byProto[a.protocol] = a; });
+
+  const posMap = (posData && posData.positions) || (paperStatus && paperStatus.current_positions) || {};
+  const positions = Object.entries(posMap).map(([proto, usd]) => {
+    const a = byProto[proto] || {};
+    return {
+      protocol_key: proto,
+      amount_usd: Number(usd) || 0,
+      current_apy: a.apy_pct != null ? Number(a.apy_pct) : 0,
+      tier: a.tier || 'T2',
+      chain: 'ethereum',
+      status: 'open',
+      // P&L ведётся на уровне портфеля (equity curve); per-position P&L не трекается
+      unrealized_pnl_usd: 0,
+    };
+  });
+
+  const baseCapital = (posData && posData.capital_usd != null) ? posData.capital_usd : 100000;
+  const equity = (paperStatus && paperStatus.current_equity != null) ? paperStatus.current_equity : baseCapital;
+  const deployed = (posData && posData.deployed_usd != null) ? posData.deployed_usd
+    : positions.reduce((s, p) => s + p.amount_usd, 0);
+  const cash = (posData && posData.cash_usd != null) ? posData.cash_usd : Math.max(0, equity - deployed);
+  const ddPct = (equityCurve && equityCurve.summary && equityCurve.summary.max_drawdown_pct != null)
+    ? Number(equityCurve.summary.max_drawdown_pct) / 100 : 0;
+
+  const cycleOk = !!(paperStatus && paperStatus.last_cycle_status === 'ok');
+  const days = realTrackDay();
+
+  return {
+    is_demo: false,
+    source: 'live (adapter_orchestrator + cycle_runner)',
+    portfolio: {
+      total_capital_usd: equity,
+      deployed_usd: deployed,
+      cash_usd: cash,
+      total_pnl_usd: equity - baseCapital,
+      total_pnl_pct: (paperStatus && paperStatus.total_return_pct != null) ? paperStatus.total_return_pct : 0,
+      total_drawdown_pct: ddPct,
+    },
+    positions,
+    risk: {
+      health_approved: cycleOk,
+      violations: cycleOk ? [] : ['last cycle: ' + ((paperStatus && paperStatus.last_cycle_status) || 'нет данных')],
+      var_usd: null,  // risk_metrics stale (MP-012) — честное «нет данных» вместо демо-цифры
+      var_pct: null,
+    },
+    paper_trading: {
+      weeks_elapsed: days / 7,
+      go_live_ready: false,
+      first_trade: REAL_TRACK_START,
+    },
+  };
+}
+
+// MP-007: staleness-баннер — если самый свежий ключевой источник старше 24ч
+function renderStalenessBanner(orch, paperStatus) {
+  let el = document.getElementById('staleness-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'staleness-banner';
+    el.style.cssText = 'display:none;position:sticky;top:0;z-index:9999;padding:10px 16px;text-align:center;font-size:13px;font-weight:600;background:#fef3c7;color:#92400e;border-bottom:2px solid #f59e0b';
+    document.body.insertBefore(el, document.body.firstChild);
+  }
+  const stamps = [
+    orch && orch.generated_at,
+    paperStatus && paperStatus.last_cycle_ts,
+  ].filter(Boolean).map(s => Date.parse(s)).filter(t => !isNaN(t));
+  if (stamps.length === 0) {
+    el.style.display = 'block';
+    el.style.background = '#fee2e2'; el.style.color = '#991b1b'; el.style.borderBottomColor = '#dc2626';
+    el.textContent = '⛔ Нет данных: ключевые источники (orchestrator/cycle_runner) недоступны';
+    return;
+  }
+  const newest = Math.max(...stamps);
+  const ageH = (Date.now() - newest) / 3600000;
+  if (ageH > 24) {
+    el.style.display = 'block';
+    const isOld = ageH > 72;
+    el.style.background = isOld ? '#fee2e2' : '#fef3c7';
+    el.style.color = isOld ? '#991b1b' : '#92400e';
+    el.style.borderBottomColor = isOld ? '#dc2626' : '#f59e0b';
+    el.textContent = '⚠ Данные устарели: последнее обновление ' +
+      new Date(newest).toISOString().replace('T', ' ').slice(0, 16) + ' UTC (' + ageH.toFixed(0) + 'ч назад)';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// MP-007: day-счётчик реального трека в заголовке
+function renderTrackDayCounter() {
+  const sub = document.getElementById('ts-subtitle');
+  if (!sub) return;
+  let span = document.getElementById('track-day-counter');
+  if (!span) {
+    span = document.createElement('span');
+    span.id = 'track-day-counter';
+    sub.parentElement.insertBefore(span, sub.nextSibling);
+  }
+  const d = realTrackDay();
+  span.textContent = d >= 1 ? ' · День ' + d + ' реального трека (с ' + REAL_TRACK_START + ')' : '';
+}
+
 async function loadDashboard() {
   const spinner = document.getElementById('load-spinner');
   if (spinner) spinner.style.display = 'inline-block';
   try {
     const ts = Date.now();
-    const [status, protocols, stratState, meta, alertsData, tradesData, portfolioStatus, paperStatus, equityCurve] = await Promise.all([
-      fetch(BASE + '/status.json?_=' + ts).then(r => r.json()),
-      fetch(BASE + '/protocols.json?_=' + ts).then(r => r.json()),
-      fetch(BASE + '/strategy_state.json?_=' + ts).then(r => r.json()),
-      fetch(BASE + '/meta.json?_=' + ts).then(r => r.json()),
-      fetch(BASE + '/alerts.json?_=' + ts).then(r => r.json()).catch(() => ({ count: 0, alerts: [] })),
-      fetch(BASE + '/trades.json?_=' + ts).then(r => r.json()).catch(() => []),
-      fetch(BASE + '/portfolio_status.json?_=' + ts).then(r => r.json()).catch(() => null),
-      // MP-007: реальный трек (cycle_runner) — приоритетный источник статуса
+    const [orch, posData, meta, alertsData, tradesData, paperStatus, equityCurve] = await Promise.all([
+      // MP-007: живые источники вместо демо status.json/protocols.json/strategy_state.json
+      fetch(BASE + '/adapter_orchestrator_status.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(BASE + '/current_positions.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(BASE + '/meta.json?_=' + ts).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+      fetch(BASE + '/risk_alerts.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null).then(d => d || { count: 0, alerts: [] }),
+      fetch(BASE + '/trades.json?_=' + ts).then(r => r.ok ? r.json() : []).catch(() => []),
       fetch(BASE + '/paper_trading_status.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(BASE + '/equity_curve_daily.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     _loadedOnce = true;
-    renderDashboard(status, protocols, stratState, meta);
+    const status = buildLiveStatus(orch, posData, paperStatus, equityCurve);
+    const protocols = mapOrchToProtocols(orch);
+    renderStalenessBanner(orch, paperStatus);     // MP-007: staleness >24h
+    renderTrackDayCounter();                      // MP-007: день трека с 2026-06-10
+    renderDashboard(status, protocols, null, meta);
     renderPaperStatusStrip(paperStatus);          // MP-007: live strip + LIVE/DEMO badge
     buildPortfolioChart(equityCurve);             // MP-007: реальная equity-кривая, без демо-точек
     renderAlerts(alertsData);
     renderTrades(tradesData);
     updateDataFreshnessBadge(meta);
-    renderApyGapTracker(status, portfolioStatus);
+    renderApyGapTracker(status, null);            // weighted APY считается из живых позиций
     renderApyTrends();
     loadStrategyRace();
   } catch(e) {
@@ -2582,7 +2792,10 @@ function renderDashboard(status, protocols, stratState, meta) {
 
   // Risk
   document.getElementById('r-health').innerHTML = risk.health_approved ? '<span class="green">✓ approved</span>' : '<span class="red">✗ violation</span>';
-  document.getElementById('r-var').textContent = fmt(risk.var_usd) + ' (' + fmtPct(risk.var_pct) + ')';
+  // MP-007: risk_metrics stale (MP-012) — честное «нет данных» вместо демо-VaR
+  document.getElementById('r-var').textContent = (risk.var_usd != null)
+    ? fmt(risk.var_usd) + ' (' + fmtPct(risk.var_pct) + ')'
+    : '— (нет данных)';
   document.getElementById('r-dd').innerHTML = fmtPct(p.total_drawdown_pct * 100) + ' <span class="gray">/ 5% stop</span>';
   document.getElementById('r-alerts').innerHTML = risk.violations.length > 0
     ? '<span class="red">' + risk.violations.length + ' нарушений</span>'
@@ -2957,11 +3170,12 @@ async function loadAnalytics() {
   try {
     const ts = Date.now();
     const [protocols, riskAlerts, backtestData, historicalApy, stratV2, stratComp, pnlHistory, chainData, tournamentData, advancedData] = await Promise.all([
-      fetch(BASE + '/protocols.json?_=' + ts).then(r => r.json()),
+      // MP-007: protocols из живого adapter_orchestrator_status.json (демо protocols.json убран)
+      fetch(BASE + '/adapter_orchestrator_status.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null).then(o => mapOrchToProtocols(o)),
       fetch(BASE + '/risk_alerts.json?_=' + ts).then(r => r.json()).catch(() => ({ count:0, alerts:[] })),
-      fetch(BASE + '/backtest_results.json?_=' + ts).then(r => r.json()).catch(() => null),
+      Promise.resolve(null), // MP-007: backtest_results.json — демо 2026-05-22, не читаем (виджет покажет «Нет данных»)
       fetch(BASE + '/historical_apy.json?_=' + ts).then(r => r.json()).catch(() => null),
-      fetch(BASE + '/strategy_v2.json?_=' + ts).then(r => r.json()).catch(() => null),
+      Promise.resolve(null), // MP-007: strategy_v2.json — демо 2026-05-22, не читаем
       fetch(BASE + '/strategy_comparison.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/pnl_history.json?_=' + ts).then(r => r.json()).catch(() => []),
       fetch(BASE + '/chains_status.json?_=' + ts).then(r => r.json()).catch(() => null),
@@ -4373,7 +4587,7 @@ async function loadGoLive() {
     const [readiness, scoreData, latestReport, scoreHistory, checklistHistory, combinedHistory, combinedVerdict, apyGap, apyGapHistory] = await Promise.all([
       fetch(BASE + '/golive_readiness.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_score.json?_=' + ts).then(r => r.json()).catch(() => null),
-      fetch(BASE + '/latest_report.json?_=' + ts).then(r => r.json()).catch(() => null),
+      Promise.resolve(null), // MP-007: latest_report.json — демо 2026-05-22, не читаем
       fetch(BASE + '/golive_readiness_score_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_readiness_history.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/golive_combined_verdict_history.json?_=' + ts).then(r => r.json()).catch(() => null),
@@ -5095,7 +5309,7 @@ let _frontierChart = null;
 async function loadOptimization() {
   try {
     const ts = Date.now();
-    const data = await fetch(BASE + '/optimization_recommendations.json?_=' + ts).then(r => r.json()).catch(() => null);
+    const data = null; // MP-007: optimization_recommendations.json — демо 2026-05-22, не читаем
     if (!data) return;
     renderOptimizationHeader(data);
     renderOptimizationTable(data);
@@ -5276,7 +5490,7 @@ let _decLogOpen = false;
 async function loadDecisionLog() {
   try {
     const ts = Date.now();
-    const data = await fetch(BASE + '/decision_log.json?_=' + ts).then(r => r.json()).catch(() => null);
+    const data = null; // MP-007: decision_log.json — stale демо, не читаем
     if (!data) return;
     _decisionLog = Array.isArray(data) ? data : (data.decisions || []);
     renderDecisionLog();
