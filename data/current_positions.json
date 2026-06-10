@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-06-10T06:49:38.322181+00:00",
+  "source": "cycle_runner",
+  "execution_mode": "read_only_simulation",
+  "is_demo": false,
+  "capital_usd": 100000.0,
+  "deployed_usd": 100000.0,
+  "cash_usd": 0.0,
+  "model_used": "risk_adjusted",
+  "positions": {
+    "aave_v3": 21536.48,
+    "morpho_blue": 20000.0,
+    "yearn_v3": 18746.17,
+    "euler_v2": 19717.35,
+    "maple": 20000.0
+  }
+}
