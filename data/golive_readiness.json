@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-06-10T09:07:09.063230+00:00",
+  "generated_at": "2026-06-10T21:20:29.625076+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
   "days_remaining": 34,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
-  "summary": "5/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 2 failing (Strategy Sharpe, Strategy Tournament); 3 warning (PnL Positive, APY Gap, Agent Stability)",
+  "summary": "5/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 3 failing (Strategy Sharpe, Strategy Tournament, Agent Stability); 2 warning (PnL Positive, APY Gap)",
   "criteria": [
     {
       "name": "Paper Duration",
@@ -98,10 +98,10 @@
     },
     {
       "name": "Agent Stability",
-      "status": "WARN",
-      "value": 21.38,
+      "status": "FAIL",
+      "value": 0.0,
       "threshold": 28,
-      "note": "21.4/28 days stable \u2014 6.6 days remaining"
+      "note": "0.0/28 days stable \u2014 need 28.0 more days (1 prior failure(s))"
     }
   ],
   "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (35 days away). Review again after 2026-07-15.",
@@ -112,7 +112,8 @@
     "Paper Duration",
     "Strategy Sharpe",
     "Wallet Ready",
-    "Strategy Tournament"
+    "Strategy Tournament",
+    "Agent Stability"
   ],
   "next_check_date": "2026-06-11"
 }
