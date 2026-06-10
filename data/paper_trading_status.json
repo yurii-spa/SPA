@@ -1,0 +1,29 @@
+{
+  "is_demo": false,
+  "source": "cycle_runner",
+  "execution_mode": "read_only_simulation",
+  "paper_start_date": "2026-05-20",
+  "last_cycle_ts": "2026-06-10T06:49:38.322181+00:00",
+  "last_cycle_status": "ok",
+  "days_running": 22,
+  "current_equity": 100010.09,
+  "total_return_pct": 0.0101,
+  "daily_return_pct": 0.0,
+  "apy_today_pct": 3.6825,
+  "daily_yield_usd": 10.089,
+  "num_adapters_live": 5,
+  "current_positions": {
+    "aave_v3": 21536.48,
+    "morpho_blue": 20000.0,
+    "yearn_v3": 18746.17,
+    "euler_v2": 19717.35,
+    "maple": 20000.0
+  },
+  "last_allocation_model": "risk_adjusted",
+  "strategy_loop_active": false,
+  "last_trade_id": "T001",
+  "notes": [
+    "archived legacy demo equity_curve_daily.json → equity_curve_daily.demo_backup.json; started a fresh real curve.",
+    "rebalance T001: |Δ|=$100,000 > $1,000 threshold."
+  ]
+}
