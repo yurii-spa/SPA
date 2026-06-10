@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-06-10T01:14:15.584154+00:00",
+  "source": "/sessions/friendly-keen-pascal/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "segmentation": {
+    "execution_mode": "read_only_simulation",
+    "threshold_pct": 1.0,
+    "num_days": 8,
+    "first_date": "2026-05-15",
+    "last_date": "2026-05-22",
+    "num_segments": 1,
+    "segments": [
+      {
+        "direction": "decline",
+        "start_date": "2026-05-15",
+        "end_date": "2026-05-22",
+        "start_equity": 100015.09,
+        "end_equity": 98815.79,
+        "return_pct": -1.199119,
+        "length_days": 7,
+        "magnitude_pct": 1.199119
+      }
+    ],
+    "advance": {
+      "count": 0,
+      "total_return_pct": 0.0,
+      "mean_return_pct": null,
+      "max_return_pct": null,
+      "mean_length_days": null,
+      "max_length_days": null,
+      "longest": null
+    },
+    "decline": {
+      "count": 1,
+      "total_return_pct": -1.199119,
+      "mean_return_pct": -1.199119,
+      "max_return_pct": -1.199119,
+      "mean_length_days": 7.0,
+      "max_length_days": 7,
+      "longest": {
+        "start_date": "2026-05-15",
+        "end_date": "2026-05-22",
+        "length_days": 7,
+        "magnitude_pct": 1.199119
+      }
+    },
+    "flat": {
+      "count": 0,
+      "total_return_pct": 0.0,
+      "mean_return_pct": null,
+      "max_return_pct": null,
+      "mean_length_days": null,
+      "max_length_days": null,
+      "longest": null
+    },
+    "current_regime": {
+      "direction": "decline",
+      "start_date": "2026-05-15",
+      "end_date": "2026-05-22",
+      "length_days": 7,
+      "return_pct": -1.199119,
+      "magnitude_pct": 1.199119
+    },
+    "largest_advance": null,
+    "largest_decline": {
+      "start_date": "2026-05-15",
+      "end_date": "2026-05-22",
+      "return_pct": -1.199119,
+      "magnitude_pct": 1.199119,
+      "length_days": 7
+    },
+    "trend_summary": "downtrending"
+  }
+}
