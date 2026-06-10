@@ -1,0 +1,56 @@
+{
+  "target_weights": {
+    "morpho_blue": 0.2,
+    "yearn_v3": 0.2,
+    "euler_v2": 0.2,
+    "maple": 0.2
+  },
+  "target_usd": {
+    "morpho_blue": 20000.0,
+    "yearn_v3": 20000.0,
+    "euler_v2": 20000.0,
+    "maple": 20000.0
+  },
+  "expected_apy_pct": 3.011,
+  "model_used": "risk_adjusted",
+  "timestamp": "2026-06-10T06:06:22.577809+00:00",
+  "capital_usd": 100000.0,
+  "allocated_pct": 0.8,
+  "unallocated_pct": 0.2,
+  "unallocated_usd": 20000.0,
+  "cash_pct": 0.2,
+  "t1_pct": 0,
+  "t2_pct": 0.8,
+  "total_deployed_pct": 0.8,
+  "risk_model_applied": true,
+  "risk_breakdown": {
+    "morpho_blue": {
+      "risk_grade": "A",
+      "risk_multiplier": 1.0,
+      "pre_risk_weight": 0.295586,
+      "post_risk_weight": 0.320515
+    },
+    "yearn_v3": {
+      "risk_grade": "B",
+      "risk_multiplier": 0.85,
+      "pre_risk_weight": 0.205417,
+      "post_risk_weight": 0.189331
+    },
+    "euler_v2": {
+      "risk_grade": "A",
+      "risk_multiplier": 1.0,
+      "pre_risk_weight": 0.185889,
+      "post_risk_weight": 0.201567
+    },
+    "maple": {
+      "risk_grade": "B",
+      "risk_multiplier": 0.85,
+      "pre_risk_weight": 0.313108,
+      "post_risk_weight": 0.288588
+    }
+  },
+  "notes": [
+    "Веса ограничены cap'ами по тирам (T1≤40%, T2≤20%).",
+    "Нераспределённый кэш-буфер: 20.00% (остаток после применения cap'ов и заполнения T1-якорем)."
+  ]
+}
