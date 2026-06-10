@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10",
-  "updated_by": "claude-code (MP-102 daily report + MP-110 investor view)",
+  "last_updated": "2026-06-10T18:41:57.799670+00:00",
+  "updated_by": "claude-mp106-mp107",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -994,36 +994,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "MP-106",
-        "title": "Shadow S0-S5 на реальном треке",
-        "description": "ex RB-106. Раннер ежедневно на реальных данных (сейчас 30-step синтетика). StrategySelector активируется на 15-й день при confidence=medium.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 1,
-        "depends_on": [],
-        "estimate": "1d",
-        "tags": [
-          "strategies"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-107",
-        "title": "red_flag/incidents/governance в расписание",
-        "description": "ex RB-107. red_flags.json/incidents.json stale 13-14 дней. red_flag_monitor, incidents_fetcher, governance_watcher в daily_cycle или отдельный launchd. Внешние события (депег, дефолт) должны ловиться автоматически.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 1,
-        "depends_on": [],
-        "estimate": "1d",
-        "tags": [
-          "monitoring"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-108",
         "title": "Kill-switch drill на реальных данных",
         "description": "ex RB-108/V392/V416. E2E: 5% drawdown → закрыть всё; 3% позиция → закрыть позицию. Замер времени реакции (цель sub-1-min до решения). Документированный отчёт в docs/. Обязательный пункт риск-DD.",
@@ -1525,6 +1495,42 @@
         "added": "2026-06-10",
         "status": "done",
         "completed": "2026-06-10"
+      },
+      {
+        "id": "MP-106",
+        "title": "Shadow S0-S5 на реальном треке",
+        "description": "ex RB-106. Раннер ежедневно на реальных данных (сейчас 30-step синтетика). StrategySelector активируется на 15-й день при confidence=medium.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "strategies"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "result": "Done 2026-06-10: создан spa_core/shadow/ (shadow_registry/shadow_allocator/shadow_tracker) — панель S0-S5 (MaxYield/MaxSharpe/EqualWeight/T1Only/Conservative/CurrentSPA) ведёт виртуальные портфели $100k на живом снимке адаптеров; run_shadow_cycle() встроен в cycle_runner после analytics (fail-safe, advisory-only), пишет data/shadow_portfolio.json атомарно (история 365 дней, идемпотентно по дню). S5 зеркалит реальный аллокатор с сохранением структурного кэша. 15 тестов в test_shadow.py."
+      },
+      {
+        "id": "MP-107",
+        "title": "red_flag/incidents/governance в расписание",
+        "description": "ex RB-107. red_flags.json/incidents.json stale 13-14 дней. red_flag_monitor, incidents_fetcher, governance_watcher в daily_cycle или отдельный launchd. Внешние события (депег, дефолт) должны ловиться автоматически.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [],
+        "estimate": "1d",
+        "tags": [
+          "monitoring"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "result": "Done 2026-06-10: red_flag_monitor + governance_watcher + incidents_fetcher подключены в ежедневный цикл — _run_daily_monitors() в cycle_runner main() (launchd com.spa.daily_cycle 08:00), каждый монитор fail-safe; снапшоты red_flags.json/governance_proposals.json/incidents.json пишутся атомарно (legacy-модули вызываются в dry-run, запись через tmp+os.replace). Флаг --no-monitors для ручных прогонов. 5 тестов в test_governance.py."
       }
     ]
   },
