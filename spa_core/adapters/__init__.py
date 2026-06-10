@@ -9,9 +9,12 @@ from .compound_v3 import CompoundV3Adapter
 from .aave_v3 import AaveV3Adapter
 
 # Read-only adapter registry: (protocol_key, tier, adapter_class). The
-# orchestrator polls these; SPA-V405 adds the Aave V3 T1 anchor.
+# orchestrator polls these; SPA-V405 adds the Aave V3 T1 anchor; SPA-V411 adds
+# Compound V3 (Comet USDC) as the second T1 anchor for T1 diversification and
+# extra remainder-fill headroom for the allocator.
 ADAPTER_REGISTRY = [
     ("aave_v3", "T1", AaveV3Adapter),
+    ("compound_v3", "T1", CompoundV3Adapter),
     ("morpho_blue", "T2", MorphoBlueAdapter),
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
