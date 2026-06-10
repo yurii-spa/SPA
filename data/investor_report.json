@@ -1,0 +1,199 @@
+{
+  "generated_at": "2026-06-09T18:15:37.622083+00:00",
+  "report_date": "2026-06-09",
+  "source": "spa.reports.investor_report",
+  "attribution": {
+    "protocols": [
+      {
+        "protocol": "morpho_blue",
+        "actual_usd": 20000.0,
+        "target_usd": 20000.0,
+        "actual_weight": 0.2,
+        "target_weight": 0.2,
+        "capital_share": 0.25,
+        "protocol_apy": null,
+        "apy_contribution": null
+      },
+      {
+        "protocol": "yearn_v3",
+        "actual_usd": 20000.0,
+        "target_usd": 20000.0,
+        "actual_weight": 0.2,
+        "target_weight": 0.2,
+        "capital_share": 0.25,
+        "protocol_apy": null,
+        "apy_contribution": null
+      },
+      {
+        "protocol": "euler_v2",
+        "actual_usd": 20000.0,
+        "target_usd": 20000.0,
+        "actual_weight": 0.2,
+        "target_weight": 0.2,
+        "capital_share": 0.25,
+        "protocol_apy": null,
+        "apy_contribution": null
+      },
+      {
+        "protocol": "maple",
+        "actual_usd": 20000.0,
+        "target_usd": 20000.0,
+        "actual_weight": 0.2,
+        "target_weight": 0.2,
+        "capital_share": 0.25,
+        "protocol_apy": null,
+        "apy_contribution": null
+      }
+    ],
+    "roll_up": {
+      "total_capital_usd": 98815.79,
+      "total_pnl_usd": -1184.21,
+      "total_pnl_pct": -1.184208,
+      "current_apy": -84.4829,
+      "num_positions": 4,
+      "period": {
+        "first": "2026-05-15T05:07:27Z",
+        "last": "2026-05-22T01:07:27Z",
+        "days": 6
+      },
+      "total_actual_usd": 80000.0,
+      "total_target_usd": 80000.0,
+      "history_points": 42
+    }
+  },
+  "risk_grades": [
+    {
+      "slug": "aave-v3",
+      "protocol": "Aave V3",
+      "score": 0.9578,
+      "grade": "A"
+    },
+    {
+      "slug": "compound-v3",
+      "protocol": "Compound V3",
+      "score": 0.8441,
+      "grade": "B"
+    },
+    {
+      "slug": "morpho",
+      "protocol": "Morpho",
+      "score": 0.8974,
+      "grade": "A"
+    },
+    {
+      "slug": "yearn-v3",
+      "protocol": "Yearn V3",
+      "score": 0.8005,
+      "grade": "B"
+    },
+    {
+      "slug": "sky",
+      "protocol": "Sky (sUSDS)",
+      "score": 0.7973,
+      "grade": "B"
+    },
+    {
+      "slug": "maker",
+      "protocol": "MakerDAO",
+      "score": 0.8442,
+      "grade": "B"
+    },
+    {
+      "slug": "curve",
+      "protocol": "Curve Finance",
+      "score": 0.8519,
+      "grade": "A"
+    },
+    {
+      "slug": "uniswap-v3",
+      "protocol": "Uniswap V3",
+      "score": 0.8497,
+      "grade": "B"
+    },
+    {
+      "slug": "pendle",
+      "protocol": "Pendle",
+      "score": 0.8034,
+      "grade": "B"
+    },
+    {
+      "slug": "euler-v2",
+      "protocol": "Euler V2",
+      "score": 0.8564,
+      "grade": "A"
+    }
+  ],
+  "audit_trail": [
+    {
+      "id": 5,
+      "timestamp": "2026-05-21T18:24:07.626904+00:00",
+      "agent_name": "ReportAgent",
+      "decision_type": "REPORT",
+      "protocol_key": null,
+      "amount_usd": null,
+      "reasoning": "Export cycle complete: all JSON files written",
+      "data_snapshot": {
+        "files_written": [
+          "status.json",
+          "protocols.json",
+          "bus_stats.json",
+          "strategy_state.json",
+          "trades.json",
+          "pnl_history.json",
+          "meta.json",
+          "backtest_results.json",
+          "historical_apy.json",
+          "risk_alerts.json",
+          "alerts.json",
+          "strategy_v2.json",
+          "strategy_comparison.json",
+          "optimization_recommendations.json",
+          "golive_readiness.json"
+        ],
+        "timestamp": "2026-05-21T18:24:07.626895+00:00"
+      },
+      "policy_version": "v1.0",
+      "strategy_id": "paper-v1",
+      "risk_check_result": null,
+      "outcome": null
+    },
+    {
+      "id": 1,
+      "timestamp": "2026-05-21T18:04:03.936478+00:00",
+      "agent_name": "ReportAgent",
+      "decision_type": "REPORT",
+      "protocol_key": null,
+      "amount_usd": null,
+      "reasoning": "Export cycle complete: all JSON files written",
+      "data_snapshot": {
+        "files_written": [
+          "status.json",
+          "protocols.json",
+          "bus_stats.json",
+          "strategy_state.json",
+          "trades.json",
+          "pnl_history.json",
+          "meta.json",
+          "backtest_results.json",
+          "historical_apy.json",
+          "risk_alerts.json",
+          "alerts.json",
+          "strategy_v2.json",
+          "strategy_comparison.json",
+          "optimization_recommendations.json",
+          "golive_readiness.json"
+        ],
+        "timestamp": "2026-05-21T18:04:03.936472+00:00"
+      },
+      "policy_version": "v1.0",
+      "strategy_id": "paper-v1",
+      "risk_check_result": null,
+      "outcome": null
+    }
+  ],
+  "counts": {
+    "protocols": 4,
+    "risk_grades": 10,
+    "audit_records": 2
+  }
+}
