@@ -18,12 +18,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from spa_core.allocator import allocation_models as models
+from spa_core.strategies.strategy_selector import StrategySelector
 
 log = logging.getLogger("spa.allocator")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _STATUS_PATH = _REPO_ROOT / "data" / "adapter_orchestrator_status.json"
 _RISK_SCORES_PATH = _REPO_ROOT / "data" / "risk_scores.json"
+_SHADOW_COMPARISON_PATH = _REPO_ROOT / "data" / "strategy_shadow_comparison.json"
 _DEFAULT_OUT = _REPO_ROOT / "data" / "target_allocation.json"
 _EPS = 1e-12
 
@@ -73,6 +75,11 @@ class AllocationResult:
     risk_model_applied: bool = False
     # protocol → {risk_grade, risk_multiplier, pre_risk_weight, post_risk_weight}
     risk_breakdown: dict[str, dict] = field(default_factory=dict)
+    # SPA-V408: shadow→allocator feedback loop. Когда лучшая shadow-стратегия
+    # (по Sortino, confidence ≥ medium) использована как база весов.
+    strategy_loop_active: bool = False
+    selected_strategy_id: str | None = None
+    strategy_confidence: str | None = None
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -91,12 +98,40 @@ class StrategyAllocator:
         status_path: str | os.PathLike | None = None,
         risk_scores_path: str | os.PathLike | None = None,
         allocation_model: str | None = None,
+        strategy_loop_enabled: bool = True,
+        comparison_path: str | os.PathLike | None = None,
+        strategies_dir: str | os.PathLike | None = None,
     ):
         self.status_path = Path(status_path) if status_path else _STATUS_PATH
         self.risk_scores_path = (
             Path(risk_scores_path) if risk_scores_path else _RISK_SCORES_PATH
         )
         self.allocation_model = allocation_model or DEFAULT_MODEL
+        # SPA-V408: shadow→allocator feedback loop.
+        self.strategy_loop_enabled = strategy_loop_enabled
+        self.comparison_path = (
+            Path(comparison_path) if comparison_path else _SHADOW_COMPARISON_PATH
+        )
+        self.strategies_dir = Path(strategies_dir) if strategies_dir else None
+
+    # ── выбор лучшей shadow-стратегии (SPA-V408) ──────────────────────────
+    def _select_shadow_strategy(self) -> dict | None:
+        """Пытается выбрать лучшую shadow-стратегию через StrategySelector.
+
+        Строго read-only: читает только ``strategy_shadow_comparison.json`` и
+        ``data/strategies/{name}.json``. Любая ошибка → ``None`` (аллокатор тогда
+        деградирует на сконфигурированную модель). Возвращает dict выбора
+        (см. :meth:`StrategySelector.select_best`) или ``None``.
+        """
+        try:
+            kwargs = {"comparison_path": self.comparison_path}
+            if self.strategies_dir is not None:
+                kwargs["strategies_dir"] = self.strategies_dir
+            selector = StrategySelector(**kwargs)
+            return selector.select_best()
+        except Exception as e:  # никогда не валим аллокацию из-за селектора
+            log.warning("StrategySelector failed (%s) — fallback на модель", e)
+            return None
 
     # ── загрузка risk-оценок (SPA-V406) ───────────────────────────────────
     def _load_risk_scores(self) -> tuple[dict[str, str], bool]:
@@ -299,6 +334,9 @@ class StrategyAllocator:
                 total_deployed_pct=0.0,
                 risk_model_applied=False,
                 risk_breakdown={},
+                strategy_loop_active=False,
+                selected_strategy_id=None,
+                strategy_confidence=None,
                 notes=notes,
             )
 
@@ -309,31 +347,84 @@ class StrategyAllocator:
         risk_breakdown: dict[str, dict] = {}
         excluded: set[str] = set()
 
-        if is_risk_model:
-            risk_scores, loaded = self._load_risk_scores()
-            if not loaded:
-                # Защитный fallback: нет/битый risk_scores.json → equal_weight.
-                notes.append(
-                    "risk_scores.json отсутствует или повреждён — риск-модель НЕ "
-                    "применена, fallback на equal_weight."
-                )
-                raw_weights = models.equal_weight(adapters)
-            else:
-                bd = models.risk_adjusted_breakdown(adapters, risk_scores)
-                raw_weights = bd["weights"]
-                risk_breakdown = bd["per_protocol"]
-                excluded = set(bd["excluded"])
-                risk_model_applied = True
-                if bd["excluded"]:
-                    notes.append("excluded_by_risk: " + str(sorted(bd["excluded"])))
-                    log.info("excluded_by_risk: %s", sorted(bd["excluded"]))
-                if bd["fallback_equal_weight"]:
+        strategy_loop_active = False
+        selected_strategy_id: str | None = None
+        strategy_confidence: str | None = None
+        raw_weights: dict[str, float] | None = None
+
+        # ── SPA-V408: shadow→allocator feedback loop ──────────────────────
+        # Если включено — пробуем взять веса лучшей shadow-стратегии (по Sortino,
+        # confidence ≥ medium) как БАЗУ. Cap'ы по тирам и risk-grade исключения
+        # применяются ПОВЕРХ — стратегия не может обойти лимиты или вернуть
+        # капитал в grade-D протокол.
+        if self.strategy_loop_enabled:
+            best = self._select_shadow_strategy()
+            if best and best.get("confidence") in ("medium", "high"):
+                sw = best.get("allocation_weights") or {}
+                # Только веса по живым адаптерам — стратегия могла держать пул,
+                # которого нет в текущем снимке оркестратора.
+                sw = {
+                    p: float(w)
+                    for p, w in sw.items()
+                    if p in tier_map and (float(w) if w is not None else 0.0) > 0
+                }
+                if sw:
+                    raw_weights = sw
+                    strategy_loop_active = True
+                    selected_strategy_id = best.get("strategy_id")
+                    strategy_confidence = best.get("confidence")
                     notes.append(
-                        "WARNING: все протоколы исключены риск-моделью "
-                        "(grade D или нулевой APY) — fallback на equal_weight."
+                        f"SPA-V408: shadow-стратегия '{selected_strategy_id}' "
+                        f"использована как база весов (confidence="
+                        f"{strategy_confidence}, Sortino={best.get('sortino')}, "
+                        f"N={best.get('days_running')}д)."
                     )
-        else:
-            raw_weights = _MODEL_DISPATCH[model](adapters)
+                    log.info(
+                        "strategy_loop_active: %s (confidence=%s)",
+                        selected_strategy_id, strategy_confidence,
+                    )
+                    # Risk-grade исключения (grade D) применяем ПОВЕРХ весов
+                    # стратегии — это жёсткий safety-гейт, не зависящий от модели.
+                    risk_scores, loaded = self._load_risk_scores()
+                    if loaded:
+                        bd = models.risk_adjusted_breakdown(adapters, risk_scores)
+                        excluded = set(bd["excluded"])
+                        risk_breakdown = bd["per_protocol"]
+                        risk_model_applied = True
+                        if excluded:
+                            notes.append(
+                                "excluded_by_risk (поверх shadow-весов): "
+                                + str(sorted(excluded))
+                            )
+                            log.info("excluded_by_risk: %s", sorted(excluded))
+
+        # ── fallback: сконфигурированная модель (текущее поведение) ───────
+        if not strategy_loop_active:
+            if is_risk_model:
+                risk_scores, loaded = self._load_risk_scores()
+                if not loaded:
+                    # Защитный fallback: нет/битый risk_scores.json → equal_weight.
+                    notes.append(
+                        "risk_scores.json отсутствует или повреждён — риск-модель НЕ "
+                        "применена, fallback на equal_weight."
+                    )
+                    raw_weights = models.equal_weight(adapters)
+                else:
+                    bd = models.risk_adjusted_breakdown(adapters, risk_scores)
+                    raw_weights = bd["weights"]
+                    risk_breakdown = bd["per_protocol"]
+                    excluded = set(bd["excluded"])
+                    risk_model_applied = True
+                    if bd["excluded"]:
+                        notes.append("excluded_by_risk: " + str(sorted(bd["excluded"])))
+                        log.info("excluded_by_risk: %s", sorted(bd["excluded"]))
+                    if bd["fallback_equal_weight"]:
+                        notes.append(
+                            "WARNING: все протоколы исключены риск-моделью "
+                            "(grade D или нулевой APY) — fallback на equal_weight."
+                        )
+            else:
+                raw_weights = _MODEL_DISPATCH[model](adapters)
 
         # Исключённые риском (grade D) убираем из расчёта целиком: иначе
         # _apply_caps перераспределит на них excess, а _fill_remainder — остаток.
@@ -394,6 +485,9 @@ class StrategyAllocator:
             total_deployed_pct=round(allocated, 6),
             risk_model_applied=risk_model_applied,
             risk_breakdown=risk_breakdown,
+            strategy_loop_active=strategy_loop_active,
+            selected_strategy_id=selected_strategy_id,
+            strategy_confidence=strategy_confidence,
             notes=notes,
         )
 
