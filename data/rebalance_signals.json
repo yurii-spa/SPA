@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-06-09T18:03:41.240914+00:00",
+  "source": "rebalance_signal_generator",
+  "execution_mode": "read_only_simulation",
+  "portfolio_drift_score": 0.0,
+  "num_signals": 4,
+  "drifts": [
+    {
+      "protocol": "morpho_blue",
+      "actual_weight": 0.2,
+      "target_weight": 0.2,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "needs_rebalance": false
+    },
+    {
+      "protocol": "yearn_v3",
+      "actual_weight": 0.2,
+      "target_weight": 0.2,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "needs_rebalance": false
+    },
+    {
+      "protocol": "euler_v2",
+      "actual_weight": 0.2,
+      "target_weight": 0.2,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "needs_rebalance": false
+    },
+    {
+      "protocol": "maple",
+      "actual_weight": 0.2,
+      "target_weight": 0.2,
+      "drift_pct": 0.0,
+      "drift_usd": 0.0,
+      "needs_rebalance": false
+    }
+  ],
+  "signals": [
+    {
+      "protocol": "morpho_blue",
+      "action": "HOLD",
+      "usd_delta": 0.0,
+      "priority": "LOW",
+      "reason": "Дрейф +0.00% / $+0.00 ниже порога — держим."
+    },
+    {
+      "protocol": "yearn_v3",
+      "action": "HOLD",
+      "usd_delta": 0.0,
+      "priority": "LOW",
+      "reason": "Дрейф +0.00% / $+0.00 ниже порога — держим."
+    },
+    {
+      "protocol": "euler_v2",
+      "action": "HOLD",
+      "usd_delta": 0.0,
+      "priority": "LOW",
+      "reason": "Дрейф +0.00% / $+0.00 ниже порога — держим."
+    },
+    {
+      "protocol": "maple",
+      "action": "HOLD",
+      "usd_delta": 0.0,
+      "priority": "LOW",
+      "reason": "Дрейф +0.00% / $+0.00 ниже порога — держим."
+    }
+  ]
+}
