@@ -1,6 +1,6 @@
 {
   "last_updated": "2026-06-10",
-  "updated_by": "claude-code (MP-013 archive + MP-105 legacy cleanup)",
+  "updated_by": "claude-code (MP-102 daily report + MP-110 investor view)",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -976,23 +976,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "MP-102",
-        "title": "Automated daily report",
-        "description": "ex RB-103. Ежедневно после цикла: P&L, позиции, APY, риск-флаги → Telegram/email. На базе daily_report.py + investor_report.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 1,
-        "depends_on": [
-          "MP-016"
-        ],
-        "estimate": "1d",
-        "tags": [
-          "reporting"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-103",
         "title": "Investor PDF (daily, базовый)",
         "description": "pdf_generator в расписание: equity curve, метрики, exposure; хранение в data/reports/. Артефакт для ранних разговоров с инвесторами.",
@@ -1069,24 +1052,6 @@
         "tags": [
           "infra",
           "data"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-110",
-        "title": "Investor view: один честный экран",
-        "description": "ex RB-110. Equity curve, APY, дни трека, риск-метрики — только live-данные. Первое, что показываем внешнему человеку.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 1.5,
-        "depends_on": [
-          "MP-007"
-        ],
-        "estimate": "1.5d",
-        "tags": [
-          "dashboard",
-          "investor"
         ],
         "sprint": null,
         "added": "2026-06-10"
@@ -1521,6 +1486,45 @@
         "status": "done",
         "completed": "2026-06-10",
         "result": "Done 2026-06-10: создано ядро аналитики spa_core/analytics/ — 7 метрик (sharpe, drawdown, volatility, benchmark vs 5% APY, streaks, calmar, concentration/HHI) + analytics_runner (post-cycle хук в cycle_runner, fail-safe, атомарная запись data/analytics_summary.json). 36 новых тестов в test_analytics.py, 80/80 pass. Stdlib only, read-only."
+      },
+      {
+        "id": "MP-102",
+        "title": "Automated daily report",
+        "description": "ex RB-103. Ежедневно после цикла: P&L, позиции, APY, риск-флаги → Telegram/email. На базе daily_report.py + investor_report.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-016"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "reporting"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10"
+      },
+      {
+        "id": "MP-110",
+        "title": "Investor view: один честный экран",
+        "description": "ex RB-110. Equity curve, APY, дни трека, риск-метрики — только live-данные. Первое, что показываем внешнему человеку.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-007"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "dashboard",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10"
       }
     ]
   },
