@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-06-10T03:12:31.136687+00:00",
+  "source": "/sessions/vigilant-peaceful-newton/mnt/Documents/SPA_Claude/data/pnl_history.json",
+  "metrics": {
+    "num_points": 8,
+    "log_slope_per_day": -0.00161547,
+    "intercept_log": 11.51497458,
+    "r_squared": 0.475527,
+    "slope_std_err": 0.00069262,
+    "t_stat_slope": -2.332394,
+    "k_ratio": -0.824626,
+    "rmse_log": 0.00388733,
+    "max_abs_residual_log": 0.00851374,
+    "annualized_log_drift_pct": -44.5476,
+    "linearity_grade": "D",
+    "trend_direction": "down",
+    "annualization_days": 365,
+    "execution_mode": "read_only_simulation"
+  }
+}
