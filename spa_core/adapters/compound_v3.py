@@ -22,6 +22,8 @@ import urllib.error
 import urllib.request
 from typing import Optional
 
+from .base_adapter import YieldInfo
+
 logger = logging.getLogger(__name__)
 
 # DeFiLlama yields endpoint (same source the other adapters use).
@@ -37,6 +39,24 @@ class CompoundV3Adapter:
     pool_id = "compound_v3"
     name = "Compound V3 (Comet USDC)"
     tier = "T2"
+
+    # SPA-V411: tier surfaced to the read-only orchestrator / allocator via
+    # ``get_yield_info()``. Compound V3 USDC (Comet) is registered as the SECOND
+    # T1 anchor alongside Aave V3 — both are the lowest-risk, deepest-liquidity
+    # blue-chip lending markets, so a T1 (40% cap) classification gives the
+    # allocator more headroom to fill the structural remainder left by the
+    # 20%-capped T2 adapters instead of parking it in 0%-yield cash. The legacy
+    # advisory ``tier`` attribute and ``fetch()`` dict keep their original "T2"
+    # label for backward compatibility (this method is strictly additive).
+    ORCHESTRATOR_TIER = "T1"
+    # Risk score for the T1 anchor (mirrors AaveV3Adapter.RISK_SCORE = 0.20 —
+    # lowest-risk whitelisted protocol).
+    RISK_SCORE = 0.20
+
+    # SPA-V412: instant exit. Compound V3 (Comet) USDC is a liquid supply
+    # position — withdrawals settle same-block subject only to transient base
+    # utilization, so the declared exit latency is 0h (mirrors AaveV3Adapter).
+    EXIT_LATENCY_HOURS = 0.0
 
     # DeFiLlama selectors (case-insensitive match in ``_select_pool``).
     DEFILLAMA_PROJECT = "compound-v3"
@@ -144,5 +164,35 @@ class CompoundV3Adapter:
     def get_tvl(self) -> Optional[float]:
         """Return the live TVL in USD, or ``None`` on miss/error."""
         return self.fetch().get("tvl")
+
+    def get_yield_info(self) -> YieldInfo:
+        """Return a normalized :class:`YieldInfo` for the read-only orchestrator.
+
+        SPA-V411: orchestrator-compatible accessor so the adapter can be polled
+        from ``ADAPTER_REGISTRY`` like the BaseAdapter-derived adapters. A single
+        ``fetch()`` is performed (no double network round-trip).
+
+        Unlike ``get_apy()`` — which returns the raw DeFiLlama **percentage**
+        (e.g. ``5.12`` == 5.12%) — ``YieldInfo.apy`` is a **decimal** (``0.0512``)
+        to match the convention of the other adapters; the orchestrator multiplies
+        it back by 100. ``apy`` is ``None`` when the live feed is unavailable — a
+        mock value is never substituted (SPA-V398).
+        """
+        snap = self.fetch()
+        raw_apy = snap.get("apy")
+        apy_decimal = (
+            float(raw_apy) / 100.0 if isinstance(raw_apy, (int, float)) else None
+        )
+        raw_tvl = snap.get("tvl")
+        tvl_usd = float(raw_tvl) if isinstance(raw_tvl, (int, float)) else None
+        return YieldInfo(
+            protocol="compound_v3",
+            asset="USDC",
+            apy=apy_decimal,
+            tvl_usd=tvl_usd,
+            tier=self.ORCHESTRATOR_TIER,
+            risk_score=self.RISK_SCORE,
+            exit_latency_hours=self.EXIT_LATENCY_HOURS,
+        )
 
     # end of class
