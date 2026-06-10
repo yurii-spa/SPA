@@ -281,6 +281,9 @@ Repo:  github.com/yurii-spa/SPA   branch: main
 3. Never generate `push_*.html`-style artifacts with embedded credentials.
 4. If a secret ever lands in a file: revoke it immediately at github.com/settings/tokens,
    then clean the files and git history.
+5. Token expired / pushes return 401? → follow **docs/TOKEN_ROTATION_RUNBOOK.md**
+   (token inventory, expiry dates, 2-minute rotation procedure). Current main token
+   `spa-claude-fg` expires **2026-09-08**; GitHub emails a warning ~1 week before.
 
 | Script | Scope | Use |
 |---|---|---|
