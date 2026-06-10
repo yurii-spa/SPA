@@ -202,7 +202,7 @@ def run_export(fetch: bool = False) -> None:
 
     # pendle_positions.json — fixed-rate PT positions with accrual detail
     try:
-        from paper_trading.pendle_strategy import PendlePosition, build_pendle_position
+        from paper_trading.pendle_strategy import PendlePosition
         pendle_records = []
         for action in alloc_actions:
             if action.get("action") != "OPEN_PENDLE_PT":
@@ -1171,7 +1171,7 @@ def run_export(fetch: bool = False) -> None:
 
     # 17. agent_summaries.json — LLM-generated portfolio commentary
     try:
-        from agents.llm_agent import TRADER_AGENT, RISK_AGENT
+        from agents.llm_agent import TRADER_AGENT
         from agents.chat_handler import ChatHandler
         handler = ChatHandler(db_path=str(db_path), data_dir=str(OUTPUT_DIR))
         summaries = {
