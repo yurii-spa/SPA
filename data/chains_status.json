@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-06-10T21:19:39.482375+00:00",
+  "generated_at": "2026-06-11T13:04:03.914575+00:00",
   "chain_count": 3,
   "chains": {
     "ethereum": {
       "chain": "ethereum",
       "pool_count": 7,
-      "best_apy": 3.4857,
-      "avg_apy": 3.1411,
+      "best_apy": 3.4736,
+      "avg_apy": 3.1683,
       "best_pool": "morpho-usdc-ethereum"
     },
     "arbitrum": {
       "chain": "arbitrum",
       "pool_count": 3,
-      "best_apy": 2.0995,
-      "avg_apy": 2.0995,
+      "best_apy": 2.1549,
+      "avg_apy": 2.1549,
       "best_pool": "aave-v3-usdc-arbitrum"
     },
     "base": {
       "chain": "base",
       "pool_count": 2,
-      "best_apy": 3.1916,
-      "avg_apy": 3.1916,
+      "best_apy": 3.1849,
+      "avg_apy": 3.1849,
       "best_pool": "aave-v3-usdc-base"
     }
   }

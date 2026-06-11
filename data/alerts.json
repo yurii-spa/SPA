@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-10T21:20:29.349347+00:00",
+  "generated_at": "2026-06-11T13:04:51.035701+00:00",
   "count": 2,
   "alerts": [
     {
@@ -8,10 +8,10 @@
       "protocol_key": "compound-v3-usdc-arbitrum",
       "message": "TVL $3.8M below warning threshold $10M",
       "details": {
-        "tvl_usd": 3767997.0,
+        "tvl_usd": 3770307.0,
         "threshold_usd": 10000000
       },
-      "timestamp": "2026-06-10T21:20:29.349317+00:00"
+      "timestamp": "2026-06-11T13:04:51.035671+00:00"
     },
     {
       "severity": "WARNING",
@@ -20,12 +20,12 @@
       "message": "Missing data for 3 protocol(s): aave-v3-usdt-ethereum, maple-usdc-ethereum, yearn-v3-usdc-ethereum",
       "details": {
         "missing": [
-          "maple-usdc-ethereum",
           "aave-v3-usdt-ethereum",
+          "maple-usdc-ethereum",
           "yearn-v3-usdc-ethereum"
         ]
       },
-      "timestamp": "2026-06-10T21:20:29.349343+00:00"
+      "timestamp": "2026-06-11T13:04:51.035697+00:00"
     }
   ]
 }
