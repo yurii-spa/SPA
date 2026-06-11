@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-06-11T13:04:51.160325+00:00",
+  "generated_at": "2026-06-11T22:30:53.395885+00:00",
   "strategy_id": "paper-v2",
   "strategy_name": "v2 \u2014 Growth Aggressive",
   "portfolio": {
     "total_capital_usd": 100000.0,
-    "deployed_usd": 60000.0,
-    "cash_usd": 40000.0,
-    "cash_pct": 0.4,
+    "deployed_usd": 90000.0,
+    "cash_usd": 10000.0,
+    "cash_pct": 0.1,
     "total_pnl_usd": 0.0,
     "total_drawdown_pct": 0.0
   },
@@ -15,7 +15,16 @@
       "protocol_key": "morpho-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 30000.0,
-      "current_apy": 3.47363,
+      "current_apy": 3.58871,
+      "unrealized_pnl_usd": 0.0,
+      "unrealized_pnl_pct": 0.0,
+      "days_held": 0.0
+    },
+    {
+      "protocol_key": "aave-v3-usdc-base",
+      "tier": "T1",
+      "amount_usd": 30000.0,
+      "current_apy": 3.21851,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
@@ -24,7 +33,7 @@
       "protocol_key": "aave-v3-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 30000.0,
-      "current_apy": 3.20258,
+      "current_apy": 3.21564,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
@@ -32,30 +41,44 @@
   ],
   "trades": [
     {
-      "trade_id": "PT-20260611130451-20EE4F",
+      "trade_id": "PT-20260611223053-2A9006",
       "strategy_id": "paper-v2",
-      "timestamp_open": "2026-06-11T13:04:51.142709+00:00",
+      "timestamp_open": "2026-06-11T22:30:53.384391+00:00",
       "timestamp_close": null,
       "protocol_key": "aave-v3-usdc-ethereum",
       "asset": "USDC",
       "action": "OPEN",
       "amount_usd": 30000.0,
-      "apy_at_open": 3.20258,
-      "net_apy_annualized": 3.20258,
+      "apy_at_open": 3.21564,
+      "net_apy_annualized": 3.21564,
       "pnl_usd": null,
       "reason": null
     },
     {
-      "trade_id": "PT-20260611130451-3EEBB4",
+      "trade_id": "PT-20260611223053-62B220",
       "strategy_id": "paper-v2",
-      "timestamp_open": "2026-06-11T13:04:51.135378+00:00",
+      "timestamp_open": "2026-06-11T22:30:53.378198+00:00",
+      "timestamp_close": null,
+      "protocol_key": "aave-v3-usdc-base",
+      "asset": "USDC",
+      "action": "OPEN",
+      "amount_usd": 30000.0,
+      "apy_at_open": 3.21851,
+      "net_apy_annualized": 3.21851,
+      "pnl_usd": null,
+      "reason": null
+    },
+    {
+      "trade_id": "PT-20260611223053-86E2C7",
+      "strategy_id": "paper-v2",
+      "timestamp_open": "2026-06-11T22:30:53.372071+00:00",
       "timestamp_close": null,
       "protocol_key": "morpho-usdc-ethereum",
       "asset": "USDC",
       "action": "OPEN",
       "amount_usd": 30000.0,
-      "apy_at_open": 3.47363,
-      "net_apy_annualized": 3.47363,
+      "apy_at_open": 3.58871,
+      "net_apy_annualized": 3.58871,
       "pnl_usd": null,
       "reason": null
     }
@@ -64,7 +87,7 @@
     "health_approved": true,
     "violations": [],
     "warnings": [],
-    "var_usd": 273.37,
+    "var_usd": 410.05,
     "var_pct": 0.456,
     "var_breach": false
   },
@@ -73,6 +96,6 @@
     "weeks_elapsed": 0.0,
     "min_weeks_required": 8,
     "go_live_ready": false,
-    "first_trade": "2026-06-11T13:04:51.135378+00:00"
+    "first_trade": "2026-06-11T22:30:53.372071+00:00"
   }
 }

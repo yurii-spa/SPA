@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-11T13:04:03.911293+00:00",
+  "timestamp": "2026-06-11T22:30:01.728011+00:00",
   "portfolio": {
     "total_capital_usd": 100000.0,
     "deployed_usd": 60000.0,
@@ -13,7 +13,7 @@
       "protocol_key": "morpho-usdc-ethereum",
       "tier": "T1",
       "amount_usd": 40000.0,
-      "current_apy": 3.47363,
+      "current_apy": 3.58871,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
@@ -22,7 +22,7 @@
       "protocol_key": "euler-v2-usdc-ethereum",
       "tier": "T2",
       "amount_usd": 20000.0,
-      "current_apy": 2.8151,
+      "current_apy": 2.76921,
       "unrealized_pnl_usd": 0.0,
       "unrealized_pnl_pct": 0.0,
       "days_held": 0.0
@@ -41,7 +41,7 @@
     "weeks_elapsed": 0.0,
     "min_weeks_required": 8,
     "go_live_ready": false,
-    "first_trade": "2026-06-11T13:04:03.643265+00:00"
+    "first_trade": "2026-06-11T22:30:01.259842+00:00"
   },
   "strategy": {
     "id": 4,
@@ -50,10 +50,10 @@
     "total_capital_usd": 100000.0,
     "deployed_capital_usd": 60000.0,
     "cash_usd": 40000.0,
-    "total_pnl_usd": 5.349238356164384,
+    "total_pnl_usd": 5.450208219178082,
     "total_pnl_pct": 0.0,
     "current_apy": null,
-    "sharpe_to_date": -5.6357,
+    "sharpe_to_date": -4.4443,
     "max_drawdown_pct": 0.0,
     "trade_count": 2,
     "state_json": null

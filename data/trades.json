@@ -1,29 +1,29 @@
 [
   {
-    "trade_id": "PT-20260611130403-D4CAEE",
+    "trade_id": "PT-20260611223001-66609E",
     "strategy_id": "paper-v1",
-    "timestamp_open": "2026-06-11T13:04:03.662078+00:00",
+    "timestamp_open": "2026-06-11T22:30:01.278321+00:00",
     "timestamp_close": null,
     "protocol_key": "euler-v2-usdc-ethereum",
     "asset": "USDC",
     "action": "OPEN",
     "amount_usd": 20000.0,
-    "apy_at_open": 2.8151,
-    "net_apy_annualized": 2.8151,
+    "apy_at_open": 2.76921,
+    "net_apy_annualized": 2.76921,
     "pnl_usd": null,
     "reason": null
   },
   {
-    "trade_id": "PT-20260611130403-40B52D",
+    "trade_id": "PT-20260611223001-B0DC91",
     "strategy_id": "paper-v1",
-    "timestamp_open": "2026-06-11T13:04:03.643265+00:00",
+    "timestamp_open": "2026-06-11T22:30:01.259842+00:00",
     "timestamp_close": null,
     "protocol_key": "morpho-usdc-ethereum",
     "asset": "USDC",
     "action": "OPEN",
     "amount_usd": 40000.0,
-    "apy_at_open": 3.47363,
-    "net_apy_annualized": 3.47363,
+    "apy_at_open": 3.58871,
+    "net_apy_annualized": 3.58871,
     "pnl_usd": null,
     "reason": null
   }

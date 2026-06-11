@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-11T13:04:51.295233+00:00",
+  "generated_at": "2026-06-11T22:30:53.542116+00:00",
   "total_decisions": 15,
   "decisions": [
     {
       "id": 18,
-      "timestamp": "2026-06-11T13:04:51.291959+00:00",
+      "timestamp": "2026-06-11T22:30:53.539127+00:00",
       "agent_name": "ReportAgent",
       "decision_type": "REPORT",
       "protocol_key": null,
@@ -33,7 +33,7 @@
           "apy_gap_report.json",
           "apy_gap_report_history.json"
         ],
-        "timestamp": "2026-06-11T13:04:51.291943+00:00"
+        "timestamp": "2026-06-11T22:30:53.539117+00:00"
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -42,17 +42,17 @@
     },
     {
       "id": 17,
-      "timestamp": "2026-06-11T13:04:51.156245+00:00",
+      "timestamp": "2026-06-11T22:30:53.391831+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "aave-v3-usdc-arbitrum",
       "amount_usd": null,
-      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.15% outside v2 target range [3.0\u201320.0%]",
+      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.19% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 49100451.0,
+        "tvl_usd": 47958666.0,
         "tier": "T1",
         "chain": "arbitrum",
-        "apy": 2.1549
+        "apy": 2.1852
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
@@ -61,17 +61,17 @@
     },
     {
       "id": 16,
-      "timestamp": "2026-06-11T13:04:51.154526+00:00",
+      "timestamp": "2026-06-11T22:30:53.390145+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "euler-v2-usdc-ethereum",
       "amount_usd": null,
-      "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.82% outside v2 target range [3.0\u201320.0%]",
+      "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.77% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 15811238.0,
+        "tvl_usd": 15810928.0,
         "tier": "T2",
         "chain": "ethereum",
-        "apy": 2.8151
+        "apy": 2.7692
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
@@ -80,20 +80,20 @@
     },
     {
       "id": 15,
-      "timestamp": "2026-06-11T13:04:51.152627+00:00",
+      "timestamp": "2026-06-11T22:30:53.388645+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "compound-v3-usdc-ethereum",
       "amount_usd": null,
       "reasoning": "compound-v3-usdc-ethereum skipped: T1 concentration 0.0% would exceed 30% v2 limit, or cash/chain limit exhausted",
       "data_snapshot": {
-        "tvl_usd": 48262090.0,
+        "tvl_usd": 47247571.0,
         "tier": "T1",
         "chain": "ethereum",
         "max_by_conc": 30000.0,
-        "max_by_cash": 37000.0,
+        "max_by_cash": 7000.0,
         "max_by_chain": 0.0,
-        "apy": 3.1817
+        "apy": 3.1932
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
@@ -102,36 +102,32 @@
     },
     {
       "id": 14,
-      "timestamp": "2026-06-11T13:04:51.149818+00:00",
-      "agent_name": "TraderAgent",
-      "decision_type": "PASS",
-      "protocol_key": "aave-v3-usdc-base",
-      "amount_usd": null,
-      "reasoning": "aave-v3-usdc-base blocked by RiskPolicy [v2_aggressive]: Chain concentration on ethereum after trade 90.0% exceeds single-chain limit 70.0%",
-      "data_snapshot": {
-        "tvl_usd": 27730688.0,
-        "tier": "T1",
-        "chain": "base",
-        "violations": [
-          "Chain concentration on ethereum after trade 90.0% exceeds single-chain limit 70.0%"
-        ],
-        "apy": 3.1849
-      },
-      "policy_version": "v1.0",
-      "strategy_id": "paper-v2",
-      "risk_check_result": null,
-      "outcome": "SKIPPED"
-    },
-    {
-      "id": 13,
-      "timestamp": "2026-06-11T13:04:51.145193+00:00",
+      "timestamp": "2026-06-11T22:30:53.386389+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "ALLOCATE",
       "protocol_key": "aave-v3-usdc-ethereum",
       "amount_usd": 30000.0,
-      "reasoning": "aave-v3-usdc-ethereum selected [v2_aggressive]: APY 3.20% in range [3.0\u201320.0%], TVL $187.0M, T1 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED; warnings: Chain concentration on ethereum 60.0% approaching limit 70.0%",
+      "reasoning": "aave-v3-usdc-ethereum selected [v2_aggressive]: APY 3.22% in range [3.0\u201320.0%], TVL $183.7M, T1 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED; warnings: Chain concentration on ethereum 60.0% approaching limit 70.0%",
       "data_snapshot": {
-        "apy": 3.2026,
+        "apy": 3.2156,
+        "tier": "T1",
+        "amount_usd": 30000.0
+      },
+      "policy_version": "v1.0",
+      "strategy_id": "paper-v2",
+      "risk_check_result": "APPROVED",
+      "outcome": "EXECUTED"
+    },
+    {
+      "id": 13,
+      "timestamp": "2026-06-11T22:30:53.380461+00:00",
+      "agent_name": "TraderAgent",
+      "decision_type": "ALLOCATE",
+      "protocol_key": "aave-v3-usdc-base",
+      "amount_usd": 30000.0,
+      "reasoning": "aave-v3-usdc-base selected [v2_aggressive]: APY 3.22% in range [3.0\u201320.0%], TVL $26.9M, T1 tier, chain=base, concentration 0%, RiskPolicy APPROVED; warnings: Chain concentration on ethereum 60.0% approaching limit 70.0%",
+      "data_snapshot": {
+        "apy": 3.2185,
         "tier": "T1",
         "amount_usd": 30000.0
       },
@@ -142,14 +138,14 @@
     },
     {
       "id": 12,
-      "timestamp": "2026-06-11T13:04:51.138556+00:00",
+      "timestamp": "2026-06-11T22:30:53.374740+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "ALLOCATE",
       "protocol_key": "morpho-usdc-ethereum",
       "amount_usd": 30000.0,
-      "reasoning": "morpho-usdc-ethereum selected [v2_aggressive]: APY 3.47% in range [3.0\u201320.0%], TVL $96.9M, T1 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED",
+      "reasoning": "morpho-usdc-ethereum selected [v2_aggressive]: APY 3.59% in range [3.0\u201320.0%], TVL $97.1M, T1 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED",
       "data_snapshot": {
-        "apy": 3.4736,
+        "apy": 3.5887,
         "tier": "T1",
         "amount_usd": 30000.0
       },
@@ -160,20 +156,20 @@
     },
     {
       "id": 11,
-      "timestamp": "2026-06-11T13:04:03.668608+00:00",
+      "timestamp": "2026-06-11T22:30:01.284034+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "aave-v3-usdc-arbitrum",
       "amount_usd": null,
       "reasoning": "aave-v3-usdc-arbitrum blocked by RiskPolicy: Chain concentration on ethereum after trade 95.0% exceeds single-chain limit 70.0%",
       "data_snapshot": {
-        "tvl_usd": 49100451.0,
+        "tvl_usd": 47958666.0,
         "tier": "T1",
         "chain": "arbitrum",
         "violations": [
           "Chain concentration on ethereum after trade 95.0% exceeds single-chain limit 70.0%"
         ],
-        "apy": 2.1549
+        "apy": 2.1852
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -182,14 +178,14 @@
     },
     {
       "id": 10,
-      "timestamp": "2026-06-11T13:04:03.664742+00:00",
+      "timestamp": "2026-06-11T22:30:01.280413+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "ALLOCATE",
       "protocol_key": "euler-v2-usdc-ethereum",
       "amount_usd": 20000.0,
-      "reasoning": "euler-v2-usdc-ethereum selected: APY 2.82% within target range, TVL $15.8M, T2 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED; warnings: Concentration 20.0% approaching T2 limit 20.0%; Chain concentration on ethereum 60.0% approaching limit 70.0%",
+      "reasoning": "euler-v2-usdc-ethereum selected: APY 2.77% within target range, TVL $15.8M, T2 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED; warnings: Concentration 20.0% approaching T2 limit 20.0%; Chain concentration on ethereum 60.0% approaching limit 70.0%",
       "data_snapshot": {
-        "apy": 2.8151,
+        "apy": 2.7692,
         "tier": "T2",
         "amount_usd": 20000.0
       },
@@ -200,20 +196,20 @@
     },
     {
       "id": 9,
-      "timestamp": "2026-06-11T13:04:03.657420+00:00",
+      "timestamp": "2026-06-11T22:30:01.272920+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "compound-v3-usdc-ethereum",
       "amount_usd": null,
       "reasoning": "compound-v3-usdc-ethereum blocked by RiskPolicy: Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%",
       "data_snapshot": {
-        "tvl_usd": 48262090.0,
+        "tvl_usd": 47247571.0,
         "tier": "T1",
         "chain": "ethereum",
         "violations": [
           "Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%"
         ],
-        "apy": 3.1817
+        "apy": 3.1932
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -222,20 +218,20 @@
     },
     {
       "id": 8,
-      "timestamp": "2026-06-11T13:04:03.653447+00:00",
+      "timestamp": "2026-06-11T22:30:01.269392+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
-      "protocol_key": "aave-v3-usdc-base",
+      "protocol_key": "aave-v3-usdc-ethereum",
       "amount_usd": null,
-      "reasoning": "aave-v3-usdc-base blocked by RiskPolicy: Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%",
+      "reasoning": "aave-v3-usdc-ethereum blocked by RiskPolicy: Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%",
       "data_snapshot": {
-        "tvl_usd": 27730688.0,
+        "tvl_usd": 183717262.0,
         "tier": "T1",
-        "chain": "base",
+        "chain": "ethereum",
         "violations": [
           "Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%"
         ],
-        "apy": 3.1849
+        "apy": 3.2156
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -244,20 +240,20 @@
     },
     {
       "id": 7,
-      "timestamp": "2026-06-11T13:04:03.649314+00:00",
+      "timestamp": "2026-06-11T22:30:01.265568+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
-      "protocol_key": "aave-v3-usdc-ethereum",
+      "protocol_key": "aave-v3-usdc-base",
       "amount_usd": null,
-      "reasoning": "aave-v3-usdc-ethereum blocked by RiskPolicy: Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%",
+      "reasoning": "aave-v3-usdc-base blocked by RiskPolicy: Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%",
       "data_snapshot": {
-        "tvl_usd": 187026504.0,
+        "tvl_usd": 26859032.0,
         "tier": "T1",
-        "chain": "ethereum",
+        "chain": "base",
         "violations": [
           "Chain concentration on ethereum after trade 80.0% exceeds single-chain limit 70.0%"
         ],
-        "apy": 3.2026
+        "apy": 3.2185
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -266,14 +262,14 @@
     },
     {
       "id": 6,
-      "timestamp": "2026-06-11T13:04:03.645607+00:00",
+      "timestamp": "2026-06-11T22:30:01.261999+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "ALLOCATE",
       "protocol_key": "morpho-usdc-ethereum",
       "amount_usd": 40000.0,
-      "reasoning": "morpho-usdc-ethereum selected: APY 3.47% within target range, TVL $96.9M, T1 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED; warnings: Concentration 40.0% approaching T1 limit 40.0%",
+      "reasoning": "morpho-usdc-ethereum selected: APY 3.59% within target range, TVL $97.1M, T1 tier, chain=ethereum, concentration 0%, RiskPolicy APPROVED; warnings: Concentration 40.0% approaching T1 limit 40.0%",
       "data_snapshot": {
-        "apy": 3.4736,
+        "apy": 3.5887,
         "tier": "T1",
         "amount_usd": 40000.0
       },
