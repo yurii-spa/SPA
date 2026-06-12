@@ -1,0 +1,19 @@
+# Moonwell (Compound-fork money market on Base) — DeFiLlama yields project
+# slug: "moonwell". Conservative stable-lending candidate from the MP-206
+# epic list; same-block withdrawal like the other Compound forks (venus).
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: moonwell
+defillama_protocol_id: moonwell
+chains:
+  - Base
+symbols:
+  - USDC
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 0.0          # Compound-fork supply, same-block withdrawal
+  profile: instant
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0
