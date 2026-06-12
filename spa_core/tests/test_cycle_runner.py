@@ -62,6 +62,12 @@ def _run(tmp_path, apy_map, target_usd, *, now=None, status="ok", **kw):
         now=now,
         orchestrator_fn=_orch_fn(apy_map, status=status),
         allocator=_FakeAllocator(target_usd, **kw),
+        # MP-012: no-op risk scorer — these tests stay network-free; the regen
+        # step itself is covered in test_risk_scores_regen.py.
+        risk_scorer_fn=lambda d: None,
+        # MP-109: no-op track persister — sync/backup covered in
+        # test_track_persistence.py; keeps these tests off iCloud/home dirs.
+        track_persister_fn=lambda d: None,
     )
 
 
@@ -194,6 +200,10 @@ def test_graceful_when_orchestrator_returns_no_live_data(tmp_path):
         now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
         orchestrator_fn=_orch_fn({}, status="no_live_data"),
         allocator=_FakeAllocator(TARGET),
+        risk_scorer_fn=lambda d: None,
+        # MP-109: no-op track persister — sync/backup covered in
+        # test_track_persistence.py; keeps these tests off iCloud/home dirs.
+        track_persister_fn=lambda d: None,
     )
     assert res.status == "skipped_no_live_data"
     assert res.traded is False
@@ -212,6 +222,10 @@ def test_no_live_data_when_status_ok_but_no_apy(tmp_path):
         now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
         orchestrator_fn=_orch_fn({}, status="ok"),
         allocator=_FakeAllocator(TARGET),
+        risk_scorer_fn=lambda d: None,
+        # MP-109: no-op track persister — sync/backup covered in
+        # test_track_persistence.py; keeps these tests off iCloud/home dirs.
+        track_persister_fn=lambda d: None,
     )
     assert res.status == "skipped_no_live_data"
 
