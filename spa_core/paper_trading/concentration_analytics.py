@@ -1,55 +1,64 @@
-"""
-Portfolio concentration & diversification analytics (SPA-V398).
+#!/usr/bin/env python3
+"""Portfolio Concentration & Diversification Analyzer (SPA-V435 / MP-116) — read-only / advisory.
 
-Read-only, advisory analytics layer that analyses the *allocation structure* of
-the current portfolio rather than its return path. Where the V379–V397 paper-
-trading suite is uniformly return-SERIES analytics (Sharpe / Sortino / drawdown /
-tail / Monte-Carlo on the daily equity curve), this module asks a different,
-complementary question: **how concentrated is the capital across protocols, and
-how many independent "bets" is the book really running?**
+Decomposes the *current* portfolio into concentration & diversification metrics
+based on the **Herfindahl-Hirschman Index (HHI)**: how concentrated the book is
+across protocols (both over the whole AUM and over the deployed book only),
+across risk tiers, the effective number of positions (1/HHI), the largest and
+top-3 position shares, a DOJ/FTC-style concentration class, and a single
+max-single-position policy verdict. It answers the investor-DD question
+*"how diversified is the book, and is any single bet too large?"*.
 
-Metrics (all over the *actual* invested weights, normalised to sum to 1.0 over
-invested capital):
+Single source of position weights (reuse-by-import)
+==================================================
+Position weights are NOT recomputed here. We import :func:`build_exposure` from
+:mod:`spa_core.reporting.tear_sheet` (single source of truth for the weight /
+tier / cash math) and consume its ``by_protocol[p]["share_pct"]`` (a PERCENT,
+0..100, of the FULL AUM incl. cash) and ``by_tier`` (percent-of-AUM per tier).
+We only convert percent→fraction (÷100) and aggregate into HHI — no duplicated
+weight arithmetic. If :func:`build_exposure` reports ``available: false`` or no
+``by_protocol`` we return an honest empty result + note.
 
-    herfindahl_index        HHI = sum(w_i^2)            range 1/N .. 1
-    hhi_normalized          (HHI - 1/N) / (1 - 1/N)     range 0 .. 1  (None if N<2)
-    effective_num_positions 1 / HHI  — "effective number of bets"
-    max_weight / min_weight  largest / smallest position weight (+ protocol)
-    top1_concentration_pct   weight of the single largest position * 100
-    top3_concentration_pct   sum of the top-3 weights * 100
-    shannon_entropy          -sum(w * ln w)             nats
-    entropy_normalized       entropy / ln(N)            range 0 .. 1  (None if N<2)
-    gini_coefficient         0 = perfectly equal .. ->1 fully concentrated
-    diversification_grade    A/B/C/D from hhi_normalized thresholds (see below)
+Cash
+====
+``build_exposure`` shares are fractions of the FULL AUM (capital incl. cash), so
+the deployed protocol shares sum to ``< 1.0`` whenever there is cash. We expose
+both views: the **whole-AUM** HHI (cash dilutes concentration — cash is treated
+as a synthetic non-concentrated bucket and is NOT squared into the protocol HHI)
+AND the **deployed-only** HHI (each protocol's usd / deployed_sum), so a
+cash-heavy book is not misleadingly reported as "diversified". The concentration
+class and the effective-number-of-positions are derived from the DEPLOYED-only
+HHI, which is the honest measure of how concentrated the *invested* book is.
 
-When ``target_allocation.json`` is present an optional ``cash_buffer_pct`` and a
-``concentration_vs_target`` block are added: HHI of actual vs HHI of target and
-the classic ``active_share`` = 0.5 * sum(|actual_w - target_w|) over the union of
-protocols. Concentration is always measured over INVESTED capital only — the
-unallocated cash buffer is reported separately, not diluted into the weights.
+HHI scales
+==========
+Each HHI is reported both as a *fraction* (sum of squared share fractions, in
+``[0, 1]``) and on the standard 0–10000 *index* scale (fraction × 10000,
+rounded). DOJ/FTC concentration thresholds are applied to the deployed-only
+index: ``< 1500`` diversified, ``1500..2500`` (inclusive) moderate, ``> 2500``
+concentrated (see :data:`HHI_MODERATE_FLOOR` / :data:`HHI_CONCENTRATED_FLOOR`).
 
-Design notes / safety:
-  * Pure stdlib (json, math, os, datetime, pathlib, logging, argparse,
-    statistics) — mirrors the no-external-dependency style of the sibling
-    paper-trading modules. No web3 / numpy / pandas / scipy / network.
-  * STRICTLY READ-ONLY and ADVISORY. Reads portfolio_state.json (and optionally
-    target_allocation.json) and writes a single derived report JSON. It never
-    touches the execution path, risk agents, wallets, money-moving code, or the
-    SPA-BL-011-frozen feed-health domain.
-  * Defensive: missing / empty / malformed inputs degrade to a stable-schema
-    object with ``num_positions: 0`` and None/empty metrics. The module NEVER
-    raises on bad data.
-  * Single-position portfolios: HHI = 1.0, effective_num = 1.0, gini = 0.0, and
-    the size-relative measures (hhi_normalized, entropy_normalized) are None
-    because they are undefined for N < 2.
+Output / persistence
+====================
+:func:`build_concentration` returns a stable-schema dict and NEVER raises.
+:func:`write_status` atomically (tmp + ``os.replace``) writes
+``data/concentration_analytics.json`` with an in-file ``history`` of runs
+(rotation ≤ :data:`HISTORY_MAX`). Idempotency: a :func:`content_fingerprint`
+over the whole doc EXCLUDING the volatile ``meta.generated_at`` / ``history``
+means a repeated ``--run`` on unchanged inputs is byte-identical and does not
+grow history (``generated_at`` only changes when content changes).
 
-CLI::
+CLI (offline, exit 0 always, no tracebacks; junk args → clear ERROR on stderr)::
 
-    python -m spa_core.paper_trading.concentration_analytics
-    python -m spa_core.paper_trading.concentration_analytics \\
-        --portfolio-state data/portfolio_state.json \\
-        --target-allocation data/target_allocation.json \\
-        --out data/concentration_analytics.json --no-write
+    python3 -m spa_core.paper_trading.concentration_analytics --check    # compute+print, no write (default)
+    python3 -m spa_core.paper_trading.concentration_analytics --run      # + atomic write
+    python3 -m spa_core.paper_trading.concentration_analytics --run --data-dir <dir>
+
+Scope / safety: STRICTLY READ-ONLY (SPA-BL-011) and advisory only. Pure stdlib
+(json/os/math/datetime/argparse/tempfile/logging/pathlib/re/typing) — no
+requests/web3/LLM SDK/sockets/network. It only READS ``current_positions.json``
+and ``adapter_orchestrator_status.json`` and writes its OWN status artifact; it
+never moves capital and never touches risk/execution/allocator/cycle_runner.
 """
 from __future__ import annotations
 
@@ -58,468 +67,505 @@ import json
 import logging
 import math
 import os
+import re  # noqa: F401  (kept for parity with sibling tolerant-IO modules)
+import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
+
+# REUSE BY IMPORT — single source of truth for the position weight / tier / cash
+# math (MP-501). We do NOT recompute weights from raw positions here; we consume
+# build_exposure's share_pct (percent of full AUM) and by_tier directly.
+from spa_core.reporting.tear_sheet import build_exposure
 
 log = logging.getLogger("spa.paper_trading.concentration_analytics")
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PORTFOLIO_STATE_PATH = _PROJECT_ROOT / "data" / "portfolio_state.json"
-DEFAULT_TARGET_ALLOCATION_PATH = _PROJECT_ROOT / "data" / "target_allocation.json"
-DEFAULT_OUTPUT_PATH = _PROJECT_ROOT / "data" / "concentration_analytics.json"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 
-# Diversification grade thresholds on hhi_normalized (0 = equal-weight, 1 = single
-# name). Lower normalized HHI == better diversified.
-#   A: hhi_normalized <= 0.15   well diversified
-#   B: hhi_normalized <= 0.35   moderately diversified
-#   C: hhi_normalized <= 0.60   somewhat concentrated
-#   D: hhi_normalized  > 0.60   highly concentrated
-GRADE_A_MAX = 0.15
-GRADE_B_MAX = 0.35
-GRADE_C_MAX = 0.60
+SCHEMA_VERSION = 1
+SOURCE_NAME = "concentration_analytics"
+STATUS_FILENAME = "concentration_analytics.json"
+POSITIONS_FILENAME = "current_positions.json"
+ORCHESTRATOR_FILENAME = "adapter_orchestrator_status.json"
+HISTORY_MAX = 500  # run-history rotation (pattern: exit_liquidity / tear_sheet)
 
-# How many top positions feed top3_concentration_pct.
-TOP_K = 3
+# DOJ/FTC standard HHI concentration thresholds, on the 0–10000 index scale.
+# Applied to the DEPLOYED-only HHI index.
+#   index < HHI_MODERATE_FLOOR (1500)                       → "diversified"
+#   HHI_MODERATE_FLOOR <= index <= HHI_CONCENTRATED_FLOOR   → "moderate"
+#   index > HHI_CONCENTRATED_FLOOR (2500)                   → "concentrated"
+HHI_MODERATE_FLOOR = 1500
+HHI_CONCENTRATED_FLOOR = 2500
+
+# Max single-position policy: a single protocol may hold at most this FRACTION of
+# the full AUM. Exactly 0.40 is OK (not a breach); strictly greater is a breach.
+MAX_SINGLE_POSITION_SHARE = 0.40
+
+DISCLAIMER = "NOT investment advice"
+
+SOURCE_FILES = [POSITIONS_FILENAME, ORCHESTRATOR_FILENAME]
 
 
-# ─── Helpers ────────────────────────────────────────────────────────────────
+# ─── Tolerant IO helpers (pattern: exit_liquidity / data_integrity) ───────────
 
 
-def _load_json(path: str | Path) -> Optional[dict]:
-    """Load a JSON object from *path*; return None on any failure (read-only)."""
+def _read_json(path: Path) -> Any:
+    """Read JSON tolerantly: missing/broken file → None, never raises."""
+    path = Path(path)
+    if not path.exists():
+        return None
     try:
-        with Path(path).open("r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        if isinstance(data, dict):
-            return data
-        log.debug("Source %s is not a JSON object (got %s)", path, type(data).__name__)
-        return None
-    except FileNotFoundError:
-        log.debug("Source not found: %s", path)
-        return None
-    except (OSError, ValueError) as exc:  # malformed / unreadable
-        log.debug("Could not read source %s: %s", path, exc)
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
         return None
 
 
-def _as_float(value: Any) -> Optional[float]:
-    """Coerce *value* to a finite float, else None (defensive)."""
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write: tmp file in the same dir + os.replace."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
+    )
     try:
-        f = float(value)
-    except (TypeError, ValueError):
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(obj, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            if os.path.exists(tmp_name):
+                os.remove(tmp_name)
+        finally:
+            raise
+
+
+def _num(value: Any) -> Optional[float]:
+    """Finite float or None (bool is not a number; NaN/inf are not data)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    if not math.isfinite(f):
+    if not math.isfinite(float(value)):
         return None
-    return f
+    return float(value)
 
 
-def _extract_actual_weights(state: Optional[dict]) -> dict[str, float]:
-    """Return {protocol: normalised_actual_weight} over invested capital.
-
-    Prefers each position's ``actual_weight``; falls back to
-    ``actual_usd / total_actual_usd`` when the weight field is missing. Drops
-    non-positive / unusable positions, then renormalises so the surviving weights
-    sum to 1.0. Returns ``{}`` for any malformed / empty input (never raises).
-    """
-    if not isinstance(state, dict):
-        return {}
-    positions = state.get("positions")
-    if not isinstance(positions, list):
-        return {}
-
-    total_actual = _as_float(state.get("total_actual_usd"))
-
-    raw: dict[str, float] = {}
-    for pos in positions:
-        if not isinstance(pos, dict):
-            continue
-        protocol = pos.get("protocol")
-        if not isinstance(protocol, str) or not protocol:
-            continue
-        w = _as_float(pos.get("actual_weight"))
-        if w is None:
-            # Derive from USD exposure when the explicit weight is absent.
-            usd = _as_float(pos.get("actual_usd"))
-            if usd is not None and total_actual not in (None, 0.0):
-                w = usd / total_actual
-        if w is None or w <= 0:
-            continue
-        # Aggregate duplicate protocols defensively.
-        raw[protocol] = raw.get(protocol, 0.0) + w
-
-    total = sum(raw.values())
-    if total <= 0:
-        return {}
-    return {p: w / total for p, w in raw.items()}
-
-
-def _extract_target_weights(
-    state: Optional[dict], target: Optional[dict]
-) -> dict[str, float]:
-    """Return {protocol: normalised_target_weight} over invested target capital.
-
-    Prefers ``target_allocation.json``'s ``target_weights``; falls back to the
-    positions' ``target_weight`` / ``target_usd`` in portfolio_state. Renormalised
-    to sum to 1.0 over the invested target. Returns ``{}`` if unavailable.
-    """
-    raw: dict[str, float] = {}
-
-    if isinstance(target, dict):
-        tw = target.get("target_weights")
-        if isinstance(tw, dict):
-            for protocol, value in tw.items():
-                w = _as_float(value)
-                if isinstance(protocol, str) and protocol and w is not None and w > 0:
-                    raw[protocol] = raw.get(protocol, 0.0) + w
-
-    if not raw and isinstance(state, dict):
-        positions = state.get("positions")
-        total_target = _as_float(state.get("total_target_usd"))
-        if isinstance(positions, list):
-            for pos in positions:
-                if not isinstance(pos, dict):
-                    continue
-                protocol = pos.get("protocol")
-                if not isinstance(protocol, str) or not protocol:
-                    continue
-                w = _as_float(pos.get("target_weight"))
-                if w is None:
-                    usd = _as_float(pos.get("target_usd"))
-                    if usd is not None and total_target not in (None, 0.0):
-                        w = usd / total_target
-                if w is None or w <= 0:
-                    continue
-                raw[protocol] = raw.get(protocol, 0.0) + w
-
-    total = sum(raw.values())
-    if total <= 0:
-        return {}
-    return {p: w / total for p, w in raw.items()}
-
-
-def _herfindahl(weights: list[float]) -> Optional[float]:
-    """HHI = sum(w_i^2); None for an empty book."""
-    if not weights:
+def _classify(hhi_index_deployed: Optional[int]) -> Optional[str]:
+    """DOJ/FTC concentration class from the deployed-only HHI index, or None."""
+    if hhi_index_deployed is None:
         return None
-    return sum(w * w for w in weights)
+    if hhi_index_deployed < HHI_MODERATE_FLOOR:
+        return "diversified"
+    if hhi_index_deployed <= HHI_CONCENTRATED_FLOOR:
+        return "moderate"
+    return "concentrated"
 
 
-def _gini(weights: list[float]) -> Optional[float]:
-    """Gini coefficient of the weight distribution (0 equal .. ->1 concentrated).
-
-    Uses the standard mean-absolute-difference form
-        G = sum_i sum_j |w_i - w_j| / (2 * n^2 * mean(w)).
-    For weights that already sum to 1, mean = 1/n, so the denominator is 2*n.
-    A single position (or any perfectly equal book) gives exactly 0.
-    """
-    n = len(weights)
-    if n == 0:
-        return None
-    if n == 1:
-        return 0.0
-    mean = sum(weights) / n
-    if mean <= 0:
-        return 0.0
-    total_diff = 0.0
-    for i in range(n):
-        for j in range(n):
-            total_diff += abs(weights[i] - weights[j])
-    g = total_diff / (2.0 * n * n * mean)
-    # Clamp tiny FP excursions into [0, 1].
-    return max(0.0, min(1.0, g))
+# ─── Pure computation ─────────────────────────────────────────────────────────
 
 
-def _shannon_entropy(weights: list[float]) -> Optional[float]:
-    """Shannon entropy -sum(w * ln w) in nats; None for an empty book."""
-    if not weights:
-        return None
-    return -sum(w * math.log(w) for w in weights if w > 0)
-
-
-def _grade(hhi_normalized: Optional[float]) -> Optional[str]:
-    """Letter grade A/B/C/D from normalised HHI; None when undefined (N<2)."""
-    if hhi_normalized is None:
-        return None
-    if hhi_normalized <= GRADE_A_MAX:
-        return "A"
-    if hhi_normalized <= GRADE_B_MAX:
-        return "B"
-    if hhi_normalized <= GRADE_C_MAX:
-        return "C"
-    return "D"
-
-
-def _rnd(x: Optional[float], places: int = 6) -> Optional[float]:
-    return None if x is None else round(x, places)
-
-
-# ─── Core computation ───────────────────────────────────────────────────────
-
-
-def _empty_metrics() -> dict:
-    """Stable-schema object for an empty / unusable portfolio."""
+def _empty_result(
+    notes: List[str],
+    *,
+    is_demo: Optional[bool] = None,
+    available: bool = False,
+) -> Dict[str, Any]:
+    """A stable-schema, honest-empty concentration result."""
     return {
-        "num_positions": 0,
-        "weights": {},
-        "herfindahl_index": None,
-        "hhi_normalized": None,
+        "available": available,
+        "advisory_only": True,
+        "execution_mode": "read_only",
+        "is_demo": is_demo,
+        "verdict": "warn",
+        "aum_usd": 0.0,
+        "deployed_usd": 0.0,
+        "cash_usd": 0.0,
+        "cash_share": 0.0,
+        "hhi_protocol": 0.0,
+        "hhi_protocol_index": 0,
+        "hhi_protocol_deployed": 0.0,
+        "hhi_protocol_deployed_index": 0,
         "effective_num_positions": None,
-        "max_weight": None,
-        "max_weight_protocol": None,
-        "min_weight": None,
-        "min_weight_protocol": None,
-        "top1_concentration_pct": None,
-        "top3_concentration_pct": None,
-        "shannon_entropy": None,
-        "entropy_normalized": None,
-        "gini_coefficient": None,
-        "diversification_grade": None,
+        "hhi_tier": 0.0,
+        "hhi_tier_index": 0,
+        "top1_share": 0.0,
+        "top1_protocol": None,
+        "top3_share": 0.0,
+        "num_positions": 0,
+        "concentration_class": None,
+        "max_single_position_share": MAX_SINGLE_POSITION_SHARE,
+        "policy_ok": True,
+        "policy_breaches": [],
+        "by_tier": {},
+        "counts": {"positions": 0, "policy_breaches": 0},
+        "breakdown": [],
+        "source_files": list(SOURCE_FILES),
+        "disclaimer": DISCLAIMER,
+        "notes": notes,
     }
 
 
-def compute_concentration_metrics(state: Optional[dict]) -> dict:
-    """Compute concentration / diversification metrics from portfolio_state.
+def build_concentration(
+    data_dir: Optional[str | os.PathLike] = None,
+) -> Dict[str, Any]:
+    """Build the portfolio concentration / diversification dict. NEVER raises.
 
-    Args:
-        state: parsed ``portfolio_state.json`` (or None / malformed).
-
-    Returns:
-        A stable-schema metrics dict. Empty / unusable input yields
-        ``num_positions == 0`` with None/empty metrics — never raises.
+    Reads ``current_positions.json`` and ``adapter_orchestrator_status.json``
+    from *data_dir* (both tolerant/optional). Calls :func:`build_exposure`
+    (single source of weight/tier/cash math) and aggregates its shares into
+    HHI metrics — whole-AUM and deployed-only — the effective number of
+    positions, top1/top3 shares, a DOJ/FTC concentration class, and a
+    max-single-position policy verdict. Missing/broken input or an unavailable
+    exposure → honest ``available: false`` empty result + note.
     """
-    weights_map = _extract_actual_weights(state)
-    n = len(weights_map)
-    if n == 0:
-        return _empty_metrics()
+    try:
+        ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        positions_doc = _read_json(ddir / POSITIONS_FILENAME)
+        orch_doc = _read_json(ddir / ORCHESTRATOR_FILENAME)
+        notes: List[str] = []
 
-    # Deterministic order: descending weight, then protocol name as a tiebreak.
-    items = sorted(weights_map.items(), key=lambda kv: (-kv[1], kv[0]))
-    weights = [w for _, w in items]
+        if positions_doc is None:
+            return _empty_result(
+                [f"{POSITIONS_FILENAME}: missing/unreadable — no concentration analysis"],
+            )
+        if not isinstance(positions_doc, dict):
+            return _empty_result(
+                [f"{POSITIONS_FILENAME}: unexpected top-level type — no analysis"],
+            )
 
-    hhi = _herfindahl(weights)
-    effective_num = (1.0 / hhi) if hhi and hhi > 0 else None
+        # is_demo honestly from the positions file (null + note if absent/non-bool).
+        is_demo: Optional[bool] = None
+        if isinstance(positions_doc.get("is_demo"), bool):
+            is_demo = positions_doc["is_demo"]
+        else:
+            notes.append(
+                f"{POSITIONS_FILENAME}: is_demo missing/non-bool — reported as null"
+            )
 
-    # hhi_normalized & entropy_normalized are undefined for N < 2.
-    if n >= 2 and hhi is not None:
-        hhi_norm = (hhi - 1.0 / n) / (1.0 - 1.0 / n)
-        # Clamp FP noise into [0, 1].
-        hhi_norm = max(0.0, min(1.0, hhi_norm))
-    else:
-        hhi_norm = None
+        if orch_doc is None:
+            notes.append(
+                f"{ORCHESTRATOR_FILENAME}: missing/unreadable — tiers reported as 'unknown'"
+            )
 
-    max_protocol, max_weight = items[0]
-    min_protocol, min_weight = items[-1]
+        # ── REUSE BY IMPORT: build_exposure is the single source of weights. ───
+        exposure = build_exposure(positions_doc, orch_doc)
+        if not isinstance(exposure, dict) or not exposure.get("available"):
+            notes.append(
+                "build_exposure unavailable — empty/broken positions, no analysis"
+            )
+            return _empty_result(notes, is_demo=is_demo, available=False)
 
-    top1 = weights[0] * 100.0
-    top3 = sum(weights[:TOP_K]) * 100.0
+        by_protocol = exposure.get("by_protocol") or {}
+        if not isinstance(by_protocol, dict) or not by_protocol:
+            notes.append("no deployed protocols in exposure — honest empty result")
+            return _empty_result(notes, is_demo=is_demo, available=False)
 
-    entropy = _shannon_entropy(weights)
-    if n >= 2 and entropy is not None:
-        ln_n = math.log(n)
-        entropy_norm = (entropy / ln_n) if ln_n > 0 else None
-        if entropy_norm is not None:
-            entropy_norm = max(0.0, min(1.0, entropy_norm))
-    else:
-        entropy_norm = None
+        aum = _num(exposure.get("capital_usd")) or 0.0
+        deployed = _num(exposure.get("deployed_usd")) or 0.0
+        cash_pct = _num(exposure.get("cash_pct"))
+        cash_share = (cash_pct / 100.0) if cash_pct is not None else 0.0
+        cash_usd = round(aum * cash_share, 6) if aum > 0 else 0.0
 
-    gini = _gini(weights)
-    grade = _grade(hhi_norm)
+        # ── Per-protocol fractions of the FULL AUM (from build_exposure). ──────
+        # share_full = share_pct / 100; share_deployed renormalises to the
+        # deployed book so a cash-heavy book is not misleadingly diversified.
+        rows: List[Dict[str, Any]] = []
+        deployed_sum = 0.0
+        for proto, info in by_protocol.items():
+            if not isinstance(info, dict):
+                continue
+            share_pct = _num(info.get("share_pct"))
+            usd = _num(info.get("usd"))
+            if share_pct is None or usd is None:
+                notes.append(f"{proto}: missing share/usd in exposure — skipped")
+                continue
+            rows.append({
+                "protocol": str(proto),
+                "usd": usd,
+                "share": share_pct / 100.0,
+                "tier": info.get("tier", "unknown"),
+            })
+            deployed_sum += usd
 
-    return {
-        "num_positions": n,
-        "weights": {p: round(w, 6) for p, w in items},
-        "herfindahl_index": _rnd(hhi),
-        "hhi_normalized": _rnd(hhi_norm),
-        "effective_num_positions": _rnd(effective_num, 4),
-        "max_weight": _rnd(max_weight),
-        "max_weight_protocol": max_protocol,
-        "min_weight": _rnd(min_weight),
-        "min_weight_protocol": min_protocol,
-        "top1_concentration_pct": _rnd(top1, 4),
-        "top3_concentration_pct": _rnd(top3, 4),
-        "shannon_entropy": _rnd(entropy),
-        "entropy_normalized": _rnd(entropy_norm),
-        "gini_coefficient": _rnd(gini),
-        "diversification_grade": grade,
-    }
+        if not rows or deployed_sum <= 0:
+            notes.append("no usable deployed positions — honest empty result")
+            return _empty_result(notes, is_demo=is_demo, available=False)
 
+        for row in rows:
+            row["share_deployed"] = row["usd"] / deployed_sum
 
-def _active_share(
-    actual: dict[str, float], target: dict[str, float]
-) -> Optional[float]:
-    """Classic active share = 0.5 * sum(|actual_w - target_w|) over the union.
+        rows.sort(key=lambda r: r["share"], reverse=True)
 
-    0 when the actual book exactly matches the target; ->1 as they diverge.
-    None when either side is empty.
-    """
-    if not actual or not target:
-        return None
-    protocols = set(actual) | set(target)
-    s = sum(abs(actual.get(p, 0.0) - target.get(p, 0.0)) for p in protocols)
-    return max(0.0, min(1.0, 0.5 * s))
+        # ── HHI over protocols. ────────────────────────────────────────────────
+        # Whole-AUM HHI: cash is a synthetic non-concentrated bucket and is NOT
+        # squared into the protocol HHI (documented), so the deployed shares
+        # (summing < 1.0 when cash > 0) dilute the index.
+        hhi_protocol = sum(r["share"] ** 2 for r in rows)
+        hhi_protocol_index = round(hhi_protocol * 10000.0)
+        # Deployed-only HHI: shares renormalised to the invested book.
+        hhi_protocol_deployed = sum(r["share_deployed"] ** 2 for r in rows)
+        hhi_protocol_deployed_index = round(hhi_protocol_deployed * 10000.0)
 
+        # Effective number of positions from the DEPLOYED-only HHI (1/HHI).
+        if hhi_protocol_deployed > 0:
+            effective_num = 1.0 / hhi_protocol_deployed
+        else:
+            effective_num = None
 
-def _concentration_vs_target(
-    actual: dict[str, float], target: dict[str, float]
-) -> Optional[dict]:
-    """HHI(actual) vs HHI(target) plus active_share; None if target unavailable."""
-    if not actual or not target:
-        return None
-    hhi_actual = _herfindahl(list(actual.values()))
-    hhi_target = _herfindahl(list(target.values()))
-    return {
-        "hhi_actual": _rnd(hhi_actual),
-        "hhi_target": _rnd(hhi_target),
-        "hhi_delta": _rnd(
-            (hhi_actual - hhi_target)
-            if (hhi_actual is not None and hhi_target is not None)
-            else None
-        ),
-        "active_share": _rnd(_active_share(actual, target), 6),
-        "num_actual_protocols": len(actual),
-        "num_target_protocols": len(target),
-    }
+        # ── HHI over tiers (by_tier is percent-of-AUM → ÷100). ─────────────────
+        by_tier_raw = exposure.get("by_tier") or {}
+        by_tier_echo: Dict[str, float] = {}
+        hhi_tier = 0.0
+        if isinstance(by_tier_raw, dict):
+            for tier, pct in by_tier_raw.items():
+                val = _num(pct)
+                if val is None:
+                    continue
+                frac = val / 100.0
+                by_tier_echo[str(tier)] = round(val, 9)
+                hhi_tier += frac ** 2
+        hhi_tier_index = round(hhi_tier * 10000.0)
 
+        # ── Top-1 / top-3 shares (fractions of full AUM). ──────────────────────
+        top1_share = rows[0]["share"]
+        top1_protocol = rows[0]["protocol"]
+        top3_share = sum(r["share"] for r in rows[:3])
 
-def build_concentration_report(
-    portfolio_state_path: str | Path = DEFAULT_PORTFOLIO_STATE_PATH,
-    target_allocation_path: str | Path | None = DEFAULT_TARGET_ALLOCATION_PATH,
-) -> dict:
-    """Build the full concentration report dict (no I/O side effects)."""
-    state = _load_json(portfolio_state_path)
-    metrics = compute_concentration_metrics(state)
+        num_positions = len(rows)
 
-    report: dict[str, Any] = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "source": str(portfolio_state_path),
-        "execution_mode": "read_only_simulation",
-        "metrics": metrics,
-        "concentration_basis": "invested_capital_only",
-    }
+        # ── Concentration class from the deployed-only HHI index. ──────────────
+        concentration_class = _classify(hhi_protocol_deployed_index)
 
-    # Optional enrichment from target_allocation.json.
-    target = _load_json(target_allocation_path) if target_allocation_path else None
-    if isinstance(target, dict):
-        report["target_allocation_source"] = str(target_allocation_path)
-        unallocated = _as_float(target.get("unallocated_pct"))
-        if unallocated is not None:
-            report["cash_buffer_pct"] = round(unallocated * 100.0, 4)
-        report["note"] = (
-            "Concentration is measured over INVESTED capital only; the "
-            "unallocated cash buffer is reported separately as cash_buffer_pct."
+        # ── Max single-position policy (fraction of full AUM). ─────────────────
+        breaches = [
+            {"protocol": r["protocol"], "share": round(r["share"], 9)}
+            for r in rows
+            if r["share"] > MAX_SINGLE_POSITION_SHARE
+        ]
+        breaches.sort(key=lambda b: b["share"], reverse=True)
+        policy_ok = not breaches
+
+        # ── Verdict. ───────────────────────────────────────────────────────────
+        has_unknown_tier = "unknown" in by_tier_echo
+        if breaches or concentration_class == "concentrated":
+            verdict = "fail"
+        elif concentration_class == "moderate" or has_unknown_tier:
+            verdict = "warn"
+            if has_unknown_tier:
+                notes.append(
+                    "unknown-tier protocol(s) present in exposure (tier missing "
+                    "from orchestrator)"
+                )
+        else:
+            verdict = "ok"
+
+        # ── Per-protocol breakdown (sorted by full-AUM share desc). ────────────
+        breakdown = [
+            {
+                "protocol": r["protocol"],
+                "usd": round(r["usd"], 6),
+                "share": round(r["share"], 9),
+                "share_deployed": round(r["share_deployed"], 9),
+                "tier": r["tier"],
+            }
+            for r in rows
+        ]
+
+        return {
+            "available": True,
+            "advisory_only": True,
+            "execution_mode": "read_only",
+            "is_demo": is_demo,
+            "verdict": verdict,
+            "aum_usd": round(aum, 6),
+            "deployed_usd": round(deployed, 6),
+            "cash_usd": round(cash_usd, 6),
+            "cash_share": round(cash_share, 9),
+            "hhi_protocol": round(hhi_protocol, 9),
+            "hhi_protocol_index": int(hhi_protocol_index),
+            "hhi_protocol_deployed": round(hhi_protocol_deployed, 9),
+            "hhi_protocol_deployed_index": int(hhi_protocol_deployed_index),
+            "effective_num_positions": (
+                None if effective_num is None else round(effective_num, 4)
+            ),
+            "hhi_tier": round(hhi_tier, 9),
+            "hhi_tier_index": int(hhi_tier_index),
+            "top1_share": round(top1_share, 9),
+            "top1_protocol": top1_protocol,
+            "top3_share": round(top3_share, 9),
+            "num_positions": num_positions,
+            "concentration_class": concentration_class,
+            "max_single_position_share": MAX_SINGLE_POSITION_SHARE,
+            "policy_ok": policy_ok,
+            "policy_breaches": breaches,
+            "by_tier": by_tier_echo,
+            "counts": {
+                "positions": num_positions,
+                "policy_breaches": len(breaches),
+            },
+            "breakdown": breakdown,
+            "source_files": list(SOURCE_FILES),
+            "disclaimer": DISCLAIMER,
+            "notes": notes,
+        }
+    except Exception as exc:  # last resort: even a junk data_dir never raises
+        log.warning("build_concentration degraded: %s", exc)
+        return _empty_result(
+            [f"internal error: {type(exc).__name__}: {exc} — honest empty result"],
         )
 
-    # concentration_vs_target whenever both actual and target weights exist.
-    actual_weights = _extract_actual_weights(state)
-    target_weights = _extract_target_weights(state, target)
-    cvt = _concentration_vs_target(actual_weights, target_weights)
-    if cvt is not None:
-        report["concentration_vs_target"] = cvt
 
-    return report
+def build_status_doc(
+    data_dir: Optional[str | os.PathLike] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Wrap :func:`build_concentration` in a persistable status document.
 
-
-def _atomic_write_json(obj: dict, out_path: Path) -> None:
-    """Write *obj* as pretty JSON to *out_path* atomically (tmp + os.replace)."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out_path.with_name(f".concentration_analytics_{os.getpid()}.tmp")
-    try:
-        tmp.write_text(json.dumps(obj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        os.replace(tmp, out_path)
-    except BaseException:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
-
-
-def generate_concentration_report(
-    portfolio_state_path: str | Path = DEFAULT_PORTFOLIO_STATE_PATH,
-    target_allocation_path: str | Path | None = DEFAULT_TARGET_ALLOCATION_PATH,
-    output_path: str | Path | None = DEFAULT_OUTPUT_PATH,
-) -> dict:
-    """Build the concentration report and (optionally) persist it atomically.
-
-    Pass ``output_path=None`` to compute only. Write failures are logged, not
-    raised, so an analytics report never crashes a caller.
+    Adds a ``meta`` block ({generated_at, source_files}); ``history`` is added
+    by :func:`write_status` on write.
     """
-    report = build_concentration_report(portfolio_state_path, target_allocation_path)
-
-    if output_path is not None:
-        out = Path(output_path)
-        try:
-            _atomic_write_json(report, out)
-            m = report["metrics"]
-            log.info(
-                "concentration report written: %s (N=%s, HHI=%s, grade=%s)",
-                out, m["num_positions"], m["herfindahl_index"],
-                m["diversification_grade"],
-            )
-        except OSError as exc:  # never let a write failure crash the pipeline
-            log.warning("could not write concentration report to %s: %s", output_path, exc)
-
-    return report
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    result = build_concentration(data_dir)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "source": SOURCE_NAME,
+        "meta": {
+            "generated_at": now.isoformat(),
+            "source_files": result.get("source_files", list(SOURCE_FILES)),
+        },
+        **result,
+    }
 
 
-# ─── CLI ────────────────────────────────────────────────────────────────────
+# ─── Persist (idempotent, pattern: exit_liquidity MP-114 / tear_sheet) ────────
 
 
-def _format_summary(report: dict) -> str:
-    """One-line human summary of the headline concentration figures."""
-    m = report["metrics"]
-    n = m["num_positions"]
-    hhi = m["herfindahl_index"]
-    eff = m["effective_num_positions"]
-    max_w = m["max_weight"]
-    grade = m["diversification_grade"]
-    hhi_s = f"{hhi:.4f}" if isinstance(hhi, (int, float)) else "n/a"
-    eff_s = f"{eff:.2f}" if isinstance(eff, (int, float)) else "n/a"
-    max_s = f"{max_w * 100.0:.2f}%" if isinstance(max_w, (int, float)) else "n/a"
-    grade_s = grade if grade is not None else "n/a"
-    line = f"CONCENTRATION | N={n} | HHI={hhi_s} | eff_N={eff_s} | max_w={max_s} | grade={grade_s}"
-    cvt = report.get("concentration_vs_target")
-    if isinstance(cvt, dict) and cvt.get("active_share") is not None:
-        line += f" | active_share={cvt['active_share']:.4f}"
-    return line
+def content_fingerprint(doc: Any) -> str:
+    """Canonical fingerprint of the status CONTENT. Pure function.
+
+    Volatile fields excluded: top-level ``history`` and ``meta.generated_at``
+    (documented idempotency choice — ``generated_at`` only changes when content
+    changes). Non-dict input → a fingerprint that never matches a valid doc.
+    """
+    if not isinstance(doc, dict):
+        return "<invalid>"
+    core = {k: v for k, v in doc.items() if k != "history"}
+    meta = core.get("meta")
+    if isinstance(meta, dict):
+        core["meta"] = {k: v for k, v in meta.items() if k != "generated_at"}
+    return json.dumps(core, sort_keys=True, ensure_ascii=False)
+
+
+def _history_entry(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Short run-history record for concentration_analytics.json."""
+    meta = doc.get("meta") or {}
+    return {
+        "generated_at": meta.get("generated_at"),
+        "verdict": doc.get("verdict"),
+        "hhi_protocol_index": doc.get("hhi_protocol_deployed_index"),
+        "effective_num_positions": doc.get("effective_num_positions"),
+        "top1_share": doc.get("top1_share"),
+        "counts": doc.get("counts"),
+    }
+
+
+def write_status(
+    doc: Dict[str, Any], data_dir: Optional[str | os.PathLike] = None
+) -> Dict[str, Any]:
+    """Atomically write data/concentration_analytics.json (tmp + os.replace).
+
+    Idempotency: if :func:`content_fingerprint` is unchanged relative to the
+    persisted status, the file is NOT rewritten (a repeated ``--run`` is
+    byte-identical and history does not grow). On a content change a short
+    record is appended to ``history`` (rotation ≤ :data:`HISTORY_MAX`). A
+    broken/absent existing status file is tolerated as fresh. Returns
+    {"path", "changed"}.
+    """
+    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    path = ddir / STATUS_FILENAME
+    prev = _read_json(path)
+    if isinstance(prev, dict) and content_fingerprint(prev) == content_fingerprint(doc):
+        log.info("concentration analytics status unchanged: %s", path)
+        return {"path": str(path), "changed": False}
+
+    history: List[Dict[str, Any]] = []
+    if isinstance(prev, dict) and isinstance(prev.get("history"), list):
+        history = [h for h in prev["history"] if isinstance(h, dict)]
+    history.append(_history_entry(doc))
+    out = dict(doc)
+    out["history"] = history[-HISTORY_MAX:]
+    _atomic_write_json(path, out)
+    log.info("concentration analytics status written: %s", path)
+    return {"path": str(path), "changed": True}
+
+
+# ─── CLI (offline, advisory, exit 0, no tracebacks) ──────────────────────────
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Portfolio concentration & diversification analytics (SPA-V398, read-only).",
+        prog="python3 -m spa_core.paper_trading.concentration_analytics",
+        description=(
+            "Portfolio Concentration & Diversification Analyzer (SPA-V435 / "
+            "MP-116): read-only / advisory HHI decomposition of the current "
+            "portfolio + max-single-position policy verdict. Offline."
+        ),
+        add_help=True,
     )
-    p.add_argument(
-        "--portfolio-state", default=str(DEFAULT_PORTFOLIO_STATE_PATH),
-        help="path to portfolio_state.json (default: data/portfolio_state.json)",
+    group = p.add_mutually_exclusive_group()
+    group.add_argument(
+        "--check", action="store_true",
+        help="compute and print the JSON analysis WITHOUT writing (default)",
     )
-    p.add_argument(
-        "--target-allocation", default=str(DEFAULT_TARGET_ALLOCATION_PATH),
-        help="optional target_allocation.json for cash buffer / active share "
-             "(default: data/target_allocation.json)",
+    group.add_argument(
+        "--run", action="store_true",
+        help="compute and atomically write data/concentration_analytics.json",
     )
-    p.add_argument(
-        "--out", default=str(DEFAULT_OUTPUT_PATH),
-        help="output report path (default: data/concentration_analytics.json)",
-    )
-    p.add_argument(
-        "--no-write", action="store_true",
-        help="compute and print only; do not write the report file",
-    )
+    p.add_argument("--data-dir", default=None, help="override data directory")
     return p
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = _build_arg_parser().parse_args(argv)
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    report = generate_concentration_report(
-        portfolio_state_path=args.portfolio_state,
-        target_allocation_path=args.target_allocation,
-        output_path=None if args.no_write else args.out,
-    )
-    print(_format_summary(report))
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = _build_arg_parser()
+    # Custom error handling: argparse normally prints to stderr and exits 2 on a
+    # junk arg; this advisory CLI must always exit 0 with a clear ERROR and no
+    # traceback (pattern: exit_liquidity.py).
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        if exc.code not in (0, None):
+            print(
+                "ERROR: invalid arguments — use --check | --run [--data-dir DIR]",
+                file=sys.stderr,
+            )
+        return 0
+
+    try:
+        doc = build_status_doc(data_dir=args.data_dir)
+        if args.run:
+            outcome = write_status(doc, data_dir=args.data_dir)
+            print(
+                f"concentration_analytics: verdict={doc['verdict']} "
+                f"hhi_index={doc.get('hhi_protocol_deployed_index')} "
+                f"class={doc.get('concentration_class')} "
+                f"top1={doc.get('top1_share')} — "
+                f"{'written' if outcome['changed'] else 'unchanged (idempotent)'} "
+                f"{outcome['path']}"
+            )
+        else:
+            print(json.dumps(doc, ensure_ascii=False, indent=2))
+    except Exception as exc:  # advisory: no tracebacks, exit 0
+        print(
+            f"concentration_analytics: ERROR — {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
