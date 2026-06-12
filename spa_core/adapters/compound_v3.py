@@ -1,4 +1,4 @@
-"""Compound V3 (Comet) adapter — T2, read-only / advisory.
+"""Compound V3 (Comet) adapter — T1 anchor, read-only / advisory.
 
 Fetches the live APY/TVL of the Compound V3 USDC market (the *Comet*
 ``0xc3d688B66703497DAA19211EEdff47f25384cdc3`` contract on Ethereum mainnet)
@@ -38,17 +38,26 @@ class CompoundV3Adapter:
 
     pool_id = "compound_v3"
     name = "Compound V3 (Comet USDC)"
-    tier = "T2"
 
-    # SPA-V411: tier surfaced to the read-only orchestrator / allocator via
-    # ``get_yield_info()``. Compound V3 USDC (Comet) is registered as the SECOND
-    # T1 anchor alongside Aave V3 — both are the lowest-risk, deepest-liquidity
+    # SPA-V411/SPA-V414 (MP-011): Compound V3 USDC (Comet) is the SECOND T1
+    # anchor alongside Aave V3 — both are the lowest-risk, deepest-liquidity
     # blue-chip lending markets, so a T1 (40% cap) classification gives the
     # allocator more headroom to fill the structural remainder left by the
-    # 20%-capped T2 adapters instead of parking it in 0%-yield cash. The legacy
-    # advisory ``tier`` attribute and ``fetch()`` dict keep their original "T2"
-    # label for backward compatibility (this method is strictly additive).
-    ORCHESTRATOR_TIER = "T1"
+    # 20%-capped T2 adapters instead of parking it in 0%-yield cash, and
+    # diversifies the T1 anchor (no single point of failure).
+    # SPA-V414 syncs the tier EVERYWHERE: the class attribute, the ``fetch()``
+    # dict, ``get_yield_info()`` and both ADAPTER_REGISTRY entries now all
+    # report "T1" (previously the legacy advisory ``tier``/``fetch()`` kept a
+    # stale "T2" label while the orchestrator already saw "T1").
+    # Pattern mirrors AaveV3Adapter: TIER="T1", T1_CAP=0.40.
+    TIER = "T1"
+    T1_CAP = 0.40  # max 40% of portfolio in this single T1 protocol.
+    tier = TIER
+
+    # Tier surfaced to the read-only orchestrator / allocator via
+    # ``get_yield_info()`` (kept as an alias of TIER for backward compat with
+    # SPA-V411 consumers/tests).
+    ORCHESTRATOR_TIER = TIER
     # Risk score for the T1 anchor (mirrors AaveV3Adapter.RISK_SCORE = 0.20 —
     # lowest-risk whitelisted protocol).
     RISK_SCORE = 0.20
