@@ -1,0 +1,74 @@
+[
+  {
+    "date": "2026-06-05",
+    "day_index": 1,
+    "equity": 100000.0,
+    "apy_pct": 9.8,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 26.85,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-06",
+    "day_index": 2,
+    "equity": 100026.85,
+    "apy_pct": 9.87,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 27.07,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-07",
+    "day_index": 3,
+    "equity": 100053.92,
+    "apy_pct": 9.93,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 27.21,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-08",
+    "day_index": 4,
+    "equity": 100081.13,
+    "apy_pct": 9.99,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 27.37,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-09",
+    "day_index": 5,
+    "equity": 100108.5,
+    "apy_pct": 10.05,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 27.56,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-10",
+    "day_index": 6,
+    "equity": 100136.06,
+    "apy_pct": 10.12,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 27.72,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-11",
+    "day_index": 7,
+    "equity": 100163.78,
+    "apy_pct": 10.18,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 27.89,
+    "is_seed": true
+  },
+  {
+    "date": "2026-06-12",
+    "day_index": 8,
+    "equity": 100026.06,
+    "apy_pct": 3.197,
+    "best_strategy": "s7_pendle_yt",
+    "day_pnl": 8.76,
+    "is_seed": false
+  }
+]
