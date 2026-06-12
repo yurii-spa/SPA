@@ -78,3 +78,40 @@ SQLite-specific `strftime`/`PRAGMA` constructs.
 
 JSONB migration of `raw_json` / `state_json`, full-text search,
 read-replica routing. Revisit after Phase 3.
+
+---
+
+## Phase 2 — Done (MP-210, 2026-06-11)
+
+All `sqlite3.connect(...)` call-sites outside the abstraction layer and the
+intentionally-raw files have been migrated to `get_connection()`.
+
+### Migrated files
+
+| File | Change |
+|---|---|
+| `spa_core/database/init_db.py` | Removed `import sqlite3`; replaced `with sqlite3.connect(str(path)) as conn:` in `init_database()` with `with _abstract_get_connection(f"sqlite:///{path}") as conn:` |
+| `spa_core/persistence/db.py` | Converted local `get_connection(db_path)` factory function to a `@contextmanager` delegating to `spa_core.database.connection.get_connection`; migrated all 9 public functions (`init_db`, `upsert_equity_point`, `get_equity_curve`, `upsert_daily_report`, `get_daily_report`, `upsert_analytics`, `get_analytics`, `upsert_allocation`, `get_allocation_history`) from `conn = …; try/finally conn.close()` to `with get_connection(…) as conn:` |
+
+### New files
+
+| File | Purpose |
+|---|---|
+| `spa_core/database/migrate_callsites.py` | Verification utility — `find_raw_sqlite_connects()` + `run_verification()` + CLI; test 35 (live codebase scan) confirms 0 raw connects remain |
+| `spa_core/tests/test_postgres_migration.py` | 45 tests covering db_url, connection, init_db, migrate_callsites, and db.py regression |
+
+### Intentionally excluded (raw sqlite3 kept)
+
+- `spa_core/database/connection.py` — the abstraction itself
+- `spa_core/persistence/pg_migration.py` — migration utility, supports both backends
+- `spa_core/persistence/track_store.py` — scratch DBs, intentionally raw
+
+### Verification
+
+```
+python3 -m spa_core.database.migrate_callsites
+# → "✓ Phase 2 complete — no raw sqlite3.connect() found"
+```
+
+Phase 3 (Alembic + production cutover) remains out of scope until the paper
+track record qualifies for go-live (ADR-002).
