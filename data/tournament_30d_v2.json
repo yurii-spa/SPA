@@ -1,0 +1,175 @@
+{
+  "generated_at": "2026-06-12",
+  "tournament_days": 30,
+  "strategies": {
+    "S0": {
+      "name": "Aave Baseline",
+      "annual_apy_pct": 3.2,
+      "30d_return_pct": 0.263,
+      "risk_score": 0.1,
+      "composite_score": 0.263
+    },
+    "S1": {
+      "name": "T1+T2 Balanced",
+      "annual_apy_pct": 5.24,
+      "30d_return_pct": 0.43,
+      "risk_score": 0.25,
+      "composite_score": 0.344
+    },
+    "S2": {
+      "name": "Pendle+Morpho Heavy",
+      "annual_apy_pct": 7.0,
+      "30d_return_pct": 0.575,
+      "risk_score": 0.4,
+      "composite_score": 0.345
+    },
+    "S3": {
+      "name": "Aave Arb+Morpho",
+      "annual_apy_pct": 4.7,
+      "30d_return_pct": 0.386,
+      "risk_score": 0.3,
+      "composite_score": 0.27
+    },
+    "S4": {
+      "name": "Spark+Fluid Conservative",
+      "annual_apy_pct": 5.9,
+      "30d_return_pct": 0.485,
+      "risk_score": 0.31,
+      "composite_score": 0.335
+    },
+    "S5": {
+      "name": "Pendle PT Enhanced",
+      "annual_apy_pct": 8.5,
+      "30d_return_pct": 0.699,
+      "risk_score": 0.42,
+      "composite_score": 0.405
+    },
+    "S6": {
+      "name": "Max Diversified",
+      "annual_apy_pct": 7.5,
+      "30d_return_pct": 0.616,
+      "risk_score": 0.35,
+      "composite_score": 0.4
+    },
+    "S7": {
+      "name": "Pendle YT+PT Aggressive",
+      "annual_apy_pct": 10.115,
+      "30d_return_pct": 0.832,
+      "risk_score": 0.52,
+      "tier": "T3",
+      "status": "target_met",
+      "sharpe": 0.96,
+      "calmar": 6.47,
+      "composite_score": 0.399,
+      "notes": "First to cross 10% APY barrier"
+    },
+    "S8": {
+      "name": "Delta-Neutral sUSDe",
+      "annual_apy_pct": 12.0,
+      "30d_return_pct": 0.985,
+      "risk_score": 0.65,
+      "tier": "T3",
+      "status": "research",
+      "sharpe": 0.72,
+      "calmar": 1.84,
+      "composite_score": 0.185,
+      "notes": "Ethena delta hedge, bull 27.5%, bear 0%"
+    },
+    "S9": {
+      "name": "E-Mode Looping",
+      "annual_apy_pct": 5.84,
+      "30d_return_pct": 0.48,
+      "risk_score": 0.45,
+      "tier": "T2",
+      "status": "research",
+      "sharpe": 0.52,
+      "calmar": 1.3,
+      "composite_score": 0.107,
+      "notes": "Aave E-Mode 4.5× leverage, deleverage trigger"
+    },
+    "S10": {
+      "name": "Pendle YT Max Spec",
+      "annual_apy_pct": 14.0,
+      "30d_return_pct": 1.15,
+      "risk_score": 0.75,
+      "tier": "T3-SPEC",
+      "status": "research",
+      "sharpe": 0.65,
+      "calmar": 1.87,
+      "composite_score": 0.187,
+      "notes": "YT max speculation: bull 42%, base 14%, bear -50%"
+    }
+  },
+  "rankings": [
+    {
+      "rank": 1,
+      "strategy_id": "S5",
+      "composite_score": 0.405,
+      "reason": "Highest APY with acceptable risk"
+    },
+    {
+      "rank": 2,
+      "strategy_id": "S6",
+      "composite_score": 0.4,
+      "reason": "Best diversification"
+    },
+    {
+      "rank": 3,
+      "strategy_id": "S7",
+      "composite_score": 0.399,
+      "reason": "First to cross 10% APY barrier"
+    },
+    {
+      "rank": 4,
+      "strategy_id": "S2",
+      "composite_score": 0.345,
+      "reason": "Proven Pendle+Morpho"
+    },
+    {
+      "rank": 5,
+      "strategy_id": "S1",
+      "composite_score": 0.344,
+      "reason": "Conservative T1+T2"
+    },
+    {
+      "rank": 6,
+      "strategy_id": "S4",
+      "composite_score": 0.335,
+      "reason": "Research-phase adapters"
+    },
+    {
+      "rank": 7,
+      "strategy_id": "S3",
+      "composite_score": 0.27,
+      "reason": "Arbitrum cross-chain"
+    },
+    {
+      "rank": 8,
+      "strategy_id": "S0",
+      "composite_score": 0.263,
+      "reason": "Baseline only"
+    },
+    {
+      "rank": 9,
+      "strategy_id": "S10",
+      "composite_score": 0.187,
+      "reason": "Max speculation YT, T3-SPEC advisory"
+    },
+    {
+      "rank": 10,
+      "strategy_id": "S8",
+      "composite_score": 0.185,
+      "reason": "Ethena delta hedge, high-yield T3"
+    },
+    {
+      "rank": 11,
+      "strategy_id": "S9",
+      "composite_score": 0.107,
+      "reason": "E-Mode leverage yield"
+    }
+  ],
+  "winner": "S5",
+  "promotion_candidate": "S5",
+  "go_live_recommendation": "S5 → Pendle PT Enhanced at 8.5% APY leads tournament",
+  "strategy_count": 11
+}
