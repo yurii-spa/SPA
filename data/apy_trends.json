@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-06-10T08:55:55.701058+00:00",
+  "trends": {
+    "aave-v3-usdc-ethereum": {
+      "avg_apy": 6.3057,
+      "latest_apy": 6.3057,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    },
+    "aave-v3-usdt-ethereum": {
+      "avg_apy": 3.4761,
+      "latest_apy": 3.4761,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    },
+    "compound-v3-usdc-ethereum": {
+      "avg_apy": 0.7698,
+      "latest_apy": 0.7698,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    },
+    "euler-v2-usdc-ethereum": {
+      "avg_apy": 9.3141,
+      "latest_apy": 9.3141,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    },
+    "maple-usdc-ethereum": {
+      "avg_apy": 5.3772,
+      "latest_apy": 5.3772,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    },
+    "morpho-usdc-ethereum": {
+      "avg_apy": 2.8237,
+      "latest_apy": 2.8237,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    },
+    "yearn-v3-usdc-ethereum": {
+      "avg_apy": 4.6843,
+      "latest_apy": 4.6843,
+      "trend": "UNKNOWN",
+      "data_points": 0
+    }
+  },
+  "protocols_tracked": 7
+}
