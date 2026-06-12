@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-12",
-  "updated_by": "claude (SPA-V489 orchestrator)",
-  "sprint_current": "v4.89",
+  "last_updated": "2026-06-13",
+  "updated_by": "claude (SPA-V498)",
+  "sprint_current": "v4.98",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -291,6 +291,28 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-561",
+        "title": "Angle Staked USDA (stUSD) ERC-4626 T2 adapter — read-only/advisory yield source",
+        "type": "code",
+        "priority": "P2",
+        "status": "done",
+        "sprint": "v4.91",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V491 orchestrator)",
+        "notes": "stusd_adapter.py + test_stusd_adapter.py (100 tests); additive __init__.py + adapter_status.json; hard-peg gate 0.5% (Angle transmuter), T2 cap 20%, risk 0.43, default APY 6.0; ADAPTER_REGISTRY 17->18 (total len 19 incl Base)"
+      },
+      {
+        "id": "MP-560",
+        "title": "Curve Savings crvUSD (scrvUSD) ERC-4626 T2 adapter — read-only/advisory yield source",
+        "type": "code",
+        "priority": "P2",
+        "status": "done",
+        "sprint": "v4.90",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V490 orchestrator)",
+        "notes": "scrvusd_adapter.py + test_scrvusd_adapter.py (100 tests); additive __init__.py + adapter_status.json; soft-peg gate 1%, T2 cap 20%, risk 0.42, default APY 7.0; ADAPTER_REGISTRY 16->17"
+      },
       {
         "id": "MP-376",
         "title": "Spark sUSDS adapter (T1) — Sky Savings Rate yield source",
@@ -4799,10 +4821,30 @@
         "status": "done",
         "done_at": "2026-06-12",
         "notes": "Implemented as S14 (S5 slot was taken by s5_pendle_enhanced.py). s14_arbitrum_radiant.py: Aave Arb 45% T1 + Radiant 35% T2 + Morpho 20% T1. APY=6.17%, T1-dominant 65%. 111 tests PASS."
+      },
+      {
+        "id": "MP-562",
+        "title": "MakerDAO Savings DAI (sDAI) ERC-4626 T2 adapter — read-only/advisory yield source",
+        "type": "code",
+        "priority": "P2",
+        "status": "done",
+        "sprint": "v4.92",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V492)"
+      },
+      {
+        "id": "MP-576",
+        "title": "position_sizer.py — PositionSizer engine",
+        "status": "done",
+        "sprint": "v4.98",
+        "completed": "2026-06-13",
+        "priority": "P1",
+        "type": "code",
+        "notes": "127 tests; stdlib only; atomic writes; tier caps T1/T2/T3; concentration limit; ring-buffer 365"
       }
     ]
   },
-  "sprint_completed": "v4.89",
+  "sprint_completed": "v4.98",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
@@ -4890,15 +4932,26 @@
       "title": "cycle_health_monitor.py — cycle gap, equity anomaly, data freshness",
       "status": "done",
       "completed": "2026-06-12"
+    },
+    {
+      "id": "MP-576",
+      "title": "position_sizer.py — PositionSizer: compute_target_weights/compute_dollar_allocations/apply_tier_caps/apply_concentration_limit/get_sizing_report; 127 tests",
+      "status": "done",
+      "sprint": "v4.98",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V498 orchestrator)"
     }
   ],
   "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
-  "adapter_registry_count": 16,
+  "adapter_registry_count": 19,
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 9,
+  "done_count": 10,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
-  "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py"
+  "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
+  "_v490_dispatch_note": "MP-560 (SPA-V490): scrvUSD (Curve Savings crvUSD) ERC-4626 T2 read-only adapter — done. scrvusd_adapter.py + test_scrvusd_adapter.py (100 tests, ALL GREEN), additive __init__.py + adapter_status.json. Soft-peg gate 1% (LLAMMA), risk 0.42, default APY 7.0, T2 cap 20%. Regression sfrax+wusdm+spark+fluid 382 green. Adapter registry 16->17. CODE SHIPPED LOCAL; push escalated (keychain/PAT unreachable from agent sandbox).",
+  "_v491_dispatch_note": "SPA-V491/MP-561: Angle Staked USDA (stUSD) ERC-4626 T2 read-only adapter. Autonomously selected by orchestrator (no ready code tasks in backlog/features; backlog only USER ACTION/P3). v4.90 ends in 0 -> architect review attempted (LLM-backed, anthropic SDK unavailable in sandbox) -> manual deterministic backlog review performed instead. 2 new files + 2 additive edits. 100 tests OK; regression scrvusd+wusdm+sfrax+spark 382 OK. Push escalated to Mac (scripts/push_v491.sh).",
+  "_v498_dispatch_note": "MP-576: position_sizer.py PositionSizer engine; 127 tests green"
 }
