@@ -1,198 +1,508 @@
-"""
-Unit tests for spa_core.analytics.honest_metrics (Sprint B / v3.91).
+#!/usr/bin/env python3
+"""Tests for spa_core.paper_trading.honest_metrics (MP-138).
 
-Stdlib unittest only — no network, no file I/O. The bootstrap CI tests seed
-``random`` for determinism.
+Coverage
+--------
+compute_sortino   — 14 tests
+compute_sharpe    — 12 tests
+bootstrap_ci      —  9 tests
+confidence_label  —  9 tests
+evaluate_strategy — 15 tests
+run_honest_metrics—  7 tests
+
+Total ≥ 66 tests.  Pure stdlib unittest — no pytest dependency.
+Run with:
+    python3 -m pytest spa_core/tests/test_honest_metrics.py -v
+  or:
+    python3 -m unittest spa_core.tests.test_honest_metrics -v
 """
 from __future__ import annotations
 
+import json
 import math
-import random
+import os
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
+from typing import List, Optional
 
-from spa_core.analytics.honest_metrics import (
+from spa_core.paper_trading.honest_metrics import (
+    bootstrap_ci,
+    compute_sharpe,
     compute_sortino,
-    compute_sharpe_with_ci,
-    compute_calmar,
-    min_sample_check,
-    label_metric,
-    _confidence,
+    confidence_label,
+    evaluate_strategy,
+    run_honest_metrics,
 )
 
 
-class TestSortino(unittest.TestCase):
-    def test_downside_only_returns_value(self):
-        # Mixed returns with real downside -> a finite Sortino.
-        returns = [0.02, -0.01, 0.03, -0.02, 0.01, 0.015]
-        res = compute_sortino(returns)
-        self.assertIsNotNone(res["value"])
-        self.assertIsInstance(res["value"], float)
-        self.assertEqual(res["n"], len(returns))
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    def test_sortino_matches_manual_formula(self):
-        returns = [0.10, -0.05, 0.20, -0.10, 0.05]
-        downside = [r for r in returns if r < 0]
-        mu_down = sum(downside) / len(downside)
-        dd = math.sqrt(sum((r - mu_down) ** 2 for r in downside) / len(downside))
-        expected = (sum(returns) / len(returns)) / dd
-        res = compute_sortino(returns)
-        self.assertAlmostEqual(res["value"], expected, places=9)
-
-    def test_no_negative_returns_value_none(self):
-        returns = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06]
-        res = compute_sortino(returns)
-        self.assertIsNone(res["value"])
-        self.assertNotEqual(res["confidence"], "insufficient_data")
-
-    def test_insufficient_data_below_min_periods(self):
-        res = compute_sortino([0.01, -0.01])  # n=2 < 5
-        self.assertIsNone(res["value"])
-        self.assertEqual(res["confidence"], "insufficient_data")
-        self.assertEqual(res["n"], 2)
-
-    def test_single_negative_point_no_spread(self):
-        # exactly one negative -> downside std is 0 -> value None
-        res = compute_sortino([0.01, 0.02, -0.03, 0.04, 0.05])
-        self.assertIsNone(res["value"])
-
-    def test_rf_shifts_value_down(self):
-        returns = [0.05, -0.02, 0.04, -0.03, 0.06, 0.01]
-        base = compute_sortino(returns, rf=0.0)["value"]
-        with_rf = compute_sortino(returns, rf=0.02)["value"]
-        self.assertLess(with_rf, base)
+def _make_equity(n_days: int, start: float = 100_000.0, daily_gain: float = 13.0) -> List[float]:
+    """Monotonically rising equity: n_days+1 equity values → n_days returns."""
+    eq = [start]
+    for _ in range(n_days):
+        eq.append(eq[-1] + daily_gain)
+    return eq
 
 
-class TestSharpeWithCI(unittest.TestCase):
-    def test_low_sample_warning_flag(self):
-        returns = [0.01, -0.01, 0.02, -0.02, 0.015, 0.005, 0.0, -0.005, 0.012, 0.008]
-        res = compute_sharpe_with_ci(returns)  # n=10 < 30
-        self.assertTrue(res.get("low_sample_warning"))
-
-    def test_below_bootstrap_min_value_none(self):
-        res = compute_sharpe_with_ci([0.01, -0.01, 0.02])  # n=3 < 10
-        self.assertIsNone(res["value"])
-        self.assertIsNone(res["ci_lower"])
-        self.assertIsNone(res["ci_upper"])
-        self.assertTrue(res.get("low_sample_warning"))
-
-    def test_ci_brackets_point_estimate(self):
-        random.seed(123)
-        # Clean positive-drift series with noise -> CI should straddle the point.
-        returns = [0.01 + 0.005 * math.sin(i) for i in range(40)]
-        res = compute_sharpe_with_ci(returns)
-        self.assertIsNotNone(res["value"])
-        self.assertIsNotNone(res["ci_lower"])
-        self.assertIsNotNone(res["ci_upper"])
-        self.assertLess(res["ci_lower"], res["value"])
-        self.assertLess(res["value"], res["ci_upper"])
-
-    def test_large_sample_no_warning_high_confidence(self):
-        random.seed(7)
-        returns = [0.01 if i % 2 == 0 else -0.005 for i in range(50)]
-        res = compute_sharpe_with_ci(returns)
-        self.assertNotIn("low_sample_warning", res)
-        self.assertEqual(res["confidence"], "high")
-        self.assertEqual(res["n"], 50)
-
-    def test_ci_lower_below_upper(self):
-        random.seed(99)
-        returns = [0.02, -0.01, 0.03, -0.02, 0.01, 0.04, -0.03, 0.02, 0.01, -0.01, 0.05, 0.0]
-        res = compute_sharpe_with_ci(returns)
-        self.assertLessEqual(res["ci_lower"], res["ci_upper"])
+def _make_volatile_equity(n: int, seed: int = 0) -> List[float]:
+    """Equity with both gains and losses."""
+    import random
+    rng = random.Random(seed)
+    eq = [100_000.0]
+    for _ in range(n):
+        change = rng.gauss(5, 100)
+        eq.append(max(1.0, eq[-1] + change))
+    return eq
 
 
-class TestCalmar(unittest.TestCase):
-    def test_zero_drawdown_returns_none(self):
-        # Monotonically rising equity -> no drawdown -> value None
-        curve = [{"equity": 100_000 + i * 100} for i in range(10)]
-        res = compute_calmar(curve, period_days=10)
-        self.assertIsNone(res["value"])
-        self.assertEqual(res["max_drawdown_pct"], 0.0)
+def _write_shadow(data_dir: Path, history: list) -> None:
+    """Write a minimal shadow_portfolio.json for testing."""
+    payload = {
+        "date": "2026-06-12",
+        "generated_at": "2026-06-12T00:00:00+00:00",
+        "source": "shadow_runner",
+        "advisory_only": True,
+        "initial_capital": 100_000.0,
+        "real_equity_usd": 100_000.0,
+        "strategies": {},
+        "history": history,
+    }
+    (data_dir / "shadow_portfolio.json").write_text(
+        json.dumps(payload, indent=2), encoding="utf-8"
+    )
 
-    def test_positive_calmar_with_drawdown(self):
-        curve = [
-            {"equity": 100_000},
-            {"equity": 105_000},
-            {"equity": 102_000},  # drawdown here
-            {"equity": 110_000},
+
+def _three_day_history() -> list:
+    return [
+        {"date": "2026-06-10", "S0": 100_013.54, "S1": 100_012.00},
+        {"date": "2026-06-11", "S0": 100_026.49, "S1": 100_024.00},
+        {"date": "2026-06-12", "S0": 100_039.51, "S1": 100_036.00},
+    ]
+
+
+def _sharpe_fn(r: List[float]) -> Optional[float]:
+    return compute_sharpe(r)["sharpe"]
+
+
+def _sortino_fn(r: List[float]) -> Optional[float]:
+    return compute_sortino(r)["sortino"]
+
+
+# ============================================================
+# compute_sortino  (14 tests)
+# ============================================================
+
+class TestComputeSortino(unittest.TestCase):
+
+    def test_empty_list_none(self):
+        r = compute_sortino([])
+        self.assertIsNone(r["sortino"])
+        self.assertEqual(r["n"], 0)
+        self.assertEqual(r["downside_returns"], 0)
+
+    def test_single_element_none(self):
+        r = compute_sortino([-0.01])
+        self.assertIsNone(r["sortino"])
+        self.assertEqual(r["n"], 1)
+
+    def test_two_elements_none(self):
+        r = compute_sortino([-0.01, -0.02])
+        self.assertIsNone(r["sortino"])
+        self.assertEqual(r["n"], 2)
+
+    def test_all_zeros_no_downside_none(self):
+        r = compute_sortino([0.0, 0.0, 0.0, 0.0])
+        self.assertIsNone(r["sortino"])
+        self.assertEqual(r["downside_returns"], 0)
+
+    def test_all_positive_no_downside_none(self):
+        r = compute_sortino([0.01, 0.02, 0.005, 0.001])
+        self.assertIsNone(r["sortino"])
+        self.assertEqual(r["downside_returns"], 0)
+
+    def test_normal_data_finite_sortino(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r = compute_sortino(returns)
+        self.assertIsNotNone(r["sortino"])
+        self.assertTrue(math.isfinite(r["sortino"]))
+        self.assertEqual(r["n"], 5)
+
+    def test_downside_count_correct(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r = compute_sortino(returns)
+        self.assertEqual(r["downside_returns"], 2)
+
+    def test_all_negative_sortino_negative(self):
+        returns = [-0.01, -0.02, -0.005]
+        r = compute_sortino(returns)
+        self.assertIsNotNone(r["sortino"])
+        self.assertLess(r["sortino"], 0)
+
+    def test_nonzero_target_increases_downside_count(self):
+        returns = [0.001, 0.002, -0.001, 0.0005, -0.002]
+        r_zero = compute_sortino(returns, target=0.0)
+        r_nonzero = compute_sortino(returns, target=0.001)
+        self.assertGreaterEqual(r_nonzero["downside_returns"], r_zero["downside_returns"])
+
+    def test_annualize_false_ratio(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r_ann = compute_sortino(returns, annualize=True)
+        r_raw = compute_sortino(returns, annualize=False)
+        self.assertIsNotNone(r_ann["sortino"])
+        self.assertIsNotNone(r_raw["sortino"])
+        ratio = r_ann["sortino"] / r_raw["sortino"]
+        self.assertAlmostEqual(ratio, math.sqrt(252), places=8)
+
+    def test_formula_manual_verification(self):
+        """Verify against hand-computed value (full-N denominator)."""
+        returns = [0.02, -0.01, 0.01]
+        n = 3
+        dd = [-0.01]
+        mean_sq = sum(d * d for d in dd) / n
+        dd_dev = math.sqrt(mean_sq)
+        mean_ret = sum(returns) / n
+        expected = mean_ret / dd_dev * math.sqrt(252)
+        r = compute_sortino(returns, annualize=True)
+        self.assertAlmostEqual(r["sortino"], expected, places=9)
+
+    def test_n_lt_3_always_none(self):
+        r = compute_sortino([-0.01, 0.02])
+        self.assertIsNone(r["sortino"])
+
+    def test_dict_keys(self):
+        r = compute_sortino([0.01, -0.005, 0.02])
+        self.assertEqual(set(r.keys()), {"sortino", "n", "downside_returns"})
+
+    def test_large_positive_high_sortino(self):
+        returns = [0.01] * 50 + [-0.001] * 5
+        r = compute_sortino(returns)
+        self.assertIsNotNone(r["sortino"])
+        self.assertGreater(r["sortino"], 5)
+
+
+# ============================================================
+# compute_sharpe  (12 tests)
+# ============================================================
+
+class TestComputeSharpe(unittest.TestCase):
+
+    def test_empty_none(self):
+        r = compute_sharpe([])
+        self.assertIsNone(r["sharpe"])
+        self.assertEqual(r["n"], 0)
+
+    def test_single_none(self):
+        r = compute_sharpe([0.01])
+        self.assertIsNone(r["sharpe"])
+
+    def test_two_none(self):
+        r = compute_sharpe([0.01, 0.02])
+        self.assertIsNone(r["sharpe"])
+
+    def test_all_equal_std_zero_none(self):
+        r = compute_sharpe([0.01, 0.01, 0.01, 0.01])
+        self.assertIsNone(r["sharpe"])
+
+    def test_normal_data_finite(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r = compute_sharpe(returns)
+        self.assertIsNotNone(r["sharpe"])
+        self.assertTrue(math.isfinite(r["sharpe"]))
+
+    def test_n_correct(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r = compute_sharpe(returns)
+        self.assertEqual(r["n"], 5)
+
+    def test_higher_rf_lower_sharpe(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r_zero = compute_sharpe(returns, risk_free_daily=0.0)
+        r_rf = compute_sharpe(returns, risk_free_daily=0.001)
+        self.assertLess(r_rf["sharpe"], r_zero["sharpe"])
+
+    def test_annualize_ratio(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003]
+        r_ann = compute_sharpe(returns, annualize=True)
+        r_raw = compute_sharpe(returns, annualize=False)
+        ratio = r_ann["sharpe"] / r_raw["sharpe"]
+        self.assertAlmostEqual(ratio, math.sqrt(252), places=8)
+
+    def test_formula_manual(self):
+        import statistics as st
+        returns = [0.01, -0.01, 0.02, -0.005, 0.003]
+        expected = (st.mean(returns) / st.stdev(returns)) * math.sqrt(252)
+        r = compute_sharpe(returns)
+        self.assertAlmostEqual(r["sharpe"], expected, places=9)
+
+    def test_all_negative_negative_sharpe(self):
+        returns = [-0.01, -0.02, -0.005]
+        r = compute_sharpe(returns)
+        self.assertIsNotNone(r["sharpe"])
+        self.assertLess(r["sharpe"], 0)
+
+    def test_dict_keys(self):
+        r = compute_sharpe([0.01, -0.005, 0.02])
+        self.assertEqual(set(r.keys()), {"sharpe", "n"})
+
+    def test_large_positive_high_sharpe(self):
+        returns = [0.005] * 90 + [-0.001] * 10
+        r = compute_sharpe(returns)
+        self.assertIsNotNone(r["sharpe"])
+        self.assertGreater(r["sharpe"], 3)
+
+
+# ============================================================
+# bootstrap_ci  (9 tests)
+# ============================================================
+
+class TestBootstrapCI(unittest.TestCase):
+
+    def test_empty_returns_none(self):
+        self.assertIsNone(bootstrap_ci(_sharpe_fn, []))
+
+    def test_seed_reproducibility(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, 0.007, -0.002]
+        r1 = bootstrap_ci(_sharpe_fn, returns, seed=42)
+        r2 = bootstrap_ci(_sharpe_fn, returns, seed=42)
+        self.assertEqual(r1, r2)
+
+    def test_different_seeds_different_result(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, 0.007, -0.002]
+        r1 = bootstrap_ci(_sharpe_fn, returns, seed=42)
+        r2 = bootstrap_ci(_sharpe_fn, returns, seed=99)
+        self.assertNotEqual(r1, r2)
+
+    def test_lower_lt_upper(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, 0.007, -0.002, 0.015, -0.003]
+        r = bootstrap_ci(_sharpe_fn, returns, seed=42)
+        self.assertIsNotNone(r)
+        self.assertLess(r["lower"], r["upper"])
+
+    def test_metric_always_none_returns_none(self):
+        def always_none(r):
+            return None
+        self.assertIsNone(bootstrap_ci(always_none, [0.01] * 10, seed=42))
+
+    def test_returns_correct_keys(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, 0.007, -0.002]
+        r = bootstrap_ci(_sharpe_fn, returns, seed=42)
+        self.assertIsNotNone(r)
+        self.assertEqual(set(r.keys()), {"lower", "upper", "n_valid"})
+
+    def test_n_valid_at_most_n_bootstrap(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, 0.007, -0.002]
+        r = bootstrap_ci(_sharpe_fn, returns, n_bootstrap=100, seed=42)
+        self.assertIsNotNone(r)
+        self.assertLessEqual(r["n_valid"], 100)
+
+    def test_wider_ci_level_wider_interval(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, 0.007, -0.002, 0.015, -0.003]
+        r95 = bootstrap_ci(_sharpe_fn, returns, ci_level=0.95, seed=42)
+        r80 = bootstrap_ci(_sharpe_fn, returns, ci_level=0.80, seed=42)
+        self.assertIsNotNone(r95)
+        self.assertIsNotNone(r80)
+        self.assertGreaterEqual(r95["upper"] - r95["lower"], r80["upper"] - r80["lower"])
+
+    def test_sortino_bootstrap_works(self):
+        returns = [0.01, -0.005, 0.02, -0.01, 0.003, -0.008, 0.007]
+        r = bootstrap_ci(_sortino_fn, returns, seed=42)
+        self.assertIsNotNone(r)
+        self.assertLess(r["lower"], r["upper"])
+
+
+# ============================================================
+# confidence_label  (9 tests)
+# ============================================================
+
+class TestConfidenceLabel(unittest.TestCase):
+
+    def test_zero_insufficient(self):
+        self.assertEqual(confidence_label(0), "INSUFFICIENT")
+
+    def test_one_insufficient(self):
+        self.assertEqual(confidence_label(1), "INSUFFICIENT")
+
+    def test_six_insufficient(self):
+        self.assertEqual(confidence_label(6), "INSUFFICIENT")
+
+    def test_seven_low_confidence(self):
+        self.assertEqual(confidence_label(7), "LOW_CONFIDENCE")
+
+    def test_twenty_nine_low_confidence(self):
+        self.assertEqual(confidence_label(29), "LOW_CONFIDENCE")
+
+    def test_thirty_moderate(self):
+        self.assertEqual(confidence_label(30), "MODERATE")
+
+    def test_eighty_nine_moderate(self):
+        self.assertEqual(confidence_label(89), "MODERATE")
+
+    def test_ninety_high(self):
+        self.assertEqual(confidence_label(90), "HIGH")
+
+    def test_365_high(self):
+        self.assertEqual(confidence_label(365), "HIGH")
+
+
+# ============================================================
+# evaluate_strategy  (15 tests)
+# ============================================================
+
+class TestEvaluateStrategy(unittest.TestCase):
+
+    def test_empty_list(self):
+        s = evaluate_strategy([])
+        self.assertEqual(s["n_days"], 0)
+        self.assertIsNone(s["sharpe"])
+        self.assertIsNone(s["sortino"])
+        self.assertEqual(s["total_return_pct"], 0.0)
+        self.assertEqual(s["confidence"], "INSUFFICIENT")
+
+    def test_single_float_value(self):
+        s = evaluate_strategy([100_000.0])
+        self.assertEqual(s["n_days"], 0)
+        self.assertIsNone(s["sharpe"])
+
+    def test_two_equity_values_one_return(self):
+        s = evaluate_strategy([100_000.0, 100_013.0])
+        self.assertEqual(s["n_days"], 1)
+        self.assertEqual(s["confidence"], "INSUFFICIENT")
+        self.assertIsNone(s["sharpe"])
+
+    def test_dict_input_format(self):
+        history = [
+            {"date": "2026-06-10", "equity": 100_000.0},
+            {"date": "2026-06-11", "equity": 100_013.0},
+            {"date": "2026-06-12", "equity": 100_026.0},
+            {"date": "2026-06-13", "equity": 100_010.0},
+            {"date": "2026-06-14", "equity": 100_030.0},
         ]
-        res = compute_calmar(curve, period_days=30)
-        self.assertIsNotNone(res["value"])
-        self.assertGreater(res["value"], 0)
-        self.assertGreater(res["max_drawdown_pct"], 0)
+        s = evaluate_strategy(history)
+        self.assertEqual(s["n_days"], 4)
 
-    def test_accepts_raw_number_curve(self):
-        res = compute_calmar([100.0, 110.0, 105.0, 120.0], period_days=20)
-        self.assertIsNotNone(res["value"])
+    def test_float_input_format(self):
+        equities = [100_000.0, 100_013.0, 100_026.0, 100_010.0, 100_030.0]
+        s = evaluate_strategy(equities)
+        self.assertEqual(s["n_days"], 4)
 
-    def test_too_short_curve_none(self):
-        res = compute_calmar([{"equity": 100_000}], period_days=10)
-        self.assertIsNone(res["value"])
+    def test_7_days_low_confidence_with_warning(self):
+        equities = _make_equity(7)
+        s = evaluate_strategy(equities)
+        self.assertEqual(s["confidence"], "LOW_CONFIDENCE")
+        self.assertIsNotNone(s["warning"])
 
-    def test_invalid_period_days_none(self):
-        curve = [{"equity": 100}, {"equity": 90}, {"equity": 95}]
-        res = compute_calmar(curve, period_days=0)
-        self.assertIsNone(res["value"])
+    def test_30_days_moderate_no_warning(self):
+        equities = _make_volatile_equity(30)
+        s = evaluate_strategy(equities)
+        self.assertEqual(s["confidence"], "MODERATE")
+        self.assertIsNone(s["warning"])
+
+    def test_90_days_high_no_warning(self):
+        equities = _make_volatile_equity(90)
+        s = evaluate_strategy(equities)
+        self.assertEqual(s["confidence"], "HIGH")
+        self.assertIsNone(s["warning"])
+
+    def test_total_return_pct_correct(self):
+        equities = [100_000.0, 101_000.0]
+        s = evaluate_strategy(equities)
+        self.assertAlmostEqual(s["total_return_pct"], 1.0, places=6)
+
+    def test_max_drawdown_zero_monotone_rise(self):
+        equities = _make_equity(20)
+        s = evaluate_strategy(equities)
+        self.assertAlmostEqual(s["max_drawdown_pct"], 0.0, places=6)
+
+    def test_max_drawdown_nonzero_volatile(self):
+        equities = [100_000.0, 105_000.0, 95_000.0, 98_000.0]
+        s = evaluate_strategy(equities)
+        expected_dd = (105_000.0 - 95_000.0) / 105_000.0 * 100.0
+        self.assertAlmostEqual(s["max_drawdown_pct"], expected_dd, places=6)
+
+    def test_annualized_return_none_lt_30(self):
+        equities = _make_equity(10)
+        s = evaluate_strategy(equities)
+        self.assertIsNone(s["annualized_return_pct"])
+
+    def test_annualized_return_present_ge_30(self):
+        equities = _make_equity(30)
+        s = evaluate_strategy(equities)
+        self.assertIsNotNone(s["annualized_return_pct"])
+
+    def test_calmar_none_when_no_drawdown(self):
+        equities = _make_equity(30)
+        s = evaluate_strategy(equities)
+        self.assertIsNone(s["calmar"])  # drawdown=0 → cannot compute
+
+    def test_scorecard_keys_complete(self):
+        equities = _make_volatile_equity(30)
+        s = evaluate_strategy(equities)
+        expected_keys = {
+            "n_days", "confidence", "sharpe", "sortino", "calmar",
+            "max_drawdown_pct", "total_return_pct", "annualized_return_pct",
+            "sharpe_ci_95", "sortino_ci_95", "warning",
+        }
+        self.assertEqual(set(s.keys()), expected_keys)
 
 
-class TestConfidenceThresholds(unittest.TestCase):
-    def test_low_below_15(self):
-        self.assertEqual(_confidence(5), "low")
-        self.assertEqual(_confidence(14), "low")
+# ============================================================
+# run_honest_metrics  (7 tests)
+# ============================================================
 
-    def test_medium_15_to_30(self):
-        self.assertEqual(_confidence(15), "medium")
-        self.assertEqual(_confidence(30), "medium")
+class TestRunHonestMetrics(unittest.TestCase):
 
-    def test_high_above_30(self):
-        self.assertEqual(_confidence(31), "high")
-        self.assertEqual(_confidence(100), "high")
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp()
+        self.data_dir = Path(self._tmp)
 
-    def test_sortino_confidence_label_propagates(self):
-        returns = [0.02, -0.01] * 10  # n=20 -> medium
-        res = compute_sortino(returns)
-        self.assertEqual(res["confidence"], "medium")
+    def tearDown(self):
+        shutil.rmtree(self._tmp, ignore_errors=True)
 
+    def test_missing_file_returns_error(self):
+        result = run_honest_metrics(self.data_dir)
+        self.assertIn("error", result)
+        self.assertEqual(result["strategies"], {})
 
-class TestMinSampleCheck(unittest.TestCase):
-    def test_warns_below_30(self):
-        msg = min_sample_check(20, "Sharpe")
-        self.assertIn("n=20", msg)
-        self.assertIn("LOW CONFIDENCE", msg)
+    def test_valid_history_scores_all_strategies(self):
+        _write_shadow(self.data_dir, _three_day_history())
+        result = run_honest_metrics(self.data_dir)
+        self.assertNotIn("error", result)
+        self.assertIn("S0", result["strategies"])
+        self.assertIn("S1", result["strategies"])
 
-    def test_empty_at_or_above_30(self):
-        self.assertEqual(min_sample_check(30, "Sharpe"), "")
-        self.assertEqual(min_sample_check(45, "Sortino"), "")
+    def test_output_file_created(self):
+        _write_shadow(self.data_dir, _three_day_history())
+        run_honest_metrics(self.data_dir)
+        self.assertTrue((self.data_dir / "honest_metrics.json").exists())
 
+    def test_output_file_valid_json(self):
+        _write_shadow(self.data_dir, _three_day_history())
+        run_honest_metrics(self.data_dir)
+        data = json.loads((self.data_dir / "honest_metrics.json").read_text())
+        self.assertIn("strategies", data)
+        self.assertTrue(data["advisory_only"])
 
-class TestLabelMetric(unittest.TestCase):
-    def test_high_confidence_checkmark(self):
-        out = label_metric({"value": 1.23, "n": 40, "confidence": "high"}, "Sortino")
-        self.assertEqual(out, "Sortino: 1.23 ✓")
+    def test_n_strategies_count(self):
+        _write_shadow(self.data_dir, _three_day_history())
+        result = run_honest_metrics(self.data_dir)
+        self.assertEqual(result["n_strategies"], 2)
 
-    def test_low_confidence_warning_with_n(self):
-        out = label_metric({"value": -5.38, "n": 20, "confidence": "medium"}, "Sharpe")
-        self.assertIn("-5.38", out)
-        self.assertIn("⚠", out)
-        self.assertIn("LOW CONFIDENCE", out)
-        self.assertIn("n=20", out)
+    def test_custom_output_path(self):
+        _write_shadow(self.data_dir, _three_day_history())
+        custom_out = self.data_dir / "custom_out.json"
+        run_honest_metrics(self.data_dir, output_path=custom_out)
+        self.assertTrue(custom_out.exists())
 
-    def test_none_value_na(self):
-        out = label_metric({"value": None, "n": 3}, "Sortino")
-        self.assertIn("N/A", out)
-
-    def test_accepts_bare_float(self):
-        out = label_metric(2.5, "Calmar")
-        self.assertIn("2.50", out)
-        self.assertIn("✓", out)
-
-    def test_low_sample_warning_flag_triggers_warning(self):
-        out = label_metric(
-            {"value": 0.9, "n": 12, "confidence": "low", "low_sample_warning": True},
-            "Sharpe",
-        )
-        self.assertIn("⚠", out)
+    def test_corrupt_json_returns_error(self):
+        (self.data_dir / "shadow_portfolio.json").write_text("{bad json{{", encoding="utf-8")
+        result = run_honest_metrics(self.data_dir)
+        self.assertIn("error", result)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)
