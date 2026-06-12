@@ -198,6 +198,29 @@ python3 push_to_github.py --files <paths> --message "<msg>"
 
 ---
 
+## Analytics Modules (Read-Only/Advisory)
+
+Все модули в `spa_core/paper_trading/` с префиксом своего MP-номера.
+**Строго read-only** — никогда не модифицируют allocator/risk/execution.
+Выходные артефакты сохраняются в `data/`. Pure stdlib, offline, exit 0 всегда.
+
+| Module | MP | Data File | Description |
+|--------|----|-----------|-------------|
+| `drawdown_analytics.py` | MP-115 | `data/drawdown_analytics.json` | Drawdown episodes (peak→trough→recovery), underwater time |
+| `concentration_analytics.py` | MP-116 | `data/concentration_analytics.json` | HHI by protocol/tier, effective positions, DOJ/FTC thresholds |
+| `yield_attribution.py` | MP-117 | `data/yield_attribution.json` | Per-protocol yield contribution, yield-HHI, cash drag |
+| `risk_contribution.py` | MP-118 | `data/risk_contribution.json` | MCTR/CCTR/PRC decomposition, risk-HHI, diversification ratio |
+| `correlation_analyzer.py` | MP-120 | `data/correlation_analytics.json` | Pearson N×N correlation matrix across protocol APY series, clustering (|r|>0.8), advisory verdict |
+
+CLI pattern (одинаков для всех):
+```bash
+python3 -m spa_core.paper_trading.<module> --check     # вычислить + вывести, без записи (дефолт)
+python3 -m spa_core.paper_trading.<module> --run       # + атомарная запись в data/
+python3 -m spa_core.paper_trading.<module> --run --data-dir <dir>
+```
+
+---
+
 ## Команды
 
 ```bash
@@ -221,4 +244,4 @@ python3 push_to_github.py --files /abs/path/a.py /abs/path/b.json --message "msg
 
 ---
 
-*Обновлено: 2026-06-10 (MP-010 — переписан по фактическому состоянию после teardown/rebuild).*
+*Обновлено: 2026-06-12 (MP-120 — добавлена секция Analytics Modules: MP-115..MP-118, MP-120).*
