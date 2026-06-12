@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-06-12T12:35:31.279505+00:00",
+  "generated_at": "2026-06-12T22:04:45.694225+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
   "days_remaining": 32,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
-  "summary": "4/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 2 failing (Strategy Tournament, Agent Stability); 4 warning (PnL Positive, Strategy Sharpe, Diversification, APY Gap)",
+  "summary": "5/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 1 failing (Agent Stability); 4 warning (PnL Positive, Strategy Sharpe, Diversification, APY Gap)",
   "criteria": [
     {
       "name": "Paper Duration",
@@ -79,15 +79,15 @@
     },
     {
       "name": "Strategy Tournament",
-      "status": "FAIL",
+      "status": "PASS",
       "value": {
-        "winner": "v2_aggressive",
-        "v1_score": 0.7925,
-        "v2_score": 0.85,
-        "v3_score": 0.15
+        "winner": "v1_passive",
+        "v1_score": 0.5,
+        "v2_score": 0.5,
+        "v3_score": 0.5
       },
       "threshold": "v1_passive or v3_pendle_focused winning or tied",
-      "note": "v2_aggressive WINNING (confidence: HIGH) \u2014 conservative strategies losing (scores: v1=0.792, v2=0.850, v3=0.150)"
+      "note": "acceptable winner: v1_passive TIED (scores: v1=0.500, v2=0.500, v3=0.500, confidence: LOW)"
     },
     {
       "name": "APY Gap",
@@ -101,17 +101,16 @@
       "status": "FAIL",
       "value": 0.0,
       "threshold": 28,
-      "note": "0.0/28 days stable \u2014 need 28.0 more days (2 prior failure(s))"
+      "note": "0.0/28 days stable \u2014 need 28.0 more days (3 prior failure(s))"
     }
   ],
   "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (33 days away). Review again after 2026-07-15.",
   "owner_action_required": false,
-  "criteria_passed": 4,
+  "criteria_passed": 5,
   "criteria_total": 12,
   "blocking_criteria": [
     "Paper Duration",
     "Wallet Ready",
-    "Strategy Tournament",
     "Agent Stability"
   ],
   "next_check_date": "2026-06-13"
