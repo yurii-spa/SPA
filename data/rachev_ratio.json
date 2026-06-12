@@ -1,0 +1,28 @@
+{
+  "available": false,
+  "reason": "only 2 daily returns (< 20 required)",
+  "is_demo": false,
+  "rachev_ratio": null,
+  "expected_tail_gain": null,
+  "expected_tail_loss": null,
+  "alpha": 0.05,
+  "beta": 0.05,
+  "tail_obs_gain": null,
+  "tail_obs_loss": null,
+  "count_returns": null,
+  "mean_return": null,
+  "n_observations": 2,
+  "start_date": null,
+  "end_date": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 2 daily returns (< 20 required)",
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T14:16:12.146948+00:00",
+    "schema_version": 1,
+    "source": "rachev_ratio",
+    "min_obs_required": 20
+  },
+  "_fingerprint": "{\"alpha\": 0.05, \"available\": false, \"beta\": 0.05, \"count_returns\": null, \"end_date\": null, \"expected_tail_gain\": null, \"expected_tail_loss\": null, \"is_demo\": false, \"mean_return\": null, \"meta\": {\"min_obs_required\": 20, \"schema_version\": 1, \"source\": \"rachev_ratio\"}, \"n_observations\": 2, \"notes\": [], \"rachev_ratio\": null, \"reason\": \"only 2 daily returns (< 20 required)\", \"start_date\": null, \"tail_obs_gain\": null, \"tail_obs_loss\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 2 daily returns (< 20 required)\"}",
+  "history": []
+}
