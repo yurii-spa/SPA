@@ -1,12 +1,32 @@
 [
   {
-    "timestamp": "2026-05-21 06:39:39",
-    "total_capital_usd": 100000.0,
-    "deployed_capital_usd": 0.0,
-    "cash_usd": 100000.0,
-    "total_pnl_usd": 0.0,
-    "total_pnl_pct": 0.0,
-    "current_apy": null,
-    "trade_count": 0
+    "timestamp": "2026-06-10 06:00:00",
+    "total_capital_usd": 100008.61,
+    "deployed_capital_usd": 94999.97,
+    "cash_usd": 5008.639999999999,
+    "total_pnl_usd": 8.610000000000582,
+    "total_pnl_pct": 0.00861,
+    "current_apy": 3.1419,
+    "trade_count": 1
+  },
+  {
+    "timestamp": "2026-06-11 06:00:00",
+    "total_capital_usd": 100017.3,
+    "deployed_capital_usd": 94999.98000000001,
+    "cash_usd": 5017.319999999992,
+    "total_pnl_usd": 17.30000000000291,
+    "total_pnl_pct": 0.0173,
+    "current_apy": 3.1706,
+    "trade_count": 2
+  },
+  {
+    "timestamp": "2026-06-12 06:00:00",
+    "total_capital_usd": 100026.06,
+    "deployed_capital_usd": 94999.97,
+    "cash_usd": 5026.0899999999965,
+    "total_pnl_usd": 26.05999999999767,
+    "total_pnl_pct": 0.02606,
+    "current_apy": 3.1969,
+    "trade_count": 3
   }
 ]
