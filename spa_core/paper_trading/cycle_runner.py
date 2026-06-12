@@ -1192,6 +1192,35 @@ def run_cycle(
         except Exception as exc:  # noqa: BLE001 — shadow must never crash the cycle
             log.warning("shadow tracker failed (%s) — cycle continues", exc)
 
+        # ── MP-138: Honest Metrics — Sortino/Sharpe CI + LOW_CONFIDENCE ─────
+        # Runs after shadow so shadow_portfolio.json is fresh. Advisory only.
+        try:
+            from spa_core.paper_trading.honest_metrics import run_honest_metrics as _run_hm
+            _run_hm(data_dir=ddir)
+        except Exception as _hm_exc:  # noqa: BLE001
+            log.warning("honest_metrics failed (%s) — cycle continues", _hm_exc)
+
+        # ── MP-140: Backtest vs Paper Contour — Spearman rank correlation ──
+        # Compares backtest strategy ranks vs actual shadow paper ranks.
+        # Advisory only — will show INSUFFICIENT until ≥7 days of paper data.
+        try:
+            from spa_core.paper_trading.backtest_vs_paper import run_comparison as _run_cmp
+            _run_cmp(data_dir=ddir)
+        except Exception as _cmp_exc:  # noqa: BLE001
+            log.warning("backtest_vs_paper failed (%s) — cycle continues", _cmp_exc)
+
+        # ── MP-139: Structural-Break / Change-Point Detector ─────────────
+        # Detects regime shifts in daily returns — fail if break+deterioration.
+        # Advisory only — insufficient_data until ≥12 daily observations.
+        try:
+            from spa_core.paper_trading.structural_break import (
+                build_structural_break as _build_sb,
+                write_status as _write_sb,
+            )
+            _write_sb(_build_sb(data_dir=ddir), data_dir=ddir)
+        except Exception as _sb_exc:  # noqa: BLE001
+            log.warning("structural_break failed (%s) — cycle continues", _sb_exc)
+
         # ── MP-109: SQLite mirror + off-site backup of the track ──────────
         # Runs LAST, after analytics/shadow, once every track artefact for
         # today is on disk. Fail-safe: a failure → WARNING + note
