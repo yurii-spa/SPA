@@ -1,16 +1,14 @@
 {
-  "ready": false,
+  "ready": true,
   "checks": {
     "equity_curve_real": true,
-    "trades_real": false,
+    "trades_real": true,
     "status_real": true,
     "no_demo_data": true,
     "data_fresh_48h": true,
     "cycle_runner_exists": true
   },
-  "blockers": [
-    "trades.json: no real (is_demo:false) trades recorded yet"
-  ],
-  "timestamp": "2026-06-10T09:25:07.615308+00:00",
+  "blockers": [],
+  "timestamp": "2026-06-12T06:00:04.769251+00:00",
   "source": "golive_checker"
 }
