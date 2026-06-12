@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-12T19:06:38Z",
-  "updated_by": "Claude/MP-454",
-  "sprint_current": "v4.78",
+  "last_updated": "2026-06-12",
+  "updated_by": "claude (SPA-V482)",
+  "sprint_current": "v4.82",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -253,30 +253,6 @@
         "added": "2026-06-12"
       },
       {
-        "id": "MP-376",
-        "title": "Spark sUSDS adapter (T1) — Sky Savings Rate yield source",
-        "description": "Создать spa_core/adapters/spark_susds_adapter.py по образцу MorphoSteakhouseAdapter. Route: USDC → USDS (Sky PSM 1:1) → sUSDS (ERC-4626) → SSR yield. APY 5–6.5% (governance-set Sky Savings Rate). Tier=T1, T1_CAP=0.40, RISK_SCORE=0.28, EXIT_LATENCY_HOURS=0.0. DeFiLlama: project='sky', symbol='sUSDS', chain='Ethereum'. Fallback=5.5%. Переиспользовать sky_monitor.py для SSR monitor. ВАЖНО: аллокация заблокирована до GSM ≥ 48h (FORBIDDEN §7) — адаптер создаётся сейчас, активируется sky_monitor автоматически. Тесты: spa_core/tests/test_spark_susds_adapter.py. Contracts: sUSDS=0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD, PSM=0xf6e72Db5454dd049d0788e411b06CfAF16853042. Ожидаемый APY impact: +0.4–0.7 п.п. на портфель при 20% аллокации.",
-        "priority": "P1",
-        "category": "adapters",
-        "status": "backlog",
-        "delivery_status": "not_started",
-        "phase": "phase1",
-        "estimated_days": 2,
-        "depends_on": [],
-        "estimate": "2d",
-        "tags": [
-          "adapters",
-          "T1",
-          "spark",
-          "sky",
-          "usds",
-          "yield"
-        ],
-        "sprint_target": "v4.70",
-        "added": "2026-06-12",
-        "research_ref": "docs/research/PROTOCOL_RESEARCH_v469.md"
-      },
-      {
         "id": "MP-379",
         "title": "http_server Family Fund: install launchd plist → production service",
         "description": "com.spa.httpserver.plist существует в репо, но НЕ установлен в ~/Library/LaunchAgents/ — http_server.py не запускается при reboot. Семейный инвесторский портал (port 8765, /api/public/fund/summary, /api/private/investors) недоступен. Создать USER ACTION checklist: cp com.spa.httpserver.plist ~/Library/LaunchAgents/ && launchctl load ... && curl localhost:8765/health. Добавить /health endpoint в http_server.py (200 OK + {status: running}).",
@@ -312,61 +288,6 @@
         "added": "2026-06-12"
       },
       {
-        "id": "MP-383",
-        "title": "APY milestone tracker: daily log vs 5%/7%/10%/15% targets",
-        "description": "Создать spa_core/paper_trading/apy_tracker.py: читает equity_curve_daily.json, вычисляет 7d/30d rolling APY, сравнивает с milestones (5%/7%/10%/15%), логирует в data/apy_progress.json (ring-buffer 365). Поля: date, apy_7d, apy_30d, milestone_5pct_reached, milestone_7pct_reached, estimated_date_to_10pct (linear extrapolation). Используется в ARCHITECT_REVIEW и daily_report. stdlib only, read-only/advisory.",
-        "priority": "P3",
-        "category": "analytics",
-        "sprint": "v4.71",
-        "owner": "claude",
-        "tags": [
-          "analytics",
-          "apy",
-          "tracking"
-        ],
-        "estimate": "2h",
-        "added": "2026-06-12"
-      },
-      {
-        "id": "MP-385",
-        "title": "Cycle_runner: wire MultiStrategyRunner — ежедневный tournament (step 2b)",
-        "description": "multi_strategy_runner.py создан (MP-357/v4.68) но НЕ вызывается из cycle_runner.py — tournament S0-S10 не происходит ежедневно, tournament_ranking.json не обновляется. Добавить в cycle_runner шаг 2b: fail-safe вызов MultiStrategyRunner(data_dir).run(strategies, apy_map). Ошибка tournament не останавливает основной цикл. Тест: убедиться tournament_ranking.json пишется после цикла.",
-        "priority": "P1",
-        "category": "integration",
-        "sprint": "v4.69",
-        "owner": "claude",
-        "tags": [
-          "strategies",
-          "tournament",
-          "cycle_runner",
-          "integration"
-        ],
-        "estimate": "4h",
-        "added": "2026-06-12",
-        "wave": "10"
-      },
-      {
-        "id": "MP-386",
-        "title": "Cycle_runner: wire PromotionEngine post-tournament (advisory pipeline)",
-        "description": "promotion_engine.py создан (MP-366/v4.68) в spa_core/paper_trading/ но НЕ вызывается из cycle_runner.py. Добавить вызов после MP-385 (tournament): PromotionEngine(data_dir).run(tournament_result) → data/promotion_report.json (атомарно). Завершает advisory pipeline: APY feed → allocator → risk gate → tournament → promotion decision → log. Fail-safe: ошибка PromotionEngine не останавливает цикл.",
-        "priority": "P1",
-        "category": "integration",
-        "sprint": "v4.69",
-        "owner": "claude",
-        "tags": [
-          "strategies",
-          "promotion",
-          "cycle_runner",
-          "integration"
-        ],
-        "estimate": "2h",
-        "depends_on": [
-          "MP-385"
-        ],
-        "added": "2026-06-12",
-        "wave": "10"
-      },
-      {
         "id": "MP-394",
         "title": "S5 Multi-Chain Arbitrum strategy",
         "description": "Создать стратегию S5: мульти-чейн подход с фокусом на Arbitrum L2. Aave V3 Arbitrum (основная позиция) + Radiant (Arbitrum-native) + Morpho Mainnet. Цель: APY > 6%, T1-dominant, gas efficiency advantage via Arbitrum.",
@@ -387,6 +308,131 @@
           "MP-391"
         ],
         "wave": "10"
+      }
+    ],
+    "in_progress": [],
+    "review": [],
+    "done": [
+      {
+        "id": "MP-376",
+        "title": "Spark sUSDS adapter (T1) — Sky Savings Rate yield source",
+        "description": "Создать spa_core/adapters/spark_susds_adapter.py по образцу MorphoSteakhouseAdapter. Route: USDC → USDS (Sky PSM 1:1) → sUSDS (ERC-4626) → SSR yield. APY 5–6.5% (governance-set Sky Savings Rate). Tier=T1, T1_CAP=0.40, RISK_SCORE=0.28, EXIT_LATENCY_HOURS=0.0. DeFiLlama: project='sky', symbol='sUSDS', chain='Ethereum'. Fallback=5.5%. Переиспользовать sky_monitor.py для SSR monitor. ВАЖНО: аллокация заблокирована до GSM ≥ 48h (FORBIDDEN §7) — адаптер создаётся сейчас, активируется sky_monitor автоматически. Тесты: spa_core/tests/test_spark_susds_adapter.py. Contracts: sUSDS=0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD, PSM=0xf6e72Db5454dd049d0788e411b06CfAF16853042. Ожидаемый APY impact: +0.4–0.7 п.п. на портфель при 20% аллокации.",
+        "priority": "P1",
+        "category": "adapters",
+        "status": "done",
+        "delivery_status": "completed",
+        "phase": "phase1",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "adapters",
+          "T1",
+          "spark",
+          "sky",
+          "usds",
+          "yield"
+        ],
+        "sprint_target": "v4.70",
+        "added": "2026-06-12",
+        "research_ref": "docs/research/PROTOCOL_RESEARCH_v469.md",
+        "completed_at": "2026-06-12",
+        "notes": "spark_susds_adapter.py создан, зарегистрирован в ADAPTER_REGISTRY (__init__.py) и cycle_runner",
+        "sprint": "v4.70",
+        "files_created": [
+          "spa_core/adapters/spark_susds_adapter.py"
+        ]
+      },
+      {
+        "id": "MP-383",
+        "title": "APY milestone tracker: daily log vs 5%/7%/10%/15% targets",
+        "description": "Создать spa_core/paper_trading/apy_tracker.py: читает equity_curve_daily.json, вычисляет 7d/30d rolling APY, сравнивает с milestones (5%/7%/10%/15%), логирует в data/apy_progress.json (ring-buffer 365). Поля: date, apy_7d, apy_30d, milestone_5pct_reached, milestone_7pct_reached, estimated_date_to_10pct (linear extrapolation). Используется в ARCHITECT_REVIEW и daily_report. stdlib only, read-only/advisory.",
+        "priority": "P3",
+        "category": "analytics",
+        "sprint": "v4.71",
+        "owner": "claude",
+        "tags": [
+          "analytics",
+          "apy",
+          "tracking"
+        ],
+        "estimate": "2h",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "delivery_status": "completed",
+        "notes": "spa_core/analytics/apy_milestone_tracker.py создан, 50 тестов PASS (tests/test_apy_milestone_tracker.py)",
+        "files_created": [
+          "spa_core/analytics/apy_milestone_tracker.py",
+          "tests/test_apy_milestone_tracker.py"
+        ]
+      },
+      {
+        "id": "MP-385",
+        "title": "Cycle_runner: wire MultiStrategyRunner — ежедневный tournament (step 2b)",
+        "description": "multi_strategy_runner.py создан (MP-357/v4.68) но НЕ вызывается из cycle_runner.py — tournament S0-S10 не происходит ежедневно, tournament_ranking.json не обновляется. Добавить в cycle_runner шаг 2b: fail-safe вызов MultiStrategyRunner(data_dir).run(strategies, apy_map). Ошибка tournament не останавливает основной цикл. Тест: убедиться tournament_ranking.json пишется после цикла.",
+        "priority": "P1",
+        "category": "integration",
+        "sprint": "v4.69",
+        "owner": "claude",
+        "tags": [
+          "strategies",
+          "tournament",
+          "cycle_runner",
+          "integration"
+        ],
+        "estimate": "4h",
+        "added": "2026-06-12",
+        "wave": "10",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "delivery_status": "completed",
+        "notes": "MultiStrategyRunner wired в cycle_runner (step 2b, fail-safe). Confirmed MP-431.",
+        "files_modified": [
+          "spa_core/paper_trading/cycle_runner.py"
+        ]
+      },
+      {
+        "id": "MP-386",
+        "title": "Cycle_runner: wire PromotionEngine post-tournament (advisory pipeline)",
+        "description": "promotion_engine.py создан (MP-366/v4.68) в spa_core/paper_trading/ но НЕ вызывается из cycle_runner.py. Добавить вызов после MP-385 (tournament): PromotionEngine(data_dir).run(tournament_result) → data/promotion_report.json (атомарно). Завершает advisory pipeline: APY feed → allocator → risk gate → tournament → promotion decision → log. Fail-safe: ошибка PromotionEngine не останавливает цикл.",
+        "priority": "P1",
+        "category": "integration",
+        "sprint": "v4.69",
+        "owner": "claude",
+        "tags": [
+          "strategies",
+          "promotion",
+          "cycle_runner",
+          "integration"
+        ],
+        "estimate": "2h",
+        "depends_on": [
+          "MP-385"
+        ],
+        "added": "2026-06-12",
+        "wave": "10",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "delivery_status": "completed",
+        "notes": "PromotionEngine wired в cycle_runner post-tournament (advisory pipeline). Confirmed MP-431.",
+        "files_modified": [
+          "spa_core/paper_trading/cycle_runner.py"
+        ]
+      },
+      {
+        "id": "MP-419",
+        "title": "Daily paper trading Telegram report (launchd 09:00)",
+        "status": "done",
+        "sprint": "v4.75",
+        "priority": "P1",
+        "description": "Скрипт scripts/daily_paper_report.py — ежедневный отчёт в Telegram: день X из 30, equity, APY, drawdown, дни до go-live. Launchd com.spa.daily_report 09:00.",
+        "completed_at": "2026-06-12",
+        "delivery_status": "completed",
+        "notes": "scripts/daily_paper_report.py создан — ежедневный Telegram отчёт. Launchd com.spa.daily_report 09:00.",
+        "files_created": [
+          "scripts/daily_paper_report.py"
+        ]
       },
       {
         "id": "MP-420",
@@ -394,20 +440,66 @@
         "status": "done",
         "sprint": "v4.75",
         "priority": "P1",
-        "description": "Добавить в index.html панель Paper Trading Progress: прогресс-бар X/30 дней, avg APY, max drawdown, go-live countdown. Pure HTML/JS, no external deps."
+        "description": "Добавить в index.html панель Paper Trading Progress: прогресс-бар X/30 дней, avg APY, max drawdown, go-live countdown. Pure HTML/JS, no external deps.",
+        "completed_at": "2026-06-12",
+        "delivery_status": "completed",
+        "notes": "Paper Trading Progress panel добавлена в index.html: прогресс-бар X/30, avg APY, max drawdown, go-live countdown.",
+        "files_modified": [
+          "index.html"
+        ]
       },
       {
-        "id": "MP-419",
-        "title": "Daily paper trading Telegram report (launchd 09:00)",
-        "status": "backlog",
-        "sprint": "v4.75",
-        "priority": "P1",
-        "description": "Скрипт scripts/daily_paper_report.py — ежедневный отчёт в Telegram: день X из 30, equity, APY, drawdown, дни до go-live. Launchd com.spa.daily_report 09:00."
-      }
-    ],
-    "in_progress": [],
-    "review": [],
-    "done": [
+        "id": "MP-466",
+        "title": "S12 Base Layer Yield → cycle_runner tournament",
+        "description": "S12 вплетена в cycle_runner tournament (S0→S12). cycle_runner imports OK, tournament log updated S0–S12.",
+        "status": "done",
+        "sprint": "v4.81",
+        "completed_at": "2026-06-12",
+        "notes": "S12 import + tournament config block in cycle_runner.py"
+      },
+      {
+        "id": "MP-463",
+        "title": "Moonwell Finance Base USDC Adapter (T2)",
+        "description": "Создан spa_core/adapters/moonwell_base_adapter.py — MoonwellBaseAdapter (T2, Base chain, ADR-025 Phase 1). DeFiLlama feed: project=moonwell-finance, chain=Base, symbol=USDC. Fallback APY 5.5%, TVL $500M, risk_score=0.36. Интегрирован в BASE_CHAIN_ADAPTERS['moonwell-base'] и ADAPTER_REGISTRY (14 total). data/adapter_status.json обновлён (ключ moonwell_base). 46 тестов — tests/test_moonwell_base_adapter.py — 46/46 PASS.",
+        "tier": "T2",
+        "chain": "base",
+        "status": "done",
+        "priority": "high",
+        "completed_at": "2026-06-12",
+        "sprint": "v4.80",
+        "files_created": [
+          "spa_core/adapters/moonwell_base_adapter.py",
+          "tests/test_moonwell_base_adapter.py"
+        ],
+        "files_modified": [
+          "spa_core/adapters/__init__.py",
+          "data/adapter_status.json"
+        ],
+        "tests": "46/46 PASS",
+        "adapter_registry_count": 14,
+        "base_chain_adapters": [
+          "aave-v3-base",
+          "morpho-blue-base",
+          "moonwell-base"
+        ],
+        "adr": "ADR-025",
+        "notes": "ADAPTER_REGISTRY: 14 адаптеров (T1×3, T2×10, T3×1). Phase: ADR-025 Phase 1 (monitoring only, no allocation until 2026-08-01). Follows MorphoBlueBaseAdapter pattern: BaseAdapter inheritance, get_yield_info(), get_status(), get_apy_with_metadata()."
+      },
+      {
+        "id": "MP-464",
+        "title": "CURRENT_STATE.md v4.80 + SPA_sprint_log update",
+        "status": "done",
+        "sprint": "v4.80",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-462",
+        "title": "S12 Base Layer Yield strategy design",
+        "description": "Создать S12 стратегию для Base chain Phase 2 (ADR-025). Файлы: s12_base_layer_yield.py, S12_DESIGN.md, тесты (27 pass), tournament_ranking.json обновлён. T3, target APY 6.0%, risk_score 0.40.",
+        "tier": "T3",
+        "status": "done",
+        "completed_at": "2026-06-12"
+      },
       {
         "id": "MP-454",
         "title": "Base Gas Monitor — ADR-025 kill-switch",
@@ -4597,10 +4689,106 @@
         "completed": "2026-06-12",
         "completed_by": "claude (SPA-V478)",
         "description": "Update CURRENT_STATE.md and SPA_sprint_log.md after Base Chain expansion sprint"
+      },
+      {
+        "id": "MP-456",
+        "title": "cycle_runner Base gas monitor integration (ADR-025)",
+        "status": "done",
+        "priority": "medium",
+        "completed": "2026-06-12",
+        "sprint": "v4.79",
+        "adr": "ADR-025",
+        "completed_by": "claude (MP-456)",
+        "notes": "cycle_runner.py: добавлен try/except ImportError для BaseGasMonitor (строки 70-79). Step 2d (ADR-025): Base gas kill-switch check после Step 2c — при kill_switch_active зануляет все Base-аллокации (ключи содержащие 'base'). Логирует WARNING и добавляет в notes. Атрибуты _BASE_CHAIN_MONITORING=True, _BASE_GAS_MONITOR_CLASS=BaseGasMonitor. Тест tests/test_cycle_runner_base_gas.py: 9 тестов, все pass."
+      },
+      {
+        "id": "MP-457",
+        "title": "push_v478.sh Wave 23",
+        "status": "done",
+        "sprint": "v4.79",
+        "completed": "2026-06-12",
+        "completed_by": "claude (MP-457)"
+      },
+      {
+        "id": "MP-460",
+        "title": "Base chain секция в daily_paper_report.py (ADR-025)",
+        "description": "Добавлена функция get_base_chain_section(): газ kill-switch статус + адаптеры Base chain из adapter_status.json. --dry-run режим. 5 тестов (5/5 pass).",
+        "priority": "MEDIUM",
+        "phase": "paper",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-448",
+          "MP-450",
+          "MP-456"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "base-chain",
+          "reporting",
+          "adr-025"
+        ],
+        "sprint": "v4.80",
+        "added": "2026-06-12",
+        "done_at": "2026-06-12",
+        "status": "done"
+      },
+      {
+        "id": "MP-461",
+        "title": "GoLive recheck v4.79 — Base chain adapters wiring",
+        "description": "Post-Base chain GoLive recheck. AaveV3Base (T2, 4.5%) + MorphoBlueBase (T2, 6.2%) + BaseGasMonitor (ADR-025). 24/24 checks PASS. No blockers. result: PASS",
+        "status": "done",
+        "priority": "high",
+        "completed_at": "2026-06-12T19:12:22.150955+00:00",
+        "result": "PASS",
+        "checks_passed": 24,
+        "checks_total": 24
+      },
+      {
+        "id": "MP-509",
+        "title": "Ethena sUSDe ERC-4626 T3 adapter — read-only/advisory yield source",
+        "type": "code",
+        "status": "done",
+        "priority": "P2",
+        "sprint": "v4.79",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V479)",
+        "notes": "SusdeAdapter (T3, risk 0.62, cap 10%, 168h/7d unstake cooldown, peg-gate 1%). 100 tests. Additive registry + adapter_status.json entry. Pure stdlib, advisory-only."
+      },
+      {
+        "id": "MP-383",
+        "title": "APY Milestone Daily Log — apy_milestone_tracker.py",
+        "type": "code",
+        "status": "done",
+        "priority": "P2",
+        "sprint": "v4.80",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V480)",
+        "notes": "ApyMilestoneTracker: 5 milestones (5/7/10/12/15%), daily log, atomic writes (mkstemp+os.replace), dedup by date, rolling avg. 50 tests PASS. Day 0: 10.115% (S7) — L1/L2/L3 reached. data/apy_milestone_log.json initialized. Pure stdlib."
+      },
+      {
+        "id": "MP-512",
+        "title": "Подключить ApyMilestoneTracker к cycle_runner.py",
+        "type": "code",
+        "status": "done",
+        "priority": "P2",
+        "sprint": "v4.81",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V481)",
+        "notes": "ApyMilestoneTracker интегрирован в cycle_runner.py после блока MP-416 (PaperEvidenceTracker). try/except fail-safe, не ломает основной цикл. record_day(today, apy_today_pct, strategy_id) с fallback 10.115/'s7_pendle_yt'. 12 тестов PASS в tests/test_cycle_runner_milestone_integration.py. Pure stdlib."
+      },
+      {
+        "id": "MP-513",
+        "type": "code",
+        "status": "done",
+        "priority": "P2",
+        "title": "K-Ratio (Kestner) Analyzer — equity-curve consistency (read-only/advisory)",
+        "sprint": "v4.82",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V482)"
       }
     ]
   },
-  "sprint_completed": "v4.77",
+  "sprint_completed": "v4.81",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
@@ -4628,5 +4816,29 @@
   "_v476_dispatch_note": "MP-435: ADR-024 Gnosis Safe + push_v476.sh Wave 21 (2026-06-12)",
   "_v477_dispatch_note": "MP-431 wiring audit — все компоненты уже были подключены",
   "_v478_dispatch_note": "MP-427 done: pendle_yt_feed.py live APY (DeFiLlama + Pendle V2 + fallback=28.4). 27 tests PASS. S11 run_day() wired.",
-  "_v478_mp443_dispatch_note": "MP-443 done: fund_api_server.py + launchd plist + 9 tests"
+  "_v478_mp443_dispatch_note": "MP-443 done: fund_api_server.py + launchd plist + 9 tests",
+  "_v479_dispatch_note": "MP-509 done: Ethena sUSDe ERC-4626 T3 adapter (susde_adapter.py). 100 tests PASS, regression 282 green. Registered in ADAPTER_REGISTRY (susde, T3).",
+  "done": [
+    {
+      "id": "MP-466",
+      "title": "Вплести S12 в cycle_runner tournament",
+      "status": "done",
+      "sprint": "v4.81",
+      "completed": "2026-06-12",
+      "notes": "S12 import + config block added to cycle_runner.py; log updated S2–S12"
+    },
+    {
+      "id": "MP-376",
+      "title": "Зарегистрировать SparkSusdsAdapter",
+      "status": "done",
+      "sprint": "v4.81",
+      "completed": "2026-06-12",
+      "notes": "SparkSusdsAdapter added to adapters/__init__.py: import, ADAPTER_REGISTRY (T1), __all__; adapter_status.json already had spark_susds"
+    }
+  ],
+  "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
+  "adapter_registry_count": 15,
+  "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
+  "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
+  "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint."
 }
