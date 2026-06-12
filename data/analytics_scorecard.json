@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "source": "analytics_scorecard",
+    "schema_version": 1,
+    "generated_at": "2026-06-12T04:19:34.703234+00:00",
+    "advisory_only": true,
+    "disclaimer": "NOT investment advice",
+    "stale_hours": 48,
+    "coverage_warn_pct": 60.0,
+    "real_track_start": "2026-06-10",
+    "is_demo": false,
+    "notes": []
+  },
+  "available": true,
+  "overall_status": "fail",
+  "overall_reason": "2 source(s) FAIL, 3 warn, 0 stale — investor-DD scorecard fails until resolved",
+  "is_demo": false,
+  "counts": {
+    "ok": 3,
+    "warn": 3,
+    "fail": 2,
+    "unknown_verdict": 2,
+    "unavailable": 0,
+    "total_sources": 10
+  },
+  "fails": [
+    "concentration",
+    "risk_contrib"
+  ],
+  "warns": [
+    "yield_attr",
+    "turnover",
+    "data_integrity"
+  ],
+  "stale_sources": [],
+  "demo_sources": [],
+  "coverage_pct": 100.0,
+  "sources": [
+    {
+      "key": "turnover",
+      "title": "Turnover & Rebalancing",
+      "category": "cost",
+      "available": true,
+      "verdict": "warn",
+      "is_demo": false,
+      "generated_at": "2026-06-12T03:15:23.822933+00:00",
+      "stale": false
+    },
+    {
+      "key": "exit_liquidity",
+      "title": "Exit Liquidity Ladder",
+      "category": "liquidity",
+      "available": true,
+      "verdict": "ok",
+      "is_demo": false,
+      "generated_at": "2026-06-11T22:12:26.295321+00:00",
+      "stale": false
+    },
+    {
+      "key": "data_integrity",
+      "title": "Data Integrity Sentinel",
+      "category": "ops",
+      "available": true,
+      "verdict": "warn",
+      "is_demo": null,
+      "generated_at": "2026-06-11T18:20:34.596445+00:00",
+      "stale": false
+    },
+    {
+      "key": "yield_attr",
+      "title": "Yield Attribution",
+      "category": "return",
+      "available": true,
+      "verdict": "warn",
+      "is_demo": false,
+      "generated_at": "2026-06-12T01:17:01.519563+00:00",
+      "stale": false
+    },
+    {
+      "key": "concentration",
+      "title": "Capital Concentration (HHI)",
+      "category": "risk",
+      "available": true,
+      "verdict": "fail",
+      "is_demo": false,
+      "generated_at": "2026-06-12T00:17:50.831389+00:00",
+      "stale": false
+    },
+    {
+      "key": "correlation",
+      "title": "Protocol Correlation",
+      "category": "risk",
+      "available": true,
+      "verdict": "ok",
+      "is_demo": null,
+      "generated_at": "2026-06-12T02:43:32.679305+00:00",
+      "stale": false
+    },
+    {
+      "key": "drawdown",
+      "title": "Drawdown & Underwater",
+      "category": "risk",
+      "available": true,
+      "verdict": null,
+      "is_demo": false,
+      "generated_at": "2026-06-11T23:15:21.143131+00:00",
+      "stale": false
+    },
+    {
+      "key": "risk_contrib",
+      "title": "Risk Contribution",
+      "category": "risk",
+      "available": true,
+      "verdict": "fail",
+      "is_demo": false,
+      "generated_at": "2026-06-12T02:19:55.224701+00:00",
+      "stale": false
+    },
+    {
+      "key": "tail_risk",
+      "title": "Tail Risk (VaR/CVaR)",
+      "category": "risk",
+      "available": true,
+      "verdict": "ok",
+      "is_demo": false,
+      "generated_at": "2026-06-12T02:46:21.640025+00:00",
+      "stale": false
+    },
+    {
+      "key": "capacity",
+      "title": "Capacity / Scalability",
+      "category": "scalability",
+      "available": true,
+      "verdict": null,
+      "is_demo": null,
+      "generated_at": "2026-06-10T09:14:35.310209+00:00",
+      "stale": false
+    }
+  ],
+  "history": [
+    {
+      "generated_at": "2026-06-12T04:19:34.703234+00:00",
+      "overall_status": "fail",
+      "ok": 3,
+      "warn": 3,
+      "fail": 2,
+      "coverage_pct": 100.0
+    }
+  ]
+}
