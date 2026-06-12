@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-27T21:23:06.102981Z",
+  "generated_at": "2026-06-12T06:00:05.236435Z",
   "engine_version": "1.0",
   "weights": {
     "tvl_magnitude": 0.058824,
@@ -22,14 +22,14 @@
     {
       "protocol": "Aave V3",
       "slug": "aave-v3",
-      "grade": "A",
-      "score_numeric": 0.9578,
+      "grade": "B",
+      "score_numeric": 0.7922,
       "subscores": {
         "tvl_magnitude": 1.0,
-        "tvl_trend": 0.55,
+        "tvl_trend": 0.5,
         "protocol_age": 1.0,
-        "hack_history": 1.0,
-        "audit_count": 1.0,
+        "hack_history": 0.0,
+        "audit_count": 0.3333,
         "audit_findings_severity": 1.0,
         "yield_source_type": 1.0,
         "oracle_risk": 1.0,
@@ -39,25 +39,24 @@
         "liquidity_depth": 1.0,
         "cross_protocol_deps": 0.8,
         "regulatory_surface": 1.0,
-        "chain_maturity": 1.0
+        "chain_maturity": 0.4
       },
-      "explanation": "Aave V3 graded A (numeric 0.958). Lowest subscores: tvl_trend=0.55, cross_protocol_deps=0.80, multisig_threshold=0.93.",
+      "explanation": "Aave V3 graded B (numeric 0.792). Lowest subscores: hack_history=0.00, audit_count=0.33, chain_maturity=0.40.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102841Z",
-      "yield_source": "real_cashflow"
+      "generated_at": "2026-06-12T06:00:05.236305Z"
     },
     {
       "protocol": "Compound V3",
       "slug": "compound-v3",
       "grade": "B",
-      "score_numeric": 0.8441,
+      "score_numeric": 0.7678,
       "subscores": {
         "tvl_magnitude": 1.0,
-        "tvl_trend": 0.53,
+        "tvl_trend": 0.5,
         "protocol_age": 1.0,
         "hack_history": 0.788,
-        "audit_count": 1.0,
+        "audit_count": 0.3333,
         "audit_findings_severity": 1.0,
         "yield_source_type": 1.0,
         "oracle_risk": 1.0,
@@ -67,24 +66,23 @@
         "liquidity_depth": 0.9515,
         "cross_protocol_deps": 0.8,
         "regulatory_surface": 0.5,
-        "chain_maturity": 1.0
+        "chain_maturity": 0.4
       },
-      "explanation": "Compound V3 graded B (numeric 0.844). Lowest subscores: timelock_duration=0.29, regulatory_surface=0.50, tvl_trend=0.53.",
+      "explanation": "Compound V3 graded B (numeric 0.768). Lowest subscores: timelock_duration=0.29, audit_count=0.33, chain_maturity=0.40.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102884Z",
-      "yield_source": "real_cashflow"
+      "generated_at": "2026-06-12T06:00:05.236338Z"
     },
     {
       "protocol": "Morpho",
       "slug": "morpho",
-      "grade": "A",
-      "score_numeric": 0.8974,
+      "grade": "B",
+      "score_numeric": 0.8092,
       "subscores": {
         "tvl_magnitude": 1.0,
         "tvl_trend": 0.62,
         "protocol_age": 1.0,
-        "hack_history": 1.0,
+        "hack_history": 0.0,
         "audit_count": 0.8333,
         "audit_findings_severity": 1.0,
         "yield_source_type": 1.0,
@@ -97,11 +95,10 @@
         "regulatory_surface": 1.0,
         "chain_maturity": 1.0
       },
-      "explanation": "Morpho graded A (numeric 0.897). Lowest subscores: timelock_duration=0.57, cross_protocol_deps=0.60, tvl_trend=0.62.",
+      "explanation": "Morpho graded B (numeric 0.809). Lowest subscores: hack_history=0.00, timelock_duration=0.57, cross_protocol_deps=0.60.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102896Z",
-      "yield_source": "real_cashflow"
+      "generated_at": "2026-06-12T06:00:05.236356Z"
     },
     {
       "protocol": "Yearn V3",
@@ -128,19 +125,18 @@
       "explanation": "Yearn V3 graded B (numeric 0.800). Lowest subscores: cross_protocol_deps=0.20, timelock_duration=0.29, tvl_trend=0.48.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102913Z",
-      "yield_source": "real_cashflow"
+      "generated_at": "2026-06-12T06:00:05.236370Z"
     },
     {
       "protocol": "Sky (sUSDS)",
       "slug": "sky",
       "grade": "B",
-      "score_numeric": 0.7973,
+      "score_numeric": 0.7796,
       "subscores": {
         "tvl_magnitude": 1.0,
         "tvl_trend": 0.58,
         "protocol_age": 0.4286,
-        "hack_history": 1.0,
+        "hack_history": 0.7996,
         "audit_count": 0.6667,
         "audit_findings_severity": 1.0,
         "yield_source_type": 0.85,
@@ -153,11 +149,10 @@
         "regulatory_surface": 0.5,
         "chain_maturity": 1.0
       },
-      "explanation": "Sky (sUSDS) graded B (numeric 0.797). Lowest subscores: timelock_duration=0.29, protocol_age=0.43, regulatory_surface=0.50.",
+      "explanation": "Sky (sUSDS) graded B (numeric 0.780). Lowest subscores: timelock_duration=0.29, protocol_age=0.43, regulatory_surface=0.50.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102926Z",
-      "yield_source": "real_cashflow"
+      "generated_at": "2026-06-12T06:00:05.236382Z"
     },
     {
       "protocol": "MakerDAO",
@@ -184,18 +179,18 @@
       "explanation": "MakerDAO graded B (numeric 0.844). Lowest subscores: timelock_duration=0.29, regulatory_surface=0.50, tvl_trend=0.54.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102936Z"
+      "generated_at": "2026-06-12T06:00:05.236393Z"
     },
     {
       "protocol": "Curve Finance",
       "slug": "curve",
-      "grade": "A",
-      "score_numeric": 0.8519,
+      "grade": "B",
+      "score_numeric": 0.7823,
       "subscores": {
         "tvl_magnitude": 1.0,
         "tvl_trend": 0.45,
         "protocol_age": 1.0,
-        "hack_history": 0.789,
+        "hack_history": 0.0,
         "audit_count": 1.0,
         "audit_findings_severity": 1.0,
         "yield_source_type": 1.0,
@@ -208,22 +203,22 @@
         "regulatory_surface": 1.0,
         "chain_maturity": 1.0
       },
-      "explanation": "Curve Finance graded A (numeric 0.852). Lowest subscores: cross_protocol_deps=0.40, timelock_duration=0.43, tvl_trend=0.45.",
+      "explanation": "Curve Finance graded B (numeric 0.782). Lowest subscores: hack_history=0.00, cross_protocol_deps=0.40, timelock_duration=0.43.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102947Z"
+      "generated_at": "2026-06-12T06:00:05.236402Z"
     },
     {
       "protocol": "Uniswap V3",
       "slug": "uniswap-v3",
       "grade": "B",
-      "score_numeric": 0.8497,
+      "score_numeric": 0.7717,
       "subscores": {
         "tvl_magnitude": 1.0,
-        "tvl_trend": 0.56,
+        "tvl_trend": 0.5,
         "protocol_age": 1.0,
         "hack_history": 0.8,
-        "audit_count": 1.0,
+        "audit_count": 0.3333,
         "audit_findings_severity": 1.0,
         "yield_source_type": 1.0,
         "oracle_risk": 1.0,
@@ -233,24 +228,24 @@
         "liquidity_depth": 1.0,
         "cross_protocol_deps": 0.8,
         "regulatory_surface": 0.5,
-        "chain_maturity": 1.0
+        "chain_maturity": 0.4
       },
-      "explanation": "Uniswap V3 graded B (numeric 0.850). Lowest subscores: timelock_duration=0.29, regulatory_surface=0.50, tvl_trend=0.56.",
+      "explanation": "Uniswap V3 graded B (numeric 0.772). Lowest subscores: timelock_duration=0.29, audit_count=0.33, chain_maturity=0.40.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102957Z"
+      "generated_at": "2026-06-12T06:00:05.236413Z"
     },
     {
       "protocol": "Pendle",
       "slug": "pendle",
       "grade": "B",
-      "score_numeric": 0.8034,
+      "score_numeric": 0.7281,
       "subscores": {
         "tvl_magnitude": 1.0,
-        "tvl_trend": 0.68,
+        "tvl_trend": 0.5,
         "protocol_age": 1.0,
         "hack_history": 0.796,
-        "audit_count": 0.8333,
+        "audit_count": 0.3333,
         "audit_findings_severity": 1.0,
         "yield_source_type": 0.7,
         "oracle_risk": 1.0,
@@ -260,24 +255,24 @@
         "liquidity_depth": 0.772,
         "cross_protocol_deps": 0.2,
         "regulatory_surface": 1.0,
-        "chain_maturity": 1.0
+        "chain_maturity": 0.4
       },
-      "explanation": "Pendle graded B (numeric 0.803). Lowest subscores: cross_protocol_deps=0.20, timelock_duration=0.29, tvl_trend=0.68.",
+      "explanation": "Pendle graded B (numeric 0.728). Lowest subscores: cross_protocol_deps=0.20, timelock_duration=0.29, audit_count=0.33.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102968Z"
+      "generated_at": "2026-06-12T06:00:05.236422Z"
     },
     {
       "protocol": "Euler V2",
       "slug": "euler-v2",
-      "grade": "A",
-      "score_numeric": 0.8564,
+      "grade": "B",
+      "score_numeric": 0.7524,
       "subscores": {
-        "tvl_magnitude": 0.9648,
-        "tvl_trend": 0.6,
+        "tvl_magnitude": 0.5634,
+        "tvl_trend": 0.5,
         "protocol_age": 0.4286,
         "hack_history": 1.0,
-        "audit_count": 1.0,
+        "audit_count": 0.3333,
         "audit_findings_severity": 1.0,
         "yield_source_type": 1.0,
         "oracle_risk": 1.0,
@@ -287,18 +282,17 @@
         "liquidity_depth": 0.6505,
         "cross_protocol_deps": 0.6,
         "regulatory_surface": 1.0,
-        "chain_maturity": 1.0
+        "chain_maturity": 0.4
       },
-      "explanation": "Euler V2 graded A (numeric 0.856). Lowest subscores: protocol_age=0.43, timelock_duration=0.57, tvl_trend=0.60.",
+      "explanation": "Euler V2 graded B (numeric 0.752). Lowest subscores: audit_count=0.33, chain_maturity=0.40, protocol_age=0.43.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-05-27T21:23:06.102978Z",
-      "yield_source": "real_cashflow"
+      "generated_at": "2026-06-12T06:00:05.236431Z"
     }
   ],
   "summary_by_grade": {
-    "A": 4,
-    "B": 6,
+    "A": 0,
+    "B": 10,
     "C": 0,
     "D": 0
   },
