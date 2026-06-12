@@ -1,0 +1,139 @@
+{
+  "available": true,
+  "verdict": "fail",
+  "verdict_reason": "5/7 protocols decaying (71%); strategy yield edge is eroding",
+  "num_protocols_analyzed": 7,
+  "decaying": [
+    "aave-v3-usdt-ethereum",
+    "compound-v3-usdc-ethereum",
+    "euler-v2-usdc-ethereum",
+    "maple-usdc-ethereum",
+    "morpho-usdc-ethereum"
+  ],
+  "rising": [
+    "aave-v3-usdc-ethereum",
+    "yearn-v3-usdc-ethereum"
+  ],
+  "stable": [],
+  "share_decaying": 0.7143,
+  "worst_decay_protocol": "maple-usdc-ethereum",
+  "worst_decay_slope_per_year": -16.377303,
+  "avg_slope_per_year": -1.659576,
+  "sharpest_decay_protocol": "compound-v3-usdc-ethereum",
+  "sharpest_decay_ratio": -0.315449,
+  "decay_slope_threshold_pp_yr": 1.0,
+  "decay_fraction_threshold": 0.15,
+  "per_protocol": {
+    "aave-v3-usdc-ethereum": {
+      "n_points": 90,
+      "slope_per_day": 0.0502418224472157,
+      "slope_per_year": 18.33826519323373,
+      "start_apy": 6.0511,
+      "current_apy": 6.3057,
+      "mean_apy": 4.998373,
+      "apy_volatility": 2.485623,
+      "early_mean": 3.263936,
+      "recent_mean": 6.732811,
+      "decay_ratio": 1.062789,
+      "classification": "rising"
+    },
+    "aave-v3-usdt-ethereum": {
+      "n_points": 90,
+      "slope_per_day": -0.0338353953162942,
+      "slope_per_year": -12.349919290447385,
+      "start_apy": 3.6786,
+      "current_apy": 3.4761,
+      "mean_apy": 5.364416,
+      "apy_volatility": 2.537521,
+      "early_mean": 6.101716,
+      "recent_mean": 4.627116,
+      "decay_ratio": -0.24167,
+      "classification": "decaying"
+    },
+    "compound-v3-usdc-ethereum": {
+      "n_points": 90,
+      "slope_per_day": -0.013221484133843686,
+      "slope_per_year": -4.825841708852946,
+      "start_apy": 6.0362,
+      "current_apy": 0.7698,
+      "mean_apy": 3.796818,
+      "apy_volatility": 1.98568,
+      "early_mean": 4.507811,
+      "recent_mean": 3.085824,
+      "decay_ratio": -0.315449,
+      "classification": "decaying"
+    },
+    "euler-v2-usdc-ethereum": {
+      "n_points": 90,
+      "slope_per_day": -0.008891899411449975,
+      "slope_per_year": -3.2455432851792407,
+      "start_apy": 5.6704,
+      "current_apy": 9.3141,
+      "mean_apy": 6.932631,
+      "apy_volatility": 2.224047,
+      "early_mean": 7.446482,
+      "recent_mean": 6.41878,
+      "decay_ratio": -0.138012,
+      "classification": "decaying"
+    },
+    "maple-usdc-ethereum": {
+      "n_points": 90,
+      "slope_per_day": -0.04486932213853564,
+      "slope_per_year": -16.37730258056551,
+      "start_apy": 7.1845,
+      "current_apy": 5.3772,
+      "mean_apy": 6.608209,
+      "apy_volatility": 2.967957,
+      "early_mean": 7.841402,
+      "recent_mean": 5.375016,
+      "decay_ratio": -0.314534,
+      "classification": "decaying"
+    },
+    "morpho-usdc-ethereum": {
+      "n_points": 90,
+      "slope_per_day": -0.014854923653125898,
+      "slope_per_year": -5.422047133390953,
+      "start_apy": 6.5768,
+      "current_apy": 2.8237,
+      "mean_apy": 4.537022,
+      "apy_volatility": 2.054105,
+      "early_mean": 4.908498,
+      "recent_mean": 4.165547,
+      "decay_ratio": -0.15136,
+      "classification": "decaying"
+    },
+    "yearn-v3-usdc-ethereum": {
+      "n_points": 90,
+      "slope_per_day": 0.033603709099888864,
+      "slope_per_year": 12.265353821459435,
+      "start_apy": 4.5911,
+      "current_apy": 4.6843,
+      "mean_apy": 6.734707,
+      "apy_volatility": 2.32462,
+      "early_mean": 5.981513,
+      "recent_mean": 7.4879,
+      "decay_ratio": 0.25184,
+      "classification": "rising"
+    }
+  },
+  "recent_current_apy": {
+    "aave-v3-usdc-ethereum": 6.3057,
+    "aave-v3-usdt-ethereum": 3.4761,
+    "compound-v3-usdc-ethereum": 0.7698,
+    "euler-v2-usdc-ethereum": 9.3141,
+    "maple-usdc-ethereum": 5.3772,
+    "morpho-usdc-ethereum": 2.8237,
+    "yearn-v3-usdc-ethereum": 4.6843
+  },
+  "skipped_protocols": [],
+  "is_demo": null,
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T06:17:23.200115+00:00",
+    "schema_version": 1,
+    "source": "yield_decay_analytics",
+    "min_points_required": 7
+  },
+  "_fingerprint": "{\"available\": true, \"avg_slope_per_year\": -1.659576, \"decay_fraction_threshold\": 0.15, \"decay_slope_threshold_pp_yr\": 1.0, \"decaying\": [\"aave-v3-usdt-ethereum\", \"compound-v3-usdc-ethereum\", \"euler-v2-usdc-ethereum\", \"maple-usdc-ethereum\", \"morpho-usdc-ethereum\"], \"is_demo\": null, \"meta\": {\"min_points_required\": 7, \"schema_version\": 1, \"source\": \"yield_decay_analytics\"}, \"notes\": [], \"num_protocols_analyzed\": 7, \"per_protocol\": {\"aave-v3-usdc-ethereum\": {\"apy_volatility\": 2.485623, \"classification\": \"rising\", \"current_apy\": 6.3057, \"decay_ratio\": 1.062789, \"early_mean\": 3.263936, \"mean_apy\": 4.998373, \"n_points\": 90, \"recent_mean\": 6.732811, \"slope_per_day\": 0.0502418224472157, \"slope_per_year\": 18.33826519323373, \"start_apy\": 6.0511}, \"aave-v3-usdt-ethereum\": {\"apy_volatility\": 2.537521, \"classification\": \"decaying\", \"current_apy\": 3.4761, \"decay_ratio\": -0.24167, \"early_mean\": 6.101716, \"mean_apy\": 5.364416, \"n_points\": 90, \"recent_mean\": 4.627116, \"slope_per_day\": -0.0338353953162942, \"slope_per_year\": -12.349919290447385, \"start_apy\": 3.6786}, \"compound-v3-usdc-ethereum\": {\"apy_volatility\": 1.98568, \"classification\": \"decaying\", \"current_apy\": 0.7698, \"decay_ratio\": -0.315449, \"early_mean\": 4.507811, \"mean_apy\": 3.796818, \"n_points\": 90, \"recent_mean\": 3.085824, \"slope_per_day\": -0.013221484133843686, \"slope_per_year\": -4.825841708852946, \"start_apy\": 6.0362}, \"euler-v2-usdc-ethereum\": {\"apy_volatility\": 2.224047, \"classification\": \"decaying\", \"current_apy\": 9.3141, \"decay_ratio\": -0.138012, \"early_mean\": 7.446482, \"mean_apy\": 6.932631, \"n_points\": 90, \"recent_mean\": 6.41878, \"slope_per_day\": -0.008891899411449975, \"slope_per_year\": -3.2455432851792407, \"start_apy\": 5.6704}, \"maple-usdc-ethereum\": {\"apy_volatility\": 2.967957, \"classification\": \"decaying\", \"current_apy\": 5.3772, \"decay_ratio\": -0.314534, \"early_mean\": 7.841402, \"mean_apy\": 6.608209, \"n_points\": 90, \"recent_mean\": 5.375016, \"slope_per_day\": -0.04486932213853564, \"slope_per_year\": -16.37730258056551, \"start_apy\": 7.1845}, \"morpho-usdc-ethereum\": {\"apy_volatility\": 2.054105, \"classification\": \"decaying\", \"current_apy\": 2.8237, \"decay_ratio\": -0.15136, \"early_mean\": 4.908498, \"mean_apy\": 4.537022, \"n_points\": 90, \"recent_mean\": 4.165547, \"slope_per_day\": -0.014854923653125898, \"slope_per_year\": -5.422047133390953, \"start_apy\": 6.5768}, \"yearn-v3-usdc-ethereum\": {\"apy_volatility\": 2.32462, \"classification\": \"rising\", \"current_apy\": 4.6843, \"decay_ratio\": 0.25184, \"early_mean\": 5.981513, \"mean_apy\": 6.734707, \"n_points\": 90, \"recent_mean\": 7.4879, \"slope_per_day\": 0.033603709099888864, \"slope_per_year\": 12.265353821459435, \"start_apy\": 4.5911}}, \"recent_current_apy\": {\"aave-v3-usdc-ethereum\": 6.3057, \"aave-v3-usdt-ethereum\": 3.4761, \"compound-v3-usdc-ethereum\": 0.7698, \"euler-v2-usdc-ethereum\": 9.3141, \"maple-usdc-ethereum\": 5.3772, \"morpho-usdc-ethereum\": 2.8237, \"yearn-v3-usdc-ethereum\": 4.6843}, \"rising\": [\"aave-v3-usdc-ethereum\", \"yearn-v3-usdc-ethereum\"], \"share_decaying\": 0.7143, \"sharpest_decay_protocol\": \"compound-v3-usdc-ethereum\", \"sharpest_decay_ratio\": -0.315449, \"skipped_protocols\": [], \"stable\": [], \"verdict\": \"fail\", \"verdict_reason\": \"5/7 protocols decaying (71%); strategy yield edge is eroding\", \"worst_decay_protocol\": \"maple-usdc-ethereum\", \"worst_decay_slope_per_year\": -16.377303}",
+  "history": []
+}
