@@ -1,101 +1,14 @@
 {
-  "passed": 18,
-  "total": 18,
   "ready": true,
-  "timestamp": "2026-06-12T17:23:00.079567+00:00",
-  "source": "checklist.golive_checker",
-  "version": "v4.69",
-  "results": [
-    {
-      "name": "equity_curve_real",
-      "passed": true,
-      "detail": "3 daily records, is_demo:false"
-    },
-    {
-      "name": "trades_real",
-      "passed": true,
-      "detail": "3 real trades found"
-    },
-    {
-      "name": "status_real",
-      "passed": true,
-      "detail": "paper_trading_status.json is_demo:false OK"
-    },
-    {
-      "name": "no_demo_data",
-      "passed": true,
-      "detail": "no is_demo:true found in data/"
-    },
-    {
-      "name": "data_fresh_48h",
-      "passed": true,
-      "detail": "last record 2026-06-12, age 17.4h"
-    },
-    {
-      "name": "cycle_runner_exists",
-      "passed": true,
-      "detail": "cycle_runner.py exists"
-    },
-    {
-      "name": "compound_v3_adapter",
-      "passed": true,
-      "detail": "spa_core/adapters/compound_v3_adapter.py: exists + syntax OK"
-    },
-    {
-      "name": "morpho_steakhouse_adapter",
-      "passed": true,
-      "detail": "spa_core/adapters/morpho_steakhouse_adapter.py: exists + syntax OK"
-    },
-    {
-      "name": "aave_arbitrum_adapter",
-      "passed": true,
-      "detail": "spa_core/adapters/aave_arbitrum_adapter.py: exists + syntax OK"
-    },
-    {
-      "name": "pendle_pt_adapter",
-      "passed": true,
-      "detail": "spa_core/adapters/pendle_pt_adapter.py: exists + syntax OK"
-    },
-    {
-      "name": "multi_strategy_runner",
-      "passed": true,
-      "detail": "multi_strategy_runner.py exists"
-    },
-    {
-      "name": "promotion_engine",
-      "passed": true,
-      "detail": "promotion_engine.py exists"
-    },
-    {
-      "name": "safe_tx_builder",
-      "passed": true,
-      "detail": "safe_tx_builder.py exists"
-    },
-    {
-      "name": "http_server",
-      "passed": true,
-      "detail": "http_server.py exists"
-    },
-    {
-      "name": "adr022_exists",
-      "passed": true,
-      "detail": "ADR-022-gnosis-safe-multisig.md exists"
-    },
-    {
-      "name": "adapter_status_has_compound",
-      "passed": true,
-      "detail": "adapter_status.json['compound_v3'] present"
-    },
-    {
-      "name": "adapter_status_has_morpho",
-      "passed": true,
-      "detail": "adapter_status.json['morpho_steakhouse'] present"
-    },
-    {
-      "name": "adapter_status_has_arbitrum",
-      "passed": true,
-      "detail": "adapter_status.json['aave_arbitrum'] present"
-    }
-  ],
-  "blockers": []
+  "checks": {
+    "equity_curve_real": true,
+    "trades_real": true,
+    "status_real": true,
+    "no_demo_data": true,
+    "data_fresh_48h": true,
+    "cycle_runner_exists": true
+  },
+  "blockers": [],
+  "timestamp": "2026-06-12T18:31:16.195604+00:00",
+  "source": "golive_checker"
 }
