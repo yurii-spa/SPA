@@ -1,0 +1,401 @@
+{
+  "generated_at": "2026-06-10T23:37:36Z",
+  "scenarios": {
+    "covid_2020": {
+      "scenario_name": "COVID-2020",
+      "initial_equity": 100000.0,
+      "final_equity": 100287.8749,
+      "total_return_pct": 0.2879,
+      "max_drawdown_pct": 3.2632,
+      "sharpe_ratio": -0.0769,
+      "daily_equity": [
+        {
+          "day": 0,
+          "equity": 98213.1654,
+          "daily_return_pct": -1.786835
+        },
+        {
+          "day": 1,
+          "equity": 96736.8485,
+          "daily_return_pct": -1.503176
+        },
+        {
+          "day": 2,
+          "equity": 98252.3968,
+          "daily_return_pct": 1.566671
+        },
+        {
+          "day": 3,
+          "equity": 99768.5465,
+          "daily_return_pct": 1.543117
+        },
+        {
+          "day": 4,
+          "equity": 99788.4709,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 5,
+          "equity": 99808.3992,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 6,
+          "equity": 99828.3315,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 7,
+          "equity": 99848.2678,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 8,
+          "equity": 99868.2081,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 9,
+          "equity": 99888.1523,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 10,
+          "equity": 99908.1006,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 11,
+          "equity": 99928.0528,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 12,
+          "equity": 99948.009,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 13,
+          "equity": 99967.9692,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 14,
+          "equity": 99987.9334,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 15,
+          "equity": 100007.9015,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 16,
+          "equity": 100027.8737,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 17,
+          "equity": 100047.8498,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 18,
+          "equity": 100067.8299,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 19,
+          "equity": 100087.8141,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 20,
+          "equity": 100107.8022,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 21,
+          "equity": 100127.7943,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 22,
+          "equity": 100147.7904,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 23,
+          "equity": 100167.7905,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 24,
+          "equity": 100187.7945,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 25,
+          "equity": 100207.8026,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 26,
+          "equity": 100227.8147,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 27,
+          "equity": 100247.8308,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 28,
+          "equity": 100267.8508,
+          "daily_return_pct": 0.019971
+        },
+        {
+          "day": 29,
+          "equity": 100287.8749,
+          "daily_return_pct": 0.019971
+        }
+      ],
+      "protocol_allocation_used": {
+        "aave_v3": 0.3,
+        "compound_v3": 0.2,
+        "yearn_v3": 0.155556,
+        "maple": 0.116667,
+        "sky_susds": 0.077778
+      },
+      "kill_switch_triggered": false,
+      "kill_switch_day": null,
+      "notes": "USDC depeg 0.97 on day 12 (Black Thursday). Yearn strategies paused most of the month (~2% slippage). Expected Sharpe ~0.3 (positive but low). No protocol defaults \u2014 capital largely preserved."
+    },
+    "luna_2022": {
+      "scenario_name": "LUNA-2022",
+      "initial_equity": 100000.0,
+      "final_equity": 95309.7014,
+      "total_return_pct": -4.6903,
+      "max_drawdown_pct": 4.9897,
+      "sharpe_ratio": -3.5477,
+      "daily_equity": [
+        {
+          "day": 0,
+          "equity": 95010.3071,
+          "daily_return_pct": -4.989693
+        },
+        {
+          "day": 1,
+          "equity": 95020.6154,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 2,
+          "equity": 95030.9248,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 3,
+          "equity": 95041.2353,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 4,
+          "equity": 95051.5469,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 5,
+          "equity": 95061.8597,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 6,
+          "equity": 95072.1735,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 7,
+          "equity": 95082.4885,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 8,
+          "equity": 95092.8046,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 9,
+          "equity": 95103.1218,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 10,
+          "equity": 95113.4402,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 11,
+          "equity": 95123.7596,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 12,
+          "equity": 95134.0802,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 13,
+          "equity": 95144.4019,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 14,
+          "equity": 95154.7247,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 15,
+          "equity": 95165.0487,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 16,
+          "equity": 95175.3737,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 17,
+          "equity": 95185.6999,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 18,
+          "equity": 95196.0272,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 19,
+          "equity": 95206.3556,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 20,
+          "equity": 95216.6851,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 21,
+          "equity": 95227.0158,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 22,
+          "equity": 95237.3476,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 23,
+          "equity": 95247.6805,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 24,
+          "equity": 95258.0145,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 25,
+          "equity": 95268.3496,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 26,
+          "equity": 95278.6859,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 27,
+          "equity": 95289.0233,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 28,
+          "equity": 95299.3618,
+          "daily_return_pct": 0.01085
+        },
+        {
+          "day": 29,
+          "equity": 95309.7014,
+          "daily_return_pct": 0.01085
+        }
+      ],
+      "protocol_allocation_used": {
+        "aave_v3": 0.3,
+        "compound_v3": 0.2,
+        "yearn_v3": 0.2,
+        "maple": 0.0,
+        "sky_susds": 0.1
+      },
+      "kill_switch_triggered": false,
+      "kill_switch_day": null,
+      "notes": "USDC held peg. stETH temporary depeg to 0.94 (not modeled). Maple: 60% capital loss (Babel/Celsius defaults). Yearn: 25% impairment from UST strategy exposure. Expected Sharpe ~-1.2 (significant loss scenario)."
+    },
+    "usdc_depeg_2023": {
+      "scenario_name": "USDC-DEPEG-2023",
+      "initial_equity": 100000.0,
+      "final_equity": 93531.9523,
+      "total_return_pct": -6.468,
+      "max_drawdown_pct": 6.468,
+      "sharpe_ratio": -7.3281,
+      "daily_equity": [
+        {
+          "day": 0,
+          "equity": 93531.9523,
+          "daily_return_pct": -6.468048
+        },
+        {
+          "day": 1,
+          "equity": 93531.9523,
+          "daily_return_pct": 0.0
+        },
+        {
+          "day": 2,
+          "equity": 93531.9523,
+          "daily_return_pct": 0.0
+        },
+        {
+          "day": 3,
+          "equity": 93531.9523,
+          "daily_return_pct": 0.0
+        },
+        {
+          "day": 4,
+          "equity": 93531.9523,
+          "daily_return_pct": 0.0
+        },
+        {
+          "day": 5,
+          "equity": 93531.9523,
+          "daily_return_pct": 0.0
+        },
+        {
+          "day": 6,
+          "equity": 93531.9523,
+          "daily_return_pct": 0.0
+        }
+      ],
+      "protocol_allocation_used": {
+        "aave_v3": 0.3,
+        "compound_v3": 0.2,
+        "yearn_v3": 0.155556,
+        "maple": 0.116667,
+        "sky_susds": 0.077778
+      },
+      "kill_switch_triggered": true,
+      "kill_switch_day": 0,
+      "notes": "USDC depeg 0.87 (day 2 of scenario). Recovery in 3 days. Euler excluded (hack same week). APY signals boosted during panic \u2014 but denominated in depegged USDC. Expected Sharpe ~-0.5."
+    }
+  },
+  "summary": "=== SPA Stress Test Report ===\nCOVID-2020        :   +0.29% over 30d | max DD   3.26% | Sharpe -0.08 | kill switch: NO\nLUNA-2022         :   -4.69% over 30d | max DD   4.99% | Sharpe -3.55 | kill switch: NO\nUSDC-DEPEG-2023   :   -6.47% over  7d | max DD   6.47% | Sharpe -7.33 | kill switch: YES (day 0)\n\nWorst scenario    : USDC-DEPEG-2023 (-6.47%)\nPortfolio survived 2/3 scenarios without kill switch.\n"
+}
