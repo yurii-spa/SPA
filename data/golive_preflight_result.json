@@ -1,0 +1,192 @@
+{
+  "version": "1.0",
+  "mp": "MP-351",
+  "generated_at": "2026-06-12T17:15:07.785152+00:00",
+  "verdict": "READY",
+  "verdict_display": "READY ✅",
+  "score_pct": 73.1,
+  "counts": {
+    "pass": 19,
+    "warn": 7,
+    "fail": 0,
+    "total": 26
+  },
+  "paper_days": 3,
+  "paper_days_required": 30,
+  "is_ready": true,
+  "fails": [],
+  "warns": [
+    "keychain_telegram_bot_token",
+    "keychain_github_pat",
+    "telegram_bot_ping",
+    "golive_consecutive_days",
+    "paper_days_30",
+    "analytics_scorecard_fresh",
+    "gnosis_safe_address"
+  ],
+  "elapsed_ms": 49.8,
+  "checks": [
+    {
+      "name": "keychain_telegram_bot_token",
+      "status": "warn",
+      "detail": "TELEGRAM_BOT_TOKEN_SPA: `security` binary not found (not on macOS?)",
+      "value": null
+    },
+    {
+      "name": "keychain_github_pat",
+      "status": "warn",
+      "detail": "GITHUB_PAT_SPA: `security` binary not found (not on macOS?)",
+      "value": null
+    },
+    {
+      "name": "telegram_bot_ping",
+      "status": "warn",
+      "detail": "Telegram ping пропущен (--no-telegram)",
+      "value": null
+    },
+    {
+      "name": "golive_checker_ready",
+      "status": "pass",
+      "detail": "GoLiveChecker READY (6/6 checks)",
+      "value": true
+    },
+    {
+      "name": "golive_consecutive_days",
+      "status": "warn",
+      "detail": "consecutive_ready_days=0 / 7 required (7 remaining)",
+      "value": 0
+    },
+    {
+      "name": "gap_monitor_clean",
+      "status": "pass",
+      "detail": "No gaps — last entry 6.0h ago",
+      "value": {
+        "gap": false,
+        "hours": 6.0
+      }
+    },
+    {
+      "name": "paper_days_30",
+      "status": "warn",
+      "detail": "paper_days=3 / 30 required (27 remaining)",
+      "value": 3
+    },
+    {
+      "name": "equity_above_99k",
+      "status": "pass",
+      "detail": "equity=$100,026.06 ≥ $99,000",
+      "value": 100026.06
+    },
+    {
+      "name": "max_drawdown_2pct",
+      "status": "pass",
+      "detail": "max drawdown=0.0000% < 2.0% limit (over 3 bars)",
+      "value": 0.0
+    },
+    {
+      "name": "cycle_runner_exists",
+      "status": "pass",
+      "detail": "cycle_runner.py exists (78.7 KB)",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/spa_core/paper_trading/cycle_runner.py"
+    },
+    {
+      "name": "cycle_runner_imports",
+      "status": "pass",
+      "detail": "cycle_runner.py compiles without syntax errors",
+      "value": true
+    },
+    {
+      "name": "risk_policy_drawdown",
+      "status": "pass",
+      "detail": "RiskPolicy v=v1.0, drawdown gate fires at 6% (correctly)",
+      "value": true
+    },
+    {
+      "name": "adapter_registry",
+      "status": "pass",
+      "detail": "8 adapters in registry (T1=3: ['aave_v3', 'compound_v3', 'aave_arbitrum']; T2=5)",
+      "value": 8
+    },
+    {
+      "name": "kill_switch_drill",
+      "status": "pass",
+      "detail": "kill_switch_drill PASS (4.0ms < 1000ms limit)",
+      "value": {
+        "passed": true,
+        "ms": 4.0
+      }
+    },
+    {
+      "name": "kill_switch_not_active",
+      "status": "pass",
+      "detail": "Kill switch NOT triggered (all triggers clear)",
+      "value": false
+    },
+    {
+      "name": "vportfolios_exists",
+      "status": "pass",
+      "detail": "vportfolios.json exists at SPA_Claude/data/vportfolios.json (7 entries)",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/data/vportfolios.json"
+    },
+    {
+      "name": "strategy_registry_exists",
+      "status": "pass",
+      "detail": "strategy_registry.py exists (17.0 KB)",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/spa_core/paper_trading/strategy_registry.py"
+    },
+    {
+      "name": "kanban_no_p0_p1_backlog",
+      "status": "pass",
+      "detail": "No P0/P1 items in backlog (4 items checked)",
+      "value": 0
+    },
+    {
+      "name": "risk_policy_blocks_healthy",
+      "status": "pass",
+      "detail": "risk_policy_blocks.json empty — no blocks recorded yet",
+      "value": 0
+    },
+    {
+      "name": "analytics_scorecard_fresh",
+      "status": "warn",
+      "detail": "analytics_scorecard fresh (12.9h), status=fail (advisory)",
+      "value": "fail"
+    },
+    {
+      "name": "decisions_md",
+      "status": "pass",
+      "detail": "docs/DECISIONS.md exists",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/docs/DECISIONS.md"
+    },
+    {
+      "name": "current_state_md",
+      "status": "pass",
+      "detail": "CURRENT_STATE.md exists",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/CURRENT_STATE.md"
+    },
+    {
+      "name": "sprint_log_md",
+      "status": "pass",
+      "detail": "SPA_sprint_log.md exists",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/SPA_sprint_log.md"
+    },
+    {
+      "name": "adr_010_exists",
+      "status": "pass",
+      "detail": "docs/adr/ADR-010 (Gnosis Safe) exists",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/docs/adr/ADR-010-gnosis-safe-key-management.md"
+    },
+    {
+      "name": "adr_011_exists",
+      "status": "pass",
+      "detail": "docs/adr/ADR-011 (security checklist) exists",
+      "value": "/sessions/zealous-vibrant-babbage/mnt/SPA_Claude/docs/adr/ADR-011-go-live-security-checklist.md"
+    },
+    {
+      "name": "gnosis_safe_address",
+      "status": "warn",
+      "detail": "SAFE_ADDRESS not configured in env/Keychain (ADR-010 exists — deploy Safe 2-of-3 per ADR-010 before go-live)",
+      "value": null
+    }
+  ]
+}
