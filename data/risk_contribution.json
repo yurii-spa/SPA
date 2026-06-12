@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "source": "risk_contribution",
+  "meta": {
+    "generated_at": "2026-06-12T02:19:55.224701+00:00",
+    "source_files": [
+      "current_positions.json",
+      "adapter_orchestrator_status.json",
+      "covariance_summary.json"
+    ]
+  },
+  "available": true,
+  "advisory_only": true,
+  "execution_mode": "read_only",
+  "is_demo": false,
+  "verdict": "fail",
+  "portfolio_variance": 0.827641705,
+  "portfolio_volatility_pp": 0.909748155,
+  "risk_hhi": 0.299512491,
+  "risk_hhi_index": 2995,
+  "effective_num_risk_sources": 3.3388,
+  "top1_risk_protocol": "aave_v3",
+  "top1_risk_share": 0.370239132,
+  "top3_risk_share": 0.880447667,
+  "risk_concentration_class": "concentrated",
+  "diversification_ratio": 2.539669922,
+  "covered_weight_share": 1.0,
+  "uncovered_risk_weight": 0,
+  "max_over_risk_protocol": "yearn_v3",
+  "max_risk_weight_ratio": 1.323375321,
+  "num_risk_sources": 5,
+  "num_covered": 5,
+  "num_uncovered": 0,
+  "max_single_risk_share": 0.6,
+  "uncovered_risk_warn_share": 0.25,
+  "counts": {
+    "sources": 5,
+    "covered": 5,
+    "uncovered": 0
+  },
+  "breakdown": [
+    {
+      "protocol": "aave_v3",
+      "known": true,
+      "slug": "aave-v3-usdc-ethereum",
+      "capital_weight": 0.315293,
+      "weight": 0.331887368,
+      "standalone_vol_pp": 2.302024203,
+      "mctr": 1.014875525,
+      "cctr": 0.336824367,
+      "prc": 0.370239132,
+      "risk_weight_ratio": 1.174270067,
+      "tier": "T1"
+    },
+    {
+      "protocol": "compound_v3",
+      "known": true,
+      "slug": "compound-v3-usdc-ethereum",
+      "capital_weight": 0.302207,
+      "weight": 0.318112632,
+      "standalone_vol_pp": 2.070553457,
+      "mctr": 1.026276981,
+      "cctr": 0.326471671,
+      "prc": 0.358859393,
+      "risk_weight_ratio": 1.187462214,
+      "tier": "T1"
+    },
+    {
+      "protocol": "yearn_v3",
+      "known": true,
+      "slug": "yearn-v3-usdc-ethereum",
+      "capital_weight": 0.114366,
+      "weight": 0.120385263,
+      "standalone_vol_pp": 2.213068383,
+      "mctr": 1.143741343,
+      "cctr": 0.137689603,
+      "prc": 0.151349142,
+      "risk_weight_ratio": 1.323375321,
+      "tier": "T2"
+    },
+    {
+      "protocol": "maple",
+      "known": true,
+      "slug": "maple-usdc-ethereum",
+      "capital_weight": 0.114366,
+      "weight": 0.120385263,
+      "standalone_vol_pp": 3.114688639,
+      "mctr": 0.772451993,
+      "cctr": 0.092991836,
+      "prc": 0.10221712,
+      "risk_weight_ratio": 0.893771926,
+      "tier": "T2"
+    },
+    {
+      "protocol": "euler_v2",
+      "known": true,
+      "slug": "euler-v2-usdc-ethereum",
+      "capital_weight": 0.103768,
+      "weight": 0.109229474,
+      "standalone_vol_pp": 2.255752249,
+      "mctr": 0.144381155,
+      "cctr": 0.015770678,
+      "prc": 0.017335213,
+      "risk_weight_ratio": 0.167057402,
+      "tier": "T2"
+    }
+  ],
+  "window_days": 90,
+  "covariance_source": "live",
+  "source_files": [
+    "current_positions.json",
+    "adapter_orchestrator_status.json",
+    "covariance_summary.json"
+  ],
+  "disclaimer": "NOT investment advice",
+  "notes": [
+    "aave_v3: multiple covariance instruments matched — deterministically using 'aave-v3-usdc-ethereum'"
+  ],
+  "risk_units": "pp_apy_volatility",
+  "history": [
+    {
+      "generated_at": "2026-06-12T02:19:55.224701+00:00",
+      "verdict": "fail",
+      "portfolio_volatility_pp": 0.909748155,
+      "risk_hhi_index": 2995,
+      "top1_risk_share": 0.370239132,
+      "diversification_ratio": 2.539669922,
+      "covered_weight_share": 1.0,
+      "counts": {
+        "sources": 5,
+        "covered": 5,
+        "uncovered": 0
+      }
+    }
+  ]
+}
