@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: replace PYTHON_PATH with actual miniconda python3 path (same as daily_cycle) -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.autopush</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/auto_push.py</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>5400</integer>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_autopush.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_autopush.err</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
