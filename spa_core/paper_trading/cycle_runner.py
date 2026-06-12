@@ -1221,6 +1221,27 @@ def run_cycle(
         except Exception as _sb_exc:  # noqa: BLE001
             log.warning("structural_break failed (%s) — cycle continues", _sb_exc)
 
+        # ── MP-141: Progress Tracker ──────────────────────────────────────
+        try:
+            from spa_core.paper_trading.progress_tracker import run_progress_tracker as _run_pt
+            _run_pt(data_dir=ddir)
+        except Exception as _pt_exc:  # noqa: BLE001
+            log.warning("progress_tracker failed (%s) — cycle continues", _pt_exc)
+
+        # ── MP-143: Milestone Alert — Telegram on confidence upgrade ───
+        try:
+            from spa_core.alerts.milestone_alert import run_milestone_alert as _run_ma
+            _run_ma(data_dir=ddir)
+        except Exception as _ma_exc:  # noqa: BLE001
+            log.warning("milestone_alert failed (%s) — cycle continues", _ma_exc)
+
+        # ── MP-144: Cycle Gap Monitor ──────────────────────────────────────
+        try:
+            from spa_core.paper_trading.cycle_gap_monitor import run_cycle_gap_monitor as _run_cgm
+            _run_cgm(data_dir=ddir)
+        except Exception as _cgm_exc:
+            log.warning("cycle_gap_monitor failed (%s) — cycle continues", _cgm_exc)
+
         # ── MP-109: SQLite mirror + off-site backup of the track ──────────
         # Runs LAST, after analytics/shadow, once every track artefact for
         # today is on disk. Fail-safe: a failure → WARNING + note
@@ -1258,6 +1279,13 @@ def run_cycle(
 
         # SPA-V434: dashboard metrics snapshot (fail-safe, advisory).
         _save_cycle_snapshot_safe(ddir, result, adapters, run_ts)
+
+        # ── MP-310: Decision Audit Trail export ───────────────────────────
+        try:
+            from spa_core.audit.decision_audit import run_audit_export as _run_ae
+            _run_ae(data_dir=ddir)
+        except Exception as _ae_exc:
+            log.warning("decision_audit failed (%s) — cycle continues", _ae_exc)
 
     return result
 
