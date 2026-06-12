@@ -50,25 +50,47 @@ Aspirational target при >$250K: **≥9%** (upside, не baseline).
 
 ---
 
-## Build & Sprint Status (2026-05-22)
+## Build & Sprint Status (2026-06-12 — v4.67)
 
 | Metric | Value |
 |--------|-------|
-| Current sprint | **v1.6** |
+| Current sprint | **v4.67** |
+| Tests passing | **~400+** (121 spa_core/tests + 77 family_fund + 40 telegram + 32 risk + 50+ strategies + 11 integration) |
+| Dashboard version | v4.67 (7 tabs: Home, Paper Trading, Analytics, Go-Live, Agents, System, 🏆 Tournament) |
+| Last sprint date | 2026-06-12 |
+| Telegram | **LIVE** (dry_run=False, MP-350) |
+| Family Fund | spa_core/family_fund/ (MP-156) — models, registry, pnl_attribution, telegram_blast |
+| Strategies | S8 delta-neutral sUSDe, S9 e-mode looping, S10 Pendle YT (ADR-021 T3) |
+| ADRs | ADR-019 T2 cap 50%, ADR-020 T3 private credit 15%, ADR-021 Pendle YT T3 |
+| Risk config | ETHEREUM chain limit 90%, T2 cap 50%, T3 private credit cap 15% |
+| Investor portal | investor_portal.html (MP-158, RU/UA/EN) |
+| Legal | docs/legal/: ДПТ template + onboarding checklist (MP-162) |
+| Memory file | [spa_v467_status.md](spa_v467_status.md) — детальный статус v4.67 |
+
+### Предыдущий статус (2026-05-22, v1.6)
+
+| Metric | Value |
+|--------|-------|
+| Sprint | **v1.6** |
 | Tests passing | **~140** |
 | Files on GitHub | **116+** (manifest 111 + new docs/tests) |
-| Dashboard version | v1.6 (6 tabs: Home, Paper Trading, Analytics, Go-Live, Agents, System) |
-| Docs files | 5 files in `docs/` (api_reference, data_schema, architecture, paper_trading_guide, operator_runbook) |
+| Dashboard version | v1.6 (6 tabs) |
 | Last sprint date | 2026-05-22 |
 
 ---
 
 ## Paper trading status
 
-- Paper trading **активен** с 2026-05-20 (Day 2 of 56 as of 2026-05-22).
-- Baseline Week 0 зафиксирован на 2026-05-02 (см. `Paper_Trading_Week0_Baseline_2026-05-02.md`).
-- Go-live decision date: **2026-07-15**.
-- Current APY: ~4.2% | Target: 7.3% | Gap closure lever: Pendle PT (v1.2).
+- Paper trading **реальный** с 2026-06-10 (сброс демо-данных, is_demo: false).
+- Go-live decision date: **~2026-08-01** (перенос с 07-15 — ADR-002).
+- 30 честных дней трека истекают ~2026-07-10.
+- GoLiveChecker: NOT READY (trades_real: false — реальных трейдов is_demo:false ещё нет).
+
+### Предыдущий статус paper trading (2026-05-22)
+- Paper trading активен с 2026-05-20 (Day 2 of 56 as of 2026-05-22).
+- Baseline Week 0 зафиксирован на 2026-05-02.
+- Go-live decision date: 2026-07-15.
+- Current APY: ~4.2% | Target: 7.3%.
 
 ---
 
