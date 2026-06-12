@@ -1,5 +1,5 @@
 # CURRENT_STATE
-> Последнее обновление: 2026-06-12 sprint **v4.78** + MP-455 (обновляй вручную в конце каждого спринта)
+> Последнее обновление: 2026-06-12 sprint **v4.86** + MP-549 (обновляй вручную в конце каждого спринта)
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 
 ## Инфраструктура (launchd)
@@ -26,9 +26,9 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 
 ## Спринты
 
-- Последний завершённый: **v4.78** (2026-06-12)
+- Последний завершённый: **v4.86** (2026-06-12)
 - Sprint log синхронизирован: ❌ (пропущены v4.31-v4.47, задача SYS-009)
-- Задач в done: 233
+- Задач в done: 252
 
 ## Paper Trading Track
 
@@ -37,7 +37,7 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 - Evidence window: 30 дней минимум (ready: 2026-07-12)
 - Equity: $100,026.06 (из paper_trading_status.json)
 - APY сегодня: 10.115% (S7 Pendle YT+PT)
-- Стратегии в tournament: S0–S11 (12 стратегий)
+- Стратегии в tournament: S0–S13 (14 стратегий)
 - Best APY achieved: 10.115% (S7 Pendle YT+PT) 🏆
 - Go-live решение: 2026-08-01 (ADR-002; 50 дней; перенос если трек прерывается)
 
@@ -56,6 +56,177 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 | RPC ключи Alchemy/Infura | MP-017 | Добавить в Keychain | P1 — нужно для Pendle PT (+2-3% APY) |
 | GitHub Pages | UA-004 | Settings → Pages → main/root | P1 — публичный дашборд |
 | Workflow token | UA-006 | PAT с workflow scope | P2 |
+
+---
+
+## v4.86 Sprint Summary (2026-06-12) — Weekly Evidence Report + Protocol Direct Feed (ADR-028 Phase 2)
+
+**v4.86 (Wave 33–34, 2026-06-12):** Weekly evidence markdown report (73/73 тестов), Tier 1 oracle Protocol Direct Feed (Aave/Compound/Morpho direct API, ADR-028 Phase 2, 43/43 тестов). GoLive recheck: **7/7 PASS**.
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-546 | push_v488.sh Wave 33 | ✅ |
+| MP-547 | `scripts/weekly_evidence_report.py` — weekly markdown evidence report | 73/73 тестов ✅ `data/weekly_evidence/2026-W24.md` сгенерирован |
+| MP-548 | `spa_core/price_feeds/protocol_direct_feed.py` — Tier 1 oracle (ADR-028 Phase 2): Aave/Compound/Morpho direct API | 43/43 тестов ✅ |
+| MP-549 | push_v489.sh Wave 34 | ✅ |
+
+### GoLive recheck v4.86
+
+| Проверка | Результат |
+|----------|-----------|
+| adapter_registry | PASS (16) |
+| cycle_runner | PASS |
+| market_regime | PASS |
+| daily_limits | PASS |
+| defi_llama_feed | PASS |
+| protocol_direct | **PASS** (новый) |
+| tournament | PASS (14 стратегий) |
+| **Итого** | **7/7 PASS — READY** |
+
+`data/golive_check_v486.json` записан атомарно.
+
+### Архитектура
+
+- Weekly evidence report: stdlib, markdown, weekly window, 73 теста
+- Protocol Direct Feed: ADR-028 Phase 2 — прямые API Aave/Compound/Morpho без DeFiLlama, 43 теста
+- ADAPTER_REGISTRY: **16 адаптеров** (без изменений)
+- Стратегии: **14 (S0-S13)**, leading=S7 (10.115% 🏆)
+- Задач в done: **252** (без изменений — infrastructure tasks)
+
+---
+
+## v4.85 Sprint Summary (2026-06-12) — DailyLimitsChecker + Equity Curve Chart + K-Ratio Analyzer
+
+**v4.85 (Wave 31–32, 2026-06-12):** DailyLimitsChecker (DL-01..DL-05) интегрирован в cycle_runner, equity curve chart в Dashboard (Canvas 2D), K-Ratio (Kestner) Analyzer добавлен в paper_trading, Wave 31 и Wave 32 запушены
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-540 | push_v486.sh Wave 31 | 4/4 EXISTS ✅ |
+| MP-541 | `spa_core/risk/daily_limits.py` — DailyLimitsChecker (DL-01..DL-05), интегрирован в cycle_runner | 56/56 тестов ✅ |
+| MP-542 | `index.html` — equity curve chart (Canvas 2D, loadEquityChart(), P&L метрики) | ✅ |
+| MP-543 | push_v487.sh Wave 32 | ✅ |
+| SPA-Dev | `spa_core/paper_trading/k_ratio.py` — K-Ratio (Kestner) Analyzer (K=slope/se·n) | 74/74 тестов ✅ |
+
+### Архитектура
+
+- DailyLimitsChecker: **5 лимитов** (DL-01..DL-05), интегрирован в cycle_runner
+- Equity curve chart: Canvas 2D в Dashboard, loadEquityChart(), P&L метрики
+- K-Ratio Analyzer: Kestner formula (K=slope/se·n), 74 теста
+- Задач в done: **252** (без изменений — infrastructure tasks)
+
+---
+
+## v4.84 Sprint Summary (2026-06-12) — Market Regime Detector + Live APY Feed + ADR-028 + simulate_day
+
+**v4.84 (Wave 29, 2026-06-12):** MarketRegimeDetector (4 режима, 56 тестов), live APY feed (11 адаптеров DeFiLlama, 21 тест), ADR-028 Oracle Price Diversification (3-tier), simulate_day.py добавлен, Market Regime Detection интегрирован в cycle_runner
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-531 | `spa_core/analysis/market_regime.py` — MarketRegimeDetector (STABLE/HIGH_YIELD/COMPRESSED_YIELD/VOLATILE) | 56/56 тестов ✅ |
+| MP-532 | `spa_core/price_feeds/defi_llama_apy_feed.py` — live APY feed, 11 адаптеров including extra_finance_base | 21/21 тестов ✅ |
+| MP-533 | push_v484.sh Wave 29 — 12/12 EXISTS | 12/12 ✅ |
+| MP-534 | cycle_runner.py — Market Regime Detection интегрирован | 4/4 тестов ✅ |
+| MP-535 | ADR-028 Oracle Price Diversification — 3-уровневая иерархия (Protocol Direct → DeFiLlama → Static), oracle_config.json | ✅ |
+| MP-536 | `scripts/simulate_day.py` — ручной симулятор одного дня paper trading, dry-run + детерминированный шум | ✅ |
+
+### Архитектура
+
+- Market Regime Detector: **4 режима** (STABLE/HIGH_YIELD/COMPRESSED_YIELD/VOLATILE), 56 тестов
+- Live APY feed: **11 адаптеров** из DeFiLlama
+- Oracle diversification: ADR-028, 3-tier hierarchy (Protocol Direct → DeFiLlama → Static)
+- simulate_day.py: ручной запуск paper trading цикла
+- Задач в done: **252** (без изменений — infrastructure tasks)
+
+---
+
+## v4.83 Sprint Summary (2026-06-12) — S13 Multi-Chain Yield Arbitrage + ADR-027
+
+**v4.83 (Wave 28, 2026-06-12):** S13 добавлен в MultiStrategyRunner (S2–S13, 14 стратегий), ADR-027 создан, Dashboard обновлён, GoLive recheck 7/7 PASS
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-523 | S13 Multi-Chain Yield Arbitrage → cycle_runner MultiStrategyRunner (S2–S13) | tournament_ranking.json обновлён (14 стратегий) ✅ |
+| MP-524 | ADR-027 S13 Multi-Chain Yield Arbitrage | `docs/adr/ADR-027-s13-multi-chain-yield-arbitrage.md` создан ✅ |
+| MP-525 | push_v483.sh Wave 28 | 3 файла: cycle_runner.py, tournament_ranking.json, ADR-027 ✅ |
+| MP-526 | Dashboard — строка S13 в tournament таблице | `index.html` обновлён ✅ |
+| MP-527 | GoLive recheck v4.83 — 7/7 PASS | `data/golive_check_v483.json` создан ✅ |
+
+### Архитектура
+
+- ADAPTER_REGISTRY: **16 адаптеров** (без изменений)
+- Стратегии в tournament: **14 (S0-S13)**, S13: Multi-Chain Yield Arbitrage, T2, RISK_SCORE=0.45, TARGET_APY=8.5%, Phase1=ETH fallback
+- Best APY: **10.115%** (S7 Pendle YT+PT) 🏆
+- GoLive: 7/7 PASS, ready=true
+- Задач в done: **252** (без изменений — infrastructure tasks)
+
+---
+
+## v4.82 Sprint Summary (2026-06-12) — KANBAN Sync + Strategy Ranking + GoLive Recheck
+
+**v4.82 (Wave 26, 2026-06-12):** KANBAN синхронизирован (252 done), 7-day seed data, strategy_summary.py, GoLive recheck ADAPTER_REGISTRY=16 ✓
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-515 | KANBAN sync + seed 7-day data | 6 задач перемещено в done (MP-376, -383, -385, -386, -419, -420); `scripts/seed_paper_data.py` → 8 записей в equity_history.json, pnl_history.json, apy_milestone_log.json (2026-06-05 – 2026-06-12) ✅ |
+| MP-516 | Strategy ranking + strategy_summary.py | `data/tournament_ranking.json` обновлён: S7 rank=1 APY=10.115%, S11 rank=2 target=15.6%, S12 rank=12 Phase1; `spa_core/reporting/strategy_summary.py` — generate_summary(), stdlib, атомарная запись, CLI --check; 57/57 тестов PASS; `data/strategy_summary.json`: leading=S7, tournament=13, suspended=moonwell_base, days_to_golive=50 ✅ |
+| MP-517 | GoLive v4.82 recheck | `data/golive_check_v482.json` — ADAPTER_REGISTRY=16 ✓, moonwell suspended 0.75 ✓, extra_finance T3 8.0 ✓, READY 6/6; `docs/sprint_v482_notes.md` создан ✅ |
+
+### Архитектура
+
+- ADAPTER_REGISTRY: **16 адаптеров** (+1: extra_finance_base T3 Base 8.0% NEW)
+- Стратегии в tournament: **13 (S0-S12)**, leading=S7 (10.115%)
+- strategy_summary.json: days_to_golive=50, suspended=moonwell_base
+- Задач в done: **252** (итого; +8 за v4.82)
+
+---
+
+## v4.81 Sprint Summary (2026-06-12) — SparkSusds T1 + APY Milestone Tracker
+
+**v4.81 (2026-06-12):** S12 в cycle_runner tournament (S0-S12), SparkSusds T1 (#15), APY Milestone Tracker (50t, L1-L3 Day0), Moonwell SUSPENDED (hack Nov 2025, risk_score→0.75 MP-511)
+
+### Завершено
+- MP-466: S12 Base Layer Yield → cycle_runner tournament (S0→S12), cycle_runner imports OK ✅
+- MP-376: SparkSusdsAdapter T1 registered → ADAPTER_REGISTRY=15 ✅
+- MP-383: APY Milestone Daily Log — 5 уровней (L1-L3 достигнуты Day0), 50/50 тестов ✅
+- MP-511: Moonwell Finance SUSPENDED (хак ноябрь 2025, $1M+$3.7M bad debt, risk_score→0.75) ✅
+- MP-513: CURRENT_STATE.md v4.81 + sprint log update ✅
+
+### Архитектура
+- ADAPTER_REGISTRY: **16 адаптеров** (spark_susds T1 #14, moonwell_base T2 SUSPENDED #15, extra_finance_base T3 NEW #16)
+- Стратегии в tournament: **13 (S0-S12)**
+- APY Milestones Day 0: L1(5%)✅ L2(7%)✅ L3(10%)✅ L4(12%)— L5(15%)—
+- Задач в done: **244**
+
+---
+
+## v4.80 Sprint Summary (2026-06-12) — Base Chain Expansion Continued
+
+**MP-457 через MP-464** — Wave 23 push + Base chain expansion continued
+
+### Завершено
+- MP-457: push_v478.sh Wave 23 — 14 файлов ✅
+- MP-460: daily_paper_report.py Base chain section (5/5 тестов) ✅
+- MP-461: GoLive recheck 24/24 PASS, 0 blockers ✅
+- MP-462: S12 Base Layer Yield strategy + 20+ тестов ✅
+- MP-463: Moonwell Finance Base USDC adapter (T2) + 24 тестов ✅
+- MP-464: CURRENT_STATE.md v4.80 + sprint log update ✅
+
+### Архитектура
+- Base chain adapters: 3 (Aave V3 Base, Morpho Blue Base, Moonwell Finance Base)
+- ADAPTER_REGISTRY: 13 адаптеров
+- S12: T3 strategy designed for ADR-025 Phase 2 activation
+- GoLive: 24/24 PASS (подтверждено после Base chain wiring)
+- Задач в done: **241**
 
 ---
 
@@ -299,6 +470,8 @@ s11_hybrid_yield_max: T3-SPEC, target 15.6% APY
 | Fluid fUSDC | T2 | ~6.5% | ✅ активен (spike normalization, Risk 0.38) |
 | Sky/sUSDS | watch | 0% | ⏸ ждёт GSM ≥ 48h |
 | sFRAX (Staked FRAX) | T2 | ~6.0% | ✅ peg-gate 0.5%, risk 0.40, ERC-4626 |
+| Moonwell Finance Base | T2 | — | 🚫 SUSPENDED — хак ноябрь 2025, $1M+$3.7M bad debt, risk_score=0.75 (MP-511) |
+| Extra Finance XLend Base | **T3** | **~8.0%** | 🆕 NEW (v4.82) — 3 аудита, Base chain, ADAPTER_REGISTRY #16 |
 
 ---
 
