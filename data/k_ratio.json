@@ -1,0 +1,25 @@
+{
+  "available": false,
+  "reason": "only 3 equity points (< 10 required)",
+  "is_demo": false,
+  "k_ratio": null,
+  "regression_slope": null,
+  "slope_std_error": null,
+  "t_stat": null,
+  "intercept": null,
+  "perfectly_linear": null,
+  "n_observations": 3,
+  "start_date": null,
+  "end_date": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 3 equity points (< 10 required)",
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T20:21:21.089745+00:00",
+    "schema_version": 1,
+    "source": "k_ratio",
+    "min_obs_required": 10
+  },
+  "_fingerprint": "{\"available\": false, \"end_date\": null, \"intercept\": null, \"is_demo\": false, \"k_ratio\": null, \"meta\": {\"min_obs_required\": 10, \"schema_version\": 1, \"source\": \"k_ratio\"}, \"n_observations\": 3, \"notes\": [], \"perfectly_linear\": null, \"reason\": \"only 3 equity points (< 10 required)\", \"regression_slope\": null, \"slope_std_error\": null, \"start_date\": null, \"t_stat\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 3 equity points (< 10 required)\"}",
+  "history": []
+}
