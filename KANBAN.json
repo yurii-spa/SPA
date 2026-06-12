@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-12",
-  "updated_by": "spa-dev-continue (SPA-V453 / MP-139 structural_break)",
-  "sprint_current": "v4.54",
+  "last_updated": "2026-06-12T12:31:00Z",
+  "updated_by": "spa-dev (SPA audit: added MP-314 Telegram report)",
+  "sprint_current": "v4.61",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -251,11 +251,285 @@
         ],
         "sprint": null,
         "added": "2026-06-10"
+      },
+      {
+        "id": "SYS-001",
+        "title": "Create CURRENT_STATE.md — single source of infra truth",
+        "description": "CLAUDE.md говорит autopush работает, RULES.md говорит не установлен — агент не знает кому верить. Создать файл с секциями: launchd statuses, последний sprint, дней трека, active blockers. Обновляется атомарно в конце каждого спринта (DoD).",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "infra",
+          "docs",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-002",
+        "title": "Reconcile CLAUDE.md vs RULES.md (autopush, push method, sprint current)",
+        "description": "Два противоречащих документа → агент получает ложный контекст каждую сессию. CLAUDE.md должен ссылаться на CURRENT_STATE.md для статусов, не дублировать их. Убрать 'autopush работает' если не работает. Добавить: читай CURRENT_STATE.md первым.",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [
+          "SYS-001"
+        ],
+        "estimate": "0.3d",
+        "tags": [
+          "infra",
+          "docs",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-003",
+        "title": "Sprint close DoD checklist — mandatory sync KANBAN + sprint_log + CURRENT_STATE",
+        "description": "9 спринтов (v4.31-v4.47) пропущены в sprint log → потеря исторической памяти. В RULES.md добавить обязательный чеклист закрытия: 1. KANBAN.json done+sprint_completed 2. SPA_sprint_log.md — новая запись 3. CURRENT_STATE.md — sprint_last + infra_status. Без всех 3х пунктов спринт не считается done.",
+        "priority": "P0",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [
+          "SYS-001"
+        ],
+        "estimate": "0.3d",
+        "tags": [
+          "process",
+          "docs",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-004",
+        "title": "Infrastructure-first priority rule",
+        "description": "11 аналитических модулей сделано при незапущенных алертах и сломанном autopush. Добавить в RULES.md: Задачи category=infrastructure P0-P1 берутся первыми. Analytics P2+ берётся только если нет infrastructure/alerts P0-P1 в backlog. Исключение: только если infrastructure заблокирована USER ACTION.",
+        "priority": "P0",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.2,
+        "depends_on": [],
+        "estimate": "0.2d",
+        "tags": [
+          "process",
+          "rules",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-005",
+        "title": "Anti-HALT escalation protocol",
+        "description": "58+ циклов с одинаковым 'НЕМЕДЛЕННО revoke PAT' без прогресса — 26x повтор = шум. Добавить в RULES.md: если блокер повторяется 3-й раз: 1. Создать P0 задачу [ESCAPE-XXX] с конкретным планом выхода (не очередной текст) 2. Продолжить с другими задачами при наличии незаблокированных 3. НЕ писать одно и то же 4-й раз.",
+        "priority": "P1",
+        "category": "agent-quality",
+        "phase": "phase0",
+        "estimated_days": 0.2,
+        "depends_on": [],
+        "estimate": "0.2d",
+        "tags": [
+          "process",
+          "agent-quality",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-006",
+        "title": "DECISIONS.md — cross-session decision journal",
+        "description": "Между сессиями теряется контекст решений. Агент каждый раз знакомится с проектом заново. Создать docs/DECISIONS.md. Каждая сессия добавляет: что сделано, что НЕ сделано и почему, блокеры для следующей сессии, следующий приоритет. Агент читает последние 5 записей в начале сессии.",
+        "priority": "P1",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [],
+        "estimate": "0.3d",
+        "tags": [
+          "process",
+          "docs",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-007",
+        "title": "Session startup protocol — 5 обязательных шагов перед работой",
+        "description": "Агент начинает сессию с CLAUDE.md и сразу берёт задачу — без проверки реального состояния. Добавить в RULES.md обязательный startup: 1. Читать CURRENT_STATE.md → реальный статус launchd, sprint, blockers 2. Читать RULES.md (если не читал) 3. python3 -m spa_core.paper_trading.golive_checker → статус трека 4. python3 push_to_github.py --dry-run → проверить что push работает 5. KANBAN.json → что в backlog, что blocked, что следующий.",
+        "priority": "P1",
+        "category": "agent-quality",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [
+          "SYS-001"
+        ],
+        "estimate": "0.3d",
+        "tags": [
+          "process",
+          "agent-quality",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-008",
+        "title": "KANBAN delivery_status: shipped_local / shipped_remote / in_prod",
+        "description": "Спринты помечались done когда код только локально. shipped_local ≠ done. Добавить поле delivery_status в KANBAN-карточки. shipped_local: написан и протестирован, не запушен. shipped_remote: в GitHub, не в launchd. in_prod: работает в daily_cycle. DoD: in_prod = единственный настоящий done.",
+        "priority": "P1",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [],
+        "estimate": "0.3d",
+        "tags": [
+          "process",
+          "kanban",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-009",
+        "title": "Sprint log recovery: восстановить v4.31-v4.47 из KANBAN done",
+        "description": "9 спринтов отсутствуют в SPA_sprint_log.md — история провала. DD-аудиторы увидят дыру. Прочитать KANBAN.json, найти done-карточки sprint_completed=v4.31..v4.47, написать минимальные sprint log записи для каждого спринта. Пометить как 'Restored from KANBAN (sprint log не был записан своевременно)'.",
+        "priority": "P1",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "process",
+          "docs",
+          "history",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-010",
+        "title": "Push-paradox resolution: 3-state push в CURRENT_STATE + auto-fix в startup",
+        "description": "Правило 'не просить юзера пушить' + сломанный autopush = логический тупик. Добавить в CURRENT_STATE.md: push_method, autopush_status, push_last_success. Добавить в startup protocol: если autopush_status=not_installed → первым действием выполнить bash mp009_fix_launchd.command (не ждать).",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [
+          "SYS-001"
+        ],
+        "estimate": "0.3d",
+        "tags": [
+          "infra",
+          "process",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "MP-312",
+        "title": "Kill-switch drill documented (MP-108)",
+        "description": "'Мы можем закрыть всё за <1 мин' — это обещание, а не факт без drill. e2e тест: имитировать 5% drawdown → проверить что RiskPolicy блокирует. Результат → docs/kill_switch_drill.md (дата, сценарий, время реакции).",
+        "priority": "P1",
+        "category": "risk",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "risk",
+          "testing",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "MP-313",
+        "title": "Fix autopush launchd (mp009_fix_launchd.command) [USER ACTION]",
+        "description": "Autopush не работает. Весь код лежит локально. Прогресс невидим снаружи. Выполнить: bash mp009_fix_launchd.command. Верифицировать: launchctl list | grep com.spa.autopush → активен. USER ACTION — требует ручного запуска команды владельцем.",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.1,
+        "depends_on": [],
+        "estimate": "0.1d",
+        "tags": [
+          "infra",
+          "user-action",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "MP-314",
+        "title": "Automated daily Telegram report (разблокировать MP-102)",
+        "description": "Без ежедневного P&L репорта инвестор слеп. Это базовая investor-grade фича. Убедиться что daily_report.py отправляет в реальный Telegram (не dry_run). Тест: через 24ч после настройки Telegram. Блокер: Telegram bot token (user action).",
+        "priority": "P1",
+        "category": "monitoring",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "monitoring",
+          "telegram",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "blocks": "Telegram bot token (user action)"
       }
     ],
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-146",
+        "title": "Ulcer Index & Martin Ratio Analyzer (read-only/advisory)",
+        "description": "RMS-of-underwater Ulcer Index + Pain Index + Martin Ratio (annualized return / UI). Penalizes drawdown DEPTH and DURATION. Reuses drawdown_analytics.extract_equity_series/underwater_curve + tear_sheet.content_fingerprint by import. fail if UI>=15 or martin<0.5; warn if UI>=7.5 or martin<1.0.",
+        "status": "done",
+        "type": "analytics",
+        "priority": "P2",
+        "phase": "phase1",
+        "sprint": "v4.61",
+        "depends_on": [
+          "MP-115",
+          "MP-501"
+        ],
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V461)",
+        "added": "2026-06-12"
+      },
       {
         "id": "MP-137",
         "title": "Deflated Sharpe Ratio (DSR) & Multiple-Testing-Adjusted Performance Analyzer (read-only/advisory)",
@@ -1485,7 +1759,7 @@
       },
       {
         "id": "MP-310",
-        "title": "Единый decision audit trail",
+        "title": "Decision Audit Trail (correlation_id chain)",
         "description": "Цепочка snapshot_id → proposal → risk-вердикт → trade с correlation_id; экспорт подписанного JSONL. База для on-chain Proof-of-Track (MP-406).",
         "priority": "P2",
         "phase": "phase3",
@@ -1499,10 +1773,10 @@
           "agents",
           "investor"
         ],
-        "sprint": "v4.22",
+        "sprint": "v4.61",
         "added": "2026-06-10",
         "status": "done",
-        "completed": "2026-06-11",
+        "completed": "2026-06-12",
         "completed_by": "dev-orchestrator (SPA-V422)",
         "resolution": "MP-310 Decision Audit Trail реализован: новый пакет spa_core/audit/ (audit_trail.py). Контракт: begin_cycle(date) → correlation_id (UUID4); record_event(corr_id, event_type, data, prev_event_id) → linked-list запись; get_cycle_chain(corr_id) → все события цикла в порядке вставки; export_signed_jsonl(output_path) → копия + manifest строка с sha256. Типы событий: cycle_start, allocation_proposal, risk_verdict, trade_executed, trade_blocked, kill_switch, alert_sent. Хранение: data/audit_trail.jsonl (append-only, ротация при >10MB → архив). Все записи атомарные (tmp+os.replace). Интеграция в cycle_runner.py: begin_cycle → correlation_id → record_event для allocation_proposal, risk_verdict, trade_executed/trade_blocked (всё fail-safe). correlation_id добавлен в CycleResult.to_dict(). Тесты: test_audit_trail.py — 25+ тестов, все зелёные."
       },
@@ -2371,10 +2645,70 @@
           "advisory"
         ],
         "added": "2026-06-12"
+      },
+      {
+        "id": "MP-141",
+        "title": "Analytics Confidence Progress Tracker (read-only/advisory)",
+        "status": "done",
+        "sprint": "v4.55",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V455)",
+        "files_changed": [
+          "spa_core/paper_trading/progress_tracker.py",
+          "spa_core/tests/test_progress_tracker.py",
+          "spa_core/paper_trading/cycle_runner.py"
+        ]
+      },
+      {
+        "id": "MP-142",
+        "title": "Dashboard Go-Live Timeline Panel",
+        "status": "done",
+        "sprint": "v4.56",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V456)",
+        "files_changed": [
+          "index.html"
+        ]
+      },
+      {
+        "id": "MP-143",
+        "title": "Telegram Milestone Alert (confidence upgrade notifications)",
+        "status": "done",
+        "sprint": "v4.57",
+        "type": "alerts",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V457)",
+        "files_changed": [
+          "spa_core/alerts/milestone_alert.py",
+          "spa_core/tests/test_milestone_alert.py",
+          "spa_core/paper_trading/cycle_runner.py",
+          "KANBAN.json"
+        ]
+      },
+      {
+        "id": "MP-309",
+        "title": "CI-линт LLM FORBIDDEN в L2/L3",
+        "sprint": "v4.59",
+        "status": "done",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-144",
+        "title": "Cycle Gap Monitor",
+        "sprint": "v4.58",
+        "status": "done",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-145",
+        "title": "Dashboard Equity Curve Chart",
+        "description": "Real equity growth SVG chart in Statistics tab reading from data/pnl_history.json",
+        "status": "done",
+        "sprint": "v4.60"
       }
     ]
   },
-  "sprint_completed": "v4.53",
+  "sprint_completed": "v4.61",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
@@ -2384,5 +2718,7 @@
   "_v418_dispatch_note": "SPA-V418 (2026-06-11): MP-205 Candidate-tier автодискавери поверх Adapter SDK v1 (MP-204, v4.17). discovery.py сканирует DeFiLlama по quality-gates (TVL>=$5M, age>=180d/age_unknown, stable-only, APY<=30%, минус уже покрытые протоколы) в ADVISORY-реестр data/candidate_registry.json — whitelist только через ADR/человека; 44 теста зелёные, живой прогон в песочнице честно degraded до status=error (egress к yields.llama.fi заблокирован).",
   "_v419_dispatch_note": "SPA-V419 (2026-06-11): MP-206 инкремент 1 — «20+ адаптеров через SDK», батч 2 из 9 новых декларативных манифестов в spa_core/adapter_sdk/manifests/ (было 3 → стало 12; цель 20+, MP-206 остаётся в features). Состав по карточке MP-206 (Convex, Gearbox passive, Ethena capped, Across LP + стабильные AMM/lending): ethena_susde (ethena-usde, SUSDE, T3 cap 0.05 «ось peg», exit 168h illiquid), gearbox (T3, USDC/USDT, instant), across (T3, USDC/USDT, 1h), stargate (T3, USDC/USDT, 1h), velodrome_stable (velodrome-v2, Optimism, USDC-SUSD, T3), convex_3pool (convex-finance, DAI-USDC-USDT, T3), balancer_stable (balancer-v2, GHO-USDC-USDT, T3), aerodrome_stable (aerodrome-v1, Base, DOLA-USDC, T3), venus (venus-core-pool, BSC, USDT/USDC, T3). Все — candidate-tier гейты: min_tvl_usd>=5M, stable_only=true (каждая нога из STABLE_SYMBOLS), max_apy_pct<=30; exit_latency объявлен явно у всех; sky/sUSDS пропущен (есть execution/adapters/sky_susds_adapter.py), дублей с файловыми адаптерами (aave-v3/compound-v3/morpho-blue/euler-v2/maple/yearn-finance/pendle) и батчем 1 (spark/fluid-lending/curve-dex) нет — slugs уникальны, substring-матчинг проверен в обе стороны. Тесты: spa_core/tests/test_manifests_batch2.py — 25 новых unittest-кейсов 25/25 OK (без сети, DeadFeed); регрессия test_adapter_sdk+test_discovery+test_llm_forbidden_lint 114/114 OK; llm_forbidden_lint exit 0; py_compile чисто; registry --no-fetch: manifests=12 valid=12 invalid=0 exit 0, data/adapter_sdk_status.json перезаписан (offline, честный health=error). STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/существующие адаптеры/push_to_github.py не тронуты; пуш делает оркестратор.",
   "_v420_dispatch_note": "SPA-V420 (2026-06-11): MP-206 инкремент 2 (финальный) — «20+ адаптеров через SDK», батч 3 из 9 новых декларативных манифестов в spa_core/adapter_sdk/manifests/ (было 12 → стало 21; цель 20+ достигнута, ЭПИК ЗАКРЫТ). Состав по карточке MP-206 (crvUSD, Frax, Notional + консервативные stable-lending): crvusd_llamalend (curve-llamalend, CRVUSD, T3 cap 0.05 «ось peg», exit 1h liquid), fraxlend (FRAX, T3 cap 0.05 «ось peg», 1h), notional_v3 (notional-v3, USDC, T3 0.10, 24h liquid), silo (silo-v2, Arbitrum, USDC, T3 0.10, 1h), moonwell (Base, USDC, T3 0.10, instant), dolomite (Arbitrum, USDC, T3 0.10, instant), benqi (benqi-lending, Avalanche, USDC/USDT, T3 0.10, instant), clearpool (clearpool-lending, USDC, T3 cap 0.05 — uncollateralized credit, 24h), ipor (USDC, T3 cap 0.05, 24h). Все — candidate-tier гейты: min_tvl_usd>=5M, stable_only=true (CRVUSD/FRAX уже в STABLE_SYMBOLS — множество НЕ менялось), max_apy_pct<=30 (25 у credit); тиры только T3; exit_latency объявлен явно у всех, profile==bucket; дублей с файловыми адаптерами (aave-v3/compound-v3/morpho-blue/euler-v2/maple/yearn-finance/pendle/sky-susds) и батчами 1-2 нет — substring в обе стороны. Тесты: spa_core/tests/test_manifests_batch3.py — 27 unittest-кейсов 27/27 OK (без сети, DeadFeed); регрессия test_adapter_sdk+test_discovery+test_manifests_batch2+test_llm_forbidden_lint 139/139 OK; llm_forbidden_lint exit 0; registry --no-fetch: manifests=21 valid=21 invalid=0 exit 0, data/adapter_sdk_status.json перезаписан (offline, честный health=error), хвостовых *.tmp нет. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/существующие адаптеры и манифесты/push_to_github.py не тронуты; пуш делает оркестратор.",
-  "_v421_dispatch_note": "SPA-V421 (2026-06-11): MP-301 Agent runtime v1 — каркас агентного слоя Phase 3 (первый спринт фазы, разблокирует MP-302…MP-311). Новый строго аддитивный пакет spa_core/agent_runtime/: mandate.py (dataclass AgentMandate: name/role/schedule/token_budget_per_run/token_budget_daily/forbidden_actions/allowed_outputs/requires_llm/degradation_mode; ЖЁСТКИЙ инвариант — мандат с requires_llm=True для имён из LLM_FORBIDDEN_AGENTS={risk,execution,monitoring} → ValueError в конструкторе, регистронезависимо; load/save мандатов в mandates/*.json атомарно, битый файл кварантинится, дубликат имени → ValueError), 3 стартовых мандата (ceo.json weekly → data/ceo_decisions.json, деградация skip; alpha.json weekly → data/alpha_candidates.json, запрет list_protocol_directly, deterministic-only; reporting.json daily → отчёты, запрет distort_numbers, deterministic-only — все по карточкам MP-302/304/305), budget.py (TokenBudgetTracker: start_run/charge→(bool,reason)/remaining/usage, per-run и daily лимиты из мандата, отказ ничего не списывает, daily reset по UTC-дате с инжектируемым now_fn, персистентность data/agent_token_usage.json tmp+os.replace), runtime.py (AgentRuntime: load_mandates, check_permission deny-by-default + forbidden-list, guard run_agent: нет мандата → no_mandate; requires_llm+LLM недоступен → skip (лог, fn не вызывается, 0 токенов) или deterministic-only (fn(llm=None), 0 токенов); бюджет списывается ДО запуска (budget_exhausted блокирует); исключения агента ловятся → status=error + traceback; журнал data/agent_runtime_log.json атомарно с ротацией 200; llm/llm_probe — инжектируемые callable, офлайн-дефолт «LLM недоступен», битый probe == недоступен). КОНСТИТУЦИЯ: ни одного импорта LLM SDK в spa_core (runtime — каркас, LLM подаётся снаружи), закреплено тестом через find_forbidden_imports. Тесты: test_agent_runtime.py 40/40 OK (unittest, без сети, tmpdir-персистентность, нет *.tmp хвостов); регрессия test_adapter_sdk+test_discovery+test_llm_forbidden_lint 114/114 OK; llm_forbidden_lint exit 0 (3 dirs, 27 files, 0 violations); py_compile чисто. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/адаптеры/манифесты/push_to_github.py не тронуты; только новые файлы + KANBAN + лог. Пуш делает оркестратор."
+  "_v421_dispatch_note": "SPA-V421 (2026-06-11): MP-301 Agent runtime v1 — каркас агентного слоя Phase 3 (первый спринт фазы, разблокирует MP-302…MP-311). Новый строго аддитивный пакет spa_core/agent_runtime/: mandate.py (dataclass AgentMandate: name/role/schedule/token_budget_per_run/token_budget_daily/forbidden_actions/allowed_outputs/requires_llm/degradation_mode; ЖЁСТКИЙ инвариант — мандат с requires_llm=True для имён из LLM_FORBIDDEN_AGENTS={risk,execution,monitoring} → ValueError в конструкторе, регистронезависимо; load/save мандатов в mandates/*.json атомарно, битый файл кварантинится, дубликат имени → ValueError), 3 стартовых мандата (ceo.json weekly → data/ceo_decisions.json, деградация skip; alpha.json weekly → data/alpha_candidates.json, запрет list_protocol_directly, deterministic-only; reporting.json daily → отчёты, запрет distort_numbers, deterministic-only — все по карточкам MP-302/304/305), budget.py (TokenBudgetTracker: start_run/charge→(bool,reason)/remaining/usage, per-run и daily лимиты из мандата, отказ ничего не списывает, daily reset по UTC-дате с инжектируемым now_fn, персистентность data/agent_token_usage.json tmp+os.replace), runtime.py (AgentRuntime: load_mandates, check_permission deny-by-default + forbidden-list, guard run_agent: нет мандата → no_mandate; requires_llm+LLM недоступен → skip (лог, fn не вызывается, 0 токенов) или deterministic-only (fn(llm=None), 0 токенов); бюджет списывается ДО запуска (budget_exhausted блокирует); исключения агента ловятся → status=error + traceback; журнал data/agent_runtime_log.json атомарно с ротацией 200; llm/llm_probe — инжектируемые callable, офлайн-дефолт «LLM недоступен», битый probe == недоступен). КОНСТИТУЦИЯ: ни одного импорта LLM SDK в spa_core (runtime — каркас, LLM подаётся снаружи), закреплено тестом через find_forbidden_imports. Тесты: test_agent_runtime.py 40/40 OK (unittest, без сети, tmpdir-персистентность, нет *.tmp хвостов); регрессия test_adapter_sdk+test_discovery+test_llm_forbidden_lint 114/114 OK; llm_forbidden_lint exit 0 (3 dirs, 27 files, 0 violations); py_compile чисто. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/адаптеры/манифесты/push_to_github.py не тронуты; только новые файлы + KANBAN + лог. Пуш делает оркестратор.",
+  "_v456_dispatch_note": "MP-142: Dashboard Go-Live Timeline Panel — added to index.html Statistics tab",
+  "_v457_dispatch_note": "MP-143: Telegram Milestone Alert — sends once per milestone on reached=True transition"
 }
