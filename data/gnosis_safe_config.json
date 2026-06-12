@@ -1,0 +1,64 @@
+{
+  "version": "1.0",
+  "status": "pre-deployment",
+  "target_network": "ethereum-mainnet",
+  "l2_network": "arbitrum-one",
+  "testnet": "sepolia",
+  "threshold": 2,
+  "owners_count": 3,
+  "signers": [
+    {
+      "role": "owner_primary",
+      "device": "hardware_wallet",
+      "address": null
+    },
+    {
+      "role": "owner_backup",
+      "device": "hardware_wallet",
+      "address": null
+    },
+    {
+      "role": "co_investor",
+      "device": "hardware_wallet",
+      "address": null
+    }
+  ],
+  "daily_limit_pct": 0.1,
+  "daily_limit_usd": 10000,
+  "upgrade_timelock_hours": 24,
+  "tx_policy": {
+    "rebalance_small_pct": 0.05,
+    "rebalance_small_sigs": 1,
+    "rebalance_large_sigs": 2,
+    "withdraw_sigs": 2,
+    "upgrade_sigs": 2,
+    "upgrade_timelock_h": 24
+  },
+  "modules": {
+    "zodiac_roles": {
+      "enabled": true,
+      "min_version": "2.0.0",
+      "purpose": "разграничение прав SPA automation vs Owner"
+    },
+    "guards_spending_limit": {
+      "enabled": true,
+      "limit_pct_per_day": 0.1,
+      "limit_usd_per_day": 10000,
+      "purpose": "Guard — лимит 10%/день без мультисиг"
+    }
+  },
+  "timeline": {
+    "deploy_mainnet": "2026-07-01",
+    "transfer_equity_tracker": "2026-07-12",
+    "first_live_tx": "2026-08-01"
+  },
+  "safe_addresses": {
+    "mainnet": null,
+    "arbitrum": null,
+    "sepolia": null
+  },
+  "adr_reference": "ADR-024",
+  "adr_path": "docs/adr/ADR-024-gnosis-safe-multisig.md",
+  "zodiac_roles_min_version": "2.0.0",
+  "checks_file": "scripts/gnosis_safe_checklist.py"
+}
