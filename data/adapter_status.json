@@ -485,6 +485,38 @@
     "added_by": "MP-559",
     "added_at": "2026-06-12"
   },
+  "scrvusd": {
+    "adapter_id": "scrvusd",
+    "name": "Curve Savings crvUSD (scrvUSD)",
+    "tier": "T2",
+    "apy_pct": 7.0,
+    "tvl_usd": 100000000,
+    "chain": "ethereum",
+    "protocol": "Curve Finance",
+    "status": "active",
+    "risk_score": 0.42,
+    "last_updated": "2026-06-13",
+    "source": "fallback",
+    "notes": "ERC-4626 crvUSD savings vault; atomic redeem; soft-peg gate 1% vs USD (LLAMMA)",
+    "added_by": "MP-560",
+    "added_at": "2026-06-13"
+  },
+  "stusd": {
+    "adapter_id": "stusd",
+    "name": "Angle Staked USDA (stUSD)",
+    "tier": "T2",
+    "apy_pct": 6.0,
+    "tvl_usd": 50000000,
+    "chain": "ethereum",
+    "protocol": "Angle Protocol",
+    "status": "active",
+    "risk_score": 0.43,
+    "last_updated": "2026-06-13",
+    "source": "fallback",
+    "notes": "ERC-4626 USDA savings vault; atomic redeem; hard-peg gate 0.5% vs USD (transmuter)",
+    "added_by": "MP-561",
+    "added_at": "2026-06-13"
+  },
   "aave_v3_base": {
     "protocol_id": "aave-v3-base",
     "chain": "base",
@@ -556,5 +588,21 @@
     "last_updated": "2026-06-12",
     "added_by": "MP-510",
     "added_at": "2026-06-12"
+  },
+  "sdai": {
+    "adapter_id": "sdai",
+    "name": "MakerDAO Savings DAI (sDAI)",
+    "tier": "T2",
+    "apy_pct": 5.5,
+    "tvl_usd": 1300000000,
+    "chain": "ethereum",
+    "protocol": "MakerDAO",
+    "status": "active",
+    "risk_score": 0.38,
+    "last_updated": "2026-06-13",
+    "source": "fallback",
+    "notes": "ERC-4626 DAI savings vault (DSR); atomic redeem; hard-peg gate 0.5% vs USD (PSM); T2 due to DAI→USDS migration",
+    "added_by": "MP-562",
+    "added_at": "2026-06-13"
   }
 }
