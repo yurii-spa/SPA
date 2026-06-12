@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "source": "concentration_analytics",
+  "meta": {
+    "generated_at": "2026-06-12T00:17:50.831389+00:00",
+    "source_files": [
+      "current_positions.json",
+      "adapter_orchestrator_status.json"
+    ]
+  },
+  "available": true,
+  "advisory_only": true,
+  "execution_mode": "read_only",
+  "is_demo": false,
+  "verdict": "fail",
+  "aum_usd": 100000.0,
+  "deployed_usd": 94999.98,
+  "cash_usd": 5000.0,
+  "cash_share": 0.05,
+  "hhi_protocol": 0.227665708,
+  "hhi_protocol_index": 2277,
+  "hhi_protocol_deployed": 0.25226118,
+  "hhi_protocol_deployed_index": 2523,
+  "effective_num_positions": 3.9641,
+  "hhi_tier": 0.4918625,
+  "hhi_tier_index": 4919,
+  "top1_share": 0.315293,
+  "top1_protocol": "aave_v3",
+  "top3_share": 0.731866,
+  "num_positions": 5,
+  "concentration_class": "concentrated",
+  "max_single_position_share": 0.4,
+  "policy_ok": true,
+  "policy_breaches": [],
+  "by_tier": {
+    "T1": 61.75,
+    "T2": 33.25
+  },
+  "counts": {
+    "positions": 5,
+    "policy_breaches": 0
+  },
+  "breakdown": [
+    {
+      "protocol": "aave_v3",
+      "usd": 31529.27,
+      "share": 0.315293,
+      "share_deployed": 0.331887123,
+      "tier": "T1"
+    },
+    {
+      "protocol": "compound_v3",
+      "usd": 30220.72,
+      "share": 0.302207,
+      "share_deployed": 0.318112909,
+      "tier": "T1"
+    },
+    {
+      "protocol": "maple",
+      "usd": 11436.6,
+      "share": 0.114366,
+      "share_deployed": 0.120385289,
+      "tier": "T2"
+    },
+    {
+      "protocol": "yearn_v3",
+      "usd": 11436.6,
+      "share": 0.114366,
+      "share_deployed": 0.120385289,
+      "tier": "T2"
+    },
+    {
+      "protocol": "euler_v2",
+      "usd": 10376.79,
+      "share": 0.103768,
+      "share_deployed": 0.109229391,
+      "tier": "T2"
+    }
+  ],
+  "source_files": [
+    "current_positions.json",
+    "adapter_orchestrator_status.json"
+  ],
+  "disclaimer": "NOT investment advice",
+  "notes": [],
+  "history": [
+    {
+      "generated_at": "2026-06-12T00:17:50.831389+00:00",
+      "verdict": "fail",
+      "hhi_protocol_index": 2523,
+      "effective_num_positions": 3.9641,
+      "top1_share": 0.315293,
+      "counts": {
+        "positions": 5,
+        "policy_breaches": 0
+      }
+    }
+  ]
+}
