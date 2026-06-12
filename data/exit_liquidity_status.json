@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "source": "exit_liquidity",
+  "meta": {
+    "generated_at": "2026-06-11T22:12:26.295321+00:00",
+    "source_files": [
+      "current_positions.json"
+    ]
+  },
+  "available": true,
+  "advisory_only": true,
+  "execution_mode": "read_only",
+  "is_demo": false,
+  "verdict": "ok",
+  "counts": {
+    "ok": 5,
+    "warn": 0,
+    "fail": 1,
+    "positions": 6
+  },
+  "aum_usd": 100000.0,
+  "cash_usd": 5000.02,
+  "cash_share": 0.0500002,
+  "ladder": {
+    "instant": {
+      "usd": 77126.8,
+      "share": 0.771268
+    },
+    "liquid": {
+      "usd": 11436.6,
+      "share": 0.114366
+    },
+    "illiquid": {
+      "usd": 11436.6,
+      "share": 0.114366
+    },
+    "unknown": {
+      "usd": 0.0,
+      "share": 0.0
+    }
+  },
+  "exitable_within": {
+    "24h": 0.885634,
+    "72h": 0.885634,
+    "gt_72h": 0.114366
+  },
+  "weighted_mean_exit_latency_hours": 38.541342,
+  "policy": {
+    "ok": true,
+    "illiquid_share": 0.114366,
+    "liquid_share": 0.885634,
+    "max_illiquid_share": 0.25,
+    "threshold_hours": 72.0,
+    "illiquid_positions": [
+      "maple"
+    ]
+  },
+  "kill_switch_order": [
+    "aave_v3",
+    "compound_v3",
+    "euler_v2",
+    "__cash__",
+    "yearn_v3",
+    "maple"
+  ],
+  "breakdown": {
+    "aave_v3": {
+      "usd": 31529.27,
+      "weight": 0.3152927,
+      "exit_latency_hours": 0.0,
+      "bucket": "instant"
+    },
+    "compound_v3": {
+      "usd": 30220.72,
+      "weight": 0.3022072,
+      "exit_latency_hours": 0.0,
+      "bucket": "instant"
+    },
+    "yearn_v3": {
+      "usd": 11436.6,
+      "weight": 0.11436600000000001,
+      "exit_latency_hours": 1.0,
+      "bucket": "liquid"
+    },
+    "euler_v2": {
+      "usd": 10376.79,
+      "weight": 0.10376790000000001,
+      "exit_latency_hours": 0.0,
+      "bucket": "instant"
+    },
+    "maple": {
+      "usd": 11436.6,
+      "weight": 0.11436600000000001,
+      "exit_latency_hours": 336.0,
+      "bucket": "illiquid"
+    },
+    "__cash__": {
+      "usd": 5000.02,
+      "weight": 0.0500002,
+      "exit_latency_hours": 0.0,
+      "bucket": "instant"
+    }
+  },
+  "source_files": [
+    "current_positions.json"
+  ],
+  "disclaimer": "NOT investment advice",
+  "notes": [],
+  "history": [
+    {
+      "generated_at": "2026-06-11T22:12:26.295321+00:00",
+      "verdict": "ok",
+      "illiquid_share": 0.114366,
+      "aum_usd": 100000.0,
+      "counts": {
+        "ok": 5,
+        "warn": 0,
+        "fail": 1,
+        "positions": 6
+      }
+    }
+  ]
+}
