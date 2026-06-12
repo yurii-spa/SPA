@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "source": "data_integrity",
+  "generated_at": "2026-06-11T18:20:34.596445+00:00",
+  "advisory_only": true,
+  "execution_mode": "read_only",
+  "verdict": "warn",
+  "counts": {
+    "ok": 5,
+    "warn": 1,
+    "fail": 0,
+    "skip": 0
+  },
+  "checks": [
+    {
+      "check": "equity_continuity",
+      "status": "ok",
+      "details": {
+        "bars": 2,
+        "first_date": "2026-06-10",
+        "last_date": "2026-06-11",
+        "duplicates": [],
+        "order_violations": [],
+        "gaps_warn": [],
+        "gaps_fail": [],
+        "demo_bars": [],
+        "non_numeric_equity": []
+      },
+      "notes": []
+    },
+    {
+      "check": "positions_consistency",
+      "status": "ok",
+      "details": {
+        "capital_usd": 100000.0,
+        "cash_usd": 5000.02,
+        "positions_sum_usd": 94999.98,
+        "deviation_pct": 0.0,
+        "ok_tolerance_pct": 0.5,
+        "warn_tolerance_pct": 2.0,
+        "negative_positions": [],
+        "num_positions": 5
+      },
+      "notes": []
+    },
+    {
+      "check": "allocation_policy_bounds",
+      "status": "ok",
+      "details": {
+        "weights": {
+          "euler_v2": {
+            "weight": 0.2,
+            "tier": "T2",
+            "cap": 0.2
+          },
+          "maple": {
+            "weight": 0.2,
+            "tier": "T2",
+            "cap": 0.2
+          },
+          "morpho_blue": {
+            "weight": 0.2,
+            "tier": "T2",
+            "cap": 0.2
+          },
+          "yearn_v3": {
+            "weight": 0.2,
+            "tier": "T2",
+            "cap": 0.2
+          }
+        },
+        "weight_sum": 0.8,
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "violations": [],
+        "policy_note": "advisory duplicate of the deterministic risk gate (spa_core/risk/policy.py); RiskPolicy is NOT imported"
+      },
+      "notes": []
+    },
+    {
+      "check": "freshness",
+      "status": "ok",
+      "details": {
+        "files": [
+          {
+            "file": "adapter_orchestrator_status.json",
+            "threshold_hours": 26.0,
+            "ts": "2026-06-11T06:00:05.334976+00:00",
+            "age_hours": 12.34,
+            "status": "ok"
+          },
+          {
+            "file": "risk_scores.json",
+            "threshold_hours": 48.0,
+            "ts": "2026-06-11T06:00:05.291020+00:00",
+            "age_hours": 12.34,
+            "status": "ok"
+          },
+          {
+            "file": "paper_trading_status.json",
+            "threshold_hours": 26.0,
+            "ts": "2026-06-11T06:00:04.910055+00:00",
+            "age_hours": 12.34,
+            "status": "ok"
+          },
+          {
+            "file": "capacity_analytics.json",
+            "threshold_hours": 48.0,
+            "ts": "2026-06-10T09:14:35.310209+00:00",
+            "age_hours": 33.1,
+            "status": "ok"
+          },
+          {
+            "file": "golive_status.json",
+            "threshold_hours": 48.0,
+            "ts": "2026-06-11T06:00:04.910055+00:00",
+            "age_hours": 12.34,
+            "status": "ok"
+          }
+        ]
+      },
+      "notes": []
+    },
+    {
+      "check": "anchor_coverage",
+      "status": "warn",
+      "details": {
+        "real_track_start": "2026-06-10",
+        "required_days": [
+          "2026-06-10"
+        ],
+        "anchored_days": [],
+        "missing_days": [
+          "2026-06-10"
+        ],
+        "discrepancy_days": []
+      },
+      "notes": [
+        "track day(s) without merkle anchor (anchoring may not have run yet): 2026-06-10"
+      ]
+    },
+    {
+      "check": "schema_sanity",
+      "status": "ok",
+      "details": {
+        "files": [
+          {
+            "file": "equity_curve_daily.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "current_positions.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "target_allocation.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "adapter_orchestrator_status.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "risk_scores.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "paper_trading_status.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "capacity_analytics.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "golive_status.json",
+            "expected_type": "dict",
+            "status": "ok"
+          },
+          {
+            "file": "proof_of_track_anchors.json",
+            "expected_type": "dict",
+            "status": "ok"
+          }
+        ],
+        "tmp_files": []
+      },
+      "notes": []
+    }
+  ],
+  "history": [
+    {
+      "generated_at": "2026-06-11T18:20:34.596445+00:00",
+      "verdict": "warn",
+      "counts": {
+        "ok": 5,
+        "warn": 1,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ]
+}
