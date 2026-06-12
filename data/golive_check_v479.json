@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-06-12T19:11:57.575942+00:00",
+  "version": "v4.79",
+  "mp": "MP-461",
+  "adapter_count": 12,
+  "base_adapters": [
+    "aave-v3-base",
+    "morpho-blue-base"
+  ],
+  "base_adapters_in_adapter_status": [
+    "aave_v3_base",
+    "morpho_blue_base"
+  ],
+  "base_gas_monitor": {
+    "kill_switch_active": false,
+    "threshold_gwei": 10.0,
+    "kill_days": 3,
+    "status": "OK"
+  },
+  "paper_trading_golive_checker": {
+    "checks_passed": 6,
+    "checks_total": 6,
+    "ready": true,
+    "blockers": []
+  },
+  "checklist_golive_checker": {
+    "checks_passed": 18,
+    "checks_total": 18,
+    "ready": true,
+    "version": "v4.69",
+    "blockers": []
+  },
+  "combined": {
+    "checks_passed": 24,
+    "checks_total": 24,
+    "ready": true,
+    "blockers": []
+  },
+  "notes": "Post-Base chain wiring check. AaveV3Base (T2, 4.5%) + MorphoBlueBase (T2, 6.2%) + BaseGasMonitor (ADR-025) verified. No blockers introduced.",
+  "result": "PASS"
+}
