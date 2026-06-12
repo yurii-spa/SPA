@@ -1,0 +1,20 @@
+{
+  "generated": "2026-06-12",
+  "leading_strategy": {
+    "id": "s7_pendle_yt",
+    "apy": 10.115,
+    "sharpe": 1.2
+  },
+  "tournament_count": 13,
+  "active_adapters": 16,
+  "suspended_adapters": [
+    "moonwell_base"
+  ],
+  "adapter_registry_count": 17,
+  "milestones_reached": [
+    "L1",
+    "L2",
+    "L3"
+  ],
+  "days_to_go_live": 50
+}
