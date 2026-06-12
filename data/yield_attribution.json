@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "source": "yield_attribution",
+  "meta": {
+    "generated_at": "2026-06-12T01:17:01.519563+00:00",
+    "source_files": [
+      "current_positions.json",
+      "adapter_orchestrator_status.json",
+      "equity_curve_daily.json"
+    ]
+  },
+  "available": true,
+  "advisory_only": true,
+  "execution_mode": "read_only",
+  "is_demo": false,
+  "verdict": "warn",
+  "aum_usd": 100000.0,
+  "deployed_usd": 94999.98,
+  "cash_share": 0.05,
+  "portfolio_apy_pp": 3.170875657,
+  "deployed_apy_pct": 3.337763849,
+  "cash_drag_pp": 0.166888192,
+  "yield_hhi": 0.24393778,
+  "yield_hhi_index": 2439,
+  "effective_num_yield_sources": 4.0994,
+  "top1_yield_protocol": "aave_v3",
+  "top1_yield_share": 0.317612234,
+  "top3_yield_share": 0.791228738,
+  "yield_concentration_class": "moderate",
+  "total_yield_pp": 3.170875657,
+  "known_yield_weight": 0.95,
+  "unknown_yield_share": 0,
+  "num_yield_sources": 5,
+  "num_known": 5,
+  "num_unknown": 0,
+  "max_single_yield_share": 0.6,
+  "unknown_yield_warn_share": 0.25,
+  "counts": {
+    "sources": 5,
+    "known": 5,
+    "unknown": 0
+  },
+  "breakdown": [
+    {
+      "protocol": "aave_v3",
+      "usd": 31529.27,
+      "weight_frac": 0.315293,
+      "apy_pct": 3.1942,
+      "known": true,
+      "yield_contribution_pp": 1.007108901,
+      "share_of_total_yield": 0.317612234,
+      "tier": "T1",
+      "tvl_usd": 189455356.0
+    },
+    {
+      "protocol": "compound_v3",
+      "usd": 30220.72,
+      "weight_frac": 0.302207,
+      "apy_pct": 3.1813,
+      "known": true,
+      "yield_contribution_pp": 0.961411129,
+      "share_of_total_yield": 0.303200514,
+      "tier": "T1",
+      "tvl_usd": 48426912.0
+    },
+    {
+      "protocol": "maple",
+      "usd": 11436.6,
+      "weight_frac": 0.114366,
+      "apy_pct": 4.7249,
+      "known": true,
+      "yield_contribution_pp": 0.540367913,
+      "share_of_total_yield": 0.17041599,
+      "tier": "T2",
+      "tvl_usd": 3115803969.0
+    },
+    {
+      "protocol": "yearn_v3",
+      "usd": 11436.6,
+      "weight_frac": 0.114366,
+      "apy_pct": 3.2311,
+      "known": true,
+      "yield_contribution_pp": 0.369527983,
+      "share_of_total_yield": 0.11653815,
+      "tier": "T2",
+      "tvl_usd": 26689422.0
+    },
+    {
+      "protocol": "euler_v2",
+      "usd": 10376.79,
+      "weight_frac": 0.103768,
+      "apy_pct": 2.8184,
+      "known": true,
+      "yield_contribution_pp": 0.292459731,
+      "share_of_total_yield": 0.092233113,
+      "tier": "T2",
+      "tvl_usd": 15730776.0
+    }
+  ],
+  "source_files": [
+    "current_positions.json",
+    "adapter_orchestrator_status.json",
+    "equity_curve_daily.json"
+  ],
+  "disclaimer": "NOT investment advice",
+  "notes": [],
+  "history": [
+    {
+      "generated_at": "2026-06-12T01:17:01.519563+00:00",
+      "verdict": "warn",
+      "portfolio_apy_pp": 3.170875657,
+      "yield_hhi_index": 2439,
+      "top1_yield_share": 0.317612234,
+      "unknown_yield_share": 0,
+      "counts": {
+        "sources": 5,
+        "known": 5,
+        "unknown": 0
+      }
+    }
+  ]
+}
