@@ -2351,6 +2351,26 @@
   </div>
   <!-- ══ / Risk Attribution ══ -->
 
+  <!-- MP-145: Equity Curve Chart -->
+  <div id="equity-curve-section" style="margin:24px 0 0">
+    <div style="font-size:13px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">
+      📈 Equity Curve
+    </div>
+    <div class="an-card" id="equity-curve-card">
+      <div style="color:#6b7280;font-size:13px;text-align:center;padding:24px">загрузка…</div>
+    </div>
+  </div>
+
+  <!-- MP-142: Go-Live Timeline -->
+  <div id="golive-timeline-section" style="margin:24px 0 0">
+    <div style="font-size:13px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">
+      📅 Go-Live Timeline
+    </div>
+    <div id="golive-timeline-container">
+      <div style="color:#6b7280;font-size:13px;text-align:center;padding:24px">загрузка…</div>
+    </div>
+  </div>
+
 </div><!-- /tab-analytics -->
 
 
@@ -4156,9 +4176,207 @@ async function loadAnalytics() {
     _defer(() => { renderPendlePositions(); });
     _defer(() => { runBacktest(); });
     _defer(() => { loadPortfolioAnalytics(); });
+    _defer(() => { loadGoLiveTimeline(); }); // MP-142
+    _defer(() => { loadEquityCurve(); });    // MP-145
   } catch(e) {
     console.error('Analytics load error:', e);
   }
+}
+
+// ── MP-142: Go-Live Timeline ─────────────────────────────────────────────────
+async function loadGoLiveTimeline() {
+  const ts = Date.now();
+  let pt = null;
+  try {
+    const r = await fetch(BASE + '/data/progress_tracker.json?_=' + ts);
+    if (r.ok) pt = await r.json();
+  } catch(e) {}
+
+  const container = document.getElementById('golive-timeline-container');
+  if (!container) return;
+
+  if (!pt || !pt.available) {
+    container.innerHTML = '<div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">данные недоступны</div>';
+    return;
+  }
+
+  const verdictColor = pt.summary_verdict === 'ahead' ? '#10b981' : pt.summary_verdict === 'at_risk' ? '#ef4444' : '#3b82f6';
+  const verdictLabel = pt.summary_verdict === 'ahead' ? '✅ Опережаем' : pt.summary_verdict === 'at_risk' ? '⚠️ Под угрозой' : '🟢 По плану';
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:12px 16px;background:#1f2937;border-radius:8px;border:1px solid #374151">
+      <div>
+        <span style="color:#f9fafb;font-size:15px;font-weight:600">День ${pt.paper_days} / цель 15 июля</span>
+        <span style="color:#6b7280;font-size:13px;margin-left:12px">${pt.days_to_golive} дней осталось</span>
+      </div>
+      <div style="color:${verdictColor};font-size:13px;font-weight:600">${verdictLabel}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+  `;
+
+  for (const m of (pt.milestones || [])) {
+    const pct = Math.min(100, Math.round(m.current_days / m.required_days * 100));
+    const barColor = m.reached ? '#10b981' : pct >= 70 ? '#f59e0b' : '#3b82f6';
+    const statusText = m.reached ? '✅' : `${m.days_remaining}d → ${m.eta_date}`;
+    html += `
+      <div style="background:#111827;border:1px solid #1f2937;border-radius:6px;padding:10px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="color:#d1d5db;font-size:13px">${m.label}</span>
+          <span style="color:${m.reached ? '#10b981' : '#6b7280'};font-size:12px">${statusText}</span>
+        </div>
+        <div style="height:4px;background:#1f2937;border-radius:2px">
+          <div style="height:4px;background:${barColor};border-radius:2px;width:${pct}%;transition:width .3s"></div>
+        </div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── MP-145: Equity Curve ─────────────────────────────────────────────────────
+async function loadEquityCurve() {
+  const card = document.getElementById('equity-curve-card');
+  if (!card) return;
+
+  let history = [];
+  try {
+    const ts = Date.now();
+    const r = await fetch(BASE + '/pnl_history.json?_=' + ts);
+    if (r.ok) history = await r.json();
+  } catch(e) {}
+
+  if (!Array.isArray(history) || history.length < 2) {
+    const dayN = history.length;
+    card.innerHTML = `<div style="color:#6b7280;font-size:13px;text-align:center;padding:24px">
+      Недостаточно данных (День ${dayN} из 56)
+    </div>`;
+    return;
+  }
+
+  // ── helpers ──
+  function fmtDate(ts) {
+    const d = new Date(ts.replace(' ', 'T'));
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+  function fmtUSD(v) {
+    return '$' + v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+  function fmtPct(v) {
+    return (v >= 0 ? '+' : '') + v.toFixed(4) + '%';
+  }
+
+  // ── data bounds ──
+  const vals = history.map(r => r.total_capital_usd);
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const first = history[0];
+  const last  = history[history.length - 1];
+  const pnlUSD = last.total_capital_usd - first.total_capital_usd;
+  const pnlPct = last.total_pnl_pct;
+  const isPos  = pnlUSD >= 0;
+
+  // ── SVG dimensions ──
+  const W = 580, H = 180;
+  const PL = 72, PR = 20, PT = 18, PB = 36;
+  const chartW = W - PL - PR;
+  const chartH = H - PT - PB;
+
+  // ── scale ──
+  const vRange = maxV - minV || 1;
+  const vPad   = vRange * 0.15;
+  const vMin   = minV - vPad;
+  const vMax   = maxV + vPad;
+  function scaleX(i) { return PL + (i / (history.length - 1)) * chartW; }
+  function scaleY(v) { return PT + chartH - ((v - vMin) / (vMax - vMin)) * chartH; }
+
+  // ── polyline points ──
+  const pts = history.map((r, i) => scaleX(i) + ',' + scaleY(r.total_capital_usd)).join(' ');
+
+  // ── area fill points (close path at bottom) ──
+  const areaFirst = PL + ',' + (PT + chartH);
+  const areaLast  = scaleX(history.length - 1) + ',' + (PT + chartH);
+  const areaPts   = areaFirst + ' ' + pts + ' ' + areaLast;
+
+  // ── Y-axis ticks (3 ticks) ──
+  const yTicks = [vMin + (vMax - vMin) * 0.1, vMin + (vMax - vMin) * 0.5, vMin + (vMax - vMin) * 0.9];
+  let yTicksHtml = '';
+  yTicks.forEach(v => {
+    const y = scaleY(v);
+    yTicksHtml += `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+    yTicksHtml += `<text x="${PL - 5}" y="${y + 4}" text-anchor="end" font-size="9" fill="#6b7280">$${Math.round(v).toLocaleString('en-US')}</text>`;
+  });
+
+  // ── X-axis labels ──
+  let xLabelsHtml = '';
+  history.forEach((r, i) => {
+    const x = scaleX(i);
+    xLabelsHtml += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="9" fill="#6b7280">${fmtDate(r.timestamp)}</text>`;
+  });
+
+  // ── data point circles + tooltip rects ──
+  const lineColor = isPos ? '#10b981' : '#ef4444';
+  const areaColor = isPos ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)';
+  let dotsHtml = '';
+  history.forEach((r, i) => {
+    const x = scaleX(i);
+    const y = scaleY(r.total_capital_usd);
+    const label = fmtDate(r.timestamp) + ' · ' + fmtUSD(r.total_capital_usd) + ' · ' + fmtPct(r.total_pnl_pct);
+    // tooltip box
+    const tw = 200, th = 18;
+    let tx = x - tw / 2;
+    if (tx < 2) tx = 2;
+    if (tx + tw > W - 2) tx = W - tw - 2;
+    const ty = y - th - 6;
+    dotsHtml += `
+      <g class="ec-dot-group" style="cursor:default">
+        <circle cx="${x}" cy="${y}" r="4" fill="${lineColor}" stroke="#0d0d1a" stroke-width="1.5" opacity="0.9"/>
+        <g class="ec-tooltip" visibility="hidden">
+          <rect x="${tx}" y="${ty < PT ? PT : ty}" width="${tw}" height="${th}" rx="4"
+            fill="#1f2937" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+          <text x="${tx + tw/2}" y="${(ty < PT ? PT : ty) + 12}" text-anchor="middle"
+            font-size="10" fill="#e5e7eb">${label}</text>
+        </g>
+        <rect x="${x - 12}" y="${y - 12}" width="24" height="24" fill="transparent"
+          onmouseover="this.previousElementSibling.setAttribute('visibility','visible')"
+          onmouseout="this.previousElementSibling.setAttribute('visibility','hidden')"/>
+      </g>`;
+  });
+
+  // ── annotation (top right) ──
+  const sign = isPos ? '+' : '';
+  const annotColor = isPos ? '#10b981' : '#ef4444';
+  const annotText = `${sign}${fmtUSD(pnlUSD)} (${fmtPct(pnlPct)}) с начала`;
+
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:600;color:#9ca3af;letter-spacing:.04em;text-transform:uppercase">
+        Equity · $100K виртуальный портфель
+      </div>
+      <div style="font-size:12px;font-weight:600;color:${annotColor}">${annotText}</div>
+    </div>
+    <div style="overflow-x:auto">
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">
+        <!-- grid -->
+        ${yTicksHtml}
+        <!-- area fill -->
+        <polygon points="${areaPts}" fill="${areaColor}"/>
+        <!-- line -->
+        <polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <!-- x-axis labels -->
+        ${xLabelsHtml}
+        <!-- dots + tooltips -->
+        ${dotsHtml}
+      </svg>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:20px;flex-wrap:wrap">
+      <div style="font-size:11px;color:#6b7280">Начало: <span style="color:#d1d5db">${fmtUSD(first.total_capital_usd)}</span></div>
+      <div style="font-size:11px;color:#6b7280">Сейчас: <span style="color:#d1d5db">${fmtUSD(last.total_capital_usd)}</span></div>
+      <div style="font-size:11px;color:#6b7280">APY (посл.): <span style="color:#60a5fa">${last.current_apy.toFixed(2)}%</span></div>
+      <div style="font-size:11px;color:#6b7280">Трейдов: <span style="color:#d1d5db">${last.trade_count}</span></div>
+      <div style="font-size:11px;color:#6b7280">Точек: <span style="color:#d1d5db">${history.length} дн.</span></div>
+    </div>
+  `;
 }
 
 // ── Strategy Tournament ──────────────────────────────────────────────────────
