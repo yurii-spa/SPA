@@ -1,0 +1,806 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-11T04:14:07.665260+00:00",
+  "source": "adapter_sdk.registry",
+  "execution_mode": "read_only_simulation",
+  "manifests_dir": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests",
+  "files_scanned": 21,
+  "adapters": [
+    {
+      "protocol": "across",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/across.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "across",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC",
+        "USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "across",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "across",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665192+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "aerodrome_stable",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/aerodrome_stable.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "aerodrome-v1",
+      "chains": [
+        "Base"
+      ],
+      "symbols": [
+        "DOLA-USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "aerodrome_stable",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "aerodrome_stable",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665213+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "balancer_stable",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/balancer_stable.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "balancer-v2",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "GHO-USDC-USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "balancer_stable",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "balancer_stable",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665217+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "benqi",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/benqi.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "benqi-lending",
+      "chains": [
+        "Avalanche"
+      ],
+      "symbols": [
+        "USDC",
+        "USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "benqi",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "benqi",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665220+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "clearpool",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/clearpool.json",
+      "tier": "T3",
+      "cap": 0.05,
+      "defillama_protocol_id": "clearpool-lending",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "clearpool",
+        "exit_latency_hours": 24.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "clearpool",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665222+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "convex_3pool",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/convex_3pool.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "convex-finance",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "DAI-USDC-USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "convex_3pool",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "convex_3pool",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665224+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "crvusd_llamalend",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/crvusd_llamalend.yaml",
+      "tier": "T3",
+      "cap": 0.05,
+      "defillama_protocol_id": "curve-llamalend",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "CRVUSD"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "crvusd_llamalend",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "crvusd_llamalend",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665226+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "curve_3pool",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/curve_3pool.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "curve-dex",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "DAI-USDC-USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "curve_3pool",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "curve_3pool",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665228+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "dolomite",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/dolomite.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "dolomite",
+      "chains": [
+        "Arbitrum"
+      ],
+      "symbols": [
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "dolomite",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "dolomite",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665229+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "ethena_susde",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/ethena_susde.yaml",
+      "tier": "T3",
+      "cap": 0.05,
+      "defillama_protocol_id": "ethena-usde",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "SUSDE"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "ethena_susde",
+        "exit_latency_hours": 168.0,
+        "bucket": "illiquid",
+        "profile": "illiquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "ethena_susde",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665231+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "fluid",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/fluid.yaml",
+      "tier": "T2",
+      "cap": 0.15,
+      "defillama_protocol_id": "fluid-lending",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC",
+        "USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 1000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "fluid",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "fluid",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665233+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T2",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "fraxlend",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/fraxlend.yaml",
+      "tier": "T3",
+      "cap": 0.05,
+      "defillama_protocol_id": "fraxlend",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "FRAX"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "fraxlend",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "fraxlend",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665236+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "gearbox",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/gearbox.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "gearbox",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC",
+        "USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "gearbox",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "gearbox",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665238+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "ipor",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/ipor.json",
+      "tier": "T3",
+      "cap": 0.05,
+      "defillama_protocol_id": "ipor",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "ipor",
+        "exit_latency_hours": 24.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "ipor",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665241+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "moonwell",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/moonwell.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "moonwell",
+      "chains": [
+        "Base"
+      ],
+      "symbols": [
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "moonwell",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "moonwell",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665242+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "notional_v3",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/notional_v3.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "notional-v3",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "notional_v3",
+        "exit_latency_hours": 24.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "notional_v3",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665246+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "silo",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/silo.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "silo-v2",
+      "chains": [
+        "Arbitrum"
+      ],
+      "symbols": [
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "silo",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "silo",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665248+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "spark",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/spark.yaml",
+      "tier": "T2",
+      "cap": 0.2,
+      "defillama_protocol_id": "spark",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC",
+        "DAI"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 1000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "spark",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "spark",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665250+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T2",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "stargate",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/stargate.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "stargate",
+      "chains": [
+        "Ethereum"
+      ],
+      "symbols": [
+        "USDC",
+        "USDT"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "stargate",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "stargate",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665252+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "velodrome_stable",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/velodrome_stable.yaml",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "velodrome-v2",
+      "chains": [
+        "Optimism"
+      ],
+      "symbols": [
+        "USDC-SUSD"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 25.0
+      },
+      "exit_latency": {
+        "protocol": "velodrome_stable",
+        "exit_latency_hours": 1.0,
+        "bucket": "liquid",
+        "profile": "liquid",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "velodrome_stable",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665255+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 1,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    },
+    {
+      "protocol": "venus",
+      "adapter_class": "DeclarativeAdapter",
+      "manifest_file": "/sessions/wonderful-optimistic-einstein/mnt/Documents/SPA_Claude/spa_core/adapter_sdk/manifests/venus.json",
+      "tier": "T3",
+      "cap": 0.1,
+      "defillama_protocol_id": "venus-core-pool",
+      "chains": [
+        "BSC"
+      ],
+      "symbols": [
+        "USDT",
+        "USDC"
+      ],
+      "quality_gates": {
+        "min_tvl_usd": 5000000.0,
+        "stable_only": true,
+        "max_apy_pct": 30.0
+      },
+      "exit_latency": {
+        "protocol": "venus",
+        "exit_latency_hours": 0.0,
+        "bucket": "instant",
+        "profile": "instant",
+        "threshold_hours": 72.0
+      },
+      "health": {
+        "protocol": "venus",
+        "status": "error",
+        "last_fetch_ts": "2026-06-11T04:14:07.665258+00:00",
+        "source": "defillama",
+        "pools_live": 0,
+        "pools_expected": 2,
+        "tier": "T3",
+        "error": "live_feed_unavailable_or_no_qualifying_pools"
+      },
+      "pools": []
+    }
+  ],
+  "invalid_manifests": [],
+  "summary": {
+    "total_manifests": 21,
+    "valid": 21,
+    "invalid": 0,
+    "health_ok": 0,
+    "health_degraded": 0,
+    "health_error": 21,
+    "pools_live": 0,
+    "live_fetch": false,
+    "status": "ok"
+  }
+}
