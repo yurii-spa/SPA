@@ -1,0 +1,38 @@
+{
+  "source": "sky_susds_feed",
+  "protocol": "sky_susds",
+  "is_demo": false,
+  "advisory_only": true,
+  "updated_at": "2026-06-11T09:16:41.778501+00:00",
+  "status": "unavailable",
+  "live_data": false,
+  "pool_id": null,
+  "apy_pct": null,
+  "apy_decimal": null,
+  "tvl_usd": null,
+  "min_tvl_usd": 100000.0,
+  "apy_sanity_max": 200.0,
+  "gate": {
+    "eligible_for_allocation": false,
+    "allocation_weight": 0.0,
+    "reason": "GSM Pause Delay >=48h не подтверждён on-chain (MP-017 RPC keys отсутствуют)",
+    "gsm_attestation_verified": false,
+    "note": "no valid attestation; gate hard-closed (MP-017 pending)"
+  },
+  "allocation_weight": 0.0,
+  "eligible_for_allocation": false,
+  "history": [
+    {
+      "ts": "2026-06-11T09:16:41.717359+00:00",
+      "status": "unavailable",
+      "apy_pct": null,
+      "tvl_usd": null
+    },
+    {
+      "ts": "2026-06-11T09:16:41.778501+00:00",
+      "status": "unavailable",
+      "apy_pct": null,
+      "tvl_usd": null
+    }
+  ]
+}
