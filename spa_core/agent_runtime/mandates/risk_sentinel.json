@@ -1,0 +1,19 @@
+{
+  "name": "risk_sentinel",
+  "role": "risk_monitoring",
+  "schedule": "every_cycle",
+  "token_budget_per_run": 500,
+  "token_budget_daily": 5000,
+  "forbidden_actions": [
+    "execute_trade",
+    "modify_policy",
+    "change_allocation"
+  ],
+  "allowed_outputs": [
+    "classify_alert",
+    "trigger_kill_switch_deterministic",
+    "write_incident_log"
+  ],
+  "requires_llm": false,
+  "degradation_mode": "deterministic-only"
+}
