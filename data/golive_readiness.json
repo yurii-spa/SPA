@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-06-11T22:30:53.549917+00:00",
+  "generated_at": "2026-06-10T08:56:41.802915+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
-  "days_remaining": 33,
+  "days_remaining": 34,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
-  "summary": "5/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 3 failing (Strategy Sharpe, Strategy Tournament, Agent Stability); 2 warning (PnL Positive, APY Gap)",
+  "summary": "4/12 criteria passing; 2 pending (Paper Duration, Wallet Ready); 2 failing (Strategy Sharpe, Agent Stability); 4 warning (PnL Positive, Diversification, Strategy Tournament, APY Gap)",
   "criteria": [
     {
       "name": "Paper Duration",
       "status": "PENDING",
-      "value": 22,
+      "value": 21,
       "threshold": 56,
-      "note": "22/56 days elapsed \u2014 keep paper trading"
+      "note": "21/56 days elapsed \u2014 keep paper trading"
     },
     {
       "name": "PnL Positive",
@@ -27,7 +27,7 @@
       "status": "PASS",
       "value": 0,
       "threshold": 0,
-      "note": "0 critical alerts (1 warnings)"
+      "note": "0 critical alerts"
     },
     {
       "name": "Strategy Sharpe",
@@ -52,16 +52,16 @@
     },
     {
       "name": "Diversification",
-      "status": "PASS",
+      "status": "WARN",
       "value": {
-        "protocols": 2,
-        "max_concentration": 0.4
+        "protocols": 0,
+        "max_concentration": 0.0
       },
       "threshold": {
         "min_protocols": 2,
         "max_single_pct": 0.45
       },
-      "note": "2 protocols, max concentration 40% (morpho-usdc-ethereum)"
+      "note": "Only 0 protocol(s) \u2014 aim for \u2265 2"
     },
     {
       "name": "Data Freshness",
@@ -79,15 +79,10 @@
     },
     {
       "name": "Strategy Tournament",
-      "status": "FAIL",
-      "value": {
-        "winner": "v2_aggressive",
-        "v1_score": 0.7925,
-        "v2_score": 0.85,
-        "v3_score": 0.15
-      },
+      "status": "WARN",
+      "value": "unavailable",
       "threshold": "v1_passive or v3_pendle_focused winning or tied",
-      "note": "v2_aggressive WINNING (confidence: HIGH) \u2014 conservative strategies losing (scores: v1=0.792, v2=0.850, v3=0.150)"
+      "note": "Tournament data unavailable \u2014 cannot evaluate"
     },
     {
       "name": "APY Gap",
@@ -101,19 +96,18 @@
       "status": "FAIL",
       "value": 0.0,
       "threshold": 28,
-      "note": "0.0/28 days stable \u2014 need 28.0 more days (3 prior failure(s))"
+      "note": "0.0/28 days stable \u2014 need 28.0 more days (1 prior failure(s))"
     }
   ],
-  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (34 days away). Review again after 2026-07-15.",
+  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (35 days away). Review again after 2026-07-15.",
   "owner_action_required": false,
-  "criteria_passed": 5,
+  "criteria_passed": 4,
   "criteria_total": 12,
   "blocking_criteria": [
     "Paper Duration",
     "Strategy Sharpe",
     "Wallet Ready",
-    "Strategy Tournament",
     "Agent Stability"
   ],
-  "next_check_date": "2026-06-12"
+  "next_check_date": "2026-06-11"
 }
