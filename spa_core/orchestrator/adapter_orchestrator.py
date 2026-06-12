@@ -39,6 +39,7 @@ from spa_core.adapters import (
     EulerV2Adapter,
     MapleAdapter,
     MorphoBlueAdapter,
+    PendleAdapter,
     YearnV3Adapter,
 )
 from spa_core.orchestrator.health_score import (
@@ -78,6 +79,9 @@ ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
     ("maple", "T2", MapleAdapter),
+    # MP-201: Pendle PT stablecoin markets — T2/T3 dynamic tier, fixed-rate APY
+    # via the Pendle V2 REST API. Declared T2 here as registry-level default.
+    ("pendle", "T2", PendleAdapter),
 ]
 
 
