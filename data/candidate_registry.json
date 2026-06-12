@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-11T02:16:02.730563+00:00",
+  "source": "adapter_sdk.discovery",
+  "advisory": "candidates require human/ADR approval; never auto-whitelisted",
+  "gates": {
+    "min_tvl_usd": 5000000.0,
+    "min_age_days": 180,
+    "stable_only": true,
+    "min_apy_pct": 0.0,
+    "max_apy_pct": 30.0,
+    "max_candidates": 25,
+    "exclude_covered": true
+  },
+  "covered_protocols": [
+    "aave-v3",
+    "compound-v3",
+    "curve-dex",
+    "euler-v2",
+    "fluid-lending",
+    "maple",
+    "morpho-blue",
+    "pendle",
+    "spark",
+    "yearn-finance"
+  ],
+  "scanned_pools": 0,
+  "candidates": [],
+  "rejected_count": 0,
+  "status": "error",
+  "error": "URLError: <urlopen error Tunnel connection failed: 403 Forbidden>"
+}
