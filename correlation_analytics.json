@@ -1,0 +1,196 @@
+{
+  "available": true,
+  "verdict": "ok",
+  "verdict_reason": "7 independent cluster(s) across 7 protocols",
+  "n_protocols": 7,
+  "n_observations": 90,
+  "date_range": {
+    "first": "2026-02-21",
+    "last": "2026-05-21"
+  },
+  "protocols": [
+    "aave-v3-usdc-ethereum",
+    "aave-v3-usdt-ethereum",
+    "compound-v3-usdc-ethereum",
+    "euler-v2-usdc-ethereum",
+    "maple-usdc-ethereum",
+    "morpho-usdc-ethereum",
+    "yearn-v3-usdc-ethereum"
+  ],
+  "correlation_matrix": [
+    {
+      "protocol": "aave-v3-usdc-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": 1.0,
+        "aave-v3-usdt-ethereum": -0.3534885918907424,
+        "compound-v3-usdc-ethereum": -0.20186312257501265,
+        "euler-v2-usdc-ethereum": -0.16209483208688033,
+        "maple-usdc-ethereum": -0.2605919700591473,
+        "morpho-usdc-ethereum": -0.1611744085795524,
+        "yearn-v3-usdc-ethereum": 0.2473198205945781
+      }
+    },
+    {
+      "protocol": "aave-v3-usdt-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": -0.3534885918907424,
+        "aave-v3-usdt-ethereum": 1.0,
+        "compound-v3-usdc-ethereum": -0.12540407403282794,
+        "euler-v2-usdc-ethereum": 0.16430392331452198,
+        "maple-usdc-ethereum": -0.19929743122943605,
+        "morpho-usdc-ethereum": -0.11396793524084661,
+        "yearn-v3-usdc-ethereum": 0.05159208607345743
+      }
+    },
+    {
+      "protocol": "compound-v3-usdc-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": -0.20186312257501265,
+        "aave-v3-usdt-ethereum": -0.12540407403282794,
+        "compound-v3-usdc-ethereum": 1.0,
+        "euler-v2-usdc-ethereum": -0.05186219617778304,
+        "maple-usdc-ethereum": 0.37018250480343046,
+        "morpho-usdc-ethereum": 0.24722014413895732,
+        "yearn-v3-usdc-ethereum": 0.08565004372537717
+      }
+    },
+    {
+      "protocol": "euler-v2-usdc-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": -0.16209483208688033,
+        "aave-v3-usdt-ethereum": 0.16430392331452198,
+        "compound-v3-usdc-ethereum": -0.05186219617778304,
+        "euler-v2-usdc-ethereum": 1.0,
+        "maple-usdc-ethereum": -0.21353410360323868,
+        "morpho-usdc-ethereum": -0.08863347619181916,
+        "yearn-v3-usdc-ethereum": 0.07928329516845062
+      }
+    },
+    {
+      "protocol": "maple-usdc-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": -0.2605919700591473,
+        "aave-v3-usdt-ethereum": -0.19929743122943605,
+        "compound-v3-usdc-ethereum": 0.37018250480343046,
+        "euler-v2-usdc-ethereum": -0.21353410360323868,
+        "maple-usdc-ethereum": 1.0,
+        "morpho-usdc-ethereum": 0.1480025425904744,
+        "yearn-v3-usdc-ethereum": -0.006346636714161054
+      }
+    },
+    {
+      "protocol": "morpho-usdc-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": -0.1611744085795524,
+        "aave-v3-usdt-ethereum": -0.11396793524084661,
+        "compound-v3-usdc-ethereum": 0.24722014413895732,
+        "euler-v2-usdc-ethereum": -0.08863347619181916,
+        "maple-usdc-ethereum": 0.1480025425904744,
+        "morpho-usdc-ethereum": 1.0,
+        "yearn-v3-usdc-ethereum": -0.025962415067343134
+      }
+    },
+    {
+      "protocol": "yearn-v3-usdc-ethereum",
+      "correlations": {
+        "aave-v3-usdc-ethereum": 0.2473198205945781,
+        "aave-v3-usdt-ethereum": 0.05159208607345743,
+        "compound-v3-usdc-ethereum": 0.08565004372537717,
+        "euler-v2-usdc-ethereum": 0.07928329516845062,
+        "maple-usdc-ethereum": -0.006346636714161054,
+        "morpho-usdc-ethereum": -0.025962415067343134,
+        "yearn-v3-usdc-ethereum": 1.0
+      }
+    }
+  ],
+  "highest_correlation_pairs": [
+    {
+      "protocol_a": "compound-v3-usdc-ethereum",
+      "protocol_b": "maple-usdc-ethereum",
+      "r": 0.37018250480343046
+    },
+    {
+      "protocol_a": "aave-v3-usdc-ethereum",
+      "protocol_b": "yearn-v3-usdc-ethereum",
+      "r": 0.2473198205945781
+    },
+    {
+      "protocol_a": "compound-v3-usdc-ethereum",
+      "protocol_b": "morpho-usdc-ethereum",
+      "r": 0.24722014413895732
+    },
+    {
+      "protocol_a": "aave-v3-usdt-ethereum",
+      "protocol_b": "euler-v2-usdc-ethereum",
+      "r": 0.16430392331452198
+    },
+    {
+      "protocol_a": "maple-usdc-ethereum",
+      "protocol_b": "morpho-usdc-ethereum",
+      "r": 0.1480025425904744
+    }
+  ],
+  "lowest_correlation_pairs": [
+    {
+      "protocol_a": "aave-v3-usdc-ethereum",
+      "protocol_b": "aave-v3-usdt-ethereum",
+      "r": -0.3534885918907424
+    },
+    {
+      "protocol_a": "aave-v3-usdc-ethereum",
+      "protocol_b": "maple-usdc-ethereum",
+      "r": -0.2605919700591473
+    },
+    {
+      "protocol_a": "euler-v2-usdc-ethereum",
+      "protocol_b": "maple-usdc-ethereum",
+      "r": -0.21353410360323868
+    },
+    {
+      "protocol_a": "aave-v3-usdc-ethereum",
+      "protocol_b": "compound-v3-usdc-ethereum",
+      "r": -0.20186312257501265
+    },
+    {
+      "protocol_a": "aave-v3-usdt-ethereum",
+      "protocol_b": "maple-usdc-ethereum",
+      "r": -0.19929743122943605
+    }
+  ],
+  "cluster_threshold": 0.8,
+  "n_clusters": 7,
+  "clusters": [
+    [
+      "aave-v3-usdc-ethereum"
+    ],
+    [
+      "aave-v3-usdt-ethereum"
+    ],
+    [
+      "compound-v3-usdc-ethereum"
+    ],
+    [
+      "euler-v2-usdc-ethereum"
+    ],
+    [
+      "maple-usdc-ethereum"
+    ],
+    [
+      "morpho-usdc-ethereum"
+    ],
+    [
+      "yearn-v3-usdc-ethereum"
+    ]
+  ],
+  "high_correlation_pairs": [],
+  "dominant_cluster_share": 0.1429,
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T02:43:32.679305+00:00",
+    "schema_version": 1,
+    "source": "correlation_analyzer",
+    "min_points_required": 7
+  },
+  "_fingerprint": "49c1016184b503bdff094bcd934f79d2",
+  "history": []
+}
