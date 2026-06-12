@@ -1,0 +1,167 @@
+{
+  "adr_reference": "ADR-029",
+  "strategies": [
+    {
+      "strategy_id": "s7_pendle_yt",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103367Z",
+      "name": "Pendle YT+PT Aggressive",
+      "rank": 1
+    },
+    {
+      "strategy_id": "s11_hybrid",
+      "tier": "C",
+      "eligible": false,
+      "reason": "T3-SPEC strategies are excluded from auto-promotion (ADR-021 + ADR-029)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103380Z",
+      "name": "Hybrid Yield Maximizer",
+      "rank": 2
+    },
+    {
+      "strategy_id": "s5",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103385Z",
+      "name": "Pendle PT Enhanced",
+      "rank": 3
+    },
+    {
+      "strategy_id": "s6",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103389Z",
+      "name": "Max Diversified",
+      "rank": 4
+    },
+    {
+      "strategy_id": "s2",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103392Z",
+      "name": "Pendle+Morpho Heavy",
+      "rank": 5
+    },
+    {
+      "strategy_id": "s4",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103395Z",
+      "name": "Spark+Fluid Conservative",
+      "rank": 6
+    },
+    {
+      "strategy_id": "s1",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103398Z",
+      "name": "T1+T2 Balanced",
+      "rank": 7
+    },
+    {
+      "strategy_id": "s3",
+      "tier": "C",
+      "eligible": false,
+      "reason": "Sharpe 0.7700 < 0.8 (below ADR-023 minimum floor)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103400Z",
+      "name": "Aave Arb+Morpho",
+      "rank": 8
+    },
+    {
+      "strategy_id": "s0",
+      "tier": "C",
+      "eligible": false,
+      "reason": "paper_days 3 < 30 (minimum track record not met)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103406Z",
+      "name": "Aave Baseline",
+      "rank": 9
+    },
+    {
+      "strategy_id": "s10",
+      "tier": "C",
+      "eligible": false,
+      "reason": "T3-SPEC strategies are excluded from auto-promotion (ADR-021 + ADR-029)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103409Z",
+      "name": "Pendle YT Max Spec",
+      "rank": 10
+    },
+    {
+      "strategy_id": "s8",
+      "tier": "C",
+      "eligible": false,
+      "reason": "Sharpe 0.7200 < 0.8 (below ADR-023 minimum floor)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103412Z",
+      "name": "Delta-Neutral sUSDe",
+      "rank": 11
+    },
+    {
+      "strategy_id": "s12_base_layer",
+      "tier": "C",
+      "eligible": false,
+      "reason": "Sharpe 0.0000 < 0.8 (below ADR-023 minimum floor)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103415Z",
+      "name": "Base Layer Yield",
+      "rank": 12
+    },
+    {
+      "strategy_id": "s9",
+      "tier": "C",
+      "eligible": false,
+      "reason": "Sharpe 0.5200 < 0.8 (below ADR-023 minimum floor)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103418Z",
+      "name": "E-Mode Looping",
+      "rank": 13
+    },
+    {
+      "strategy_id": "s13_multi_chain_arb",
+      "tier": "C",
+      "eligible": false,
+      "reason": "Sharpe 0.0000 < 0.8 (below ADR-023 minimum floor)",
+      "criteria_results": {},
+      "action": "MANUAL_REVIEW",
+      "evaluated_at": "2026-06-12T21:09:59.103421Z",
+      "name": "S13 Multi-Chain Yield Arbitrage",
+      "rank": 14
+    }
+  ],
+  "summary": {
+    "total": 14,
+    "tier_a": 0,
+    "tier_b": 0,
+    "tier_c": 14,
+    "auto_promote_enabled": false
+  },
+  "generated_at": "2026-06-12T21:09:59.103423Z"
+}
