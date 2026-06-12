@@ -1,0 +1,38 @@
+{
+  "available": false,
+  "reason": "no_episodes",
+  "verdict": "ok",
+  "verdict_reason": "no attribution computed: no_episodes",
+  "notes": [
+    "no drawdown episodes in track (flat / monotonically rising)"
+  ],
+  "meta": {
+    "generated_at": "2026-06-12T08:14:16.681402+00:00",
+    "schema_version": 1,
+    "source": "drawdown_attribution",
+    "advisory_only": true,
+    "disclaimer": "NOT investment advice",
+    "source_file": "equity_curve_daily.json",
+    "is_demo": false
+  },
+  "track": {
+    "first_date": "2026-06-10",
+    "last_date": "2026-06-12",
+    "num_bars": 3
+  },
+  "headline": {
+    "num_episodes": 0,
+    "num_recovered": 0,
+    "num_ongoing": 0,
+    "max_drawdown_pct": null,
+    "avg_drawdown_pct": null,
+    "avg_recovery_days": null,
+    "worst_episode": null,
+    "worst_contributor": null,
+    "worst_contributor_pct": null
+  },
+  "episodes": [],
+  "per_protocol_contribution_history": {},
+  "_fingerprint": "{\"available\": false, \"episodes\": [], \"headline\": {\"avg_drawdown_pct\": null, \"avg_recovery_days\": null, \"max_drawdown_pct\": null, \"num_episodes\": 0, \"num_ongoing\": 0, \"num_recovered\": 0, \"worst_contributor\": null, \"worst_contributor_pct\": null, \"worst_episode\": null}, \"meta\": {\"advisory_only\": true, \"disclaimer\": \"NOT investment advice\", \"is_demo\": false, \"schema_version\": 1, \"source\": \"drawdown_attribution\", \"source_file\": \"equity_curve_daily.json\"}, \"notes\": [\"no drawdown episodes in track (flat / monotonically rising)\"], \"per_protocol_contribution_history\": {}, \"reason\": \"no_episodes\", \"track\": {\"first_date\": \"2026-06-10\", \"last_date\": \"2026-06-12\", \"num_bars\": 3}, \"verdict\": \"ok\", \"verdict_reason\": \"no attribution computed: no_episodes\"}",
+  "history": []
+}
