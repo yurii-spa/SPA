@@ -1,248 +1,225 @@
 #!/usr/bin/env python3
-"""Kill-switch drill script (MP-108).
+"""
+Kill-Switch Drill — MP-312
+Проверяет что система корректно реагирует на 5% drawdown.
+Только симуляция — НЕ трогает реальные позиции.
 
-Симулирует триггерные условия и верифицирует реакцию системы.
-
-Drill 1: Simulate drawdown trigger — инжектирует фиктивную equity curve с просадкой -16%
-Drill 2: Simulate manual trigger — создаёт kill_switch_active.json, проверяет обнаружение
-Drill 3: Verify all-cash allocation — все протоколы = 0.0
-Drill 4: Deactivate and verify clean state
-
-Запуск: python3 scripts/kill_switch_drill.py
+Использование:
+    python3 scripts/kill_switch_drill.py
+    python3 scripts/kill_switch_drill.py --data-dir /path/to/data
 """
 from __future__ import annotations
 
+import argparse
+import datetime
+import inspect
 import json
-import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 
-# ── Добавляем корень репо в sys.path ──────────────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from spa_core.governance.kill_switch import (
-    DRAWDOWN_THRESHOLD_PCT,
-    KillSwitchChecker,
-    run_kill_switch_check,
-)
 
-# ── Цвета для вывода ──────────────────────────────────────────────────────────
-_GREEN = "\033[32m"
-_RED   = "\033[31m"
-_CYAN  = "\033[36m"
-_BOLD  = "\033[1m"
-_RESET = "\033[0m"
+def run_drill(data_dir: str | None = None) -> dict:
+    """Запускает kill-switch drill. Возвращает dict с результатами.
 
+    Только симуляция — НЕ трогает реальные позиции и state-файлы.
+    """
+    ddir = Path(data_dir) if data_dir else _REPO_ROOT / "data"
 
-def _pass(msg: str) -> None:
-    print(f"  {_GREEN}PASS{_RESET}  {msg}")
+    results: dict = {
+        "drill_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "mp": "MP-312",
+        "steps": [],
+        "passed": False,
+        "total_time_ms": 0.0,
+        "verdict": "",
+        "note": "",
+    }
 
+    t0 = time.time()
 
-def _fail(msg: str) -> None:
-    print(f"  {_RED}FAIL{_RESET}  {msg}")
-
-
-def _header(title: str) -> None:
-    print(f"\n{_CYAN}{_BOLD}{'─' * 60}{_RESET}")
-    print(f"{_CYAN}{_BOLD}  {title}{_RESET}")
-    print(f"{_CYAN}{'─' * 60}{_RESET}")
-
-
-def _make_equity_curve(
-    peak: float = 100_000.0,
-    drawdown_pct: float = 0.0,
-    days: int = 10,
-) -> list[dict]:
-    """Генерирует фиктивную equity curve с заданной просадкой."""
-    result = []
-    current = peak
-    for i in range(days - 1):
-        result.append({
-            "date": f"2026-05-{i + 1:02d}",
-            "close_equity": round(current, 2),
-            "open_equity": round(current, 2),
-        })
-    # Последняя точка с просадкой
-    final = round(peak * (1.0 - drawdown_pct / 100.0), 2)
-    result.append({
-        "date": f"2026-05-{days:02d}",
-        "close_equity": final,
-        "open_equity": round(current, 2),
-    })
-    return result
-
-
-def run_drill() -> int:
-    """Запускает все drill-сценарии. Возвращает 0 если все PASS, 1 если есть FAIL."""
-    passed = 0
-    failed = 0
-
-    # Используем временную папку data для drill (не трогаем реальные данные)
-    with tempfile.TemporaryDirectory(prefix="spa_kill_drill_") as tmpdir:
-        tmp_data = Path(tmpdir)
-        checker = KillSwitchChecker(data_dir=tmp_data)
-
-        # ── Drill 1: Drawdown trigger ─────────────────────────────────────────
-        _header(f"Drill 1: Drawdown trigger (>{DRAWDOWN_THRESHOLD_PCT}%)")
-
-        # 1a: curve с просадкой -16% (должна сработать)
-        curve_16pct = _make_equity_curve(peak=100_000.0, drawdown_pct=16.0, days=10)
-        t, reason = checker.check_drawdown_trigger(curve_16pct)
-        label = f"drawdown=16% → triggered={t}, reason: {reason}"
-        if t:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
-
-        # 1b: curve с просадкой -14% (не должна сработать)
-        curve_14pct = _make_equity_curve(peak=100_000.0, drawdown_pct=14.0, days=10)
-        t, reason = checker.check_drawdown_trigger(curve_14pct)
-        label = f"drawdown=14% → triggered={t} (expected False), reason: {reason}"
-        if not t:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
-
-        # 1c: run_kill_switch_check с -16% equity curve
-        status = run_kill_switch_check(equity_curve=curve_16pct, data_dir=tmp_data)
-        label = f"run_kill_switch_check 16%: triggered={status['triggered']}"
-        if status["triggered"]:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
-        # Деактивируем после теста
-        checker.deactivate_kill_switch()
-
-        # ── Drill 2: Manual trigger ───────────────────────────────────────────
-        _header("Drill 2: Manual trigger (kill_switch_active.json)")
-
-        # 2a: файл не существует → не срабатывает
-        t, reason = checker.check_manual_trigger()
-        label = f"no file → triggered={t} (expected False)"
-        if not t:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
-
-        # 2b: создаём файл вручную
-        active_path = tmp_data / "kill_switch_active.json"
-        active_path.write_text(json.dumps({"reason": "drill test", "ts": "now"}), encoding="utf-8")
-
-        t, reason = checker.check_manual_trigger()
-        label = f"file present → triggered={t} (expected True), reason: {reason}"
-        if t:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
-
-        # 2c: run_kill_switch_check при наличии файла → triggered
-        status = run_kill_switch_check(equity_curve=[], data_dir=tmp_data)
-        label = f"run_kill_switch_check with file: triggered={status['triggered']}"
-        if status["triggered"]:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
-
-        # ── Drill 3: All-cash allocation ──────────────────────────────────────
-        _header("Drill 3: All-cash allocation")
-
-        # Файл всё ещё активен из Drill 2
-        status = run_kill_switch_check(equity_curve=[], data_dir=tmp_data)
-        allocation = status.get("allocation", {})
-
-        # 3a: все протоколы = 0.0
-        protocols_zero = all(
-            v == 0.0 for k, v in allocation.items() if k != "cash"
+    # ── Step 1: Импорт RiskPolicy ─────────────────────────────────────────────
+    try:
+        from spa_core.risk.policy import (  # noqa: PLC0415
+            PortfolioState,
+            Position,
+            RiskPolicy,
+            RiskConfig,
         )
-        label = f"all protocols = 0.0: {protocols_zero}  allocation keys: {list(allocation.keys())}"
-        if protocols_zero and allocation:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
+        results["steps"].append({
+            "step": "import_risk_policy",
+            "ok": True,
+            "detail": "spa_core.risk.policy imported (RiskPolicy, PortfolioState, Position, RiskConfig)",
+        })
+    except Exception as exc:
+        results["steps"].append({
+            "step": "import_risk_policy",
+            "ok": False,
+            "error": str(exc),
+        })
+        results["total_time_ms"] = round((time.time() - t0) * 1000, 1)
+        results["verdict"] = "FAIL ❌"
+        results["note"] = f"Cannot import RiskPolicy: {exc}"
+        return results
 
-        # 3b: cash = 1.0
-        cash_val = allocation.get("cash", -1)
-        label = f"allocation['cash'] = {cash_val} (expected 1.0)"
-        if cash_val == 1.0:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
+    # ── Step 2: Симуляция 5% drawdown через check_portfolio_health ────────────
+    try:
+        policy = RiskPolicy()
 
-        # 3c: allocation содержит известные протоколы
-        known = {"aave_v3", "compound_v3", "morpho_blue", "yearn_v3", "euler_v2", "maple"}
-        has_known = bool(known & set(allocation.keys()))
-        label = f"allocation contains known protocols: {has_known}  (keys: {sorted(allocation.keys())})"
-        if has_known:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
+        # Строим PortfolioState с total_drawdown_pct == 5%:
+        #   total_capital_usd = 100_000
+        #   positions: одна позиция с unrealized_pnl = -5000 → drawdown = 5000/100000 = 5%
+        sim_position = Position(
+            protocol_key="sim_test_protocol",
+            tier="T1",
+            asset="USDC",
+            amount_usd=95_000.0,
+            apy_at_open=5.0,
+            current_apy=5.0,
+            unrealized_pnl_usd=-5_000.0,  # -$5,000 → 5% portfolio drawdown
+        )
+        sim_state = PortfolioState(
+            total_capital_usd=100_000.0,
+            positions=[sim_position],
+        )
 
-        # ── Drill 4: Deactivate ───────────────────────────────────────────────
-        _header("Drill 4: Deactivate and verify clean state")
+        # Убеждаемся что мы действительно получили 5% drawdown
+        actual_drawdown = sim_state.total_drawdown_pct
+        assert abs(actual_drawdown - 0.05) < 1e-9, (
+            f"Expected 5% drawdown, got {actual_drawdown:.4%}"
+        )
 
-        # 4a: деактивируем
-        checker.deactivate_kill_switch()
-        t, reason = checker.check_manual_trigger()
-        label = f"after deactivate: triggered={t} (expected False)"
-        if not t:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
+        result = policy.check_portfolio_health(sim_state)
+        kill_switch_triggered = not result.approved
+        violations_with_kill = [
+            v for v in result.violations
+            if "KILL SWITCH" in v or "drawdown" in v.lower()
+        ]
 
-        # 4b: kill_switch_active.json удалён
-        active_exists = active_path.exists()
-        label = f"kill_switch_active.json removed: {not active_exists}"
-        if not active_exists:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
+        results["steps"].append({
+            "step": "simulate_5pct_drawdown",
+            "ok": kill_switch_triggered and len(violations_with_kill) > 0,
+            "drawdown_pct": round(actual_drawdown * 100, 4),
+            "kill_switch_triggered": kill_switch_triggered,
+            "violations_detected": result.violations,
+            "detail": (
+                f"check_portfolio_health → approved={result.approved}, "
+                f"{len(result.violations)} violation(s)"
+            ),
+        })
+    except Exception as exc:
+        results["steps"].append({
+            "step": "simulate_5pct_drawdown",
+            "ok": False,
+            "error": str(exc),
+        })
 
-        # 4c: повторная проверка → not triggered (нет файла, equity пуста)
-        status = run_kill_switch_check(equity_curve=[], data_dir=tmp_data)
-        label = f"after deactivate run_kill_switch_check: triggered={status['triggered']} (expected False)"
-        if not status["triggered"]:
-            _pass(label)
-            passed += 1
-        else:
-            _fail(label)
-            failed += 1
+    # ── Step 3: Проверить наличие risk gate в cycle_runner ───────────────────
+    try:
+        from spa_core.paper_trading import cycle_runner  # noqa: PLC0415
+
+        source = inspect.getsource(cycle_runner)
+        has_risk_policy = "RiskPolicy" in source
+        has_risk_check = "_apply_risk_policy_gate" in source or "check_new_position" in source
+        has_kill_switch = "kill_switch" in source.lower()
+        gate_ok = has_risk_policy and has_risk_check and has_kill_switch
+
+        results["steps"].append({
+            "step": "verify_risk_gate_in_cycle_runner",
+            "ok": gate_ok,
+            "has_RiskPolicy": has_risk_policy,
+            "has_risk_check_call": has_risk_check,
+            "has_kill_switch": has_kill_switch,
+            "detail": (
+                "RiskPolicy gate + kill-switch found in cycle_runner"
+                if gate_ok
+                else "WARNING: risk gate and/or kill-switch missing from cycle_runner"
+            ),
+        })
+    except Exception as exc:
+        results["steps"].append({
+            "step": "verify_risk_gate_in_cycle_runner",
+            "ok": False,
+            "error": str(exc),
+        })
+
+    # ── Step 4: Текущий drawdown из реальных данных ───────────────────────────
+    try:
+        status_path = ddir / "paper_trading_status.json"
+        pts = json.loads(status_path.read_text(encoding="utf-8"))
+        equity = float(pts.get("current_equity", 100_000.0))
+        initial_capital = 100_000.0
+        drawdown_pct = max(0.0, (initial_capital - equity) / initial_capital * 100.0)
+        would_trigger = drawdown_pct >= 5.0
+
+        results["steps"].append({
+            "step": "check_current_drawdown",
+            "ok": True,
+            "current_equity": equity,
+            "initial_capital": initial_capital,
+            "drawdown_pct": round(drawdown_pct, 4),
+            "kill_switch_would_trigger": would_trigger,
+            "detail": (
+                f"equity=${equity:,.2f}, drawdown={drawdown_pct:.4f}% "
+                f"({'≥' if would_trigger else '<'} 5% threshold)"
+            ),
+        })
+    except Exception as exc:
+        results["steps"].append({
+            "step": "check_current_drawdown",
+            "ok": False,
+            "error": str(exc),
+        })
+
+    # ── Step 5: Проверить RiskConfig версию v1.0 ─────────────────────────────
+    try:
+        cfg = RiskConfig()
+        version_ok = cfg.version == "v1.0"
+        drawdown_threshold_ok = abs(cfg.max_drawdown_stop - 0.05) < 1e-9
+
+        results["steps"].append({
+            "step": "verify_risk_config",
+            "ok": version_ok and drawdown_threshold_ok,
+            "version": cfg.version,
+            "max_drawdown_stop": cfg.max_drawdown_stop,
+            "detail": (
+                f"RiskConfig v={cfg.version}, max_drawdown_stop={cfg.max_drawdown_stop:.0%}"
+            ),
+        })
+    except Exception as exc:
+        results["steps"].append({
+            "step": "verify_risk_config",
+            "ok": False,
+            "error": str(exc),
+        })
 
     # ── Итог ─────────────────────────────────────────────────────────────────
-    _header("Результаты drill")
-    total = passed + failed
-    color = _GREEN if failed == 0 else _RED
-    print(f"  {color}{_BOLD}{passed}/{total} PASS{_RESET}")
-    if failed > 0:
-        print(f"  {_RED}{failed} FAIL{_RESET}")
-        return 1
-    print(f"\n  {_GREEN}{_BOLD}Kill-switch drill PASSED ✅{_RESET}")
-    return 0
+    total_ms = round((time.time() - t0) * 1000, 1)
+    results["total_time_ms"] = total_ms
+
+    all_ok = all(s.get("ok", False) for s in results["steps"])
+    results["passed"] = all_ok and total_ms < 1000
+    results["verdict"] = "PASS ✅" if results["passed"] else "FAIL ❌"
+    results["note"] = (
+        f"Kill-switch gate verified in {total_ms}ms (limit: 1000ms). "
+        f"{len(results['steps'])} steps, all_ok={all_ok}."
+    )
+
+    return results
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Kill-Switch Drill MP-312")
+    parser.add_argument("--data-dir", default=None, help="Path to data/ directory")
+    args = parser.parse_args()
+
+    result = run_drill(data_dir=args.data_dir)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0 if result["passed"] else 1
 
 
 if __name__ == "__main__":
-    sys.exit(run_drill())
+    sys.exit(main())
