@@ -315,7 +315,7 @@ def format_daily_report(data: dict) -> str:
 
 def send_daily_report_telegram(
     data_dir: Optional[Path] = None,
-    dry_run: bool = True,
+    dry_run: bool = False,
 ) -> dict:
     """Collect, validate, format and (optionally) send daily report.
 
@@ -489,7 +489,7 @@ def generate_monthly_pdf_report(
 
 def run_reporting_cycle(
     data_dir: Optional[Path] = None,
-    dry_run: bool = True,
+    dry_run: bool = False,
 ) -> dict:
     """Main entry point for the reporting cycle.
 
