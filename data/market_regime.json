@@ -1,0 +1,17 @@
+{
+  "regime": "STABLE",
+  "t1_avg_apy": 4.9333,
+  "apy_std_dev": 1.5044,
+  "t1_adapters": [
+    "aave_v3",
+    "compound_v3",
+    "morpho_steakhouse"
+  ],
+  "all_adapters": [
+    "aave_v3",
+    "compound_v3",
+    "morpho_steakhouse"
+  ],
+  "recommendation": "hold",
+  "detected_at": "2026-06-12T20:11:35.595254+00:00"
+}
