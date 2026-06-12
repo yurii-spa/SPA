@@ -148,6 +148,11 @@
   .badge-t2 { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 20px; background: #ede9fe; color: #4c1d95; font-weight: 500; margin-right: 7px; }
   .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-left: 5px; vertical-align: middle; white-space: nowrap; }
   .badge-success { background: #d1fae5; color: #065f46; }
+  /* ADR-025: Base chain badges */
+  .badge-base { display: inline-block; background: #0052ff; color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+  .badge-monitoring { display: inline-block; background: #6c757d; color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 600; }
+  .base-chain { opacity: 0.88; }
+  .base-chain-info { margin-top: 8px; padding: 7px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 11px; color: #1e40af; }
   .green { color: #3B6D11; }
   .red   { color: #B91C1C; }
   .gray  { color: #888; }
@@ -1004,6 +1009,19 @@
   .trn-status-paused   { background:#fef9c3; color:#713f12; }
   .trn-status-killed   { background:#fee2e2; color:#991b1b; }
   .trn-status-promoted { background:#dbeafe; color:#1e40af; }
+  .trn-status-new      { background:#e0e7ff; color:#3730a3; }
+  .trn-status-research { background:#fef3c7; color:#92400e; }
+  .trn-status-leading  { background:#d1fae5; color:#065f46; font-weight:700; }
+  .trn-status-target   { background:#fffbeb; color:#b45309; font-weight:800; border:1.5px solid #f59e0b; }
+  .trn-apy-grey  { color:#9ca3af; }
+  .trn-apy-green { color:#16a34a; font-weight:600; }
+  .trn-apy-blue  { color:#1d4ed8; font-weight:600; }
+  .trn-apy-gold  { color:#d97706; font-weight:700; }
+  /* Night mode for new status types */
+  body.night .trn-status-new      { background:#1e1b4b; color:#818cf8; }
+  body.night .trn-status-research { background:#1c1200; color:#fbbf24; }
+  body.night .trn-status-leading  { background:#071a0f; color:#34d399; }
+  body.night .trn-status-target   { background:#1c1200; color:#fbbf24; border-color:#d97706; }
   .trn-spark { width:56px; height:22px; display:block; }
   .trn-eval-date { display:inline-flex; align-items:center; gap:6px; background:#E6F1FB; color:#185FA5; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:500; }
   .trn-rules-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px 14px; background:#f5f4f0; border:.5px solid #e0ddd6; border-radius:8px; font-size:12.5px; font-weight:600; color:#555; user-select:none; transition:background .15s; }
@@ -1242,14 +1260,14 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:600">Strategy Race</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">S0–S5 shadow strategies running in parallel · 30-day track to select live strategy</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">S0–S10 shadow strategies running in parallel · 30-day track to select live strategy</div>
     </div>
     <button class="refresh-btn" data-i18n="refresh" onclick="loadStrategies()">↻ Refresh</button>
   </div>
 
   <!-- BLOCK 1: Strategy Race Leaderboard -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">🏁 S0–S5 Strategy Leaderboard</div>
+    <div class="db-section">🏁 S0–S10 Strategy Leaderboard</div>
     <div id="strat-accumulate-bar" style="margin-bottom:12px"></div>
     <div style="overflow-x:auto">
       <table class="race-table" style="width:100%">
@@ -1310,6 +1328,11 @@
         <div style="font-size:12px;font-weight:700;color:#7F77DD;margin-bottom:6px">Phase 3 · 2026-Q4</div>
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">Pendle PT Fixed Yield</div>
         <div style="font-size:12px;color:#888">Principal Token fixed-rate yield via Pendle Finance. Locked APY until expiry.</div>
+      </div>
+      <div class="db-card" style="border-left:3px solid #7c3aed">
+        <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:6px">S4 · Research (GSM pending)</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">Conservative Spark+Fluid</div>
+        <div style="font-size:12px;color:#888">Spark sUSDS (T1, 5.5%) + Fluid fUSDC (T2, 6.5%) → target 5.9% APY. Активация после GSM ≥ 48h on-chain.</div>
       </div>
       <div class="db-card" style="border-left:3px solid #888">
         <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:6px">Phase 4 · 2027</div>
@@ -2516,10 +2539,13 @@
 
   <!-- T2 / Conditional Adapter status -->
   <div class="db-full" style="margin-bottom:20px">
-    <div class="db-section">🔌 T2 / Conditional Adapters</div>
+    <div class="db-section">🔌 T2 / Conditional Adapters &amp; Base Chain (ADR-025)</div>
     <div style="overflow-x:auto" id="golive-adapters">
       <div class="skeleton skel-line" style="margin:8px 0"></div>
       <div class="skeleton skel-line short"></div>
+    </div>
+    <div class="base-chain-info">
+      🔵 <strong>Base Chain (ADR-025):</strong> Phase 1 — read-only monitoring only. Aave V3 Base &amp; Morpho Blue Base tracked via DeFiLlama feed. Capital allocation pending go-live review (ADR-025).
     </div>
   </div>
 
@@ -2556,6 +2582,58 @@
       </div>
     </div>
   </div>
+
+
+  <!-- MP-420: Paper Trading Evidence Panel -->
+  <div class="db-full" style="margin-top:20px" id="paper-evidence-card">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span>📊 Paper Trading Evidence — Day <span id="pe-day-count">0</span>/30</span>
+      <button class="refresh-btn" onclick="loadPaperEvidence()" style="font-size:10px;padding:3px 10px">↻</button>
+    </div>
+
+    <!-- Progress bar -->
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:11px;color:#888">30-day paper trading window</span>
+        <span id="pe-pct-label" style="font-size:11px;font-weight:600;color:#185FA5">0%</span>
+      </div>
+      <div style="height:10px;border-radius:6px;background:#eee;overflow:hidden">
+        <div id="pe-progress-fill" style="height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#185FA5,#16a34a);transition:width .6s ease"></div>
+      </div>
+    </div>
+
+    <!-- Metrics grid 4 columns -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="pe-metrics-grid">
+      <div class="db-metric">
+        <div class="db-metric-label">Avg APY</div>
+        <div class="db-metric-value" id="pe-avg-apy" style="font-size:18px">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Max Drawdown</div>
+        <div class="db-metric-value" id="pe-max-dd" style="font-size:18px">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Sharpe</div>
+        <div class="db-metric-value" id="pe-sharpe" style="font-size:18px">—</div>
+      </div>
+      <div class="db-metric" style="position:relative">
+        <div class="db-metric-label">Status</div>
+        <div id="pe-status-badge" style="display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:4px 10px;border-radius:14px;font-size:11px;font-weight:700;letter-spacing:.05em;background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.3)">
+          <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;flex-shrink:0"></span>
+          ACCUMULATING
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline string -->
+    <div id="pe-timeline-row" style="font-size:11px;color:#888;background:#f8f9fb;border-radius:8px;padding:9px 14px;border-left:3px solid #185FA5;line-height:1.6">
+      Started: <span id="pe-start-date" style="font-weight:600;color:#555">—</span>
+      <span style="margin:0 6px;color:#ccc">→</span>
+      30d ready: <span id="pe-ready-date" style="font-weight:600;color:#555">—</span>
+      <span style="margin:0 6px;color:#ccc">→</span>
+      Go-live: <span id="pe-golive-date" style="font-weight:600;color:#185FA5">—</span>
+    </div>
+  </div><!-- /paper-evidence-card -->
 
 </div><!-- /tab-golive -->
 
@@ -2975,7 +3053,10 @@ function _trnSparkSVG(series, w, h) {
 
 function _trnStatusBadge(status) {
   const cfg = { active:'🟢 active;trn-status-active', paused:'🟡 paused;trn-status-paused',
-                killed:'🔴 killed;trn-status-killed', promoted:'🏆 promoted;trn-status-promoted' };
+                killed:'🔴 killed;trn-status-killed', promoted:'🏆 promoted;trn-status-promoted',
+                new:'🆕 new;trn-status-new', research:'🔬 research;trn-status-research',
+                leading:'🚀 leading;trn-status-leading',
+                target_met:'🏆 10%+ TARGET;trn-status-target' };
   const [label, cls] = (cfg[status] || cfg.active).split(';');
   return `<span class="trn-status ${cls}">${label}</span>`;
 }
@@ -2983,6 +3064,14 @@ function _trnStatusBadge(status) {
 function _trnFmt(v, dec, suf) {
   if (v === null || v === undefined || isNaN(v)) return '<span style="color:#bbb">—</span>';
   return Number(v).toFixed(dec) + (suf || '');
+}
+
+function _trnApyClass(v) {
+  if (v == null || isNaN(v)) return '';
+  if (v >= 10) return 'trn-apy-gold';
+  if (v >= 7)  return 'trn-apy-blue';
+  if (v >= 5)  return 'trn-apy-green';
+  return 'trn-apy-grey';
 }
 
 function _trnNormalise(data) {
@@ -3037,9 +3126,10 @@ function _trnRender(data) {
     const cls = r <= 3 ? `trn-rank-${r}` : '';
     return `<span class="trn-rank ${cls}">${medals[r] || '#' + r}</span>`;
   };
-  const rowCls = s => s.status === 'promoted' ? 'trn-row-promoted' :
-                      s.status === 'killed'   ? 'trn-row-killed'   :
-                      s.rank === 1            ? 'trn-row-gold'     : '';
+  const rowCls = s => s.status === 'promoted'   ? 'trn-row-promoted' :
+                      s.status === 'killed'     ? 'trn-row-killed'   :
+                      s.status === 'target_met' ? 'trn-row-gold'     :
+                      s.rank === 1              ? 'trn-row-gold'     : '';
 
   const rows = strats.map(s => `
     <tr class="${rowCls(s)}">
@@ -3049,7 +3139,7 @@ function _trnRender(data) {
         <div class="trn-name">${s.name}</div>
         ${s.description ? `<div class="trn-name-sub">${s.description}</div>` : ''}
       </td>
-      <td class="trn-col-hide">${s.apy_target != null ? _trnFmt(s.apy_target, 1, '%') : '—'} / <span class="${(s.apy_realized || 0) > (s.apy_target || 0) ? 'green' : ''}">${_trnFmt(s.apy_realized, 1, '%')}</span></td>
+      <td class="trn-col-hide">${s.apy_target != null ? _trnFmt(s.apy_target, 1, '%') : '—'} / <span class="${_trnApyClass(s.apy_realized)}">${_trnFmt(s.apy_realized, 1, '%')}</span></td>
       <td><strong>${_trnFmt(s.composite_score, 3)}</strong></td>
       <td class="trn-col-hide">${_trnFmt(s.sharpe, 2)}</td>
       <td class="trn-col-hide">${_trnFmt(s.calmar, 2)}</td>
@@ -7089,6 +7179,7 @@ async function loadGoLive() {
     renderGoLiveReport(latestReport);
     renderGoLiveTimeline();
     updateGoLiveTabBadge(readiness);
+    loadPaperEvidence(); // MP-420
   } catch(e) {
     console.error('GoLive load error:', e);
     const el = document.getElementById('golive-verdict');
@@ -7579,6 +7670,27 @@ const ADAPTER_STATUS_FALLBACK = [
     apy: '6.5%',
     source: 'mock', project: 'sky', state: 'blocked',
     stateLabel: 'Supply/withdraw BLOCKED', stateNote: 'PENDING · until ELIGIBLE' },
+  { name: 'Spark Protocol sUSDS', tier: 'T1', cap: '0%', capNote: '→ до 30% при GSM ≥ 48h',
+    chains: 'ethereum', assets: 'sUSDS',
+    apy: '5.5%',
+    source: 'research', project: 'spark', state: 'research',
+    stateLabel: 'Research (GSM pending)', stateNote: 'MP-392 · gsm_hours < 48' },
+  { name: 'Fluid fUSDC', tier: 'T2', cap: '0%', capNote: '→ до 20% при GSM ≥ 48h',
+    chains: 'ethereum', assets: 'fUSDC',
+    apy: '6.5%',
+    source: 'research', project: 'fluid', state: 'research',
+    stateLabel: 'Research (GSM pending)', stateNote: 'MP-392 · gsm_hours < 48' },
+  // ADR-025: Base chain adapters — Phase 1 read-only monitoring
+  { name: 'Aave V3 Base', tier: 'T2', cap: '0%', capNote: '→ Phase 1 monitoring only (ADR-025)',
+    chains: 'base', assets: 'USDC',
+    apy: '~3.5%',
+    source: 'mock', project: 'aave-v3-base', state: 'monitoring',
+    stateLabel: 'Read-only Monitoring', stateNote: 'ADR-025 Phase 1 · allocation pending go-live review' },
+  { name: 'Morpho Blue Base', tier: 'T2', cap: '0%', capNote: '→ Phase 1 monitoring only (ADR-025)',
+    chains: 'base', assets: 'USDC',
+    apy: '~6.0%',
+    source: 'mock', project: 'morpho-blue-base', state: 'monitoring',
+    stateLabel: 'Read-only Monitoring', stateNote: 'ADR-025 Phase 1 · allocation pending go-live review' },
 ];
 
 // ─── Live adapter status (synced from data/adapter_status.json) ──────────────
@@ -7609,6 +7721,10 @@ function mapAdapterRecord(rec) {
       state = 'blocked'; stateLabel = 'Writes BLOCKED'; stateNote = 'Phase 3 · SPA_EXECUTION_MODE≠live'; break;
     case 'NOT_IMPLEMENTED':
       state = 'notimpl'; stateLabel = 'Writes NOT_IMPLEMENTED'; stateNote = 'Phase 3'; break;
+    case 'Research (GSM pending)':
+      state = 'research'; stateLabel = 'Research (GSM pending)'; stateNote = `MP-392 · gsm_hours < 48${rec.gsm_hours != null ? ' · current: ' + rec.gsm_hours + 'h' : ''}`; break;
+    case 'MONITORING':
+      state = 'monitoring'; stateLabel = 'Read-only Monitoring'; stateNote = 'ADR-025 Phase 1 · allocation pending go-live review'; break;
     default:
       state = 'ok'; stateLabel = String(rec.write_state || 'OK'); stateNote = '';
   }
@@ -7651,6 +7767,18 @@ async function loadAdapterStatus() {
       ADAPTER_STATUS_DATA = null;
       ADAPTER_STATUS_MEV = null;
     }
+    // ADR-025 Phase 1: populate APY cells for Base chain adapters if present in adapter_status.json
+    const BASE_ADAPTERS = ['aave-v3-base', 'morpho-blue-base'];
+    BASE_ADAPTERS.forEach(id => {
+      const adData = doc && doc[id] ? doc[id] : null;
+      if (adData) {
+        const cell = document.querySelector(`.apy-cell[data-protocol="${id}"]`);
+        if (cell) {
+          const apyVal = adData.apy_pct != null ? `${parseFloat(adData.apy_pct).toFixed(2)}%` : (adData.apy || '—');
+          cell.textContent = apyVal;
+        }
+      }
+    });
   } catch (e) {
     ADAPTER_STATUS_DATA = null; // → renderAdapterStatus falls back to the embedded constant
     ADAPTER_STATUS_MEV = null;
@@ -7663,7 +7791,7 @@ function renderAdapterStatus() {
   if (!el) return;
   const rows = ADAPTER_STATUS_DATA && ADAPTER_STATUS_DATA.length ? ADAPTER_STATUS_DATA : ADAPTER_STATUS_FALLBACK;
   const liveApy = ADAPTER_STATUS_LIVE_APY; // sourced from data/adapter_status.json (doc.live_apy_enabled)
-  const stateColor = s => s === 'blocked' ? '#B91C1C' : s === 'notimpl' ? '#f59e0b' : '#16a34a';
+  const stateColor = s => s === 'blocked' ? '#B91C1C' : s === 'notimpl' ? '#f59e0b' : s === 'research' ? '#7c3aed' : s === 'monitoring' ? '#0052ff' : '#16a34a';
   // v3.35: a row is genuinely "live" only when the backend embedded real values
   // (live_values_present). When the gate is on but no pool matched, show a
   // "live: no match" amber badge so the mock fallback is explicit.
@@ -7722,17 +7850,24 @@ function renderAdapterStatus() {
   el.innerHTML = `<table class="pendle-table"><thead><tr>
     <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>APY</th><th>APY Source</th><th>MEV</th><th>Write State</th>
   </tr></thead><tbody>
-    ${rows.map(a => `<tr>
-      <td style="font-weight:600">${a.name}${a.quickWin ? `<span class="badge badge-success">Quick Win +${a.bpsGain}bps</span>` : ''}</td>
+    ${rows.map(a => {
+      const isBase = (a.chains || '').includes('base');
+      const baseL2Badge = isBase ? '<span class="badge-base">Base L2</span>' : '';
+      const monBadge   = a.state === 'monitoring' ? ' <span class="badge-monitoring">Monitoring</span>' : '';
+      const rowClass   = a.state === 'monitoring' ? ' class="base-chain"' : '';
+      const protocolAttr = a.project ? ` data-protocol="${a.project}"` : '';
+      return `<tr${rowClass}>
+      <td style="font-weight:600">${a.name}${baseL2Badge}${monBadge}${a.quickWin ? `<span class="badge badge-success">Quick Win +${a.bpsGain}bps</span>` : ''}</td>
       <td><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:#185FA5;background:#185FA51a">${a.tier}</span></td>
       <td style="font-weight:600">${a.cap}${a.capNote ? `<div style="font-size:10px;font-weight:400;color:#888;margin-top:1px">${a.capNote}</div>` : ''}</td>
       <td style="font-size:11px;color:#555">${a.chains}${a.gasAdvantage ? `<div style="font-size:10px;color:#16a34a;margin-top:1px">⛽ ${a.gasAdvantage}</div>` : ''}</td>
       <td style="font-size:11px;color:#555">${a.assets}</td>
-      <td style="font-size:11px;color:#333">${apyCell(a)}${a.rateType ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${a.rateType}${a.maturity ? ` · mat. ${a.maturity}` : ''}</div>` : ''}</td>
+      <td class="apy-cell" style="font-size:11px;color:#333"${protocolAttr}>${apyCell(a)}${a.rateType ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${a.rateType}${a.maturity ? ` · mat. ${a.maturity}` : ''}</div>` : ''}</td>
       <td>${srcBadge(a)}</td>
       <td>${mevCell(a)}</td>
       <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
-    </tr>`).join('')}
+    </tr>`;
+    }).join('')}
   </tbody></table>${mevBadge}${syncedNote}`;
 }
 
@@ -7788,6 +7923,95 @@ function updateGoLiveTabBadge(data) {
   badge.style.display = 'inline';
   badge.style.background = passed === total ? '#d1fae5' : passed >= total * 0.75 ? '#fef3c7' : '#fee2e2';
   badge.style.color = passed === total ? '#065f46' : passed >= total * 0.75 ? '#92400e' : '#991b1b';
+}
+
+// ─── MP-420: Paper Trading Evidence Panel ────────────────────────────────────
+async function loadPaperEvidence() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  // Добавить день к дате строке 'YYYY-MM-DD'
+  function addDays(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Рассчитать кол-во дней между двумя датами (строки)
+  function daysBetween(a, b) {
+    return Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
+  }
+
+  // Цвет/стиль статус-бейджа
+  function applyStatusBadge(status) {
+    const el = document.getElementById('pe-status-badge');
+    if (!el) return;
+    const s = (status || 'accumulating').toUpperCase();
+    if (s === 'READY') {
+      el.style.background = 'rgba(22,163,74,.12)';
+      el.style.color = '#15803d';
+      el.style.border = '1px solid rgba(22,163,74,.3)';
+      el.querySelector('span').style.background = '#16a34a';
+    } else if (s === 'FAILED') {
+      el.style.background = 'rgba(220,38,38,.12)';
+      el.style.color = '#b91c1c';
+      el.style.border = '1px solid rgba(220,38,38,.3)';
+      el.querySelector('span').style.background = '#dc2626';
+    } else {
+      el.style.background = 'rgba(245,158,11,.12)';
+      el.style.color = '#d97706';
+      el.style.border = '1px solid rgba(245,158,11,.3)';
+      el.querySelector('span').style.background = '#f59e0b';
+    }
+    el.childNodes[el.childNodes.length - 1].textContent = ' ' + s;
+  }
+
+  try {
+    const ts = Date.now();
+    const d = await fetch(BASE + '/paper_evidence.json?_=' + ts).then(r => r.json()).catch(() => null);
+
+    const startDate   = (d && d.paper_start_date) || '2026-06-12';
+    const goliveDate  = (d && d.golive_target)     || '2026-08-01';
+    const minDays     = (d && d.min_days_required) || 30;
+    const summary     = (d && d.summary)           || {};
+    const nDays       = summary.n_days             || 0;
+    const avgApy      = summary.avg_apy_pct        || 0;
+    const maxDd       = summary.max_drawdown_pct   || 0;
+    const sharpe      = summary.sharpe_ratio       || 0;
+    const status      = summary.golive_status      || 'accumulating';
+
+    const pct = Math.min(100, Math.round((nDays / minDays) * 100));
+    const readyDate = addDays(startDate, minDays);
+
+    // Прогресс-бар
+    const fill = document.getElementById('pe-progress-fill');
+    if (fill) fill.style.width = pct + '%';
+    setText('pe-pct-label', pct + '%');
+    setText('pe-day-count', nDays);
+
+    // Метрики
+    setText('pe-avg-apy',  avgApy.toFixed(2) + '%');
+    setText('pe-max-dd',   maxDd.toFixed(2) + '%');
+    setText('pe-sharpe',   sharpe.toFixed(2));
+    applyStatusBadge(status);
+
+    // Timeline
+    setText('pe-start-date',  startDate);
+    setText('pe-ready-date',  readyDate);
+    setText('pe-golive-date', goliveDate);
+
+  } catch(e) {
+    console.error('Paper evidence load error:', e);
+    // fallback
+    setText('pe-day-count', '0');
+    setText('pe-pct-label', '0%');
+    setText('pe-avg-apy',  '—');
+    setText('pe-max-dd',   '—');
+    setText('pe-sharpe',   '—');
+    setText('pe-start-date',  '2026-06-12');
+    setText('pe-ready-date',  '2026-07-12');
+    setText('pe-golive-date', '2026-08-01');
+  }
 }
 
 // ─── AI Recommendations / Optimization ───────────────────────────────────────
