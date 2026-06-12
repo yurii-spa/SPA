@@ -14,8 +14,18 @@ Provides two public functions:
       are surfaced as warnings, they do NOT block trades.
 
 Rules enforced:
-  - single chain:  allocation on any one chain ≤ 70% of portfolio
+  - single chain:  allocation on any one chain ≤ 90% of portfolio
   - L2 combined:   allocation on arbitrum + base combined ≤ 50% of portfolio
+
+MP-352 (2026-06-12): Ethereum single-chain limit raised 70% → 90%.
+Rationale: Ethereum concentration is STRUCTURAL — all T1/T2 adapters
+(Aave V3, Compound V3, Morpho Blue, Yearn V3, Euler V2, Maple) are
+deployed on Ethereum L1 mainnet. A 70% warning fires by design on any
+realistic allocation and produces log noise without actionable signal.
+The limit is restored to a meaningful threshold once L2 adapters
+(Arbitrum, Base) constitute a material share of AUM.
+Comment: "Ethereum concentration natural — all T1/T2 adapters are L1 mainnet.
+Warning re-enabled when L2 adapters added." (ADR-018 → MP-352)
 
 Both thresholds mirror the values in RiskConfig (max_single_chain_allocation
 and max_l2_total_allocation) so the standalone module stays in sync.
@@ -34,8 +44,25 @@ from typing import Optional
 _L2_CHAINS: frozenset = frozenset({"arbitrum", "base"})
 
 # Must match RiskConfig values (paper-period constants; change via ADR only).
-_MAX_SINGLE_CHAIN_FRAC: float = 0.70   # 70%
+#
+# MP-352 (2026-06-12): _MAX_SINGLE_CHAIN_FRAC raised 0.70 → 0.90.
+# Ethereum concentration is STRUCTURAL: all current T1/T2 adapters
+# (Aave V3, Compound V3, Morpho Blue, Yearn V3, Euler V2, Maple) run on
+# Ethereum L1 mainnet. The previous 70% threshold fired on every normal
+# cycle producing meaningless log noise. 90% is the effective ceiling
+# while the protocol set is single-chain. The warning becomes useful again
+# once L2 adapters (Arbitrum/Base) are live and reach meaningful AUM share.
+# Ethereum concentration natural — all T1/T2 adapters are L1 mainnet.
+# Warning re-enabled when L2 adapters added.
+_MAX_SINGLE_CHAIN_FRAC: float = 0.90   # 90% (MP-352: was 70%)
 _MAX_L2_TOTAL_FRAC: float = 0.50       # 50%
+
+# Protocols that are structurally single-chain (Ethereum L1 only).
+# When ALL non-cash allocation is in this set, ethereum dominance is expected
+# and the violation message is annotated accordingly.
+_ETHEREUM_ONLY_PROTOCOLS: frozenset = frozenset({
+    "aave_v3", "compound_v3", "morpho_blue", "yearn_v3", "euler_v2", "maple",
+})
 
 
 def get_default_chain_map() -> dict:
@@ -101,14 +128,29 @@ def check_chain_limits(
     # ── L2 combined ───────────────────────────────────────────────────────────
     l2_total = sum(v for k, v in chain_breakdown.items() if k in _L2_CHAINS)
 
+    # ── Intelligent single-chain detection ───────────────────────────────────
+    # If every non-zero protocol in the allocation belongs to the structural
+    # Ethereum-only set, mark the portfolio as mono-chain so callers can
+    # annotate the warning appropriately (or suppress it as expected).
+    allocated_protocols = {k for k, v in (allocation or {}).items()
+                           if isinstance(v, (int, float)) and v > 0}
+    all_ethereum_only = bool(allocated_protocols) and allocated_protocols.issubset(
+        _ETHEREUM_ONLY_PROTOCOLS
+    )
+
     # ── Violations ───────────────────────────────────────────────────────────
     violations: list = []
 
     for chain, frac in sorted(chain_breakdown.items()):
         if frac > _MAX_SINGLE_CHAIN_FRAC:
+            note = (
+                " (structural: all active adapters are Ethereum L1)"
+                if chain == "ethereum" and all_ethereum_only
+                else ""
+            )
             violations.append(
                 f"Chain '{chain}' allocation {frac:.1%} exceeds "
-                f"single-chain limit {_MAX_SINGLE_CHAIN_FRAC:.0%}"
+                f"single-chain limit {_MAX_SINGLE_CHAIN_FRAC:.0%}{note}"
             )
 
     if l2_total > _MAX_L2_TOTAL_FRAC:
@@ -122,6 +164,7 @@ def check_chain_limits(
         "violations": violations,
         "l2_total_pct": round(l2_total, 6),
         "chain_breakdown": {k: round(v, 6) for k, v in chain_breakdown.items()},
+        "all_ethereum_only": all_ethereum_only,
     }
 
 
