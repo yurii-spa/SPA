@@ -5,13 +5,10 @@ Centralises all LLM model assignments so they can be changed in one place
 without touching individual agent files.
 
 Design notes:
-  - CEO / Trader / Strategy agents use Claude Sonnet 4.6 (best reasoning).
-  - Data / Monitoring / Report agents use Claude Haiku (fast + cheap).
+  - Architect agent uses Claude Fable 5 (best reasoning for design decisions).
+  - CEO / Trader / Strategy / Data / Monitoring / Report agents use Opus 4.8.
   - Risk and Execution agents MUST be deterministic: LLM is forbidden for
     any decision that triggers a trade or a kill-switch.
-  - When Gemini Flash / Flash-Lite become available via the Anthropic SDK or
-    a compatible wrapper, swap the "data" and "strategy" values here — no
-    other code changes required.
 
 Lookup convention:
     key = agent_name.lower().replace("agent", "").strip()
@@ -22,24 +19,24 @@ from __future__ import annotations
 # ─── Per-agent model assignments ─────────────────────────────────────────────
 
 AGENT_MODELS: dict[str, str] = {
-    # High-reasoning agents — use Sonnet for quality
-    "ceo":      "claude-sonnet-4-6",
-    "trader":   "claude-sonnet-4-6",
-    "strategy": "claude-sonnet-4-6",
+    # Architect — Fable 5 for senior design, ADRs, sprint planning
+    "architect": "claude-fable-5",
 
-    # Data / monitoring / reporting — Haiku is fast enough and cheaper
-    # TODO: swap to "gemini-flash-lite" / "gemini-flash" when available
-    "data":       "claude-haiku-4-5-20251001",
-    "monitoring": "claude-haiku-4-5-20251001",
-    "report":     "claude-haiku-4-5-20251001",
+    # General reasoning agents — Opus 4.8
+    "ceo":        "claude-opus-4-8",
+    "trader":     "claude-opus-4-8",
+    "strategy":   "claude-opus-4-8",
+    "data":       "claude-opus-4-8",
+    "monitoring": "claude-opus-4-8",
+    "report":     "claude-opus-4-8",
 
     # Risk — deterministic only; model listed for audit completeness but
     # MUST NOT be used for actual risk decisions (see LLM_FORBIDDEN_AGENTS)
-    "risk": "claude-haiku-4-5-20251001",
+    "risk": "claude-opus-4-8",
 }
 
 # Default model when an agent key is not found in AGENT_MODELS
-DEFAULT_MODEL: str = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL: str = "claude-opus-4-8"
 
 # ─── Agents forbidden from LLM-based decisions ───────────────────────────────
 # Risk and Execution agents are fully deterministic. Any code path that would
