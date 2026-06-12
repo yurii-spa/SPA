@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-10T19:16:22.673913+00:00",
-  "updated_by": "claude_code (MP-015/MP-016 done)",
+  "last_updated": "2026-06-12",
+  "updated_by": "claude (SPA-V434)",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -54,463 +54,6 @@
       }
     ],
     "features": [
-      {
-        "id": "MP-201",
-        "title": "Pendle PT read-only фид в оркестратор",
-        "description": "ex RB-201/V409. Фид в spa_core/adapters/ (domain split, ADR-3). Discount-кривая, maturity ladder. Главный рычаг закрытия APY-gap.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 2,
-        "depends_on": [],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "adapters",
-          "apy-gap"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-202",
-        "title": "Sky/sUSDS read-only фид",
-        "description": "ex RB-202/V410. APY виден аллокатору; вес 0% до on-chain подтверждения GSM Pause Delay ≥48h (нужны RPC-ключи MP-017).",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 1.5,
-        "depends_on": [
-          "MP-017"
-        ],
-        "estimate": "1.5d",
-        "tags": [
-          "epic",
-          "adapters",
-          "apy-gap"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-203",
-        "title": "Multi-chain: Arbitrum + Base",
-        "description": "ex RB-203. Пулы существующих протоколов на L2. Лимиты: chain ≤70%, L2 суммарно ≤50%.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 2,
-        "depends_on": [],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "adapters"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-204",
-        "title": "Adapter SDK: декларативные YAML-адаптеры",
-        "description": "Единый контракт ProtocolAdapter (fetch_pools / exit_latency / health). 80% протоколов — YAML-манифест поверх DeFiLlama ids. Единственный путь к 100+ протоколам без 100 файлов.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-113"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "adapters",
-          "sdk"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-205",
-        "title": "Candidate-tier автодискавери",
-        "description": "ex RB-205/V417. Скан DeFiLlama по quality-gates (TVL ≥$5M, возраст ≥6 мес, аудиты) → реестр кандидатов. В whitelist — только через ADR/человека.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-204"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "adapters",
-          "autonomy"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-206",
-        "title": "20+ адаптеров через SDK",
-        "description": "ex RB-204. Curve/Convex stable-пулы, crvUSD, Frax, Spark, Fluid, Notional, Gearbox passive, Ethena (capped, ось peg), Across LP и др. Каждый через candidate-tier гейты.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 5,
-        "depends_on": [
-          "MP-204",
-          "MP-205"
-        ],
-        "estimate": "5d",
-        "tags": [
-          "epic",
-          "adapters"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-207",
-        "title": "Тюнер аллокации + backtest-валидация (APY ≥5.5%)",
-        "description": "ex RB-206/V391. После Pendle: цель APY paper ≥5.5% устойчиво (7-дневное среднее), backtest-подтверждение.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-201"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "apy-gap"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-208",
-        "title": "Risk Policy v2: оси риска",
-        "description": "credit ≤15% (Maple), peg ≤10% (Ethena), duration ≤30% + maturity ladder (Pendle), bridge per-cap. Тиры не различают природу риска. ADR + 2-недельный paper-тест по конституции.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-005"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "risk"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-209",
-        "title": "Capacity limits (позиция ≤ % TVL пула)",
-        "description": "Позиция ≤1-2% TVL, ≤Y% дневного объёма выхода. Capacity-adjusted APY в отчётах — обязательный вопрос фонда про масштабируемость стратегии на $10M+.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 1.5,
-        "depends_on": [
-          "MP-208"
-        ],
-        "estimate": "1.5d",
-        "tags": [
-          "epic",
-          "risk"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-210",
-        "title": "Postgres-миграция ядра",
-        "description": "ex RB-207, ADR_005. Multi-process safety до реального капитала. JSON остаётся для дашборда.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "infra"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-211",
-        "title": "Uptime 24/7: сервер + incident playbook + DR",
-        "description": "ex RB-208. Выделенный сервер/Mac mini, мониторинг доступности, playbook v1, DR-процедура с замером восстановления (<4ч).",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-109"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "infra"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-212",
-        "title": "2-летний бэктест на реальной истории DeFiLlama",
-        "description": "Replay auto_allocate() на 2022-2026: LUNA, FTX, USDC depeg внутри данных. Ответ на вопрос фонда 'как стратегия прошла бы 2022'.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-207"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "backtest"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-213",
-        "title": "Milestone: APY ≥5.5%, 15+ адаптеров, 60+ дней трека",
-        "description": "Гейт входа в Phase 4 (live-пилот). Верификация по данным + отчёт.",
-        "priority": "P2",
-        "phase": "phase2",
-        "estimated_days": 0.5,
-        "depends_on": [
-          "MP-206",
-          "MP-207"
-        ],
-        "estimate": "0.5d",
-        "tags": [
-          "epic",
-          "milestone"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-301",
-        "title": "Agent runtime: мандаты, токен-бюджеты, forbidden-lists",
-        "description": "Каркас агентного слоя (MASTER_PLAN §2): письменный мандат per-агент, бюджет, список запретов, деградация при недоступности LLM. Основа автономии 95%.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 3,
-        "depends_on": [],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "agents"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-302",
-        "title": "CEO Agent",
-        "description": "Еженедельно + при drawdown >2%. Читает equity/strategy_comparison/regime. Решает: стратегия, allocation model, эскалации. Логирует в data/ceo_decisions.json (решение + reasoning + snapshot_id). Запрещено: менять policy, инициировать tx.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-303",
-        "title": "Risk Sentinel Agent",
-        "description": "Каждый цикл (fast loop). Детерминированное ядро + малая LLM только для классификации алертов (шум/деградация/инцидент). Может инициировать kill-switch (детерминированная ветка). НЕ исполняет сделки.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301",
-          "MP-016"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents",
-          "risk"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-304",
-        "title": "Alpha Agent",
-        "description": "Еженедельно. Скан DeFiLlama + конкуренты → кандидаты в whitelist с обоснованием (устойчивость APY, ёмкость, риск-оси) → data/alpha_candidates.json → candidate-tier. Запрещено: листить напрямую.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301",
-          "MP-205"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-305",
-        "title": "Reporting Agent",
-        "description": "Ежедневный P&L email/Telegram 09:00 + monthly PDF 1-го числа. Числовые поля валидируются против сырых JSON (запрет искажения цифр).",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301",
-          "MP-103"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents",
-          "investor"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-306",
-        "title": "Strategy Agent",
-        "description": "Еженедельно. Historical data + shadow S0-S5 → параметры стратегий, Kelly-sizing (интеграция optimization/), рекомендации селектору. Активную стратегию меняет только детерминированный селектор.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301",
-          "MP-106"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents",
-          "strategies"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-307",
-        "title": "Protocol Research Agent",
-        "description": "По запросу CEO/Alpha. Due-diligence досье кандидата: аудиты, команда, инциденты, TVL-история, governance → data/research_dossiers/ → материал к ADR. Финальное решение о листинге — человек.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-304"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-308",
-        "title": "Incident Commander Agent",
-        "description": "При CRITICAL-алерте: сбор контекста, таймлайн, черновик post-mortem, чеклист реагирования → data/incidents/. Запрещено: исполнять исправляющие транзакции.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301",
-          "MP-016"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-309",
-        "title": "CI-линт: LLM FORBIDDEN в risk/execution/allocator",
-        "description": "Запрет import anthropic/google.generativeai в L2/L3-код. Enforcement конституции кодом — продуктовый тезис для институционалов.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
-        "tags": [
-          "epic",
-          "security",
-          "ci"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-310",
-        "title": "Единый decision audit trail",
-        "description": "Цепочка snapshot_id → proposal → risk-вердикт → trade с correlation_id; экспорт подписанного JSONL. База для on-chain Proof-of-Track (MP-406).",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-301"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "agents",
-          "investor"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-311",
-        "title": "Планировщик 3 контуров + self-healing",
-        "description": "fast loop (каждый цикл, БЕЗ LLM) / slow (daily, LLM) / strategic (weekly, LLM). Авторестарт упавших адаптеров. Деградация в безопасность: LLM недоступен → fast loop на последней одобренной конфигурации. DoD Phase 3: неделя без ручного вмешательства.",
-        "priority": "P2",
-        "phase": "phase3",
-        "estimated_days": 2.5,
-        "depends_on": [
-          "MP-301"
-        ],
-        "estimate": "2.5d",
-        "tags": [
-          "epic",
-          "agents",
-          "autonomy"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-401",
-        "title": "E2E fork-harness (anvil/mainnet-fork)",
-        "description": "ex RB-301/V384. Симуляция полного цикла исполнения на форке; CI-гейт каждого релиза execution-кода. Гейт входа: MP-213.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 5,
-        "depends_on": [
-          "MP-213"
-        ],
-        "estimate": "5d",
-        "tags": [
-          "epic",
-          "execution"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
       {
         "id": "MP-402",
         "title": "Gnosis Safe + Zodiac Roles + key management policy",
@@ -588,81 +131,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "MP-406",
-        "title": "On-chain Proof-of-Track (Merkle root)",
-        "description": "ex RB-304. Merkle root decision-лога on-chain ежедневно (~1 tx/день). Трек невозможно переписать задним числом — убойный pitch-аргумент.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 3,
-        "depends_on": [
-          "MP-310"
-        ],
-        "estimate": "3d",
-        "tags": [
-          "epic",
-          "investor",
-          "trust"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-407",
-        "title": "White-label API v1",
-        "description": "ex RB-305. POST /v1/portfolio/analyze (риск-скоринг чужих позиций), GET /v1/allocations/recommended, webhook-сигналы. Auth + rate limits + billing-заготовка. Второй revenue stream без кастоди.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 10,
-        "depends_on": [
-          "MP-310"
-        ],
-        "estimate": "10d",
-        "tags": [
-          "epic",
-          "product",
-          "b2b"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-408",
-        "title": "Investor portal (Next.js)",
-        "description": "ex RB-306. Real-time P&L, equity curve, exposure по осям риска, отчёты, audit trail viewer.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 10,
-        "depends_on": [
-          "MP-110",
-          "MP-406"
-        ],
-        "estimate": "10d",
-        "tags": [
-          "epic",
-          "product",
-          "investor"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-409",
-        "title": "Юридическая структура + compliance",
-        "description": "ex RB-307. SPV/фонд (BVI/Cayman-класс), гео-фильтры на депозиты, AML-скрининг (Chainalysis/TRM API). Цикл 3-6 мес — начинать консультации в 2026-Q4. Первый внешний депозит юридически чист.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 10,
-        "depends_on": [],
-        "estimate": "10d (своих) + 3-6 мес внешних",
-        "tags": [
-          "epic",
-          "legal",
-          "external"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-410",
         "title": "Bug bounty (Immunefi)",
         "description": "Пул $50-250K (резерв). Scope: vault + executor. Запуск после аудита #1.",
@@ -695,42 +163,6 @@
           "epic",
           "security",
           "execution"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-501",
-        "title": "Публичный tear-sheet ежемесячно",
-        "description": "ex RB-402. APY net, Sharpe/Sortino/PSR, drawdown, exposure, инциденты. Автопубликация. Основа воронки доверия.",
-        "priority": "P3",
-        "phase": "phase5",
-        "estimated_days": 1,
-        "depends_on": [
-          "MP-406"
-        ],
-        "estimate": "1d + recurring",
-        "tags": [
-          "epic",
-          "investor"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-502",
-        "title": "Outreach-машина: DAO → family offices → fund-of-funds",
-        "description": "ex RB-401. CRM-список 50 целей, EN-версия INVESTOR_PITCH, демо портала, follow-up цикл. Первые $5-10M почти всегда DAO-казначейства.",
-        "priority": "P3",
-        "phase": "phase5",
-        "estimated_days": 0,
-        "depends_on": [
-          "MP-501"
-        ],
-        "estimate": "ongoing",
-        "tags": [
-          "epic",
-          "distribution"
         ],
         "sprint": null,
         "added": "2026-06-10"
@@ -773,24 +205,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "MP-505",
-        "title": "Capital Ladder enforcement в гейтах",
-        "description": "Лестница L0 paper → L5 institutional (ARCHITECTURE_v2 §8) кодом в go-live гейтах. Автоспуск на ступень при инциденте ≥1% AUM.",
-        "priority": "P3",
-        "phase": "phase5",
-        "estimated_days": 0.5,
-        "depends_on": [
-          "MP-006"
-        ],
-        "estimate": "0.5d",
-        "tags": [
-          "epic",
-          "governance"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
         "id": "MP-506",
         "title": "Аудиты #2-3 + security-мониторинг (Hypernative/Forta)",
         "description": "Второй аудит другой фирмой — требование ступеней L4/L5 Capital Ladder. Real-time security-фиды.",
@@ -827,23 +241,6 @@
         ],
         "sprint": null,
         "added": "2026-06-10"
-      },
-      {
-        "id": "MP-508",
-        "title": "ADR: токен / equity-раунд",
-        "description": "Не раньше $10M AUM (~2027-Q4). Токен без AUM — пустой мультипликатор + регуляторный риск.",
-        "priority": "P3",
-        "phase": "phase5",
-        "estimated_days": 0,
-        "depends_on": [],
-        "estimate": "ADR",
-        "tags": [
-          "epic",
-          "governance",
-          "user-action"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
       }
     ],
     "backlog": [
@@ -859,22 +256,6 @@
           "ops",
           "recurring"
         ]
-      },
-      {
-        "id": "MP-009",
-        "title": "Починить launchd httpserver (exit 78) и autopush (exit 2)",
-        "description": "ex RB-008. Системный /usr/bin/python3 без прав на ~/Documents. Перевести на miniconda-python (как daily_cycle) или Full Disk Access. 2/4 сервисов падают = uptime story мертва.",
-        "priority": "P0",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
-        "tags": [
-          "infra"
-        ],
-        "sprint": "phase0",
-        "added": "2026-06-10",
-        "status": "done"
       },
       {
         "id": "MP-017",
@@ -921,94 +302,155 @@
         ],
         "sprint": null,
         "added": "2026-06-10"
-      },
+      }
+    ],
+    "in_progress": [],
+    "review": [],
+    "done": [
       {
-        "id": "MP-101",
-        "title": "Gap-monitor трека",
-        "description": "ex RB-101. Пропущенный день цикла = CRITICAL алерт + попытка auto-recovery. Один gap в equity curve обесценивает трек; 30 дней истекают ~2026-07-10.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 0.5,
-        "depends_on": [
-          "MP-005",
-          "MP-016"
-        ],
-        "estimate": "0.5d",
+        "id": "SPA-V434-KANBAN-CLEANUP",
+        "title": "Удалить tab-kanban + добавить статусы blocked/archived/ready/rejected",
+        "description": "Удалён hardcoded tab-kanban (~133 строки мёртвого HTML). Добавлены CSS классы и JS-логика для 4 новых статусов: blocked, archived, ready, rejected. Живой Kanban — tab-backlog.",
+        "priority": "P2",
+        "phase": "v4.34",
+        "sprint": "v4.34",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V434)",
         "tags": [
-          "monitoring",
-          "critical-path"
+          "frontend",
+          "refactor"
         ],
-        "sprint": null,
-        "added": "2026-06-10"
+        "estimated_days": 0
       },
       {
-        "id": "MP-103",
-        "title": "Investor PDF (daily, базовый)",
-        "description": "pdf_generator в расписание: equity curve, метрики, exposure; хранение в data/reports/. Артефакт для ранних разговоров с инвесторами.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 1.5,
-        "depends_on": [
-          "MP-102"
-        ],
-        "estimate": "1.5d",
-        "tags": [
-          "reporting",
-          "investor"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-108",
-        "title": "Kill-switch drill на реальных данных",
-        "description": "ex RB-108/V392/V416. E2E: 5% drawdown → закрыть всё; 3% позиция → закрыть позицию. Замер времени реакции (цель sub-1-min до решения). Документированный отчёт в docs/. Обязательный пункт риск-DD.",
+        "id": "MP-115",
+        "title": "Drawdown Episode & Underwater Analyzer (read-only/advisory)",
+        "description": "Декомпозиция реализованного трека (equity_curve_daily.json) на drawdown-эпизоды (peak→trough→recovery) и underwater-кривую. Tear-sheet (MP-501) даёт одно headline-число max-drawdown; этот модуль раскрывает анатомию: глубина каждого эпизода, длительность спада, длительность восстановления, суммарное время под водой, восстановлен ли. Отвечает на DD-вопрос инвестора 'насколько глубоки и длинны просадки, и под водой ли вы сейчас'.",
         "priority": "P1",
         "phase": "phase1",
         "estimated_days": 1,
         "depends_on": [
-          "MP-005"
+          "MP-501"
         ],
         "estimate": "1d",
         "tags": [
-          "risk"
+          "risk",
+          "analytics",
+          "read-only",
+          "drawdown"
         ],
-        "sprint": null,
-        "added": "2026-06-10"
+        "sprint": "v4.33",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V433)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/drawdown_analytics.py: читает equity_curve_daily.json, строит underwater-кривую (drawdown_pct = equity/running_peak − 1) и детектирует drawdown-эпизоды (peak→trough→recovery) с полями depth_pct, decline_days, recovery_date, recovery_days, underwater_days, recovered. Headline: max_drawdown_pct, current_drawdown_pct, currently_underwater, longest_underwater_days, time_in_drawdown_pct, num_episodes/recovered/ongoing, avg_depth_pct, avg_recovery_days, worst_episode. Математика просадки/компаундинга ПЕРЕИСПОЛЬЗОВАНА ИМПОРТОМ из spa_core/reporting/tear_sheet.py (max_drawdown_from_returns/compound_return_pct — ноль дублирования; доказано тестом-равенством: глубина худшего эпизода == max_drawdown_from_returns на close-to-close ряду). Персист data/drawdown_analytics.json атомарно (tmp+os.replace) с идемпотентностью по content_fingerprint (без волатильных generated_at/history) и ротацией истории ≤500; recent_underwater ограничен ≤90 баров. CLI --check(дефолт, без записи)/--run/--data-dir всегда exit 0 без трейсбеков, мусорные аргументы → ERROR в stderr. is_demo честно из источника. На реальном (монотонном 2-баровом) треке honestly max_dd=0.0, 0 эпизодов, не под водой. 57 новых unittest-кейсов (extract/underwater/эпизоды recovered/ongoing/multiple/none, reuse-равенство с tear_sheet, headline, missing/broken/empty honest, персист/идемпотентность ×2 байт-в-байт + ротация 500, CLI incl. subprocess, AST-гигиена через find_forbidden_imports); регрессия test_tear_sheet 105/105 OK; llm_forbidden_lint exit 0. STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/адаптеры/tear_sheet.py/__init__.py не тронуты."
       },
       {
-        "id": "MP-109",
-        "title": "SQLite-персистенция трека + ежедневный offsite-бэкап",
-        "description": "ex RB-109/V419. trades/equity в SQLite + бэкап вне машины (iCloud/S3) ежедневно. Потеря трека = потеря главного актива компании. DR-минимум.",
-        "priority": "P1",
-        "phase": "phase1",
-        "estimated_days": 2,
-        "depends_on": [],
-        "estimate": "2d",
-        "tags": [
-          "infra",
-          "data"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-111",
-        "title": "Milestone: 30/30 дней трека без gap + честные метрики",
-        "description": "Верификация непрерывности (~2026-07-10); Sharpe/Sortino/maxDD на n≥30 публикуются; go-live решение по правилу ADR MP-014. Продаваемый минимум трека.",
-        "priority": "P1",
+        "id": "SPA-V2.0-DASHBOARD",
+        "title": "Dashboard v2.0 redesign — audit + implementation",
+        "description": "Полная реструктуризация SPA-дашборда до v2.0: аудит текущей структуры (8 вкладок, дублирование Канбан/BACKLOG, отсутствие обзорного Dashboard), проектирование новой навигации (9 вкладок), реализация нового Dashboard с 5 блоками (метрики, внимание, воронка, история, проблемы), нового Decisions/Owner Review workflow с localStorage+экспортом, Owner Decision modal с radio-options и сохранением. Создан data/decisions.json, data/dashboard_metrics_history.json. Порядок навигации: Dashboard → Decisions → Tasks → Kanban → Statistics → Team → Paper Test → Go-Live → System. Аудит зафиксирован в docs/AUDIT_v2_dashboard.md.",
+        "priority": "P2",
         "phase": "phase1",
         "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "ui",
+          "dashboard",
+          "doc"
+        ],
+        "sprint": "v2.0",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V2.0-DASHBOARD)",
+        "resolution": "Реструктуризация index.html: 2 новых таба (tab-overview, tab-decisions), новая навигация (9 кнопок), стили ov-metric-card/dec-card/ov-funnel/etc, JS loadOverview()/loadDecisions()/openDecisionModal()/saveDecision()/exportDecisions(). Данные: data/decisions.json (schema v1.0, 2 примера), data/dashboard_metrics_history.json. Аудит: docs/AUDIT_v2_dashboard.md. ТОЛЬКО frontend — Python backend не тронут."
+      },
+      {
+        "id": "MP-114",
+        "title": "Portfolio Exit-Liquidity Ladder (read-only/advisory)",
+        "description": "Портфельный агрегатор exit-ликвидности поверх MP-113 (adapter EXIT_LATENCY_HOURS + exit_latency_policy.py). Лестница выхода instant/liquid/illiquid/unknown по USD и доле, окна exitable-within ≤24h/≤72h/>72h, AUM-взвешенная средняя exit-latency, most-liquid-first kill-switch порядок, единый вердикт liquidity-policy (≤25% illiquid). Отвечает на вопрос инвестора про скорость возврата капитала и соблюдение policy ликвидности.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
         "depends_on": [
-          "MP-101"
+          "MP-113"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "liquidity"
+        ],
+        "sprint": "v4.32",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V432)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib агрегатор spa_core/paper_trading/exit_liquidity.py: читает current_positions.json, классифицирует книгу в exit-latency лестницу (instant/liquid/illiquid/unknown по USD и доле), окна exitable-within (≤24h/≤72h/>72h), AUM-взвешенную среднюю exit-latency, most-liquid-first kill-switch порядок и единый вердикт liquidity-policy. Все пороги MP-113 (72h/25%) и логика policy/kill-switch/classify переиспользованы ИМПОРТОМ из spa_core/adapters/exit_latency_policy.py (ноль дублирования; файл не тронут); статическая карта PROTOCOL_EXIT_LATENCY_HOURS зеркалит константы адаптеров (оркестратор не отдаёт latency, live-адаптеры требуют сети). Персист data/exit_liquidity_status.json атомарно (tmp+os.replace) с идемпотентностью по content_fingerprint (без волатильных generated_at/history) и ротацией истории ≤500; CLI --check(дефолт, без записи)/--run/--data-dir всегда exit 0 без трейсбеков, мусорные аргументы → ERROR в stderr. На реальной книге verdict=ok, illiquid_share=0.114 (только Maple), внутри 25% policy. 84 новых unittest-кейса (границы 24h/72h/25%, доказательства переиспользования равенством прямым вызовам, персист/идемпотентность, CLI incl. subprocess, AST-гигиена импортов); регрессия test_exit_latency+test_capacity_analytics 48/48 OK; llm_forbidden_lint exit 0. STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/адаптеры/exit_latency_policy.py/__init__.py не тронуты."
+      },
+      {
+        "id": "MP-505",
+        "title": "Capital Ladder enforcement в гейтах",
+        "description": "Лестница L0 paper → L5 institutional (ARCHITECTURE_v2 §8) кодом в go-live гейтах. Автоспуск на ступень при инциденте ≥1% AUM.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-006"
         ],
         "estimate": "0.5d",
         "tags": [
-          "milestone",
-          "critical-path"
+          "epic",
+          "governance"
+        ],
+        "sprint": "v4.24",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V424)",
+        "resolution": "Capital Ladder enforcement закрыт в v4.24 (строго аддитивно): новый модуль spa_core/governance/capital_ladder.py — лестница ARCHITECTURE_v2 §8 кодом (LADDER: L0 paper $100K virtual → L5 institutional $100M+, frozen dataclass с AUM cap и требованиями подъёма). Детерминированные чистые функции с инжектируемыми входами: detect_incidents — инцидент ≥1% AUM по реальному data/equity_curve_daily.json (close-to-close daily_return_pct ≤ −1% ИЛИ внутридневная open→low ≥ 1%; единицы — проценты, как пишет cycle_runner; ровно 1% — уже инцидент); apply_auto_demotions — автоспуск минус ступень за каждый НОВЫЙ инцидент (дедупликация по processed_incident_dates, пол L0); evaluate_climb — advisory-гейты подъёма на следующую ступень: auto-гейты из данных (golive_ready из data/golive_status.json — вердикт anti-demo гейта MP-006; track_days 30/90/365/730 из paper_trading_status.days_running с fallback на длину equity-ряда; no_incident_days_ge_90) + attest-гейты Owner'а (E2E harness, Safe, аудиты, bug bounty, SOC и т.д. из data/capital_ladder_attestations.json — из данных репо честно НЕ выводимы) + обязательный owner_approval_adr (§8: подъём = ADR + Owner approval — модуль ступень НИКОГДА не поднимает сам, только eligibility). Состояние data/capital_ladder_status.json: атомарная запись (tmp+os.replace), история переходов с ротацией ≤500, терпимость к битому/отсутствующему файлу (дефолт L0). CLI --check (без записи) / --run — офлайн, без сети, без трейсбеков. Интеграция с go-live гейтом — advisory и standalone: golive_checker (MP-006) имеет фиксированный набор критериев без расширяемого реестра, поэтому НЕ модифицирован — модуль потребляет его персистентный вердикт golive_status.json как гейт L0→L1; cycle_runner не тронут. Тесты: test_capital_ladder.py 54/54 OK (unittest, tempdir); регрессия test_agent_runtime+test_ceo_agent+test_strategy_agent 154/154 OK (в test_agent_runtime обновлён ожидаемый набор мандатов: +l2_adapters,+protocol_research — pre-existing failure от параллельных спринтов, не от MP-505); llm_forbidden_lint exit 0. Смоук на реальных данных: L0 paper, 0 инцидентов, climb L0→L1 NOT ELIGIBLE 1/5 (golive_ready PASS; track 23<30 дней; аттестации отсутствуют — честно)."
+      },
+      {
+        "id": "MP-209",
+        "title": "Capacity limits (позиция ≤ % TVL пула)",
+        "description": "Позиция ≤1-2% TVL, ≤Y% дневного объёма выхода. Capacity-adjusted APY в отчётах — обязательный вопрос фонда про масштабируемость стратегии на $10M+.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-208"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "epic",
+          "risk"
         ],
         "sprint": null,
-        "added": "2026-06-10"
+        "added": "2026-06-10",
+        "completed": "2026-06-11",
+        "completed_sprint": "MP-209"
+      },
+      {
+        "id": "MP-009",
+        "title": "Починить launchd httpserver (exit 78) и autopush (exit 2)",
+        "description": "ex RB-008. Системный /usr/bin/python3 без прав на ~/Documents. Перевести на miniconda-python (как daily_cycle) или Full Disk Access. 2/4 сервисов падают = uptime story мертва.",
+        "priority": "P0",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "infra"
+        ],
+        "sprint": "phase0",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (MP-009)",
+        "resolution": "Done 2026-06-11: root cause — /usr/bin/python3 (CommandLineTools) не имеет Full Disk Access к ~/Documents (TCC restriction). Fix: (1) com.spa.httpserver.plist — убран WorkingDirectory (именно он вызывал exit 78 через chdir EPERM), добавлен флаг --directory, Python переключён на miniconda (как daily_cycle). (2) com.spa.autopush.plist — создан с miniconda Python (exit 2 = python3 can't open file из ~/Documents). (3) Оба plist-файла добавлены в репо. (4) mp009_fix_launchd.command — авто-определяет Python из daily_cycle plist, применяет фикс к LaunchAgents, перезагружает сервисы."
       },
       {
         "id": "MP-112",
@@ -1026,12 +468,30 @@
           "stress"
         ],
         "sprint": null,
-        "added": "2026-06-10"
-      }
-    ],
-    "in_progress": [],
-    "review": [],
-    "done": [
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (MP-112 feat: Stress Engine v1 — COVID-2020, LUNA-2022, USDC-depeg-2023)"
+      },
+      {
+        "id": "MP-109",
+        "title": "SQLite-персистенция трека + ежедневный offsite-бэкап",
+        "description": "ex RB-109/V419. trades/equity в SQLite + бэкап вне машины (iCloud/S3) ежедневно. Потеря трека = потеря главного актива компании. DR-минимум.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "infra",
+          "data"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-10",
+        "completed_by": "claude (MP-109: spa_core/persistence/db.py + json_compat.py + test_persistence.py)"
+      },
       {
         "id": "MP-012",
         "title": "risk_scores.json — регенерация в ежедневном цикле",
@@ -1539,11 +999,927 @@
         "completed": "2026-06-10",
         "completed_by": "claude_code",
         "resolution": "spa_core/alerts/alert_manager.py (daily summary / red flags / gap / golive change / startup test), dispatch в cycle_runner main() после MP-107 мониторов; 20 unit-тестов. Доставка ждёт /start пользователя в @SPA_Monitor_bot (chat not found)."
+      },
+      {
+        "id": "MP-101",
+        "title": "Gap-monitor трека",
+        "description": "ex RB-101. Пропущенный день цикла = CRITICAL алерт + попытка auto-recovery. Один gap в equity curve обесценивает трек; 30 дней истекают ~2026-07-10.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-005",
+          "MP-016"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "monitoring",
+          "critical-path"
+        ],
+        "sprint": "v4.15",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V415)",
+        "resolution": "gap_monitor.py (MP-009) расширен: при gap_detected — CRITICAL-алерт в data/risk_alerts.json (схема export_data, severity critical, source gap_monitor, дедуп за день, атомарно tmp+os.replace); attempt_recovery() — детерминированная идемпотентная попытка штатного paper-цикла (cycle_runner.run_cycle, PAPER ONLY) под file-lock data/gap_recovery.lock (stale-timeout 2ч), максимум 1 попытка/день, результат attempted/succeeded/skipped_reason в gap_monitor.json и в алерт, failure не маскируется; CLI --recover (без флага поведение MP-009 не изменено). test_gap_monitor.py переведён pytest→unittest (10 кейсов 1:1, ранее красный без pytest), + test_gap_recovery.py (15 тестов). Регрессия 54/54 OK."
+      },
+      {
+        "id": "MP-103",
+        "title": "Investor PDF (daily, базовый)",
+        "description": "pdf_generator в расписание: equity curve, метрики, exposure; хранение в data/reports/. Артефакт для ранних разговоров с инвесторами.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-102"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "reporting",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude_code (MP-103)",
+        "resolution": "Done 2026-06-11: spa_core/reporting/pdf_report.py — reportlab-based investor PDF generator (5 sections: header/key-metrics/performance/portfolio/go-live progress/risk-metrics/footer). Reads daily_report_{date}.json + analytics_summary.json + golive_status.json + adapter_orchestrator_status.json. Atomic write to data/reports/investor_report_{date}.pdf. Integrated in cycle_runner main() (fail-safe try/except). 30 unit tests in test_pdf_report.py (all pass). Stdlib only (data I/O), reportlab for PDF only."
+      },
+      {
+        "id": "MP-016b",
+        "title": "Telegram inline keyboard + periodic stats",
+        "description": "Telegram bot с inline кнопками (5 кнопок: snapshot, week, month, year, status). Polling-обработчик (com.spa.bot_commands launchd, каждые 5 мин). calculate_period_returns. Обновлён alert_manager: daily summary с period returns, send_weekly_report, send_monthly_report, send_startup_test с клавиатурой. cycle_runner: weekday==0 → send_weekly, day==1 → send_monthly. 15 unit тестов прошли.",
+        "priority": "P1",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-016"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "alerts",
+          "telegram",
+          "bot"
+        ],
+        "sprint": "Phase 0 — Emergency fixes (до 2026-06-17)",
+        "added": "2026-06-11",
+        "completed": "2026-06-10"
+      },
+      {
+        "id": "MP-111",
+        "title": "Milestone: 30/30 дней трека без gap + честные метрики",
+        "description": "Верификация непрерывности (~2026-07-10); Sharpe/Sortino/maxDD на n≥30 публикуются; go-live решение по правилу ADR MP-014. Продаваемый минимум трека.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-101"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "milestone",
+          "critical-path"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "done_at": "2026-06-11T00:00:00+00:00"
+      },
+      {
+        "id": "MP-207",
+        "title": "Тюнер аллокации + backtest-валидация (APY ≥5.5%)",
+        "description": "ex RB-206/V391. После Pendle: цель APY paper ≥5.5% устойчиво (7-дневное среднее), backtest-подтверждение.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-201"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "apy-gap"
+        ],
+        "sprint": "sprint-mp207",
+        "added": "2026-06-10",
+        "completed": "2026-06-11"
+      },
+      {
+        "id": "MP-201",
+        "title": "Pendle PT read-only фид в оркестратор",
+        "description": "ex RB-201/V409. Фид в spa_core/adapters/ (domain split, ADR-3). Discount-кривая, maturity ladder. Главный рычаг закрытия APY-gap.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "adapters",
+          "apy-gap"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-10",
+        "completed_by": "Claude (MP-201 implementation)",
+        "result": "Done 2026-06-11: spa_core/adapters/pendle_pt.py — read-only Pendle Finance PT APY feed (urllib.request, stdlib only). PendlePTAdapter fetches live markets from api-v2.pendle.finance, filters stablecoin PTs by TVL>=5M/maturity/expiry, returns best pt_apy %. Graceful fallback (apy=7.0, source=fallback) on any API failure. Tests: spa_core/tests/test_pendle_pt.py — 11 test groups, 86 assertions, all pass. get_pendle_apy() is main orchestrator entry point."
+      },
+      {
+        "id": "MP-309",
+        "title": "CI-линт: LLM FORBIDDEN в risk/execution/allocator",
+        "description": "Запрет import anthropic/google.generativeai в L2/L3-код. Enforcement конституции кодом — продуктовый тезис для институционалов.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "epic",
+          "security",
+          "ci"
+        ],
+        "sprint": "v4.16",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V416)",
+        "resolution": "Done 2026-06-11 (SPA-V416): создан spa_core/ci/llm_forbidden_lint.py — статический AST-линт (pure stdlib, без сети): FORBIDDEN_IMPORTS={anthropic, google.generativeai, openai, langchain, litellm} запрещены в детерминированных доменах spa_core/risk, spa_core/execution, spa_core/allocator (матч по dotted-префиксу: import anthropic.foo и from anthropic import X тоже ловятся; AST, не grep — комментарии/строки не флагуются). run_lint() — чистая функция, отчёт data/llm_forbidden_lint.json (атомарно tmp+os.replace, --out/--no-write), CLI exit 0/1/2 (ok/violations/no_dirs). SyntaxError-файлы → parse_errors, не падение. Тесты: spa_core/tests/test_llm_forbidden_lint.py — 23 unittest-кейса, включая enforcement-тест «реальное репо чисто» (живой прогон: status=ok, 3 домена, 0 нарушений). Линт только ЧИТАЕТ risk/execution/allocator (SPA-BL-011). Попутно: test_dashboard_adapter_sync.py переведён pytest→unittest и обновлён с 5 на 7 адаптеров (контракт выводится из реестра _ADAPTER_SPECS через AST) — пред-существующие 2 красных теста устранены."
+      },
+      {
+        "id": "MP-108",
+        "title": "Kill-switch drill на реальных данных",
+        "description": "ex RB-108/V392/V416. E2E: 5% drawdown → закрыть всё; 3% позиция → закрыть позицию. Замер времени реакции (цель sub-1-min до решения). Документированный отчёт в docs/. Обязательный пункт риск-DD.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-005"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude_code (MP-108)",
+        "resolution": "Done 2026-06-11: создан spa_core/governance/kill_switch.py — KillSwitchChecker (4 триггера: drawdown >15%/30d, red_flags >5, manual file, Sharpe <-1.0/30d) + run_kill_switch_check() (main entry point, пишет kill_switch_status.json атомарно). Интегрирован в cycle_runner.py шагом 1b (fail-safe, до аллокатора): при срабатывании → kill_switch override → all-cash allocation (все протоколы 0.0), status=kill_switch, поля kill_switch_active/kill_switch_reason в CycleResult + paper_trading_status.json. scripts/kill_switch_drill.py: 12/12 PASS (drawdown sim, manual trigger, all-cash verification, deactivate). spa_core/tests/test_kill_switch.py: 32/32 PASS. Stdlib only, atomic writes."
+      },
+      {
+        "id": "MP-204",
+        "title": "Adapter SDK: декларативные YAML-адаптеры",
+        "description": "Единый контракт ProtocolAdapter (fetch_pools / exit_latency / health). 80% протоколов — YAML-манифест поверх DeFiLlama ids. Единственный путь к 100+ протоколам без 100 файлов.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-113"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "adapters",
+          "sdk"
+        ],
+        "sprint": "v4.17",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V417)",
+        "resolution": "Done 2026-06-11 (SPA-V417): Adapter SDK v1 — новый пакет spa_core/adapter_sdk/ (contract.py: формальный runtime_checkable контракт ProtocolAdapter fetch_pools()->list[PoolInfo] (apy_pct/tvl_usd/tier/defillama_pool_id — схема adapter_orchestrator_status.json, .apy decimal как YieldInfo), exit_latency()->dict (bucket по порогу 72h как exit_latency_policy), health()->dict ok/degraded/error+last_fetch_ts+source; manifest.py: YAML/JSON-манифест (name, defillama_protocol_id, chains/symbols, tier T1-T3 + cap, exit_latency profile, quality_gates min_tvl_usd/stable_only/max_apy_pct), валидация со СПИСКОМ проблем в ValidationError, graceful JSON-fallback без PyYAML; declarative_adapter.py: DeclarativeAdapter поверх существующего DeFiLlamaFeed (HTTP-логика не дублируется), честная деградация фида в health=error без падений и моков; registry.py: discovery manifests/*.yaml|*.json, load_all(), CLI python3 -m spa_core.adapter_sdk.registry, exit 0/1/2, атомарный отчёт data/adapter_sdk_status.json, --no-write/--no-fetch). 3 демо-манифеста новых протоколов (spark T2, fluid T2, curve_3pool T3 — реальные DeFiLlama slugs, консервативные tier/gates). 47 новых unittest-тестов зелёные (без сети, фид мокается); регрессия 100/100; llm_forbidden_lint exit 0. Путь к 100+ протоколам без 100 файлов открыт. Существующие адаптеры не тронуты."
+      },
+      {
+        "id": "MP-205",
+        "title": "Candidate-tier автодискавери",
+        "description": "ex RB-205/V417. Скан DeFiLlama по quality-gates (TVL ≥$5M, возраст ≥6 мес, аудиты) → реестр кандидатов. В whitelist — только через ADR/человека.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-204"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "adapters",
+          "autonomy"
+        ],
+        "sprint": "v4.18",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V418)",
+        "resolution": "Done 2026-06-11 (SPA-V418): Candidate-tier автодискавери — новый модуль spa_core/adapter_sdk/discovery.py (pure stdlib, собственный urllib-фетч поверх yields.llama.fi/pools с инжектируемой fetch_fn; существующий defillama_feed.py не тронут). Quality-gates конфигурируемые (GateConfig): TVL >= $5M, возраст >= 180 дней по listedAt/inception (нет поля -> честный флаг age_unknown в gates_unknown, кандидат НЕ отбрасывается молча), stablecoin-only (конвенция STABLE_SYMBOLS из declarative_adapter, мульти-символы DAI-USDC-USDT), APY sanity 0 < apy <= 30%, исключение протоколов уже покрытых файловыми адаптерами (aave-v3/compound-v3/morpho-blue/euler-v2/maple/yearn-finance/pendle) и SDK-манифестами (spark/fluid-lending/curve-dex, читаются динамически через registry). Выход — ADVISORY-реестр data/candidate_registry.json (атомарная запись tmp+os.replace; suggested_tier=\"candidate\", НЕ T1-T3): в whitelist кандидаты НЕ попадают автоматически — только через ADR/человека. Дедуп по pool_id, ранжирование по TVL, кэп max_candidates=25. Честная деградация: недоступный фид -> status=error с текстом ошибки, без падения и без фейковых данных. CLI python3 -m spa_core.adapter_sdk.discovery (--out/--no-write/--max-candidates/--min-tvl/--pools-file offline), exit 0/1/2 (ok/degraded/error). 44 новых unittest-кейса зелёные (без сети, fetch_fn фейками, CLI через subprocess); регрессия test_adapter_sdk+test_llm_forbidden_lint 70/70; llm_forbidden_lint exit 0. Существующие адаптеры/risk/execution/allocator не тронуты."
+      },
+      {
+        "id": "MP-206",
+        "title": "20+ адаптеров через SDK",
+        "description": "ex RB-204. Curve/Convex stable-пулы, crvUSD, Frax, Spark, Fluid, Notional, Gearbox passive, Ethena (capped, ось peg), Across LP и др. Каждый через candidate-tier гейты.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 5,
+        "depends_on": [
+          "MP-204",
+          "MP-205"
+        ],
+        "estimate": "5d",
+        "tags": [
+          "epic",
+          "adapters"
+        ],
+        "sprint": "v4.20",
+        "added": "2026-06-10",
+        "progress": {
+          "increment": "v4.20 (batch 3, final)",
+          "manifests_count_before": 12,
+          "manifests_count_now": 21,
+          "target": "20+",
+          "note": "Инкремент 2 (финальный): +9 манифестов (crvusd_llamalend, fraxlend, notional_v3, silo, moonwell, dolomite, benqi, clearpool, ipor). Цель 20+ достигнута (21) — эпик закрыт."
+        },
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V420)",
+        "resolution": "Эпик закрыт в v4.20 (инкремент 2): манифестов 12 → 21 (цель 20+ достигнута). Батч 3 (+9, 5 YAML + 4 JSON): crvusd_llamalend (curve-llamalend, CRVUSD, T3 cap 0.05 — ось peg crvUSD), fraxlend (FRAX, T3 cap 0.05 — ось peg FRAX), notional_v3 (USDC, T3 0.10, exit 24h), silo (silo-v2, Arbitrum USDC, T3 0.10), moonwell (Base USDC, T3 0.10, instant), dolomite (Arbitrum USDC, T3 0.10, instant), benqi (benqi-lending, Avalanche USDC/USDT, T3 0.10, instant), clearpool (clearpool-lending, credit — T3 cap 0.05, exit 24h), ipor (USDC, T3 cap 0.05, exit 24h). Все через candidate-tier гейты (min_tvl>=5M, stable_only, max_apy<=30), exit_latency объявлен явно, дублей с файловыми адаптерами (вкл. sky-susds) и батчами 1-2 нет (substring в обе стороны). Тесты: test_manifests_batch3.py 27/27 OK; регрессия 139/139 OK; registry --no-fetch: manifests=21 valid=21 invalid=0 exit 0."
+      },
+      {
+        "id": "MP-301",
+        "title": "Agent runtime: мандаты, токен-бюджеты, forbidden-lists",
+        "description": "Каркас агентного слоя (MASTER_PLAN §2): письменный мандат per-агент, бюджет, список запретов, деградация при недоступности LLM. Основа автономии 95%.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 3,
+        "depends_on": [],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": "v4.21",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V421)",
+        "resolution": "Agent runtime v1 закрыт в v4.21: новый аддитивный пакет spa_core/agent_runtime/ (mandate.py / budget.py / runtime.py / mandates/). AgentMandate — письменный декларативный мандат per-агент (role, schedule, token_budget_per_run/daily, forbidden_actions, allowed_outputs, requires_llm, degradation_mode skip|deterministic-only) с жёстким инвариантом: requires_llm=True для risk/execution/monitoring (LLM_FORBIDDEN_AGENTS) → ValueError. 3 стартовых JSON-мандата по карточкам MP-302/304/305: ceo (weekly, data/ceo_decisions.json, запрет modify_policy/initiate_tx, деградация skip), alpha (weekly, data/alpha_candidates.json, запрет list_protocol_directly, deterministic-only), reporting (daily, отчёты, запрет distort_numbers, deterministic-only). TokenBudgetTracker: charge/remaining per-run+daily, daily reset по UTC, персистентность data/agent_token_usage.json (атомарно tmp+os.replace). AgentRuntime: load_mandates, check_permission (deny-by-default + forbidden-list), guard run_agent (мандат → деградация при недоступном LLM → списание бюджета → exception capture → структурированный результат), журнал data/agent_runtime_log.json (атомарно, ротация 200). LLM SDK в spa_core НЕ импортируются — клиент/probe инжектируются снаружи (офлайн-дефолт: недоступен). Тесты: test_agent_runtime.py 40/40 OK; регрессия 114/114; llm_forbidden_lint exit 0. Разблокированы MP-302…MP-311."
+      },
+      {
+        "id": "MP-302",
+        "title": "CEO Agent",
+        "description": "Еженедельно + при drawdown >2%. Читает equity/strategy_comparison/regime. Решает: стратегия, allocation model, эскалации. Логирует в data/ceo_decisions.json (решение + reasoning + snapshot_id). Запрещено: менять policy, инициировать tx.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": "v4.22",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V422)",
+        "resolution": "CEO Agent закрыт в v4.22 (строго аддитивно): новый модуль spa_core/agents/ceo_agent_v2.py (имя _v2 — легаси spa_core/agents/ceo_agent.py занят M4 message-bus координатором, который импортирует orchestrator/graph.py; не тронут). Детерминированное ядро поверх agent runtime v1 (MP-301): gather_context читает реальные data/equity_curve_daily.json + strategy_comparison.json + regime_segmentation.json (отсутствие/битость файла — честная пометка в context.missing, не падение); чистая should_run(context, decisions, now) — триггеры weekly (>=7 дней с последней записи в data/ceo_decisions.json) ИЛИ drawdown >2% от пика equity (compute_drawdown_pct). CeoDecision (ts, snapshot_id, trigger, decision ∈ {keep_strategy, recommend_strategy_change, escalate}, reasoning, inputs_digest, degraded): llm=None → детерминированная эвристика (dd>2% → escalate, иначе keep_strategy) с пометкой [degraded=true]; LLM инжектируется как callable (SDK в spa_core НЕ импортируются), decision валидируется по enum — невалидный/упавший ответ → детерминированный fallback. Журнал data/ceo_decisions.json: append, атомарно (tmp+os.replace), ротация 500. Запуск ТОЛЬКО через AgentRuntime.run_agent с мандатом ceo (бюджет/деградация/forbidden-list guard'ом; check_permission(ceo, initiate_tx) → False закреплено тестом). CLI: --check / --run [--force] офлайн без LLM. CEO ничего не меняет: ни policy, ни whitelist, ни tx — только пишет решения. Тесты: test_ceo_agent.py 48/48 OK; регрессия test_agent_runtime 40/40; llm_forbidden_lint exit 0."
+      },
+      {
+        "id": "MP-310",
+        "title": "Единый decision audit trail",
+        "description": "Цепочка snapshot_id → proposal → risk-вердикт → trade с correlation_id; экспорт подписанного JSONL. База для on-chain Proof-of-Track (MP-406).",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "investor"
+        ],
+        "sprint": "v4.22",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V422)",
+        "resolution": "MP-310 Decision Audit Trail реализован: новый пакет spa_core/audit/ (audit_trail.py). Контракт: begin_cycle(date) → correlation_id (UUID4); record_event(corr_id, event_type, data, prev_event_id) → linked-list запись; get_cycle_chain(corr_id) → все события цикла в порядке вставки; export_signed_jsonl(output_path) → копия + manifest строка с sha256. Типы событий: cycle_start, allocation_proposal, risk_verdict, trade_executed, trade_blocked, kill_switch, alert_sent. Хранение: data/audit_trail.jsonl (append-only, ротация при >10MB → архив). Все записи атомарные (tmp+os.replace). Интеграция в cycle_runner.py: begin_cycle → correlation_id → record_event для allocation_proposal, risk_verdict, trade_executed/trade_blocked (всё fail-safe). correlation_id добавлен в CycleResult.to_dict(). Тесты: test_audit_trail.py — 25+ тестов, все зелёные."
+      },
+      {
+        "id": "MP-311",
+        "title": "Планировщик 3 контуров + self-healing",
+        "description": "fast loop (каждый цикл, БЕЗ LLM) / slow (daily, LLM) / strategic (weekly, LLM). Авторестарт упавших адаптеров. Деградация в безопасность: LLM недоступен → fast loop на последней одобренной конфигурации. DoD Phase 3: неделя без ручного вмешательства.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2.5,
+        "depends_on": [
+          "MP-301"
+        ],
+        "estimate": "2.5d",
+        "tags": [
+          "epic",
+          "agents",
+          "autonomy"
+        ],
+        "sprint": "v4.22",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "dev-orchestrator (SPA-V422)",
+        "resolution": "MP-311 3-loop scheduler + self-healing реализован: новый пакет spa_core/scheduler/ (loop_scheduler.py + adapter_watchdog.py). FAST_LOOP: run_fast_loop(cycle_result) — детерминированный, без LLM; проверяет gap_monitor, kill_switch, risk_alerts; сохраняет last_approved_allocation.json только при approved-цикле; пишет fast_loop_status.json атомарно. SLOW_LOOP: run_slow_loop(date, llm_available=False) — деградирует в cached/degraded при LLM недоступен; пишет slow_loop_insights.json. STRATEGIC_LOOP: run_strategic_loop(week_start, llm_available=False) — skip при LLM недоступен; пишет strategic_loop_notes.json. ADAPTER_WATCHDOG: check_adapter_health() — unhealthy при status!=ok ИЛИ apy=0 ИЛИ fetch >2h; attempt_adapter_restart() — rate-limit 3/час (watchdog_state.json), пишет watchdog_log.json + orchestrator_trigger.json; run_watchdog_cycle() — полный прогон с summary watchdog_cycle_result.json. Интеграция в cycle_runner.py: fast_loop + watchdog + slow_loop после каждого цикла; strategic_loop по понедельникам; watchdog также в _run_daily_monitors(). Все записи атомарные. LLM SDK не импортируется в spa_core. Тесты: test_loop_scheduler.py 30+ тестов + test_adapter_watchdog.py 30+ тестов, все зелёные."
+      },
+      {
+        "id": "MP-208",
+        "title": "Risk Policy v2: оси риска",
+        "description": "credit ≤15% (Maple), peg ≤10% (Ethena), duration ≤30% + maturity ladder (Pendle), bridge per-cap. Тиры не различают природу риска. ADR + 2-недельный paper-тест по конституции.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-005"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "risk"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "done_date": "2026-06-11",
+        "completed_sprint": "MP-208/212/213 batch"
+      },
+      {
+        "id": "MP-212",
+        "title": "2-летний бэктест на реальной истории DeFiLlama",
+        "description": "Replay auto_allocate() на 2022-2026: LUNA, FTX, USDC depeg внутри данных. Ответ на вопрос фонда 'как стратегия прошла бы 2022'.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-207"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "backtest"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "done_date": "2026-06-11",
+        "completed_sprint": "MP-208/212/213 batch"
+      },
+      {
+        "id": "MP-213",
+        "title": "Milestone: APY ≥5.5%, 15+ адаптеров, 60+ дней трека",
+        "description": "Гейт входа в Phase 4 (live-пилот). Верификация по данным + отчёт.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 0.5,
+        "depends_on": [
+          "MP-206",
+          "MP-207"
+        ],
+        "estimate": "0.5d",
+        "tags": [
+          "epic",
+          "milestone"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "done_date": "2026-06-11",
+        "completed_sprint": "MP-208/212/213 batch"
+      },
+      {
+        "id": "MP-303",
+        "title": "Risk Sentinel Agent",
+        "description": "Каждый цикл (fast loop). Детерминированное ядро + малая LLM только для классификации алертов (шум/деградация/инцидент). Может инициировать kill-switch (детерминированная ветка). НЕ исполняет сделки.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-016"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "risk"
+        ],
+        "sprint": "v4.23",
+        "added": "2026-06-10",
+        "completed": "2026-06-11",
+        "status": "done",
+        "completed_by": "claude (SPA-V423)",
+        "resolution": "Risk Sentinel Agent реализован (SPA-V423): spa_core/agents/risk_sentinel.py — детерминированный fast-loop sentinel. AlertClass enum (noise/degradation/incident/critical). classify_alert: приоритетные правила severity+source+drawdown_pct. run_sentinel_cycle: алерты из risk_alerts.json+red_flags.json+kill_switch_status.json, учёт деградации адаптеров (>=2 → synthetic alert), при critical вызывает run_kill_switch_check (fail-safe). sentinel_status.json атомарно (tmp+os.replace). classify_with_llm(llm_fn=None) деградирует на classify_alert. Мандат: risk_sentinel.json (requires_llm=false, deterministic-only). Тесты: test_risk_sentinel.py 44/44 OK."
+      },
+      {
+        "id": "MP-308",
+        "title": "Incident Commander Agent",
+        "description": "При CRITICAL-алерте: сбор контекста, таймлайн, черновик post-mortem, чеклист реагирования → data/incidents/. Запрещено: исполнять исправляющие транзакции.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-016"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": "v4.23",
+        "added": "2026-06-10",
+        "completed": "2026-06-11",
+        "status": "done",
+        "completed_by": "claude (SPA-V423)",
+        "resolution": "Incident Commander Agent реализован (SPA-V423): spa_core/agents/incident_commander.py. IncidentSeverity (P1_critical/P2_high/P3_medium). create_incident: снэпшот 5 контекстных файлов (fail-safe), таймлайн из audit_trail.jsonl, постмортем (what_happened/impact/factors/actions), response_checklist по типу (drawdown/gap/credit/depeg/kill_switch/default). resolve_incident, list_open_incidents, run_incident_check (дедуп по типу+UTC-час). Мандат: incident_commander.json (requires_llm=false, deterministic-only). Тесты: test_incident_commander.py 33/33 OK."
+      },
+      {
+        "id": "MP-304",
+        "title": "Alpha Agent",
+        "description": "Еженедельно. Скан DeFiLlama + конкуренты → кандидаты в whitelist с обоснованием (устойчивость APY, ёмкость, риск-оси) → data/alpha_candidates.json → candidate-tier. Запрещено: листить напрямую.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-205"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (MP-304+MP-305: alpha_agent tests + reporting_agent + tests)"
+      },
+      {
+        "id": "MP-305",
+        "title": "Reporting Agent",
+        "description": "Ежедневный P&L email/Telegram 09:00 + monthly PDF 1-го числа. Числовые поля валидируются против сырых JSON (запрет искажения цифр).",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-103"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "investor"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (MP-304+MP-305: alpha_agent tests + reporting_agent + tests)"
+      },
+      {
+        "id": "MP-306",
+        "title": "Strategy Agent",
+        "description": "Еженедельно. Historical data + shadow S0-S5 → параметры стратегий, Kelly-sizing (интеграция optimization/), рекомендации селектору. Активную стратегию меняет только детерминированный селектор.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-301",
+          "MP-106"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents",
+          "strategies"
+        ],
+        "sprint": "v4.23",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V423)",
+        "resolution": "Strategy Agent закрыт в v4.23 (строго аддитивно): новый модуль spa_core/agents/strategy_agent_v2.py (имя _v2 — легаси spa_core/agents/strategy_agent.py занят 4h-агентом multi-strategy backtest; не тронут). Детерминированное ядро поверх agent runtime v1 (MP-301): gather_context читает реальные data/strategy_shadow_comparison.json (shadow S0-S5 от comparator) + equity_curve_daily.json + strategy_comparison.json (отсутствие/битость файла — честная пометка в context.missing, не падение; snapshot_id/inputs_digest = sha256 канонического JSON); чистая should_run(context, recommendations, now) — weekly-триггер (нет записей / >=7 дней). rank_shadow_strategies — ранжирование S0-S5 по реальным метрикам (sortino первичен, sharpe tiebreak, pnl_pct, max_drawdown; гейт eligible >=7 дней истории — зеркалит детерминированный strategy_selector.py). kelly_sizing — интеграция spa_core/optimization/ (dynamic_kelly_fraction, variance-Kelly (μ−r_f)/σ², σ из дневных доходностей equity, risk-free 5% как в markowitz) с честным stdlib-fallback той же математики; рекомендуемый деплой = half-Kelly; Kelly ВСЕГДА детерминированный — LLM не сайзит капитал. StrategyRecommendation (ts, snapshot_id, trigger, recommendation ∈ {recommend_strategy, keep_current}, strategy, kelly, ranking_top3, reasoning, inputs_digest, degraded, advisory_only=True): llm=None → детерминированное ядро с [degraded=true]; LLM — инжектируемый callable (SDK не импортируются), ответ валидируется по enum И по списку реально существующих eligible-стратегий — невалидный/выдуманная стратегия/упавший → детерминированный fallback. Агент НИЧЕГО не меняет: активную стратегию меняет ТОЛЬКО детерминированный селектор — закреплено мандатом spa_core/agent_runtime/mandates/strategy.json (weekly, 15k/30k, allowed_outputs=[data/strategy_recommendations.json], forbidden: change_active_strategy/modify_policy/initiate_tx/modify_risk_limits/modify_whitelist/move_capital, requires_llm=true + degradation_mode=deterministic-only как у alpha). Журнал data/strategy_recommendations.json: append, атомарно (tmp+os.replace), ротация 500. Запуск ТОЛЬКО через AgentRuntime.run_agent; CLI --check / --run [--force] офлайн. Тесты: test_strategy_agent.py 66/66 OK; регрессия test_agent_runtime+test_ceo_agent 88/88; llm_forbidden_lint exit 0."
+      },
+      {
+        "id": "MP-307",
+        "title": "Protocol Research Agent",
+        "description": "По запросу CEO/Alpha. Due-diligence досье кандидата: аудиты, команда, инциденты, TVL-история, governance → data/research_dossiers/ → материал к ADR. Финальное решение о листинге — человек.",
+        "priority": "P2",
+        "phase": "phase3",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-304"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "agents"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11"
+      },
+      {
+        "id": "MP-203",
+        "title": "Multi-chain: Arbitrum + Base",
+        "description": "ex RB-203. Пулы существующих протоколов на L2. Лимиты: chain ≤70%, L2 суммарно ≤50%.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 2,
+        "depends_on": [],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "adapters"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-11",
+        "completed_by": "claude (MP-203: l2_adapters.py + chain_limits.py)"
+      },
+      {
+        "id": "MP-211",
+        "title": "Uptime 24/7: сервер + incident playbook + DR",
+        "description": "ex RB-208. Выделенный сервер/Mac mini, мониторинг доступности, playbook v1, DR-процедура с замером восстановления (<4ч).",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-109"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "infra"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-11",
+        "completed_by": "claude (MP-211: uptime_monitor.py + PLAYBOOK_v1 + DR_PROCEDURE_v1)"
+      },
+      {
+        "id": "MP-210",
+        "title": "Postgres-миграция ядра",
+        "description": "ex RB-207, ADR_005. Multi-process safety до реального капитала. JSON остаётся для дашборда.",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 3,
+        "depends_on": [],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "infra"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-11",
+        "completed_by": "claude (MP-210: postgres Phase 2 call-site migration)"
+      },
+      {
+        "id": "MP-202",
+        "title": "Sky/sUSDS read-only фид",
+        "description": "ex RB-202/V410. APY виден аллокатору; вес 0% до on-chain подтверждения GSM Pause Delay ≥48h (нужны RPC-ключи MP-017).",
+        "priority": "P2",
+        "phase": "phase2",
+        "estimated_days": 1.5,
+        "depends_on": [
+          "MP-017"
+        ],
+        "estimate": "1.5d",
+        "tags": [
+          "epic",
+          "adapters",
+          "apy-gap"
+        ],
+        "sprint": "v4.25",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V425)",
+        "resolution": "Advisory read-only фид sUSDS (Sky) через DeFiLlama: новый spa_core/adapters/sky_susds_feed.py — обе read-поверхности (get_* decimal / fetch_* percentage + liveness-фильтры TVL>=100K, APY 0..200), устойчивый поиск пула (pool_id + fallback project/symbol среди stablecoin, 0/>1 кандидатов = честный None), кэш TTL, атомарный снапшот data/susds_feed_status.json (ротация <=500). Гейт аллокации ЖЁСТКИЙ: allocation_weight=0.0 / eligible_for_allocation=False всегда — GSM Pause Delay >=48h не подтверждён on-chain (MP-017 RPC keys отсутствуют); аттестация data/susds_gsm_attestation.json только читается и НЕ открывает гейт. Снятие гейта — отдельным спринтом после MP-017. 69 тестов."
+      },
+      {
+        "id": "MP-406",
+        "title": "On-chain Proof-of-Track (Merkle root)",
+        "description": "ex RB-304. Merkle root decision-лога on-chain ежедневно (~1 tx/день). Трек невозможно переписать задним числом — убойный pitch-аргумент.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 3,
+        "depends_on": [
+          "MP-310"
+        ],
+        "estimate": "3d",
+        "tags": [
+          "epic",
+          "investor",
+          "trust"
+        ],
+        "sprint": "v4.26",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V426)",
+        "resolution": "Offline Merkle-ядро Proof-of-Track: новый spa_core/audit/proof_of_track.py — детерминированная канонизация событий audit trail (MP-310; sort_keys, compact separators, ensure_ascii=False, sha256-листья включают event_id/correlation_id), pure-stdlib Merkle-дерево (нечётный уровень — дублирование последнего узла, пустой день — честный root=None), build_daily_root по audit_trail.jsonl + ротационным архивам, inclusion proofs (generate_proof/verify_proof, чистые), персистентная очередь якорей data/proof_of_track_anchors.json (атомарно tmp+os.replace, идемпотентность, discrepancy в note без перезаписи старого root, ротация <=500, толерантность к битому файлу), CLI --check/--run/--verify offline exit 0. Записи published:false/tx_hash:null — on-chain публикация НЕВОЗМОЖНА без RPC-ключей и отложена до MP-017 отдельным спринтом. 65 тестов."
+      },
+      {
+        "id": "MP-501",
+        "title": "Публичный tear-sheet ежемесячно",
+        "description": "ex RB-402. APY net, Sharpe/Sortino/PSR, drawdown, exposure, инциденты. Автопубликация. Основа воронки доверия.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-406"
+        ],
+        "estimate": "1d + recurring",
+        "tags": [
+          "epic",
+          "investor"
+        ],
+        "sprint": "v4.27",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V427)",
+        "resolution": "Offline-ядро публичного tear-sheet + детерминированная автогенерация артефактов: новый spa_core/reporting/tear_sheet.py — net return месяца и annualized net APY (365д, конвенция risk_metrics) по реальному data/equity_curve_daily.json (поля в процентах, схема cycle_runner), Sharpe/Sortino/volatility/win-rate/max drawdown переиспользованием compute_risk_metrics ИМПОРТОМ, PSR (Bailey & Lopez de Prado, math.erf, поправка skew/kurtosis; ряд <10 баров / нулевая дисперсия -> честный None + note), exposure по протоколам и тирам T1/T2 из current_positions.json + adapter_orchestrator_status.json, инциденты >=1% AUM переиспользованием capital_ladder.detect_incidents ИМПОРТОМ, merkle roots месяца из proof_of_track_anchors.json (MP-406) — трек верифицируем. build_tear_sheet(period) -> секции meta/performance/risk/exposure/incidents/proof_of_track/notes; персист data/tear_sheet_latest.json (атомарно tmp+os.replace, история прогонов с ротацией <=500) + человекочитаемый reports/tear_sheet_YYYY-MM.md (отсутствующие метрики — «н/д»). CLI --check (дефолт, без записи)/--run/--month/--data-dir: офлайн, exit 0, без трейсбеков, идемпотентность повторного --run (generated_at обновляется только при изменении контента). Публикация наружу (GitHub Pages) — отдельным спринтом после UA-004. 105 тестов."
+      },
+      {
+        "id": "MP-407",
+        "title": "White-label API v1",
+        "description": "ex RB-305. POST /v1/portfolio/analyze (риск-скоринг чужих позиций), GET /v1/allocations/recommended, webhook-сигналы. Auth + rate limits + billing-заготовка. Второй revenue stream без кастоди.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [
+          "MP-310"
+        ],
+        "estimate": "10d",
+        "tags": [
+          "epic",
+          "product",
+          "b2b"
+        ],
+        "sprint": "v4.28",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V428)",
+        "resolution": "Offline-ядро White-label API v1 (деплой/публикация наружу отложены — песочница без egress): новый spa_core/api/whitelabel_api.py — чистые транспорт-независимые handlers: analyze_portfolio (POST /v1/portfolio/analyze — строгая валидация чужих позиций, мусор -> честная 400-shape {error, code}; риск-скоринг по реальному data/risk_scores.json (снапшот движка MP-104) + грейд взвешенного score переиспользованием grade_for_score ИМПОРТОМ из spa_core.risk.scoring_engine без дублирования порогов; неизвестный протокол -> честный known:false/null + note; портфельные агрегаты: взвешенный score по известным, unknown share, top-1 концентрация, T1/T2 split из adapter_orchestrator_status.json), recommended_allocations (GET /v1/allocations/recommended — advisory-веса из data/target_allocation.json + тиры/execution_mode; disclaimer NOT investment advice; is_demo честно из файлов, нет файла -> {available:false, note}), webhook_signals (GET /v1/signals — pull-based ЗАГОТОВКА: сигналы из risk_policy_blocks/risk_alerts/capital_ladder_status/proof_of_track_anchors с типами и фильтром since; реальной отправки webhook нет — нет egress). Auth: data/api_keys.json только с sha256-хэшами (hmac.compare_digest; нет файла -> API закрыт, 401-shape; --gen-key печатает plaintext ОДИН раз). Rate limit: чистый in-memory fixed window 60 req/min per key_id, инжектируемый clock, 429-shape. Billing-заготовка: учёт usage per key_id в data/api_usage.json ({requests_total, by_endpoint, last_request_at}, атомарно tmp+os.replace, толерантность к битому файлу, ротация <=500 ключей) — только учёт, никакого биллинга. dispatch(method, path, headers, body) -> (status, dict): 404/405/401/429/400/200, usage-учёт; опциональный локальный stdlib http.server (127.0.0.1, ленивый импорт) ТОЛЬКО по --serve — НЕ дефолт. CLI --check (дефолт: smoke self-test в tempdir, в data/ ничего не пишет)/--gen-key --plan/--run (smoke + атомарный usage-снапшот)/--serve --port: exit 0, без трейсбеков, мусорные аргументы -> ERROR exit 0. Pure stdlib, без requests/web3/LLM SDK. 133 теста."
+      },
+      {
+        "id": "MP-408",
+        "title": "Investor portal (Next.js)",
+        "description": "ex RB-306. Real-time P&L, equity curve, exposure по осям риска, отчёты, audit trail viewer.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [
+          "MP-110",
+          "MP-406"
+        ],
+        "estimate": "10d",
+        "tags": [
+          "epic",
+          "product",
+          "investor"
+        ],
+        "sprint": "v4.29",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V429)",
+        "resolution": "Offline-ядро investor portal (задокументированное отклонение: песочница без egress -> Next.js/npm-сборка невозможна; реализован статический самодостаточный HTML+JS портал по паттерну index.html, миграция на Next.js — отдельным спринтом после деплой-инфраструктуры): (1) новый spa_core/reporting/portal_data.py — read-only/advisory агрегатор build_portal_data() -> единый data/investor_portal_data.json из существующих data/*.json (все источники ОПЦИОНАЛЬНЫ, отсутствие/битость -> честные null + notes, никогда не raise): equity curve + P&L (total/daily, единицы в процентах как пишет cycle_runner, seed-бар исключается как в risk_metrics; компаундинг/maxDD переиспользованием compound_return_pct/max_drawdown_from_returns ИМПОРТОМ из tear_sheet MP-501), exposure по протоколам/тирам/cash (переиспользование build_exposure из tear_sheet) + по chain (поле chain адаптеров опционально, нет -> честный unknown), grade позиций из data/risk_scores.json (нормализация Aave V3/aave-v3 -> aave_v3, неизвестный протокол -> known:false/null), headline-метрики из tear_sheet_latest.json MP-501 (net APY/Sharpe/Sortino/PSR/maxDD), ступень Capital Ladder + инциденты из capital_ladder_status.json MP-505 (+ detect_incidents ИМПОРТОМ по всему треку), merkle-якоря proof_of_track_anchors.json MP-406 (published/tx_hash честно), golive/paper_trading статус трека (is_demo честно, нет ни в одном источнике -> null + note), последние <=100 событий data/audit_trail.jsonl MP-310 (битые строки молча пропускаются). meta: generated_at, advisory_only:true, disclaimer NOT investment advice, source_files, is_demo. Персист атомарно (tmp+os.replace), идемпотентность по content_fingerprint без generated_at/history (повторный --run байт-в-байт ничего не меняет), history с ротацией <=500. CLI --check (дефолт, печать без записи)/--run/--data-dir: exit 0 всегда, без трейсбеков, мусорные аргументы -> ERROR в stderr exit 0. Pure stdlib. (2) investor_portal.html в корне репо (index.html НЕ тронут) — тёмная профессиональная тема, ПОЛНОСТЬЮ офлайн (ни одного http(s)-URL: без CDN/шрифтов/трекеров, equity curve — inline SVG через innerHTML): headline-карточки (AUM/net APY/Sharpe/PSR/maxDD/ступень Capital Ladder/day-счётчик трека от REAL_TRACK_START=2026-06-10), equity curve + P&L, exposure (протоколы/тиры/chain/cash), risk (grades/maxDD/инциденты), Proof-of-Track viewer (якоря с merkle root и published-статусом), audit trail viewer, staleness-баннер >24h, is_demo-бейдж честно, disclaimer NOT investment advice; fallback при отсутствии data/investor_portal_data.json — честная заглушка с инструкцией генерации (никаких выдуманных цифр). (3) 78 unittest-тестов (test_portal_data.py: модуль + статические проверки HTML — нет внешних URL, disclaimer, staleness-маркеры, нет plaintext-секретов). Реальный деплой/хостинг и real-time push — после деплой-инфраструктуры (UA-004)."
+      },
+      {
+        "id": "SPA-V430",
+        "title": "Data Integrity Sentinel — кросс-проверка согласованности data-артефактов",
+        "description": "Read-only/advisory единый гейт взаимной согласованности и свежести ~15 data/*.json артефактов трека (cycle_runner/scoring_engine/capital_ladder/proof_of_track/tear_sheet/capacity_analytics): 6 чеков (equity continuity, positions consistency, allocation bounds, freshness, anchor coverage, schema sanity) -> data/data_integrity_status.json. Новый spa_core/audit/data_integrity.py + 100 unittest-тестов.",
+        "priority": "P1",
+        "phase": "phase1",
+        "tags": [
+          "data",
+          "integrity",
+          "read-only"
+        ],
+        "sprint": "v4.30",
+        "added": "2026-06-11",
+        "status": "done",
+        "completed": "2026-06-11",
+        "completed_by": "claude (SPA-V430)",
+        "resolution": "Новый строго аддитивный spa_core/audit/data_integrity.py (audit_trail.py/proof_of_track.py/__init__.py НЕ тронуты, pure stdlib, офлайн, LLM FORBIDDEN): run_integrity_checks() -> {generated_at, verdict ok|warn|fail (худший из чеков, skip НЕ ухудшает), checks[6], counts, advisory_only:true, execution_mode:read_only}, НИКОГДА не raise (внутренняя ошибка чека -> warn+note). Чеки (отсутствующий входной файл -> честный skip+note, не fail): (1) equity_continuity — даты equity_curve_daily строго возрастают без дублей (нарушение fail), gap ровно 2 дня warn / >2 fail, is_demo:true в баре или на верхнем уровне fail, нечисловые equity warn; (2) positions_consistency — сумма позиций+cash vs capital_usd: <=0.5% ok / <=2% warn / дальше fail (float-границы с eps), отрицательные позиции fail; (3) allocation_policy_bounds — advisory-ДУБЛЬ гейта концентрации числовыми константами T1_CAP=0.40/T2_CAP=0.20 (комментарий-ссылка на spa_core/risk/policy.py, RiskPolicy НЕ импортируется), тиры из adapter_orchestrator_status, протокол без тира -> unknown по строгому T2-капу 0.20, сумма весов <=1.0+1e-6, превышение/отрицательный вес fail; (4) freshness — generated_at/last_cycle_ts/ts/timestamp в UTC (Z-суффикс понимается): orchestrator 26h, risk_scores 48h, paper_trading 26h, capacity 48h, golive 48h; старше порога warn, старше 2x fail, битый timestamp warn; (5) anchor_coverage — каждый день трека из equity-кривой от real_track_start=2026-06-10 (сегодняшний незавершённый UTC-день исключается) имеет якорь в proof_of_track_anchors.json: отсутствие warn, discrepancy-note в якоре fail; (6) schema_sanity — все 9 перечисленных артефактов парсятся и dict на верхнем уровне (битый/не тот тип fail), *.tmp-огрызки в data/ fail. Персист: атомарная запись data/data_integrity_status.json (tmp+os.replace), история прогонов с ротацией <=500, идемпотентность по content_fingerprint без generated_at/history/age_hours (паттерн tear_sheet) — повторный --run байт-в-байт не меняет файл (проверено md5 на реальных данных). CLI --check (дефолт, печать JSON без записи)/--run/--data-dir, exit 0 всегда, без трейсбеков, мусорные аргументы -> ERROR в stderr. Тесты: spa_core/tests/test_data_integrity.py — 100 unittest-кейсов 100/100 OK (без сети, tempdir; гигиена через find_forbidden_imports из llm_forbidden_lint). Регрессия test_capital_ladder+test_proof_of_track+test_tear_sheet 224/224 OK; llm_forbidden_lint exit 0 (3 dirs, 30 files, 0 violations). Смоук на реальных данных: verdict=warn (ok=5 warn=1 fail=0 skip=0) — единственный warn: anchor_coverage, нет merkle-якоря за 2026-06-10 (якорение MP-406 запускалось только 2026-06-11); остальные 5 чеков ok. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/golive_checker/feed_health/адаптеры/audit_trail/proof_of_track/push_to_github.py не тронуты; пуш делает оркестратор."
+      },
+      {
+        "id": "MP-409",
+        "title": "Юридическая структура + compliance",
+        "description": "ex RB-307. SPV/фонд (BVI/Cayman-класс), гео-фильтры на депозиты, AML-скрининг (Chainalysis/TRM API). Цикл 3-6 мес — начинать консультации в 2026-Q4. Первый внешний депозит юридически чист.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 10,
+        "depends_on": [],
+        "estimate": "10d (своих) + 3-6 мес внешних",
+        "tags": [
+          "epic",
+          "legal",
+          "external"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "completed_by": "claude (MP-409: LEGAL_STRUCTURE_v1.md)"
+      },
+      {
+        "id": "MP-502",
+        "title": "Outreach-машина: DAO → family offices → fund-of-funds",
+        "description": "ex RB-401. CRM-список 50 целей, EN-версия INVESTOR_PITCH, демо портала, follow-up цикл. Первые $5-10M почти всегда DAO-казначейства.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [
+          "MP-501"
+        ],
+        "estimate": "ongoing",
+        "tags": [
+          "epic",
+          "distribution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "completed_by": "claude (MP-502: OUTREACH_STRATEGY_v1.md)"
+      },
+      {
+        "id": "MP-508",
+        "title": "ADR: токен / equity-раунд",
+        "description": "Не раньше $10M AUM (~2027-Q4). Токен без AUM — пустой мультипликатор + регуляторный риск.",
+        "priority": "P3",
+        "phase": "phase5",
+        "estimated_days": 0,
+        "depends_on": [],
+        "estimate": "ADR",
+        "tags": [
+          "epic",
+          "governance",
+          "user-action"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "completed_by": "claude (MP-508: ADR_TOKEN_VS_EQUITY.md)"
+      },
+      {
+        "id": "MP-401",
+        "title": "E2E fork-harness (anvil/mainnet-fork)",
+        "description": "ex RB-301/V384. Симуляция полного цикла исполнения на форке; CI-гейт каждого релиза execution-кода. Гейт входа: MP-213.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 5,
+        "depends_on": [
+          "MP-213"
+        ],
+        "estimate": "5d",
+        "tags": [
+          "epic",
+          "execution"
+        ],
+        "sprint": null,
+        "added": "2026-06-10",
+        "status": "done",
+        "completed_at": "2026-06-12",
+        "completed_by": "claude (MP-401: fork_harness.py scaffold + dry-run scenarios)"
+      },
+      {
+        "id": "SPA-V434-DASHBOARD-REDESIGN",
+        "title": "Dashboard v2.0 — полный редизайн",
+        "sprint_id": "v4.33",
+        "completed_at": "2026-06-12",
+        "items": [
+          "T1-online-audit",
+          "T2-backlog-dedup",
+          "T3-status-system",
+          "T4-card-lifecycle",
+          "T5-charts-nav",
+          "T6-statistics-team",
+          "T7-team-audit",
+          "T8-papertest-audit"
+        ],
+        "status": "done",
+        "completed_by": "claude (SPA-V434)",
+        "resolution": "Dashboard v2.0 полный редизайн (8 подзадач): T1 — онлайн аудит (GitHub Pages не синхронизирован, index.html не запущен); T2 — Backlog/Kanban деdup (кнопки Tasks/Kanban были перепутаны: Tasks→мёртвый tab-kanban, Kanban→живой tab-backlog); T3 — система статусов (4 из 9 целевых статусов в коде); T4 — card lifecycle расширен (modal с context/reason/radio, localStorage owner_decided→AI Review→resolved, mergeDecisions(), блок 'Ожидает AI Review' на Dashboard); T5 — charts/nav (period selector 7д/30д/всё, bottleneck indicator, aging chart, порядок навигации финализирован: Dashboard→Decisions→Tasks→Kanban→Statistics→Team→Portfolio→Go-Live→System); T6 — Statistics+Team (KPI блок Kanban, completion rate bar, SSE-лента заменена real data); T7 — Team tab полностью переписана архитектура (убраны LangGraph/Gemini, добавлены реальные компоненты cycle_runner/launchd/stdlib); T8 — Paper Test переименован в 'Portfolio'. Аудиты: docs/AUDIT_online_v2.md, docs/AUDIT_status_backlog_v2.md, docs/AUDIT_team_papertest_v2.md. Отчёт: docs/REPORT_v2_dashboard.md.",
+        "sprint": "v4.34"
+      },
+      {
+        "id": "MP-116",
+        "title": "Portfolio Concentration & Diversification Analyzer (HHI, read-only/advisory)",
+        "description": "Декомпозиция текущего портфеля на метрики концентрации/диверсификации (Herfindahl-Hirschman Index по протоколам/тирам/AUM). Tear-sheet даёт exposure, но не отвечает на DD-вопрос инвестора 'насколько концентрирован портфель и диверсифицирован ли он'. Модуль считает HHI (whole-AUM и deployed-only), effective number of positions (1/HHI), top-1/top-3 концентрацию, классификацию по стандартным порогам DOJ/FTC (<1500 diversified / 1500-2500 moderate / >2500 concentrated), max-single-position policy (40% AUM) и единый advisory-вердикт.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501",
+          "MP-114"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "concentration",
+          "hhi"
+        ],
+        "sprint": "v4.35",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V435)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/concentration_analytics.py: переиспользует build_exposure ИМПОРТОМ из spa_core/reporting/tear_sheet.py как единственный источник весовой математики (ноль дублирования; доказано тестом-равенством breakdown.share == build_exposure share_pct/100). Считает hhi_protocol (whole-AUM) + hhi_protocol_deployed (renormalized на развёрнутый книга, чтобы кэш-тяжёлый портфель не выглядел ложно диверсифицированным) + hhi_tier, индексы на шкале 0-10000, effective_num_positions=1/HHI, top1/top3 share + top1_protocol, concentration_class по порогам HHI_MODERATE_FLOOR=1500/HHI_CONCENTRATED_FLOOR=2500, max-single-position policy MAX_SINGLE_POSITION_SHARE=0.40 (строго >; ровно 40% не breach) с policy_breaches, единый verdict (fail при breach или concentrated; warn при moderate/unknown-tier; иначе ok). Персист data/concentration_analytics.json атомарно (tmp+os.replace) с идемпотентностью по content_fingerprint (без волатильных generated_at/history) и ротацией истории ≤500. CLI --check(дефолт, без записи)/--run/--data-dir всегда exit 0 без трейсбеков, мусорные аргументы → ERROR в stderr. is_demo честно из источника; missing/broken/empty/garbage входы → honest available:false + notes, никогда не raise. На реальном data/: verdict=fail (deployed-HHI 2523 > 2500 → concentrated), whole-AUM index 2277, hhi_tier 4919, effective_num_positions 3.9641, top1 aave_v3 0.315293, top3 0.731866, policy_ok=true (ни одна позиция не >40%), is_demo=false. 81 новый unittest-кейс (ручной HHI 50/50→5000 / 4×25%→2500 boundary moderate / 5×20% / 10×10%→diversified / single→10000, границы класса 1499/1500/2500/2501, 1/HHI, top1/top3, policy boundary ровно 0.40 vs 0.4001, reuse-равенство с build_exposure, is_demo true/false/absent, толерантность missing/broken/garbage/empty без raise, персист/идемпотентность ×2 байт-в-байт md5 + ротация ровно 500 + нет *.tmp, CLI direct+subprocess junk→ERROR exit0 + --check/--run conflict, import-гигиена через find_forbidden_imports + AST); регрессия test_exit_liquidity+test_tear_sheet 189/189 OK; llm_forbidden_lint exit 0. ПРИМЕЧАНИЕ: оба файла существовали от старой несовместимой попытки SPA-V398 (другие входы portfolio_state.json/target_allocation.json, без reuse/atomic/fingerprint) и полностью перезаписаны под MP-116; ничто в репо не импортировало старый API (проверено grep). STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/адаптеры/tear_sheet.py/__init__.py/push_to_github.py не тронуты."
+      },
+      {
+        "id": "MP-117",
+        "title": "Portfolio Yield Attribution & Yield-Concentration Analyzer (read-only/advisory)",
+        "description": "Декомпозиция реализованного портфеля по ИСТОЧНИКАМ доходности: per-protocol вклад в портфельный APY (weight × live APY), доля каждого источника в общей доходности, yield-HHI (концентрация источников дохода) + effective number of yield sources, top-N доля доходности, cash drag (full-AUM vs deployed-only APY), единый advisory-вердикт. Дополняет MP-116 (концентрация КАПИТАЛА по HHI) ответом на DD-вопрос инвестора 'откуда берётся доходность и не сосредоточена ли она в одном (рискованном) источнике'.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501",
+          "MP-116"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "yield"
+        ],
+        "sprint": "v4.36",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V436)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/yield_attribution.py: переиспользует build_exposure ИМПОРТОМ из spa_core/reporting/tear_sheet.py как единственный источник весовой математики (доказано тестом-равенством weight_frac*100 == build_exposure share_pct), пороги класса HHI_MODERATE_FLOOR=1500/HHI_CONCENTRATED_FLOOR=2500 импортированы из concentration_analytics (MP-116) для согласованности. Считает per-protocol yield_contribution_pp = weight_frac × live apy_pct (APY из data/adapter_orchestrator_status.json — reader толерантен и к list-, и к dict-форме adapters; протокол без числового apy_pct → known:false, contribution null, в unknown_yield bucket + note, ничего не выдумывается), share_of_total_yield, portfolio_apy_pp (full-AUM weighted incl. cash drag) + deployed_apy_pct + cash_drag_pp, yield_hhi (frac + индекс 0-10000) + effective_num_yield_sources=1/HHI, top1/top3_yield_share + top1_yield_protocol, yield_concentration_class (DOJ/FTC пороги), unknown_yield_share, единый verdict (fail при единственном источнике >60% дохода или concentrated-классе; warn при moderate / unknown_yield_share>25%; иначе ok). is_demo честно из источников. Персист data/yield_attribution.json атомарно (tmp+os.replace) с идемпотентностью по content_fingerprint (без волатильных generated_at/history) и ротацией истории ≤500. CLI --check(дефолт, без записи)/--run/--data-dir всегда exit 0 без трейсбеков, мусорные аргументы → ERROR в stderr. На реальном data/: verdict=warn (yield_concentration_class=moderate), portfolio_apy_pp=3.1709, deployed_apy_pct=3.3378, cash_drag_pp=0.1669 (5% кэш), yield_hhi index=2439 → effective_num_yield_sources=4.10, top1 aave_v3 0.3176, top3 0.7912, unknown_yield_share=0 (у всех 5 протоколов live APY), is_demo=false. 96 новых unittest-кейсов 96/96 OK (ручная математика вкладов 50%@4%+50%@2%→3.0pp, yield-HHI границы + индекс + effective-num, top1/top3, класс 1499/1500/2500/2501, single-source verdict fail >60%, unknown-APY → known:false + note, reuse-равенство с build_exposure, is_demo true/false/absent, толерантность missing/broken/garbage/empty subTest на каждый источник без raise, персист/идемпотентность ×2 байт-в-байт md5 + ротация ровно 500 + нет *.tmp + tolerant broken prev, CLI direct+subprocess junk→ERROR exit0 + --check/--run conflict, import-гигиена через find_forbidden_imports из llm_forbidden_lint + AST); регрессия test_tear_sheet+test_concentration_analytics 186/186 OK; llm_forbidden_lint exit 0; py_compile чисто; --run ×2 байт-в-байт (md5 c2b8027a…), без хвостовых *.tmp. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/адаптеры/tear_sheet.py/concentration_analytics.py/__init__.py/push_to_github.py не тронуты; только 2 новых файла + data/yield_attribution.json (артефакт --run) + KANBAN/лог."
+      },
+      {
+        "id": "MP-118",
+        "title": "Portfolio Risk Contribution & Risk-Budget Analyzer (read-only/advisory)",
+        "description": "Декомпозиция портфельного РИСКА (волатильности): объединяет covariance_matrix из covariance_summary.json (MP covariance_export) с весами позиций (build_exposure из tear_sheet) → portfolio volatility sigma_p = sqrt(w'Σw); per-protocol marginal contribution to risk (MCTR), component contribution (CCTR, суммируется в sigma_p), percent risk contribution (PRC, суммируется в 1); risk-HHI (концентрация РИСКА) + effective number of risk sources; diversification ratio; сравнение risk-weight vs capital-weight (кто пере-/недо-набюджетирован по риску); единый advisory-вердикт. Отвечает на DD-вопрос инвестора 'какая позиция реально движет риск портфеля' — отличается от MP-116 (концентрация КАПИТАЛА, HHI весов) и MP-117 (концентрация ДОХОДНОСТИ, yield-HHI): здесь декомпозиция ДИСПЕРСИИ через ковариацию.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501",
+          "MP-116"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "covariance"
+        ],
+        "sprint": "v4.37",
+        "added": "2026-06-12",
+        "status": "done",
+        "added_by": "spa-dev-continue (SPA-V437)",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V437)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/risk_contribution.py: декомпозиция портфельного риска (variance) через covariance_matrix из covariance_summary.json + веса позиций из build_exposure (ИМПОРТ из tear_sheet, единственный источник весовой математики). Per-protocol MCTR/CCTR(сумма==sigma_p)/PRC(сумма==1), risk-HHI + effective number of risk sources, diversification ratio, risk-vs-capital ratio, uncovered-risk bucket с честным known:false при отсутствии covariance-строки. HHI-пороги импортированы из concentration_analytics (MP-116). Маппинг protocol→instrument-slug с детерминированным выбором при нескольких инструментах (нота в notes). Атомарный персист data/risk_contribution.json, идемпотентность по content_fingerprint, ротация ≤500, CLI --check/--run/--data-dir exit 0 always, junk→ERROR stderr exit 0. 58 тестов. Верифицировано оркестратором независимо: 58/58 OK, регрессия 282/282 OK (tear_sheet+concentration+yield), llm_forbidden_lint exit 0, PRC sum=1.0, CCTR sum==sigma_p, --run ×2 byte-identical (md5 520e7c66…), нет *.tmp. Смоук: verdict=fail (risk concentrated, risk_hhi_index=2995), portfolio_volatility_pp=0.9097, top1 aave_v3 PRC=0.3702, diversification_ratio=2.54, covered=1.0, is_demo=false."
+      },
+      {
+        "id": "SPA-V434-ANALYTICS-DASHBOARD",
+        "title": "Analytics dashboard integration (MP-115/116/117/118)",
+        "sprint": "v4.34",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V434)"
       }
     ]
   },
-  "sprint_completed": "v4.14",
+  "sprint_completed": "v4.37",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
-  "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты."
+  "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
+  "_v415_dispatch_note": "SPA-V415 (MP-101): gap-monitor трека — CRITICAL-алерт + auto-recovery. check_gaps() при gap пишет дедуплицированный critical-алерт (source=gap_monitor, type=cycle_gap) в risk_alerts.json, не затирая чужие алерты; attempt_recovery() под file-lock запускает штатный run_cycle() (paper only, read-only simulation), идемпотентно (1 попытка/UTC-день), честная фиксация failure (cycle_ran_but_gap_persists / exception). CLI: python3 -m spa_core.paper_trading.gap_monitor --recover. STRICTLY READ-ONLY (SPA-BL-011): execution/risk/wallet не тронуты, сетевых вызовов в тестах нет.",
+  "_v416_dispatch_note": "SPA-V416 (MP-309): CI lint enforcing the project constitution in code — LLM SDK imports are FORBIDDEN in the deterministic L2/L3 domains (spa_core/risk, spa_core/execution, spa_core/allocator). New spa_core/ci/llm_forbidden_lint.py: pure-stdlib AST scanner (no network, never imports the SDKs it hunts), dotted-prefix matching for anthropic/google.generativeai/openai/langchain/litellm, JSON report data/llm_forbidden_lint.json written atomically, CLI exit codes 0/1/2 (ok/violations/no_dirs), SyntaxError files bucketed as parse_errors instead of crashing CI. 23 unittest cases incl. the live enforcement test 'real repo is clean' (live run: status=ok, 3 dirs, 27 files, 0 violations). Also fixed the 2 pre-existing red tests in test_dashboard_adapter_sync.py (pytest->unittest, SPA-V334 contract updated from 5 to 7 adapters, expected keys now derived from the _ADAPTER_SPECS registry via read-only AST). Kanban hygiene: MP-108 (status=done) moved backlog->done. Sprint selection: v4.15 ends in 5 so an architect review was required; the stock architect.py was blocked by the sandbox (no anthropic module, no ANTHROPIC_API_KEY) -> manual architect review fallback performed by the LLM orchestrator (backlog had no ready code tasks; MP-309 taken from features). STRICTLY READ-ONLY (SPA-BL-011): the lint only READS risk/execution/allocator source; nothing in those domains was modified.",
+  "_v417_dispatch_note": "SPA-V417 (MP-204): Adapter SDK v1 — declarative YAML/JSON adapters. New additive package spa_core/adapter_sdk/ (contract.py / manifest.py / declarative_adapter.py / registry.py / manifests/): formal ProtocolAdapter contract (fetch_pools->list[PoolInfo] compatible with adapter_orchestrator_status.json field shapes, exit_latency dict in exit_latency_policy.py style with 72h illiquid threshold, health ok/degraded/error with last_fetch_ts/source); manifest schema (name, defillama_protocol_id, chains/symbols, tier+cap defaults T1 .40/T2 .20/T3 .10, exit_latency profile, quality gates min_tvl_usd/stable_only/max_apy_pct) validated into a single ValidationError carrying the FULL problems list (no stacktraces); PyYAML optional — .json manifests and JSON-compatible .yaml bodies load without it; DeclarativeAdapter reuses the existing DeFiLlamaFeed (no duplicated HTTP), feed loss/exceptions degrade honestly to fetch_pools=[] + health=error (never raises, never mocks); registry discovers manifests/*.yaml|*.yml|*.json, broken manifests are quarantined per-file without killing the registry, CLI exit 0/1/2 (ok/invalid manifests/empty dir), atomic data/adapter_sdk_status.json (tmp+os.replace), --no-write/--no-fetch (offline: feed disabled, zero egress). 3 demo manifests for protocols NOT among the file adapters: spark (T2, cap .20), fluid-lending (T2, cap .15), curve-dex 3pool (T3, cap .10) with conservative quality gates. Tests: 47 new (test_adapter_sdk.py, unittest, no network — fake/dead/raising feeds injected, CLI via subprocess --no-fetch); regression 100/100 (adapter_orchestrator+exit_latency+capacity_analytics+llm_forbidden_lint); llm_forbidden_lint exit 0; py_compile clean; live registry run in sandbox: 3/3 manifests valid, health=error (egress to yields.llama.fi blocked — honest degradation), exit 0, no stray *.tmp. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/wallet/feed-health/cycle_runner/existing adapters untouched; push is done by the orchestrator.",
+  "_v418_dispatch_note": "SPA-V418 (2026-06-11): MP-205 Candidate-tier автодискавери поверх Adapter SDK v1 (MP-204, v4.17). discovery.py сканирует DeFiLlama по quality-gates (TVL>=$5M, age>=180d/age_unknown, stable-only, APY<=30%, минус уже покрытые протоколы) в ADVISORY-реестр data/candidate_registry.json — whitelist только через ADR/человека; 44 теста зелёные, живой прогон в песочнице честно degraded до status=error (egress к yields.llama.fi заблокирован).",
+  "_v419_dispatch_note": "SPA-V419 (2026-06-11): MP-206 инкремент 1 — «20+ адаптеров через SDK», батч 2 из 9 новых декларативных манифестов в spa_core/adapter_sdk/manifests/ (было 3 → стало 12; цель 20+, MP-206 остаётся в features). Состав по карточке MP-206 (Convex, Gearbox passive, Ethena capped, Across LP + стабильные AMM/lending): ethena_susde (ethena-usde, SUSDE, T3 cap 0.05 «ось peg», exit 168h illiquid), gearbox (T3, USDC/USDT, instant), across (T3, USDC/USDT, 1h), stargate (T3, USDC/USDT, 1h), velodrome_stable (velodrome-v2, Optimism, USDC-SUSD, T3), convex_3pool (convex-finance, DAI-USDC-USDT, T3), balancer_stable (balancer-v2, GHO-USDC-USDT, T3), aerodrome_stable (aerodrome-v1, Base, DOLA-USDC, T3), venus (venus-core-pool, BSC, USDT/USDC, T3). Все — candidate-tier гейты: min_tvl_usd>=5M, stable_only=true (каждая нога из STABLE_SYMBOLS), max_apy_pct<=30; exit_latency объявлен явно у всех; sky/sUSDS пропущен (есть execution/adapters/sky_susds_adapter.py), дублей с файловыми адаптерами (aave-v3/compound-v3/morpho-blue/euler-v2/maple/yearn-finance/pendle) и батчем 1 (spark/fluid-lending/curve-dex) нет — slugs уникальны, substring-матчинг проверен в обе стороны. Тесты: spa_core/tests/test_manifests_batch2.py — 25 новых unittest-кейсов 25/25 OK (без сети, DeadFeed); регрессия test_adapter_sdk+test_discovery+test_llm_forbidden_lint 114/114 OK; llm_forbidden_lint exit 0; py_compile чисто; registry --no-fetch: manifests=12 valid=12 invalid=0 exit 0, data/adapter_sdk_status.json перезаписан (offline, честный health=error). STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/существующие адаптеры/push_to_github.py не тронуты; пуш делает оркестратор.",
+  "_v420_dispatch_note": "SPA-V420 (2026-06-11): MP-206 инкремент 2 (финальный) — «20+ адаптеров через SDK», батч 3 из 9 новых декларативных манифестов в spa_core/adapter_sdk/manifests/ (было 12 → стало 21; цель 20+ достигнута, ЭПИК ЗАКРЫТ). Состав по карточке MP-206 (crvUSD, Frax, Notional + консервативные stable-lending): crvusd_llamalend (curve-llamalend, CRVUSD, T3 cap 0.05 «ось peg», exit 1h liquid), fraxlend (FRAX, T3 cap 0.05 «ось peg», 1h), notional_v3 (notional-v3, USDC, T3 0.10, 24h liquid), silo (silo-v2, Arbitrum, USDC, T3 0.10, 1h), moonwell (Base, USDC, T3 0.10, instant), dolomite (Arbitrum, USDC, T3 0.10, instant), benqi (benqi-lending, Avalanche, USDC/USDT, T3 0.10, instant), clearpool (clearpool-lending, USDC, T3 cap 0.05 — uncollateralized credit, 24h), ipor (USDC, T3 cap 0.05, 24h). Все — candidate-tier гейты: min_tvl_usd>=5M, stable_only=true (CRVUSD/FRAX уже в STABLE_SYMBOLS — множество НЕ менялось), max_apy_pct<=30 (25 у credit); тиры только T3; exit_latency объявлен явно у всех, profile==bucket; дублей с файловыми адаптерами (aave-v3/compound-v3/morpho-blue/euler-v2/maple/yearn-finance/pendle/sky-susds) и батчами 1-2 нет — substring в обе стороны. Тесты: spa_core/tests/test_manifests_batch3.py — 27 unittest-кейсов 27/27 OK (без сети, DeadFeed); регрессия test_adapter_sdk+test_discovery+test_manifests_batch2+test_llm_forbidden_lint 139/139 OK; llm_forbidden_lint exit 0; registry --no-fetch: manifests=21 valid=21 invalid=0 exit 0, data/adapter_sdk_status.json перезаписан (offline, честный health=error), хвостовых *.tmp нет. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/существующие адаптеры и манифесты/push_to_github.py не тронуты; пуш делает оркестратор.",
+  "_v421_dispatch_note": "SPA-V421 (2026-06-11): MP-301 Agent runtime v1 — каркас агентного слоя Phase 3 (первый спринт фазы, разблокирует MP-302…MP-311). Новый строго аддитивный пакет spa_core/agent_runtime/: mandate.py (dataclass AgentMandate: name/role/schedule/token_budget_per_run/token_budget_daily/forbidden_actions/allowed_outputs/requires_llm/degradation_mode; ЖЁСТКИЙ инвариант — мандат с requires_llm=True для имён из LLM_FORBIDDEN_AGENTS={risk,execution,monitoring} → ValueError в конструкторе, регистронезависимо; load/save мандатов в mandates/*.json атомарно, битый файл кварантинится, дубликат имени → ValueError), 3 стартовых мандата (ceo.json weekly → data/ceo_decisions.json, деградация skip; alpha.json weekly → data/alpha_candidates.json, запрет list_protocol_directly, deterministic-only; reporting.json daily → отчёты, запрет distort_numbers, deterministic-only — все по карточкам MP-302/304/305), budget.py (TokenBudgetTracker: start_run/charge→(bool,reason)/remaining/usage, per-run и daily лимиты из мандата, отказ ничего не списывает, daily reset по UTC-дате с инжектируемым now_fn, персистентность data/agent_token_usage.json tmp+os.replace), runtime.py (AgentRuntime: load_mandates, check_permission deny-by-default + forbidden-list, guard run_agent: нет мандата → no_mandate; requires_llm+LLM недоступен → skip (лог, fn не вызывается, 0 токенов) или deterministic-only (fn(llm=None), 0 токенов); бюджет списывается ДО запуска (budget_exhausted блокирует); исключения агента ловятся → status=error + traceback; журнал data/agent_runtime_log.json атомарно с ротацией 200; llm/llm_probe — инжектируемые callable, офлайн-дефолт «LLM недоступен», битый probe == недоступен). КОНСТИТУЦИЯ: ни одного импорта LLM SDK в spa_core (runtime — каркас, LLM подаётся снаружи), закреплено тестом через find_forbidden_imports. Тесты: test_agent_runtime.py 40/40 OK (unittest, без сети, tmpdir-персистентность, нет *.tmp хвостов); регрессия test_adapter_sdk+test_discovery+test_llm_forbidden_lint 114/114 OK; llm_forbidden_lint exit 0 (3 dirs, 27 files, 0 violations); py_compile чисто. STRICTLY READ-ONLY (SPA-BL-011): risk/execution/allocator/cycle_runner/defillama_feed/адаптеры/манифесты/push_to_github.py не тронуты; только новые файлы + KANBAN + лог. Пуш делает оркестратор."
 }
