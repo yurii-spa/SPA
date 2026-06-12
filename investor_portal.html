@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPA — Investor Portal</title>
+<!--
+  SPA Investor Portal — offline-ядро (MP-408 / SPA-V429).
+
+  Статический самодостаточный портал (паттерн index.html): НИКАКИХ внешних
+  CDN / шрифтов / трекеров / запросов наружу — работает полностью офлайн при
+  раздаче репозитория любым локальным http-сервером, например:
+      python3 -m http.server 8000 --directory <repo>
+  Источник данных — ОДИН файл data/investor_portal_data.json, который
+  генерирует агрегатор:
+      python3 -m spa_core.reporting.portal_data --run
+
+  Fallback-поведение (задокументированный выбор): если файл данных не найден
+  или не читается (включая открытие страницы по file:// — браузеры блокируют
+  fetch локальных файлов), портал показывает честную заглушку «нет данных»
+  с инструкцией по генерации, НИКАКИХ выдуманных цифр не рисует.
+  Миграция на Next.js — отдельным спринтом после деплой-инфраструктуры.
+-->
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #121826;
+    --panel2: #0f1420;
+    --border: #1f2937;
+    --text: #e5e7eb;
+    --muted: #8b94a7;
+    --accent: #4f8cff;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 24px 20px 40px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.2px; }
+  h2 { font-size: 15px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+       letter-spacing: 1px; margin: 28px 0 12px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+           border: 1px solid var(--border); color: var(--muted); }
+  .badge.demo { background: #3b1d1d; border-color: var(--red); color: var(--red); }
+  .badge.paper { background: #112033; border-color: var(--accent); color: var(--accent); }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+  #staleness-banner {
+    display: none; margin: 12px 0; padding: 10px 14px; border-radius: 8px;
+    background: #2d2310; border: 1px solid var(--amber); color: var(--amber);
+    font-weight: 600; font-size: 13px;
+  }
+  #nodata-banner {
+    display: none; margin: 16px 0; padding: 16px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+  }
+  #nodata-banner code { color: var(--accent); background: var(--panel2);
+    padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .card .value { font-size: 21px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .card .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px;
+       text-transform: uppercase; letter-spacing: 0.6px; padding: 6px 10px;
+       border-bottom: 1px solid var(--border); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--panel2); font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+  .grade { font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 12px; }
+  .grade-A { background: #0e2a1d; color: var(--green); }
+  .grade-B { background: #112033; color: var(--accent); }
+  .grade-C { background: #2d2310; color: var(--amber); }
+  .grade-D, .grade-F { background: #3b1d1d; color: var(--red); }
+  .grade-unknown { background: var(--panel2); color: var(--muted); }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .bar-label { width: 130px; color: var(--muted); font-size: 12px; }
+  .bar-track { flex: 1; height: 10px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 5px; }
+  .bar-pct { width: 64px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); padding: 18px 0; text-align: center; font-size: 13px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--border);
+           color: var(--muted); font-size: 12px; }
+  .disclaimer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+                padding: 12px 14px; margin-top: 10px; }
+  .ok { color: var(--green); } .warn { color: var(--amber); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SPA · Investor Portal</h1>
+  <span class="badge paper" id="mode-badge">paper track</span>
+  <span class="badge" id="demo-badge">is_demo: н/д</span>
+  <span class="badge" id="track-day-badge">день трека: н/д</span>
+</header>
+<div class="sub" id="generated-at">данные: …</div>
+
+<div id="staleness-banner"></div>
+<div id="nodata-banner">
+  <strong>Нет данных портала.</strong><br>
+  Файл <code>data/investor_portal_data.json</code> не найден или не читается.
+  Сгенерируй его: <code>python3 -m spa_core.reporting.portal_data --run</code>
+  и открой портал через локальный сервер
+  (<code>python3 -m http.server 8000</code>) — при открытии по
+  <code>file://</code> браузер блокирует чтение локальных JSON.
+  Портал честно не рисует выдуманных цифр.
+</div>
+
+<div id="content" style="display:none">
+
+  <h2>Headline</h2>
+  <div class="cards" id="headline-cards"></div>
+
+  <h2>Equity curve &amp; P&amp;L</h2>
+  <div class="panel">
+    <div id="equity-chart"></div>
+    <div class="sub" id="equity-summary" style="margin:8px 0 0"></div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <h2>Exposure</h2>
+      <div class="panel">
+        <div id="exposure-table"></div>
+        <div id="exposure-tiers" style="margin-top:14px"></div>
+        <div id="exposure-chains" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div>
+      <h2>Risk</h2>
+      <div class="panel">
+        <div id="risk-grades"></div>
+        <div id="risk-incidents" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Proof-of-Track (Merkle anchors · MP-406)</h2>
+  <div class="panel" id="pot-viewer"></div>
+
+  <h2>Audit trail (последние события · MP-310)</h2>
+  <div class="panel" id="audit-viewer"></div>
+
+</div>
+
+<footer>
+  <div class="disclaimer" id="disclaimer">
+    <strong>Disclaimer:</strong> Paper track (read-only simulation),
+    <strong>NOT investment advice</strong>. Все цифры — виртуальный paper-трек
+    SPA без реальных средств; прошлая доходность не гарантирует будущую.
+    Advisory only.
+  </div>
+  <div style="margin-top:8px">
+    SPA · Smart Passive Aggregator · offline investor portal (MP-408, static core;
+    Next.js — отдельным спринтом). Источник: <span class="mono">data/investor_portal_data.json</span>.
+  </div>
+</footer>
+
+<script>
+'use strict';
+
+// День 1 реального трека = 2026-06-10 (та же конвенция, что REAL_TRACK_START в index.html)
+const REAL_TRACK_START = '2026-06-10';
+const STALENESS_MS = 24 * 3600 * 1000; // staleness-баннер при данных старше 24h
+const DATA_CANDIDATES = [
+  './data/investor_portal_data.json',
+  './investor_portal_data.json',
+];
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+// null/undefined → честное «н/д»: ничего не выдумываем
+function fmt(v, suffix, digits) {
+  if (v === null || v === undefined || (typeof v === 'number' && !isFinite(v))) return 'н/д';
+  if (typeof v === 'boolean') return v ? 'да' : 'нет';
+  if (typeof v === 'number') {
+    const d = (digits === undefined) ? 4 : digits;
+    return v.toLocaleString('ru-RU', { maximumFractionDigits: d }) + (suffix || '');
+  }
+  return esc(v) + (suffix || '');
+}
+
+function fmtUsd(v) {
+  if (v === null || v === undefined) return 'н/д';
+  return '$' + Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+}
+
+function signClass(v) {
+  if (v === null || v === undefined || typeof v !== 'number') return '';
+  return v > 0 ? 'pos' : (v < 0 ? 'neg' : '');
+}
+
+function trackDay(now) {
+  const start = new Date(REAL_TRACK_START + 'T00:00:00Z');
+  const d = Math.floor(((now || Date.now()) - start.getTime()) / 86400000) + 1; // день 1 = 2026-06-10
+  return d >= 1 ? d : null;
+}
+
+// ─── staleness-баннер (>24h) ─────────────────────────────────────────────────
+
+function renderStalenessBanner(data) {
+  const el = $('staleness-banner');
+  const meta = data.meta || {};
+  const track = meta.track || {};
+  const stamp = track.last_cycle_ts || meta.generated_at;
+  if (!stamp) { el.style.display = 'none'; return; }
+  const ts = Date.parse(stamp);
+  if (!isFinite(ts)) { el.style.display = 'none'; return; }
+  const ageMs = Date.now() - ts;
+  if (ageMs > STALENESS_MS) {
+    const hours = Math.floor(ageMs / 3600000);
+    el.textContent = '⚠ Данные устарели: последнее обновление ' + hours +
+      ' ч назад (' + stamp + '). Цикл/агрегатор давно не запускался.';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ─── header / headline ───────────────────────────────────────────────────────
+
+function renderHeader(data) {
+  const meta = data.meta || {};
+  const track = meta.track || {};
+  const demo = meta.is_demo;
+  const demoEl = $('demo-badge');
+  if (demo === true) { demoEl.textContent = 'DEMO DATA'; demoEl.className = 'badge demo'; }
+  else if (demo === false) { demoEl.textContent = 'real track · is_demo: false'; demoEl.className = 'badge paper'; }
+  else { demoEl.textContent = 'is_demo: н/д'; demoEl.className = 'badge'; }
+  $('mode-badge').textContent = track.execution_mode || 'paper track';
+  const day = trackDay();
+  $('track-day-badge').textContent = day === null
+    ? ('старт трека: ' + REAL_TRACK_START)
+    : ('день трека ' + day + ' (с ' + REAL_TRACK_START + ')');
+  $('generated-at').textContent = 'данные: ' + (meta.generated_at || 'н/д') +
+    ' · последний цикл: ' + (track.last_cycle_ts || 'н/д') +
+    ' · go-live гейт: ' + fmt(track.golive_ready);
+}
+
+function card(label, value, cls, hint) {
+  return '<div class="card"><div class="label">' + esc(label) + '</div>' +
+    '<div class="value ' + (cls || '') + '">' + value + '</div>' +
+    (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
+}
+
+function renderHeadline(data) {
+  const h = data.headline || {};
+  const ts = data.tear_sheet || {};
+  const cells = [
+    card('AUM', fmtUsd(h.aum_usd), '', 'cash ' + fmt(h.cash_pct, '%', 2)),
+    card('Net APY', fmt(h.net_apy_pct, '%', 2), signClass(h.net_apy_pct),
+         ts.period ? ('tear-sheet ' + ts.period) : 'tear-sheet: н/д'),
+    card('Total P&L', fmt(h.total_return_pct, '%'), signClass(h.total_return_pct),
+         'сегодня ' + fmt(h.today_return_pct, '%')),
+    card('Sharpe', fmt(h.sharpe_ratio, '', 2), '', 'Sortino ' + fmt(h.sortino_ratio, '', 2)),
+    card('PSR', fmt(h.psr, '', 3), '', 'Bailey & López de Prado'),
+    card('Max drawdown', fmt(h.max_drawdown_pct, '%'), signClass(h.max_drawdown_pct), 'за весь трек'),
+    card('Capital Ladder', fmt(h.ladder_level_code) +
+         (h.ladder_level_name ? ' · ' + esc(h.ladder_level_name) : ''), '',
+         'дней трека: ' + fmt(h.track_days, '', 0)),
+  ];
+  $('headline-cards').innerHTML = cells.join('');
+}
+
+// ─── equity curve: inline SVG, без внешних библиотек ─────────────────────────
+
+function renderEquity(data) {
+  const eq = data.equity || {};
+  const curve = (eq.curve || []).filter((p) => p && typeof p.equity === 'number');
+  const box = $('equity-chart');
+  if (!eq.available || curve.length === 0) {
+    box.innerHTML = '<div class="empty">📈 Данные накапливаются с ' + REAL_TRACK_START +
+      ' — кривая капитала строится по мере работы трека</div>';
+    $('equity-summary').textContent = '';
+    return;
+  }
+  const W = 1080, H = 260, padL = 70, padR = 16, padT = 14, padB = 28;
+  const xs = curve.map((_, i) => i);
+  const ys = curve.map((p) => p.equity);
+  let yMin = Math.min.apply(null, ys), yMax = Math.max.apply(null, ys);
+  if (yMax === yMin) { yMax += 1; yMin -= 1; }
+  const yPad = (yMax - yMin) * 0.12;
+  yMin -= yPad; yMax += yPad;
+  const X = (i) => curve.length === 1
+    ? (padL + (W - padL - padR) / 2)
+    : padL + (W - padL - padR) * (i / (curve.length - 1));
+  const Y = (v) => padT + (H - padT - padB) * (1 - (v - yMin) / (yMax - yMin));
+  let grid = '', labels = '';
+  for (let g = 0; g <= 4; g++) {
+    const v = yMin + (yMax - yMin) * (g / 4);
+    const y = Y(v);
+    grid += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y +
+      '" stroke="#1f2937" stroke-width="1"/>';
+    labels += '<text x="' + (padL - 8) + '" y="' + (y + 4) +
+      '" text-anchor="end" fill="#8b94a7" font-size="11">' +
+      Math.round(v).toLocaleString('ru-RU') + '</text>';
+  }
+  const pts = xs.map((i) => X(i).toFixed(1) + ',' + Y(ys[i]).toFixed(1)).join(' ');
+  const area = padL + ',' + (H - padB) + ' ' + pts + ' ' + (W - padR) + ',' + (H - padB);
+  const first = curve[0], last = curve[curve.length - 1];
+  const up = last.equity >= first.equity;
+  const color = up ? '#34d399' : '#f87171';
+  let dots = '';
+  if (curve.length <= 60) {
+    dots = xs.map((i) =>
+      '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(ys[i]).toFixed(1) +
+      '" r="3" fill="' + color + '"><title>' + esc(curve[i].date) + ': ' +
+      Math.round(ys[i]).toLocaleString('ru-RU') + '</title></circle>').join('');
+  }
+  box.innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" role="img" ' +
+    'aria-label="Equity curve">' +
+    grid + labels +
+    '<polygon points="' + area + '" fill="' + color + '" opacity="0.08"/>' +
+    '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"/>' +
+    dots +
+    '<text x="' + padL + '" y="' + (H - 8) + '" fill="#8b94a7" font-size="11">' +
+    esc(first.date) + '</text>' +
+    '<text x="' + (W - padR) + '" y="' + (H - 8) +
+    '" text-anchor="end" fill="#8b94a7" font-size="11">' + esc(last.date) + '</text>' +
+    '</svg>';
+  const pnl = eq.pnl || {};
+  $('equity-summary').textContent =
+    'дней: ' + fmt(eq.num_days, '', 0) +
+    ' · return-дней (без seed-бара): ' + fmt(pnl.num_return_days, '', 0) +
+    ' · total P&L: ' + fmt(pnl.total_return_pct, '%') +
+    ' · maxDD: ' + fmt(pnl.max_drawdown_pct, '%') +
+    ' · единицы — проценты (cycle_runner)';
+}
+
+// ─── exposure ────────────────────────────────────────────────────────────────
+
+function bars(obj, suffixNote) {
+  const keys = Object.keys(obj || {});
+  if (keys.length === 0) return '<div class="empty">нет данных</div>';
+  return keys.map((k) => {
+    const pct = obj[k];
+    return '<div class="bar-row"><div class="bar-label">' + esc(k) + '</div>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:' +
+      Math.max(0, Math.min(100, pct)) + '%"></div></div>' +
+      '<div class="bar-pct">' + fmt(pct, '%', 2) + '</div></div>';
+  }).join('') + (suffixNote ? '<div class="sub" style="margin-top:4px">' + esc(suffixNote) + '</div>' : '');
+}
+
+function renderExposure(data) {
+  const exp = data.exposure || {};
+  if (!exp.available) {
+    $('exposure-table').innerHTML = '<div class="empty">нет данных по позициям</div>';
+    $('exposure-tiers').innerHTML = '';
+    $('exposure-chains').innerHTML = '';
+    return;
+  }
+  const byProto = exp.by_protocol || {};
+  let rows = Object.keys(byProto).map((p) => {
+    const i = byProto[p] || {};
+    return '<tr><td>' + esc(p) + '</td><td>' + esc(i.tier || 'unknown') + '</td>' +
+      '<td>' + fmtUsd(i.usd) + '</td><td>' + fmt(i.share_pct, '%', 2) + '</td></tr>';
+  }).join('');
+  rows += '<tr><td><em>cash</em></td><td>—</td><td>' +
+    fmtUsd(exp.capital_usd !== null && exp.deployed_usd !== null
+      ? exp.capital_usd - exp.deployed_usd : null) +
+    '</td><td>' + fmt(exp.cash_pct, '%', 2) + '</td></tr>';
+  $('exposure-table').innerHTML =
+    '<table><thead><tr><th>Протокол</th><th>Tier</th><th>USD</th><th>Доля</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+  $('exposure-tiers').innerHTML = '<div class="label sub">По тирам</div>' + bars(exp.by_tier);
+  $('exposure-chains').innerHTML = '<div class="label sub">По chain</div>' +
+    bars(exp.by_chain, 'chain «unknown» — источник не сообщает сеть (честно, не выдумываем)');
+}
+
+// ─── risk ────────────────────────────────────────────────────────────────────
+
+function renderRisk(data) {
+  const risk = data.risk || {};
+  const grades = risk.grades || {};
+  const keys = Object.keys(grades);
+  if (keys.length === 0) {
+    $('risk-grades').innerHTML = '<div class="empty">нет данных по grade позиций</div>';
+  } else {
+    const rows = keys.map((p) => {
+      const g = grades[p] || {};
+      const grade = g.grade || 'unknown';
+      return '<tr><td>' + esc(p) + '</td>' +
+        '<td><span class="grade grade-' + esc(g.grade || 'unknown') + '">' + esc(grade) + '</span></td>' +
+        '<td>' + fmt(g.score_numeric, '', 3) + '</td></tr>';
+    }).join('');
+    $('risk-grades').innerHTML =
+      '<table><thead><tr><th>Позиция</th><th>Grade</th><th>Score</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+  }
+  const inc = risk.incidents || {};
+  let html = '<div class="label sub">Инциденты (порог ≥ ' + fmt(inc.threshold_pct, '%', 2) +
+    ' AUM) · за весь трек: ' + fmt(inc.incidents_total_track, '', 0) + '</div>';
+  const items = inc.items || [];
+  if (items.length === 0) {
+    html += '<div class="ok" style="font-size:13px">Инцидентов по кривой не зафиксировано.</div>';
+  } else {
+    html += '<table><thead><tr><th>Дата</th><th>Потеря</th><th>Тип</th></tr></thead><tbody>' +
+      items.map((i) => '<tr><td>' + esc(i.date || 'н/д') + '</td><td class="neg">' +
+        fmt(i.loss_pct, '%') + '</td><td>' + esc(i.kind || 'н/д') + '</td></tr>').join('') +
+      '</tbody></table>';
+  }
+  html += '<div class="sub" style="margin-top:6px">maxDD трека: ' +
+    fmt(risk.max_drawdown_pct, '%') + '</div>';
+  $('risk-incidents').innerHTML = html;
+}
+
+// ─── Proof-of-Track viewer ───────────────────────────────────────────────────
+
+function renderProofOfTrack(data) {
+  const pot = data.proof_of_track || {};
+  const anchors = pot.anchors || [];
+  if (!pot.available || anchors.length === 0) {
+    $('pot-viewer').innerHTML = '<div class="empty">якоря отсутствуют — ' +
+      'merkle-якоря появляются по мере работы proof_of_track (MP-406)</div>';
+    return;
+  }
+  const rows = anchors.slice().reverse().map((a) => {
+    const root = a.merkle_root
+      ? '<span class="mono">' + esc(a.merkle_root) + '</span>'
+      : '<span class="warn">null (пустой день)</span>';
+    const pub = a.published
+      ? '<span class="ok">published</span>'
+      : '<span class="warn">не опубликован (MP-017 pending)</span>';
+    return '<tr><td>' + esc(a.date) + '</td><td>' + root + '</td>' +
+      '<td>' + fmt(a.leaf_count, '', 0) + '</td><td>' + pub + '</td>' +
+      '<td class="mono">' + (a.tx_hash ? esc(a.tx_hash) : 'н/д') + '</td></tr>';
+  }).join('');
+  $('pot-viewer').innerHTML =
+    '<div class="sub">якорей: ' + fmt(pot.anchors_count, '', 0) +
+    ' · опубликовано on-chain: ' + fmt(pot.published_count, '', 0) +
+    ' · latest root: <span class="mono">' + (pot.latest_root ? esc(pot.latest_root) : 'н/д') +
+    '</span></div>' +
+    '<table><thead><tr><th>Дата</th><th>Merkle root</th><th>Листьев</th>' +
+    '<th>Статус</th><th>Tx</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+// ─── Audit trail viewer ──────────────────────────────────────────────────────
+
+function renderAuditTrail(data) {
+  const at = data.audit_trail || {};
+  if (!at.available) {
+    $('audit-viewer').innerHTML = '<div class="empty">audit_trail.jsonl отсутствует — ' +
+      'события появятся после прогонов цикла с audit trail (MP-310)</div>';
+    return;
+  }
+  const events = (at.events || []).slice().reverse();
+  if (events.length === 0) {
+    $('audit-viewer').innerHTML = '<div class="empty">файл audit trail пуст</div>';
+    return;
+  }
+  const rows = events.map((e) => {
+    const summary = (e && typeof e.data === 'object' && e.data !== null)
+      ? esc(JSON.stringify(e.data).slice(0, 140)) : '';
+    return '<tr><td class="mono">' + esc((e && e.timestamp) || 'н/д') + '</td>' +
+      '<td>' + esc((e && e.event_type) || 'н/д') + '</td>' +
+      '<td class="mono">' + esc(((e && e.correlation_id) || '').slice(0, 12)) + '</td>' +
+      '<td class="mono">' + summary + '</td></tr>';
+  }).join('');
+  $('audit-viewer').innerHTML =
+    '<div class="sub">показаны последние ' + fmt(at.events_returned, '', 0) +
+    ' событий (лимит ' + fmt(at.limit, '', 0) + ')</div>' +
+    '<table><thead><tr><th>Время (UTC)</th><th>Событие</th><th>Corr-id</th>' +
+    '<th>Данные</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+// ─── загрузка ────────────────────────────────────────────────────────────────
+
+async function loadPortalData() {
+  for (const url of DATA_CANDIDATES) {
+    try {
+      const resp = await fetch(url + '?cb=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (data && typeof data === 'object') return data;
+    } catch (e) { /* пробуем следующий кандидат */ }
+  }
+  return null;
+}
+
+async function init() {
+  const data = await loadPortalData();
+  if (!data) {
+    // честный fallback: нет файла данных → заглушка, никаких выдуманных цифр
+    $('nodata-banner').style.display = 'block';
+    $('content').style.display = 'none';
+    return;
+  }
+  $('nodata-banner').style.display = 'none';
+  $('content').style.display = 'block';
+  renderHeader(data);
+  renderStalenessBanner(data);
+  renderHeadline(data);
+  renderEquity(data);
+  renderExposure(data);
+  renderRisk(data);
+  renderProofOfTrack(data);
+  renderAuditTrail(data);
+}
+
+init();
+</script>
+</body>
+</html>
