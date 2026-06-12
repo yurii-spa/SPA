@@ -14,6 +14,10 @@ from .aave_arbitrum_adapter import AaveArbitrumAdapter
 from .fluid_fusdc_adapter import FluidFUSDCAdapter
 # MP-430: Frax sFRAX ERC-4626 T2 adapter (peg gate)
 from .sfrax_adapter import SfraxAdapter
+# MP-376: Spark Protocol sUSDS ERC-4626 T1 adapter
+from .spark_susds_adapter import SparkSusdsAdapter
+# MP-460: Ethena sUSDe ERC-4626 T3 adapter (peg gate, 7d unstake cooldown)
+from .susde_adapter import SusdeAdapter
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -28,6 +32,20 @@ try:
 except ImportError:
     _MORPHO_BLUE_BASE_AVAILABLE = False
 
+# MP-463: Moonwell Finance Base chain T2 adapter (Coinbase L2, ~$500M TVL)
+try:
+    from .moonwell_base_adapter import MoonwellBaseAdapter
+    _MOONWELL_BASE_AVAILABLE = True
+except ImportError:
+    _MOONWELL_BASE_AVAILABLE = False
+
+# MP-510: Extra Finance XLend Base chain T3 adapter (ADR-026 Phase 1, isolated lending vault)
+try:
+    from .extra_finance_base_adapter import ExtraFinanceBaseAdapter  # MP-510
+    _EXTRA_FINANCE_BASE_AVAILABLE = True
+except ImportError:
+    _EXTRA_FINANCE_BASE_AVAILABLE = False
+
 # ADR-025 Phase 1: Base chain read-only APY feeds (no capital allocation)
 # Populated at import time with whichever Base adapters are available.
 BASE_CHAIN_ADAPTERS: dict = {}  # ADR-025: key -> adapter instance, read-only
@@ -35,6 +53,10 @@ if _AAVE_V3_BASE_AVAILABLE:
     BASE_CHAIN_ADAPTERS["aave-v3-base"] = AaveV3BaseAdapter()
 if _MORPHO_BLUE_BASE_AVAILABLE:
     BASE_CHAIN_ADAPTERS["morpho-blue-base"] = MorphoBlueBaseAdapter()
+if _MOONWELL_BASE_AVAILABLE:
+    BASE_CHAIN_ADAPTERS["moonwell-base"] = MoonwellBaseAdapter()
+if _EXTRA_FINANCE_BASE_AVAILABLE:
+    BASE_CHAIN_ADAPTERS["extra-finance-base"] = ExtraFinanceBaseAdapter()
 
 # Read-only adapter registry: (protocol_key, tier, adapter_class). The
 # orchestrator polls these; SPA-V405 adds the Aave V3 T1 anchor; SPA-V411 adds
@@ -55,6 +77,8 @@ ADAPTER_REGISTRY = [
     ("pendle",        "T2", PendleAdapter),
     ("fluid_fusdc",   "T2", FluidFUSDCAdapter),
     ("sfrax",         "T2", SfraxAdapter),
+    ("spark_susds",   "T1", SparkSusdsAdapter),  # MP-376
+    ("susde",         "T3", SusdeAdapter),  # MP-460
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -62,6 +86,12 @@ if _AAVE_V3_BASE_AVAILABLE:
     ADAPTER_REGISTRY.append(("aave_v3_base", "T2", AaveV3BaseAdapter))
 if _MORPHO_BLUE_BASE_AVAILABLE:
     ADAPTER_REGISTRY.append(("morpho_blue_base", "T2", MorphoBlueBaseAdapter))
+# MP-463: Moonwell Finance Base T2 (ADR-025 Phase 1 monitoring)
+if _MOONWELL_BASE_AVAILABLE:
+    ADAPTER_REGISTRY.append(("moonwell_base", "T2", MoonwellBaseAdapter))
+# MP-510: Extra Finance XLend Base T3 (ADR-026 Phase 1 monitoring)
+if _EXTRA_FINANCE_BASE_AVAILABLE:
+    ADAPTER_REGISTRY.append(("extra_finance_base", "T3", ExtraFinanceBaseAdapter))  # MP-510
 
 __all__ = [
     "BaseAdapter",
@@ -77,8 +107,12 @@ __all__ = [
     "AaveArbitrumAdapter",
     "FluidFUSDCAdapter",
     "SfraxAdapter",
+    "SparkSusdsAdapter",  # MP-376
+    "SusdeAdapter",  # MP-460
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
+    "MoonwellBaseAdapter",
+    "ExtraFinanceBaseAdapter",  # MP-510
     "BASE_CHAIN_ADAPTERS",
     "ADAPTER_REGISTRY",
 ]
