@@ -1,0 +1,86 @@
+[
+  {
+    "ts": "2026-06-12T06:00:06.920625+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-12T06:00:06.925679+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-12T06:00:06.930632+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-12T06:00:06.932947+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-12T06:00:06.934591+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-12T06:00:06.935936+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-12T06:00:37.278773+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-12T06:00:37.281091+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-12T06:00:37.282662+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-12T06:00:37.284200+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-12T06:00:37.285439+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-12T06:00:37.286774+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-12T06",
+    "restart_count_this_hour": 2
+  }
+]
