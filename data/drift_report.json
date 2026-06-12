@@ -1,24 +1,5 @@
 {
-  "timestamp": "2026-06-11T22:30:01.729089+00:00",
+  "timestamp": "2026-06-10T08:55:55.699377+00:00",
   "needs_rebalance": true,
-  "positions": [
-    {
-      "protocol": "morpho-usdc-ethereum",
-      "current_pct": 40.0,
-      "target_pct": 40.0,
-      "drift_pct": 0.0,
-      "drift_usd": 0.0,
-      "action": "OK",
-      "urgency": "LOW"
-    },
-    {
-      "protocol": "euler-v2-usdc-ethereum",
-      "current_pct": 20.0,
-      "target_pct": 20.0,
-      "drift_pct": 0.0,
-      "drift_usd": 0.0,
-      "action": "OK",
-      "urgency": "LOW"
-    }
-  ]
+  "positions": []
 }
