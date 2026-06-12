@@ -75,6 +75,10 @@ def _run(tmp_path, target_usd, *, adapters=None, now=None, write=True):
         now=now or datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
         orchestrator_fn=_orch_fn(adapters if adapters is not None else DEFAULT_ADAPTERS),
         allocator=_FakeAllocator(target_usd),
+        # MP-012: no-op risk scorer keeps these tests network-free.
+        risk_scorer_fn=lambda d: None,
+        # MP-109: no-op track persister keeps these tests off iCloud/home dirs.
+        track_persister_fn=lambda d: None,
         write=write,
     )
 
