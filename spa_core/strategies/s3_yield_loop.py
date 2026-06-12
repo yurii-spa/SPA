@@ -449,6 +449,29 @@ class YieldLoopStrategy:
             "metrics":      metrics,
         }
 
+    def run_day(self, apy_map: dict = None) -> float:
+        """Thin adapter for cycle_runner compatibility.
+        Returns estimated effective loop APY from apy_map."""
+        _FALLBACK_APY = 18.0  # midpoint of 15–25% target range (with leverage)
+        if not apy_map:
+            return _FALLBACK_APY
+        # Look for Aave V3 deposit rate in protocol order
+        deposit_apy = 0.0
+        for key in DEPOSIT_PROTOCOLS:
+            if key in apy_map and isinstance(apy_map[key], (int, float)):
+                deposit_apy = max(deposit_apy, float(apy_map[key]))
+        if deposit_apy == 0.0:
+            # Fallback: any aave-v3 key
+            for key, val in apy_map.items():
+                if key.startswith("aave-v3") and isinstance(val, (int, float)):
+                    deposit_apy = max(deposit_apy, float(val))
+        if deposit_apy == 0.0:
+            return _FALLBACK_APY
+        # Compute net loop APY (simplified 1-loop model)
+        borrow_rate = self._estimate_borrow_rate(deposit_apy)
+        net_apy = deposit_apy + LTV * (deposit_apy - borrow_rate)
+        return float(max(net_apy, 0.0))
+
     def _empty_result(self, initial_capital):
         return {
             "strategy_id": STRATEGY_ID,
