@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-12T06:00:04.769251+00:00",
+  "history": [
+    {
+      "ts": "2026-06-12T06:00:04.769251+00:00",
+      "equity": 100026.06,
+      "daily_pnl": 8.7602,
+      "positions": {
+        "aave_v3": 31946.82,
+        "compound_v3": 29803.17,
+        "yearn_v3": 11518.6,
+        "euler_v2": 10212.78,
+        "maple": 11518.6
+      },
+      "adapter_counts": {
+        "active": 6,
+        "paused": 0
+      },
+      "cycle_number": 24
+    }
+  ]
+}
