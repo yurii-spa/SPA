@@ -1,0 +1,25 @@
+{
+  "available": false,
+  "reason": "only 2 daily returns (< 12 required)",
+  "is_demo": false,
+  "bias_ratio": null,
+  "std_returns": null,
+  "count_small_positive": null,
+  "count_small_negative": null,
+  "count_returns": null,
+  "mean_return": null,
+  "n_observations": 2,
+  "start_date": null,
+  "end_date": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 2 daily returns (< 12 required)",
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T13:16:33.220556+00:00",
+    "schema_version": 1,
+    "source": "bias_ratio",
+    "min_obs_required": 12
+  },
+  "_fingerprint": "{\"available\": false, \"bias_ratio\": null, \"count_returns\": null, \"count_small_negative\": null, \"count_small_positive\": null, \"end_date\": null, \"is_demo\": false, \"mean_return\": null, \"meta\": {\"min_obs_required\": 12, \"schema_version\": 1, \"source\": \"bias_ratio\"}, \"n_observations\": 2, \"notes\": [], \"reason\": \"only 2 daily returns (< 12 required)\", \"start_date\": null, \"std_returns\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 2 daily returns (< 12 required)\"}",
+  "history": []
+}
