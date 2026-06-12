@@ -1,0 +1,53 @@
+{
+  "sprint": "v4.83",
+  "date": "2026-06-12",
+  "go_live_target": "2026-08-01",
+  "paper_trading_day": 0,
+  "pass": 7,
+  "fail": 0,
+  "total": 7,
+  "ready": true,
+  "generated_at": "2026-06-12T19:56:12.934683Z",
+  "checks": {
+    "adapter_registry": {
+      "status": "PASS",
+      "count": 16,
+      "expected": 16,
+      "note": "OK"
+    },
+    "moonwell_suspended": {
+      "status": "PASS",
+      "risk_score": 0.75,
+      "adapter_status": "suspended",
+      "note": "Correctly suspended"
+    },
+    "extra_finance_t3": {
+      "status": "PASS",
+      "id": "extra_finance_base",
+      "tier": "T3",
+      "apy_fallback": 8.0,
+      "note": "T3 monitoring, 8.0% APY"
+    },
+    "s13_strategy": {
+      "status": "PASS",
+      "id": "s13_multi_chain_arb",
+      "tier": "T2",
+      "target_apy": 8.5,
+      "note": "Multi-chain arb strategy importable"
+    },
+    "cycle_runner": {
+      "status": "PASS",
+      "note": "run_cycle importable"
+    },
+    "strategy_summary": {
+      "status": "PASS",
+      "note": "generate_summary importable"
+    },
+    "tournament": {
+      "status": "PASS",
+      "count": 14,
+      "expected": 14,
+      "note": "Tournament S0-S13: 14 strategies"
+    }
+  }
+}
