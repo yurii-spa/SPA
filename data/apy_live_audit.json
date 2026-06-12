@@ -1,0 +1,163 @@
+{
+  "audit_date": "2026-06-12",
+  "audit_version": "v4.73",
+  "audit_method": "source_code_trace + runtime_data_inspection",
+  "apy_map_source": "orchestrator_real_adapters",
+  "apy_map_keys_live": [
+    "aave_v3",
+    "compound_v3",
+    "morpho_blue",
+    "yearn_v3",
+    "euler_v2",
+    "maple"
+  ],
+  "apy_map_keys_missing": [
+    "morpho_steakhouse",
+    "pendle_pt",
+    "spark_susds",
+    "fluid_fusdc"
+  ],
+  "flow_description": "cycle_runner Step 1 calls adapter_orchestrator → run_orchestrator() which fetches live APY via DeFiLlama feed for 6 adapters. apy_map = _live_apy_map(adapters). Newer adapters (morpho_steakhouse, pendle_pt, spark_susds, fluid_fusdc) are NOT in orchestrators ADAPTER_REGISTRY and therefore NOT in apy_map. Strategies (S2 etc.) use apy_map.get(protocol, FALLBACK_APY) — so for missing keys they fall back to hardcoded constants. MP-389 code refreshes adapter_registry AFTER allocation but REGISTRY is empty — no effect.",
+  "adapters": {
+    "aave_v3": {
+      "source": "real",
+      "adapter_file": "aave_v3.py",
+      "feed": "DeFiLlama (defillama_feed.py)",
+      "in_orchestrator": true,
+      "current_apy_pct": 3.21,
+      "status": "OK",
+      "note": "Live DeFiLlama feed. In orchestrator ADAPTER_REGISTRY. apy_pct=3.2147 at last cycle."
+    },
+    "compound_v3": {
+      "source": "real",
+      "adapter_file": "compound_v3.py (orchestrator) + compound_v3_adapter.py (newer)",
+      "feed": "DeFiLlama (orchestrator)",
+      "in_orchestrator": true,
+      "current_apy_pct": 3.2,
+      "status": "OK",
+      "note": "Orchestrator compound_v3 uses DeFiLlama → 3.20%. Newer compound_v3_adapter.py reads adapter_status.json → fallback 4.8%. ONLY orchestrator value feeds apy_map."
+    },
+    "morpho_blue": {
+      "source": "real",
+      "adapter_file": "morpho_blue.py",
+      "feed": "DeFiLlama (defillama_feed.py)",
+      "in_orchestrator": true,
+      "current_apy_pct": 4.75,
+      "status": "OK",
+      "note": "Live DeFiLlama feed. In orchestrator ADAPTER_REGISTRY. apy_pct=4.7507 at last cycle."
+    },
+    "morpho_steakhouse": {
+      "source": "hardcoded",
+      "adapter_file": "morpho_steakhouse_adapter.py",
+      "feed": "data/adapter_status.json (no apy field → fallback)",
+      "in_orchestrator": false,
+      "current_apy_pct": 6.5,
+      "status": "FALLBACK",
+      "note": "NOT in orchestrator ADAPTER_REGISTRY. Reads adapter_status.json[morpho_steakhouse].apy = None → fallback 6.5%. NOT in apy_map → strategies use FALLBACK_APY[morpho_steakhouse]=6.5."
+    },
+    "pendle_pt": {
+      "source": "fallback",
+      "adapter_file": "pendle_pt_adapter.py",
+      "feed": "Pendle REST API (live_enabled=True, but network_unavailable at last run)",
+      "in_orchestrator": false,
+      "current_apy_pct": 8.0,
+      "status": "FALLBACK",
+      "note": "PendlePTAdapter.get_apy() makes live REST call to Pendle API v2. Last result: fallback 8.0% (network_unavailable). NOT in orchestrator → NOT in apy_map. File pendle_pt_rest_adapter.py does NOT exist (only pendle_pt_adapter.py)."
+    },
+    "pendle": {
+      "source": "real",
+      "adapter_file": "pendle_adapter.py",
+      "feed": "Pendle REST API via PendleAdapter",
+      "in_orchestrator": true,
+      "current_apy_pct": null,
+      "status": "MISSING",
+      "note": "PendleAdapter is in orchestrator registry but returned no data at last cycle (no apy_pct in orchestrator status output). Protocol key is pendle (not pendle_pt)."
+    },
+    "spark_susds": {
+      "source": "hardcoded",
+      "adapter_file": "spark_susds_adapter.py",
+      "feed": "data/adapter_status.json → mock 5.5% (research mode, GSM pending)",
+      "in_orchestrator": false,
+      "current_apy_pct": 5.5,
+      "status": "MISSING",
+      "note": "GSM Pause Delay = 0h (need >= 48h per ADR). allocation_cap=0. NOT in orchestrator. Research mode — mock APY only. NOT in apy_map."
+    },
+    "fluid_fusdc": {
+      "source": "hardcoded",
+      "adapter_file": "fluid_fusdc_adapter.py",
+      "feed": "data/adapter_status.json → mock 6.5% (research mode, GSM pending)",
+      "in_orchestrator": false,
+      "current_apy_pct": 6.5,
+      "status": "MISSING",
+      "note": "GSM Pause Delay = 0h (need >= 48h per ADR). allocation_cap=0. NOT in orchestrator. Research mode — mock APY only. NOT in apy_map."
+    },
+    "pendle_yt": {
+      "source": "hardcoded",
+      "adapter_file": "N/A (strategy S10 uses internal constants)",
+      "feed": "None — no live feed",
+      "in_orchestrator": false,
+      "current_apy_pct": 15.0,
+      "status": "MISSING_FEED",
+      "note": "YT APY requires on-chain calculation or specialized API. S10 uses hardcoded APY_YT_BASE_PCT. ADR-021: advisory only, no automatic position opening."
+    },
+    "yearn_v3": {
+      "source": "real",
+      "adapter_file": "yearn_v3.py",
+      "feed": "DeFiLlama (defillama_feed.py)",
+      "in_orchestrator": true,
+      "current_apy_pct": 3.36,
+      "status": "OK",
+      "note": "Live DeFiLlama feed. In orchestrator ADAPTER_REGISTRY. apy_pct=3.3558 at last cycle."
+    },
+    "euler_v2": {
+      "source": "real",
+      "adapter_file": "euler_v2.py",
+      "feed": "DeFiLlama (defillama_feed.py)",
+      "in_orchestrator": true,
+      "current_apy_pct": 2.78,
+      "status": "OK",
+      "note": "Live DeFiLlama feed. In orchestrator ADAPTER_REGISTRY. apy_pct=2.7829 at last cycle."
+    },
+    "maple": {
+      "source": "real",
+      "adapter_file": "maple.py",
+      "feed": "DeFiLlama (defillama_feed.py)",
+      "in_orchestrator": true,
+      "current_apy_pct": 4.74,
+      "status": "OK",
+      "note": "Live DeFiLlama feed. In orchestrator ADAPTER_REGISTRY. apy_pct=4.7366 at last cycle."
+    }
+  },
+  "summary": {
+    "real_feeds_in_apy_map": 6,
+    "fallback_not_in_apy_map": 3,
+    "missing_no_feed": 2,
+    "total_audited": 11,
+    "orchestrator_adapters": [
+      "aave_v3",
+      "compound_v3",
+      "morpho_blue",
+      "yearn_v3",
+      "euler_v2",
+      "maple"
+    ],
+    "missing_from_apy_map": [
+      "morpho_steakhouse",
+      "pendle_pt",
+      "spark_susds",
+      "fluid_fusdc",
+      "pendle_yt"
+    ],
+    "action_needed": "Main apy_map already uses live DeFiLlama data for 6 adapters. Patch: merge adapter_status.json fallback values for missing keys (morpho_steakhouse, pendle_pt) into apy_map after orchestrator step, before tournament/allocation. spark_susds/fluid_fusdc: blocked by GSM gate (0h < 48h) — no action needed yet. REGISTRY in adapter_registry.py is empty — MP-389 refresh_all() does nothing currently."
+  },
+  "key_findings": [
+    "cycle_runner apy_map строится из РЕАЛЬНЫХ адаптеров через orchestrator (DeFiLlama feeds)",
+    "apy_map ключи: aave_v3, compound_v3, morpho_blue, yearn_v3, euler_v2, maple",
+    "ОТСУТСТВУЮТ в apy_map: morpho_steakhouse, pendle_pt, spark_susds, fluid_fusdc",
+    "Стратегии S2–S7 используют apy_map.get(protocol, FALLBACK_APY) — для missing ключей используются hardcoded константы",
+    "MP-389 refresh_all() вызывается ПОСЛЕ allocation и REGISTRY пуст — нет эффекта",
+    "pendle_pt_rest_adapter.py НЕ существует (только pendle_pt_adapter.py с FALLBACK_APY=8.0)",
+    "morpho_steakhouse.apy в adapter_status.json = None → fallback 6.5%"
+  ],
+  "recommendation": "Приоритет 1: добавить merge adapter_status.json fallback values в apy_map после шага 1 в cycle_runner. Приоритет 2: добавить morpho_steakhouse APY в adapter_status.json (из DeFiLlama или Morpho API). Приоритет 3: зарегистрировать PendlePTAdapter в ADAPTER_REGISTRY для живых данных. Приоритет 4: когда GSM >= 48h — добавить spark_susds/fluid_fusdc в orchestrator registry."
+}
