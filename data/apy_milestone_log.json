@@ -1,0 +1,74 @@
+{
+  "start_date": "2026-06-05",
+  "last_updated": "2026-06-12",
+  "days_recorded": 8,
+  "daily_log": [
+    {
+      "date": "2026-06-05",
+      "apy_pct": 9.8,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-06",
+      "apy_pct": 9.87,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-07",
+      "apy_pct": 9.93,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-08",
+      "apy_pct": 9.99,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-09",
+      "apy_pct": 10.05,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-10",
+      "apy_pct": 10.12,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-11",
+      "apy_pct": 10.18,
+      "strategy_id": "S7",
+      "is_seed": true
+    },
+    {
+      "date": "2026-06-12",
+      "apy_pct": 2.137,
+      "strategy_id": "s7_pendle_yt"
+    }
+  ],
+  "milestones_reached": [
+    {
+      "level": 1,
+      "name": "Baseline beat",
+      "target_pct": 5.0,
+      "first_reached_date": "2026-06-05"
+    },
+    {
+      "level": 2,
+      "name": "Target entry",
+      "target_pct": 7.0,
+      "first_reached_date": "2026-06-05"
+    },
+    {
+      "level": 3,
+      "name": "Target mid",
+      "target_pct": 10.0,
+      "first_reached_date": "2026-06-09"
+    }
+  ]
+}
