@@ -1,0 +1,63 @@
+{
+  "version": "v4.88",
+  "timestamp": "2026-06-12T21:07:08Z",
+  "checks": {
+    "adapter_registry": {
+      "status": "PASS",
+      "count": 16
+    },
+    "moonwell_suspended": {
+      "status": "PASS",
+      "risk_score": 0.75
+    },
+    "extra_finance_t3": {
+      "status": "PASS",
+      "apy": 8.0
+    },
+    "s13_strategy": {
+      "status": "PASS",
+      "tier": "T2",
+      "phase": 1
+    },
+    "cycle_runner": {
+      "status": "PASS",
+      "strategies": 14
+    },
+    "strategy_summary": {
+      "status": "PASS",
+      "leading": "S7"
+    },
+    "tournament": {
+      "status": "PASS",
+      "count": 14
+    },
+    "protocol_direct": {
+      "status": "PASS",
+      "adapters": 3
+    },
+    "adr_029": {
+      "status": "PASS",
+      "auto_enabled": false
+    },
+    "adr_030": {
+      "status": "PASS",
+      "eb_count": 5
+    },
+    "adr_031": {
+      "status": "PASS",
+      "phase": 0,
+      "phase_end": "2026-07-01"
+    },
+    "emergency_breakers": {
+      "status": "PASS",
+      "integrated": true
+    },
+    "position_tracker": {
+      "status": "PASS",
+      "ring_buffer_days": 365
+    }
+  },
+  "total_checks": 13,
+  "passed": 13,
+  "overall": "PASS"
+}
