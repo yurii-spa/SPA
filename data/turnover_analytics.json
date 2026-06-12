@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "source": "turnover_analytics",
+    "schema_version": 1,
+    "generated_at": "2026-06-12T03:15:23.822933+00:00",
+    "advisory_only": true,
+    "disclaimer": "NOT investment advice",
+    "source_file": "equity_curve_daily.json",
+    "real_track_start": "2026-06-10",
+    "is_demo": false,
+    "rebalance_eps": 0.005,
+    "moderate_turnover": 4.0,
+    "high_turnover": 12.0,
+    "annualization_days": 365,
+    "notes": []
+  },
+  "available": true,
+  "reason": null,
+  "track": {
+    "first_date": "2026-06-10",
+    "last_date": "2026-06-11",
+    "num_bars": 2,
+    "num_observations": 1
+  },
+  "headline": {
+    "num_observations": 1,
+    "avg_daily_turnover": 0.020372,
+    "median_daily_turnover": 0.020372,
+    "max_daily_turnover": 0.020372,
+    "max_turnover_date": "2026-06-11",
+    "cumulative_turnover": 0.020372,
+    "annualized_turnover": 7.435843,
+    "implied_avg_holding_days": 49.0866,
+    "num_rebalance_days": 1,
+    "most_churned_protocol": "compound_v3",
+    "most_churned_share": 0.416871
+  },
+  "verdict": "warn",
+  "verdict_reason": "annualized turnover 7.44× > 4.0× — moderate-to-high rebalancing activity; watch trading cost",
+  "per_protocol_churn": {
+    "aave_v3": 0.016985,
+    "compound_v3": 0.016985,
+    "euler_v2": 0.003387,
+    "maple": 0.002064,
+    "yearn_v3": 0.001323
+  },
+  "recent_turnover": [
+    {
+      "date": "2026-06-11",
+      "turnover": 0.020372
+    }
+  ],
+  "history": [
+    {
+      "generated_at": "2026-06-12T03:15:23.822933+00:00",
+      "avg_daily_turnover": 0.020372,
+      "annualized_turnover": 7.435843,
+      "num_rebalance_days": 1,
+      "verdict": "warn"
+    }
+  ]
+}
