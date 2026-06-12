@@ -1,36 +1,123 @@
 {
-  "simulation_date": "2026-06-12",
-  "capital_usd": 100000.0,
-  "n_days": 30,
-  "strategies": [
+  "generated_at": "2026-06-12",
+  "tournament_days": 30,
+  "strategies": {
+    "S0": {
+      "name": "Aave Baseline",
+      "annual_apy_pct": 3.2,
+      "30d_return_pct": 0.263,
+      "risk_score": 0.1,
+      "tier": "T1",
+      "status": "active"
+    },
+    "S1": {
+      "name": "T1+T2 Balanced",
+      "annual_apy_pct": 5.24,
+      "30d_return_pct": 0.43,
+      "risk_score": 0.25,
+      "tier": "T2",
+      "status": "active"
+    },
+    "S2": {
+      "name": "Pendle+Morpho Heavy",
+      "annual_apy_pct": 7.0,
+      "30d_return_pct": 0.575,
+      "risk_score": 0.4,
+      "tier": "T2",
+      "status": "leading"
+    },
+    "S3": {
+      "name": "Aave Arb+Morpho",
+      "annual_apy_pct": 4.7,
+      "30d_return_pct": 0.386,
+      "risk_score": 0.3,
+      "tier": "T2",
+      "status": "active"
+    },
+    "S4": {
+      "name": "Spark+Fluid Conservative",
+      "annual_apy_pct": 5.9,
+      "30d_return_pct": 0.485,
+      "risk_score": 0.31,
+      "tier": "T2",
+      "status": "research"
+    },
+    "S5": {
+      "name": "Pendle PT Enhanced",
+      "annual_apy_pct": 8.5,
+      "30d_return_pct": 0.699,
+      "risk_score": 0.42,
+      "tier": "T2",
+      "status": "new"
+    },
+    "S6": {
+      "name": "Max Diversified",
+      "annual_apy_pct": 7.5,
+      "30d_return_pct": 0.616,
+      "risk_score": 0.35,
+      "tier": "T2",
+      "status": "new"
+    },
+    "S7": {
+      "name": "Pendle YT+PT Aggressive",
+      "annual_apy_pct": 10.1,
+      "30d_return_pct": 0.83,
+      "risk_score": 0.52,
+      "tier": "T3",
+      "status": "new"
+    }
+  },
+  "rankings": [
     {
       "rank": 1,
-      "strategy_id": "S0",
-      "strategy_name": "Conservative T1",
-      "final_balance": 100333.58,
-      "total_return_pct": 0.3336,
-      "annualized_apy_pct": 4.06,
-      "sharpe_approx": 52410.903
+      "strategy_id": "S7",
+      "annual_apy_pct": 10.1,
+      "status": "new"
     },
     {
       "rank": 2,
-      "strategy_id": "S_aave_baseline",
-      "strategy_name": "Aave Baseline",
-      "final_balance": 100328.49,
-      "total_return_pct": 0.3285,
-      "annualized_apy_pct": 4.0,
-      "sharpe_approx": 313932.4527
+      "strategy_id": "S5",
+      "annual_apy_pct": 8.5,
+      "status": "new"
     },
     {
       "rank": 3,
+      "strategy_id": "S6",
+      "annual_apy_pct": 7.5,
+      "status": "new"
+    },
+    {
+      "rank": 4,
+      "strategy_id": "S2",
+      "annual_apy_pct": 7.0,
+      "status": "leading"
+    },
+    {
+      "rank": 5,
+      "strategy_id": "S4",
+      "annual_apy_pct": 5.9,
+      "status": "research"
+    },
+    {
+      "rank": 6,
       "strategy_id": "S1",
-      "strategy_name": "Balanced T1+T2",
-      "final_balance": 100472.97,
-      "total_return_pct": 0.473,
-      "annualized_apy_pct": 5.75,
-      "sharpe_approx": 114428.0111
+      "annual_apy_pct": 5.24,
+      "status": "active"
+    },
+    {
+      "rank": 7,
+      "strategy_id": "S3",
+      "annual_apy_pct": 4.7,
+      "status": "active"
+    },
+    {
+      "rank": 8,
+      "strategy_id": "S0",
+      "annual_apy_pct": 3.2,
+      "status": "active"
     }
   ],
-  "winner": "S0",
-  "generated_by": "run_tournament_30d.py"
+  "winner": "S7",
+  "promotion_candidate": "S7",
+  "go_live_recommendation": "S7 first to cross 10% APY threshold — recommend promotion to live paper trading"
 }
