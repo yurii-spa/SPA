@@ -83,6 +83,9 @@ class AllocationResult:
     # MP-011: соблюдение RiskPolicy на стороне аллокатора (TVL-floor + T2-total).
     tvl_filtered_protocols: list[str] = field(default_factory=list)
     t2_cap_enforced: bool = False
+    # MP-209: capacity limits enforcement (позиция ≤ 1% TVL пула, ADR-009).
+    capacity_capped: bool = False
+    capacity_check: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -593,8 +596,65 @@ class StrategyAllocator:
         )
 
         target_usd = {p: round(w * self.CAPITAL, 2) for p, w in capped.items()}
+
+        # MP-209: capacity limits enforcement — обрезаем позиции превышающие
+        # 1% TVL пула. Warn-only режим (ADR-009): срезание происходит в аллокаторе,
+        # нарушения логируются, но цикл не блокируется.
+        # Если TVL map пустой → пропускаем (fail-safe).
+        capacity_capped = False
+        capacity_check_result: dict = {}
+        try:
+            from spa_core.risk.capacity_limits import (  # lazy import, без цикл. зависимостей
+                apply_capacity_caps,
+                build_tvl_map,
+                check_all_capacities,
+            )
+            # Строим tvl_map из текущего снимка адаптеров
+            status_dict: dict = {}
+            if self.status_path.exists():
+                import json as _json
+                with open(self.status_path, encoding="utf-8") as _fh:
+                    status_dict = _json.load(_fh)
+            tvl_map_cap = build_tvl_map(status_dict)
+
+            if tvl_map_cap:
+                # Проверяем до обрезания — для логирования нарушений
+                capacity_check_result = check_all_capacities(target_usd, tvl_map_cap)
+                if capacity_check_result.get("violations"):
+                    log.warning(
+                        "MP-209: capacity violations (warn-only, ADR-009): %s",
+                        capacity_check_result["violations"],
+                    )
+                    notes.append(
+                        "MP-209 CAPACITY_WARN: позиции обрезаны по лимиту 1%% TVL: "
+                        + str(capacity_check_result["violations"])
+                    )
+
+                # Применяем cap'ы
+                target_usd_capped = apply_capacity_caps(target_usd, tvl_map_cap)
+                if target_usd_capped != target_usd:
+                    capacity_capped = True
+                    target_usd = {p: round(v, 2) for p, v in target_usd_capped.items()}
+                    # Пересчитываем веса из обрезанных USD-сумм
+                    capped = {p: target_usd[p] / self.CAPITAL for p in target_usd}
+            else:
+                log.info("MP-209: tvl_map пустой — capacity check пропущен")
+        except Exception as _cap_exc:
+            # Capacity check не должен валить аллокацию (fail-safe)
+            log.warning("MP-209: capacity_cap ошибка (%s) — пропущен", _cap_exc)
+
         # APY портфеля: веса как доли капитала; нераспределённый кэш = 0% APY.
         expected_apy = sum(capped[p] * apy_map.get(p, 0.0) for p in capped)
+
+        # Пересчитываем метрики после capacity cap (если был)
+        allocated = sum(capped.values())
+        unallocated = max(0.0, 1.0 - allocated)
+        t1_pct = sum(
+            w for p, w in capped.items() if str(tier_map.get(p, "T2")).upper() == "T1"
+        )
+        t2_pct = sum(
+            w for p, w in capped.items() if str(tier_map.get(p, "T2")).upper() != "T1"
+        )
 
         return AllocationResult(
             target_weights={p: round(w, 6) for p, w in capped.items()},
@@ -617,6 +677,8 @@ class StrategyAllocator:
             strategy_confidence=strategy_confidence,
             tvl_filtered_protocols=tvl_filtered,
             t2_cap_enforced=t2_cap_enforced,
+            capacity_capped=capacity_capped,
+            capacity_check=capacity_check_result,
             notes=notes,
         )
 
