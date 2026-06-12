@@ -4,6 +4,83 @@
 
 ---
 
+## 🚀 ОБЯЗАТЕЛЬНЫЙ STARTUP PROTOCOL
+
+Выполнять в НАЧАЛЕ каждой сессии, перед выбором задачи:
+
+1. **CURRENT_STATE.md** → прочитать: статус launchd, push_method, sprint_last, blockers
+2. **RULES.md** → напомнить себе правила (если давно не читал)
+3. **Push fix если нужен** → если CURRENT_STATE говорит autopush_status=not_installed:
+   ```bash
+   bash ~/Documents/SPA_Claude/mp009_fix_launchd.command
+   ```
+4. **KANBAN.json** → sprint_current, что в backlog с P0-P1, что blocked
+5. **docs/DECISIONS.md** → последние 3-5 записей: что было сделано, какие блокеры
+
+Только после этих 5 шагов → брать задачу из backlog.
+
+---
+
+## ✅ ОБЯЗАТЕЛЬНЫЙ ЧЕКЛИСТ ЗАКРЫТИЯ СПРИНТА (DoD)
+
+Спринт считается done ТОЛЬКО если выполнены ВСЕ 3 пункта:
+
+1. **KANBAN.json** → карточка: status=done, sprint_completed=vX.YZ, completed=YYYY-MM-DD (атомарно)
+2. **SPA_sprint_log.md** → новая запись: что сделано, тесты, почему эта задача, что дальше
+3. **CURRENT_STATE.md** → обновить: sprint_last=vX.YZ, infrastructure_status если изменился
+
+Пропустить пункт 2 или 3 = sprint "shipped_local" но не done.
+Без этого история теряется — DD-аудиторы увидят дыры в sprint log.
+
+---
+
+## ⚡ ПРИОРИТИЗАЦИЯ: INFRASTRUCTURE FIRST
+
+Порядок выбора задач:
+
+1. **P0 infrastructure** — ВСЕГДА первые (autopush fix, алерты, пуш)
+2. **P0 process** — CURRENT_STATE.md, RULES.md sync, sprint DoD
+3. **P1 infrastructure / monitoring** — алерты, daily report, kill-switch
+4. **P1 analytics** — только если нет P0/P1 infra в backlog
+5. **P2+ analytics** — только если нет P1 infra в backlog
+
+**Исключение:** если P0/P1 infra заблокированы USER ACTION — тогда переходи к следующему приоритету и явно пиши в sprint log почему.
+
+**Запрещено:** брать analytics P2+ при наличии infra P1 не-blocked задач.
+
+---
+
+## 🚨 ANTI-HALT ПРОТОКОЛ
+
+Если блокер повторяется 3-й раз без прогресса:
+
+1. **НЕ писать тот же текст 4-й раз** — это шум, не коммуникация
+2. Создать задачу **[ESCAPE-XXX]** в KANBAN с конкретным планом выхода:
+   - Альтернативный метод
+   - Что нужно от пользователя (конкретное действие, не описание)
+   - Крайний срок (если применимо)
+3. Продолжить работу с незаблокированными задачами
+4. Добавить в DECISIONS.md: "Блокер X повторился 3 раза, создан ESCAPE-XXX"
+
+**Запрещено:** 26 циклов с одинаковым текстом (инцидент 2026-05-31 — 2026-06-09).
+
+---
+
+## 📦 DELIVERY STATUS В KANBAN
+
+Каждая done-карточка должна иметь поле delivery_status:
+
+- **shipped_local** — написан и протестирован, не запушен в GitHub
+- **shipped_remote** — в GitHub repo, не в production
+- **in_prod** — работает в daily_cycle или автономно на машине
+
+**Настоящий done = in_prod** (или shipped_remote для аналитических модулей read-only).
+shipped_local = промежуточный статус, не финальный.
+
+В sprint log всегда указывать delivery_status в конце записи.
+
+---
+
 ## 🔴 АБСОЛЮТНЫЕ ЗАПРЕТЫ (нарушение = стоп)
 
 1. **Никогда не просить пользователя пушить вручную.** Autopush (com.spa.autopush) работает каждые 90 минут. Агент сам диагностирует проблемы с пушем.
