@@ -1,5 +1,7 @@
 # SPA — Smart Passive Aggregator
 
+> ⚠️ **ЧИТАЙ ПЕРВЫМ:** [`CURRENT_STATE.md`](CURRENT_STATE.md) — там актуальный статус инфраструктуры (launchd, push-метод, активные блокеры).
+
 ## Что это
 
 SPA — автономный DeFi yield optimizer. Paper trading с виртуальным капиталом
@@ -45,8 +47,8 @@ launchd com.spa.daily_cycle (ежедневно 08:00)
           6. data/current_positions.json, data/paper_trading_status.json (is_demo: false)
           7. GoLiveChecker → data/golive_status.json
 
-launchd com.spa.autopush (каждые 90 мин = 5400 c)
-    └─► auto_push.py → пуш данных в GitHub (PAT из Keychain)
+launchd com.spa.autopush — ❌ НЕ УСТАНОВЛЕН (PYTHON_PATH-заглушка)
+    └─► Фикс: bash mp009_fix_launchd.command (см. CURRENT_STATE.md)
 ```
 
 Также установлены: `com.spa.httpserver` (локальный HTTP для дашборда),
@@ -142,7 +144,7 @@ READY 7+ дней подряд + gap_monitor без пробелов 30 дней
 | `docs/`, `docs/adr/` | ADR-документы, runbooks (в т.ч. `TOKEN_ROTATION_RUNBOOK.md`) |
 | `KANBAN.json` | Kanban (источник: MASTER_PLAN_v1.md); `kanban.html` — UI |
 | `push_to_github.py` | Пушер файлов в GitHub через API |
-| `auto_push.py` | Автопуш данных (launchd, 90 мин) |
+| `auto_push.py` | Автопуш данных (launchd, 90 мин) — ❌ демон не установлен; фикс: `bash mp009_fix_launchd.command` |
 | `index.html` | Дашборд |
 
 ⚠️ **KANBAN.json пишет конкурентный автономный процесс** (часовой цикл).
@@ -244,4 +246,4 @@ python3 push_to_github.py --files /abs/path/a.py /abs/path/b.json --message "msg
 
 ---
 
-*Обновлено: 2026-06-12 (MP-120 — добавлена секция Analytics Modules: MP-115..MP-118, MP-120).*
+*Обновлено: 2026-06-12 (SYS-002 — исправлен статус autopush; добавлена ссылка на CURRENT_STATE.md; MP-120 Analytics Modules).*
