@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "source": "drawdown_analytics",
+    "schema_version": 1,
+    "generated_at": "2026-06-11T23:15:21.143131+00:00",
+    "advisory_only": true,
+    "disclaimer": "NOT investment advice",
+    "source_file": "equity_curve_daily.json",
+    "real_track_start": "2026-06-10",
+    "is_demo": false,
+    "notes": []
+  },
+  "available": true,
+  "track": {
+    "first_date": "2026-06-10",
+    "last_date": "2026-06-11",
+    "num_bars": 2,
+    "total_return_pct": 0.008689
+  },
+  "headline": {
+    "max_drawdown_pct": 0.0,
+    "current_drawdown_pct": 0.0,
+    "currently_underwater": false,
+    "longest_underwater_days": null,
+    "time_in_drawdown_pct": 0.0,
+    "num_episodes": 0,
+    "num_recovered": 0,
+    "num_ongoing": 0,
+    "avg_depth_pct": null,
+    "avg_recovery_days": null,
+    "worst_episode": null
+  },
+  "episodes": [],
+  "recent_underwater": [
+    {
+      "date": "2026-06-10",
+      "drawdown_pct": 0.0
+    },
+    {
+      "date": "2026-06-11",
+      "drawdown_pct": 0.0
+    }
+  ],
+  "history": [
+    {
+      "generated_at": "2026-06-11T23:15:21.143131+00:00",
+      "max_drawdown_pct": 0.0,
+      "current_drawdown_pct": 0.0,
+      "currently_underwater": false,
+      "num_episodes": 0
+    }
+  ]
+}
