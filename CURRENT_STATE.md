@@ -1,5 +1,5 @@
 # CURRENT_STATE
-> Последнее обновление: 2026-06-12 sprint **v4.86** + MP-549 (обновляй вручную в конце каждого спринта)
+> Последнее обновление: 2026-06-12 sprint **v4.88** (обновляй вручную в конце каждого спринта)
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 
 ## Инфраструктура (launchd)
@@ -26,7 +26,7 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 
 ## Спринты
 
-- Последний завершённый: **v4.86** (2026-06-12)
+- Последний завершённый: **v4.87** (2026-06-12)
 - Sprint log синхронизирован: ❌ (пропущены v4.31-v4.47, задача SYS-009)
 - Задач в done: 252
 
@@ -56,6 +56,101 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 | RPC ключи Alchemy/Infura | MP-017 | Добавить в Keychain | P1 — нужно для Pendle PT (+2-3% APY) |
 | GitHub Pages | UA-004 | Settings → Pages → main/root | P1 — публичный дашборд |
 | Workflow token | UA-006 | PAT с workflow scope | P2 |
+
+---
+
+## v4.88 Sprint Summary (2026-06-12) — Emergency Breakers + Rebalancing Policy + System Health
+
+**v4.88 (Wave 37–39, 2026-06-12):** CycleHealthMonitor (53 тестов), PromotionNotifier Telegram Tier A/B/C (55 тестов), run_health_check.py CLI, ADR-030 EmergencyBreakers EB-01..EB-05 (82 тестов/90 assertions), ADR-031 Rebalancing Policy Phase 0, Dashboard System Health panel, position_tracker.py (76 тестов), run_daily_simulation.py launchd wrapper, cycle_runner Step 2b HALT/PAUSE gate.
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-558 | `CycleHealthMonitor` — cycle_gap/equity_anomaly/data_freshness, 53 тестов | ✅ |
+| MP-560 | `PromotionNotifier` — Telegram alerts Tier A/B/C + health, 55 тестов | ✅ |
+| MP-561 | `run_health_check.py` — daily health check CLI script | ✅ |
+| MP-562 | ADR-030 + `EmergencyBreakers` (EB-01..EB-05) — 82 тестов / 90 assertions | ✅ |
+| MP-565 | Dashboard System Health panel в Ops вкладке | ✅ |
+| MP-566 | `position_tracker.py` — daily allocation snapshots, HHI, drift, 76 тестов | ✅ |
+| MP-567 | `run_daily_simulation.py` — launchd wrapper (simulate→health→weekly) | ✅ |
+| MP-569 | ADR-031 + `rebalancing_config.json` — Portfolio Rebalancing Policy Phase 0 | ✅ |
+| MP-570 | `cycle_runner.py` Step 2b — EmergencyBreakers integration (HALT/PAUSE gate) | ✅ |
+| Wave 37 | push_v492.sh (auto_promoter, promotion_notifier, health_check, CURRENT_STATE v4.87) | ✅ |
+| Wave 38 | push_v493.sh (CycleHealthMonitor, run_health_check.py) | ✅ |
+| Wave 39 | push_v494.sh (ADR-030/031, EmergencyBreakers, PositionTracker, Dashboard Health) | ✅ |
+
+### GoLive recheck v4.88
+
+| Проверка | Результат |
+|----------|-----------|
+| adapter_registry | PASS (16) |
+| moonwell_suspended | PASS (risk_score=0.75) |
+| extra_finance_t3 | PASS (apy=8.0) |
+| s13_strategy | PASS (T2, Phase 1) |
+| cycle_runner | PASS (14 стратегий) |
+| strategy_summary | PASS (leading=S7) |
+| tournament | PASS (14 стратегий) |
+| protocol_direct | PASS (3 адаптера) |
+| adr_029 | PASS (auto_enabled=false) |
+| adr_030 | **PASS** (новый, EB x5) |
+| adr_031 | **PASS** (новый, Phase 0) |
+| emergency_breakers | **PASS** (интегрирован) |
+| position_tracker | **PASS** (ring_buffer 365d) |
+| **Итого** | **13/13 PASS — READY** |
+
+`data/golive_check_v488.json` записан атомарно.
+
+### Архитектура
+
+- ADR-030: EB-01 ExploitProbe / EB-02 OracleCascade / EB-03 GasCrisis / EB-04 FlashCrash / EB-05 DataCorruption → check_all() → CLEAR/PAUSE/HALT
+- ADR-031: Portfolio Rebalancing Policy (RT-01..RT-04), Phase 0 paper mode до 2026-07-01
+- position_tracker.py: daily snapshots, drift detection, HHI, ring-buffer 365d
+- CycleHealthMonitor: cycle_gap/equity_anomaly/data_freshness; выходной файл `data/health_report.json`
+- PromotionNotifier: Telegram алерты для ADR-029 промоций (Tier A/B/C) + health summary
+- Dashboard: APY Consensus + System Health panels в Ops вкладке
+- cycle_runner Step 2b: HALT → abort cycle / PAUSE → skip rebalance / CLEAR → normal
+
+---
+
+## v4.87 Sprint Summary (2026-06-12) — ADR-029 Strategy Promotion + APY Consensus Dashboard
+
+**v4.87 (Wave 35–36, 2026-06-12):** ADR-029 Strategy Promotion Automation Policy (Tier A/B/C, auto_promote_enabled=false до 2026-07-12), auto_promoter.py (60+ тестов), APY Consensus panel в dashboard (11 адаптеров, DeFiLlama vs Static, divergence alarm >150 bps). GoLive recheck: **9/9 PASS**.
+
+### Завершено
+
+| MP | Название | Результат |
+|----|----------|-----------|
+| MP-552 | push_v490.sh Wave 35 — GoLive 7/7, CURRENT_STATE v4.86, backfill_evidence.py | ✅ |
+| MP-553 | ADR-029 Strategy Promotion Automation Policy (Tier A/B/C, auto_promote_enabled=false до 2026-07-12) | ✅ |
+| MP-554 | APY Consensus panel в dashboard — DeFiLlama vs Static, Δ bps, divergence alarm >150 bps | ✅ |
+| MP-556 | `spa_core/reporting/auto_promoter.py` — ADR-029 impl, 60+ тестов | ✅ |
+
+### GoLive recheck v4.87
+
+| Проверка | Результат |
+|----------|-----------|
+| adapter_registry | PASS (16) |
+| moonwell_suspended | PASS (risk_score=0.75) |
+| extra_finance_t3 | PASS (apy=8.0) |
+| s13_strategy | PASS (T2, Phase 1) |
+| cycle_runner | PASS (14 стратегий) |
+| strategy_summary | PASS (leading=S7) |
+| tournament | PASS (14 стратегий) |
+| protocol_direct | PASS (3 адаптера) |
+| adr_029 | **PASS** (новый) |
+| **Итого** | **9/9 PASS — READY** |
+
+`data/golive_check_v487.json` записан атомарно.
+
+### Архитектура
+
+- ADR-029: Tier A=AUTO (Sharpe>1.5 + APY>8%), Tier B=48h review, Tier C=MANUAL; auto_promote_enabled=false до 2026-07-12
+- auto_promoter.py: evaluate_strategy, evaluate_all, save_report → promotion_report.json; stdlib only
+- APY Consensus panel: 11 адаптеров, DeFiLlama vs Static Δ bps, divergence alarm >150 bps
+- Wave 35: push_v490.sh (CURRENT_STATE v4.86, backfill_evidence.py, golive 7/7)
+- Wave 36: push_v491.sh (ADR-029, promotion_policy.json, index.html)
+- Задач в done: **252** (без изменений — infrastructure tasks)
 
 ---
 
