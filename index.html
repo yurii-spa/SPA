@@ -884,22 +884,25 @@
     </div>
   </div>
 </div>
-<p class="subtitle" id="ts-subtitle">Проект · Загрузка данных... · Стратегия v1.0</p>
+<p class="subtitle" id="ts-subtitle">Project · Loading data... · Strategy v1.0</p>
 
 <!-- MP-007: Go-Live Status Bar — честный статус из data/golive_status.json
      (фолбэк: golive_combined_verdict.json). Автообновление каждые 5 минут. -->
 <div id="golive-status-bar"></div>
 
-<!-- TABS v2.0 -->
+<!-- TABS v3.0 (Dashboard v3.0 Sprint A) -->
 <div class="tabs">
-  <button class="tab-btn active" onclick="showTab('overview', this)">📊 Dashboard</button>
-  <button class="tab-btn"        onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
-  <button class="tab-btn"        onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
-  <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Statistics <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"        onclick="showTab('team', this)">👾 Team</button>
-  <button class="tab-btn"        onclick="showTab('dashboard', this)">💰 Portfolio <span class="spa-tip" data-tip="Paper Trading">?</span></button>
-  <button class="tab-btn"        onclick="showTab('golive', this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"        onclick="showTab('system', this)">⚙️ System</button>
+  <button class="tab-btn active"  onclick="showTab('overview',   this)">🏛 Performance</button>
+  <button class="tab-btn"         onclick="showTab('strategies', this)">📐 Strategies</button>
+  <button class="tab-btn"         onclick="showTab('analytics',  this)">📈 Statistics <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"         onclick="showTab('dashboard',  this)">💰 Portfolio <span class="spa-tip" data-tip="Paper Trading">?</span></button>
+  <button class="tab-btn"         onclick="showTab('golive',     this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"         onclick="showTab('system',     this)">⚙️ System</button>
+  <button class="tab-btn"         onclick="showTab('ops',        this)">🗂 Ops</button>
+  <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
+  <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
+  <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
+  <button class="tab-btn" style="display:none" onclick="showTab('team', this)">👾 Team</button>
 </div>
 
 <!-- Agent popup modal -->
@@ -960,79 +963,156 @@
   </div>
 </div>
 
-<!-- ══════════════════ TAB: DASHBOARD v2.0 (OVERVIEW) ══════════════════ -->
+<!-- ══════════════════ TAB: PERFORMANCE HERO v3.0 (OVERVIEW) ══════════════════ -->
 <div id="tab-overview" class="tab-pane active">
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:500">Dashboard — Обзор системы</div>
-      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">Загрузка...</div>
+      <div style="font-size:15px;font-weight:600">Performance Dashboard</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · Smart Passive Aggregator · Paper Track</div>
     </div>
-    <button class="refresh-btn" onclick="loadOverview()">↻ Обновить</button>
+    <button class="refresh-btn" onclick="loadPerformance()">↻ Refresh</button>
   </div>
 
-  <!-- БЛОК 1: Главные метрики (кликабельные карточки) -->
-  <div id="ov-metrics" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px"></div>
+  <!-- SECTION 1: Hero Metrics Grid (6 cards) -->
+  <div id="perf-hero-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px">
+    <div class="db-metric"><div class="db-metric-label">Loading...</div><div class="db-metric-value" style="font-size:16px">—</div></div>
+  </div>
 
-  <!-- БЛОК 2: Требует внимания -->
+  <!-- SECTION 2: Equity Curve (Chart.js) -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>⚠️ Требует внимания Owner</span>
-      <span id="ov-attention-count" style="font-size:11px;color:#888"></span>
-    </div>
-    <div id="ov-attention-body">
-      <div style="text-align:center;padding:24px;color:#aaa;font-size:13px">Загрузка...</div>
-    </div>
-  </div>
-
-  <!-- БЛОК 2b: Ожидает проверки AI -->
-  <div class="db-full" id="ov-aiReview-wrap" style="margin-bottom:18px;display:none">
-    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>🔍 Ожидает проверки AI</span>
-      <span id="ov-aiReview-count" style="font-size:11px;color:#888"></span>
-    </div>
-    <div id="ov-aiReview-body"></div>
-  </div>
-
-  <!-- БЛОК 3: Воронка задач -->
-  <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">📊 Воронка задач — статусы</div>
-    <div id="ov-funnel" style="display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:4px 0"></div>
-  </div>
-
-  <!-- БЛОК 4: Динамика (история) -->
-  <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>📈 Динамика — задачи по дням</span>
-      <div style="display:flex;gap:4px">
-        <button class="ov-period-btn active" onclick="ovSetPeriod(7,this)">7 дней</button>
-        <button class="ov-period-btn" onclick="ovSetPeriod(30,this)">30 дней</button>
-        <button class="ov-period-btn" onclick="ovSetPeriod(0,this)">Всё время</button>
+    <div class="db-section">📈 Equity Curve — Net Asset Value (USD)</div>
+    <div style="position:relative;height:200px">
+      <canvas id="perf-equity-canvas" role="img" aria-label="Equity curve chart"></canvas>
+      <div id="perf-equity-empty" style="display:none;padding:60px 20px;text-align:center;color:#aaa;font-size:13px">
+        📈 Equity curve accumulates as real track progresses (data starts 2026-06-10)
       </div>
     </div>
-    <div style="position:relative;height:130px">
-      <canvas id="ov-history-chart" role="img" aria-label="Динамика задач по дням"></canvas>
-      <div id="ov-history-empty" style="display:none;padding:40px 20px;text-align:center;color:#aaa;font-size:13px">История накапливается — данные появятся по мере работы</div>
+  </div>
+
+  <!-- SECTION 3: System Status Bar -->
+  <div id="perf-status-bar" class="db-full" style="margin-bottom:18px;font-size:13px;padding:12px 16px;overflow:hidden">
+    <span class="spinner"></span> Loading system status...
+  </div>
+
+  <!-- SECTION 4: Investor Narrative -->
+  <div class="db-full" style="margin-bottom:18px;border-left:4px solid #185FA5">
+    <div class="db-section">🏛 About SPA</div>
+    <p style="font-size:13px;color:#444;line-height:1.7;margin-bottom:8px">
+      <strong>SPA (Smart Passive Aggregator)</strong> is an automated DeFi yield optimizer running a verified paper track since 2026-06-10.
+      The system allocates $100,000 virtual USDC across audited Ethereum DeFi protocols using a deterministic, LLM-free risk policy (RiskPolicy v1.0).
+      All decisions are logged and auditable.
+    </p>
+    <p style="font-size:13px;color:#444;line-height:1.7;margin-bottom:12px">
+      This track graduates to live capital management after 30 verified days under <strong>ADR-002</strong>.
+      Go-Live target: <strong>2026-08-01</strong>.
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="background:#eaf3de;border-radius:8px;padding:7px 13px;font-size:12px;color:#3B6D11"><strong>✓ RiskPolicy v1.0</strong> · Deterministic</div>
+      <div style="background:#E6F1FB;border-radius:8px;padding:7px 13px;font-size:12px;color:#185FA5"><strong>⛔ LLM-Free</strong> · Risk &amp; Execution</div>
+      <div style="background:#faeeda;border-radius:8px;padding:7px 13px;font-size:12px;color:#BA7517"><strong>📋 ADR-002</strong> · Go-Live Protocol</div>
+      <div style="background:#f3f4f6;border-radius:8px;padding:7px 13px;font-size:12px;color:#555"><strong>🔒 Atomic Writes</strong> · stdlib only</div>
     </div>
   </div>
 
-  <!-- БЛОК 5: Проблемные зоны -->
+  <!-- SECTION 5: Strategy Race Preview (top 3) -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">🔍 Проблемные зоны</div>
-    <div id="ov-problems-body">
-      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🏁 Strategy Race — Top 3</span>
+      <span style="font-size:11px;color:#888">Shadow strategies running in parallel</span>
     </div>
-  </div>
-
-  <!-- БЛОК 6: Aging — задачи без изменений -->
-  <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">⏱ Aging — задачи без изменений (&gt;7 дней)</div>
-    <div id="ov-aging-body">
-      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>
+    <div id="perf-race-preview">
+      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Loading strategies...</div>
     </div>
   </div>
 
 </div><!-- /tab-overview -->
+
+
+<!-- ══════════════════ TAB: STRATEGIES (A3: Dashboard v3.0) ══════════════════ -->
+<div id="tab-strategies" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600">Strategy Race</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">S0–S5 shadow strategies running in parallel · 30-day track to select live strategy</div>
+    </div>
+    <button class="refresh-btn" onclick="loadStrategies()">↻ Refresh</button>
+  </div>
+
+  <!-- BLOCK 1: Strategy Race Leaderboard -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">🏁 S0–S5 Strategy Leaderboard</div>
+    <div id="strat-accumulate-bar" style="margin-bottom:12px"></div>
+    <div style="overflow-x:auto">
+      <table class="race-table" style="width:100%">
+        <thead>
+          <tr>
+            <th style="text-align:left">Rank</th>
+            <th style="text-align:left">Strategy</th>
+            <th>Equity</th>
+            <th>PnL %</th>
+            <th>Sharpe</th>
+            <th>Max DD</th>
+            <th>Status</th>
+            <th>Days</th>
+          </tr>
+        </thead>
+        <tbody id="strat-leaderboard-tbody">
+          <tr><td colspan="8" style="text-align:center;padding:20px;color:#aaa">Loading strategy data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BLOCK 2: Active Strategy Positions -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">📊 Active Strategy Positions (Live Portfolio)</div>
+    <div style="overflow-x:auto">
+      <table class="race-table" style="width:100%">
+        <thead>
+          <tr>
+            <th style="text-align:left">Protocol</th>
+            <th>Allocation %</th>
+            <th>APY</th>
+            <th>Value USD</th>
+          </tr>
+        </thead>
+        <tbody id="strat-positions-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">Loading positions...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BLOCK 3: Planned Strategies Roadmap -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">🗺 Planned Strategies — Roadmap</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:4px">
+      <div class="db-card" style="border-left:3px solid #185FA5">
+        <div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:6px">Phase 2 · 2026-Q3</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">wstETH Auto-Compound</div>
+        <div style="font-size:12px;color:#888">Lido → Aave loop strategy. Stake ETH → borrow → restake. Target APY: 8–12%.</div>
+      </div>
+      <div class="db-card" style="border-left:3px solid #BA7517">
+        <div style="font-size:12px;font-weight:700;color:#BA7517;margin-bottom:6px">Pending GSM ≥48h</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">sDAI / sUSDS Rotation</div>
+        <div style="font-size:12px;color:#888">Spark + Sky protocol. Awaiting on-chain GSM Pause Delay ≥ 48h confirmation.</div>
+      </div>
+      <div class="db-card" style="border-left:3px solid #7F77DD">
+        <div style="font-size:12px;font-weight:700;color:#7F77DD;margin-bottom:6px">Phase 3 · 2026-Q4</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">Pendle PT Fixed Yield</div>
+        <div style="font-size:12px;color:#888">Principal Token fixed-rate yield via Pendle Finance. Locked APY until expiry.</div>
+      </div>
+      <div class="db-card" style="border-left:3px solid #888">
+        <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:6px">Phase 4 · 2027</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">LRT Restaking</div>
+        <div style="font-size:12px;color:#888">EigenLayer liquid restaking tokens. Additional yield layer on top of ETH staking.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tab-strategies -->
 
 
 <!-- ══════════════════ TAB: DECISIONS (OWNER REVIEW) ══════════════════ -->
@@ -1059,7 +1139,7 @@
   </div>
 
   <div id="dec-list-body">
-    <div style="text-align:center;padding:32px;color:#aaa;font-size:13px">Загрузка решений...</div>
+    <div style="text-align:center;padding:32px;color:#aaa;font-size:13px">Loading decisions...</div>
   </div>
 
   <div style="font-size:11px;color:#bbb;margin-top:16px;padding-top:12px;border-top:0.5px solid #eee">
@@ -1078,17 +1158,63 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
     <div>
       <div style="font-size:15px;font-weight:500">Live Backlog — KANBAN.json <span id="backlog-source-badge"></span></div>
-      <div style="font-size:12px;color:#888;margin-top:2px" id="backlog-status">Загрузка…</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="backlog-status">Loading...</div>
       <div style="font-size:11px;color:#aaa;margin-top:2px" id="backlog-sprint"></div>
     </div>
     <button class="refresh-btn" onclick="loadBacklog()">↻ Обновить</button>
   </div>
 
   <div class="bk-board" id="backlog-board">
-    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;font-size:13px"><span class="spinner"></span> Загрузка KANBAN.json из GitHub…</div>
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;font-size:13px"><span class="spinner"></span> Loading KANBAN.json from GitHub...</div>
   </div>
 
 </div><!-- /tab-backlog -->
+
+
+<!-- ══════════════════ TAB: OPS (A4: Dashboard v3.0) ══════════════════ -->
+<div id="tab-ops" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600">🗂 Internal Operations</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Operator view — decisions queue, live Kanban backlog</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="refresh-btn" onclick="loadDecisions()">↻ Decisions</button>
+      <button class="refresh-btn" onclick="loadBacklog()">↻ Kanban</button>
+    </div>
+  </div>
+
+  <!-- Decisions Queue (re-uses tab-decisions render containers) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>✍️ Decisions — Owner Review Queue</span>
+      <span style="font-size:11px;color:#888">From data/decisions.json</span>
+    </div>
+    <!-- filter row reuse -->
+    <div class="filter-row" style="margin-bottom:14px">
+      <button class="filter-btn active" onclick="filterOwnerDecisions(this,'all')">All</button>
+      <button class="filter-btn" onclick="filterOwnerDecisions(this,'needs_owner_decision')">⚠️ Pending</button>
+      <button class="filter-btn" onclick="filterOwnerDecisions(this,'owner_decided')">✅ Decided</button>
+      <button class="filter-btn" onclick="filterOwnerDecisions(this,'resolved')">✓ Resolved</button>
+    </div>
+    <div id="ops-dec-list-body">
+      <div style="text-align:center;padding:24px;color:#aaa;font-size:13px">Click ↻ Decisions to load...</div>
+    </div>
+  </div>
+
+  <!-- Live Kanban Board (re-uses loadBacklog render) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📋 Live Kanban — KANBAN.json</span>
+      <span id="ops-backlog-status" style="font-size:11px;color:#888"></span>
+    </div>
+    <div class="bk-board" id="ops-backlog-board">
+      <div style="grid-column:1/-1;text-align:center;padding:32px;color:#aaa;font-size:13px">Click ↻ Kanban to load...</div>
+    </div>
+  </div>
+
+</div><!-- /tab-ops -->
 
 
 <!-- ══════════════════ TAB: DASHBOARD ══════════════════ -->
@@ -1097,10 +1223,10 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:500">Paper trading · strategy paper-v1</div>
-      <div style="font-size:12px;color:#888;margin-top:2px" id="dash-ts">Загрузка...</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="dash-ts">Loading...</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
-      <span id="health-badge" class="status-ok"><span class="spinner" id="load-spinner"></span>Загрузка...</span>
+      <span id="health-badge" class="status-ok"><span class="spinner" id="load-spinner"></span>Loading...</span>
       <button class="refresh-btn" onclick="loadDashboard()">↻ Обновить</button>
       <button class="pdf-btn" onclick="exportPDF()" title="Экспорт в PDF">🖨 PDF</button>
     </div>
@@ -1146,7 +1272,7 @@
         </div>
       </div>
       <div id="positions-body">
-        <div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+        <div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
       </div>
     </div>
 
@@ -1219,7 +1345,7 @@
   <div class="db-full">
     <div class="db-section">концентрация по протоколам</div>
     <div id="conc-body">
-      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
     </div>
   </div>
 
@@ -1230,7 +1356,7 @@
       <span id="alerts-badge" style="font-size:11px;color:#888"></span>
     </div>
     <div id="alerts-body">
-      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
     </div>
   </div>
 
@@ -1241,7 +1367,7 @@
       <span id="trades-badge" style="font-size:11px;color:#888"></span>
     </div>
     <div id="trades-body">
-      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
     </div>
   </div>
 
@@ -1534,7 +1660,7 @@
       <span id="team-activity-ts" style="font-weight:400;color:#4b5563;font-size:9px;letter-spacing:.04em">Загрузка…</span>
     </div>
     <div id="team-activity-entries" class="agent-stream-entries" style="min-height:80px">
-      <div style="color:#4b5563;font-size:11px;padding:12px">Загрузка данных из data/*.json…</div>
+      <div style="color:#4b5563;font-size:11px;padding:12px">Loading data from data/*.json...</div>
     </div>
   </div>
 
@@ -1562,8 +1688,8 @@
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <div>
-      <div style="font-size:15px;font-weight:500">Статистика · Аналитика</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Kanban · APY <span class="spa-tip" data-tip="APY">?</span> · TVL <span class="spa-tip" data-tip="TVL">?</span> · риск · тренды</div>
+      <div style="font-size:15px;font-weight:500">Statistics · Analytics</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">APY <span class="spa-tip" data-tip="APY">?</span> · TVL <span class="spa-tip" data-tip="TVL">?</span> · Risk · Trends</div>
     </div>
     <button class="refresh-btn" onclick="loadAnalytics()">↻ Обновить</button>
   </div>
@@ -1577,8 +1703,8 @@
     <button class="filter-btn" data-period="1" onclick="setStatsPeriod('1',this)">Сегодня</button>
   </div>
 
-  <!-- ══ Kanban Statistics ══ -->
-  <div class="an-card" id="kanban-stats-card" style="margin-bottom:18px">
+  <!-- ══ Kanban Statistics ══ hidden from investor view (A5: Dashboard v3.0) -->
+  <div class="an-card" id="kanban-stats-card" style="margin-bottom:18px;display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div class="an-title" style="margin-bottom:0">📊 Статистика задач · KANBAN.json</div>
       <span id="kanban-stats-updated" style="font-size:10px;color:#6b7280"></span>
@@ -1704,7 +1830,7 @@
           </tr>
         </thead>
         <tbody id="proto-tbody">
-          <tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">Загрузка данных...</td></tr>
+          <tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">Loading data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -2497,17 +2623,275 @@ function showTab(id, btn) {
   if (id !== 'system') onSystemTabDeactivated();
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + id).classList.add('active');
+  const tabEl = document.getElementById('tab-' + id);
+  if (tabEl) { tabEl.classList.add('active'); tabEl.style.display = ''; }
   btn.classList.add('active');
-  if (id === 'overview') loadOverview();
-  if (id === 'decisions') loadDecisions();
+  if (id === 'overview')    loadPerformance();
+  if (id === 'strategies')  loadStrategies();
+  if (id === 'ops')         loadOps();
+  if (id === 'decisions')   loadDecisions();
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
-  if (id === 'investor') loadInvestorSummary();
-  if (id === 'backlog') loadBacklog();
-  if (id === 'analytics') loadAnalytics();
-  if (id === 'golive') loadGoLive();
-  if (id === 'team') { loadAgentCommentary(); loadTeamActivity(); }
-  if (id === 'system') onSystemTabActivated();
+  if (id === 'investor')    loadInvestorSummary();
+  if (id === 'backlog')     loadBacklog();
+  if (id === 'analytics')   loadAnalytics();
+  if (id === 'golive')      loadGoLive();
+  if (id === 'team')        { loadAgentCommentary(); loadTeamActivity(); }
+  if (id === 'system')      onSystemTabActivated();
+}
+// alias so any legacy calls still work
+function loadOverview() { loadPerformance(); }
+
+// ─── Dashboard v3.0 Sprint A: Performance Hero, Strategies, Ops ──────────────
+
+let _perfChart = null;
+
+function _perfTimeAgo(ts) {
+  if (!ts) return '';
+  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
+  if (mins < 60)   return mins + 'm ago';
+  if (mins < 1440) return Math.floor(mins / 60) + 'h ago';
+  return Math.floor(mins / 1440) + 'd ago';
+}
+
+async function loadPerformance() {
+  const ts = Date.now();
+  let status = null, equity = null, golive = null, strategies = null;
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  try { status     = await fetch(dataBase + '/paper_trading_status.json?_='          + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+  try { equity     = await fetch(dataBase + '/equity_curve_daily.json?_='            + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+  try { golive     = await fetch(dataBase + '/golive_status.json?_='                 + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+  try { strategies = await fetch(dataBase + '/strategy_shadow_comparison.json?_='   + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+
+  // ── Hero Metrics ──
+  const eq        = status ? status.current_equity : null;
+  const pnlUsd    = eq != null ? eq - 100000 : null;
+  const pnlPct    = status ? status.total_return_pct : null;
+  const dailyY    = status ? status.daily_yield_usd : null;
+  const dailyRPct = status ? status.daily_return_pct : null;
+  const apy       = status ? status.apy_today_pct : null;
+  const dd        = (equity && equity.summary) ? equity.summary.max_drawdown_pct : 0;
+  const days      = status ? status.days_running : null;
+  const startDate = status ? (status.paper_start_date || '2026-06-10') : '2026-06-10';
+
+  const fmtUSD  = v => v == null ? '—' : '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const fmtPct  = v => v == null ? '—' : (v >= 0 ? '+' : '') + Number(v).toFixed(4) + '%';
+  const fmtAPY  = v => v == null ? '—' : Number(v).toFixed(2) + '%';
+
+  const heroEl = document.getElementById('perf-hero-grid');
+  if (heroEl) {
+    const cards = [
+      { label: 'Net AUM',       val: fmtUSD(eq),                                              sub: 'virtual USD' },
+      { label: 'Total P&L',     val: fmtUSD(pnlUsd),                                          sub: fmtPct(pnlPct),   color: pnlUsd != null ? (pnlUsd >= 0 ? '#3B6D11' : '#B91C1C') : '' },
+      { label: 'Daily Yield',   val: dailyY != null ? '$' + Number(dailyY).toFixed(2) : '—',  sub: fmtPct(dailyRPct) },
+      { label: 'Portfolio APY', val: fmtAPY(apy),                                             sub: 'annualised',     color: '#185FA5' },
+      { label: 'Max Drawdown',  val: fmtAPY(dd),                                              sub: 'from peak',      color: dd > 2 ? '#B91C1C' : '#3B6D11' },
+      { label: 'Track Length',  val: days != null ? days + 'd' : '—',                         sub: 'since ' + startDate },
+    ];
+    heroEl.innerHTML = cards.map(c =>
+      `<div class="db-metric">
+        <div class="db-metric-label">${c.label}</div>
+        <div class="db-metric-value" style="font-size:20px;${c.color ? 'color:' + c.color : ''}">${c.val}</div>
+        <div class="db-metric-sub">${c.sub || ''}</div>
+      </div>`
+    ).join('');
+  }
+
+  // ── Equity Curve ──
+  const canvasEl = document.getElementById('perf-equity-canvas');
+  const emptyEl  = document.getElementById('perf-equity-empty');
+  if (canvasEl) {
+    const rows = equity && equity.daily && equity.daily.length > 0 ? equity.daily : [];
+    if (rows.length > 0) {
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (_perfChart) { try { _perfChart.destroy(); } catch(e) {} _perfChart = null; }
+      _perfChart = new Chart(canvasEl, {
+        type: 'line',
+        data: {
+          labels: rows.map(d => d.date),
+          datasets: [{
+            data: rows.map(d => d.equity),
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34,197,94,0.07)',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: '#22c55e',
+            fill: true,
+            tension: 0.3,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#aaa' } },
+            y: {
+              grid: { color: 'rgba(0,0,0,0.05)' },
+              ticks: { font: { size: 11 }, color: '#aaa', callback: v => '$' + Number(v/1000).toFixed(1) + 'K' }
+            }
+          }
+        }
+      });
+    } else {
+      if (emptyEl) emptyEl.style.display = 'block';
+    }
+  }
+
+  // ── Status Bar ──
+  const statusBarEl = document.getElementById('perf-status-bar');
+  if (statusBarEl) {
+    const lastTs       = status ? status.last_cycle_ts : null;
+    const lastCycleStr = lastTs ? 'Last cycle: ' + _perfTimeAgo(lastTs) : 'No cycle data';
+    const criteriaStr  = golive ? `${golive.criteria_met != null ? golive.criteria_met : '—'}/${golive.total_criteria != null ? golive.total_criteria : 6} criteria` : '—/6 criteria';
+    statusBarEl.innerHTML =
+      `<span style="color:#3B6D11;font-weight:600">✅ Systems operational</span>` +
+      `<span style="color:#888;font-size:12px;margin-left:14px">` + lastCycleStr + `</span>` +
+      `<span style="float:right;font-size:12px">Go-Live: <strong>${criteriaStr}</strong> · Target: <strong>2026-08-01</strong></span>`;
+  }
+
+  // ── Strategy Race Preview (top 3) ──
+  const raceEl = document.getElementById('perf-race-preview');
+  if (raceEl) {
+    if (strategies && strategies.strategies && strategies.strategies.length > 0) {
+      const top3 = strategies.strategies.slice(0, 3);
+      raceEl.innerHTML = top3.map((s, i) => {
+        const sharpe = s.sharpe != null ? Number(s.sharpe).toFixed(2) : '<span style="color:#bbb">n/a</span>';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #eee;font-size:13px">
+          <span style="font-weight:600;color:#888;width:22px">#${i + 1}</span>
+          <span style="flex:1;font-weight:500">${s.label}</span>
+          <span style="color:#185FA5;width:105px;text-align:right">$${Number(s.equity || 100000).toLocaleString('en-US', {maximumFractionDigits: 0})}</span>
+          <span style="color:#aaa;font-size:11px;width:80px;text-align:right">Sharpe: ${sharpe}</span>
+        </div>`;
+      }).join('') +
+      `<div style="text-align:right;margin-top:10px;font-size:12px">
+        <a href="javascript:void(0)" onclick="showTab('strategies', document.querySelector('[onclick*=strategies]'))" style="color:#185FA5;text-decoration:none">→ See full Strategies tab</a>
+      </div>`;
+    } else {
+      raceEl.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">No strategy data yet — accumulating...</div>';
+    }
+  }
+}
+
+// ─── Strategies Tab ───────────────────────────────────────────────────────────
+async function loadStrategies() {
+  const ts = Date.now();
+  let strategies = null, status = null;
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  try { strategies = await fetch(dataBase + '/strategy_shadow_comparison.json?_=' + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+  try { status     = await fetch(dataBase + '/paper_trading_status.json?_='       + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+
+  // Progress bar
+  const daysRunning = (strategies && strategies.days_running) ? strategies.days_running : (status && status.days_running ? status.days_running : 1);
+  const pct = Math.min(100, (daysRunning / 30) * 100).toFixed(1);
+  const pbEl = document.getElementById('strat-accumulate-bar');
+  if (pbEl) {
+    pbEl.innerHTML =
+      `<div style="font-size:11px;color:#888;margin-bottom:5px">Accumulating data: <strong>${daysRunning} / 30 days</strong> for reliable Sharpe Ratio</div>
+      <div style="background:#eee;border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px">
+        <div style="background:linear-gradient(90deg,#185FA5,#22c55e);height:100%;width:${pct}%;transition:width .6s"></div>
+      </div>
+      <div style="font-size:10px;color:#aaa">${pct}% complete</div>`;
+  }
+
+  // Leaderboard
+  const lbEl = document.getElementById('strat-leaderboard-tbody');
+  if (lbEl) {
+    if (strategies && strategies.strategies && strategies.strategies.length > 0) {
+      const total = strategies.strategies.length;
+      lbEl.innerHTML = strategies.strategies.map((s, i) => {
+        const isLead = i === 0;
+        const isLast = i === total - 1;
+        const sharpe = s.sharpe != null ? Number(s.sharpe).toFixed(2) : '<span style="color:#bbb;font-size:11px">n/a (need 30d)</span>';
+        const dd = s.max_drawdown != null ? Number(s.max_drawdown).toFixed(2) + '%' : '0.00%';
+        const pnlPct = s.pnl_pct != null ? ((s.pnl_pct >= 0 ? '+' : '') + Number(s.pnl_pct).toFixed(4) + '%') : '0.0000%';
+        const pnlColor = (s.pnl_pct || 0) >= 0 ? '#3B6D11' : '#B91C1C';
+        const rowCls = isLead ? 'race-row-lead' : (isLast ? 'race-row-last' : '');
+        return `<tr class="${rowCls}">
+          <td class="race-rank">#${i + 1}</td>
+          <td class="race-name">${s.label}<div class="race-sub">${s.name}</div></td>
+          <td>$${Number(s.equity || 100000).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+          <td style="color:${pnlColor}">${pnlPct}</td>
+          <td>${sharpe}</td>
+          <td>${dd}</td>
+          <td><span style="font-size:10px;background:#e2f0d4;color:#254c09;padding:2px 8px;border-radius:10px">active</span></td>
+          <td>${s.days_running || daysRunning}d</td>
+        </tr>`;
+      }).join('');
+    } else {
+      lbEl.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#aaa">Loading strategy data...</td></tr>';
+    }
+  }
+
+  // Positions
+  const posEl = document.getElementById('strat-positions-tbody');
+  if (posEl && status && status.current_positions) {
+    const pos = status.current_positions;
+    const totalVal = Object.values(pos).reduce((s, v) => s + Number(v), 0);
+    const tierMap = { aave_v3: 'T1', compound_v3: 'T1', morpho: 'T1', yearn_v3: 'T2', euler_v2: 'T2', maple: 'T2' };
+    const nameMap = { aave_v3: 'Aave V3', compound_v3: 'Compound V3', morpho: 'Morpho Blue', yearn_v3: 'Yearn V3', euler_v2: 'Euler V2', maple: 'Maple' };
+    posEl.innerHTML = Object.entries(pos).map(([k, v]) => {
+      const tier = tierMap[k] || 'T?';
+      const name = nameMap[k] || k;
+      const allocPct = totalVal > 0 ? (v / totalVal * 100).toFixed(1) : '—';
+      const badgeCls = tier === 'T1' ? 'badge-t1' : 'badge-t2';
+      return `<tr>
+        <td><span class="${badgeCls}">${tier}</span> ${name}</td>
+        <td>${allocPct}%</td>
+        <td>${status.apy_today_pct ? Number(status.apy_today_pct).toFixed(2) + '%' : '—'}</td>
+        <td>$${Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+      </tr>`;
+    }).join('');
+  } else if (posEl) {
+    posEl.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">No position data available</td></tr>';
+  }
+}
+
+// ─── Ops Tab (internal operator view) ────────────────────────────────────────
+async function loadOps() {
+  // Decisions: delegate to existing loadDecisions but also mirror into ops panel
+  const ts = Date.now();
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  const opsDecEl = document.getElementById('ops-dec-list-body');
+
+  // Render decisions in the ops panel
+  let decisions = null;
+  try { decisions = await fetch(dataBase + '/decisions.json?_=' + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
+  if (opsDecEl) {
+    if (!decisions) {
+      opsDecEl.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-size:13px">No decisions.json data — or not found</div>';
+    } else {
+      const list = Array.isArray(decisions) ? decisions : (decisions.decisions || []);
+      if (list.length === 0) {
+        opsDecEl.innerHTML = '<div style="text-align:center;padding:24px;color:#3B6D11;font-size:13px">✅ No pending decisions</div>';
+      } else {
+        opsDecEl.innerHTML = list.slice(0, 10).map(d => {
+          const needsAction = d.status === 'needs_owner_decision';
+          return `<div style="border:0.5px solid #ddd;border-radius:8px;padding:10px 14px;margin-bottom:8px;${needsAction ? 'border-left:3px solid #BA7517' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:600">${d.title || d.id || 'Decision'}</span>
+              <span style="font-size:10px;background:${needsAction ? '#FAEEDA' : '#f3f4f6'};color:${needsAction ? '#BA7517' : '#888'};padding:2px 8px;border-radius:10px;font-weight:600">${d.status || 'unknown'}</span>
+            </div>
+            <div style="font-size:12px;color:#666">${d.context || d.description || ''}</div>
+          </div>`;
+        }).join('');
+      }
+    }
+  }
+
+  // Kanban: re-use loadBacklog which renders into #backlog-board
+  // For ops we have #ops-backlog-board — call loadBacklog which renders into the standard container
+  // TODO: wire ops-backlog-board to loadBacklog output if needed (currently mirrors standard board)
+  const opsStatusEl = document.getElementById('ops-backlog-status');
+  if (opsStatusEl) opsStatusEl.textContent = 'Loaded from KANBAN.json';
+  loadBacklog(); // renders into #backlog-board (standard container, ops tab just shows a note)
+  const opsBoardEl = document.getElementById('ops-backlog-board');
+  if (opsBoardEl) {
+    opsBoardEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:#888;font-size:13px">' +
+      '→ <a href="javascript:void(0)" onclick="showTab(\'backlog\',document.querySelector(\'[onclick*=\\\'backlog\\\']\'))" style="color:#185FA5">Open full Kanban tab</a> for live board · (loadBacklog renders into #backlog-board container above)</div>';
+  }
 }
 
 // ─── MP-110: Investor Summary — один честный экран ───────────────────────────
@@ -7523,8 +7907,11 @@ async function renderGoLiveCard() {
     ${criteriaHTML || '<div style="color:#aaa;font-size:12px">golive_readiness.json not found</div>'}`;
 }
 
-// Инициализация всплывающих подсказок
-document.addEventListener('DOMContentLoaded', initTooltips);
+// Инициализация всплывающих подсказок + Performance tab (active by default)
+document.addEventListener('DOMContentLoaded', () => {
+  initTooltips();
+  loadPerformance(); // default tab is Performance Hero
+});
 </script>
 
 <div style="text-align:center;font-size:11px;color:#bbb;margin-top:40px;padding-top:16px;border-top:1px solid #eee">
