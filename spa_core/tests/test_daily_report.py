@@ -199,6 +199,7 @@ def test_cycle_runner_writes_daily_report(tmp_path):
         orchestrator_fn=orch_fn,
         allocator=allocator,
         risk_scorer_fn=lambda d: None,
+        track_persister_fn=lambda d: None,  # MP-109: no-op in tests
     )
     assert result.status == "ok"
     out = tmp_path / "daily_report_2026-06-10.json"
@@ -245,6 +246,7 @@ def test_cycle_runner_report_failure_is_failsafe(tmp_path, monkeypatch, caplog):
             orchestrator_fn=orch_fn,
             allocator=allocator,
             risk_scorer_fn=lambda d: None,
+            track_persister_fn=lambda d: None,  # MP-109: no-op in tests
         )
     assert result.status == "ok"
     assert any("daily report generation failed" in r.message for r in caplog.records)
