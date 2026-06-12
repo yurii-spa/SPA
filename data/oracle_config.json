@@ -1,0 +1,72 @@
+{
+  "version": "1.0",
+  "created_at": "2026-06-12",
+  "adr": "ADR-028",
+  "current_phase": 1,
+  "primary_source": "defi_llama",
+  "sources": {
+    "protocol_direct": {
+      "enabled": false,
+      "tier": 1,
+      "requires_rpc": true,
+      "description": "Per-protocol official APIs (Aave, Compound, Morpho). Enabled Phase 2 (2026-07-01).",
+      "endpoints": {
+        "aave_v3": "https://aave.com/api/data/markets",
+        "compound_v3": "https://api.compound.finance/v2/ctoken",
+        "morpho_blue": "https://api.thegraph.com/subgraphs/name/morpho-labs/morpho-blue"
+      }
+    },
+    "defi_llama": {
+      "enabled": true,
+      "tier": 2,
+      "url": "https://yields.llama.fi/pools",
+      "cache_ttl_seconds": 300,
+      "description": "DeFiLlama aggregator. Current primary (Phase 1). Becomes Tier 2 fallback in Phase 2."
+    },
+    "token_terminal": {
+      "enabled": false,
+      "tier": 2,
+      "url": "https://api.tokenterminal.com/v2/metrics",
+      "requires_api_key": true,
+      "api_key_keychain_service": "TOKEN_TERMINAL_API_KEY",
+      "description": "Optional Tier 2 aggregator. Requires API key in macOS Keychain."
+    },
+    "fallback_static": {
+      "enabled": true,
+      "tier": 3,
+      "stale_threshold_days": 7,
+      "source_module": "spa_core.adapters.defillama_feed.PROTOCOL_POOL_MAP",
+      "description": "Hard-coded fallback values. Tags positions as data_quality=stale. Blocks new allocations when stale_threshold_days exceeded."
+    }
+  },
+  "consensus": {
+    "alarm_threshold_bps": 150,
+    "alarm_output_file": "data/market_regime.json",
+    "divergence_action": "use_tier1_flag_divergence",
+    "dual_outage_action": "use_tier3_stale_block_new_allocations",
+    "stale_breach_action": "telegram_alert_block_cycle"
+  },
+  "stale_alert_days": 7,
+  "data_quality_values": [
+    "live",
+    "stale",
+    "divergence"
+  ],
+  "phase_schedule": {
+    "phase_1": {
+      "target_date": "2026-06-12",
+      "scope": "DeFiLlama Tier 2 only + static Tier 3 fallback",
+      "status": "active"
+    },
+    "phase_2": {
+      "target_date": "2026-07-01",
+      "scope": "Tier 1 direct API for Aave V3 + Compound V3; divergence alarm active",
+      "status": "planned"
+    },
+    "phase_3": {
+      "target_date": "2026-08-01",
+      "scope": "Full 3-tier consensus for all T1 adapters; go-live prerequisite",
+      "status": "planned"
+    }
+  }
+}
