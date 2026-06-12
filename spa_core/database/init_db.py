@@ -16,7 +16,6 @@ the env-resolved backend (SQLite by default, PostgreSQL when
 `SPA_DATABASE_URL=postgres://...`).
 """
 
-import sqlite3
 import logging
 import argparse
 from pathlib import Path
@@ -247,10 +246,11 @@ def init_database(db_path: Path = None, reset: bool = False) -> None:
 
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
 
-    # NOTE: `executescript` is SQLite-specific; we keep raw sqlite3 here only
-    # for the bootstrap multi-statement DDL. Everything downstream goes through
-    # the abstraction.
-    with sqlite3.connect(str(path)) as conn:
+    # BL-008 Phase 2: use the dual-driver abstraction.
+    # `executescript` is SQLite-specific but safe here — this branch is only
+    # reachable when the URL targets SQLite (no SPA_DATABASE_URL, or explicit
+    # db_path). The abstraction yields a sqlite3.Connection under the hood.
+    with _abstract_get_connection(f"sqlite:///{path}") as conn:
         conn.executescript(schema_sql)
         log.info("Schema applied successfully.")
         _seed_protocols(conn, backend="sqlite")
