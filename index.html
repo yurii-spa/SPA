@@ -13,6 +13,7 @@
     color: #1a1a1a;
     padding: 24px;
     min-height: 100vh;
+    overflow-x: hidden;
   }
   h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; color: #1a1a1a; }
   .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
@@ -729,10 +730,29 @@
     body { padding-bottom: 50px; }
   }
 
+  @media (max-width: 600px) {
+    /* Nav: horizontal scroll on narrow screens (C3) */
+    .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .tab-btn { white-space: nowrap; flex-shrink: 0; }
+    /* Hero grid: force 2 columns (C3) */
+    #perf-hero-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    /* Period buttons: smaller on narrow */
+    .perf-period-btn { font-size: 9px; padding: 2px 7px; }
+    /* Tearsheet metrics: 2 cols on narrow */
+    .tearsheet-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    /* Benchmark widget bars: hide label to save space */
+    .bm-label { display: none; }
+  }
+
   @media (max-width: 480px) {
     .tab-btn { font-size: 11px; padding: 6px 8px; }
     .db-metric-grid { grid-template-columns: 1fr !important; }
     .kpi-grid { grid-template-columns: 1fr !important; }
+    .tearsheet-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .kb-board { grid-template-columns: 1fr 1fr !important; }
+    #perf-hero-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    #tab-analytics { overflow-x: hidden; }
+    .an-card { overflow-x: auto; }
   }
 
   /* Mobile summary bar */
@@ -833,6 +853,25 @@
   .ops-feed-agent { font-weight:700; flex-shrink:0; }
   .ops-feed-msg { color:#94a3b8; }
 
+  /* ── Agent Activity Feed (MP-132) ── */
+  .af-row { display:flex; align-items:baseline; gap:0; padding:7px 4px; border-bottom:0.5px solid #f0f0f0; font-size:12.5px; cursor:pointer; border-radius:4px; transition:background .12s; }
+  .af-row:last-of-type { border-bottom:none; }
+  .af-row:hover { background:#f7f8fc; }
+  .af-time { font-family:monospace; font-size:11px; color:#bbb; flex-shrink:0; min-width:38px; }
+  .af-sep { color:#ddd; margin:0 5px; font-size:11px; }
+  .af-agent { font-weight:600; font-size:12px; color:#185FA5; flex-shrink:0; }
+  .af-action { color:#333; flex:1; margin:0 8px; }
+  .af-badge { font-size:9px; font-weight:700; letter-spacing:.04em; padding:2px 7px; border-radius:10px; flex-shrink:0; white-space:nowrap; }
+  .af-badge-ok    { background:#eaf3de; color:#3B6D11; }
+  .af-badge-warn  { background:#FAEEDA; color:#BA7517; }
+  .af-badge-error { background:#fee2e2; color:#B91C1C; }
+  .af-badge-info  { background:#E6F1FB; color:#185FA5; }
+  .af-details { font-size:11px; color:#888; padding:3px 0 5px 52px; display:none; line-height:1.45; }
+  .af-details.open { display:block; }
+  .af-toggle { background:none; border:none; font-size:12px; color:#185FA5; cursor:pointer; padding:8px 0 2px; text-align:center; width:100%; font-family:inherit; }
+  .af-toggle:hover { text-decoration:underline; }
+  .af-empty { text-align:center; padding:24px 0; color:#bbb; font-size:13px; }
+
   /* ── SPA Tooltips ── */
   .spa-tip {
     display: inline-flex; align-items: center; justify-content: center;
@@ -870,6 +909,59 @@
   #data-mode-badge.mode-demo { background:#fef3c7; border-color:#fcd34d; color:#92400e; font-weight:600; }
   #data-mode-badge.mode-stale { background:#fdecec; border-color:#f5c2c2; color:#991b1b; font-weight:600; }
 
+  /* ── Tear Sheet (B5 — Sprint B) ── */
+  .tearsheet-card { background:#fff; border:.5px solid #ddd; border-radius:12px; padding:16px 20px; margin-bottom:18px; }
+  .tearsheet-track { font-size:12px; color:#888; margin-bottom:14px; }
+  .tearsheet-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:14px; }
+  @media(max-width:700px) { .tearsheet-grid { grid-template-columns:repeat(2,1fr); } }
+  .tearsheet-metric { background:#f9fafb; border-radius:8px; padding:10px 12px; border:.5px solid #eee; }
+  .tearsheet-metric-label { font-size:10px; color:#aaa; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .tearsheet-metric-value { font-size:18px; font-weight:600; color:#185FA5; }
+  .tearsheet-metric-value.ts-pos { color:#16a34a; }
+  .tearsheet-metric-value.ts-neg { color:#dc2626; }
+  .tearsheet-metric-value.ts-na  { font-size:13px; color:#bbb; font-weight:400; }
+  .tearsheet-metric-sub { font-size:10px; color:#bbb; margin-top:2px; }
+  .tearsheet-benchmark { font-size:12px; color:#555; background:#f9fafb; border-radius:6px; padding:8px 12px; margin-bottom:10px; }
+  .tearsheet-note { font-size:11px; color:#aaa; font-style:italic; }
+
+  /* ── Benchmark Widget (C1 — Sprint C) ── */
+  .bm-widget { background:#f9fafb; border-radius:8px; padding:12px 14px; margin-bottom:10px; border:.5px solid #eee; }
+  .bm-widget-title { font-size:10px; color:#aaa; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; font-weight:600; }
+  .bm-row { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+  .bm-row:last-of-type { margin-bottom:0; }
+  .bm-label { font-size:11px; color:#666; width:110px; flex-shrink:0; }
+  .bm-bar-track { flex:1; background:#e5e7eb; border-radius:4px; height:10px; overflow:hidden; }
+  .bm-bar-fill { height:100%; border-radius:4px; transition:width .6s ease; }
+  .bm-bar-spa  { background:linear-gradient(90deg,#185FA5,#22c55e); }
+  .bm-bar-bm   { background:#adb5bd; }
+  .bm-pct { font-size:12px; font-weight:600; width:46px; text-align:right; flex-shrink:0; }
+  .bm-alpha-row { display:flex; align-items:center; justify-content:space-between; padding-top:9px; border-top:.5px solid #e5e7eb; margin-top:9px; }
+  .bm-alpha-label { font-size:11px; color:#888; }
+  .bm-alpha-value { font-size:15px; font-weight:700; }
+  .bm-alpha-pos { color:#16a34a; }
+  .bm-alpha-neg { color:#dc2626; }
+
+  /* ── Equity Period Buttons (C2 — Sprint C) ── */
+  .perf-period-btn { font-size:10px; padding:2px 9px; border:1px solid #ddd; border-radius:10px; background:#fff; color:#888; cursor:pointer; transition:all .15s; font-weight:500; }
+  .perf-period-btn:hover { border-color:#185FA5; color:#185FA5; }
+  .perf-period-btn.active { background:#185FA5; color:#fff; border-color:#185FA5; }
+  body.night .perf-period-btn { background:#1a1a35; border-color:#252540; color:#6b7280; }
+  body.night .perf-period-btn.active { background:#185FA5; color:#fff; border-color:#185FA5; }
+
+  /* ── Risk / Yield Attribution Charts (B1/B2 — Sprint B) ── */
+  .attr-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .attr-bar-label { font-size:12px; color:#333; width:110px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .attr-bar-track { flex:1; background:#f0f0f0; border-radius:4px; height:14px; overflow:hidden; }
+  .attr-bar-fill  { height:100%; border-radius:4px; transition:width .6s ease; }
+  .attr-bar-pct   { font-size:11px; color:#555; width:44px; text-align:right; flex-shrink:0; }
+  .attr-stat-row  { display:flex; flex-wrap:wrap; gap:18px; padding-top:12px; border-top:.5px solid #eee; margin-top:10px; }
+  .attr-stat-item { display:flex; flex-direction:column; }
+  .attr-stat-label { font-size:9px; color:#aaa; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px; }
+  .attr-stat-value { font-size:14px; font-weight:600; color:#185FA5; }
+  .vbadge-ok   { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; background:#d1fae5; color:#065f46; }
+  .vbadge-warn { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; background:#fef9c3; color:#713f12; }
+  .vbadge-fail { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; background:#fee2e2; color:#991b1b; }
+
 </style>
 </head>
 <body>
@@ -892,18 +984,20 @@
 
 <!-- TABS v3.0 (Dashboard v3.0 Sprint A) -->
 <div class="tabs">
-  <button class="tab-btn active"  onclick="showTab('overview',   this)">🏛 Performance</button>
-  <button class="tab-btn"         onclick="showTab('strategies', this)">📐 Strategies</button>
-  <button class="tab-btn"         onclick="showTab('analytics',  this)">📈 Statistics <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"         onclick="showTab('dashboard',  this)">💰 Portfolio <span class="spa-tip" data-tip="Paper Trading">?</span></button>
-  <button class="tab-btn"         onclick="showTab('golive',     this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"         onclick="showTab('system',     this)">⚙️ System</button>
-  <button class="tab-btn"         onclick="showTab('ops',        this)">🗂 Ops</button>
+  <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
+  <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
+  <button class="tab-btn"         onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
+  <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"         data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
+  <button class="tab-btn"         data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
   <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
   <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
   <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
   <button class="tab-btn" style="display:none" onclick="showTab('team', this)">👾 Team</button>
 </div>
+
+<button id="lang-btn" onclick="toggleLang()" style="position:fixed;top:12px;right:60px;z-index:1000;background:#fff;border:1px solid #ddd;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;color:#555">EN</button>
 
 <!-- Agent popup modal -->
 <div id="agent-modal" class="agent-modal">
@@ -971,7 +1065,7 @@
       <div style="font-size:15px;font-weight:600">Performance Dashboard</div>
       <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · Smart Passive Aggregator · Paper Track</div>
     </div>
-    <button class="refresh-btn" onclick="loadPerformance()">↻ Refresh</button>
+    <button class="refresh-btn" data-i18n="refresh" onclick="loadPerformance()">↻ Refresh</button>
   </div>
 
   <!-- SECTION 1: Hero Metrics Grid (6 cards) -->
@@ -979,9 +1073,48 @@
     <div class="db-metric"><div class="db-metric-label">Loading...</div><div class="db-metric-value" style="font-size:16px">—</div></div>
   </div>
 
-  <!-- SECTION 2: Equity Curve (Chart.js) -->
+  <!-- SECTION 1b: Performance Tear Sheet (B5 — tear_sheet.json) -->
+  <div id="perf-tearsheet" class="tearsheet-card">
+    <div class="db-section" style="margin-bottom:6px">📋 Performance Tear Sheet</div>
+    <p id="tearsheet-track" class="tearsheet-track">Loading track data…</p>
+    <div class="tearsheet-grid">
+      <div class="tearsheet-metric">
+        <div class="tearsheet-metric-label">Total Return</div>
+        <div class="tearsheet-metric-value" id="ts-total-ret">—</div>
+      </div>
+      <div class="tearsheet-metric">
+        <div class="tearsheet-metric-label">Ann. APY</div>
+        <div class="tearsheet-metric-value" id="ts-apy">—</div>
+      </div>
+      <div class="tearsheet-metric">
+        <div class="tearsheet-metric-label">Sharpe</div>
+        <div class="tearsheet-metric-value" id="ts-sharpe">—</div>
+        <div class="tearsheet-metric-sub" id="ts-sharpe-sub"></div>
+      </div>
+      <div class="tearsheet-metric">
+        <div class="tearsheet-metric-label">Max Drawdown</div>
+        <div class="tearsheet-metric-value" id="ts-maxdd">—</div>
+      </div>
+      <div class="tearsheet-metric">
+        <div class="tearsheet-metric-label">Calmar</div>
+        <div class="tearsheet-metric-value" id="ts-calmar">—</div>
+        <div class="tearsheet-metric-sub" id="ts-calmar-sub"></div>
+      </div>
+    </div>
+    <div id="tearsheet-benchmark" class="tearsheet-benchmark" style="display:none"></div>
+    <p class="tearsheet-note" id="tearsheet-note"></p>
+  </div>
+
+  <!-- SECTION 2: Equity Curve (Chart.js) + Period Selector (C2) -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">📈 Equity Curve — Net Asset Value (USD)</div>
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span>📈 Equity Curve — Net Asset Value (USD)</span>
+      <div style="display:flex;gap:4px">
+        <button class="perf-period-btn" data-days="7"  onclick="setPerfPeriod(7,this)">7D</button>
+        <button class="perf-period-btn" data-days="30" onclick="setPerfPeriod(30,this)">30D</button>
+        <button class="perf-period-btn active" data-days="0" onclick="setPerfPeriod(0,this)">All</button>
+      </div>
+    </div>
     <div style="position:relative;height:200px">
       <canvas id="perf-equity-canvas" role="img" aria-label="Equity curve chart"></canvas>
       <div id="perf-equity-empty" style="display:none;padding:60px 20px;text-align:center;color:#aaa;font-size:13px">
@@ -1037,7 +1170,7 @@
       <div style="font-size:15px;font-weight:600">Strategy Race</div>
       <div style="font-size:12px;color:#888;margin-top:2px">S0–S5 shadow strategies running in parallel · 30-day track to select live strategy</div>
     </div>
-    <button class="refresh-btn" onclick="loadStrategies()">↻ Refresh</button>
+    <button class="refresh-btn" data-i18n="refresh" onclick="loadStrategies()">↻ Refresh</button>
   </div>
 
   <!-- BLOCK 1: Strategy Race Leaderboard -->
@@ -1211,6 +1344,17 @@
     </div>
     <div class="bk-board" id="ops-backlog-board">
       <div style="grid-column:1/-1;text-align:center;padding:32px;color:#aaa;font-size:13px">Click ↻ Kanban to load...</div>
+    </div>
+  </div>
+
+  <!-- 🤖 Agent Activity Feed (MP-132) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🤖 Активность агентов</span>
+      <button class="refresh-btn" onclick="loadAgentFeed()">↻ Обновить</button>
+    </div>
+    <div id="agent-feed-body">
+      <div style="text-align:center;padding:24px;color:#aaa;font-size:13px">Нажмите ↻ Обновить для загрузки...</div>
     </div>
   </div>
 
@@ -2130,6 +2274,74 @@
   </div>
   <!-- ══ / Portfolio Analytics ══ -->
 
+  <!-- ══ B2: Yield Attribution Breakdown (MP-117 — Sprint B) ══ -->
+  <div class="an-card" style="margin-top:16px" id="yield-attribution-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="an-title" style="margin-bottom:0">💰 Yield Attribution Breakdown</div>
+      <span id="yield-attr-updated" style="font-size:10px;color:#bbb"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
+      <div id="yield-attr-bars"><div style="color:#bbb;font-size:12px">Loading…</div></div>
+      <div style="width:190px;flex-shrink:0;display:flex;flex-direction:column;align-items:center">
+        <canvas id="yield-donut-chart" width="190" height="190"></canvas>
+        <div style="font-size:10px;color:#aaa;margin-top:4px">Yield share by protocol</div>
+      </div>
+    </div>
+    <div class="attr-stat-row">
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Portfolio APY</div>
+        <div class="attr-stat-value" id="yield-portfolio-apy" style="color:#16a34a">—</div>
+      </div>
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Yield HHI</div>
+        <div class="attr-stat-value" id="yield-hhi">—</div>
+      </div>
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Cash Drag</div>
+        <div class="attr-stat-value" id="yield-cash-drag">—</div>
+      </div>
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Verdict</div>
+        <div id="yield-verdict">—</div>
+      </div>
+    </div>
+  </div>
+  <!-- ══ / Yield Attribution ══ -->
+
+  <!-- ══ B1: Risk Attribution — MCTR Decomposition (MP-118 — Sprint B) ══ -->
+  <div class="an-card" style="margin-top:16px" id="risk-attribution-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="an-title" style="margin-bottom:0">⚡ Risk Attribution (MCTR Decomposition)</div>
+      <span id="risk-attr-updated" style="font-size:10px;color:#bbb"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
+      <div id="risk-attr-bars"><div style="color:#bbb;font-size:12px">Loading…</div></div>
+      <div style="width:190px;flex-shrink:0;display:flex;flex-direction:column;align-items:center">
+        <canvas id="risk-donut-chart" width="190" height="190"></canvas>
+        <div style="font-size:10px;color:#aaa;margin-top:4px">PRC (% of portfolio risk)</div>
+      </div>
+    </div>
+    <div class="attr-stat-row">
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Portfolio Vol</div>
+        <div class="attr-stat-value" id="risk-port-vol">—</div>
+      </div>
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Risk HHI</div>
+        <div class="attr-stat-value" id="risk-hhi-val">—</div>
+      </div>
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Div. Ratio</div>
+        <div class="attr-stat-value" id="risk-div-ratio">—</div>
+      </div>
+      <div class="attr-stat-item">
+        <div class="attr-stat-label">Verdict</div>
+        <div id="risk-verdict-val">—</div>
+      </div>
+    </div>
+  </div>
+  <!-- ══ / Risk Attribution ══ -->
+
 </div><!-- /tab-analytics -->
 
 
@@ -2644,6 +2856,65 @@ function loadOverview() { loadPerformance(); }
 // ─── Dashboard v3.0 Sprint A: Performance Hero, Strategies, Ops ──────────────
 
 let _perfChart = null;
+let _perfEquityRows = [];  // C2: stored for period filtering
+
+// C2: render equity chart for a given row slice
+function _renderPerfEquityChart(rows) {
+  const canvasEl = document.getElementById('perf-equity-canvas');
+  const emptyEl  = document.getElementById('perf-equity-empty');
+  if (!canvasEl) return;
+  if (rows.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (_perfChart) { try { _perfChart.destroy(); } catch(e) {} _perfChart = null; }
+  _perfChart = new Chart(canvasEl, {
+    type: 'line',
+    data: {
+      labels: rows.map(d => d.date),
+      datasets: [{
+        data: rows.map(d => d.equity),
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.07)',
+        borderWidth: 2.5,
+        pointRadius: rows.length <= 14 ? 4 : (rows.length <= 60 ? 2 : 0),
+        pointBackgroundColor: '#22c55e',
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#aaa' } },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { font: { size: 11 }, color: '#aaa', callback: v => '$' + Number(v/1000).toFixed(1) + 'K' }
+        }
+      }
+    }
+  });
+}
+
+// C2: period selector handler
+function setPerfPeriod(days, btn) {
+  document.querySelectorAll('.perf-period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (!_perfEquityRows.length) return;
+  let rows = _perfEquityRows;
+  if (days > 0) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    rows = _perfEquityRows.filter(d => d.date >= cutoff);
+    if (rows.length === 0) rows = _perfEquityRows.slice(-days);
+  }
+  _renderPerfEquityChart(rows);
+}
 
 function _perfTimeAgo(ts) {
   if (!ts) return '';
@@ -2696,48 +2967,15 @@ async function loadPerformance() {
     ).join('');
   }
 
-  // ── Equity Curve ──
-  const canvasEl = document.getElementById('perf-equity-canvas');
-  const emptyEl  = document.getElementById('perf-equity-empty');
-  if (canvasEl) {
+  // ── Equity Curve (C2: store rows, reset period to All, render) ──
+  {
     const rows = equity && equity.daily && equity.daily.length > 0 ? equity.daily : [];
-    if (rows.length > 0) {
-      if (emptyEl) emptyEl.style.display = 'none';
-      if (_perfChart) { try { _perfChart.destroy(); } catch(e) {} _perfChart = null; }
-      _perfChart = new Chart(canvasEl, {
-        type: 'line',
-        data: {
-          labels: rows.map(d => d.date),
-          datasets: [{
-            data: rows.map(d => d.equity),
-            borderColor: '#22c55e',
-            backgroundColor: 'rgba(34,197,94,0.07)',
-            borderWidth: 2.5,
-            pointRadius: 4,
-            pointBackgroundColor: '#22c55e',
-            fill: true,
-            tension: 0.3,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) } }
-          },
-          scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#aaa' } },
-            y: {
-              grid: { color: 'rgba(0,0,0,0.05)' },
-              ticks: { font: { size: 11 }, color: '#aaa', callback: v => '$' + Number(v/1000).toFixed(1) + 'K' }
-            }
-          }
-        }
-      });
-    } else {
-      if (emptyEl) emptyEl.style.display = 'block';
-    }
+    _perfEquityRows = rows;
+    // Reset period buttons to "All"
+    document.querySelectorAll('.perf-period-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.days === '0');
+    });
+    _renderPerfEquityChart(rows);
   }
 
   // ── Status Bar ──
@@ -2772,6 +3010,119 @@ async function loadPerformance() {
     } else {
       raceEl.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">No strategy data yet — accumulating...</div>';
     }
+  }
+
+  // ── B5: Tear Sheet ──
+  loadTearSheet();
+}
+
+// ─── B5: Performance Tear Sheet loader ────────────────────────────────────────
+async function loadTearSheet() {
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  let ts = null;
+  try { ts = await fetch(dataBase + '/tear_sheet.json?_=' + Date.now()).then(r => r.ok ? r.json() : null); } catch(e) {}
+
+  const trackEl = document.getElementById('tearsheet-track');
+  if (!ts || !ts.available) {
+    if (trackEl) trackEl.textContent = 'Tear sheet not yet generated — run: python3 -m spa_core.paper_trading.performance_report --run';
+    return;
+  }
+
+  // Track line
+  if (trackEl) {
+    const end = ts.track_end || 'present';
+    trackEl.textContent = 'Real Track: ' + (ts.track_start || '—') + ' → ' + end
+      + ' · ' + (ts.track_days || '—') + ' days'
+      + ' · ' + (ts.n_observations || '—') + ' observations';
+  }
+
+  // Helper: fill one metric cell
+  function _tsFill(id, text, cls, subId, subText) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text != null ? text : 'n/a';
+    el.className = 'tearsheet-metric-value' + (text == null ? ' ts-na' : (cls ? ' ' + cls : ''));
+    if (subId) { const s = document.getElementById(subId); if (s) s.textContent = subText || ''; }
+  }
+
+  // Total Return
+  const tr = ts.total_return_pct;
+  _tsFill('ts-total-ret',
+    tr != null ? (tr >= 0 ? '+' : '') + tr.toFixed(4) + '%' : null,
+    tr != null ? (tr >= 0 ? 'ts-pos' : 'ts-neg') : '');
+
+  // Ann. APY
+  const apy = ts.annualized_apy_pct;
+  _tsFill('ts-apy', apy != null ? apy.toFixed(2) + '%' : null, 'ts-pos');
+
+  // Sharpe
+  if (ts.sharpe_ratio == null) {
+    _tsFill('ts-sharpe', null, '', 'ts-sharpe-sub', 'need ' + (ts.sharpe_need_days || 30) + 'd');
+  } else {
+    _tsFill('ts-sharpe', ts.sharpe_ratio.toFixed(2), ts.sharpe_ratio >= 1 ? 'ts-pos' : '',
+            'ts-sharpe-sub', 'annualised');
+  }
+
+  // Max Drawdown
+  const dd = ts.max_drawdown_pct;
+  _tsFill('ts-maxdd',
+    dd != null ? dd.toFixed(2) + '%' : null,
+    dd != null ? (dd > 5 ? 'ts-neg' : 'ts-pos') : '');
+
+  // Calmar
+  if (ts.calmar_ratio == null) {
+    _tsFill('ts-calmar', null, '', 'ts-calmar-sub', 'need ' + (ts.calmar_need_days || 365) + 'd');
+  } else {
+    _tsFill('ts-calmar', ts.calmar_ratio.toFixed(2), ts.calmar_ratio >= 1 ? 'ts-pos' : '',
+            'ts-calmar-sub', 'ann/maxDD');
+  }
+
+  // Benchmark / Alpha row — visual comparison widget (C1)
+  const bmEl = document.getElementById('tearsheet-benchmark');
+  if (bmEl) {
+    const bmApy = ts.benchmark_apy_pct;
+    const ourApy = ts.annualized_return_pct != null ? ts.annualized_return_pct : (ts.apy_pct != null ? ts.apy_pct : null);
+    if (bmApy != null) {
+      const alpha = ts.alpha_vs_benchmark_pct;
+      const alphaStr = alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(2) + '%' : '—';
+      const alphaCls = alpha != null ? (alpha >= 0 ? 'bm-alpha-pos' : 'bm-alpha-neg') : '';
+      const maxVal = Math.max(bmApy, ourApy != null ? ourApy : bmApy, 0.001);
+      const ourPct = ourApy != null ? Math.min(100, (ourApy / maxVal) * 100).toFixed(1) : 0;
+      const bmPct  = Math.min(100, (bmApy / maxVal) * 100).toFixed(1);
+      const ourStr = ourApy != null ? ourApy.toFixed(2) + '%' : '—';
+      bmEl.innerHTML =
+        '<div class="bm-widget">' +
+          '<div class="bm-widget-title">vs Aave V3 Supply (benchmark)</div>' +
+          '<div class="bm-row">' +
+            '<span class="bm-label">SPA Portfolio</span>' +
+            '<div class="bm-bar-track"><div class="bm-bar-fill bm-bar-spa" style="width:' + ourPct + '%"></div></div>' +
+            '<span class="bm-pct" style="color:#185FA5">' + ourStr + '</span>' +
+          '</div>' +
+          '<div class="bm-row">' +
+            '<span class="bm-label">Aave V3 USDC</span>' +
+            '<div class="bm-bar-track"><div class="bm-bar-fill bm-bar-bm" style="width:' + bmPct + '%"></div></div>' +
+            '<span class="bm-pct" style="color:#888">' + bmApy.toFixed(2) + '%</span>' +
+          '</div>' +
+          '<div class="bm-alpha-row">' +
+            '<span class="bm-alpha-label">Alpha (SPA − Benchmark)</span>' +
+            '<span class="bm-alpha-value ' + alphaCls + '">' + alphaStr + '</span>' +
+          '</div>' +
+        '</div>';
+      bmEl.style.display = '';
+    } else {
+      bmEl.style.display = 'none';
+    }
+  }
+
+  // Footer note
+  const noteEl = document.getElementById('tearsheet-note');
+  if (noteEl) {
+    const notes = [];
+    if (ts.sharpe_ratio == null) notes.push('Sharpe requires ' + (ts.sharpe_need_days || 30) + '+ days');
+    if (ts.calmar_ratio == null) notes.push('Calmar requires ' + (ts.calmar_need_days || 365) + '+ days');
+    noteEl.textContent = notes.length
+      ? 'ⓘ ' + notes.join(' · ') + ' of data. Track started ' + (ts.track_start || '—') + '.'
+      : '';
   }
 }
 
@@ -2892,6 +3243,89 @@ async function loadOps() {
     opsBoardEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:#888;font-size:13px">' +
       '→ <a href="javascript:void(0)" onclick="showTab(\'backlog\',document.querySelector(\'[onclick*=\\\'backlog\\\']\'))" style="color:#185FA5">Open full Kanban tab</a> for live board · (loadBacklog renders into #backlog-board container above)</div>';
   }
+
+  // MP-132: load Agent Activity Feed
+  loadAgentFeed();
+}
+
+// ─── MP-132: Agent Activity Feed ─────────────────────────────────────────────
+let _afShowAll = false;
+
+async function loadAgentFeed() {
+  const el = document.getElementById('agent-feed-body');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>';
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  let entries = null;
+  try {
+    const r = await fetch(dataBase + '/agent_summaries.json?_=' + Date.now());
+    if (r.ok) entries = await r.json();
+  } catch(e) {}
+  renderAgentFeed(el, entries);
+}
+
+function renderAgentFeed(el, entries) {
+  if (!entries || !Array.isArray(entries) || entries.length === 0) {
+    el.innerHTML = '<div class="af-empty">Нет данных об агентах</div>';
+    return;
+  }
+  const sorted = [...entries]
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 20);
+  const visible = _afShowAll ? sorted : sorted.slice(0, 10);
+  const hasMore = sorted.length > 10;
+
+  const badgeClass = s => {
+    if (s === 'ok')    return 'af-badge-ok';
+    if (s === 'warn')  return 'af-badge-warn';
+    if (s === 'error') return 'af-badge-error';
+    return 'af-badge-info';
+  };
+  const badgeLabel = s => {
+    if (s === 'ok')    return 'ОК';
+    if (s === 'warn')  return 'ПРЕД';
+    if (s === 'error') return 'ОШИБКА';
+    return 'ИНФО';
+  };
+  const fmtTime = iso => {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    } catch(e) { return (iso + '').slice(11,16) || '—'; }
+  };
+
+  let html = '';
+  visible.forEach((e, i) => {
+    const detId = 'af-det-' + i;
+    html += `<div class="af-row" onclick="toggleAfDetail('${detId}')">` +
+      `<span class="af-time">${fmtTime(e.timestamp)}</span>` +
+      `<span class="af-sep">·</span>` +
+      `<span class="af-agent">${e.agent || '—'}</span>` +
+      `<span class="af-sep">·</span>` +
+      `<span class="af-action">${e.action || '—'}</span>` +
+      `<span class="af-badge ${badgeClass(e.status)}">${badgeLabel(e.status)}</span>` +
+      `</div>`;
+    if (e.details) {
+      html += `<div class="af-details" id="${detId}">${e.details}</div>`;
+    }
+  });
+
+  if (hasMore) {
+    html += `<button class="af-toggle" onclick="event.stopPropagation();toggleAfAll()">` +
+      (_afShowAll ? '▲ Показать меньше' : '▼ Показать больше') + `</button>`;
+  }
+  el.innerHTML = html;
+}
+
+function toggleAfDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function toggleAfAll() {
+  _afShowAll = !_afShowAll;
+  loadAgentFeed();
 }
 
 // ─── MP-110: Investor Summary — один честный экран ───────────────────────────
@@ -5506,6 +5940,7 @@ async function loadPaperStatus() {
 
 loadGoLiveStatusBar();
 setInterval(loadGoLiveStatusBar, 5 * 60 * 1000);  // автообновление каждые 5 минут
+setInterval(loadAgentFeed,     5 * 60 * 1000);  // MP-132: автообновление агент-фида
 loadPaperStatus();  // бейдж LIVE/DEMO в шапке доступен с любой вкладки
 
 // ─── Mobile init ─────────────────────────────────────────────────────────────
@@ -5779,6 +6214,174 @@ async function loadPortfolioAnalytics() {
       + '<div style="grid-column:1/-1">' + paKv('Top-1 PRC', '<span style="color:#93c5fd">' + (risk.top1_risk_protocol||'—') + '</span> ' + top1Prc + '%') + '</div>'
       + '</div>';
   }
+
+  // ── B1 + B2: Full attribution charts ──
+  renderRiskAttribution(risk);
+  renderYieldAttribution(yld);
+}
+
+// ─── B1: Risk Attribution — MCTR Decomposition ───────────────────────────────
+var _riskDonutChart = null;
+var _yieldDonutChart = null;
+
+var _PROTO_COLORS = {
+  aave_v3:'#2563eb', compound_v3:'#16a34a', yearn_v3:'#9333ea',
+  maple:'#ea580c',   euler_v2:'#0891b2',    morpho_blue:'#db2777', sky_susds:'#65a30d'
+};
+var _PALETTE = ['#2563eb','#16a34a','#9333ea','#ea580c','#0891b2','#db2777','#65a30d'];
+var _PROTO_LABELS = {
+  aave_v3:'Aave V3', compound_v3:'Compound V3', yearn_v3:'Yearn V3',
+  maple:'Maple',     euler_v2:'Euler V2',        morpho_blue:'Morpho Blue'
+};
+function _attrColor(key, idx) { return _PROTO_COLORS[key] || _PALETTE[idx % _PALETTE.length]; }
+function _attrLabel(key) { return _PROTO_LABELS[key] || key.replace(/_/g, ' '); }
+function _vbadge(v) {
+  var cls = v === 'ok' ? 'vbadge-ok' : v === 'warn' ? 'vbadge-warn' : 'vbadge-fail';
+  return '<span class="' + cls + '">' + (v || '—').toUpperCase() + '</span>';
+}
+
+function renderRiskAttribution(risk) {
+  var card = document.getElementById('risk-attribution-card');
+  if (!card) return;
+  var barsEl = document.getElementById('risk-attr-bars');
+
+  if (!risk || !risk.available) {
+    if (barsEl) barsEl.innerHTML = '<div style="color:#bbb;font-size:12px">Risk attribution data unavailable</div>';
+    return;
+  }
+
+  var breakdown = risk.breakdown || [];
+  var maxPrc = breakdown.length ? (breakdown[0].prc || 0.001) : 0.001;
+
+  // Timestamp
+  var updEl = document.getElementById('risk-attr-updated');
+  if (updEl && risk.meta && risk.meta.generated_at)
+    updEl.textContent = 'Source: risk_contribution.json · ' + new Date(risk.meta.generated_at).toLocaleString();
+
+  // Horizontal bars (PRC)
+  if (barsEl) {
+    barsEl.innerHTML = breakdown.map(function(p, i) {
+      var pct = ((p.prc || 0) * 100).toFixed(1);
+      var barW = Math.round((p.prc || 0) / maxPrc * 100);
+      var color = _attrColor(p.protocol, i);
+      return '<div class="attr-bar-row">'
+        + '<span class="attr-bar-label" title="' + _attrLabel(p.protocol) + '">' + _attrLabel(p.protocol) + '</span>'
+        + '<div class="attr-bar-track"><div class="attr-bar-fill" style="width:' + barW + '%;background:' + color + '"></div></div>'
+        + '<span class="attr-bar-pct">' + pct + '%</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  // Donut chart (Chart.js)
+  var canvas = document.getElementById('risk-donut-chart');
+  if (canvas && typeof Chart !== 'undefined') {
+    if (_riskDonutChart) { try { _riskDonutChart.destroy(); } catch(e) {} _riskDonutChart = null; }
+    _riskDonutChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: breakdown.map(function(p) { return _attrLabel(p.protocol); }),
+        datasets: [{
+          data: breakdown.map(function(p) { return +((p.prc || 0) * 100).toFixed(2); }),
+          backgroundColor: breakdown.map(function(p, i) { return _attrColor(p.protocol, i); }),
+          borderWidth: 2, borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.parsed.toFixed(1) + '%'; } } }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  // Stats row
+  var _sa = function(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; };
+  _sa('risk-port-vol',  (risk.portfolio_volatility_pp || 0).toFixed(2) + '%');
+  _sa('risk-hhi-val',   risk.risk_hhi_index != null ? risk.risk_hhi_index.toString() : '—');
+  _sa('risk-div-ratio', (risk.diversification_ratio || 0).toFixed(2));
+  var vEl = document.getElementById('risk-verdict-val');
+  if (vEl) vEl.innerHTML = _vbadge(risk.verdict);
+}
+
+// ─── B2: Yield Attribution Breakdown ─────────────────────────────────────────
+function renderYieldAttribution(yld) {
+  var card = document.getElementById('yield-attribution-card');
+  if (!card) return;
+  var barsEl = document.getElementById('yield-attr-bars');
+
+  if (!yld || !yld.available) {
+    if (barsEl) barsEl.innerHTML = '<div style="color:#bbb;font-size:12px">Yield attribution data unavailable</div>';
+    return;
+  }
+
+  var breakdown = yld.breakdown || [];
+  var maxContrib = 0;
+  breakdown.forEach(function(p) { if ((p.yield_contribution_pp || 0) > maxContrib) maxContrib = p.yield_contribution_pp; });
+  if (maxContrib <= 0) maxContrib = 0.001;
+
+  // Timestamp
+  var updEl = document.getElementById('yield-attr-updated');
+  if (updEl && yld.meta && yld.meta.generated_at)
+    updEl.textContent = 'Source: yield_attribution.json · ' + new Date(yld.meta.generated_at).toLocaleString();
+
+  // Horizontal bars (yield contribution pp)
+  if (barsEl) {
+    var rows = breakdown.map(function(p, i) {
+      var contrib = p.yield_contribution_pp || 0;
+      var barW = Math.round(contrib / maxContrib * 100);
+      var color = _attrColor(p.protocol, i);
+      return '<div class="attr-bar-row">'
+        + '<span class="attr-bar-label" title="' + _attrLabel(p.protocol) + '">' + _attrLabel(p.protocol) + '</span>'
+        + '<div class="attr-bar-track"><div class="attr-bar-fill" style="width:' + barW + '%;background:' + color + '"></div></div>'
+        + '<span class="attr-bar-pct">' + contrib.toFixed(2) + '%</span>'
+        + '</div>';
+    });
+    // Portfolio total row
+    var portApy = yld.portfolio_apy_pp || 0;
+    rows.push('<div class="attr-bar-row" style="border-top:.5px solid #eee;margin-top:6px;padding-top:6px">'
+      + '<span class="attr-bar-label" style="font-weight:600;color:#1a1a1a">Portfolio</span>'
+      + '<div class="attr-bar-track"><div class="attr-bar-fill" style="width:100%;background:#185FA5"></div></div>'
+      + '<span class="attr-bar-pct" style="font-weight:600;color:#185FA5">' + portApy.toFixed(2) + '%</span>'
+      + '</div>');
+    barsEl.innerHTML = rows.join('');
+  }
+
+  // Donut chart (Chart.js) — yield share
+  var canvas = document.getElementById('yield-donut-chart');
+  if (canvas && typeof Chart !== 'undefined') {
+    if (_yieldDonutChart) { try { _yieldDonutChart.destroy(); } catch(e) {} _yieldDonutChart = null; }
+    _yieldDonutChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: breakdown.map(function(p) { return _attrLabel(p.protocol); }),
+        datasets: [{
+          data: breakdown.map(function(p) { return +((p.share_of_total_yield || 0) * 100).toFixed(2); }),
+          backgroundColor: breakdown.map(function(p, i) { return _attrColor(p.protocol, i); }),
+          borderWidth: 2, borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.parsed.toFixed(1) + '%'; } } }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  // Stats row
+  var _sa = function(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; };
+  var apyEl = document.getElementById('yield-portfolio-apy');
+  if (apyEl) { apyEl.textContent = (yld.portfolio_apy_pp || 0).toFixed(2) + '%'; }
+  _sa('yield-hhi',       yld.yield_hhi_index != null ? yld.yield_hhi_index.toString() : '—');
+  _sa('yield-cash-drag', yld.cash_drag_pp != null ? yld.cash_drag_pp.toFixed(3) + '%' : '—');
+  var vEl = document.getElementById('yield-verdict');
+  if (vEl) vEl.innerHTML = _vbadge(yld.verdict);
 }
 
 function renderKanbanStats(data) {
@@ -7907,10 +8510,31 @@ async function renderGoLiveCard() {
     ${criteriaHTML || '<div style="color:#aaa;font-size:12px">golive_readiness.json not found</div>'}`;
 }
 
+// ── RU/EN i18n ──────────────────────────────────────────
+const I18N = {
+  ru: { perf: '🏛 Производительность', strat: '📐 Стратегии', analytics: '📈 Статистика', portfolio: '💰 Портфель', golive: '🎯 Запуск', system: '⚙️ Система', ops: '🗂 Операции', refresh: '↻ Обновить', lang_toggle: 'EN' },
+  en: { perf: '🏛 Performance', strat: '📐 Strategies', analytics: '📈 Statistics', portfolio: '💰 Portfolio', golive: '🎯 Go-Live', system: '⚙️ System', ops: '🗂 Ops', refresh: '↻ Refresh', lang_toggle: 'RU' }
+};
+let currentLang = localStorage.getItem('spa_lang') || 'ru';
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('spa_lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (I18N[lang][key] !== undefined) el.textContent = I18N[lang][key];
+  });
+  const btn = document.getElementById('lang-btn');
+  if (btn) btn.textContent = I18N[lang]['lang_toggle'];
+}
+function toggleLang() {
+  setLang(currentLang === 'ru' ? 'en' : 'ru');
+}
+
 // Инициализация всплывающих подсказок + Performance tab (active by default)
 document.addEventListener('DOMContentLoaded', () => {
   initTooltips();
   loadPerformance(); // default tab is Performance Hero
+  setLang(currentLang); // restore language from localStorage
 });
 </script>
 
