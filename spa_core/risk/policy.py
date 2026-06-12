@@ -57,16 +57,16 @@ class RiskConfig:
     version: str = "v1.0"
     version_date: str = "2026-05-20"
     changelog: str = (
-        "Initial policy: T1/T2 concentration limits, 5% drawdown kill switch, 5% cash buffer"
+        "Initial policy: T1/T2 concentration limits, 5% drawdown kill switch, 5% cash buffer. "
+        "MP-352 (2026-06-12): ethereum chain limit 70%→90% (structural, all adapters are L1). "
+        "ADR-019 (2026-06-12): T2 cap 35%→50%. "
+        "ADR-020 (2026-06-12): T3 Private Credit cap 15% added."
     )
 
     # Концентрационные лимиты — максимум % портфеля в один протокол
     max_concentration_t1: float = 0.40   # T1: макс 40%
     max_concentration_t2: float = 0.20   # T2: макс 20%
     max_single_protocol:  float = 0.40   # абсолютный макс на любой протокол
-
-    # Лимиты по категориям
-    max_total_t2_allocation: float = 0.35  # T2 совокупно не более 35%
 
     # Circuit breakers — автостоп
     max_apy_for_new_position: float = 30.0   # % — не входим если APY > 30% (слишком высокий риск)
@@ -84,10 +84,28 @@ class RiskConfig:
     min_cash_pct: float = 0.05              # 5% всегда в кэше
 
     # ── Multi-chain limits ────────────────────────────────────────────────────
-    # Ethereum can hold Aave(40%) + Compound(15%) + Morpho(15%) = 70% maximum
-    max_single_chain_allocation: float = 0.70    # max 70% on any single chain
+    # MP-352 (2026-06-12): Ethereum single-chain limit raised 70% → 90%.
+    # All current T1/T2 adapters (Aave V3, Compound V3, Morpho Blue,
+    # Yearn V3, Euler V2, Maple) are on Ethereum L1 mainnet. The old 70%
+    # threshold fired on every normal cycle as structural noise.
+    # Ethereum concentration natural — all T1/T2 adapters are L1 mainnet.
+    # Warning re-enabled when L2 adapters added.
+    max_single_chain_allocation: float = 0.90    # max 90% on any single chain (MP-352: was 0.70)
     max_l2_total_allocation: float = 0.50        # L2s combined max 50% (Arbitrum+Base only)
     preferred_chains: list = field(default_factory=lambda: ["ethereum", "arbitrum", "base"])
+
+    # ── T2 category limit (ADR-019, 2026-06-12) ──────────────────────────────
+    # Raised from 35% → 50% to accommodate additional T2 protocols
+    # (Pendle, Clearpool, etc.) with TVL > $100M guard in allocator.
+    # Rationale: ADR-019-t2-cap-increase.md
+    max_total_t2_allocation: float = 0.50  # T2 совокупно не более 50% (ADR-019: было 0.35)
+
+    # ── T3 Private Credit / RWA limit (ADR-020, 2026-06-12) ──────────────────
+    # New tier: Maple Finance, Clearpool, Goldfinch, Ondo USDY, Mountain USDM.
+    # Conditions: audit ✓, TVL $20M+, track record 6+ months,
+    # lock period awareness, no instant redemption, min hold 30 days.
+    # Rationale: ADR-020-t3-private-credit.md
+    max_total_t3_allocation: float = 0.15  # T3 совокупно не более 15% (ADR-020)
 
 
 # ─── Модели данных ───────────────────────────────────────────────────────────
