@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-06-12 (v4.64 Phase2 Roadmap)
+
+**Что сделано:**
+- Прочитан полный контекст: CURRENT_STATE, KANBAN, RULES, ADR-002, golive_status, equity_curve, gap_monitor
+- Оценка готовности к Phase 2: **42/100** (главный блокер — 3/30 дней трека)
+- GoLiveChecker: технически READY (все 6 критериев), но ADR-002 требует READY 7+ дней подряд — ETA 2026-06-17
+- Создан `docs/PHASE2_ROADMAP.md` — критический путь, sprint plan v4.64–v4.70, риски
+- KANBAN обновлён: sprint_current → v4.64; добавлены MP-350 (Telegram activation), MP-351 (preflight script), MP-352 (chain concentration)
+
+**Ключевые выводы:**
+- Autopush работал раньше как автономный агент v4.64 — KANBAN уже на v4.64 при нашей работе
+- Минимальный путь к live-пилоту: MP-402 ✅ → 30d track → ADR-002 review → activate.py (ERC-4626 не нужен для личного пилота)
+- Все Phase 2 features (MP-403-507) в правильном dependency order, разблокированы последовательно
+
+**Топ-5 блокеров (не изменились):**
+1. Трек record: 3/30 дней (27 дней ждать)
+2. MP-313: bash mp009_fix_launchd.command (USER ACTION P0)
+3. UA-004: GitHub Pages (USER ACTION P1)
+4. MP-017: RPC keys для Pendle (USER ACTION P1)
+5. ADR-011 manual review (Owner action к 2026-07-15)
+
+**Следующий автономный sprint (v4.64):**
+- MP-350: Активировать Telegram daily report (снять dry_run) — код готов, token в Keychain
+- MP-351: ADR-011 pre-flight скрипт — автоматизировать всё что можно из 39-point checklist
+- MP-352: ethereum chain concentration → разобраться и понизить до INFO если структурно
+
+---
+
 ## 2026-06-12 (SYS-sprint)
 
 **Что сделано:**
