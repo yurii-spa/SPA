@@ -174,6 +174,7 @@ def test_cycle_runner_writes_shadow_portfolio(tmp_path):
         orchestrator_fn=_fake_orch_fn,
         allocator=_FakeAllocator(),
         risk_scorer_fn=lambda d: None,
+        track_persister_fn=lambda d: None,  # MP-109: no-op in tests
     )
     assert res.status == "ok"
     shadow = json.loads((tmp_path / SHADOW_FILENAME).read_text())
@@ -199,6 +200,7 @@ def test_cycle_runner_survives_broken_shadow(tmp_path, monkeypatch):
         orchestrator_fn=_fake_orch_fn,
         allocator=_FakeAllocator(),
         risk_scorer_fn=lambda d: None,
+        track_persister_fn=lambda d: None,  # MP-109: no-op in tests
     )
     assert res.status == "ok"
     assert (tmp_path / "trades.json").exists()  # real track persisted anyway
