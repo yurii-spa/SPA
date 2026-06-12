@@ -59,3 +59,18 @@
 - SYS-003/004/005/007/008: Обновить RULES.md (sprint DoD, infra-first, anti-HALT, startup, delivery_status)
 - SYS-009: Восстановить sprint log v4.31-v4.47
 - MP-312: Kill-switch drill
+
+---
+
+## 2026-06-12 (MP-412 ADR-023 Strategy Promotion Policy)
+
+| ADR | Date | Topic | Status | Notes |
+|-----|------|-------|--------|-------|
+| ADR-023 | 2026-06-12 | Strategy Promotion Policy Paper→Live | Accepted | T3 requires 30d, T1/T2 14d |
+
+**Что сделано:**
+- Создан `docs/ADR-023-strategy-promotion-policy.md` — детерминированные критерии продвижения стратегий
+- Promotion Gate: MIN_DAYS_PAPER ≥14d, SHARPE ≥0.80, MAX_DD ≥-5%, APY ≥7.0%, CALMAR ≥1.0
+- T3/T3-SPEC (S7, S8, S10): MIN_DAYS ≥30d, SHARPE ≥1.0, MAX_ALLOC 30%, требует USER_APPROVAL
+- S7 (Pendle YT+PT, 10.115% APY) — первая стратегия выше 10% барьера, Est. promotion 2026-07-12
+- KANBAN: MP-412 → done
