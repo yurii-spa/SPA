@@ -1,0 +1,20 @@
+{
+  "name": "incident_commander",
+  "role": "incident_response",
+  "schedule": "on_critical_alert",
+  "token_budget_per_run": 2000,
+  "token_budget_daily": 10000,
+  "forbidden_actions": [
+    "execute_trade",
+    "execute_fix",
+    "change_allocation",
+    "modify_policy"
+  ],
+  "allowed_outputs": [
+    "create_incident_report",
+    "generate_postmortem_draft",
+    "write_checklist"
+  ],
+  "requires_llm": false,
+  "degradation_mode": "deterministic-only"
+}
