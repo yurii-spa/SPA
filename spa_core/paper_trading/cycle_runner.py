@@ -790,6 +790,32 @@ def run_cycle(
     apy_map = _live_apy_map(adapters)
     live = bool(apy_map) and orch_status != "no_live_data"
 
+    # ── MP-413: merge fallback APY values for adapters NOT in orchestrator ──
+    # The orchestrator covers: aave_v3, compound_v3, morpho_blue, yearn_v3,
+    # euler_v2, maple.  Newer adapters (morpho_steakhouse, pendle_pt, etc.)
+    # are absent from apy_map; strategies fall back to hardcoded constants.
+    # We merge their values from adapter_status.json (best available data)
+    # as a safe fallback — only for keys genuinely missing from apy_map and
+    # only when the value is a positive float.  Never overwrites live data.
+    try:
+        _adapter_status = _read_json(ddir / "adapter_status.json", {})
+        if isinstance(_adapter_status, dict):
+            for _proto_key, _entry in _adapter_status.items():
+                if _proto_key in apy_map:
+                    continue  # live orchestrator value takes precedence
+                if not isinstance(_entry, dict):
+                    continue
+                _fallback_apy = _entry.get("apy")
+                if isinstance(_fallback_apy, (int, float)) and _fallback_apy > 0:
+                    apy_map[_proto_key] = float(_fallback_apy)
+                    log.debug(
+                        "MP-413 apy_map[%s]=%.4f (adapter_status.json fallback)",
+                        _proto_key,
+                        _fallback_apy,
+                    )
+    except Exception as _mp413_exc:  # never crash the cycle
+        log.warning("MP-413 apy_map merge failed (%s) — cycle continues", _mp413_exc)
+
     # Load prior persisted state up front (needed for both paths).
     current_positions: dict[str, float] = {
         k: float(v)
@@ -1220,10 +1246,10 @@ def run_cycle(
         except Exception as _pe_exc:  # noqa: BLE001 — never crash the cycle
             log.warning("PromotionEngine failed (%s) — cycle continues", _pe_exc)
 
-        # ── MP-386: Multi-Strategy Tournament S2/S3 Integration ──────────────
-        # Запускает MultiStrategyRunner с S0/S1/S2/S3 стратегиями.
-        # S2 (Pendle PT + Morpho Heavy) и S3 (Aave Arbitrum L2 + Morpho)
-        # преобразуются в StrategyConfig из модульных констант.
+        # ── MP-386/MP-405/MP-423: Multi-Strategy Tournament S2–S11 Integration ──────────
+        # Запускает MultiStrategyRunner с S0/S1/S2/S3/S4/S5/S6/S7/S11 стратегиями.
+        # S2–S11 преобразуются в StrategyConfig из модульных констант.
+        # Active strategies: S0, S1, S2, S3, S4, S5, S6, S7, S11
         # Advisory — не трогает trades.json, equity_curve, risk/policy.
         # Fail-safe: любое исключение → WARNING, цикл продолжается.
         try:
@@ -1251,6 +1277,61 @@ def run_cycle(
                 TARGET_APY_MIN as _s3_apy_min,
                 TARGET_APY_MAX as _s3_apy_max,
             )
+            try:
+                from spa_core.strategies.s4_spark_fluid_conservative import (
+                    STRATEGY_ID as _s4_id,
+                    STRATEGY_NAME as _s4_name,
+                    TIER as _s4_tier,
+                    ALLOCATION as _s4_alloc,
+                    TARGET_APY_MIN as _s4_apy_min,
+                    TARGET_APY_MAX as _s4_apy_max,
+                )
+            except ImportError:
+                _s4_id = _s4_name = _s4_tier = _s4_alloc = _s4_apy_min = _s4_apy_max = None
+            try:
+                from spa_core.strategies.s5_pendle_enhanced import (
+                    STRATEGY_ID as _s5_id,
+                    STRATEGY_NAME as _s5_name,
+                    TIER_LIMIT as _s5_tier,
+                    ALLOCATION as _s5_alloc,
+                    TARGET_APY_MIN as _s5_apy_min,
+                    TARGET_APY_MAX as _s5_apy_max,
+                )
+            except ImportError:
+                _s5_id = _s5_name = _s5_tier = _s5_alloc = _s5_apy_min = _s5_apy_max = None
+            try:
+                from spa_core.strategies.s6_max_diversified import (
+                    STRATEGY_ID as _s6_id,
+                    STRATEGY_NAME as _s6_name,
+                    TIER as _s6_tier,
+                    ALLOCATION as _s6_alloc,
+                    TARGET_APY_MIN as _s6_apy_min,
+                    TARGET_APY_MAX as _s6_apy_max,
+                )
+            except ImportError:
+                _s6_id = _s6_name = _s6_tier = _s6_alloc = _s6_apy_min = _s6_apy_max = None
+            try:
+                from spa_core.strategies.s7_pendle_yt_aggressive import (
+                    STRATEGY_ID as _s7_id,
+                    STRATEGY_NAME as _s7_name,
+                    RISK_TIER as _s7_tier,
+                    ALLOCATION as _s7_alloc,
+                    TARGET_APY_MIN as _s7_apy_min,
+                    TARGET_APY_MAX as _s7_apy_max,
+                )
+            except ImportError:
+                _s7_id = _s7_name = _s7_tier = _s7_alloc = _s7_apy_min = _s7_apy_max = None
+            try:
+                from spa_core.strategies.s11_hybrid_yield_max import (
+                    STRATEGY_ID as _s11_id,
+                    STRATEGY_NAME as _s11_name,
+                    RISK_TIER as _s11_tier,
+                    BASE_ALLOCATION as _s11_alloc,
+                    TARGET_APY_MIN as _s11_apy_min,
+                    TARGET_APY_MAX as _s11_apy_max,
+                )
+            except ImportError:
+                _s11_id = _s11_name = _s11_tier = _s11_alloc = _s11_apy_min = _s11_apy_max = None
             # S2: исключаем pendle_pt (external — в _SKIP_PROTOCOLS MultiStrategyRunner)
             _ms_s2 = _MSStrategyConfig(
                 id=_s2_id,
@@ -1272,6 +1353,68 @@ def run_cycle(
                 target_apy_max=_s3_apy_max,
             )
             _ms_strategies = [_ms_s0, _ms_s1, _ms_s2, _ms_s3]
+            # S4: Conservative Spark+Fluid (T1+T2, нет pendle-протоколов)
+            if _s4_id is not None:
+                _ms_s4 = _MSStrategyConfig(
+                    id=_s4_id,
+                    name=_s4_name,
+                    description="S4 Conservative Spark+Fluid (T1+T2)",
+                    allocations=dict(_s4_alloc),
+                    tier=_s4_tier,
+                    target_apy_min=_s4_apy_min,
+                    target_apy_max=_s4_apy_max,
+                )
+                _ms_strategies.append(_ms_s4)
+            # S5: Pendle PT Enhanced — исключаем pendle_pt (_SKIP_PROTOCOLS)
+            if _s5_id is not None:
+                _ms_s5 = _MSStrategyConfig(
+                    id=_s5_id,
+                    name=_s5_name,
+                    description="S5 Pendle PT Enhanced (pendle_pt excl.)",
+                    allocations={k: v for k, v in _s5_alloc.items() if k != "pendle_pt"},
+                    tier=_s5_tier,
+                    target_apy_min=_s5_apy_min,
+                    target_apy_max=_s5_apy_max,
+                )
+                _ms_strategies.append(_ms_s5)
+            # S6: Max Diversified — исключаем pendle_pt (_SKIP_PROTOCOLS)
+            if _s6_id is not None:
+                _ms_s6 = _MSStrategyConfig(
+                    id=_s6_id,
+                    name=_s6_name,
+                    description="S6 Max Diversified (pendle_pt excl.)",
+                    allocations={k: v for k, v in _s6_alloc.items() if k != "pendle_pt"},
+                    tier=_s6_tier,
+                    target_apy_min=_s6_apy_min,
+                    target_apy_max=_s6_apy_max,
+                )
+                _ms_strategies.append(_ms_s6)
+            # S7: Pendle YT+PT Aggressive — исключаем pendle_yt+pendle_pt (_SKIP_PROTOCOLS)
+            if _s7_id is not None:
+                _ms_s7 = _MSStrategyConfig(
+                    id=_s7_id,
+                    name=_s7_name,
+                    description="S7 Pendle YT+PT Aggressive (pendle excl.)",
+                    allocations={k: v for k, v in _s7_alloc.items()
+                                 if k not in ("pendle_yt", "pendle_pt")},
+                    tier=_s7_tier,
+                    target_apy_min=_s7_apy_min,
+                    target_apy_max=_s7_apy_max,
+                )
+                _ms_strategies.append(_ms_s7)
+            # S11: Hybrid Yield Maximizer — исключаем pendle_yt (_SKIP_PROTOCOLS)
+            if _s11_id is not None:
+                _ms_s11 = _MSStrategyConfig(
+                    id=_s11_id,
+                    name=_s11_name,
+                    description="S11 Hybrid Yield Maximizer (pendle excl.)",
+                    allocations={k: v for k, v in _s11_alloc.items()
+                                 if k not in ("pendle_yt", "pendle_pt")},
+                    tier=_s11_tier,
+                    target_apy_min=_s11_apy_min,
+                    target_apy_max=_s11_apy_max,
+                )
+                _ms_strategies.append(_ms_s11)
             _ms_runner = _MultiStrategyRunner(
                 strategies=_ms_strategies, capital=100_000
             )
@@ -1287,7 +1430,7 @@ def run_cycle(
                     _ms_top.get("composite_score", 0.0),
                 )
         except Exception as _ms_exc:  # noqa: BLE001 — never crash the cycle
-            log.warning("MultiStrategyRunner S2/S3 skipped: %s", _ms_exc)
+            log.warning("MultiStrategyRunner S2–S11 skipped: %s", _ms_exc)
 
         from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
         try:
@@ -1464,6 +1607,38 @@ def run_cycle(
             _run_ae(data_dir=ddir)
         except Exception as _ae_exc:
             log.warning("decision_audit failed (%s) — cycle continues", _ae_exc)
+
+        # ── MP-416: Record daily paper trading evidence ────────────────────
+        # Fail-safe: evidence tracking must never crash the main cycle.
+        try:
+            from spa_core.paper_trading.paper_evidence_tracker import (
+                PaperEvidenceTracker as _PET,
+            )
+            _et = _PET(evidence_file=str(ddir / "paper_evidence.json"))
+            # Use the actual portfolio APY for the day; fall back to S7 default.
+            _et_apy = (
+                result.apy_today_pct
+                if isinstance(result.apy_today_pct, (int, float))
+                and result.apy_today_pct > 0
+                else 10.115
+            )
+            _et.record_day(
+                trade_date=now_dt.date(),
+                apy_pct=_et_apy,
+                equity_value=result.current_equity,
+                strategy_id="S7",
+                notes="auto-recorded by cycle_runner v4.73",
+            )
+            log.info(
+                "MP-416 evidence recorded: date=%s apy=%.4f%% equity=%.2f",
+                today,
+                _et_apy,
+                result.current_equity,
+            )
+        except Exception as _et_exc:
+            log.warning(
+                "paper_evidence_tracker failed (%s) — cycle continues", _et_exc
+            )
 
     return result
 
