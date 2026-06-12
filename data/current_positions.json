@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-06-10T06:49:38.322181+00:00",
+  "generated_at": "2026-06-12T06:00:04.769251+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
   "capital_usd": 100000.0,
-  "deployed_usd": 100000.0,
-  "cash_usd": 0.0,
+  "deployed_usd": 94999.97,
+  "cash_usd": 5000.03,
   "model_used": "risk_adjusted",
   "positions": {
-    "aave_v3": 21536.48,
-    "morpho_blue": 20000.0,
-    "yearn_v3": 18746.17,
-    "euler_v2": 19717.35,
-    "maple": 20000.0
+    "aave_v3": 31946.82,
+    "compound_v3": 29803.17,
+    "yearn_v3": 11518.6,
+    "euler_v2": 10212.78,
+    "maple": 11518.6
   }
 }
