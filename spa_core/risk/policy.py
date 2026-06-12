@@ -187,6 +187,12 @@ class RiskCheckResult:
     violations: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     check_name: str = ""
+    # MP-208: результаты проверки осей риска (credit/peg/duration/bridge)
+    # Заполняется только при вызове check_axis_compliance или check_portfolio_health(check_axes=True)
+    axis_checks: dict = field(default_factory=dict)
+    # MP-209: результаты capacity limits check (warn-only первые 2 недели)
+    # Заполняется при check_capacity=True в check_new_position / check_portfolio_health
+    capacity_check: dict = field(default_factory=dict)
 
     def __str__(self) -> str:
         status = "APPROVED" if self.approved else "REJECTED"
@@ -223,6 +229,7 @@ class RiskPolicy:
         current_apy: float,
         tvl_usd: float,
         chain: str = "ethereum",
+        check_capacity: bool = True,
     ) -> RiskCheckResult:
         """
         Проверить возможность открытия новой позиции.
@@ -324,12 +331,54 @@ class RiskPolicy:
                     f"L2 combined limit {self.config.max_l2_total_allocation:.1%}"
                 )
 
+        # 11. MP-209: Capacity limit (warn-only — позиция ≤ 1% TVL пула).
+        # Не блокирует: warn-only режим первые 2 недели (ADR-009).
+        cap_check: dict = {}
+        if check_capacity:
+            from spa_core.risk.capacity_limits import (  # lazy, нет цикл. импорта
+                check_capacity as _check_cap,
+                effective_max_pct,
+            )
+            eff_pct = effective_max_pct(protocol_key, tier, tvl_usd)
+            cap_check = _check_cap(protocol_key, amount_usd, tvl_usd, eff_pct)
+            if not cap_check["ok"]:
+                warnings.append(
+                    f"CAPACITY_WARN (MP-209): {cap_check['message']} "
+                    f"for {protocol_key} — warn-only (ADR-009)"
+                )
+
+        # 12. MP-203: Chain limits — warn-only (не блокирует).
+        # Строит гипотетическую аллокацию с новой позицией и проверяет
+        # лимиты по цепочкам через chain_limits.check_chain_limits().
+        if state.total_capital_usd > 0:
+            try:
+                from spa_core.risk.chain_limits import (  # lazy — нет цикл. импорта
+                    check_chain_limits,
+                    get_default_chain_map,
+                )
+                _chain_map = get_default_chain_map()
+                _chain_map[protocol_key] = chain.lower()
+                _alloc = {
+                    p.protocol_key: p.amount_usd / state.total_capital_usd
+                    for p in state.positions
+                }
+                _alloc[protocol_key] = (
+                    _alloc.get(protocol_key, 0.0)
+                    + amount_usd / state.total_capital_usd
+                )
+                _chain_result = check_chain_limits(_alloc, _chain_map)
+                for v in _chain_result.get("violations", []):
+                    warnings.append(f"CHAIN_LIMIT_WARN (MP-203): {v}")
+            except Exception as _exc:  # noqa: BLE001
+                log.warning("chain_limits check failed (non-blocking): %s", _exc)
+
         approved = len(violations) == 0
         result = RiskCheckResult(
             approved=approved,
             violations=violations,
             warnings=warnings,
             check_name=f"new_position({protocol_key}, ${amount_usd:,.0f})",
+            capacity_check=cap_check,
         )
         self._log_result(result)
         return result
@@ -338,6 +387,10 @@ class RiskPolicy:
         self,
         state: PortfolioState,
         stablecoin_prices: dict[str, float] | None = None,
+        check_axes: bool = False,
+        exit_latency_map: dict | None = None,
+        check_capacity: bool = True,
+        tvl_map: dict | None = None,
     ) -> RiskCheckResult:
         """
         Общая проверка здоровья портфеля.
@@ -422,12 +475,52 @@ class RiskPolicy:
                 f"Cash buffer {state.cash_pct:.1%} below minimum {self.config.min_cash_pct:.1%}"
             )
 
+        # MP-208: оси риска (credit/peg/duration/bridge) — опционально
+        axis_checks: dict = {}
+        if check_axes and state.positions:
+            allocation = self._state_to_allocation(state)
+            axis_result = self.check_axis_compliance(allocation, exit_latency_map)
+            violations.extend(axis_result.violations)
+            axis_checks = axis_result.axis_checks
+
+        # MP-209: capacity limits check (warn-only — позиция ≤ 1% TVL пула).
+        # Не блокирует: warn-only режим первые 2 недели (ADR-009).
+        # Требует tvl_map: {protocol_key: tvl_usd}. Если None → skip.
+        capacity_check: dict = {}
+        if check_capacity and tvl_map and state.positions:
+            from spa_core.risk.capacity_limits import (  # lazy, нет цикл. импорта
+                check_all_capacities,
+            )
+            allocation_usd = {p.protocol_key: p.amount_usd for p in state.positions}
+            capacity_check = check_all_capacities(allocation_usd, tvl_map)
+            for w in capacity_check.get("warnings", []):
+                warnings.append(f"CAPACITY_WARN (MP-209): {w}")
+            # Нарушения — в warnings (не violations), warn-only режим ADR-009
+            for v in capacity_check.get("violations", []):
+                warnings.append(f"CAPACITY_WARN (MP-209): {v}")
+
+        # MP-203: Chain limits portfolio health check — warn-only (не блокирует).
+        if state.positions:
+            try:
+                from spa_core.risk.chain_limits import (  # lazy — нет цикл. импорта
+                    check_chain_limits,
+                    get_default_chain_map,
+                )
+                _alloc = self._state_to_allocation(state)
+                _chain_result = check_chain_limits(_alloc, get_default_chain_map())
+                for v in _chain_result.get("violations", []):
+                    warnings.append(f"CHAIN_LIMIT_WARN (MP-203): {v}")
+            except Exception as _exc:  # noqa: BLE001
+                log.warning("chain_limits portfolio check failed (non-blocking): %s", _exc)
+
         approved = len(violations) == 0
         result = RiskCheckResult(
             approved=approved,
             violations=violations,
             warnings=warnings,
             check_name="portfolio_health",
+            axis_checks=axis_checks,
+            capacity_check=capacity_check,
         )
         self._log_result(result)
         return result
@@ -557,6 +650,51 @@ class RiskPolicy:
 
         result = max(0.0, min(max_by_concentration, max_by_cash, max_by_t2))
         return round(result, 2)
+
+    # ── Оси риска v2 (MP-208) ────────────────────────────────────────────────
+
+    def check_axis_compliance(
+        self,
+        allocation: dict,
+        exit_latency_map: dict | None = None,
+    ) -> RiskCheckResult:
+        """
+        Проверить соответствие аллокации осям риска v2 (MP-208).
+
+        Вызывает check_all_axes() из risk_axes.py и упаковывает результат
+        в стандартный RiskCheckResult. Нарушения → violations (approved=False).
+
+        Args:
+            allocation: {protocol_name: weight_fraction} (веса 0…1, сумма ≤ 1)
+            exit_latency_map: {protocol_name: exit_latency_hours} (опционально)
+
+        Returns:
+            RiskCheckResult с approved=False если любая ось нарушена.
+            Поле axis_checks содержит детали каждой из 4 осей.
+        """
+        from spa_core.risk.risk_axes import check_all_axes  # lazy — нет цикл. импорта
+        axes = check_all_axes(allocation, exit_latency_map)
+        result = RiskCheckResult(
+            approved=axes["ok"],
+            violations=axes["violations"],
+            warnings=[],
+            check_name="axis_compliance(credit/peg/duration/bridge)",
+            axis_checks=axes,
+        )
+        self._log_result(result)
+        return result
+
+    def _state_to_allocation(self, state: PortfolioState) -> dict:
+        """
+        Конвертировать PortfolioState в allocation dict {protocol_key: weight_fraction}.
+        Используется для передачи в check_axis_compliance.
+        """
+        if state.total_capital_usd == 0:
+            return {}
+        return {
+            p.protocol_key: p.amount_usd / state.total_capital_usd
+            for p in state.positions
+        }
 
     # ── Утилиты ───────────────────────────────────────────────────────────────
 
