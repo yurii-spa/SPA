@@ -1,6 +1,6 @@
 """Tests for the read-only Compound V3 (Comet USDC) adapter.
 
-Covers ``spa_core/adapters/compound_v3.py`` — the T2, advisory, stdlib-only
+Covers ``spa_core/adapters/compound_v3.py`` — the T1-anchor, advisory, stdlib-only
 DeFiLlama feed. All network access is mocked; no live HTTP is performed.
 
 Run:  python3 -m unittest spa_core.tests.test_compound_v3 -v
@@ -62,9 +62,18 @@ class TestConstants(unittest.TestCase):
     def test_name_constant(self):
         self.assertEqual(CompoundV3Adapter.name, "Compound V3 (Comet USDC)")
 
-    def test_tier_is_t2(self):
-        self.assertEqual(CompoundV3Adapter.tier, "T2")
-        self.assertEqual(CompoundV3Adapter().tier, "T2")
+    def test_tier_is_t1(self):
+        # SPA-V414 (MP-011): tier synced to T1 everywhere (second T1 anchor).
+        self.assertEqual(CompoundV3Adapter.tier, "T1")
+        self.assertEqual(CompoundV3Adapter().tier, "T1")
+        self.assertEqual(CompoundV3Adapter.TIER, "T1")
+
+    def test_t1_cap_matches_aave_pattern(self):
+        # SPA-V414 (MP-011): T1 cap mirrors AaveV3Adapter (40%).
+        from spa_core.adapters.aave_v3 import AaveV3Adapter
+
+        self.assertEqual(CompoundV3Adapter.T1_CAP, 0.40)
+        self.assertEqual(CompoundV3Adapter.T1_CAP, AaveV3Adapter.T1_CAP)
 
     def test_comet_contract_constant(self):
         self.assertEqual(
@@ -87,7 +96,7 @@ class TestFetchStructure(unittest.TestCase):
             self.assertIn(key, out)
         self.assertEqual(out["pool_id"], "compound_v3")
         self.assertEqual(out["protocol"], "compound_v3")
-        self.assertEqual(out["tier"], "T2")
+        self.assertEqual(out["tier"], "T1")
         self.assertEqual(out["source"], "defillama")
         self.assertIsInstance(out["ts"], float)
 
@@ -230,11 +239,13 @@ class TestGetYieldInfo(unittest.TestCase):
         self.assertEqual(info.tier, "T1")
         self.assertEqual(CompoundV3Adapter.ORCHESTRATOR_TIER, "T1")
 
-    def test_legacy_tier_attribute_unchanged(self):
-        # The legacy advisory tier attribute / fetch() dict stay "T2".
-        self.assertEqual(CompoundV3Adapter.tier, "T2")
+    def test_tier_synced_everywhere(self):
+        # SPA-V414 (MP-011): no more split-brain tier — the class attribute,
+        # fetch() dict and YieldInfo all agree on "T1".
+        self.assertEqual(CompoundV3Adapter.tier, "T1")
+        self.assertEqual(CompoundV3Adapter.ORCHESTRATOR_TIER, "T1")
         with _patch_urlopen(_payload(_comet_pool())):
-            self.assertEqual(CompoundV3Adapter().fetch()["tier"], "T2")
+            self.assertEqual(CompoundV3Adapter().fetch()["tier"], "T1")
 
     def test_apy_none_when_feed_unavailable(self):
         # No mock value when the live feed fails — apy is None (SPA-V398).
