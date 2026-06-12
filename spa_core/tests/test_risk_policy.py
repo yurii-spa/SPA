@@ -523,5 +523,295 @@ class TestCustomConfig:
         assert isinstance(result.approved, bool)
 
 
+# ─── MP-352 / ADR-019 / ADR-020: New limits tests ───────────────────────────
+# 20+ tests covering:
+#   - Ethereum chain limit raised to 90% (MP-352)
+#   - T2 cap raised to 50% (ADR-019)
+#   - T3 Private Credit cap 15% added (ADR-020)
+
+
+class TestRiskConfigNewLimits:
+    """Unit tests for new RiskConfig values (MP-352, ADR-019, ADR-020)."""
+
+    def test_max_single_chain_allocation_is_90pct(self):
+        """MP-352: Ethereum chain limit must be 90%, not 70%."""
+        cfg = RiskConfig()
+        assert cfg.max_single_chain_allocation == pytest.approx(0.90), (
+            "MP-352: max_single_chain_allocation should be 0.90 (was 0.70)"
+        )
+
+    def test_max_total_t2_allocation_is_50pct(self):
+        """ADR-019: T2 cap must be 50%, not 35%."""
+        cfg = RiskConfig()
+        assert cfg.max_total_t2_allocation == pytest.approx(0.50), (
+            "ADR-019: max_total_t2_allocation should be 0.50 (was 0.35)"
+        )
+
+    def test_max_total_t3_allocation_exists_and_is_15pct(self):
+        """ADR-020: T3 cap must be 15%."""
+        cfg = RiskConfig()
+        assert hasattr(cfg, "max_total_t3_allocation"), (
+            "ADR-020: max_total_t3_allocation field must exist in RiskConfig"
+        )
+        assert cfg.max_total_t3_allocation == pytest.approx(0.15), (
+            "ADR-020: max_total_t3_allocation should be 0.15"
+        )
+
+    def test_t2_cap_greater_than_old_value(self):
+        """ADR-019: T2 cap must be strictly greater than old 35%."""
+        cfg = RiskConfig()
+        assert cfg.max_total_t2_allocation > 0.35
+
+    def test_t3_cap_less_than_t2_cap(self):
+        """ADR-020: T3 cap (15%) must be less than T2 cap (50%)."""
+        cfg = RiskConfig()
+        assert cfg.max_total_t3_allocation < cfg.max_total_t2_allocation
+
+    def test_t2_plus_t3_cap_within_portfolio(self):
+        """ADR-019 + ADR-020: Combined T2+T3 cap ≤ 65% — reasonable."""
+        cfg = RiskConfig()
+        combined = cfg.max_total_t2_allocation + cfg.max_total_t3_allocation
+        assert combined <= 0.70, f"T2+T3 combined cap {combined:.0%} exceeds 70%"
+
+    def test_chain_limit_above_realistic_ethereum_concentration(self):
+        """MP-352: 90% limit comfortably accommodates realistic ethereum alloc (73-84%)."""
+        cfg = RiskConfig()
+        realistic_ethereum_conc = 0.84   # from real logs: CHAIN_LIMIT_WARN ethereum 84%
+        assert cfg.max_single_chain_allocation > realistic_ethereum_conc
+
+    def test_t2_cap_allows_50pct_allocation(self):
+        """ADR-019: Policy must allow T2 position up to 50% of portfolio."""
+        policy = RiskPolicy(config=RiskConfig())
+        state = PortfolioState(
+            total_capital_usd=100_000.0,
+            positions=[
+                Position(
+                    protocol_key="morpho-blue-usdc-ethereum",
+                    tier="T2",
+                    asset="USDC",
+                    amount_usd=29_000.0,  # 29% T2 already allocated
+                    apy_at_open=6.0,
+                    current_apy=6.0,
+                ),
+            ],
+        )
+        # Adding 20% more T2 → total 49% — must be approved under ADR-019
+        result = policy.check_new_position(
+            state=state,
+            protocol_key="yearn-v3-usdc-ethereum",
+            tier="T2",
+            amount_usd=20_000.0,   # 20% → total T2 = 49%
+            current_apy=7.5,
+            tvl_usd=50_000_000.0,
+        )
+        assert result.approved is True, (
+            f"ADR-019: 49% T2 should be approved (cap=50%), violations: {result.violations}"
+        )
+
+    def test_t2_cap_blocks_over_50pct(self):
+        """ADR-019: Policy must block T2 position that would push total T2 > 50%."""
+        policy = RiskPolicy(config=RiskConfig())
+        state = PortfolioState(
+            total_capital_usd=100_000.0,
+            positions=[
+                Position(
+                    protocol_key="morpho-blue-usdc-ethereum",
+                    tier="T2",
+                    asset="USDC",
+                    amount_usd=40_000.0,  # 40% T2 already allocated
+                    apy_at_open=6.0,
+                    current_apy=6.0,
+                ),
+            ],
+        )
+        # Adding 15% more T2 → total 55% — must be blocked (cap=50%)
+        result = policy.check_new_position(
+            state=state,
+            protocol_key="yearn-v3-usdc-ethereum",
+            tier="T2",
+            amount_usd=15_000.0,   # would push T2 to 55%
+            current_apy=7.5,
+            tvl_usd=50_000_000.0,
+        )
+        assert result.approved is False, (
+            "ADR-019: 55% T2 must be blocked (cap=50%)"
+        )
+        assert any("t2" in v.lower() or "50" in v for v in result.violations)
+
+    def test_old_35pct_t2_now_approved(self):
+        """ADR-019: Positions previously blocked at 35% T2 are now approved at 50%."""
+        policy = RiskPolicy(config=RiskConfig())
+        state = PortfolioState(
+            total_capital_usd=100_000.0,
+            positions=[
+                Position(
+                    protocol_key="morpho-blue-usdc-ethereum",
+                    tier="T2",
+                    asset="USDC",
+                    amount_usd=30_000.0,  # 30% T2
+                    apy_at_open=6.0,
+                    current_apy=6.0,
+                ),
+            ],
+        )
+        # 10% more T2 → total 40%. Old cap (35%) would block this; new cap (50%) allows.
+        result = policy.check_new_position(
+            state=state,
+            protocol_key="euler-v2-usdc-ethereum",
+            tier="T2",
+            amount_usd=10_000.0,
+            current_apy=5.8,
+            tvl_usd=30_000_000.0,
+        )
+        t2_violations = [v for v in result.violations if "t2" in v.lower() or "50" in v.lower()]
+        assert len(t2_violations) == 0, (
+            f"ADR-019: 40% T2 should NOT trigger T2 cap violation (cap=50%). "
+            f"Got: {t2_violations}"
+        )
+
+    def test_t3_config_field_is_positive(self):
+        """ADR-020: T3 cap must be a positive float."""
+        cfg = RiskConfig()
+        assert isinstance(cfg.max_total_t3_allocation, float)
+        assert cfg.max_total_t3_allocation > 0.0
+
+    def test_t3_cap_is_below_t1_per_protocol_cap(self):
+        """ADR-020: T3 total cap (15%) < T1 per-protocol cap (40%) — sensible hierarchy."""
+        cfg = RiskConfig()
+        assert cfg.max_total_t3_allocation < cfg.max_concentration_t1
+
+    def test_t3_cap_equals_015(self):
+        """ADR-020: T3 cap exact value is 0.15."""
+        cfg = RiskConfig()
+        assert cfg.max_total_t3_allocation == 0.15
+
+    def test_version_still_v1_0(self):
+        """Policy version remains v1.0 during paper period (CLAUDE.md FORBIDDEN rule)."""
+        cfg = RiskConfig()
+        assert cfg.version == "v1.0"
+
+    def test_changelog_mentions_mp352(self):
+        """MP-352 must be documented in changelog."""
+        cfg = RiskConfig()
+        assert "MP-352" in cfg.changelog or "352" in cfg.changelog
+
+    def test_changelog_mentions_adr019(self):
+        """ADR-019 must be documented in changelog."""
+        cfg = RiskConfig()
+        assert "ADR-019" in cfg.changelog or "019" in cfg.changelog
+
+    def test_changelog_mentions_adr020(self):
+        """ADR-020 must be documented in changelog."""
+        cfg = RiskConfig()
+        assert "ADR-020" in cfg.changelog or "020" in cfg.changelog
+
+    def test_per_protocol_t2_cap_unchanged(self):
+        """ADR-019: Per-protocol T2 cap (20%) is unchanged — only total T2 cap changed."""
+        cfg = RiskConfig()
+        assert cfg.max_concentration_t2 == pytest.approx(0.20), (
+            "Per-protocol T2 cap must remain 0.20 (ADR-019 only changes total T2 cap)"
+        )
+
+    def test_t1_per_protocol_cap_unchanged(self):
+        """No regression: T1 per-protocol cap remains 40%."""
+        cfg = RiskConfig()
+        assert cfg.max_concentration_t1 == pytest.approx(0.40)
+
+    def test_cash_buffer_unchanged(self):
+        """No regression: cash buffer remains 5%."""
+        cfg = RiskConfig()
+        assert cfg.min_cash_pct == pytest.approx(0.05)
+
+    def test_kill_switch_unchanged(self):
+        """No regression: drawdown kill switch remains 5%."""
+        cfg = RiskConfig()
+        assert cfg.max_drawdown_stop == pytest.approx(0.05)
+
+    def test_t2_cap_50pct_with_custom_config(self):
+        """RiskConfig T2 50% cap is honoured when passed explicitly."""
+        custom = RiskConfig(max_total_t2_allocation=0.50)
+        assert custom.max_total_t2_allocation == 0.50
+
+    def test_t3_cap_custom_value(self):
+        """T3 cap is configurable (custom value works)."""
+        custom = RiskConfig(max_total_t3_allocation=0.10)
+        assert custom.max_total_t3_allocation == 0.10
+
+    def test_chain_limit_custom_value(self):
+        """Chain limit is configurable (custom value works)."""
+        custom = RiskConfig(max_single_chain_allocation=0.80)
+        assert custom.max_single_chain_allocation == 0.80
+
+
+# ─── MP-352: chain_limits module — updated threshold tests ───────────────────
+
+class TestChainLimitsMP352:
+    """Tests for chain_limits.py with the new 90% ethereum threshold (MP-352)."""
+
+    def setup_method(self):
+        """Import check_chain_limits lazily (not all envs have the module on path)."""
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from risk.chain_limits import check_chain_limits, get_default_chain_map
+        self.check_chain_limits = check_chain_limits
+        self.get_default_chain_map = get_default_chain_map
+
+    def test_ethereum_84pct_no_violation(self):
+        """MP-352: 84% ethereum (max observed in logs) must NOT trigger violation."""
+        alloc = {
+            "aave_v3":     0.40,
+            "compound_v3": 0.25,
+            "morpho_blue": 0.19,
+        }  # total ethereum = 84%
+        result = self.check_chain_limits(alloc)
+        assert result["ok"] is True, (
+            f"MP-352: 84% ethereum must not violate 90% limit. "
+            f"Violations: {result['violations']}"
+        )
+
+    def test_ethereum_73pct_no_violation(self):
+        """MP-352: 73% ethereum (min observed in logs) must NOT trigger violation."""
+        alloc = {"aave_v3": 0.40, "compound_v3": 0.33}  # 73%
+        result = self.check_chain_limits(alloc)
+        assert result["ok"] is True
+
+    def test_ethereum_90pct_at_limit_ok(self):
+        """MP-352: Exactly 90% ethereum must still pass (≤ not <)."""
+        alloc = {"aave_v3": 0.50, "compound_v3": 0.40}  # 90%
+        result = self.check_chain_limits(alloc)
+        assert result["ok"] is True
+        assert result["chain_breakdown"]["ethereum"] == pytest.approx(0.90)
+
+    def test_ethereum_91pct_triggers_violation(self):
+        """MP-352: 91% ethereum must trigger violation (above new 90% limit)."""
+        alloc = {"aave_v3": 0.50, "compound_v3": 0.41}  # 91%
+        result = self.check_chain_limits(alloc)
+        assert result["ok"] is False
+        assert any("ethereum" in v.lower() for v in result["violations"])
+
+    def test_all_ethereum_only_flag_set(self):
+        """MP-352: all_ethereum_only flag is True when all protocols are Ethereum L1."""
+        alloc = {"aave_v3": 0.40, "compound_v3": 0.20, "morpho_blue": 0.15}
+        result = self.check_chain_limits(alloc)
+        assert result.get("all_ethereum_only") is True
+
+    def test_all_ethereum_only_flag_false_with_l2(self):
+        """MP-352: all_ethereum_only flag is False when L2 protocols present."""
+        alloc = {"aave_v3": 0.40, "aave_v3_arbitrum": 0.20}
+        result = self.check_chain_limits(alloc)
+        assert result.get("all_ethereum_only") is False
+
+    def test_empty_allocation_all_ethereum_only_false(self):
+        """MP-352: all_ethereum_only is False for empty allocation (no protocols)."""
+        result = self.check_chain_limits({})
+        assert result.get("all_ethereum_only") is False
+
+    def test_result_has_all_ethereum_only_key(self):
+        """MP-352: result dict must include all_ethereum_only key."""
+        result = self.check_chain_limits({"aave_v3": 0.30})
+        assert "all_ethereum_only" in result
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
