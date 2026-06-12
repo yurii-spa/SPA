@@ -88,10 +88,15 @@ ORCH_STATUS_FILENAME = "adapter_orchestrator_status.json"
 RISK_BLOCKS_FILENAME = "risk_policy_blocks.json"
 # MP-012: risk-score snapshot regenerated each cycle BEFORE allocation.
 RISK_SCORES_FILENAME = "risk_scores.json"
+# MP-108: kill-switch status file.
+KILL_SWITCH_STATUS_FILENAME = "kill_switch_status.json"
+# SPA-V434: dashboard cycle-metrics history.
+DASHBOARD_HISTORY_FILENAME = "dashboard_metrics_history.json"
 
 MAX_TRADES = 500           # ring-buffer cap for trades.json
 MAX_EQUITY_POINTS = 365    # ring-buffer cap for the daily equity curve
 MAX_POLICY_BLOCKS = 100    # ring-buffer cap for risk_policy_blocks.json
+MAX_DASHBOARD_ENTRIES = 365  # ring-buffer cap for dashboard_metrics_history.json
 # Rebalance only when |Δallocation| exceeds 1% of capital (turnover filter).
 DEFAULT_TRADE_THRESHOLD_PCT = 0.01
 
@@ -126,6 +131,11 @@ class CycleResult:
     policy_trimmed: bool = False
     policy_violations: list[str] = field(default_factory=list)
     policy_warnings: list[str] = field(default_factory=list)
+    # MP-108: kill-switch state for this cycle.
+    kill_switch_active: bool = False
+    kill_switch_reason: str = ""
+    # MP-310: audit trail correlation id for this cycle.
+    correlation_id: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -151,6 +161,9 @@ class CycleResult:
             "policy_trimmed": self.policy_trimmed,
             "policy_violations": self.policy_violations,
             "policy_warnings": self.policy_warnings,
+            "kill_switch_active": self.kill_switch_active,
+            "kill_switch_reason": self.kill_switch_reason,
+            "correlation_id": self.correlation_id,
         }
 
 
@@ -752,6 +765,14 @@ def run_cycle(
 
     orchestrator_fn = orchestrator_fn or _default_orchestrator
 
+    # ── MP-310: begin audit trail chain for this cycle (fail-safe) ────────
+    _correlation_id: str = ""
+    try:
+        from spa_core.audit.audit_trail import begin_cycle as _audit_begin
+        _correlation_id = _audit_begin(today, data_dir=str(ddir))
+    except Exception as _audit_exc:
+        log.warning("audit begin_cycle failed (%s) — cycle continues", _audit_exc)
+
     # ── Step 0 (MP-006): go-live anti-demo gate — advisory, never blocks ──
     _run_golive_gate(ddir, now_dt, write)
 
@@ -826,12 +847,38 @@ def run_cycle(
             strategy_loop_active=False,
             positions=current_positions,
             notes=notes,
+            correlation_id=_correlation_id,
         )
         if write:
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
             # MP-102: daily report after all steps (fail-safe, advisory).
             _run_daily_report(ddir, today)
+            # SPA-V434: dashboard metrics snapshot (fail-safe, advisory).
+            _save_cycle_snapshot_safe(ddir, result, adapters, run_ts)
         return result
+
+    # ── Step 1b (MP-108): kill-switch check — override allocation if active ──
+    # Deterministic, fail-safe: any exception → WARNING + note, cycle continues.
+    # Kill-switch CANNOT be overridden by any agent (approved=False is final).
+    _ks_triggered = False
+    _ks_reason = ""
+    _ks_allocation: dict[str, float] = {}
+    try:
+        from spa_core.governance.kill_switch import run_kill_switch_check
+
+        _ks_equity = (
+            list(equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
+        )
+        kill_status = run_kill_switch_check(equity_curve=_ks_equity, data_dir=ddir)
+        _ks_triggered = bool(kill_status.get("triggered"))
+        _ks_reason = str(kill_status.get("reason") or "")
+        if _ks_triggered:
+            _ks_allocation = dict(kill_status.get("allocation") or {})
+            log.critical("KILL SWITCH ACTIVE: %s", _ks_reason)
+            notes.append(f"kill_switch_active: {_ks_reason}")
+    except Exception as exc:  # kill-switch check must never crash the cycle
+        log.warning("kill_switch check failed (%s) — fail-open, cycle continues", exc)
+        notes.append(f"kill_switch_check_error: {type(exc).__name__}: {exc}")
 
     # ── Step 2: allocator → target allocation ─────────────────────────────
     alloc = (allocator or _default_allocator(ddir)).allocate()
@@ -841,10 +888,50 @@ def run_cycle(
     model_used = getattr(alloc, "model_used", None)
     strategy_loop_active = bool(getattr(alloc, "strategy_loop_active", False))
 
+    # MP-310: record allocation_proposal event (fail-safe)
+    _audit_proposal_id: str | None = None
+    try:
+        from spa_core.audit.audit_trail import record_event as _audit_record
+        _audit_ev = _audit_record(
+            _correlation_id,
+            "allocation_proposal",
+            {
+                "target_usd": {p: round(v, 2) for p, v in target_usd.items()},
+                "model_used": model_used,
+                "strategy_loop_active": strategy_loop_active,
+            },
+            data_dir=str(ddir),
+        )
+        _audit_proposal_id = _audit_ev.get("event_id")
+    except Exception as _aexc:
+        log.warning("audit allocation_proposal failed (%s)", _aexc)
+
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
     gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters)
     policy_checked = gate["error"] is None
     policy_blocked = False
+
+    # MP-310: record risk_verdict event (fail-safe)
+    _audit_verdict_id: str | None = None
+    try:
+        from spa_core.audit.audit_trail import record_event as _audit_record  # noqa: F811
+        _audit_ev2 = _audit_record(
+            _correlation_id,
+            "risk_verdict",
+            {
+                "approved": gate.get("approved", True),
+                "violations": list(gate.get("violations") or []),
+                "warnings": list(gate.get("warnings") or []),
+                "trimmed": gate.get("trimmed", False),
+                "gate_error": gate.get("error"),
+            },
+            prev_event_id=_audit_proposal_id,
+            data_dir=str(ddir),
+        )
+        _audit_verdict_id = _audit_ev2.get("event_id")
+    except Exception as _aexc2:
+        log.warning("audit risk_verdict failed (%s)", _aexc2)
+
     if gate["error"] is not None:
         notes.append(
             f"risk_policy_gate_error: {gate['error']} — gate skipped "
@@ -874,6 +961,20 @@ def run_cycle(
                     current_positions=current_positions,
                     capital_usd=capital_usd,
                 )
+
+    # ── Step 2c (MP-108): kill-switch override — force all-cash allocation ──
+    if _ks_triggered and _ks_allocation:
+        # Kill-switch overrides both the allocator and the risk policy gate.
+        # All capital moves to cash; all protocol allocations set to 0.
+        target_usd = {
+            k: float(v) * capital_usd if k == "cash" else 0.0
+            for k, v in _ks_allocation.items()
+        }
+        # Remove "cash" as a protocol entry — cash is the residual.
+        target_usd = {k: v for k, v in target_usd.items() if k != "cash"}
+        notes.append(
+            "kill_switch_override: all protocol allocations set to 0 (all-cash)."
+        )
 
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
@@ -907,10 +1008,42 @@ def run_cycle(
             f"rebalance {trade_id}: |Δ|=${diff_usd:,.0f} > "
             f"${threshold_usd:,.0f} threshold."
         )
+        # MP-310: record trade_executed (fail-safe)
+        try:
+            from spa_core.audit.audit_trail import record_event as _audit_record  # noqa: F811
+            _audit_record(
+                _correlation_id,
+                "trade_executed",
+                {
+                    "trade_id": trade_id,
+                    "diff_usd": round(diff_usd, 2),
+                    "from_allocation": {p: round(v, 2) for p, v in current_positions.items()},
+                    "to_allocation": {p: round(v, 2) for p, v in target_usd.items()},
+                },
+                prev_event_id=_audit_verdict_id,
+                data_dir=str(ddir),
+            )
+        except Exception as _aexc3:
+            log.warning("audit trade_executed failed (%s)", _aexc3)
     elif policy_blocked:
         # Blocked rebalance: hold the previous positions; a first-ever cycle
         # that is blocked deploys nothing (the gate prevented the entry).
         effective_positions = dict(current_positions)
+        # MP-310: record trade_blocked (fail-safe)
+        try:
+            from spa_core.audit.audit_trail import record_event as _audit_record  # noqa: F811
+            _audit_record(
+                _correlation_id,
+                "trade_blocked",
+                {
+                    "violations": list(gate.get("violations") or []),
+                    "diff_usd": round(diff_usd, 2),
+                },
+                prev_event_id=_audit_verdict_id,
+                data_dir=str(ddir),
+            )
+        except Exception as _aexc4:
+            log.warning("audit trade_blocked failed (%s)", _aexc4)
     else:
         effective_positions = dict(current_positions) if current_positions else dict(target_usd)
         notes.append(
@@ -937,10 +1070,12 @@ def run_cycle(
     )
 
     days = _days_running(today, paper_start_date)
+    # MP-108: status reflects kill-switch if active
+    _cycle_status = "kill_switch" if _ks_triggered else ("blocked_by_policy" if policy_blocked else "ok")
     result = CycleResult(
         run_ts=run_ts,
         date=today,
-        status="blocked_by_policy" if policy_blocked else "ok",
+        status=_cycle_status,
         traded=traded,
         trade_id=trade_id,
         live_data=True,
@@ -960,6 +1095,9 @@ def run_cycle(
         policy_trimmed=bool(gate["trimmed"]) if policy_checked else False,
         policy_violations=list(gate.get("violations") or []),
         policy_warnings=list(gate.get("warnings") or []),
+        kill_switch_active=_ks_triggered,
+        kill_switch_reason=_ks_reason,
+        correlation_id=_correlation_id,
     )
 
     # ── Step 6: persist everything atomically ─────────────────────────────
@@ -988,6 +1126,32 @@ def run_cycle(
         except Exception:
             pass  # fail-open
 
+        # ── MP-111: milestone tracker (fail-safe, advisory) ──────────────
+        # Runs AFTER gap_monitor so its gap_detected flag feeds the streak
+        # check. Never blocks the cycle — any exception → WARNING only.
+        try:
+            from spa_core.milestone.milestone_tracker import (
+                check_milestone,
+                generate_milestone_report,
+            )
+
+            _gm_data = _read_json(ddir / "gap_monitor.json", {})
+            milestone_status = check_milestone(
+                equity_curve=(equity_doc.get("daily") or [])
+                if isinstance(equity_doc, dict)
+                else [],
+                gap_monitor_data=_gm_data,
+            )
+            log.info(
+                "Milestone: %d/30 days (%.1f%%)",
+                milestone_status.consecutive_days,
+                milestone_status.progress_pct,
+            )
+            if milestone_status.is_milestone_reached:
+                log.critical("🎯 MILESTONE REACHED: 30 consecutive days!")
+        except Exception as exc:  # noqa: BLE001 — milestone must never crash the cycle
+            log.warning("milestone tracker failed (%s) — cycle continues", exc)
+
         # MP-102: daily report after all steps (fail-safe, advisory).
         _run_daily_report(ddir, today)
 
@@ -1001,6 +1165,15 @@ def run_cycle(
             run_post_cycle_analytics(data_dir=ddir, now=now_dt)
         except Exception as exc:  # noqa: BLE001
             log.warning("post-cycle analytics failed (%s) — cycle continues", exc)
+
+        # ── MP-305: Reporting Agent — daily P&L report + monthly PDF ─────
+        # Runs after analytics so the latest analytics_summary.json is on
+        # disk. Fail-safe: any exception → WARNING, cycle never fails.
+        try:
+            from spa_core.agents.reporting_agent import run_reporting_cycle as _run_reporting
+            _run_reporting(data_dir=str(ddir), dry_run=False)
+        except Exception as _rep_exc:  # noqa: BLE001
+            log.warning("reporting_cycle failed (%s) — cycle continues", _rep_exc)
 
         # ── MP-106: shadow strategies S0–S5 (advisory, local-only) ────────
         # Runs AFTER the real track is persisted; a failure here can never
@@ -1024,6 +1197,38 @@ def run_cycle(
         # today is on disk. Fail-safe: a failure → WARNING + note
         # ``track_persist_failed``; the cycle never fails because of it.
         _persist_track(ddir, track_persister_fn, notes)
+
+        # ── MP-311: fast loop (every cycle, deterministic — no LLM) ───────
+        try:
+            from spa_core.scheduler.loop_scheduler import run_fast_loop as _run_fast_loop
+            _run_fast_loop(result.to_dict(), data_dir=str(ddir))
+        except Exception as _fl_exc:
+            log.warning("fast_loop failed (%s) — cycle continues", _fl_exc)
+
+        # ── MP-311: adapter watchdog (every cycle, fail-safe) ─────────────
+        try:
+            from spa_core.scheduler.adapter_watchdog import run_watchdog_cycle as _run_watchdog
+            _run_watchdog(data_dir=str(ddir))
+        except Exception as _wd_exc:
+            log.warning("adapter_watchdog failed (%s) — cycle continues", _wd_exc)
+
+        # ── MP-311: slow loop (daily, LLM-advisory — always degraded here) ─
+        try:
+            from spa_core.scheduler.loop_scheduler import run_slow_loop as _run_slow_loop
+            _run_slow_loop(today, llm_available=False, data_dir=str(ddir))
+        except Exception as _sl_exc:
+            log.warning("slow_loop failed (%s) — cycle continues", _sl_exc)
+
+        # ── MP-311: strategic loop (weekly on Monday, LLM-advisory) ───────
+        try:
+            if now_dt.weekday() == 0:  # Monday
+                from spa_core.scheduler.loop_scheduler import run_strategic_loop as _run_strategic
+                _run_strategic(today, llm_available=False, data_dir=str(ddir))
+        except Exception as _strat_exc:
+            log.warning("strategic_loop failed (%s) — cycle continues", _strat_exc)
+
+        # SPA-V434: dashboard metrics snapshot (fail-safe, advisory).
+        _save_cycle_snapshot_safe(ddir, result, adapters, run_ts)
 
     return result
 
@@ -1095,6 +1300,36 @@ def _run_daily_monitors(
         log.warning("incidents fetcher failed (%s) — cycle continues", exc)
         results["incidents"] = f"error: {type(exc).__name__}: {exc}"
 
+    # MP-311: adapter watchdog in daily monitors (fail-safe)
+    try:
+        from spa_core.scheduler.adapter_watchdog import run_watchdog_cycle as _wdog
+        _wdog(data_dir=str(ddir))
+        results["adapter_watchdog"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        log.warning("adapter_watchdog in daily monitors failed (%s) — cycle continues", exc)
+        results["adapter_watchdog"] = f"error: {type(exc).__name__}: {exc}"
+
+    # MP-304: Alpha Agent — weekly candidate scan (Mondays only, fail-safe)
+    _now_wd = datetime.now(timezone.utc).weekday()
+    if _now_wd == 0:  # Monday
+        try:
+            from spa_core.agents.alpha_agent import run_alpha_scan as _alpha_scan
+            _alpha_scan(data_dir=str(ddir))
+            results["alpha_scan"] = "ok"
+        except Exception as exc:  # noqa: BLE001
+            log.warning("alpha_scan failed (%s) — cycle continues", exc)
+            results["alpha_scan"] = f"error: {type(exc).__name__}: {exc}"
+
+    # MP-307: Protocol Research Agent — weekly new protocol search (Mondays only, fail-safe)
+    if _now_wd == 0:  # Monday
+        try:
+            from spa_core.agents.protocol_research_agent import run_research_cycle as _research_cycle
+            _research_cycle(data_dir=ddir)
+            results["protocol_research"] = "ok"
+        except Exception as exc:  # noqa: BLE001
+            log.warning("protocol_research_cycle failed (%s) — cycle continues", exc)
+            results["protocol_research"] = f"error: {type(exc).__name__}: {exc}"
+
     return results
 
 
@@ -1137,15 +1372,13 @@ def _run_cycle_alerts(
     try:
         doc = _read_json(ddir / "red_flags.json", {})
         raw = doc.get("red_flags") if isinstance(doc, dict) else None
-        flags = [
-            f"{f.get('severity', '?')} {f.get('protocol', '?')}: {f.get('message', '')}"
-            for f in (raw or [])
-            if isinstance(f, dict)
-        ]
+        # Pass raw alert dicts — alert_manager.send_red_flag formats them
+        # into Russian-language Telegram messages (MP-136).
+        flags = [f for f in (raw or []) if isinstance(f, dict)]
         if flags:
-            # Cap the digest at 10 bullets to stay within Telegram limits.
+            # Cap the digest at 10 items to stay within Telegram limits.
             if len(flags) > 10:
-                flags = flags[:10] + [f"… и ещё {len(flags) - 10}"]
+                flags = flags[:10]
             sent["red_flags"] = alert_manager.send_red_flag(flags)
     except Exception as exc:  # noqa: BLE001
         log.warning("red-flag alert failed (%s) — cycle continues", exc)
@@ -1195,8 +1428,137 @@ def _write_status(
         "risk_policy_trimmed": result.policy_trimmed,
         "risk_policy_violations": result.policy_violations,
         "risk_policy_warnings": result.policy_warnings,
+        # MP-108: kill-switch state for this cycle.
+        "kill_switch_active": result.kill_switch_active,
+        "kill_switch_reason": result.kill_switch_reason,
     }
     _atomic_write_json(ddir / STATUS_FILENAME, doc)
+
+
+# ─── SPA-V434: dashboard cycle-metrics snapshot ───────────────────────────────
+
+
+def save_dashboard_snapshot(
+    metrics_dict: dict,
+    *,
+    data_dir: "str | os.PathLike | None" = None,
+) -> bool:
+    """Append one cycle-metrics snapshot to ``data/dashboard_metrics_history.json``.
+
+    Throttled: returns ``False`` (without writing) if the last recorded entry
+    is less than 23 hours old — prevents intra-day spam when the cycle reruns.
+
+    Rotation: the history list is capped at ``MAX_DASHBOARD_ENTRIES`` (365)
+    entries; the oldest entry is silently evicted when the cap is exceeded.
+
+    The write is atomic: ``tmpfile + os.replace`` per the repo-wide rule.
+    Stdlib only. Never raises — any internal error is caught and returns False.
+
+    Migration: an existing file in the legacy kanban-oriented format (history
+    entries carry ``date`` but not ``ts``) is treated as empty so the new
+    format takes over cleanly.
+
+    Parameters
+    ----------
+    metrics_dict : dict
+        Expected keys: ``ts`` (ISO-8601 str), ``equity`` (float),
+        ``daily_pnl`` (float), ``positions`` (dict[str, float]),
+        ``adapter_counts`` (dict with ``active``/``paused`` int keys),
+        ``cycle_number`` (int).
+    data_dir : path-like, optional
+        Directory that contains ``dashboard_metrics_history.json``.
+        Defaults to the repo-level ``data/`` directory.
+
+    Returns
+    -------
+    bool
+        ``True`` if a new entry was written; ``False`` if throttled or on error.
+    """
+    try:
+        ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        path = ddir / DASHBOARD_HISTORY_FILENAME
+
+        existing = _read_json(path, {})
+
+        # Accept only entries that carry the new-format ``ts`` field.
+        # Entries with only a ``date`` field belong to the legacy kanban format
+        # and are discarded so the new format can start fresh.
+        raw_history: list[dict] = []
+        if isinstance(existing, dict):
+            raw = existing.get("history")
+            if (
+                isinstance(raw, list)
+                and raw
+                and isinstance(raw[0], dict)
+                and "ts" in raw[0]
+            ):
+                raw_history = [e for e in raw if isinstance(e, dict)]
+
+        # Throttle: skip if the last entry is younger than 23 hours.
+        if raw_history:
+            last_ts_str = raw_history[-1].get("ts", "")
+            try:
+                # Normalise "Z" suffix for Python < 3.11 compatibility.
+                last_ts = datetime.fromisoformat(
+                    str(last_ts_str).replace("Z", "+00:00")
+                )
+                if last_ts.tzinfo is None:
+                    last_ts = last_ts.replace(tzinfo=timezone.utc)
+                age_seconds = (datetime.now(timezone.utc) - last_ts).total_seconds()
+                if age_seconds < 23 * 3600:
+                    return False
+            except (ValueError, TypeError, OverflowError, AttributeError):
+                pass  # Unparseable timestamp → proceed with the write
+
+        # Append the new entry and rotate to the ring-buffer cap.
+        raw_history.append(dict(metrics_dict))
+        raw_history = raw_history[-MAX_DASHBOARD_ENTRIES:]
+
+        doc = {
+            "schema_version": "1.0",
+            "generated_at": metrics_dict.get(
+                "ts", datetime.now(timezone.utc).isoformat()
+            ),
+            "history": raw_history,
+        }
+        _atomic_write_json(path, doc)
+        return True
+    except Exception as exc:  # noqa: BLE001 — snapshot must never raise
+        log.warning("save_dashboard_snapshot failed (%s)", exc)
+        return False
+
+
+def _save_cycle_snapshot_safe(
+    ddir: Path,
+    result: CycleResult,
+    adapters: list[dict],
+    run_ts: str,
+) -> None:
+    """Build the metrics dict from *result* and call :func:`save_dashboard_snapshot`.
+
+    Fail-safe: any exception is logged as WARNING and swallowed — a broken
+    snapshot writer must never crash the daily cycle.
+    """
+    try:
+        active = sum(
+            1
+            for a in adapters
+            if isinstance(a, dict) and a.get("status") in ("ok", "partial")
+        )
+        paused = max(0, len(adapters) - active)
+        save_dashboard_snapshot(
+            {
+                "ts": run_ts,
+                "equity": result.current_equity,
+                "daily_pnl": result.daily_yield_usd,
+                "positions": {p: round(v, 2) for p, v in result.positions.items()},
+                "adapter_counts": {"active": active, "paused": paused},
+                "cycle_number": result.days_running,
+            },
+            data_dir=ddir,
+        )
+    except Exception as exc:  # noqa: BLE001 — snapshot must never crash the cycle
+        log.warning("dashboard snapshot failed (%s) — cycle continues", exc)
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
@@ -1252,6 +1614,16 @@ def main(argv: list[str] | None = None) -> int:
     result = run_cycle(data_dir=args.data_dir, write=not args.dry_run)
     _print_report(result)
 
+    # MP-109: backup spa.db after each real cycle run.
+    if not args.dry_run:
+        try:
+            from spa_core.persistence.db import create_daily_backup, cleanup_old_backups
+            backup_path = create_daily_backup()
+            cleanup_old_backups(keep_days=30)
+            logging.info("DB backup: %s", backup_path)
+        except Exception as _e:
+            logging.warning("Backup failed: %s", _e)
+
     # MP-107: refresh external-signal snapshots once per daily run (fail-safe;
     # network-bound, hence here in the CLI and not inside run_cycle()).
     if not args.dry_run and not args.no_monitors:
@@ -1265,6 +1637,54 @@ def main(argv: list[str] | None = None) -> int:
         alerts = _run_cycle_alerts(args.data_dir, date=result.date)
         for name, ok in alerts.items():
             print(f"  alert   {name:<12}: {'sent' if ok else 'FAILED'}")
+
+    # MP-016b: periodic reports — weekly (Monday) and monthly (1st of month).
+    if not args.dry_run:
+        try:
+            from spa_core.alerts import alert_manager as _am
+            if datetime.now().weekday() == 0:   # Monday
+                ok_w = _am.send_weekly_report()
+                print(f"  alert   {'weekly':<12}: {'sent' if ok_w else 'FAILED'}")
+            if datetime.now().day == 1:          # 1st of month
+                ok_m = _am.send_monthly_report()
+                print(f"  alert   {'monthly':<12}: {'sent' if ok_m else 'FAILED'}")
+        except Exception as _exc:               # noqa: BLE001 — never crash the cycle
+            log.warning("periodic alerts failed (%s) — cycle continues", _exc)
+
+    # MP-103: generate investor PDF report after the full cycle (fail-safe;
+    # reportlab is an optional dependency — a missing install or any rendering
+    # error must never fail the daily cycle).
+    if not args.dry_run:
+        try:
+            from spa_core.reporting.pdf_report import generate_pdf_report
+            pdf_path = generate_pdf_report(data_dir=args.data_dir)
+            logging.info("PDF report generated: %s", pdf_path)
+            print(f"  pdf report  : {pdf_path}")
+        except Exception as _pdf_exc:  # noqa: BLE001
+            logging.warning("PDF generation failed (%s) — cycle continues", _pdf_exc)
+
+    # MP-207: Allocation Tuner — запускать по воскресеньям (weekday==6).
+    # Сохраняет предложение в data/tuner_suggestion.json, НЕ применяет
+    # автоматически — только логирует. LLM_FORBIDDEN не нарушается:
+    # тюнер — детерминированный grid search без LLM-вызовов.
+    if not args.dry_run and datetime.now().weekday() == 6:  # Sunday
+        try:
+            from spa_core.tuner.allocation_tuner import run_allocation_tuner
+            _suggestion = run_allocation_tuner(data_dir=_DEFAULT_DATA_DIR)
+            log.info(
+                "MP-207 Tuner suggestion: expected APY %.2f%%, Sharpe %.3f, "
+                "improvements: %s",
+                _suggestion.expected_apy,
+                _suggestion.expected_sharpe,
+                _suggestion.improvements,
+            )
+            print(
+                f"  tuner       : APY {_suggestion.expected_apy:.2f}%"
+                f" Sharpe {_suggestion.expected_sharpe:.3f}"
+                f" (saved tuner_suggestion.json)"
+            )
+        except Exception as _tuner_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("MP-207 Tuner failed (%s) — cycle continues", _tuner_exc)
 
     if args.dry_run:
         print("(dry-run: no files written)")
