@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-11T23:31:24.030071+00:00",
+  "generated_at": "2026-06-12T17:04:50.611619+00:00",
   "schema_version": 1,
   "execution_mode": "dry_run",
   "live_apy_enabled": false,
@@ -94,13 +94,13 @@
       ],
       "mock_apy": {
         "ethereum": {
-          "USDC": 4.5
+          "USDC": 4.8
         },
         "arbitrum": {
-          "USDC": 4.5
+          "USDC": 4.8
         },
         "base": {
-          "USDC": 4.5
+          "USDC": 4.8
         }
       }
     },
@@ -193,13 +193,17 @@
       "name": "Pendle PT",
       "tier": "T2",
       "allocation_cap": 0.2,
-      "write_state": "NOT_IMPLEMENTED",
+      "write_state": "READ_ONLY",
       "mev_routed": false,
       "apy_source": {
-        "mode": "mock",
+        "mode": "rest_api",
         "live_project": "pendle",
-        "live_enabled": false,
-        "live_values_present": false
+        "live_enabled": true,
+        "live_values_present": true,
+        "source": "pendle_rest_api",
+        "endpoint": "https://api-v2.pendle.finance/core/v1",
+        "fallback_apy": 8.0,
+        "fallback_reason": "network_unavailable"
       },
       "chains": [
         "ethereum"
@@ -210,10 +214,12 @@
       ],
       "mock_apy": {
         "ethereum": {
-          "USDC": 6.5,
+          "USDC": 8.0,
           "USDT": 6.1
         }
-      }
+      },
+      "maturity": "2025-06-27",
+      "rate_type": "fixed"
     },
     {
       "protocol_key": "sky-susds",
@@ -228,7 +234,7 @@
         "live_enabled": false,
         "live_values_present": false
       },
-      "allocation_note": "\u21920.30 when ELIGIBLE",
+      "allocation_note": "→0.30 when ELIGIBLE",
       "chains": [
         "ethereum"
       ],
@@ -242,6 +248,125 @@
           "DAI": 6.5
         }
       }
+    },
+    {
+      "protocol_key": "morpho-steakhouse",
+      "name": "Morpho Steakhouse USDC",
+      "tier": "T1",
+      "allocation_cap": 0.4,
+      "write_state": "BLOCKED",
+      "mev_routed": true,
+      "quick_win": true,
+      "bps_gain": 200,
+      "vault_address": "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "morpho",
+        "live_enabled": false,
+        "live_values_present": false
+      },
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "USDC": 6.5
+        }
+      }
+    },
+    {
+      "protocol_key": "aave-v3-arbitrum",
+      "name": "Aave V3 Arbitrum",
+      "tier": "T1",
+      "allocation_cap": 0.4,
+      "write_state": "BLOCKED",
+      "mev_routed": true,
+      "chain_id": 42161,
+      "gas_advantage_usd": 0.09,
+      "pool_address": "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
+      "apy_source": {
+        "mode": "mock",
+        "live_project": "aave",
+        "live_enabled": false,
+        "live_values_present": false
+      },
+      "chains": [
+        "arbitrum"
+      ],
+      "assets": [
+        "USDC",
+        "USDT",
+        "DAI"
+      ],
+      "mock_apy": {
+        "arbitrum": {
+          "USDC": 4.1
+        }
+      }
     }
-  ]
+  ],
+  "morpho_steakhouse": {
+    "protocol_key": "morpho-blue",
+    "morpho_vault": "Steakhouse USDC",
+    "apy_source": "morpho_blue_steakhouse",
+    "comment": "Morpho Blue Steakhouse USDC vault (0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb): 6.5% APY vs Aave mainnet 3.2% — Quick Win #1 (+200 bps, no code change required)",
+    "quick_win": true,
+    "bps_gain": 200
+  },
+  "compound_v3": {
+    "apy": 4.8,
+    "protocol": "compound_v3",
+    "tier": "T1",
+    "tvl_usd": 2800000000,
+    "comet_address": "0xc3d688B66703497DAA19211EEdff47f25384cdc3",
+    "network": "ethereum",
+    "added_by": "MP-365",
+    "added_at": "2026-06-12"
+  },
+  "aave_arbitrum": {
+    "apy": 4.1,
+    "tier": "T1",
+    "network": "arbitrum",
+    "chain_id": 42161,
+    "tvl_usd": 1200000000,
+    "pool_address": "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
+    "usdc_address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+    "gas_advantage_usd": 0.09,
+    "added_by": "MP-356",
+    "added_at": "2026-06-12"
+  },
+  "pendle_pt": {
+    "protocol_key": "pendle-pt",
+    "apy": 8.0,
+    "tier": "T2",
+    "source": "pendle_rest_api",
+    "chain": "ethereum",
+    "fallback_apy": 8.0,
+    "adapter_module": "spa_core.adapters.pendle_pt_adapter",
+    "comment": "MP-354: REST-only Pendle PT adapter (8-18% fixed APY, no RPC keys)",
+    "updated_at": "2026-06-12T17:04:50Z"
+  },
+  "spark_susds": {
+    "apy": 5.5,
+    "tier": "T1",
+    "tvl_usd": 3000000000,
+    "chain": "ethereum",
+    "vault_address": "0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD",
+    "gsm_hours": 0,
+    "status": "research",
+    "note": "GSM compliance gate: need gsm_hours >= 48 before activation"
+  },
+  "fluid_fusdc": {
+    "apy": 6.5,
+    "tier": "T2",
+    "tvl_usd": 2000000000,
+    "chain": "ethereum",
+    "vault_address": "0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33",
+    "gsm_hours": 0,
+    "status": "research",
+    "note": "T2 cap 20% single, GSM compliance gate required"
+  }
 }
