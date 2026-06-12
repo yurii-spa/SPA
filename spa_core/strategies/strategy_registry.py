@@ -220,6 +220,8 @@ def _load_builtin_strategies() -> None:
         "strategies.s1_conservative_lending",
         "strategies.s2_lp_stable",
         "strategies.s3_yield_loop",
+        "strategies.emode_looping",          # S9 — Aave E-Mode USDC Looping
+        "spa_core.strategies.s1_t1t2_balanced",  # MP-358 — S1 T1+T2 Balanced (6-8% APY)
     ]
     for module_path in _modules:
         try:
