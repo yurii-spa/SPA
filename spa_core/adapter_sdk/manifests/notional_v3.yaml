@@ -1,0 +1,20 @@
+# Notional v3 (fixed/variable rate lending) — DeFiLlama yields project slug:
+# "notional-v3". MP-206 card: "Notional". Variable-rate prime-cash USDC
+# supply only (fixed-maturity fCash is NOT targeted by this manifest);
+# redemptions depend on prime-cash utilisation => conservative 24h liquid.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: notional_v3
+defillama_protocol_id: notional-v3
+chains:
+  - Ethereum
+symbols:
+  - USDC
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 24.0         # prime-cash redemption, utilisation-dependent => liquid
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0
