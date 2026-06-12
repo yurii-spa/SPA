@@ -146,6 +146,8 @@
   .db-col-hdr { color: #888; font-size: 12px; }
   .badge-t1 { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 20px; background: #dbeafe; color: #1e3a8a; font-weight: 500; margin-right: 7px; }
   .badge-t2 { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 20px; background: #ede9fe; color: #4c1d95; font-weight: 500; margin-right: 7px; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-left: 5px; vertical-align: middle; white-space: nowrap; }
+  .badge-success { background: #d1fae5; color: #065f46; }
   .green { color: #3B6D11; }
   .red   { color: #B91C1C; }
   .gray  { color: #888; }
@@ -971,6 +973,68 @@
   .vbadge-warn { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; background:#fef9c3; color:#713f12; }
   .vbadge-fail { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; background:#fee2e2; color:#991b1b; }
 
+  /* ── Tournament Tab (MP-154) ── */
+  .trn-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+  .trn-title  { font-size:16px; font-weight:600; color:#1a1a1a; }
+  .trn-updated { font-size:11px; color:#aaa; margin-top:2px; }
+  .trn-placeholder { text-align:center; padding:70px 24px; }
+  .trn-placeholder-icon { font-size:52px; display:block; margin-bottom:14px; }
+  .trn-placeholder-title { font-size:18px; font-weight:600; color:#555; margin-bottom:8px; }
+  .trn-placeholder-sub { font-size:13px; color:#bbb; line-height:1.6; }
+  .trn-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .trn-table th { color:#999; font-weight:600; font-size:11px; letter-spacing:.03em; text-align:right; padding:7px 10px; border-bottom:1.5px solid #eee; white-space:nowrap; }
+  .trn-table th:nth-child(-n+3) { text-align:left; }
+  .trn-table td { padding:9px 10px; border-bottom:.5px solid #f2f2f2; text-align:right; vertical-align:middle; }
+  .trn-table td:nth-child(-n+3) { text-align:left; }
+  .trn-table tr:last-child td { border-bottom:none; }
+  .trn-row-gold td { background:#fffbeb; }
+  .trn-row-gold td:first-child { border-left:3px solid #d97706; }
+  .trn-row-killed td { opacity:.5; }
+  .trn-row-promoted td { background:#f0fdf4; }
+  .trn-row-promoted td:first-child { border-left:3px solid #16a34a; }
+  .trn-rank { font-weight:700; color:#555; font-size:14px; }
+  .trn-rank-1 { color:#d97706; }
+  .trn-rank-2 { color:#6b7280; }
+  .trn-rank-3 { color:#92400e; }
+  .trn-sid  { font-family:monospace; font-size:11px; font-weight:700; color:#185FA5; }
+  .trn-name { font-weight:500; color:#1a1a1a; font-size:12.5px; }
+  .trn-name-sub { font-size:10.5px; color:#aaa; }
+  .trn-status { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+  .trn-status-active   { background:#d1fae5; color:#065f46; }
+  .trn-status-paused   { background:#fef9c3; color:#713f12; }
+  .trn-status-killed   { background:#fee2e2; color:#991b1b; }
+  .trn-status-promoted { background:#dbeafe; color:#1e40af; }
+  .trn-spark { width:56px; height:22px; display:block; }
+  .trn-eval-date { display:inline-flex; align-items:center; gap:6px; background:#E6F1FB; color:#185FA5; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:500; }
+  .trn-rules-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px 14px; background:#f5f4f0; border:.5px solid #e0ddd6; border-radius:8px; font-size:12.5px; font-weight:600; color:#555; user-select:none; transition:background .15s; }
+  .trn-rules-toggle:hover { background:#eceae4; }
+  .trn-rules-arrow { font-size:10px; color:#aaa; transition:transform .2s; }
+  .trn-rules-arrow.open { transform:rotate(90deg); }
+  .trn-rules-body { display:none; border:.5px solid #e0ddd6; border-top:none; border-radius:0 0 8px 8px; padding:16px; background:#fafaf8; }
+  .trn-rules-body.open { display:block; }
+  .trn-rule-row { display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:.5px solid #eee; font-size:12.5px; }
+  .trn-rule-row:last-child { border-bottom:none; }
+  .trn-rule-icon { font-size:14px; flex-shrink:0; margin-top:1px; }
+  .trn-rule-text { color:#333; line-height:1.45; }
+  .trn-rule-text strong { color:#1a1a1a; }
+  /* Night mode */
+  body.night .trn-title  { color:#e0e4f0; }
+  body.night .trn-name   { color:#c8ccda; }
+  body.night .trn-table th { border-bottom-color:#252540; color:#555; }
+  body.night .trn-table td { border-bottom-color:#1a1a30; }
+  body.night .trn-row-gold td     { background:#1c1200; }
+  body.night .trn-row-promoted td { background:#071a0f; }
+  body.night .trn-rules-toggle   { background:#1a1a30; border-color:#252540; color:#888; }
+  body.night .trn-rules-toggle:hover { background:#252540; }
+  body.night .trn-rules-body  { background:#13132a; border-color:#252540; }
+  body.night .trn-rule-row    { border-bottom-color:#252540; }
+  body.night .trn-rule-text   { color:#9ca3af; }
+  body.night .trn-rule-text strong { color:#c8ccda; }
+  body.night .trn-placeholder-title { color:#888; }
+  body.night .trn-placeholder-sub   { color:#444; }
+  /* Mobile */
+  @media (max-width: 768px) { .trn-col-hide { display:none; } }
+
 </style>
 </head>
 <body>
@@ -1000,6 +1064,7 @@
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
   <button class="tab-btn"         data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
+  <button class="tab-btn"                               onclick="showTab('tournament', this)">🏆 Tournament</button>
   <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
   <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
   <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
@@ -2544,6 +2609,17 @@
 
 </div><!-- /tab-system -->
 
+<!-- ══════════════════ TAB: TOURNAMENT (MP-154) ══════════════════ -->
+<div id="tab-tournament" class="tab-pane" style="display:none">
+  <div id="trn-content">
+    <div class="trn-placeholder">
+      <span class="trn-placeholder-icon">⏳</span>
+      <div class="trn-placeholder-title">Loading tournament data…</div>
+      <div class="trn-placeholder-sub"></div>
+    </div>
+  </div>
+</div><!-- /tab-tournament -->
+
 <script>
 
 // ─── Tooltips ────────────────────────────────────────────────────────────────
@@ -2878,9 +2954,201 @@ function showTab(id, btn) {
   if (id === 'golive')      loadGoLive();
   if (id === 'team')        { loadAgentCommentary(); loadTeamActivity(); }
   if (id === 'system')      onSystemTabActivated();
+  if (id === 'tournament')  loadTournamentTab();
 }
 // alias so any legacy calls still work
 function loadOverview() { loadPerformance(); }
+
+// ─── Tournament Tab (MP-154) ─────────────────────────────────────────────────
+
+function _trnSparkSVG(series, w, h) {
+  if (!series || series.length < 2) {
+    return `<svg class="trn-spark" viewBox="0 0 ${w} ${h}"><line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="#ddd" stroke-width="1.5"/></svg>`;
+  }
+  const mn = Math.min(...series), mx = Math.max(...series), range = mx - mn || 1;
+  const pts = series.map((v, i) =>
+    `${((i / (series.length - 1)) * w).toFixed(1)},${(h - ((v - mn) / range) * (h - 2) - 1).toFixed(1)}`
+  ).join(' ');
+  const color = series[series.length - 1] >= series[0] ? '#16a34a' : '#dc2626';
+  return `<svg class="trn-spark" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function _trnStatusBadge(status) {
+  const cfg = { active:'🟢 active;trn-status-active', paused:'🟡 paused;trn-status-paused',
+                killed:'🔴 killed;trn-status-killed', promoted:'🏆 promoted;trn-status-promoted' };
+  const [label, cls] = (cfg[status] || cfg.active).split(';');
+  return `<span class="trn-status ${cls}">${label}</span>`;
+}
+
+function _trnFmt(v, dec, suf) {
+  if (v === null || v === undefined || isNaN(v)) return '<span style="color:#bbb">—</span>';
+  return Number(v).toFixed(dec) + (suf || '');
+}
+
+function _trnNormalise(data) {
+  /* Accepts tournament_ranking.json (has .strategies[]) or
+     tournament_results.json (has .metrics{}) */
+  if (Array.isArray(data.strategies) && data.strategies.length) return data.strategies;
+  if (data.metrics) {
+    const scores = data.scores || {};
+    return Object.entries(data.metrics)
+      .sort(([a], [b]) => (scores[b] || 0) - (scores[a] || 0))
+      .map(([id, m], i) => ({
+        id: 'S' + i, name: id.replace(/_/g, ' '),
+        status: data.winner === id ? 'promoted' : 'active',
+        days_running: m.backtest_days || 0,
+        composite_score: scores[id] || 0,
+        apy_target: null, apy_realized: m.annualised_return_pct || 0,
+        sharpe: m.sharpe_ratio, calmar: null, ulcer: null,
+        equity_now: m.final_capital_usd || 100000,
+        equity_series: [m.initial_capital_usd || 100000, m.final_capital_usd || 100000],
+      }));
+  }
+  return [];
+}
+
+function _trnRenderPlaceholder() {
+  document.getElementById('trn-content').innerHTML = `
+    <div class="trn-placeholder">
+      <span class="trn-placeholder-icon">🏆</span>
+      <div class="trn-placeholder-title">Tournament starting… Day 0</div>
+      <div class="trn-placeholder-sub">
+        No tournament data found.<br>
+        Run multi-strategy infrastructure (MP-153) to populate<br>
+        <code style="font-size:11px">data/tournament_ranking.json</code>
+      </div>
+    </div>`;
+}
+
+function _trnRender(data) {
+  const strats = _trnNormalise(data);
+  if (!strats.length) { _trnRenderPlaceholder(); return; }
+
+  strats.forEach((s, i) => { if (!s.rank) s.rank = i + 1; });
+
+  const evalDate = data.next_evaluation || (() => {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  })();
+  const updatedAt = (data.generated_at || data.last_updated || '').slice(0, 16).replace('T', ' ');
+
+  const rankLabel = r => {
+    const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+    const cls = r <= 3 ? `trn-rank-${r}` : '';
+    return `<span class="trn-rank ${cls}">${medals[r] || '#' + r}</span>`;
+  };
+  const rowCls = s => s.status === 'promoted' ? 'trn-row-promoted' :
+                      s.status === 'killed'   ? 'trn-row-killed'   :
+                      s.rank === 1            ? 'trn-row-gold'     : '';
+
+  const rows = strats.map(s => `
+    <tr class="${rowCls(s)}">
+      <td>${rankLabel(s.rank)}</td>
+      <td><span class="trn-sid">${s.id}</span></td>
+      <td>
+        <div class="trn-name">${s.name}</div>
+        ${s.description ? `<div class="trn-name-sub">${s.description}</div>` : ''}
+      </td>
+      <td class="trn-col-hide">${s.apy_target != null ? _trnFmt(s.apy_target, 1, '%') : '—'} / <span class="${(s.apy_realized || 0) > (s.apy_target || 0) ? 'green' : ''}">${_trnFmt(s.apy_realized, 1, '%')}</span></td>
+      <td><strong>${_trnFmt(s.composite_score, 3)}</strong></td>
+      <td class="trn-col-hide">${_trnFmt(s.sharpe, 2)}</td>
+      <td class="trn-col-hide">${_trnFmt(s.calmar, 2)}</td>
+      <td class="trn-col-hide">${_trnFmt(s.ulcer, 2)}</td>
+      <td>${_trnStatusBadge(s.status)}</td>
+      <td>${s.days_running != null ? s.days_running + 'd' : '—'}</td>
+      <td>$${(s.equity_now || 0).toLocaleString('en', { maximumFractionDigits: 0 })}</td>
+      <td>${_trnSparkSVG(s.equity_series, 56, 22)}</td>
+    </tr>`).join('');
+
+  document.getElementById('trn-content').innerHTML = `
+    <div class="trn-header">
+      <div>
+        <div class="trn-title">🏆 Strategy Tournament — Leaderboard</div>
+        ${updatedAt ? `<div class="trn-updated">Updated: ${updatedAt}</div>` : ''}
+      </div>
+      <div class="trn-eval-date">📅 Next eval: ${evalDate}</div>
+    </div>
+
+    <div class="db-full" style="padding:0;overflow:hidden;margin-bottom:18px">
+      <div class="scroll-x">
+        <table class="trn-table">
+          <thead><tr>
+            <th>#</th><th>ID</th><th>Strategy</th>
+            <th class="trn-col-hide">APY tgt / real</th>
+            <th>Score</th>
+            <th class="trn-col-hide">Sharpe</th>
+            <th class="trn-col-hide">Calmar</th>
+            <th class="trn-col-hide">Ulcer</th>
+            <th>Status</th><th>Days</th><th>Equity</th><th>Chart</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-bottom:18px">
+      <div class="trn-rules-toggle" onclick="trnToggleRules(this)" id="trn-rules-btn">
+        <span class="trn-rules-arrow" id="trn-arrow">▶</span>
+        📋 Tournament Rules &amp; Conditions
+      </div>
+      <div class="trn-rules-body" id="trn-rules-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:14px">
+          <div>
+            <div class="db-section" style="margin-bottom:8px">🔴 KILL CONDITIONS (any one triggers)</div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">📉</span><div class="trn-rule-text"><strong>Drawdown &gt; 10%</strong> — portfolio peak-to-trough loss exceeds threshold</div></div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">📊</span><div class="trn-rule-text"><strong>Sharpe &lt; −0.5</strong> for 14+ consecutive days</div></div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">🚫</span><div class="trn-rule-text"><strong>RiskPolicy blocked</strong> 3+ times in any 7-day window</div></div>
+          </div>
+          <div>
+            <div class="db-section" style="margin-bottom:8px">🏆 PROMOTE CONDITIONS (all required)</div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">📅</span><div class="trn-rule-text"><strong>30+ days</strong> running without gaps in gap_monitor</div></div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">📈</span><div class="trn-rule-text"><strong>Sharpe &gt; 1.0</strong> over the full run period</div></div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">💰</span><div class="trn-rule-text"><strong>APY &gt; baseline + 2%</strong> (baseline = Aave V3 mainnet ~3.2%)</div></div>
+            <div class="trn-rule-row"><span class="trn-rule-icon">🎯</span><div class="trn-rule-text"><strong>Calmar &gt; 0.5</strong> — annualised return / max drawdown</div></div>
+          </div>
+        </div>
+        <div style="background:#f0f7ff;border:.5px solid #bfdbfe;border-radius:6px;padding:10px 14px;font-size:12px;color:#1e40af;line-height:1.5">
+          ℹ️ Tournament runs automatically via launchd <code>com.spa.daily_cycle</code> (08:00 daily).<br>
+          Decisions are deterministic — LLM forbidden in risk/execution/monitoring domains (ADR-001).
+        </div>
+      </div>
+    </div>`;
+}
+
+function trnToggleRules(btn) {
+  const body  = document.getElementById('trn-rules-body');
+  const arrow = document.getElementById('trn-arrow');
+  const open  = body.classList.toggle('open');
+  if (arrow) arrow.classList.toggle('open', open);
+}
+
+let _trnLoaded = false;
+async function loadTournamentTab() {
+  if (_trnLoaded) return;
+  const el = document.getElementById('trn-content');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:#aaa"><span class="spinner"></span> Loading tournament data…</div>`;
+  try {
+    let data = null;
+    // 1. Primary: tournament_ranking.json (8-strategy format)
+    try {
+      const r = await fetch(BASE + '/tournament_ranking.json', { cache: 'no-store' });
+      if (r.ok) data = await r.json();
+    } catch (_) {}
+    // 2. Fallback: tournament_results.json (backtest comparison)
+    if (!data) {
+      try {
+        const r = await fetch(BASE + '/tournament_results.json', { cache: 'no-store' });
+        if (r.ok) data = await r.json();
+      } catch (_) {}
+    }
+    if (data) { _trnRender(data); _trnLoaded = true; }
+    else       { _trnRenderPlaceholder(); }
+  } catch (e) {
+    console.warn('Tournament load error:', e);
+    _trnRenderPlaceholder();
+  }
+}
 
 // ─── Dashboard v3.0 Sprint A: Performance Hero, Strategies, Ops ──────────────
 
@@ -7361,6 +7629,12 @@ function mapAdapterRecord(rec) {
     stateLabel,
     stateNote,
     mevRouted: !!rec.mev_routed,   // v3.58: per-adapter MEV-routing applicability
+    // MP-371: new adapter fields
+    quickWin: !!rec.quick_win,
+    bpsGain: rec.bps_gain || 0,
+    gasAdvantage: rec.gas_advantage_usd ? `gas $${rec.gas_advantage_usd}` : '',
+    maturity: rec.maturity || '',
+    rateType: rec.rate_type || '',
   };
 }
 
@@ -7449,12 +7723,12 @@ function renderAdapterStatus() {
     <th>Adapter</th><th>Tier</th><th>Alloc Cap</th><th>Chains</th><th>Assets</th><th>APY</th><th>APY Source</th><th>MEV</th><th>Write State</th>
   </tr></thead><tbody>
     ${rows.map(a => `<tr>
-      <td style="font-weight:600">${a.name}</td>
+      <td style="font-weight:600">${a.name}${a.quickWin ? `<span class="badge badge-success">Quick Win +${a.bpsGain}bps</span>` : ''}</td>
       <td><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;color:#185FA5;background:#185FA51a">${a.tier}</span></td>
       <td style="font-weight:600">${a.cap}${a.capNote ? `<div style="font-size:10px;font-weight:400;color:#888;margin-top:1px">${a.capNote}</div>` : ''}</td>
-      <td style="font-size:11px;color:#555">${a.chains}</td>
+      <td style="font-size:11px;color:#555">${a.chains}${a.gasAdvantage ? `<div style="font-size:10px;color:#16a34a;margin-top:1px">⛽ ${a.gasAdvantage}</div>` : ''}</td>
       <td style="font-size:11px;color:#555">${a.assets}</td>
-      <td style="font-size:11px;color:#333">${apyCell(a)}</td>
+      <td style="font-size:11px;color:#333">${apyCell(a)}${a.rateType ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${a.rateType}${a.maturity ? ` · mat. ${a.maturity}` : ''}</div>` : ''}</td>
       <td>${srcBadge(a)}</td>
       <td>${mevCell(a)}</td>
       <td><span style="font-weight:600;font-size:11px;color:${stateColor(a.state)}">${a.stateLabel}</span><div style="font-size:10px;color:#888;margin-top:1px">${a.stateNote}</div></td>
