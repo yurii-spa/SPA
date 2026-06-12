@@ -20,6 +20,12 @@ from .spark_susds_adapter import SparkSusdsAdapter
 from .susde_adapter import SusdeAdapter
 # MP-559: Mountain Protocol wUSDM ERC-4626 RWA T-bill-backed T2 adapter (peg gate)
 from .wusdm_adapter import WusdmAdapter  # MP-559
+# MP-560: Curve Savings crvUSD (scrvUSD) ERC-4626 T2 adapter (soft-peg gate 1%)
+from .scrvusd_adapter import ScrvusdAdapter  # MP-560
+# MP-561: Angle Staked USDA (stUSD) ERC-4626 T2 adapter (hard-peg gate 0.5%)
+from .stusd_adapter import StusdAdapter  # MP-561
+# MP-562: MakerDAO Savings DAI (sDAI) ERC-4626 T2 adapter (hard-peg gate 0.5%, DSR yield)
+from .sdai_adapter import SdaiAdapter  # MP-562
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -82,6 +88,9 @@ ADAPTER_REGISTRY = [
     ("spark_susds",   "T1", SparkSusdsAdapter),  # MP-376
     ("susde",         "T3", SusdeAdapter),  # MP-460
     ("wusdm",         "T2", WusdmAdapter),  # MP-559
+    ("scrvusd",       "T2", ScrvusdAdapter),  # MP-560
+    ("stusd",         "T2", StusdAdapter),  # MP-561
+    ("sdai",          "T2", SdaiAdapter),   # MP-562
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -113,6 +122,9 @@ __all__ = [
     "SparkSusdsAdapter",  # MP-376
     "SusdeAdapter",  # MP-460
     "WusdmAdapter",  # MP-559
+    "ScrvusdAdapter",  # MP-560
+    "StusdAdapter",  # MP-561
+    "SdaiAdapter",   # MP-562
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
