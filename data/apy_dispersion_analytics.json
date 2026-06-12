@@ -1,0 +1,684 @@
+{
+  "available": true,
+  "verdict": "warn",
+  "verdict_reason": "spread shrinking at -5.2152pp/yr (\u2264 -1.0); opportunity set narrowing over time",
+  "num_dates": 90,
+  "num_protocols": 7,
+  "protocols": [
+    "aave-v3-usdc-ethereum",
+    "aave-v3-usdt-ethereum",
+    "compound-v3-usdc-ethereum",
+    "euler-v2-usdc-ethereum",
+    "maple-usdc-ethereum",
+    "morpho-usdc-ethereum",
+    "yearn-v3-usdc-ethereum"
+  ],
+  "start_date": "2026-02-21",
+  "end_date": "2026-05-21",
+  "avg_spread_pp": 7.279947,
+  "median_spread_pp": 7.2216,
+  "current_spread_pp": 8.5443,
+  "min_spread_pp": 2.583,
+  "max_spread_pp": 13.7139,
+  "avg_cv": 0.438846,
+  "current_cv": 0.540643,
+  "spread_trend_per_year": -5.21518,
+  "most_frequent_leader": "euler-v2-usdc-ethereum",
+  "leader_share": 0.277778,
+  "leadership_counts": {
+    "aave-v3-usdc-ethereum": 9,
+    "aave-v3-usdt-ethereum": 10,
+    "compound-v3-usdc-ethereum": 1,
+    "euler-v2-usdc-ethereum": 25,
+    "maple-usdc-ethereum": 22,
+    "morpho-usdc-ethereum": 5,
+    "yearn-v3-usdc-ethereum": 18
+  },
+  "recent_dispersion": [
+    {
+      "date": "2026-02-21",
+      "spread": 3.5059,
+      "mean": 5.6841,
+      "cv": 0.194134,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-22",
+      "spread": 2.8809,
+      "mean": 6.107086,
+      "cv": 0.183335,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-23",
+      "spread": 2.8047,
+      "mean": 5.777157,
+      "cv": 0.17238,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-24",
+      "spread": 5.0612,
+      "mean": 6.011829,
+      "cv": 0.301235,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-25",
+      "spread": 5.8737,
+      "mean": 5.493857,
+      "cv": 0.314185,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-26",
+      "spread": 7.023,
+      "mean": 4.396343,
+      "cv": 0.526681,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-27",
+      "spread": 10.3661,
+      "mean": 4.310929,
+      "cv": 0.771671,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-02-28",
+      "spread": 8.3417,
+      "mean": 4.782857,
+      "cv": 0.60662,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-01",
+      "spread": 7.8305,
+      "mean": 4.365971,
+      "cv": 0.700548,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-02",
+      "spread": 8.3904,
+      "mean": 4.163829,
+      "cv": 0.591172,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-03",
+      "spread": 8.2002,
+      "mean": 5.0416,
+      "cv": 0.530494,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-04",
+      "spread": 9.9098,
+      "mean": 5.552243,
+      "cv": 0.545917,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-05",
+      "spread": 7.107,
+      "mean": 5.746686,
+      "cv": 0.383087,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-06",
+      "spread": 11.6787,
+      "mean": 5.787857,
+      "cv": 0.634979,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-07",
+      "spread": 10.2484,
+      "mean": 4.902486,
+      "cv": 0.588464,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-08",
+      "spread": 9.3335,
+      "mean": 5.638743,
+      "cv": 0.517762,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-09",
+      "spread": 8.3827,
+      "mean": 5.643629,
+      "cv": 0.530174,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-10",
+      "spread": 9.6641,
+      "mean": 6.3959,
+      "cv": 0.528234,
+      "best_protocol": "aave-v3-usdt-ethereum"
+    },
+    {
+      "date": "2026-03-11",
+      "spread": 8.764,
+      "mean": 6.3219,
+      "cv": 0.499016,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-12",
+      "spread": 9.9006,
+      "mean": 6.573271,
+      "cv": 0.522475,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-13",
+      "spread": 10.0054,
+      "mean": 6.508829,
+      "cv": 0.511643,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-14",
+      "spread": 7.4567,
+      "mean": 6.394114,
+      "cv": 0.365061,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-15",
+      "spread": 10.0934,
+      "mean": 7.039229,
+      "cv": 0.432624,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-16",
+      "spread": 8.9391,
+      "mean": 5.606529,
+      "cv": 0.513735,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-17",
+      "spread": 11.3886,
+      "mean": 5.656757,
+      "cv": 0.595892,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-18",
+      "spread": 13.7139,
+      "mean": 5.850543,
+      "cv": 0.683771,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-19",
+      "spread": 10.4036,
+      "mean": 6.115171,
+      "cv": 0.499871,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-20",
+      "spread": 9.0568,
+      "mean": 5.853214,
+      "cv": 0.517004,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-21",
+      "spread": 9.7067,
+      "mean": 5.957,
+      "cv": 0.558879,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-22",
+      "spread": 6.4476,
+      "mean": 5.788757,
+      "cv": 0.368505,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-23",
+      "spread": 5.9511,
+      "mean": 5.280514,
+      "cv": 0.343558,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-24",
+      "spread": 7.8481,
+      "mean": 5.466671,
+      "cv": 0.448511,
+      "best_protocol": "compound-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-25",
+      "spread": 6.2716,
+      "mean": 4.813586,
+      "cv": 0.465899,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-26",
+      "spread": 6.5349,
+      "mean": 5.6016,
+      "cv": 0.411542,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-27",
+      "spread": 8.1992,
+      "mean": 5.586843,
+      "cv": 0.502733,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-28",
+      "spread": 5.1033,
+      "mean": 5.084343,
+      "cv": 0.360826,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-29",
+      "spread": 6.2871,
+      "mean": 5.743914,
+      "cv": 0.418804,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-30",
+      "spread": 6.938,
+      "mean": 4.933814,
+      "cv": 0.476226,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-03-31",
+      "spread": 7.0974,
+      "mean": 5.901914,
+      "cv": 0.417226,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-01",
+      "spread": 5.6296,
+      "mean": 6.085143,
+      "cv": 0.337436,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-02",
+      "spread": 4.4144,
+      "mean": 6.9438,
+      "cv": 0.208114,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-03",
+      "spread": 2.583,
+      "mean": 6.8583,
+      "cv": 0.139259,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-04",
+      "spread": 5.5936,
+      "mean": 7.290671,
+      "cv": 0.274156,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-05",
+      "spread": 7.8729,
+      "mean": 6.566586,
+      "cv": 0.372522,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-06",
+      "spread": 8.7191,
+      "mean": 5.8469,
+      "cv": 0.462539,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-07",
+      "spread": 9.7934,
+      "mean": 5.5532,
+      "cv": 0.586241,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-08",
+      "spread": 7.5516,
+      "mean": 4.7044,
+      "cv": 0.514432,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-09",
+      "spread": 5.8274,
+      "mean": 4.932714,
+      "cv": 0.405873,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-10",
+      "spread": 5.6607,
+      "mean": 5.171386,
+      "cv": 0.408257,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-11",
+      "spread": 5.3744,
+      "mean": 5.531257,
+      "cv": 0.326653,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-12",
+      "spread": 9.4095,
+      "mean": 5.021343,
+      "cv": 0.596031,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-13",
+      "spread": 8.7966,
+      "mean": 6.205086,
+      "cv": 0.451472,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-14",
+      "spread": 9.2665,
+      "mean": 6.054057,
+      "cv": 0.502675,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-15",
+      "spread": 9.1055,
+      "mean": 5.788814,
+      "cv": 0.550456,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-16",
+      "spread": 10.8602,
+      "mean": 6.192157,
+      "cv": 0.556866,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-17",
+      "spread": 5.5919,
+      "mean": 5.573571,
+      "cv": 0.357931,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-18",
+      "spread": 6.7715,
+      "mean": 5.971729,
+      "cv": 0.420399,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-19",
+      "spread": 4.2976,
+      "mean": 6.216557,
+      "cv": 0.290949,
+      "best_protocol": "morpho-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-20",
+      "spread": 5.2303,
+      "mean": 5.683729,
+      "cv": 0.348403,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-21",
+      "spread": 4.7659,
+      "mean": 6.251929,
+      "cv": 0.237024,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-22",
+      "spread": 3.1018,
+      "mean": 5.818786,
+      "cv": 0.207142,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-23",
+      "spread": 3.6966,
+      "mean": 6.404743,
+      "cv": 0.188764,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-24",
+      "spread": 2.9782,
+      "mean": 5.987357,
+      "cv": 0.158333,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-25",
+      "spread": 4.9723,
+      "mean": 5.484943,
+      "cv": 0.280487,
+      "best_protocol": "morpho-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-26",
+      "spread": 6.4855,
+      "mean": 5.414971,
+      "cv": 0.405505,
+      "best_protocol": "morpho-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-27",
+      "spread": 5.6064,
+      "mean": 5.1983,
+      "cv": 0.373571,
+      "best_protocol": "morpho-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-28",
+      "spread": 4.0702,
+      "mean": 5.609643,
+      "cv": 0.261229,
+      "best_protocol": "maple-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-29",
+      "spread": 5.4675,
+      "mean": 5.383414,
+      "cv": 0.311291,
+      "best_protocol": "morpho-usdc-ethereum"
+    },
+    {
+      "date": "2026-04-30",
+      "spread": 5.7875,
+      "mean": 4.057843,
+      "cv": 0.459416,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-01",
+      "spread": 3.9455,
+      "mean": 3.423171,
+      "cv": 0.354826,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-02",
+      "spread": 5.8499,
+      "mean": 4.382786,
+      "cv": 0.464342,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-03",
+      "spread": 7.7704,
+      "mean": 4.861957,
+      "cv": 0.570515,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-04",
+      "spread": 7.3708,
+      "mean": 5.943514,
+      "cv": 0.42714,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-05",
+      "spread": 7.698,
+      "mean": 6.253143,
+      "cv": 0.390425,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-06",
+      "spread": 7.3362,
+      "mean": 5.972671,
+      "cv": 0.379071,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-07",
+      "spread": 9.1842,
+      "mean": 5.0379,
+      "cv": 0.671996,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-08",
+      "spread": 12.2104,
+      "mean": 6.082686,
+      "cv": 0.649793,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-09",
+      "spread": 10.1343,
+      "mean": 6.8807,
+      "cv": 0.552043,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-10",
+      "spread": 9.4871,
+      "mean": 7.307214,
+      "cv": 0.456852,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-11",
+      "spread": 9.2629,
+      "mean": 6.738743,
+      "cv": 0.405107,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-12",
+      "spread": 8.5224,
+      "mean": 6.248243,
+      "cv": 0.405638,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-13",
+      "spread": 5.5186,
+      "mean": 4.891157,
+      "cv": 0.393,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-14",
+      "spread": 6.0779,
+      "mean": 4.657529,
+      "cv": 0.444072,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-15",
+      "spread": 4.9389,
+      "mean": 4.229929,
+      "cv": 0.400465,
+      "best_protocol": "aave-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-16",
+      "spread": 5.843,
+      "mean": 4.032814,
+      "cv": 0.460955,
+      "best_protocol": "yearn-v3-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-17",
+      "spread": 6.7548,
+      "mean": 4.415071,
+      "cv": 0.586765,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-18",
+      "spread": 5.4252,
+      "mean": 3.851914,
+      "cv": 0.413668,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-19",
+      "spread": 7.1008,
+      "mean": 4.806914,
+      "cv": 0.497324,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-20",
+      "spread": 8.2284,
+      "mean": 4.689129,
+      "cv": 0.503183,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    },
+    {
+      "date": "2026-05-21",
+      "spread": 8.5443,
+      "mean": 4.6787,
+      "cv": 0.540643,
+      "best_protocol": "euler-v2-usdc-ethereum"
+    }
+  ],
+  "low_spread_threshold_pp": 0.5,
+  "converging_slope_threshold_pp_yr": -1.0,
+  "leader_share_warn_threshold": 0.8,
+  "skipped_protocols": [],
+  "is_demo": null,
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T07:16:47.803643+00:00",
+    "schema_version": 1,
+    "source": "apy_dispersion_analytics",
+    "min_points_required": 7,
+    "min_dates_required": 7
+  },
+  "_fingerprint": "{\"available\": true, \"avg_cv\": 0.438846, \"avg_spread_pp\": 7.279947, \"converging_slope_threshold_pp_yr\": -1.0, \"current_cv\": 0.540643, \"current_spread_pp\": 8.5443, \"end_date\": \"2026-05-21\", \"is_demo\": null, \"leader_share\": 0.277778, \"leader_share_warn_threshold\": 0.8, \"leadership_counts\": {\"aave-v3-usdc-ethereum\": 9, \"aave-v3-usdt-ethereum\": 10, \"compound-v3-usdc-ethereum\": 1, \"euler-v2-usdc-ethereum\": 25, \"maple-usdc-ethereum\": 22, \"morpho-usdc-ethereum\": 5, \"yearn-v3-usdc-ethereum\": 18}, \"low_spread_threshold_pp\": 0.5, \"max_spread_pp\": 13.7139, \"median_spread_pp\": 7.2216, \"meta\": {\"min_dates_required\": 7, \"min_points_required\": 7, \"schema_version\": 1, \"source\": \"apy_dispersion_analytics\"}, \"min_spread_pp\": 2.583, \"most_frequent_leader\": \"euler-v2-usdc-ethereum\", \"notes\": [], \"num_dates\": 90, \"num_protocols\": 7, \"protocols\": [\"aave-v3-usdc-ethereum\", \"aave-v3-usdt-ethereum\", \"compound-v3-usdc-ethereum\", \"euler-v2-usdc-ethereum\", \"maple-usdc-ethereum\", \"morpho-usdc-ethereum\", \"yearn-v3-usdc-ethereum\"], \"recent_dispersion\": [{\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.194134, \"date\": \"2026-02-21\", \"mean\": 5.6841, \"spread\": 3.5059}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.183335, \"date\": \"2026-02-22\", \"mean\": 6.107086, \"spread\": 2.8809}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.17238, \"date\": \"2026-02-23\", \"mean\": 5.777157, \"spread\": 2.8047}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.301235, \"date\": \"2026-02-24\", \"mean\": 6.011829, \"spread\": 5.0612}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.314185, \"date\": \"2026-02-25\", \"mean\": 5.493857, \"spread\": 5.8737}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.526681, \"date\": \"2026-02-26\", \"mean\": 4.396343, \"spread\": 7.023}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.771671, \"date\": \"2026-02-27\", \"mean\": 4.310929, \"spread\": 10.3661}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.60662, \"date\": \"2026-02-28\", \"mean\": 4.782857, \"spread\": 8.3417}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.700548, \"date\": \"2026-03-01\", \"mean\": 4.365971, \"spread\": 7.8305}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.591172, \"date\": \"2026-03-02\", \"mean\": 4.163829, \"spread\": 8.3904}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.530494, \"date\": \"2026-03-03\", \"mean\": 5.0416, \"spread\": 8.2002}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.545917, \"date\": \"2026-03-04\", \"mean\": 5.552243, \"spread\": 9.9098}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.383087, \"date\": \"2026-03-05\", \"mean\": 5.746686, \"spread\": 7.107}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.634979, \"date\": \"2026-03-06\", \"mean\": 5.787857, \"spread\": 11.6787}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.588464, \"date\": \"2026-03-07\", \"mean\": 4.902486, \"spread\": 10.2484}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.517762, \"date\": \"2026-03-08\", \"mean\": 5.638743, \"spread\": 9.3335}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.530174, \"date\": \"2026-03-09\", \"mean\": 5.643629, \"spread\": 8.3827}, {\"best_protocol\": \"aave-v3-usdt-ethereum\", \"cv\": 0.528234, \"date\": \"2026-03-10\", \"mean\": 6.3959, \"spread\": 9.6641}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.499016, \"date\": \"2026-03-11\", \"mean\": 6.3219, \"spread\": 8.764}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.522475, \"date\": \"2026-03-12\", \"mean\": 6.573271, \"spread\": 9.9006}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.511643, \"date\": \"2026-03-13\", \"mean\": 6.508829, \"spread\": 10.0054}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.365061, \"date\": \"2026-03-14\", \"mean\": 6.394114, \"spread\": 7.4567}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.432624, \"date\": \"2026-03-15\", \"mean\": 7.039229, \"spread\": 10.0934}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.513735, \"date\": \"2026-03-16\", \"mean\": 5.606529, \"spread\": 8.9391}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.595892, \"date\": \"2026-03-17\", \"mean\": 5.656757, \"spread\": 11.3886}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.683771, \"date\": \"2026-03-18\", \"mean\": 5.850543, \"spread\": 13.7139}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.499871, \"date\": \"2026-03-19\", \"mean\": 6.115171, \"spread\": 10.4036}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.517004, \"date\": \"2026-03-20\", \"mean\": 5.853214, \"spread\": 9.0568}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.558879, \"date\": \"2026-03-21\", \"mean\": 5.957, \"spread\": 9.7067}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.368505, \"date\": \"2026-03-22\", \"mean\": 5.788757, \"spread\": 6.4476}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.343558, \"date\": \"2026-03-23\", \"mean\": 5.280514, \"spread\": 5.9511}, {\"best_protocol\": \"compound-v3-usdc-ethereum\", \"cv\": 0.448511, \"date\": \"2026-03-24\", \"mean\": 5.466671, \"spread\": 7.8481}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.465899, \"date\": \"2026-03-25\", \"mean\": 4.813586, \"spread\": 6.2716}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.411542, \"date\": \"2026-03-26\", \"mean\": 5.6016, \"spread\": 6.5349}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.502733, \"date\": \"2026-03-27\", \"mean\": 5.586843, \"spread\": 8.1992}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.360826, \"date\": \"2026-03-28\", \"mean\": 5.084343, \"spread\": 5.1033}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.418804, \"date\": \"2026-03-29\", \"mean\": 5.743914, \"spread\": 6.2871}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.476226, \"date\": \"2026-03-30\", \"mean\": 4.933814, \"spread\": 6.938}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.417226, \"date\": \"2026-03-31\", \"mean\": 5.901914, \"spread\": 7.0974}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.337436, \"date\": \"2026-04-01\", \"mean\": 6.085143, \"spread\": 5.6296}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.208114, \"date\": \"2026-04-02\", \"mean\": 6.9438, \"spread\": 4.4144}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.139259, \"date\": \"2026-04-03\", \"mean\": 6.8583, \"spread\": 2.583}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.274156, \"date\": \"2026-04-04\", \"mean\": 7.290671, \"spread\": 5.5936}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.372522, \"date\": \"2026-04-05\", \"mean\": 6.566586, \"spread\": 7.8729}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.462539, \"date\": \"2026-04-06\", \"mean\": 5.8469, \"spread\": 8.7191}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.586241, \"date\": \"2026-04-07\", \"mean\": 5.5532, \"spread\": 9.7934}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.514432, \"date\": \"2026-04-08\", \"mean\": 4.7044, \"spread\": 7.5516}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.405873, \"date\": \"2026-04-09\", \"mean\": 4.932714, \"spread\": 5.8274}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.408257, \"date\": \"2026-04-10\", \"mean\": 5.171386, \"spread\": 5.6607}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.326653, \"date\": \"2026-04-11\", \"mean\": 5.531257, \"spread\": 5.3744}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.596031, \"date\": \"2026-04-12\", \"mean\": 5.021343, \"spread\": 9.4095}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.451472, \"date\": \"2026-04-13\", \"mean\": 6.205086, \"spread\": 8.7966}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.502675, \"date\": \"2026-04-14\", \"mean\": 6.054057, \"spread\": 9.2665}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.550456, \"date\": \"2026-04-15\", \"mean\": 5.788814, \"spread\": 9.1055}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.556866, \"date\": \"2026-04-16\", \"mean\": 6.192157, \"spread\": 10.8602}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.357931, \"date\": \"2026-04-17\", \"mean\": 5.573571, \"spread\": 5.5919}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.420399, \"date\": \"2026-04-18\", \"mean\": 5.971729, \"spread\": 6.7715}, {\"best_protocol\": \"morpho-usdc-ethereum\", \"cv\": 0.290949, \"date\": \"2026-04-19\", \"mean\": 6.216557, \"spread\": 4.2976}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.348403, \"date\": \"2026-04-20\", \"mean\": 5.683729, \"spread\": 5.2303}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.237024, \"date\": \"2026-04-21\", \"mean\": 6.251929, \"spread\": 4.7659}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.207142, \"date\": \"2026-04-22\", \"mean\": 5.818786, \"spread\": 3.1018}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.188764, \"date\": \"2026-04-23\", \"mean\": 6.404743, \"spread\": 3.6966}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.158333, \"date\": \"2026-04-24\", \"mean\": 5.987357, \"spread\": 2.9782}, {\"best_protocol\": \"morpho-usdc-ethereum\", \"cv\": 0.280487, \"date\": \"2026-04-25\", \"mean\": 5.484943, \"spread\": 4.9723}, {\"best_protocol\": \"morpho-usdc-ethereum\", \"cv\": 0.405505, \"date\": \"2026-04-26\", \"mean\": 5.414971, \"spread\": 6.4855}, {\"best_protocol\": \"morpho-usdc-ethereum\", \"cv\": 0.373571, \"date\": \"2026-04-27\", \"mean\": 5.1983, \"spread\": 5.6064}, {\"best_protocol\": \"maple-usdc-ethereum\", \"cv\": 0.261229, \"date\": \"2026-04-28\", \"mean\": 5.609643, \"spread\": 4.0702}, {\"best_protocol\": \"morpho-usdc-ethereum\", \"cv\": 0.311291, \"date\": \"2026-04-29\", \"mean\": 5.383414, \"spread\": 5.4675}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.459416, \"date\": \"2026-04-30\", \"mean\": 4.057843, \"spread\": 5.7875}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.354826, \"date\": \"2026-05-01\", \"mean\": 3.423171, \"spread\": 3.9455}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.464342, \"date\": \"2026-05-02\", \"mean\": 4.382786, \"spread\": 5.8499}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.570515, \"date\": \"2026-05-03\", \"mean\": 4.861957, \"spread\": 7.7704}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.42714, \"date\": \"2026-05-04\", \"mean\": 5.943514, \"spread\": 7.3708}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.390425, \"date\": \"2026-05-05\", \"mean\": 6.253143, \"spread\": 7.698}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.379071, \"date\": \"2026-05-06\", \"mean\": 5.972671, \"spread\": 7.3362}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.671996, \"date\": \"2026-05-07\", \"mean\": 5.0379, \"spread\": 9.1842}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.649793, \"date\": \"2026-05-08\", \"mean\": 6.082686, \"spread\": 12.2104}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.552043, \"date\": \"2026-05-09\", \"mean\": 6.8807, \"spread\": 10.1343}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.456852, \"date\": \"2026-05-10\", \"mean\": 7.307214, \"spread\": 9.4871}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.405107, \"date\": \"2026-05-11\", \"mean\": 6.738743, \"spread\": 9.2629}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.405638, \"date\": \"2026-05-12\", \"mean\": 6.248243, \"spread\": 8.5224}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.393, \"date\": \"2026-05-13\", \"mean\": 4.891157, \"spread\": 5.5186}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.444072, \"date\": \"2026-05-14\", \"mean\": 4.657529, \"spread\": 6.0779}, {\"best_protocol\": \"aave-v3-usdc-ethereum\", \"cv\": 0.400465, \"date\": \"2026-05-15\", \"mean\": 4.229929, \"spread\": 4.9389}, {\"best_protocol\": \"yearn-v3-usdc-ethereum\", \"cv\": 0.460955, \"date\": \"2026-05-16\", \"mean\": 4.032814, \"spread\": 5.843}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.586765, \"date\": \"2026-05-17\", \"mean\": 4.415071, \"spread\": 6.7548}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.413668, \"date\": \"2026-05-18\", \"mean\": 3.851914, \"spread\": 5.4252}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.497324, \"date\": \"2026-05-19\", \"mean\": 4.806914, \"spread\": 7.1008}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.503183, \"date\": \"2026-05-20\", \"mean\": 4.689129, \"spread\": 8.2284}, {\"best_protocol\": \"euler-v2-usdc-ethereum\", \"cv\": 0.540643, \"date\": \"2026-05-21\", \"mean\": 4.6787, \"spread\": 8.5443}], \"skipped_protocols\": [], \"spread_trend_per_year\": -5.21518, \"start_date\": \"2026-02-21\", \"verdict\": \"warn\", \"verdict_reason\": \"spread shrinking at -5.2152pp/yr (\u2264 -1.0); opportunity set narrowing over time\"}",
+  "history": []
+}
