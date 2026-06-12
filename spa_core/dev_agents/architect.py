@@ -26,6 +26,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 import anthropic
 
+from spa_core.config.model_config import get_model
+
 # ── File paths (relative to project root) ─────────────────────────────────────
 KANBAN_FILE = "KANBAN.json"
 DEV_STRATEGY_FILE = "DEV_STRATEGY_v1.0.md"
@@ -42,7 +44,7 @@ class SpaArchitect:
 
     def __init__(self):
         self.client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-        self.model = "claude-sonnet-4-6"
+        self.model = get_model("architect")
         self.kanban = self._load_kanban()
         self.strategy = (
             Path(DEV_STRATEGY_FILE).read_text()
