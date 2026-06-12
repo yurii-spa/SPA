@@ -21,3 +21,17 @@ class BaselineStrategy:
         w = 1.0 / len(pools)
         weights = {p["pool_id"]: w for p in pools}
         return apply_risk_policy(weights, tier_map(snapshot))
+
+    def run_day(self, apy_map: dict = None) -> float:
+        """Thin adapter for cycle_runner compatibility.
+        Returns equal-weighted average APY across all pools in apy_map."""
+        _FALLBACK_APY = 4.0  # typical average of whitelisted pools
+        if not apy_map:
+            return _FALLBACK_APY
+        values = [
+            float(v) for v in apy_map.values()
+            if isinstance(v, (int, float)) and float(v) > 0
+        ]
+        if values:
+            return float(sum(values) / len(values))
+        return _FALLBACK_APY
