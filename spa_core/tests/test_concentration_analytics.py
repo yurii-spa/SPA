@@ -1,323 +1,904 @@
-"""
-Tests for the portfolio concentration-analytics module (SPA-V398).
+#!/usr/bin/env python3
+"""Tests for spa_core.paper_trading.concentration_analytics (SPA-V435 / MP-116).
 
-Stdlib-only, self-contained runner (pytest is not installed in this repo;
-mirrors the PASS/FAIL convention of test_advanced_ratios.py).
-
-Run::
-    python spa_core/tests/test_concentration_analytics.py
+Plain unittest, NO pytest, NO network, ALL persistence in a tempdir. Covers:
+hand-computed HHI math (whole-AUM + deployed-only), the 0–10000 index scale,
+effective number of positions, top1/top3 shares, DOJ/FTC concentration-class
+boundaries, the max-single-position policy boundary, the reuse-by-import proof
+(breakdown shares == build_exposure share_pct/100), is_demo honesty, tolerance
+of missing/broken/garbage inputs, idempotent persistence + history rotation, the
+CLI (direct + subprocess), and import hygiene via the real AST linter.
 """
 from __future__ import annotations
 
+import ast
+import contextlib
+import hashlib
+import io
 import json
-import math
-import os
+import subprocess
 import sys
 import tempfile
+import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from spa_core.paper_trading import concentration_analytics as ca
+from spa_core.reporting.tear_sheet import build_exposure
 
-from spa_core.paper_trading.concentration_analytics import (
-    DEFAULT_PORTFOLIO_STATE_PATH,
-    DEFAULT_TARGET_ALLOCATION_PATH,
-    build_concentration_report,
-    compute_concentration_metrics,
-    generate_concentration_report,
-)
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-# ─── Runner ───────────────────────────────────────────────────────────────────
-
-PASS = FAIL = 0
-
-
-def run(name, fn):
-    global PASS, FAIL
-    try:
-        fn()
-        PASS += 1
-        print(f"  ✓ {name}")
-    except AssertionError as exc:
-        FAIL += 1
-        print(f"  ✗ {name}: {exc}")
-    except Exception as exc:  # noqa: BLE001 - surface unexpected errors as fails
-        FAIL += 1
-        print(f"  ✗ {name}: UNEXPECTED {type(exc).__name__}: {exc}")
+def _write_json(data_dir: Path, name: str, doc) -> Path:
+    data_dir.mkdir(parents=True, exist_ok=True)
+    p = data_dir / name
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    return p
 
 
-def approx(a, b, tol=1e-6):
-    return abs(a - b) <= tol
+def _write_positions(data_dir: Path, doc) -> Path:
+    return _write_json(data_dir, ca.POSITIONS_FILENAME, doc)
 
 
-def _state(weights_by_protocol, *, usd_only=False, total_usd=100000.0):
-    """Build a portfolio_state-shaped dict from {protocol: weight}.
-
-    If usd_only, omit actual_weight and supply only actual_usd (= weight*total)
-    so the module must derive weights from USD exposure.
-    """
-    positions = []
-    for protocol, w in weights_by_protocol.items():
-        pos = {"protocol": protocol, "actual_usd": round(w * total_usd, 6)}
-        if not usd_only:
-            pos["actual_weight"] = w
-        positions.append(pos)
-    return {
-        "total_actual_usd": total_usd,
-        "num_positions": len(positions),
-        "positions": positions,
-    }
+def _write_orch(data_dir: Path, doc) -> Path:
+    return _write_json(data_dir, ca.ORCHESTRATOR_FILENAME, doc)
 
 
-_SCHEMA_KEYS = {
-    "num_positions", "weights", "herfindahl_index", "hhi_normalized",
-    "effective_num_positions", "max_weight", "max_weight_protocol",
-    "min_weight", "min_weight_protocol", "top1_concentration_pct",
-    "top3_concentration_pct", "shannon_entropy", "entropy_normalized",
-    "gini_coefficient", "diversification_grade",
-}
+def _orch(tiers: dict) -> dict:
+    return {"adapters": [{"protocol": p, "tier": t} for p, t in tiers.items()]}
 
 
-# ─── Tests ────────────────────────────────────────────────────────────────────
+class _TmpBase(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp(prefix="conc_test_")
+        self.data_dir = Path(self._tmp)
 
-def test_empty_none_stable_schema():
-    m = compute_concentration_metrics(None)
-    assert set(m.keys()) == _SCHEMA_KEYS, m.keys()
-    assert m["num_positions"] == 0, m
-    assert m["herfindahl_index"] is None, m
-    assert m["weights"] == {}, m
-
-
-def test_empty_positions_stable_schema():
-    m = compute_concentration_metrics({"positions": []})
-    assert m["num_positions"] == 0, m
-    assert m["diversification_grade"] is None, m
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self._tmp, ignore_errors=True)
 
 
-def test_malformed_inputs_no_exception():
-    for bad in ([], 42, "garbage", {"positions": "nope"}, {"positions": [1, 2, 3]}):
-        m = compute_concentration_metrics(bad)
-        assert set(m.keys()) == _SCHEMA_KEYS, (bad, m.keys())
-        assert m["num_positions"] == 0, (bad, m)
+# ─── HHI math (hand-computed) ────────────────────────────────────────────────
 
 
-def test_malformed_json_file_stable():
-    with tempfile.TemporaryDirectory() as d:
-        bad = Path(d) / "portfolio_state.json"
-        bad.write_text("{ this is not valid json ", encoding="utf-8")
-        report = build_concentration_report(bad, target_allocation_path=None)
-        assert report["metrics"]["num_positions"] == 0, report
-        assert "generated_at" in report and "metrics" in report, report
+class TestHHIMath(_TmpBase):
+    def test_two_equal_5050_deployed(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0, "is_demo": False,
+            "positions": {"aave_v3": 50000.0, "compound_v3": 50000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertTrue(r["available"])
+        self.assertAlmostEqual(r["hhi_protocol_deployed"], 0.5)
+        self.assertEqual(r["hhi_protocol_deployed_index"], 5000)
+        self.assertAlmostEqual(r["effective_num_positions"], 2.0)
+        self.assertEqual(r["concentration_class"], "concentrated")
+
+    def test_four_equal_25pct(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 25000.0, "b": 25000.0,
+                          "c": 25000.0, "d": 25000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_protocol_deployed"], 0.25)
+        self.assertEqual(r["hhi_protocol_deployed_index"], 2500)
+        # boundary: 2500 is moderate, not concentrated
+        self.assertEqual(r["concentration_class"], "moderate")
+        self.assertAlmostEqual(r["effective_num_positions"], 4.0)
+
+    def test_five_equal_20pct(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {f"p{i}": 20000.0 for i in range(5)},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_protocol_deployed"], 0.20)
+        self.assertEqual(r["hhi_protocol_deployed_index"], 2000)
+        self.assertEqual(r["concentration_class"], "moderate")
+        self.assertAlmostEqual(r["effective_num_positions"], 5.0)
+
+    def test_ten_equal_10pct(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {f"p{i}": 10000.0 for i in range(10)},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_protocol_deployed"], 0.10)
+        self.assertEqual(r["hhi_protocol_deployed_index"], 1000)
+        self.assertEqual(r["concentration_class"], "diversified")
+        self.assertAlmostEqual(r["effective_num_positions"], 10.0)
+
+    def test_single_position(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 100000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_protocol_deployed"], 1.0)
+        self.assertEqual(r["hhi_protocol_deployed_index"], 10000)
+        self.assertAlmostEqual(r["effective_num_positions"], 1.0)
+        self.assertEqual(r["concentration_class"], "concentrated")
+
+    def test_index_is_fraction_times_10000(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 60000.0, "b": 40000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertEqual(r["hhi_protocol_deployed_index"],
+                         round(r["hhi_protocol_deployed"] * 10000))
+        self.assertEqual(r["hhi_protocol_index"],
+                         round(r["hhi_protocol"] * 10000))
+
+    def test_effective_num_is_inverse_hhi(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 60000.0, "b": 30000.0, "c": 10000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["effective_num_positions"],
+                               round(1.0 / r["hhi_protocol_deployed"], 4))
+
+    def test_whole_aum_hhi_diluted_by_cash(self):
+        # 50/50 deployed but on 200k AUM (cash 100k): whole-AUM shares 0.25 each
+        # → whole HHI = 2*0.0625 = 0.125; deployed HHI = 0.5.
+        _write_positions(self.data_dir, {
+            "capital_usd": 200000.0, "cash_usd": 100000.0,
+            "positions": {"a": 50000.0, "b": 50000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_protocol"], 0.125)
+        self.assertEqual(r["hhi_protocol_index"], 1250)
+        self.assertAlmostEqual(r["hhi_protocol_deployed"], 0.5)
+        self.assertEqual(r["hhi_protocol_deployed_index"], 5000)
+        # class derives from DEPLOYED-only → concentrated (not diversified)
+        self.assertEqual(r["concentration_class"], "concentrated")
+
+    def test_hhi_protocol_deployed_le_whole_when_cash(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 40000.0,
+            "positions": {"a": 30000.0, "b": 30000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertGreater(r["hhi_protocol_deployed"], r["hhi_protocol"])
 
 
-def test_missing_file_stable():
-    report = build_concentration_report(
-        "/no/such/portfolio_state.json", target_allocation_path=None
-    )
-    assert report["metrics"]["num_positions"] == 0, report
-    assert report["execution_mode"] == "read_only_simulation", report
+# ─── Concentration-class boundaries ──────────────────────────────────────────
 
 
-def test_equal_weight_four_positions():
-    m = compute_concentration_metrics(
-        _state({"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25})
-    )
-    assert m["num_positions"] == 4, m
-    assert approx(m["herfindahl_index"], 0.25), m
-    assert approx(m["effective_num_positions"], 4.0, tol=1e-4), m
-    assert approx(m["hhi_normalized"], 0.0, tol=1e-9), m
-    assert approx(m["gini_coefficient"], 0.0, tol=1e-9), m
-    assert approx(m["entropy_normalized"], 1.0, tol=1e-9), m
-    assert m["diversification_grade"] == "A", m
+class TestClassBoundaries(_TmpBase):
+    def _class_for_index(self, idx):
+        return ca._classify(idx)
+
+    def test_just_below_1500_diversified(self):
+        self.assertEqual(self._class_for_index(1499), "diversified")
+
+    def test_exactly_1500_moderate(self):
+        self.assertEqual(self._class_for_index(1500), "moderate")
+
+    def test_exactly_2500_moderate(self):
+        self.assertEqual(self._class_for_index(2500), "moderate")
+
+    def test_just_above_2500_concentrated(self):
+        self.assertEqual(self._class_for_index(2501), "concentrated")
+
+    def test_none_index_none_class(self):
+        self.assertIsNone(self._class_for_index(None))
+
+    def test_constants(self):
+        self.assertEqual(ca.HHI_MODERATE_FLOOR, 1500)
+        self.assertEqual(ca.HHI_CONCENTRATED_FLOOR, 2500)
+
+    def test_zero_index_diversified(self):
+        self.assertEqual(self._class_for_index(0), "diversified")
+
+    def test_full_pipeline_diversified_boundary(self):
+        # 10 equal positions → index 1000 → diversified
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {f"p{i}": 10000.0 for i in range(10)},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertEqual(r["concentration_class"], "diversified")
 
 
-def test_single_position():
-    m = compute_concentration_metrics(_state({"solo": 1.0}))
-    assert m["num_positions"] == 1, m
-    assert approx(m["herfindahl_index"], 1.0), m
-    assert approx(m["effective_num_positions"], 1.0), m
-    assert m["hhi_normalized"] is None, m
-    assert m["entropy_normalized"] is None, m
-    assert approx(m["gini_coefficient"], 0.0), m
-    assert approx(m["top1_concentration_pct"], 100.0), m
-    assert m["max_weight_protocol"] == "solo", m
-    assert m["diversification_grade"] is None, m
+# ─── top1 / top3 ─────────────────────────────────────────────────────────────
 
 
-def test_skewed_weights_hand_computed():
-    # 0.7 / 0.1 / 0.1 / 0.1 -> HHI = 0.49 + 3*0.01 = 0.52
-    m = compute_concentration_metrics(
-        _state({"big": 0.7, "x": 0.1, "y": 0.1, "z": 0.1})
-    )
-    assert approx(m["herfindahl_index"], 0.52, tol=1e-9), m
-    assert approx(m["max_weight"], 0.7), m
-    assert m["max_weight_protocol"] == "big", m
-    assert approx(m["top1_concentration_pct"], 70.0), m
-    # eff_N = 1/0.52 ~ 1.923
-    assert approx(m["effective_num_positions"], 1.0 / 0.52, tol=1e-3), m
-    # hhi_normalized = (0.52 - 0.25)/(0.75) = 0.36 -> grade C (>0.35, <=0.60)
-    assert approx(m["hhi_normalized"], (0.52 - 0.25) / 0.75, tol=1e-9), m
-    assert m["diversification_grade"] == "C", m
+class TestTopShares(_TmpBase):
+    def test_top1_top3_hand_checked(self):
+        # AUM 100k: aave 40k, comp 30k, yearn 20k, euler 10k (no cash).
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 40000.0, "compound_v3": 30000.0,
+                          "yearn_v3": 20000.0, "euler_v2": 10000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["top1_share"], 0.40)
+        self.assertEqual(r["top1_protocol"], "aave_v3")
+        # top3 = 0.4 + 0.3 + 0.2 = 0.9
+        self.assertAlmostEqual(r["top3_share"], 0.90)
+        self.assertEqual(r["num_positions"], 4)
+
+    def test_top1_with_cash(self):
+        # 80k aave on 100k AUM (20k cash) → top1 share 0.8 of full AUM.
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 20000.0,
+            "positions": {"aave_v3": 80000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["top1_share"], 0.80)
+        self.assertEqual(r["top1_protocol"], "aave_v3")
+        self.assertAlmostEqual(r["top3_share"], 0.80)  # only one position
+
+    def test_breakdown_sorted_desc(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"small": 10000.0, "big": 90000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        shares = [b["share"] for b in r["breakdown"]]
+        self.assertEqual(shares, sorted(shares, reverse=True))
+        self.assertEqual(r["breakdown"][0]["protocol"], "big")
 
 
-def test_weights_derived_from_usd_when_weight_missing():
-    m = compute_concentration_metrics(
-        _state({"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25}, usd_only=True)
-    )
-    assert m["num_positions"] == 4, m
-    assert approx(m["herfindahl_index"], 0.25, tol=1e-6), m
-    assert approx(m["max_weight"], 0.25, tol=1e-6), m
+# ─── Max-single-position policy boundary ─────────────────────────────────────
 
 
-def test_weights_normalize_to_one():
-    # Supply non-normalised weights; module should renormalise to sum 1.
-    m = compute_concentration_metrics(
-        _state({"a": 2.0, "b": 1.0, "c": 1.0})
-    )
-    total = sum(m["weights"].values())
-    assert approx(total, 1.0, tol=1e-6), m["weights"]
-    assert approx(m["max_weight"], 0.5, tol=1e-6), m
+class TestPolicy(_TmpBase):
+    def test_exactly_40pct_not_breach(self):
+        # aave exactly 0.40 of full AUM → policy_ok true.
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 40000.0, "b": 30000.0, "c": 30000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["top1_share"], 0.40)
+        self.assertTrue(r["policy_ok"])
+        self.assertEqual(r["policy_breaches"], [])
+
+    def test_above_40pct_breach_fail(self):
+        # aave 40.01k on 100k = 0.4001 > 0.40 → breach, verdict fail.
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 40010.0, "b": 30000.0, "c": 29990.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["policy_ok"])
+        self.assertEqual(len(r["policy_breaches"]), 1)
+        self.assertEqual(r["policy_breaches"][0]["protocol"], "aave_v3")
+        self.assertEqual(r["verdict"], "fail")
+
+    def test_constant_value(self):
+        self.assertEqual(ca.MAX_SINGLE_POSITION_SHARE, 0.40)
+
+    def test_breach_share_recorded(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 60000.0, "b": 40000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["policy_breaches"][0]["share"], 0.60)
+        self.assertEqual(r["counts"]["policy_breaches"], 1)
+
+    def test_multiple_breaches_sorted(self):
+        # two breaches: 0.5 and 0.45; should sort desc.
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"big": 50000.0, "mid": 45000.0, "small": 5000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        shares = [b["share"] for b in r["policy_breaches"]]
+        self.assertEqual(shares, sorted(shares, reverse=True))
+        self.assertEqual(r["policy_breaches"][0]["protocol"], "big")
 
 
-def test_monotonicity_more_concentrated():
-    even = compute_concentration_metrics(_state({"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25}))
-    skew = compute_concentration_metrics(_state({"a": 0.7, "b": 0.1, "c": 0.1, "d": 0.1}))
-    assert skew["herfindahl_index"] > even["herfindahl_index"], (even, skew)
-    assert skew["effective_num_positions"] < even["effective_num_positions"], (even, skew)
-    assert skew["entropy_normalized"] < even["entropy_normalized"], (even, skew)
-    assert skew["gini_coefficient"] > even["gini_coefficient"], (even, skew)
+# ─── Verdict ─────────────────────────────────────────────────────────────────
 
 
-def test_effective_num_is_inverse_hhi():
-    for w in ({"a": 0.5, "b": 0.3, "c": 0.2}, {"a": 0.4, "b": 0.4, "c": 0.2}):
-        m = compute_concentration_metrics(_state(w))
-        assert approx(m["effective_num_positions"], 1.0 / m["herfindahl_index"], tol=1e-3), m
+class TestVerdict(_TmpBase):
+    def test_ok_diversified_no_breach(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {f"p{i}": 10000.0 for i in range(10)},
+        })
+        _write_orch(self.data_dir, _orch({f"p{i}": "T1" for i in range(10)}))
+        r = ca.build_concentration(self.data_dir)
+        self.assertEqual(r["verdict"], "ok")
+
+    def test_warn_moderate(self):
+        # 4 equal → index 2500 moderate → warn (no breach)
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 25000.0, "b": 25000.0,
+                          "c": 25000.0, "d": 25000.0},
+        })
+        _write_orch(self.data_dir, _orch({"a": "T1", "b": "T1",
+                                          "c": "T1", "d": "T1"}))
+        r = ca.build_concentration(self.data_dir)
+        self.assertEqual(r["verdict"], "warn")
+
+    def test_warn_unknown_tier(self):
+        # diversified but a protocol has no tier (unknown) → warn
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {f"p{i}": 10000.0 for i in range(10)},
+        })
+        # no orchestrator at all → all unknown
+        r = ca.build_concentration(self.data_dir)
+        self.assertEqual(r["verdict"], "warn")
+        self.assertIn("unknown", r["by_tier"])
+
+    def test_fail_concentrated(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 30000.0, "b": 30000.0, "c": 40000.0},
+        })
+        _write_orch(self.data_dir, _orch({"a": "T1", "b": "T1", "c": "T1"}))
+        r = ca.build_concentration(self.data_dir)
+        # deployed HHI = .09+.09+.16 = .34 → 3400 concentrated → fail
+        self.assertEqual(r["concentration_class"], "concentrated")
+        self.assertEqual(r["verdict"], "fail")
+
+    def test_fail_breach_beats_diversified(self):
+        # spread thin but one breach → fail regardless of class
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"big": 45000.0, **{f"p{i}": 5500.0 for i in range(10)}},
+        })
+        _write_orch(self.data_dir, _orch({"big": "T1"}))
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["policy_ok"])
+        self.assertEqual(r["verdict"], "fail")
 
 
-def test_top3_geq_top1_and_bounded():
-    m = compute_concentration_metrics(_state({"a": 0.4, "b": 0.3, "c": 0.2, "d": 0.1}))
-    assert m["top3_concentration_pct"] >= m["top1_concentration_pct"], m
-    assert m["top3_concentration_pct"] <= 100.0 + 1e-9, m
-    assert m["top1_concentration_pct"] <= 100.0 + 1e-9, m
+# ─── Tier HHI ────────────────────────────────────────────────────────────────
 
 
-def test_metric_ranges_bounded():
-    m = compute_concentration_metrics(_state({"a": 0.5, "b": 0.3, "c": 0.15, "d": 0.05}))
-    assert 0.0 <= m["gini_coefficient"] <= 1.0, m
-    assert 0.0 <= m["entropy_normalized"] <= 1.0, m
-    assert 0.0 <= m["hhi_normalized"] <= 1.0, m
+class TestTierHHI(_TmpBase):
+    def test_single_tier(self):
+        # all T1 → tier HHI over by_tier; deployed-only=100% → but by_tier is
+        # percent-of-AUM. With no cash both T1=100% → hhi_tier=1.0
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 50000.0, "b": 50000.0},
+        })
+        _write_orch(self.data_dir, _orch({"a": "T1", "b": "T1"}))
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_tier"], 1.0)
+        self.assertEqual(r["hhi_tier_index"], 10000)
+
+    def test_two_tiers_5050(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 50000.0, "b": 50000.0},
+        })
+        _write_orch(self.data_dir, _orch({"a": "T1", "b": "T2"}))
+        r = ca.build_concentration(self.data_dir)
+        self.assertAlmostEqual(r["hhi_tier"], 0.5)
+        self.assertEqual(r["hhi_tier_index"], 5000)
+
+    def test_tier_echo_present(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"a": 50000.0, "b": 50000.0},
+        })
+        _write_orch(self.data_dir, _orch({"a": "T1", "b": "T2"}))
+        r = ca.build_concentration(self.data_dir)
+        self.assertIn("T1", r["by_tier"])
+        self.assertIn("T2", r["by_tier"])
 
 
-def test_active_share_zero_when_equal():
-    state = _state({"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25})
-    target = {"target_weights": {"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25}}
-    with tempfile.TemporaryDirectory() as d:
-        ps = Path(d) / "portfolio_state.json"
-        ta = Path(d) / "target_allocation.json"
-        ps.write_text(json.dumps(state), encoding="utf-8")
-        ta.write_text(json.dumps(target), encoding="utf-8")
-        report = build_concentration_report(ps, ta)
-        cvt = report["concentration_vs_target"]
-        assert approx(cvt["active_share"], 0.0, tol=1e-9), cvt
+# ─── Reuse-by-import proof ───────────────────────────────────────────────────
 
 
-def test_active_share_positive_and_bounded_when_differ():
-    state = _state({"a": 0.7, "b": 0.1, "c": 0.1, "d": 0.1})
-    target = {"target_weights": {"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25}}
-    with tempfile.TemporaryDirectory() as d:
-        ps = Path(d) / "portfolio_state.json"
-        ta = Path(d) / "target_allocation.json"
-        ps.write_text(json.dumps(state), encoding="utf-8")
-        ta.write_text(json.dumps(target), encoding="utf-8")
-        report = build_concentration_report(ps, ta)
-        cvt = report["concentration_vs_target"]
-        assert cvt["active_share"] > 0.0, cvt
-        assert 0.0 <= cvt["active_share"] <= 1.0, cvt
-        # 0.5 * (0.45 + 0.15 + 0.15 + 0.15) = 0.45
-        assert approx(cvt["active_share"], 0.45, tol=1e-6), cvt
+class TestReuseByImport(_TmpBase):
+    def test_breakdown_shares_equal_build_exposure(self):
+        positions_doc = {
+            "capital_usd": 100000.0, "cash_usd": 5000.0, "is_demo": False,
+            "positions": {"aave_v3": 31529.27, "compound_v3": 30220.72,
+                          "yearn_v3": 11436.6, "euler_v2": 10376.79,
+                          "maple": 11436.6},
+        }
+        orch_doc = _orch({"aave_v3": "T1", "compound_v3": "T1",
+                          "yearn_v3": "T2", "euler_v2": "T2", "maple": "T2"})
+        _write_positions(self.data_dir, positions_doc)
+        _write_orch(self.data_dir, orch_doc)
+        r = ca.build_concentration(self.data_dir)
+        exposure = build_exposure(positions_doc, orch_doc)
+        # Every per-protocol whole-AUM share == build_exposure share_pct / 100.
+        for b in r["breakdown"]:
+            p = b["protocol"]
+            self.assertAlmostEqual(
+                b["share"], exposure["by_protocol"][p]["share_pct"] / 100.0,
+                places=6, msg=p,
+            )
+
+    def test_tiers_match_exposure(self):
+        positions_doc = {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 60000.0, "maple": 40000.0},
+        }
+        orch_doc = _orch({"aave_v3": "T1", "maple": "T2"})
+        _write_positions(self.data_dir, positions_doc)
+        _write_orch(self.data_dir, orch_doc)
+        r = ca.build_concentration(self.data_dir)
+        exposure = build_exposure(positions_doc, orch_doc)
+        for b in r["breakdown"]:
+            self.assertEqual(b["tier"],
+                             exposure["by_protocol"][b["protocol"]]["tier"])
+
+    def test_source_contains_import(self):
+        src = (_REPO_ROOT / "spa_core" / "paper_trading"
+               / "concentration_analytics.py").read_text(encoding="utf-8")
+        self.assertIn(
+            "from spa_core.reporting.tear_sheet import build_exposure", src
+        )
 
 
-def test_cash_buffer_from_target():
-    state = _state({"a": 0.5, "b": 0.5})
-    target = {"target_weights": {"a": 0.5, "b": 0.5}, "unallocated_pct": 0.2}
-    with tempfile.TemporaryDirectory() as d:
-        ps = Path(d) / "portfolio_state.json"
-        ta = Path(d) / "target_allocation.json"
-        ps.write_text(json.dumps(state), encoding="utf-8")
-        ta.write_text(json.dumps(target), encoding="utf-8")
-        report = build_concentration_report(ps, ta)
-        assert approx(report["cash_buffer_pct"], 20.0), report.get("cash_buffer_pct")
+# ─── is_demo honesty ─────────────────────────────────────────────────────────
 
 
-def test_atomic_write_and_no_tmp_left():
-    state = _state({"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25})
-    with tempfile.TemporaryDirectory() as d:
-        ps = Path(d) / "portfolio_state.json"
-        out = Path(d) / "concentration_analytics.json"
-        ps.write_text(json.dumps(state), encoding="utf-8")
-        generate_concentration_report(ps, target_allocation_path=None, output_path=out)
-        assert out.exists(), "report file not written"
-        leftovers = [
-            p for p in Path(d).iterdir()
-            if p.name.startswith(".concentration_analytics_")
-        ]
-        assert not leftovers, f"temp files left behind: {leftovers}"
+class TestIsDemo(_TmpBase):
+    def test_is_demo_true(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0, "is_demo": True,
+            "positions": {"aave_v3": 100000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertTrue(r["is_demo"])
+
+    def test_is_demo_false(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0, "is_demo": False,
+            "positions": {"aave_v3": 100000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["is_demo"])
+
+    def test_is_demo_absent_null(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 100000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertIsNone(r["is_demo"])
+        self.assertTrue(any("is_demo" in n for n in r["notes"]))
+
+    def test_is_demo_nonbool_null(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0, "is_demo": "yes",
+            "positions": {"aave_v3": 100000.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertIsNone(r["is_demo"])
 
 
-def test_smoke_real_data():
-    report = build_concentration_report(
-        DEFAULT_PORTFOLIO_STATE_PATH, DEFAULT_TARGET_ALLOCATION_PATH
-    )
-    assert set(report["metrics"].keys()) == _SCHEMA_KEYS, report["metrics"].keys()
-    assert report["metrics"]["num_positions"] >= 0, report
-    assert report["execution_mode"] == "read_only_simulation", report
+# ─── Tolerance / missing / broken ────────────────────────────────────────────
 
 
-def test_all_finite_outputs():
-    m = compute_concentration_metrics(_state({"a": 0.4, "b": 0.3, "c": 0.2, "d": 0.1}))
-    for k, v in m.items():
-        if isinstance(v, float):
-            assert math.isfinite(v), (k, v)
-    for p, w in m["weights"].items():
-        assert math.isfinite(w), (p, w)
+class TestTolerance(_TmpBase):
+    def test_missing_positions(self):
+        r = ca.build_concentration(self.data_dir)  # empty dir
+        self.assertFalse(r["available"])
+        self.assertTrue(any("missing" in n for n in r["notes"]))
+        self.assertEqual(r["breakdown"], [])
+
+    def test_broken_json_positions(self):
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        (self.data_dir / ca.POSITIONS_FILENAME).write_text("{not json",
+                                                            encoding="utf-8")
+        r = ca.build_concentration(self.data_dir)  # must not raise
+        self.assertFalse(r["available"])
+
+    def test_top_level_not_dict(self):
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        (self.data_dir / ca.POSITIONS_FILENAME).write_text("[1,2,3]",
+                                                            encoding="utf-8")
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["available"])
+
+    def test_empty_positions(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 100000.0, "positions": {},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["available"])
+
+    def test_zero_aum(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 0.0, "cash_usd": 0.0, "positions": {},
+        })
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["available"])
+
+    def test_missing_orchestrator_still_works(self):
+        for missing in ("orch",):
+            with self.subTest(missing=missing):
+                _write_positions(self.data_dir, {
+                    "capital_usd": 100000.0, "cash_usd": 0.0,
+                    "positions": {"aave_v3": 60000.0, "maple": 40000.0},
+                })
+                # no orchestrator file written
+                r = ca.build_concentration(self.data_dir)
+                self.assertTrue(r["available"])
+                # all tiers unknown
+                self.assertIn("unknown", r["by_tier"])
+                for b in r["breakdown"]:
+                    self.assertEqual(b["tier"], "unknown")
+
+    def test_broken_orchestrator_tolerated(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 60000.0, "maple": 40000.0},
+        })
+        (self.data_dir / ca.ORCHESTRATOR_FILENAME).write_text("{broken",
+                                                              encoding="utf-8")
+        r = ca.build_concentration(self.data_dir)
+        self.assertTrue(r["available"])
+        self.assertIn("unknown", r["by_tier"])
+
+    def test_garbage_positions_values(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": "oops", "maple": None, "good": 100000.0},
+        })
+        r = ca.build_concentration(self.data_dir)  # must not raise
+        self.assertTrue(r["available"])
+        protos = [b["protocol"] for b in r["breakdown"]]
+        self.assertIn("good", protos)
+
+    def test_never_raises_on_junk_dir(self):
+        r = ca.build_concentration("/nonexistent/path/xyz123")
+        self.assertFalse(r["available"])
+
+    def test_garbage_top_level_never_raises(self):
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        (self.data_dir / ca.POSITIONS_FILENAME).write_text('"a string"',
+                                                            encoding="utf-8")
+        r = ca.build_concentration(self.data_dir)
+        self.assertFalse(r["available"])
+
+    def test_negative_positions_dropped(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 0.0,
+            "positions": {"aave_v3": 100000.0, "bad": -5.0},
+        })
+        r = ca.build_concentration(self.data_dir)
+        protos = [b["protocol"] for b in r["breakdown"]]
+        self.assertNotIn("bad", protos)
 
 
-def test_weights_sorted_descending():
-    m = compute_concentration_metrics(_state({"a": 0.1, "b": 0.6, "c": 0.3}))
-    vals = list(m["weights"].values())
-    assert vals == sorted(vals, reverse=True), m["weights"]
-    assert m["max_weight_protocol"] == "b", m
-    assert m["min_weight_protocol"] == "a", m
+# ─── Persistence + idempotency ───────────────────────────────────────────────
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+class TestPersistence(_TmpBase):
+    def _good(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 5000.0, "is_demo": False,
+            "positions": {"aave_v3": 31529.27, "compound_v3": 30220.72,
+                          "yearn_v3": 11436.6, "euler_v2": 10376.79,
+                          "maple": 11436.6},
+        })
+        _write_orch(self.data_dir, _orch({
+            "aave_v3": "T1", "compound_v3": "T1",
+            "yearn_v3": "T2", "euler_v2": "T2", "maple": "T2"}))
 
-def main():
-    print("test_concentration_analytics (SPA-V398)")
-    run("None input → stable schema", test_empty_none_stable_schema)
-    run("empty positions → stable schema", test_empty_positions_stable_schema)
-    run("malformed inputs → no exception", test_malformed_inputs_no_exception)
-    run("malformed JSON file → stable", test_malformed_json_file_stable)
-    run("missing file → stable", test_missing_file_stable)
-    run("equal-weight 4 positions", test_equal_weight_four_positions)
-    run("single position", test_single_position)
-    run("skewed weights hand-computed", test_skewed_weights_hand_computed)
-    run("weights derived from USD", test_weights_derived_from_usd_when_weight_missing)
-    run("weights normalize to 1.0", test_weights_normalize_to_one)
-    run("monotonicity: more concentrated", test_monotonicity_more_concentrated)
-    run("effective_num == 1/HHI", test_effective_num_is_inverse_hhi)
-    run("top3 >= top1, bounded", test_top3_geq_top1_and_bounded)
-    run("gini/entropy/hhi_norm in [0,1]", test_metric_ranges_bounded)
-    run("active_share == 0 when equal", test_active_share_zero_when_equal)
-    run("active_share > 0 when differ", test_active_share_positive_and_bounded_when_differ)
-    run("cash buffer from target", test_cash_buffer_from_target)
-    run("atomic write + no tmp left", test_atomic_write_and_no_tmp_left)
-    run("smoke real data", test_smoke_real_data)
-    run("all outputs finite", test_all_finite_outputs)
-    run("weights sorted descending", test_weights_sorted_descending)
-    print(f"\n{PASS} passed, {FAIL} failed")
-    return 1 if FAIL else 0
+    def test_run_writes(self):
+        self._good()
+        doc = ca.build_status_doc(data_dir=self.data_dir)
+        out = ca.write_status(doc, data_dir=self.data_dir)
+        self.assertTrue(out["changed"])
+        path = self.data_dir / ca.STATUS_FILENAME
+        self.assertTrue(path.exists())
+        loaded = json.loads(path.read_text())
+        self.assertEqual(loaded["source"], ca.SOURCE_NAME)
+        self.assertIn("history", loaded)
+        self.assertEqual(len(loaded["history"]), 1)
+
+    def test_run_twice_byte_identical(self):
+        self._good()
+        doc1 = ca.build_status_doc(data_dir=self.data_dir,
+                                   now=datetime(2026, 6, 12, tzinfo=timezone.utc))
+        ca.write_status(doc1, data_dir=self.data_dir)
+        path = self.data_dir / ca.STATUS_FILENAME
+        bytes1 = path.read_bytes()
+        md1 = hashlib.md5(bytes1).hexdigest()
+        # second run, DIFFERENT timestamp — content unchanged → no rewrite
+        doc2 = ca.build_status_doc(data_dir=self.data_dir,
+                                   now=datetime(2026, 6, 13, tzinfo=timezone.utc))
+        out2 = ca.write_status(doc2, data_dir=self.data_dir)
+        self.assertFalse(out2["changed"])
+        self.assertEqual(path.read_bytes(), bytes1)
+        self.assertEqual(hashlib.md5(path.read_bytes()).hexdigest(), md1)
+
+    def test_history_does_not_grow_on_idempotent(self):
+        self._good()
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir,
+                        now=datetime(2026, 6, 12, tzinfo=timezone.utc)),
+                        data_dir=self.data_dir)
+        path = self.data_dir / ca.STATUS_FILENAME
+        n1 = len(json.loads(path.read_text())["history"])
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir,
+                        now=datetime(2026, 7, 1, tzinfo=timezone.utc)),
+                        data_dir=self.data_dir)
+        n2 = len(json.loads(path.read_text())["history"])
+        self.assertEqual(n1, n2)
+
+    def test_generated_at_stable_when_unchanged(self):
+        self._good()
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir,
+                        now=datetime(2026, 6, 12, tzinfo=timezone.utc)),
+                        data_dir=self.data_dir)
+        path = self.data_dir / ca.STATUS_FILENAME
+        ga1 = json.loads(path.read_text())["meta"]["generated_at"]
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir,
+                        now=datetime(2026, 7, 1, tzinfo=timezone.utc)),
+                        data_dir=self.data_dir)
+        ga2 = json.loads(path.read_text())["meta"]["generated_at"]
+        self.assertEqual(ga1, ga2)
+
+    def test_history_grows_on_change(self):
+        self._good()
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir,
+                        now=datetime(2026, 6, 12, tzinfo=timezone.utc)),
+                        data_dir=self.data_dir)
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 5000.0, "is_demo": False,
+            "positions": {"aave_v3": 95000.0},
+        })
+        out2 = ca.write_status(ca.build_status_doc(data_dir=self.data_dir,
+                               now=datetime(2026, 6, 13, tzinfo=timezone.utc)),
+                               data_dir=self.data_dir)
+        self.assertTrue(out2["changed"])
+        loaded = json.loads((self.data_dir / ca.STATUS_FILENAME).read_text())
+        self.assertEqual(len(loaded["history"]), 2)
+
+    def test_history_rotation_exactly_500(self):
+        self._good()
+        path = self.data_dir / ca.STATUS_FILENAME
+        seed = {"history": [{"generated_at": f"t{i}"} for i in range(600)]}
+        path.write_text(json.dumps(seed), encoding="utf-8")
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir),
+                        data_dir=self.data_dir)
+        loaded = json.loads(path.read_text())
+        self.assertEqual(len(loaded["history"]), ca.HISTORY_MAX)
+        self.assertEqual(ca.HISTORY_MAX, 500)
+
+    def test_no_tmp_leftovers(self):
+        self._good()
+        ca.write_status(ca.build_status_doc(data_dir=self.data_dir),
+                        data_dir=self.data_dir)
+        leftovers = list(self.data_dir.glob("*.tmp")) + \
+            list(self.data_dir.glob(".*tmp"))
+        self.assertEqual(leftovers, [])
+
+    def test_broken_prior_status_tolerated(self):
+        self._good()
+        path = self.data_dir / ca.STATUS_FILENAME
+        path.write_text("{broken", encoding="utf-8")
+        out = ca.write_status(ca.build_status_doc(data_dir=self.data_dir),
+                              data_dir=self.data_dir)
+        self.assertTrue(out["changed"])
+        loaded = json.loads(path.read_text())
+        self.assertEqual(len(loaded["history"]), 1)
+
+    def test_fingerprint_excludes_volatile(self):
+        a = {"meta": {"generated_at": "2026-01-01"}, "verdict": "ok",
+             "history": [1, 2]}
+        b = {"meta": {"generated_at": "2099-12-31"}, "verdict": "ok",
+             "history": [9]}
+        self.assertEqual(ca.content_fingerprint(a), ca.content_fingerprint(b))
+
+    def test_fingerprint_detects_content_change(self):
+        a = {"meta": {"generated_at": "x"}, "verdict": "ok"}
+        b = {"meta": {"generated_at": "x"}, "verdict": "fail"}
+        self.assertNotEqual(ca.content_fingerprint(a), ca.content_fingerprint(b))
+
+    def test_fingerprint_invalid(self):
+        self.assertEqual(ca.content_fingerprint("not a dict"), "<invalid>")
+
+    def test_history_entry_uses_deployed_index(self):
+        self._good()
+        doc = ca.build_status_doc(data_dir=self.data_dir)
+        entry = ca._history_entry(doc)
+        self.assertEqual(entry["hhi_protocol_index"],
+                         doc["hhi_protocol_deployed_index"])
+        self.assertIn("effective_num_positions", entry)
+        self.assertIn("top1_share", entry)
+
+
+# ─── CLI ─────────────────────────────────────────────────────────────────────
+
+
+class TestCLI(_TmpBase):
+    def _good(self):
+        _write_positions(self.data_dir, {
+            "capital_usd": 100000.0, "cash_usd": 5000.0, "is_demo": False,
+            "positions": {"aave_v3": 31529.27, "compound_v3": 30220.72,
+                          "yearn_v3": 11436.6, "euler_v2": 10376.79,
+                          "maple": 11436.6},
+        })
+        _write_orch(self.data_dir, _orch({
+            "aave_v3": "T1", "compound_v3": "T1",
+            "yearn_v3": "T2", "euler_v2": "T2", "maple": "T2"}))
+
+    def test_check_default_exit0_valid_json(self):
+        self._good()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = ca.main(["--check", "--data-dir", str(self.data_dir)])
+        self.assertEqual(rc, 0)
+        doc = json.loads(out.getvalue())
+        self.assertEqual(doc["source"], ca.SOURCE_NAME)
+        self.assertIn("verdict", doc)
+
+    def test_default_is_check(self):
+        self._good()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = ca.main(["--data-dir", str(self.data_dir)])
+        self.assertEqual(rc, 0)
+        json.loads(out.getvalue())
+
+    def test_check_does_not_write(self):
+        self._good()
+        before = sorted(p.name for p in self.data_dir.iterdir())
+        with contextlib.redirect_stdout(io.StringIO()):
+            ca.main(["--check", "--data-dir", str(self.data_dir)])
+        after = sorted(p.name for p in self.data_dir.iterdir())
+        self.assertEqual(before, after)
+        self.assertNotIn(ca.STATUS_FILENAME, after)
+
+    def test_run_writes_exit0(self):
+        self._good()
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = ca.main(["--run", "--data-dir", str(self.data_dir)])
+        self.assertEqual(rc, 0)
+        self.assertTrue((self.data_dir / ca.STATUS_FILENAME).exists())
+
+    def test_run_twice_idempotent(self):
+        self._good()
+        with contextlib.redirect_stdout(io.StringIO()):
+            ca.main(["--run", "--data-dir", str(self.data_dir)])
+        path = self.data_dir / ca.STATUS_FILENAME
+        b1 = path.read_bytes()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            ca.main(["--run", "--data-dir", str(self.data_dir)])
+        self.assertEqual(path.read_bytes(), b1)
+        self.assertIn("idempotent", out.getvalue())
+
+    def test_empty_data_dir_exit0(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = ca.main(["--check", "--data-dir", str(self.data_dir)])
+        self.assertEqual(rc, 0)
+
+    def test_junk_arg_exit0_no_traceback(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            rc = ca.main(["--frobnicate"])
+        self.assertEqual(rc, 0)
+        self.assertIn("ERROR", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+
+    def test_check_run_conflict_exit0(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            rc = ca.main(["--check", "--run"])
+        self.assertEqual(rc, 0)
+        self.assertIn("ERROR", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+
+    def test_run_no_tmp_leftover_after_cli(self):
+        self._good()
+        with contextlib.redirect_stdout(io.StringIO()):
+            ca.main(["--run", "--data-dir", str(self.data_dir)])
+        self.assertEqual(list(self.data_dir.glob("*.tmp")), [])
+
+    def test_subprocess_check_exit0(self):
+        self._good()
+        proc = subprocess.run(
+            [sys.executable, "-m",
+             "spa_core.paper_trading.concentration_analytics",
+             "--check", "--data-dir", str(self.data_dir)],
+            cwd=str(_REPO_ROOT), capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 0)
+        json.loads(proc.stdout)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_subprocess_junk_arg_exit0(self):
+        proc = subprocess.run(
+            [sys.executable, "-m",
+             "spa_core.paper_trading.concentration_analytics",
+             "--no-such-flag"],
+            cwd=str(_REPO_ROOT), capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 0)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertIn("ERROR", proc.stderr)
+
+
+# ─── Hygiene / reuse ─────────────────────────────────────────────────────────
+
+
+class TestHygiene(unittest.TestCase):
+    def _module_source(self):
+        return (_REPO_ROOT / "spa_core" / "paper_trading"
+                / "concentration_analytics.py").read_text(encoding="utf-8")
+
+    def _test_source(self):
+        return (_REPO_ROOT / "spa_core" / "tests"
+                / "test_concentration_analytics.py").read_text(encoding="utf-8")
+
+    def test_no_forbidden_imports_via_ast(self):
+        from spa_core.ci.llm_forbidden_lint import find_forbidden_imports
+        src = self._module_source()
+        self.assertEqual(
+            find_forbidden_imports(src, "concentration_analytics.py"), []
+        )
+
+    def test_test_file_clean(self):
+        from spa_core.ci.llm_forbidden_lint import find_forbidden_imports
+        src = self._test_source()
+        self.assertEqual(
+            find_forbidden_imports(src, "test_concentration_analytics.py"), []
+        )
+
+    def test_no_network_imports_ast(self):
+        src = self._module_source()
+        tree = ast.parse(src)
+        banned = {"requests", "web3", "socket", "urllib", "pandas", "numpy"}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    top = alias.name.split(".")[0]
+                    self.assertNotIn(top, banned, alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    top = node.module.split(".")[0]
+                    self.assertNotIn(top, banned, node.module)
+
+    def test_reuses_build_exposure(self):
+        src = self._module_source()
+        self.assertIn(
+            "from spa_core.reporting.tear_sheet import build_exposure", src
+        )
+
+    def test_constants_present(self):
+        self.assertEqual(ca.HHI_MODERATE_FLOOR, 1500)
+        self.assertEqual(ca.HHI_CONCENTRATED_FLOOR, 2500)
+        self.assertEqual(ca.MAX_SINGLE_POSITION_SHARE, 0.40)
+        self.assertEqual(ca.SCHEMA_VERSION, 1)
+        self.assertEqual(ca.SOURCE_NAME, "concentration_analytics")
+        self.assertEqual(ca.STATUS_FILENAME, "concentration_analytics.json")
+        self.assertEqual(ca.HISTORY_MAX, 500)
+
+    def test_public_api_present(self):
+        self.assertTrue(hasattr(ca, "build_concentration"))
+        self.assertTrue(hasattr(ca, "build_status_doc"))
+        self.assertTrue(hasattr(ca, "write_status"))
+        self.assertTrue(hasattr(ca, "content_fingerprint"))
+        self.assertTrue(hasattr(ca, "main"))
+
+    def test_disclaimer_present(self):
+        _tmp = tempfile.mkdtemp(prefix="conc_test_")
+        try:
+            dd = Path(_tmp)
+            _write_positions(dd, {
+                "capital_usd": 100000.0, "cash_usd": 0.0,
+                "positions": {"aave_v3": 100000.0},
+            })
+            r = ca.build_concentration(dd)
+            self.assertEqual(r["disclaimer"], "NOT investment advice")
+            self.assertTrue(r["advisory_only"])
+            self.assertEqual(r["execution_mode"], "read_only")
+        finally:
+            import shutil
+            shutil.rmtree(_tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    unittest.main()
