@@ -1,0 +1,44 @@
+{
+  "overall": "CRITICAL",
+  "checks": {
+    "cycle_gap": {
+      "status": "CRITICAL",
+      "last_cycle_at": "2026-06-12T00:00:00+00:00",
+      "hours_since": 20.862,
+      "threshold_hours": 2.0
+    },
+    "equity_anomaly": {
+      "status": "OK",
+      "today_change_pct": -0.1375,
+      "max_drop_threshold": 5.0,
+      "prev_equity": 100163.78,
+      "curr_equity": 100026.06
+    },
+    "data_freshness": {
+      "status": "OK",
+      "stale_files": [],
+      "fresh_files": [
+        {
+          "file": "market_regime.json",
+          "age_hours": 0.668,
+          "threshold_hours": 4.0
+        },
+        {
+          "file": "adapter_status.json",
+          "age_hours": 1.265,
+          "threshold_hours": 24.0
+        },
+        {
+          "file": "tournament_ranking.json",
+          "age_hours": 0.882,
+          "threshold_hours": 168.0
+        }
+      ],
+      "missing_files": []
+    }
+  },
+  "checked_at": "2026-06-12T20:51:42.918268+00:00",
+  "recommendations": [
+    "CRITICAL: Cycle has not run for over 4 hours. Check launchd com.spa.daily_cycle and /tmp/spa_cycle_err.log."
+  ]
+}
