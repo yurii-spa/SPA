@@ -1,0 +1,27 @@
+{
+  "available": false,
+  "reason": "only 2 daily returns (< 20 required)",
+  "is_demo": false,
+  "upside_potential_ratio": null,
+  "upside_potential": null,
+  "downside_deviation": null,
+  "mar": 0.0,
+  "count_upside": null,
+  "count_downside": null,
+  "count_returns": null,
+  "mean_return": null,
+  "n_observations": 2,
+  "start_date": null,
+  "end_date": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 2 daily returns (< 20 required)",
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T15:17:17.330341+00:00",
+    "schema_version": 1,
+    "source": "upside_potential_ratio",
+    "min_obs_required": 20
+  },
+  "_fingerprint": "{\"available\": false, \"count_downside\": null, \"count_returns\": null, \"count_upside\": null, \"downside_deviation\": null, \"end_date\": null, \"is_demo\": false, \"mar\": 0.0, \"mean_return\": null, \"meta\": {\"min_obs_required\": 20, \"schema_version\": 1, \"source\": \"upside_potential_ratio\"}, \"n_observations\": 2, \"notes\": [], \"reason\": \"only 2 daily returns (< 20 required)\", \"start_date\": null, \"upside_potential\": null, \"upside_potential_ratio\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 2 daily returns (< 20 required)\"}",
+  "history": []
+}
