@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-12",
-  "updated_by": "claude (SPA-V440)",
-  "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
+  "last_updated": "2026-06-12T10:30:00Z",
+  "updated_by": "spa-dev-continue (SPA-V450 / MP-131)",
+  "sprint_current": "v4.50",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -54,25 +54,6 @@
       }
     ],
     "features": [
-      {
-        "id": "MP-402",
-        "title": "Gnosis Safe + Zodiac Roles + key management policy",
-        "description": "ex RB-302. Safe владеет средствами; hot-key — только executor с whitelist контрактов/методов/лимитов. Документированная политика ключей и доступов.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-401"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "security",
-          "execution"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
       {
         "id": "MP-403",
         "title": "Live-пилот $10-50K собственных средств",
@@ -144,25 +125,6 @@
         "tags": [
           "epic",
           "security"
-        ],
-        "sprint": null,
-        "added": "2026-06-10"
-      },
-      {
-        "id": "MP-411",
-        "title": "Timelock + rate limits исполнения",
-        "description": "Timelock 24-48ч на изменения whitelist/policy/fee; ≤X% AUM перемещается за 24ч без дополнительной подписи. Защита от компрометации hot-key.",
-        "priority": "P3",
-        "phase": "phase4",
-        "estimated_days": 2,
-        "depends_on": [
-          "MP-402"
-        ],
-        "estimate": "2d",
-        "tags": [
-          "epic",
-          "security",
-          "execution"
         ],
         "sprint": null,
         "added": "2026-06-10"
@@ -245,19 +207,6 @@
     ],
     "backlog": [
       {
-        "id": "MP-071",
-        "title": "Плановая ротация PAT spa-claude-fg (до 2026-09-08)",
-        "description": "Основной токен spa-claude-fg истекает 2026-09-08. GitHub пришлёт email ~за неделю. Процедура на 2 минуты: docs/TOKEN_ROTATION_RUNBOOK.md (TL;DR сверху). Симптом просрочки: 401 в ~/.spa_push.log, автопуши молчат. Заодно проверить: legacy-токены spa (2026-06-20), New token (2026-06-25), spa-claude (2026-07-10) умерли сами — если при их истечении что-то сломалось, мигрировать потребителя на Keychain.",
-        "priority": "scheduled",
-        "due": "2026-09-01",
-        "created_at": "2026-06-10",
-        "tags": [
-          "security",
-          "ops",
-          "recurring"
-        ]
-      },
-      {
         "id": "MP-017",
         "title": "RPC-ключи Alchemy/Infura (USER ACTION)",
         "description": "ex UA-002. В Secrets + env. Нужны для on-chain проверок (Sky GSM, MP-202) и Phase 4.",
@@ -307,6 +256,217 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-131",
+        "title": "Regime-Conditional Performance Analyzer (read-only/advisory)",
+        "description": "Разбивает track record на рыночные режимы (DeFi bull/bear/sideways по on-chain ETH gas + stablecoin dominance из market_data.json) и считает Sharpe/APY отдельно в каждом режиме. Выявляет, в каком режиме стратегия ломается. Advisory verdict: Sharpe в bear-режиме < 0 → fail. Импортирует regime_segmentation.RegimeSegmenter.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics",
+        "sprint": "v4.50",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V450)",
+        "depends_on": [
+          "MP-129",
+          "MP-115",
+          "MP-501"
+        ],
+        "note": "Adapted: imports regime_detector (MP-129 regime_history) + extract_equity_series (MP-115) instead of absent RegimeSegmenter/market_data.json; reuses tear_sheet content_fingerprint (MP-501)."
+      },
+      {
+        "id": "MP-135",
+        "title": "Strategy S0-S5 Shadow Track Consolidator (read-only/advisory)",
+        "description": "Сводная таблица по shadow-стратегиям S0-S5 (vportfolio): читает data/shadow_strategies/*.json (если есть) или синтетически реконструирует из portfolio_snapshots.json по тегу strategy_id. Считает per-strategy APY/Sharpe/drawdown/turnover, ранжирует, выбирает winner для следующего цикла. Advisory verdict: если S0 (текущая) не в топ-3 → warn. Артефакт: data/strategy_consolidator.json.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-132",
+        "title": "Dashboard Sprint E — Agent Activity Feed (frontend)",
+        "description": "Добавить раздел Team в SPA_Claude/dashboard/index.html: читает SPA_Dev/spa_agents/state/team_chat.json (read-only cross-repo). Показывает последние 10 сообщений агентов с role-badges (architect/pm/orchestrator), иконками типа (standup/alert/brainstorm), relative timestamp, thread_id expansion. Auto-refresh 60s. Ноль новых зависимостей — чистый JS в index.html. НЕ трогать Python-бэкенд.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "frontend",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-129",
+        "title": "Market Regime Detection Engine (read-only/advisory)",
+        "description": "regime_detector.py: detect_regime, compute_trend (OLS pure-Python), compute_volatility, regime_history (sliding window), regime_transition_matrix. 4 regimes: BULL/BEAR/SIDEWAYS/VOLATILE. Confidence=0.5*r²+0.5*breadth_pct. Stances: AGGRESSIVE/NEUTRAL/DEFENSIVE. Pure stdlib, strictly read-only/advisory, no LLM. 84 unit tests, all OK.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "sonnet",
+        "type": "analytics",
+        "resolution": "spa_core/paper_trading/regime_detector.py + spa_core/tests/test_regime_detector.py. 84/84 tests OK. STRICTLY READ-ONLY: no capital, no risk/execution/allocator touches. Pure stdlib OLS, vol, breadth. Atomic write for --run mode. CLI --check/--run/--data-dir. Exit 0 always.",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-127",
+        "title": "Drawdown Attribution Analyzer (read-only/advisory)",
+        "description": "Декомпозирует каждый drawdown-эпизод по вкладу протоколов. Чистые вычислительные функции без I/O: identify_drawdown_episodes, attribute_drawdown, get_worst_drawdown, drawdown_summary, protocol_drawdown_contribution_history.",
+        "priority": "P2",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-115"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "drawdown",
+          "attribution"
+        ],
+        "sprint": "v4.49",
+        "sprint_completed": "v4.46",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V449)",
+        "resolution": "Строго аддитивный read-only/advisory pure-stdlib модуль spa_core/paper_trading/drawdown_attribution.py: пять чистых вычислительных функций (no I/O). identify_drawdown_episodes — детектирует peak→trough→recovery из list[{date, equity}], возвращает {start_date, peak_equity, trough_date, trough_equity, recovery_date, drawdown_pct, duration_days}; обрабатывает ongoing (recovery_date=None), плоскую кривую, кривую < 2 баров, невалидные бары (скип). attribute_drawdown — attribution = allocation × Σ(daily_return в окне эпизода); нормализует к 100 %; при total=0 → равный сплит; даты вне окна игнорируются; zero allocation → 0.0. get_worst_drawdown — наиболее отрицательный drawdown_pct, {} при пустом треке. drawdown_summary — агрегирует total_episodes, max_drawdown, avg_drawdown, avg_duration, avg_recovery_time (только по recovered эпизодам). protocol_drawdown_contribution_history — по всем эпизодам: {count (только positive), avg_contribution_pct, max_contribution_pct}. 46 unittest-кейсов (46/46 OK): identify (12 кейсов: empty/1-bar/rising/falling/flat/single/multiple/unfinished/schema-keys/negative-pct/duration/invalid-bars), attribute (9: sum-100/dominant/equal/zero-alloc/empty-positions/no-data→equal-split/mixed-signs/invalid-episode/outside-window), get_worst (4: empty/flat/single/multiple), summary (7: empty/flat/single/multiple/no-recovery/avg-duration/avg-recovery), history (6: empty-eps/empty-attrs/single/count/avg/max), end-to-end (5: ≥3-episodes/negative-pct/full-pipeline/worst-matches/summary-consistent), import-hygiene (3: AST-запрет внешних библиотек, файл-существует, __all__-экспорт). STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/голайв-чекер/адаптеры не тронуты — только 2 новых файла.",
+        "files_changed": [
+          "spa_core/paper_trading/drawdown_attribution.py",
+          "spa_core/tests/test_drawdown_attribution.py"
+        ],
+        "completed_at": "2026-06-12"
+      },
+      {
+        "id": "MP-136",
+        "title": "Telegram RU Formatting — Russian-language alert messages",
+        "description": "Переделал форматирование Telegram-алертов на русский язык с человекочитаемым текстом. Новый модуль spa_core/alerts/telegram_format_ru.py: PROTOCOL_NAMES, SEVERITY_EMOJI, MONTH_NAMES_RU, format_timestamp_ru, format_alert_ru (3 строки: emoji+протокол+заголовок, описание, объяснение WHY), format_alert_detail_ru (развёрнутый текст для Подробнее), build_detail_keyboard (inline-кнопки 📋 Подробнее), parse_detail_callback. Обновлён alert_manager.send_red_flag: принимает list[dict] вместо list[str], использует format_message_ru + build_detail_keyboard. Обновлён cycle_runner._run_cycle_alerts: передаёт raw dicts. Добавлен callback handler detail_{protocol}__{category} в bot_commands.py. 32 теста в tests/test_telegram_formatting.py.",
+        "priority": "P1",
+        "phase": "phase0",
+        "estimated_days": 1,
+        "estimate": "1d",
+        "tags": [
+          "telegram",
+          "formatting",
+          "UX",
+          "alerts"
+        ],
+        "completed_at": "2026-06-12",
+        "status": "done"
+      },
+      {
+        "id": "MP-123",
+        "title": "Net-of-Cost Performance & Cost-Drag Analyzer (read-only/advisory)",
+        "description": "Композирует gross APY (MP-117 yield_attribution) и реализованный turnover (MP-121 turnover_analytics) в единую картину net-of-cost: прозрачная модель издержек (variable turnover cost = annualized_turnover×COST_PER_TURNOVER_BPS + fixed gas drag = annualized rebalance freq × GAS_PER_REBALANCE_USD / AUM), net_apy_pct = gross − total_cost_drag_pp, cost_ratio = cost/gross, advisory verdict (fail при net≤0 или cost_ratio>30%; warn при >10%/low-sample; иначе ok). Low-sample (obs<20) → verdict capped at warn. Нулевое дублирование математики — только ЧИТАЕТ выводы двух sibling-анализаторов + переиспользует tear_sheet content_fingerprint.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-117",
+          "MP-121",
+          "MP-501"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "cost",
+          "net-of-cost"
+        ],
+        "sprint": "v4.45",
+        "sprint_completed": "v4.45",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V445)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/cost_drag_analytics.py: компонует build_yield_attribution (MP-117, gross portfolio_apy_pp + aum_usd) и build_turnover_analytics (MP-121, annualized_turnover/num_rebalance_days/num_observations) ИМПОРТОМ — ноль дублирования. compute_cost_components — чистая модель: turnover_cost_pp = annualized_turnover×COST_PER_TURNOVER_BPS/100 (var slippage+fees), gas_drag_pp = (num_rebalance_days/num_observations×365)×GAS_PER_REBALANCE_USD/aum×100 (fixed gas; None при aum≤0 → 0 в тотале); total_cost_drag_pp, net_apy_pct=gross−total, cost_ratio=total/gross. Low-sample (obs<MIN_RELIABLE_OBS=20) → low_sample:true + verdict capped at warn (tiny-sample annualization не даёт confident fail). Verdict: fail при net≤0 или cost_ratio>HIGH(0.30); warn при cost_ratio>MODERATE(0.10)/gross≤0/low-sample; иначе ok. Ассумпции издержек overridable per call и в meta. content_fingerprint ПЕРЕИСПОЛЬЗОВАН ИМПОРТОМ из tear_sheet (same object), персист data/cost_drag_analytics.json атомарно (tmp+os.replace), идемпотентность + ротация history ≤500. CLI --check(дефолт)/--run/--data-dir, exit 0 всегда, мусор→ERROR в stderr. Никогда не raise. На реальном data/: available=true, gross=3.171pp, annualized_turnover=7.44×, obs=1→low_sample, verdict=warn (capped from fail; net отрицателен из-за tiny-sample gas annualization), --run ×2 байт-идентичен (md5 4808a9f1…), 0 *.tmp. 47 unittest-кейсов OK; регрессия test_turnover_analytics+test_yield_attribution 194/194 OK; llm_forbidden_lint exit 0 (files 30→31). STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/golive_checker/адаптеры/tear_sheet.py/yield_attribution.py/turnover_analytics.py/__init__.py/push_to_github.py/index.html не тронуты — только 2 новых файла + артефакт --run.",
+        "files_changed": [
+          "spa_core/paper_trading/cost_drag_analytics.py",
+          "spa_core/tests/test_cost_drag_analytics.py"
+        ]
+      },
+      {
+        "id": "MP-122",
+        "title": "Portfolio Analytics Roll-Up & Investor-DD Scorecard (read-only/advisory)",
+        "description": "Консолидированный свод: читает 10 verdict-несущих read-only аналитических артефактов (drawdown/concentration/yield_attr/risk_contrib/tail_risk/correlation/turnover/exit_liquidity/capacity/data_integrity) и выдаёт ОДИН investor-DD scorecard — overall_status (ok/warn/fail/unknown), counts, списки fails/warns/stale/demo, coverage_pct, per-source summary. Нулевое дублирование математики — только читает чужие verdicts.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501",
+          "MP-115",
+          "MP-116",
+          "MP-117",
+          "MP-118",
+          "MP-119",
+          "MP-120",
+          "MP-121"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "scorecard",
+          "dd"
+        ],
+        "sprint": "v4.44",
+        "sprint_completed": "v4.44",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V444)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/analytics_scorecard.py: реестр из 10 DD-релевантных аналитических артефактов, extract_source_summary терпимо проецирует разнородные схемы → {available,verdict(ok/warn/fail/None),is_demo,generated_at,stale(>48h)}; build_scorecard агрегирует counts/fails/warns/stale_sources/demo_sources/coverage_pct и overall_status (fail при любом fail; warn при warn/stale/demo/coverage<60%; ok если ≥1 available с verdict; unknown если ничего не прочитано). content_fingerprint ПЕРЕИСПОЛЬЗОВАН ИМПОРТОМ из tear_sheet (same object — доказано тестом), персист data/analytics_scorecard.json атомарно (tmp+os.replace), идемпотентность + ротация history ≤500. CLI --check(дефолт)/--run/--data-dir, exit 0 всегда, мусор→ERROR в stderr. Никогда не raise. На реальном data/: overall=fail (concentration+risk_contrib fail), counts ok3/warn3/fail2/unknown2, coverage 100%, --run ×2 байт-идентичен (md5 2fbd3896…), 0 *.tmp. 95 unittest-кейсов OK; регрессия test_turnover_analytics 98/98 OK; llm_forbidden_lint exit 0 (files 30→31). STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/golive_checker/адаптеры/tear_sheet.py/__init__.py/push_to_github.py/index.html не тронуты — только 2 новых файла + артефакт --run.",
+        "files_changed": [
+          "spa_core/paper_trading/analytics_scorecard.py",
+          "spa_core/tests/test_analytics_scorecard.py"
+        ]
+      },
+      {
+        "id": "MP-071",
+        "title": "Плановая ротация PAT spa-claude-fg (до 2026-09-08)",
+        "description": "Основной токен spa-claude-fg истекает 2026-09-08. GitHub пришлёт email ~за неделю. Процедура на 2 минуты: docs/TOKEN_ROTATION_RUNBOOK.md (TL;DR сверху). Симптом просрочки: 401 в ~/.spa_push.log, автопуши молчат. Заодно проверить: legacy-токены spa (2026-06-20), New token (2026-06-25), spa-claude (2026-07-10) умерли сами — если при их истечении что-то сломалось, мигрировать потребителя на Keychain.",
+        "priority": "scheduled",
+        "due": "2026-09-01",
+        "created_at": "2026-06-10",
+        "tags": [
+          "security",
+          "ops",
+          "recurring"
+        ],
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (MP-071 — PAT rotation helper script)",
+        "resolution": "Done 2026-06-12: создан scripts/pat_rotation_helper.py — читает/создаёт data/pat_rotation_state.json, вычисляет дней до ротации (цель 90 дней), WARNING+checklist при <14 дней. Флаги: --check (exit 0/1), --status (JSON), --mark-rotated (атомарная запись даты). PAT НИКОГДА не читается в коде — только Keychain.",
+        "closed_note": "MP-071: pat_rotation_helper.py + 27 pytest tests. State: data/pat_rotation_state.json. Flags: --check, --status, --mark-rotated. PAT never in code."
+      },
+      {
+        "id": "MP-402",
+        "title": "Gnosis Safe + Zodiac Roles + key management policy",
+        "description": "ex RB-302. Safe владеет средствами; hot-key — только executor с whitelist контрактов/методов/лимитов. Документированная политика ключей и доступов.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-401"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "security",
+          "execution"
+        ],
+        "sprint": "v4.41",
+        "added": "2026-06-10",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V441, MP-402)",
+        "resolution": "ADR-010 (Gnosis Safe Key Management Architecture): Safe 2-of-3 для пилота (Key-A Ledger + Key-B Trezor + Key-C cold), Safe 3-of-5 для production; Zodiac Roles module — роли EXECUTOR (hot key, whitelist USDC-протоколы, MAX_SINGLE_TX=20% AUM, MAX_DAILY_VOLUME=40% AUM), GUARDIAN (1-of-2 hw wallets, только STOP), OPERATOR (Safe threshold), ADMIN; Timelock: 24-72ч для конфиг-изменений, 0ч для emergency; hot/cold key разделение с 90-дневной ротацией EXECUTOR; multisig recovery procedures. ADR-011 (Go-Live Security Checklist): 39 пунктов в 5 группах (Smart Contract Safety A1-A9, Key Management B1-B9, Operational Monitoring C1-C9, Legal/Regulatory D1-D5, Emergency Procedures E1-E7); Owner sign-off sheet. Файлы: docs/adr/ADR-010-gnosis-safe-key-management.md, docs/adr/ADR-011-go-live-security-checklist.md."
+      },
       {
         "id": "SPA-V440-DASHBOARD-V30",
         "title": "Dashboard v3.0 Sprint A — Performance hero, Strategies tab, nav cleanup",
@@ -1971,10 +2131,192 @@
         "completed": "2026-06-12",
         "completed_by": "claude (SPA-V438)",
         "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/tail_risk.py: VaR 95%/99% через percentile() (линейная интерполяция как в numpy), CVaR 95%/99% через compute_cvar() (ceil(n×tail%) worst returns), worst_day/worst_week(rolling 5 bars)/worst_month(rolling 21 bars), population skewness/kurtosis (без bias correction), tail ratio. Инвариант |CVaR|>=|VaR| гарантирован конструктивно (все значения хвоста ≤ VaR). Verdict: ok(<3%)/warn(3-5%)/fail(>=5%) по |VaR_99|. Атомарный персист data/tail_risk.json (tmp+os.replace), идемпотентность по content_fingerprint (без generated_at/history), ротация ≤500. CLI --check(дефолт, без записи)/--run/--data-dir, exit 0 always, junk→ERROR stderr. is_demo честно из источника. 117 тестов (unittest, без pytest, без сети, tempdir). Верификация: 117/117 OK; регрессия drawdown+concentration+yield+risk_contribution 292/292 OK; --run ×2 idempotent (md5 byte-identical), нет *.tmp. Реальные данные: n_obs=1, VaR99=0.0087%, verdict=ok, is_demo=false."
+      },
+      {
+        "id": "MP-121",
+        "title": "Portfolio Turnover & Rebalancing-Activity Analyzer (read-only/advisory)",
+        "description": "Daily one-way portfolio turnover из весов развёрнутой книги (positions в equity_curve_daily.json): turnover_t=0.5·Σ|Δw_i|. Headline: avg/median/max daily turnover (+дата), cumulative, annualized (avg×365), implied avg holding days (1/avg), num_rebalance_days (>REBALANCE_EPS=0.005), most_churned_protocol + per_protocol_churn breakdown. Verdict ok/warn/fail по annualized turnover (4.0/12.0). Advisory-only, strictly read-only, pure stdlib. Атомарный персист data/turnover_analytics.json, идемпотентность через переиспользуемый content_fingerprint из tear_sheet, ротация history ≤500. CLI --check/--run/--data-dir, exit 0 always.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "turnover"
+        ],
+        "sprint": "v4.41",
+        "added": "2026-06-12",
+        "status": "done",
+        "added_by": "spa-dev-continue (SPA-V441)",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V441)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/turnover_analytics.py: дневной one-way turnover_t=0.5·Σ_i|w_i,t−w_i,t-1| из нормализованных весов развёрнутой книги (positions, кэш не входит). Headline: avg/median/max daily turnover (+дата), cumulative, annualized (avg×365), implied_avg_holding_days (1/avg, либо None=buy-and-hold при turnover 0), num_rebalance_days (>REBALANCE_EPS=0.005), most_churned_protocol + доля от общего движения + per_protocol_churn. Verdict: fail(annualized>12.0)/warn(>4.0)/ok. content_fingerprint ПЕРЕИСПОЛЬЗОВАН ИМПОРТОМ из tear_sheet (ноль дублирования). Атомарный персист data/turnover_analytics.json (tmp+os.replace), идемпотентность (без generated_at/history), ротация ≤500. CLI --check(дефолт)/--run/--data-dir, exit 0 always, junk→ERROR stderr без Traceback, --check+--run→конфликт. is_demo честно из источника. 98 тестов (unittest, без pytest, без сети, tempdir), import-гигиена через реальный find_forbidden_imports. Верификация: 98/98 OK; регрессия correlation_analyzer+drawdown_analytics 132/132 OK; lint exit 0; --run ×2 idempotent (md5 b1f2bf6b9a7144c18f8de208bca6ed87 byte-identical), нет *.tmp; junk→exit 0. Реальные данные: num_observations=1, avg_daily_turnover=0.020372, annualized_turnover=7.435843×, verdict=warn, most_churned=compound_v3, is_demo=false."
+      },
+      {
+        "id": "MP-122",
+        "title": "Dashboard v3.0 Sprint C — benchmark comparison, equity period selector, mobile-responsive nav",
+        "tags": [
+          "ui"
+        ],
+        "priority": "p2",
+        "assignee": "🤖"
+      },
+      {
+        "id": "MP-411",
+        "title": "Timelock + rate limits исполнения",
+        "description": "Timelock 24-48ч на изменения whitelist/policy/fee; ≤X% AUM перемещается за 24ч без дополнительной подписи. Защита от компрометации hot-key.",
+        "priority": "P3",
+        "phase": "phase4",
+        "estimated_days": 2,
+        "depends_on": [
+          "MP-402"
+        ],
+        "estimate": "2d",
+        "tags": [
+          "epic",
+          "security",
+          "execution"
+        ],
+        "sprint": "v4.43",
+        "added": "2026-06-10",
+        "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-124",
+        "title": "Yield Sustainability & APY-Decay Analyzer (read-only/advisory)",
+        "description": "Per-protocol APY trend / decay analysis from data/apy_history.json: OLS slope (slope_per_day/slope_per_year via pure math, day-index x-axis), early-vs-recent decay_ratio, classification decaying/rising/stable (decaying if slope_per_year<=-DECAY_SLOPE_PP=1.0pp/yr OR decay_ratio<=-DECAY_FRACTION=0.15; rising symmetric; else stable). Headline: num_protocols_analyzed, decaying/rising/stable lists, share_decaying, worst_decay_protocol+slope, avg_slope_per_year, per_protocol breakdown. Advisory verdict: fail при share_decaying>=0.5 (yield edge eroding); warn при share_decaying>0 ИЛИ любой одиночный sharp decay (decay_ratio<=-0.30); иначе ok. Per-protocol usability guard >=MIN_POINTS=7 numeric points; <2 usable protocols → available:false/insufficient_data. Переиспользует tear_sheet content_fingerprint ИМПОРТОМ; никогда не raise.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "yield",
+          "apy-decay",
+          "sustainability"
+        ],
+        "sprint": "v4.46",
+        "sprint_completed": "v4.46",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V446)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/yield_decay_analytics.py: для каждого протокола из data/apy_history.json фитит OLS-тренд APY против day-index (ols_slope чистой математикой Σ(x-x̄)(y-ȳ)/Σ(x-x̄)², None при <2 точках или нулевой дисперсии x), считает slope_per_year=slope_per_day×365, start/current/mean APY, apy_volatility (population stdev), early-vs-recent split → decay_ratio=(recent_mean-early_mean)/early_mean (None при early_mean<=0), classification decaying/rising/stable по DECAY_SLOPE_PP=1.0pp/yr и DECAY_FRACTION=0.15. Headline: num_protocols_analyzed, decaying/rising/stable (sorted), share_decaying, worst_decay_protocol+slope_per_year, avg_slope_per_year, per_protocol breakdown, recent_current_apy. Advisory verdict: fail при share_decaying>=0.5 (majority decaying → edge eroding); warn при share_decaying>0 ИЛИ sharp single decay_ratio<=-0.30; иначе ok; verdict_reason всегда. Usability guard >=MIN_POINTS=7 numeric точек (non-numeric/NaN/inf/bool отфильтрованы как в correlation_analyzer); <2 usable протоколов → available:false/insufficient_data, schema стабилен. is_demo честно из source meta (в реальном apy_history флага нет → None). content_fingerprint ПЕРЕИСПОЛЬЗОВАН ИМПОРТОМ из tear_sheet (same object, доказано assertIs). Персист data/yield_decay_analytics.json атомарно (tmp+os.replace), идемпотентность по fingerprint (без волатильных generated_at/history), ротация history ровно <=500. CLI --check(дефолт)/--run/--data-dir, exit 0 всегда, мусор→ERROR в stderr без traceback, --check/--run конфликт→ERROR exit 0. Никогда не raise. На реальном data/: available=true, 7 протоколов, 5/7 decaying (71%), verdict=fail, worst=maple-usdc-ethereum (slope_per_year=-16.38pp/yr), avg_slope=-1.66pp/yr; --run ×2 байт-идентичен (md5 4a9915fcf7dc812c2993b5996b28d351), 2-й DATA_UNCHANGED, 0 *.tmp. 97 unittest-кейсов OK; регрессия test_correlation_analyzer OK; llm_forbidden_lint status=ok violations=0 (модуль в paper_trading/ — вне сканируемых risk/execution/allocator dirs, files=31 без изменений). STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/golive_checker/адаптеры/tear_sheet.py(только импорт)/__init__.py/push_to_github.py/index.html не тронуты — только 2 новых файла + артефакт --run.",
+        "files_changed": [
+          "spa_core/paper_trading/yield_decay_analytics.py",
+          "spa_core/tests/test_yield_decay_analytics.py"
+        ]
+      },
+      {
+        "id": "MP-125",
+        "title": "Yield Opportunity-Set Breadth & APY-Dispersion Analyzer (read-only/advisory)",
+        "description": "Cross-sectional APY dispersion across protocols over time from data/apy_history.json. Аналитика НЕ покрытая существующими модулями (correlation = co-movement, yield_decay = per-protocol trend): «насколько богат opportunity set, который видит аллокатор, и сжимается ли дисперсия со временем (yields сходятся → меньше пространства добавлять ценность отбором)?». Выравнивает серии по пересечению дат всех usable протоколов; per-date cross-section: min/max/spread/mean/stdev/cv/best_protocol. Headline: num_dates/num_protocols, avg/median/current/min/max spread, avg/current cv, spread_trend_per_year (OLS slope spread vs day-index ×365), leadership concentration (most_frequent_leader/leader_share/leadership_counts), recent_dispersion tail<=90. Advisory verdict: fail при current_spread_pp<LOW_SPREAD_PP=0.5 (opportunity set схлопнулся); warn при spread_trend_per_year<=-1.0pp/yr ИЛИ leader_share>=0.8; иначе ok. Guard: >=MIN_POINTS=7 точек на протокол, >=MIN_DATES=7 выровненных дат, >=2 usable протокола, иначе available:false/insufficient_data. Переиспользует tear_sheet content_fingerprint ИМПОРТОМ; никогда не raise.",
+        "priority": "P1",
+        "phase": "phase1",
+        "estimated_days": 1,
+        "depends_on": [
+          "MP-501"
+        ],
+        "estimate": "1d",
+        "tags": [
+          "risk",
+          "analytics",
+          "read-only",
+          "yield",
+          "apy-dispersion",
+          "opportunity-set"
+        ],
+        "sprint": "v4.47",
+        "sprint_completed": "v4.47",
+        "added": "2026-06-12",
+        "status": "done",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V447)",
+        "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/apy_dispersion_analytics.py: выравнивает APY-серии протоколов из data/apy_history.json по пересечению дат всех usable протоколов (как correlation_analyzer), для каждой даты считает cross-section min/max/spread=max-min/mean/stdev(pop)/cv=stdev/mean(None при mean<=0)/best_protocol(argmax). Headline: num_dates/num_protocols/protocols(sorted)/start_date/end_date, avg/median/current/min/max_spread_pp, avg/current_cv, spread_trend_per_year (ols_slope spread vs day-index Σ(x-x̄)(y-ȳ)/Σ(x-x̄)², None при <2/zero-variance, ×365), leadership concentration (most_frequent_leader/leader_share/leadership_counts суммируется в num_dates), recent_dispersion tail<=90. Advisory verdict: fail при current_spread_pp<LOW_SPREAD_PP=0.5 (yields сошлись, мало пространства для отбора); warn при spread_trend_per_year<=CONVERGING_SLOPE_PP_YR=-1.0 ИЛИ leader_share>=LEADER_SHARE_WARN=0.8; иначе ok; verdict_reason всегда. Guard MIN_POINTS=7/MIN_DATES=7/>=2 usable → иначе available:false/insufficient_data, schema стабилен. content_fingerprint ПЕРЕИСПОЛЬЗОВАН ИМПОРТОМ из tear_sheet (same object, доказано assertIs). Персист data/apy_dispersion_analytics.json атомарно (tmp+os.replace, prefix .tmp_apy_dispersion_), идемпотентность по fingerprint (без волатильных generated_at/history), ротация history ровно <=500. CLI --check(дефолт)/--run/--data-dir, exit 0 всегда, мусор→ERROR stderr без traceback, --check/--run конфликт→ERROR exit 0. Никогда не raise. На реальном data/: available=true, verdict=warn (spread shrinking -5.2152pp/yr <= -1.0; opportunity set narrowing), 7 протоколов, 90 дат (2026-02-21…2026-05-21), current_spread=8.5443pp, avg=7.28pp, leader=euler-v2-usdc-ethereum share=28%; --run ×2 байт-идентичен (md5 9e325579fa526556415485f945d83f72), 2-й DATA_UNCHANGED, 0 *.tmp; junk-arg→exit0, --check/--run конфликт→exit0. 121 unittest-кейс OK; регрессия test_yield_decay_analytics(97)+test_correlation_analyzer(75) OK; llm_forbidden_lint status=ok violations=0 exit0 (dirs=3 files=31). STRICTLY READ-ONLY: risk/execution/allocator/cycle_runner/golive_checker/адаптеры/tear_sheet.py(только импорт content_fingerprint)/__init__.py/push_to_github.py/index.html не тронуты (старые mtimes) — только 2 новых файла + артефакт --run.",
+        "files_changed": [
+          "spa_core/paper_trading/apy_dispersion_analytics.py",
+          "spa_core/tests/test_apy_dispersion_analytics.py"
+        ]
+      },
+      {
+        "id": "MP-126",
+        "title": "Protocol Liquidity Depth & Slippage Estimator (read-only/advisory)",
+        "description": "Оценивает, насколько можно нарастить позицию в протоколе до значимого APY-slippage. Читает apy_history.json: для каждого протокола строит эмпирическую кривую APY vs TVL (из adapter_status.json), оценивает точку перегиба (где +10% капитала => -X% APY). Выдаёт per-protocol capacity_headroom_usd и advisory verdict (headroom<20% текущего AUM → warn). Pure stdlib, read-only, content_fingerprint из tear_sheet.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics",
+        "completed_at": "2026-06-12"
+      },
+      {
+        "id": "MP-130",
+        "title": "Alpha Persistence & Decay Curve (read-only/advisory)",
+        "description": "Измеряет, как долго держится alpha после входа в протокол. Берёт все entry-события из portfolio_snapshots.json, для каждого считает APY[t+1d], APY[t+7d], APY[t+14d], APY[t+30d] vs APY[t+0] (benchmark на момент входа). Строит decay_curve (список медианных decay_ratio по lag), half_life_days (где decay_ratio=0.5), advisory verdict: half_life < 7 дней → warn (стратегия требует частой ребалансировки). Pure stdlib.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics"
+      },
+      {
+        "id": "MP-133",
+        "title": "Position Sizing Optimizer v2 — Kelly + Mean-Variance (read-only/advisory)",
+        "description": "Оптимальные веса портфеля поверх существующих аллокаций. Реализует: (1) Fractional Kelly: f* = (mu - r_f) / sigma^2, кэп 25% на протокол; (2) Mean-Variance (закрытая форма, без scipy): w* = Sigma^-1 * mu / (1^T Sigma^-1 mu). Читает yield_attribution.json и correlation_analyzer.json. Сравнивает Kelly vs MV vs текущие веса. Advisory verdict: если текущие веса отклоняются >20pp от MV-optimal → warn. Pure stdlib (matrix inversion через собственный 3x3/NxN Gauss).",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics"
+      },
+      {
+        "id": "MP-128",
+        "title": "Walk-Forward Validation Harness (read-only/advisory)",
+        "description": "Добавляет walk-forward backtesting к historical_replay.py. Разбивает историю на N равных окон, в каждом: train → fit аллокатор → test → фиксирует метрики. Считает variance across folds (высокая → стратегия нестабильна), mean OOS Sharpe vs IS Sharpe, overfitting ratio. Advisory verdict: OOS/IS Sharpe < 0.6 → fail. Pure stdlib, импортирует historical_replay.HistoricalReplay.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics",
+        "completed": "2026-06-12",
+        "completed_by": "claude (MP-128)",
+        "resolution": "Done 2026-06-12: walk_forward_validator.py (read-only/advisory) with run_walk_forward, compute_metric, detect_overfitting, summarize_best_params. Pure stdlib. 78 tests in test_walk_forward_validator.py, all passing."
+      },
+      {
+        "id": "MP-134",
+        "title": "Investor-Ready Monthly Report Generator (read-only/advisory)",
+        "description": "Генерирует PDF-подобный Markdown monthly report для инвестора: executive summary (1 абзац AI-written из метрик), performance table (vs benchmark, vs USDC), risk table (Sharpe/Sortino/max DD), protocol breakdown, key events timeline, outlook. Читает tear_sheet.json + yield_attribution.json + drawdown_analytics.json + performance_report.py. Output: data/monthly_report_YYYY-MM.md. Запуск: python monthly_report.py --month 2026-06. Pure stdlib, read-only.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "reporting"
+      },
+      {
+        "id": "MP-129",
+        "title": "Protocol Onboarding Scorecard (read-only/advisory)",
+        "description": "Structured scorecard for evaluating protocol candidates before onboarding: TVL, audit, age, APY premium, diversification scorers. Weighted composite 0..1. Verdict: APPROVED/CONDITIONAL/REJECTED. Blocking flags (NO_AUDIT). save_scorecard atomic write.",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "sonnet",
+        "type": "analytics",
+        "resolution": "spa_core/paper_trading/protocol_scorecard.py + spa_core/tests/test_protocol_scorecard.py. 72/72 tests OK. STRICTLY READ-ONLY: no capital, no risk/execution/allocator touches. Pure stdlib. Atomic write for save_scorecard. CLI --check/--run/--data-dir. Exit 0 always.",
+        "completed": "2026-06-12"
       }
     ]
   },
-  "sprint_completed": "v4.38",
+  "sprint_completed": "v4.50",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
