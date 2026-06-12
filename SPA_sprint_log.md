@@ -1,6 +1,212 @@
-# SPA Sprint Log — updated 2026-06-12 (v4.78)
+# SPA Sprint Log — updated 2026-06-12 (v4.86)
 
 ## Completed ✅
+
+---
+
+## Sprint v4.86 (2026-06-12) — Weekly Evidence Report + Protocol Direct Feed (ADR-028 Phase 2)
+
+### Context
+Wave 33–34. Weekly evidence markdown report — автоматический отчёт за неделю (73 теста). Protocol Direct Feed — Tier 1 oracle ADR-028 Phase 2: прямые API Aave/Compound/Morpho без прокси DeFiLlama (43 теста). GoLive recheck 7/7 PASS.
+
+### Завершённые задачи
+
+- **MP-546**: push_v488.sh Wave 33 ✅
+- **MP-547**: `scripts/weekly_evidence_report.py` — weekly markdown evidence report
+  - Генерирует `data/weekly_evidence/2026-W24.md`
+  - 73/73 тестов PASS ✅
+- **MP-548**: `spa_core/price_feeds/protocol_direct_feed.py` — Tier 1 oracle (ADR-028 Phase 2)
+  - Прямые API: Aave V3 / Compound V3 / Morpho Steakhouse
+  - Без DeFiLlama proxy — независимый канал данных
+  - 43/43 тестов PASS ✅
+- **MP-549**: push_v489.sh Wave 34 ✅
+
+### GoLive recheck v4.86
+
+| Проверка | Статус |
+|----------|--------|
+| adapter_registry (16) | PASS |
+| cycle_runner | PASS |
+| market_regime | PASS |
+| daily_limits | PASS |
+| defi_llama_feed | PASS |
+| protocol_direct | PASS |
+| tournament (14) | PASS |
+| **Итого** | **7/7 PASS — READY** |
+
+`data/golive_check_v486.json` записан атомарно.
+
+### Метрики v4.86
+- ADAPTER_REGISTRY: **16 адаптеров** (без изменений)
+- Стратегий в tournament: **14 (S0-S13)**, leading=S7 (10.115% 🏆)
+- Weekly evidence report: markdown, stdlib, 73 теста
+- Protocol Direct Feed (ADR-028 Ph.2): 3 протокола, 43 теста
+- GoLive: **7/7 PASS**, ready=true
+- Done tasks: **252** (без изменений)
+
+---
+
+## Sprint v4.85 (2026-06-12) — DailyLimitsChecker + Equity Curve Chart + K-Ratio Analyzer
+
+### Context
+Wave 31–32. DailyLimitsChecker (DL-01..DL-05) создан и интегрирован в cycle_runner. Equity curve chart добавлен в Dashboard (Canvas 2D, loadEquityChart(), P&L метрики). K-Ratio (Kestner) Analyzer добавлен в paper_trading. Два пуш-скрипта: Wave 31 и Wave 32.
+
+### Завершённые задачи
+
+- **MP-540**: push_v486.sh Wave 31
+  - 4/4 файлов EXISTS ✅
+- **MP-541**: `spa_core/risk/daily_limits.py` — DailyLimitsChecker
+  - 5 лимитов: DL-01..DL-05
+  - 56/56 тестов PASS ✅
+  - Интегрирован в cycle_runner ✅
+- **MP-542**: `index.html` — equity curve chart
+  - Canvas 2D реализация
+  - loadEquityChart() функция
+  - P&L метрики на дашборде ✅
+- **MP-543**: push_v487.sh Wave 32 ✅
+- **SPA-Dev**: `spa_core/paper_trading/k_ratio.py` — K-Ratio (Kestner) Analyzer
+  - Формула: K = slope / se · n
+  - 74/74 тестов PASS ✅
+
+### Метрики v4.85
+- ADAPTER_REGISTRY: **16 адаптеров** (без изменений)
+- Стратегий в tournament: **14 (S0-S13)**, leading=S7 (10.115% 🏆)
+- DailyLimitsChecker: **5 лимитов** (DL-01..DL-05), 56 тестов
+- K-Ratio Analyzer: формула Kestner, 74 теста
+- Done tasks: **252** (без изменений)
+
+---
+
+## Sprint v4.84 (2026-06-12) — Market Regime Detector + Live APY Feed + ADR-028 + simulate_day
+
+### Context
+Wave 29. MarketRegimeDetector (4 режима) добавлен и интегрирован в cycle_runner. Live APY feed из DeFiLlama на 11 адаптеров. ADR-028 Oracle Price Diversification (3-tier). simulate_day.py для ручного запуска одного дня paper trading.
+
+### Завершённые задачи
+
+- **MP-531**: `spa_core/analysis/market_regime.py` — MarketRegimeDetector
+  - 4 режима: STABLE / HIGH_YIELD / COMPRESSED_YIELD / VOLATILE
+  - 56/56 тестов PASS ✅
+- **MP-532**: `spa_core/price_feeds/defi_llama_apy_feed.py` — live APY feed
+  - 11 адаптеров из DeFiLlama (включая extra_finance_base)
+  - 21/21 тестов PASS ✅
+- **MP-533**: push_v484.sh Wave 29
+  - 12/12 файлов EXISTS ✅
+- **MP-534**: cycle_runner.py — Market Regime Detection интегрирован
+  - 4/4 тестов PASS ✅
+- **MP-535**: ADR-028 Oracle Price Diversification
+  - 3-tier hierarchy: Protocol Direct → DeFiLlama → Static
+  - `docs/adr/ADR-028-oracle-price-diversification.md` + `oracle_config.json` ✅
+- **MP-536**: `scripts/simulate_day.py` — ручной симулятор одного дня paper trading
+  - dry-run режим + детерминированный шум ✅
+
+### Метрики v4.84
+- ADAPTER_REGISTRY: **16 адаптеров** (без изменений)
+- Стратегий в tournament: **14 (S0-S13)**, leading=S7 (10.115% 🏆)
+- Market Regime Detection: **4 режима**, 56 тестов
+- Live APY feed: **11 адаптеров**, 21 тест
+- Oracle: ADR-028, 3-tier hierarchy
+- Done tasks: **252** (infrastructure tasks)
+
+---
+
+## Sprint v4.83 (2026-06-12) — S13 Multi-Chain Yield Arbitrage + ADR-027
+
+### Context
+Wave 28. S13 Multi-Chain Yield Arbitrage добавлен в MultiStrategyRunner (S2–S13), tournament теперь 14 стратегий. ADR-027 утверждён. Dashboard обновлён. GoLive recheck 7/7 PASS.
+
+### Завершённые задачи
+
+- **MP-523**: S13 Multi-Chain Yield Arbitrage → cycle_runner MultiStrategyRunner
+  - S13 добавлен в цикл (S2–S13, 14 стратегий)
+  - `data/tournament_ranking.json` обновлён: 14 стратегий
+- **MP-524**: ADR-027 S13 Multi-Chain Yield Arbitrage
+  - `docs/adr/ADR-027-s13-multi-chain-yield-arbitrage.md` создан
+- **MP-525**: push_v483.sh Wave 28 (3 файла: cycle_runner.py, tournament_ranking.json, ADR-027)
+- **MP-526**: Dashboard — строка S13 добавлена в tournament таблицу (`index.html`)
+- **MP-527**: GoLive recheck v4.83 — 7/7 PASS
+  - `data/golive_check_v483.json`: adapter_registry=16, moonwell suspended, extra_finance T3, s13 T2, cycle_runner, strategy_summary, tournament=14
+
+### Метрики v4.83
+- ADAPTER_REGISTRY: **16 адаптеров** (без изменений)
+- Стратегий в tournament: **14 (S0-S13)**, S13: T2, RISK_SCORE=0.45, TARGET_APY=8.5%
+- S13 Phase1: ETH fallback; leading APY: S7=10.115% 🏆
+- GoLive: 7/7 PASS, ready=true
+- Done tasks: **252** (infrastructure wave, done_count без изменений)
+
+---
+
+## Sprint v4.82 (2026-06-12) — KANBAN Sync + Strategy Ranking + GoLive Recheck
+
+### Context
+Wave 26. KANBAN синхронизирован до 252 done, добавлен 7-day seed data, strategy_summary module, GoLive recheck с ADAPTER_REGISTRY=16.
+
+### Завершённые задачи
+
+- **MP-515**: KANBAN sync + seed 7-day data
+  - Перемещено в done: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 (итого 252 done)
+  - `scripts/seed_paper_data.py` → 8 записей в equity_history.json, pnl_history.json, apy_milestone_log.json (2026-06-05 – 2026-06-12)
+- **MP-516**: Strategy ranking + strategy_summary.py
+  - `data/tournament_ranking.json` обновлён: S7 rank=1 APY=10.115%, S11 rank=2 target=15.6%, S12 rank=12 Phase1
+  - `spa_core/reporting/strategy_summary.py` — generate_summary(), stdlib only, атомарная запись, CLI --check
+  - `tests/test_strategy_summary.py` — 57/57 тестов PASS
+  - `data/strategy_summary.json` — leading=S7, tournament=13, suspended=moonwell_base, days_to_golive=50
+- **MP-517**: GoLive v4.82 recheck
+  - `data/golive_check_v482.json` — ADAPTER_REGISTRY=16 ✓, moonwell suspended 0.75 ✓, extra_finance T3 8.0 ✓, READY 6/6
+  - `docs/sprint_v482_notes.md` создан
+
+### Метрики v4.82
+- ADAPTER_REGISTRY: **16 адаптеров** (+1: extra_finance_base T3 Base ~8.0% NEW)
+- Стратегий в tournament: **13 (S0-S12)**, leading=S7 (10.115%)
+- Days to go-live: **50** (target 2026-08-01)
+- Done tasks: **252**
+
+---
+
+## Sprint v4.81 (2026-06-12)
+
+### Завершённые задачи
+- **MP-466**: S12 Base Layer Yield → cycle_runner tournament (S0→S12), cycle_runner imports OK
+- **MP-376**: SparkSusdsAdapter T1 registered → ADAPTER_REGISTRY=15
+- **MP-383**: APY Milestone Daily Log — 5 уровней (L1-L3 достигнуты Day0), 50/50 тестов
+
+### Ключевые находки
+- **Moonwell Finance** (Base): хак ноябрь 2025, $1M+$3.7M bad debt → SUSPENDED (MP-511)
+- **Extra Finance XLend** (Base): T3 кандидат, 7-12% APY, 3 аудита → реализуется MP-510
+
+### Метрики v4.81
+- ADAPTER_REGISTRY: 15 адаптеров
+- Стратегий в tournament: 13 (S0-S12)
+- APY Milestones Day 0: L1(5%)✅ L2(7%)✅ L3(10%)✅ L4(12%)— L5(15%)—
+- Done tasks: 244+
+
+---
+
+## Sprint v4.80 (2026-06-12) — Base Chain Expansion Continued
+
+**Adapters:** Moonwell Finance Base (T2) — 13th adapter in registry
+**Strategy:** S12 Base Layer Yield — Phase 2 ADR-025 ready
+**Daily Report:** Base chain section в daily_paper_report.py
+**GoLive:** 24/24 PASS после Base chain wiring (via MP-461)
+**Push:** Wave 23 готов (14 файлов, push_v478.sh)
+
+### Completed
+- MP-457: push_v478.sh Wave 23 — 14 файлов ✅
+- MP-460: daily_paper_report.py Base chain section (5/5 тестов) ✅
+- MP-461: GoLive recheck 24/24 PASS, 0 blockers ✅
+- MP-462: S12 Base Layer Yield strategy + 20+ тестов ✅
+- MP-463: Moonwell Finance Base USDC adapter (T2) + 24 тестов ✅
+- MP-464: CURRENT_STATE.md v4.80 update ✅
+
+### Stats
+- Done: 241 tasks total
+- Adapters: 13 (10 Eth + 3 Base)
+- Strategies: S0-S12 (13)
+
+### USER ACTION Required
+```bash
+bash ~/Documents/SPA_Claude/scripts/push_v478.sh
+```
 
 ---
 
@@ -8248,3 +8454,37 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **KANBAN:** **MP-430 → done** (sprint v4.75, completed=2026-06-12, completed_by="claude (SPA-V475)"); `sprint_current=v4.75`; `sprint_completed=v4.74`; done=204.
 - **Файлы для коммита:** `spa_core/adapters/sfrax_adapter.py`, `spa_core/tests/test_sfrax_adapter.py`, `spa_core/adapters/__init__.py`, `KANBAN.json`, `SPA_sprint_log.md`.
 - **Рекомендуемое сообщение коммита:** `feat(SPA-V475): add sFRAX (Staked FRAX) ERC-4626 T2 adapter with peg gate (MP-430) - SfraxAdapter: get_apy/yield_info/is_peg_healthy/is_eligible/vs_morpho_gap/allocate/withdraw/to_dict; peg tolerance 0.5%, T2 cap 20%, risk 0.40, default APY 6.0%; registered in ADAPTER_REGISTRY; 100 tests; spark/fluid regression 182 green`
+
+---
+
+## Sprint v4.79 (MP-509) — 2026-06-12 — ✅ CODE SHIPPED (LOCAL)
+
+**SPA-V479 / MP-509: Ethena sUSDe (Staked USDe) ERC-4626 T3 adapter — read-only/advisory yield source.**
+
+- **Задача:** добавить новый высокодоходный источник доходности — Ethena `sUSDe` (ERC-4626 staking vault `0x9D39A5DE30e57443BfF2A8307A4256c8797A3497`, Ethereum mainnet). Доход от funding-rate + staking rewards (исторически 8–25%), 7-дневный unstake cooldown. Расширяет покрытие T3-уровня (после T1 Spark sUSDS и T2 Fluid/sFRAX в v4.70/v4.75). ID MP-460 оказался занят параллельным прогоном (Base chain секция) → задача переименована в **MP-509** во избежание коллизии.
+- **Сделано (строго аддитивно, 2 новых файла + 2 аддитивных изменения):**
+  - `spa_core/adapters/susde_adapter.py` (новый, pure stdlib, read-only): класс `SusdeAdapter(BaseAdapter)` по образцу `SfraxAdapter`. PROTOCOL="susde", TIER="T3", CHAIN_ID=1, RISK_SCORE=0.62 (synthetic dollar + funding-rate риск), T3_CAP=0.10 (макс 10% портфеля), MIN/MAX/DEFAULT APY = 4.0/30.0/12.0%, TVL=$2.5B, **EXIT_LATENCY_HOURS=168.0** (7-дневный unstake cooldown — ключевое отличие от sFRAX, выход неатомарен), PEG_TOLERANCE=0.01 (1% для synthetic USDe). Методы: `get_apy/get_apy_pct/get_yield_info` (APY из `data/adapter_status.json`→`susde.apy`, fallback 12.0%), peg-gate `is_peg_healthy()` (читает `usde_price`; отсутствие→1.0→healthy; `|usde_price-1.0|>0.01`→False; нечисловое→safe-healthy), `is_eligible()` (peg OK AND apy∈[MIN,MAX]), `vs_morpho_gap(morpho_apy=6.5)`, `allocate/withdraw` (paper-учёт `_allocated`, ValueError при ≤0/insufficient_balance), новый `cooldown_hours()` (168h, неатомарный выход), `health_check()`→ok/degraded, `to_dict()` (с `t3_cap`, `peg_healthy`, `cooldown_hours`). `_read_status()` никогда не бросает.
+  - `spa_core/tests/test_susde_adapter.py` (новый): **100 unittest-кейсов** — Init(10), APY(11, tempfile override), Peg(12), Eligibility(10), YieldInfo(8), VsMorpho(9), Allocate(9), Withdraw(9), Cooldown(6), ToDict(11), Registry(5).
+  - `spa_core/adapters/__init__.py` (аддитивно): `from .susde_adapter import SusdeAdapter` (# MP-460/509), кортеж `("susde","T3",SusdeAdapter)` в `ADAPTER_REGISTRY`, `"SusdeAdapter"` в `__all__`.
+  - `data/adapter_status.json` (аддитивно): блок `"susde"` (tier=T3, apy_pct=12.0, tvl_usd=2500000000, risk_score=0.62, source=fallback, notes "ERC-4626 staking vault; 7d cooldown; peg-gate 1% vs USD", added_by="MP-460").
+- **Верификация:** `python3 -m unittest spa_core.tests.test_susde_adapter` → **Ran 100 tests — OK**. Регрессия `test_sfrax_adapter + test_spark_susds_adapter + test_fluid_fusdc_adapter` → **Ran 282 tests — OK**. `py_compile` обоих файлов — clean. Registry smoke: `[('susde','T3',SusdeAdapter)]`; экземпляр: apy=12.0, eligible=True, peg=True, cooldown=168.0. Grep запрещённых импортов (subprocess/execution/risk./feed_health/openai/anthropic/monitoring/eval/exec) → CLEAN (единственное срабатывание — строка докстринга с правилом).
+- **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py, существующие адаптеры — НЕ тронуты. Pure stdlib, без pip/LLM SDK/subprocess/eval/exec; деньги/policy/сделки не затрагиваются; push_*.html НЕ создавался, PAT НЕ встраивался. LLM_FORBIDDEN домены risk/execution/monitoring — не затронуты.
+- **KANBAN:** **MP-509 → done** (sprint v4.79, completed=2026-06-12, completed_by="claude (SPA-V479)"); `sprint_current=v4.79`; `sprint_completed=v4.78`.
+- **Файлы для коммита:** `spa_core/adapters/susde_adapter.py`, `spa_core/tests/test_susde_adapter.py`, `spa_core/adapters/__init__.py`, `data/adapter_status.json`, `KANBAN.json`, `SPA_sprint_log.md`.
+- **Рекомендуемое сообщение коммита:** `feat(SPA-V479): add Ethena sUSDe ERC-4626 T3 read-only adapter (MP-509) - SusdeAdapter: get_apy/yield_info/is_peg_healthy/is_eligible/vs_morpho_gap/allocate/withdraw/cooldown_hours/to_dict; T3 cap 10%, risk 0.62, 168h/7d unstake cooldown, peg tolerance 1%, default APY 12.0; registered in ADAPTER_REGISTRY; 100 tests; sfrax/spark/fluid regression 282 green`
+
+---
+
+## Sprint v4.82 (MP-513) — 2026-06-12 — ✅ CODE SHIPPED (LOCAL)
+
+**SPA-V482 / MP-513: K-Ratio (Kestner) Analyzer — read-only/advisory.**
+
+- **Задача:** закрыть пробел в семействе risk-adjusted метрик. Существуют две большие группы: *distribution* (Sharpe/Sortino/Omega/Rachev — качество распределения доходностей, order-independent) и *drawdown* (Calmar/Sterling/Burke/Martin·Ulcer/Pain — глубина просадки). НИ ОДНА не измеряет **consistency / trend quality** эквити-кривой во ВРЕМЕНИ — насколько *ровно* (линейно в лог-пространстве) растёт капитал. Две стратегии с одинаковым endpoint, Sharpe и max-DD могут идти к нему либо по прямой, либо рывками. Это и есть K-Ratio (Lars Kestner) — единственная здесь time-aware / order-DEPENDENT метрика (перетасовка дневных доходностей её меняет).
+- **Сделано (строго аддитивно, РОВНО 2 новых файла):**
+  - `spa_core/paper_trading/k_ratio.py` (pure stdlib, read-only/advisory): чистые функции `cumulative_log_returns` (y_i = ln(E_i/E_1)), `ols_slope_intercept` (slope=Σ(x-x̄)(y-ȳ)/Σ(x-x̄)², intercept=ȳ-slope·x̄), `slope_std_error` (s=√(Σe²/(n-2)), se_b=s/√Sxx), `k_ratio(slope, se_slope, n)` = slope/(se_slope·n) = t/n (Kestner 2003 revised), `k_ratio_from_equity` (полный bundle: slope/intercept/slope_std_error/t_stat/k_ratio/n/perfectly_linear); `build_k_ratio(data_dir)` (стабильная схема, never raises); `write_status` (атомарно mkstemp+os.replace, идемпотентность по content_fingerprint, history≤500); CLI `--check`(default)/`--run`/`--data-dir` (exit 0 always). Reuse-by-import: `extract_equity_series` (drawdown_analytics MP-115), `content_fingerprint` (tear_sheet MP-501). Константы MIN_OBS=10, MIN_REGRESSION_OBS=3, K_WARN=0.5, K_FAIL=0.0. Verdict: k<0→fail (рост статистически не вверх), k<0.5→warn, иначе ok; k=None (perfectly linear / insufficient)→ok.
+  - `spa_core/tests/test_k_ratio.py`: **74 unittest-кейса** — чистая OLS-математика с полностью hand-verifiable примером (xs=[1,2,3,4,5], ys=[1,2,3,4,6] → slope=1.2, intercept=-0.4, SSE=0.4, se_b=0.115470, t=10.392305, **K=2.078461**), cumulative_log_returns, slope_std_error (perfect-line→0.0), k_ratio (se=0/None/negative→None guards), k_ratio_from_equity (steady→positive K, declining→negative K, near-linear→huge K, n<2→None), build (unavailable<MIN_OBS, steady ok, decline fail, is_demo, stable schema, never raises on garbage), write_status (DATA_WRITTEN→DATA_UNCHANGED идемпотентность, нет *.tmp, history rotation), CLI (exit 0 always, --check no-write, --run twice→UNCHANGED), AST import-hygiene + reuse-by-import (assertIs на content_fingerprint и extract_equity_series).
+- **Верификация:** `python3 -m unittest spa_core.tests.test_k_ratio` → **Ran 74 tests — OK** (74/74). Регрессия `test_sterling_burke_ratio + test_ulcer_index` → **Ran 173 tests — OK**. `py_compile` обоих файлов — clean. На реальном data/: available=false (3 equity-точки < MIN_OBS=10) — корректная стабильная unavailable-схема, verdict=ok. `--run` дважды → DATA_WRITTEN → DATA_UNCHANGED, 0 *.tmp. Hand-check: K=1.2/(0.115470·5)=2.078461. Grep запрещённых импортов (numpy/pandas/scipy/requests/web3/subprocess/openai/anthropic/risk./execution/monitoring) → CLEAN.
+- **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py, адаптеры — НЕ тронуты. Pure stdlib, без pip/LLM SDK/subprocess/eval/exec; деньги/policy/сделки не затрагиваются; push_*.html НЕ создавался, PAT НЕ встраивался. LLM_FORBIDDEN домены risk/execution/monitoring — не затронуты.
+- **KANBAN:** **MP-513 → done** (sprint v4.82, completed=2026-06-12, completed_by="claude (SPA-V482)"); `sprint_current=v4.82`; `sprint_completed=v4.81`.
+- **Файлы для коммита:** `spa_core/paper_trading/k_ratio.py`, `spa_core/tests/test_k_ratio.py`, `KANBAN.json`, `SPA_sprint_log.md`.
+- **Рекомендуемое сообщение коммита:** `feat(SPA-V482): K-Ratio (Kestner) Analyzer (MP-513, read-only/advisory) - cumulative_log_returns/ols_slope_intercept/slope_std_error/k_ratio/k_ratio_from_equity/build/write_status; K=slope/(se_slope*n); time-aware consistency metric vs distribution/drawdown families; reuse extract_equity_series + content_fingerprint; verdict 0.0/0.5; atomic idempotent write; 74 tests; sterling_burke+ulcer regression 173 green`
