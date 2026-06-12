@@ -107,6 +107,13 @@ class RiskConfig:
     # Rationale: ADR-020-t3-private-credit.md
     max_total_t3_allocation: float = 0.15  # T3 совокупно не более 15% (ADR-020)
 
+    # ── Base Chain cap (ADR-025, 2026-06-12) ─────────────────────────────────
+    # Max portfolio allocation across all Base (Coinbase L2) adapters combined.
+    # Phase 1: read-only monitoring only (no allocation until 2026-07-12 review).
+    # Phase 2: up to 20% allowed after go-live + Owner approval (APPROVE_BASE).
+    # Rationale: ADR-025-base-chain-expansion.md
+    BASE_CHAIN_CAP: float = 0.20  # max 20% of portfolio across all Base chain adapters (ADR-025)
+
 
 # ─── Модели данных ───────────────────────────────────────────────────────────
 
