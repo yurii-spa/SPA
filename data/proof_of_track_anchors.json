@@ -2,6 +2,15 @@
   "schema_version": 1,
   "anchors": [
     {
+      "date": "2026-06-10",
+      "merkle_root": null,
+      "leaf_count": 0,
+      "computed_at": "2026-06-10T10:16:38.000000+00:00",
+      "published": false,
+      "tx_hash": null,
+      "note": "on-chain publication pending MP-017 RPC keys"
+    },
+    {
       "date": "2026-06-11",
       "merkle_root": null,
       "leaf_count": 0,
@@ -11,5 +20,5 @@
       "note": "on-chain publication pending MP-017 RPC keys"
     }
   ],
-  "last_updated": "2026-06-11T10:16:38.370830+00:00"
+  "last_updated": "2026-06-12T08:00:00.000000+00:00"
 }
