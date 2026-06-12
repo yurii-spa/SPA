@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPA — Smart Passive Aggregator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  // Disable Chart.js animations globally — prevents scroll freeze in Statistics tab
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.animation = false;
+    Chart.defaults.animations = {};
+    Chart.defaults.transitions = {};
+  }
+</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -437,7 +445,8 @@
   .agent-modal-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
 
   /* ── Analytics Tab ── */
-  #tab-analytics { overflow-x: hidden; }
+  #tab-analytics { overflow-x: hidden; contain: layout style; will-change: auto; }
+  #tab-analytics canvas { contain: strict; }
   .analytics-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(480px, 1fr)); gap:16px; margin-bottom:18px; }
   .an-card { background:#fff; border:.5px solid #ddd; border-radius:12px; padding:16px 20px; max-width:100%; overflow:hidden; }
   .an-title { font-size:11px; font-weight:600; letter-spacing:.07em; color:#888; text-transform:uppercase; margin-bottom:14px; }
@@ -4136,13 +4145,17 @@ async function loadAnalytics() {
     renderChainPerfTable(chainData, protocols);
     renderTournament(tournamentData);
     renderAdvancedStats(advancedData);
-    loadOptimization();
-    loadCovariance();
-    loadFeedHealth();
-    renderPendlePositions();
-    runBacktest();
+    // Immediate (above-fold content)
     loadKanbanStats();
-    loadPortfolioAnalytics();
+    loadFeedHealth();
+
+    // Deferred — heavy computations, run after paint
+    const _defer = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn) => setTimeout(fn, 50);
+    _defer(() => { loadOptimization(); });
+    _defer(() => { loadCovariance(); });
+    _defer(() => { renderPendlePositions(); });
+    _defer(() => { runBacktest(); });
+    _defer(() => { loadPortfolioAnalytics(); });
   } catch(e) {
     console.error('Analytics load error:', e);
   }
@@ -8561,5 +8574,30 @@ document.addEventListener('DOMContentLoaded', () => {
     <span id="mob-status">⏳</span>
   </div>
 </div>
+<script>
+// Statistics tab — lazy render charts when scrolled into view
+(function() {
+  if (!window.IntersectionObserver) return;
+  const LAZY_CHARTS = [
+    { id: 'scatter-chart',        fn: () => { if(window._allProtos) renderAnalytics(window._allProtos); } },
+    { id: 'apy-rank-chart',       fn: () => { if(window._allProtos) renderAnalytics(window._allProtos); } },
+    { id: 'apy-history-chart',    fn: () => renderApyHistoryChart(window._lastHistoricalApy) },
+    { id: 'equity-compare-chart', fn: () => { /* already deferred */ } },
+  ];
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const item = LAZY_CHARTS.find(c => c.id === e.target.id);
+      if (item) { try { item.fn(); } catch(_){} io.unobserve(e.target); }
+    });
+  }, { rootMargin: '200px' });
+  document.addEventListener('DOMContentLoaded', () => {
+    LAZY_CHARTS.forEach(c => {
+      const el = document.getElementById(c.id);
+      if (el) io.observe(el);
+    });
+  });
+})();
+</script>
 </body>
 </html>
