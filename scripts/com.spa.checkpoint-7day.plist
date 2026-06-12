@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.checkpoint-7day</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>scripts/checkpoint_7day.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!--
+        StartCalendarInterval: один раз — 2026-06-19 в 10:00 (через 7 дней после старта 2026-06-12).
+        launchd запустит задачу один раз в указанную дату/время.
+        После выполнения задача не повторяется автоматически.
+    -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Month</key>
+        <integer>6</integer>
+        <key>Day</key>
+        <integer>19</integer>
+        <key>Hour</key>
+        <integer>10</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/checkpoint_7day.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/checkpoint_7day_err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!--
+        Установка:
+          cp scripts/com.spa.checkpoint-7day.plist ~/Library/LaunchAgents/
+          launchctl load ~/Library/LaunchAgents/com.spa.checkpoint-7day.plist
+
+        Проверка:
+          launchctl list | grep checkpoint-7day
+
+        Ручной запуск (тест):
+          launchctl start com.spa.checkpoint-7day
+    -->
+</dict>
+</plist>
