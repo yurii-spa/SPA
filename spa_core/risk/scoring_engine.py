@@ -90,7 +90,9 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field, asdict
@@ -930,12 +932,28 @@ class RiskScoringEngine:
             log.info("--dry-run: not writing %s", output_file)
             return snapshot
 
+        # SPA-V414 (MP-012): atomic write — tmpfile in the same dir +
+        # os.replace (rename). Readers (allocator) always see either the old
+        # or the new snapshot in full, never a partially written file.
         out = Path(output_file)
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(
-            json.dumps(snapshot, indent=2, sort_keys=False, ensure_ascii=False),
-            encoding="utf-8",
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(out.parent), prefix=f".{out.name}.", suffix=".tmp"
         )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(snapshot, indent=2, sort_keys=False, ensure_ascii=False)
+                )
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp_name, out)
+        except Exception:
+            try:
+                if os.path.exists(tmp_name):
+                    os.remove(tmp_name)
+            finally:
+                raise
         log.info("Wrote %d risk scores to %s", len(scores), out)
         return snapshot
 
