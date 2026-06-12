@@ -1,0 +1,77 @@
+{
+  "check_version": "v4.82",
+  "timestamp": "2026-06-12T19:40:15Z",
+  "overall_status": "PASS",
+  "file_checks": {
+    "spa_core/paper_trading/cycle_runner.py": true,
+    "spa_core/adapters/__init__.py": true,
+    "spa_core/strategies/s7_pendle_yt_aggressive.py": true,
+    "spa_core/analytics/apy_milestone_tracker.py": true,
+    "spa_core/adapters/extra_finance_base_adapter.py": true,
+    "spa_core/adapters/moonwell_base_adapter.py": true,
+    "data/adapter_status.json": true,
+    "data/apy_milestone_log.json": true,
+    "CURRENT_STATE.md": true,
+    "KANBAN.json": true
+  },
+  "file_check_result": "10/10 present",
+  "import_checks": {
+    "ADAPTER_REGISTRY_count": {
+      "expected": 16,
+      "actual": 16,
+      "pass": true
+    },
+    "moonwell_ADAPTER_STATUS": {
+      "expected": "suspended",
+      "actual": "suspended",
+      "pass": true
+    },
+    "moonwell_RISK_SCORE": {
+      "expected": 0.75,
+      "actual": 0.75,
+      "pass": true
+    },
+    "extra_finance_ADAPTER_ID": {
+      "expected": "extra_finance_base",
+      "actual": "extra_finance_base",
+      "pass": true
+    },
+    "extra_finance_TIER": {
+      "expected": "T3",
+      "actual": "T3",
+      "pass": true
+    },
+    "extra_finance_APY_FALLBACK": {
+      "expected": 8.0,
+      "actual": 8.0,
+      "pass": true
+    }
+  },
+  "import_check_result": "6/6 pass",
+  "golive_checker_6_criteria": {
+    "equity_curve_real": true,
+    "trades_real": true,
+    "status_real": true,
+    "no_demo_data": true,
+    "data_fresh_48h": true,
+    "cycle_runner_exists": true,
+    "verdict": "READY (6/6)",
+    "source": "spa_core.paper_trading.golive_checker"
+  },
+  "paper_trading_snapshot": {
+    "is_demo": false,
+    "days_running": 24,
+    "current_equity": 100026.06,
+    "total_return_pct": 0.0261,
+    "apy_today_pct": 3.1969,
+    "last_cycle_status": "ok",
+    "risk_policy_approved": true,
+    "kill_switch_active": false
+  },
+  "summary": {
+    "files_ok": true,
+    "imports_ok": true,
+    "golive_6_criteria": "READY",
+    "note": "Extended 26-criteria GoLiveChecker not yet deployed in this sprint; basic 6-criteria checker shows READY. Manual checks all pass."
+  }
+}
