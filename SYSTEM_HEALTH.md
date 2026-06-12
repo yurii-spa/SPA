@@ -1,7 +1,7 @@
 # SPA — SYSTEM HEALTH
 
 > Живой документ состояния системы. Обновляется при каждом существенном
-> изменении. Последнее обновление: **2026-06-10** (teardown-аудит).
+> изменении. Последнее обновление: **2026-06-12** (SYS-audit: 13 системных задач добавлены в backlog).
 > План пересборки: `REBUILD_PLAN_v1.md`. Задачи: `KANBAN.json`.
 
 ---
@@ -14,15 +14,15 @@
 
 | Метрика | Значение | Дата |
 |---|---|---|
-| Реальный track record | **1 день** (старт 2026-06-10) | 2026-06-10 |
-| Equity | $100,010.09 (+0.0101%) | 2026-06-10 |
-| APY текущий | **3.68%** | 2026-06-10 |
-| APY цель | 7.3% (gap −3.6 пп, структурный) | — |
-| Живых адаптеров | 5 (Aave, Morpho, Yearn, Euler, Maple) | 2026-06-10 |
-| Сделок (реальных paper) | 1 (T001 — initial rebalance) | 2026-06-10 |
-| Max drawdown | 0.0% (n=1 — не показателен) | — |
-| Sharpe / Sortino | не вычислимы (нужно ≥30 дней) | — |
-| Go-live решение | 2026-07-15 (30 честных дней ≈ 2026-07-10 — впритык) | — |
+| Реальный track record | **3 дня** (старт 2026-06-10) | 2026-06-12 |
+| Equity | $100,026.06 (+0.026%) | 2026-06-12 |
+| APY текущий | **3.20%** | 2026-06-12 |
+| APY цель | 7.3% (gap −4.1 пп, структурный) | — |
+| Живых адаптеров | 5 (Aave, Morpho, Yearn, Euler, Maple) | 2026-06-12 |
+| Сделок (реальных paper) | 3 (T001/T002/T003) | 2026-06-12 |
+| Max drawdown | 0.0% (день 3 — пока не показателен) | — |
+| Sharpe / Sortino | INSUFFICIENT (<7d) — модуль honest_metrics ✅ | — |
+| Go-live решение | 2026-07-15 (осталось 33 дня) | — |
 | Реальный капитал | **$0** (исполнение заблокировано by design) | — |
 
 ---
@@ -33,14 +33,15 @@
 |---|---|---|
 | 1. Data feeds | 🟡 | 5/8 адаптеров живые (DeFiLlama live); Compound V3 не поднялся; Pendle/Sky не подключены → потолок APY ~4.7% |
 | 2. Allocation | 🟡 | Цикл замкнут, caps работают; но RiskPolicy.check() не блокирует сделки напрямую, cash 0% против min_cash 5% (нужен ADR) |
-| 3. Paper trading | 🟢 | cycle_runner ежедневно 08:00 (launchd), атомарная запись, is_demo:false; истории всего 1 день |
-| 4. Analytics | 🔴 | 39/41 модулей — мёртвый код или считают шум на n=1; risk_metrics.json пуст |
-| 5. Strategies | 🟡 | 6 shadow-стратегий работают, но на синтетике; selector активируется на 15-й день реального трека |
-| 6. Monitoring | 🔴 | Все алерты в dry_run — реально ничего не отправляется; red_flags/incidents stale 13-14 дней |
-| 7. Dashboard | 🔴 | Мешает демо (2026-05-22) с реальными данными — инвестору не показывать до RB-010 |
+| 3. Paper trading | 🟢 | cycle_runner ежедневно 08:00 (launchd), атомарная запись, is_demo:false; 3 дня трека ✅ |
+| 4. Analytics | 🟡 | honest_metrics (MP-138) ✅, backtest_vs_paper (MP-140) ✅, structural_break (MP-139) ✅, progress_tracker (MP-141) ✅ — все INSUFFICIENT день 3 (норма) |
+| 5. Strategies | 🟡 | 6 shadow-стратегий (S0–S5), S0 лидирует $100,039; selector активируется на 15-й день трека |
+| 6. Monitoring | 🟡 | Telegram бот ✅ (daily_report, milestone_alert, cycle_gap_monitor); cycle_gap_monitor в разработке (MP-144) |
+| 7. Dashboard | 🟡 | Dashboard v3.0 ✅ — Performance/Strategies/Risk/Ops tabs; Go-Live Timeline панель; читает реальные data/*.json |
 | 8. Docs | 🟡 | ROADMAP_v2 / ARCHITECTURE_v2 / GRAND_VISION актуальны; CLAUDE.md лжёт (заморожен 2026-05-22) |
 | 9. Infra | 🟡 | daily_cycle ✅, cloudflared ✅; httpserver ❌ (exit 78), autopush ❌ (exit 2); один Mac, DR нет |
-| Security | 🔴 | **Утёкший GitHub PAT в 76 файлах, не ротирован** — действие №1 |
+| Security | 🟡 | PAT ротирован в Keychain; CI lint MP-309 в разработке; 0 секретов в файлах |
+| 10. Системные долги | 🔴 | 13 SYS-задач в backlog из аудита 2026-06-12; autopush сломан, sprint log дырявый |
 
 ---
 
@@ -59,24 +60,25 @@
 
 ## Что требует ручного действия (Owner)
 
-1. 🔴 **Ротировать GitHub PAT** — отозвать утёкший токен в GitHub Settings,
-   новый положить только в Keychain (`GITHUB_PAT_SPA`). Блокирует чистку мусора.
-2. Заполнить GitHub Secrets: RPC-ключи (Alchemy/Infura), `TELEGRAM_BOT_TOKEN`,
-   `TELEGRAM_CHAT_ID`, SMTP-креды — без них алерты остаются dry_run.
-3. Включить GitHub Pages (Settings → Pages → main / root).
-4. Принять ADR: min_cash 5% vs 0% cash-drag (текущая аллокация нарушает политику v1.0).
-5. Принять ADR: правило переноса go-live даты (30 честных дней ≈ 2026-07-10).
+1. ~~Ротировать GitHub PAT~~ — **✅ СДЕЛАНО** (PAT в Keychain)
+2. **RPC-ключи Alchemy/Infura** (MP-017) — добавить в Keychain для Pendle PT feed (APY +2–3 пп)
+3. Включить GitHub Pages (Settings → Pages → main / root) — UA-004
+4. Workflow-scope token для GitHub Actions — UA-006
+5. Принять ADR: min_cash 5% vs 0% cash-drag (текущая аллокация нарушает политику v1.0).
+6. ~~Telegram бот настроить~~ — **✅ СДЕЛАНО** (TELEGRAM_BOT_TOKEN_SPA / TELEGRAM_CHAT_ID_SPA в Keychain)
 
 ---
 
 ## Ключевые риски сейчас
 
 1. **Трек хрупкий:** один пропущенный день цикла до 2026-07-10 → перенос go-live.
-   Gap-monitor пока не настроен (RB-101).
-2. **APY-gap структурный:** 3.68% против 7.3% — закрывается только подключением
-   Pendle PT / Sky (Phase 2) или официальным снижением цели.
-3. **Алерты молчат:** при инциденте (drawdown, отказ фида) никто не узнает —
-   доставка не настроена.
+   Cycle gap monitor (MP-144) в разработке — будет слать Telegram при пропуске.
+2. **APY-gap структурный:** 3.20% против 7.3% — закрывается только подключением
+   Pendle PT / Sky (Phase 2), требует RPC-ключи (MP-017, USER ACTION).
+3. **httpserver + autopush:** launchd exit 78/exit 2 — нужен `mp009_fix_launchd.command`
+   (одно ручное действие владельца). Без этого autopush не работает каждые 90 мин.
+4. **Системный долг:** 9 пропущенных sprint log записей (v4.31-v4.47), CLAUDE.md vs RULES.md
+   расходятся, sprint DoD не включает синхронизацию sprint_log. 13 SYS-задач в backlog (аудит 2026-06-12).
 
 ---
 
