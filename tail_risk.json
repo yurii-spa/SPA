@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-12T02:46:21.640025+00:00",
+  "is_demo": false,
+  "source": "tail_risk",
+  "advisory_only": true,
+  "disclaimer": "NOT investment advice",
+  "real_track_start": "2026-06-10",
+  "available": true,
+  "var_95_pct": 0.0087,
+  "var_99_pct": 0.0087,
+  "cvar_95_pct": 0.0087,
+  "cvar_99_pct": 0.0087,
+  "worst_day_pct": 0.0087,
+  "worst_week_pct": null,
+  "worst_month_pct": null,
+  "skewness": null,
+  "kurtosis": null,
+  "tail_ratio": null,
+  "n_observations": 1,
+  "verdict": "ok",
+  "verdict_reason": "VaR 99% within normal range (0.0087%)",
+  "notes": [
+    "only 1 return observation(s) — VaR/CVaR estimates have high uncertainty (recommend ≥ 30 days)"
+  ],
+  "history": [
+    {
+      "generated_at": "2026-06-12T02:46:21.640025+00:00",
+      "var_99_pct": 0.0087,
+      "cvar_99_pct": 0.0087,
+      "n_observations": 1,
+      "verdict": "ok"
+    }
+  ]
+}
