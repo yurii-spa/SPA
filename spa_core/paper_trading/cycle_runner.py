@@ -85,6 +85,13 @@ try:
 except ImportError:
     _regime_detector = None
 
+# ── Step 2b: Emergency Breakers (ADR-030) ────────────────────────────────────
+try:
+    from spa_core.risk.emergency_breakers import EmergencyBreakers as _EmergencyBreakers
+    _emergency_breakers = _EmergencyBreakers()
+except ImportError:
+    _emergency_breakers = None
+
 log = logging.getLogger("spa.cycle_runner")
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -1014,6 +1021,72 @@ def run_cycle(
     except Exception as _dl_exc:
         log.warning("DailyLimitsChecker failed (%s) — fail-open, cycle continues", _dl_exc)
         notes.append(f"daily_limits_check_error: {type(_dl_exc).__name__}: {_dl_exc}")
+
+    # ── Step 2b: Emergency Circuit Breakers (ADR-030) ────────────────────────
+    # Runs AFTER DailyLimitsChecker, BEFORE RiskPolicy gate.
+    # HALT or PAUSE aborts the cycle immediately — no trade, no equity accrual.
+    # Fail-safe wrapper: the outer try catches any unexpected exception so a
+    # broken breaker check never crashes the cycle (fail-open, WARNING only).
+    if _emergency_breakers is not None and apy_map:
+        try:
+            _static_apy = {
+                "aave_v3": 3.5, "compound_v3": 4.0, "morpho_blue": 4.8,
+                "spark_susds": 4.6, "yearn_v3": 5.5, "euler_v2": 5.2,
+                "maple": 6.5, "pendle": 8.5, "aave_v3_base": 3.8,
+                "morpho_blue_base": 5.0, "extra_finance_base": 8.0,
+            }
+            _eb_equity_history = (
+                list(equity_doc.get("daily") or [])
+                if isinstance(equity_doc, dict)
+                else []
+            )
+            _eb_result = _emergency_breakers.check_all(
+                apy_map=apy_map,
+                equity_history=_eb_equity_history,
+                static_apy=_static_apy,
+            )
+            _atomic_write_json(ddir / "emergency_status.json", _eb_result)
+            notes.append(
+                f"emergency_breakers: status={_eb_result.get('status', 'UNKNOWN')} "
+                f"triggered={_eb_result.get('triggered', [])}"
+            )
+            if _eb_result.get("status") in ("HALT", "PAUSE"):
+                log.critical(
+                    "EmergencyBreakers %s — triggered: %s",
+                    _eb_result["status"],
+                    _eb_result.get("triggered", []),
+                )
+                _eb_days = _days_running(today, paper_start_date)
+                _eb_cycle_result = CycleResult(
+                    run_ts=run_ts,
+                    date=today,
+                    status=f"blocked_by_emergency_{_eb_result['status'].lower()}",
+                    traded=False,
+                    trade_id=None,
+                    live_data=True,
+                    num_adapters_live=len(apy_map),
+                    current_equity=round(prev_equity, 2),
+                    daily_yield_usd=0.0,
+                    daily_return_pct=0.0,
+                    apy_today_pct=0.0,
+                    total_return_pct=round((prev_equity / capital_usd - 1.0) * 100.0, 4),
+                    days_running=_eb_days,
+                    model_used=model_used,
+                    strategy_loop_active=strategy_loop_active,
+                    positions=current_positions,
+                    notes=notes,
+                    correlation_id=_correlation_id,
+                    market_regime=_regime_name,
+                    regime_t1_avg_apy=_regime_t1_avg_apy,
+                )
+                if write:
+                    _write_status(ddir, _eb_cycle_result, paper_start_date, capital_usd, run_ts)
+                return _eb_cycle_result
+        except Exception as _eb_exc:  # breaker check must never crash the cycle
+            log.warning(
+                "EmergencyBreakers check failed (%s) — fail-open, cycle continues", _eb_exc
+            )
+            notes.append(f"emergency_breakers_error: {type(_eb_exc).__name__}: {_eb_exc}")
 
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
     gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters)
