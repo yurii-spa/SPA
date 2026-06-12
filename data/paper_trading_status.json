@@ -3,27 +3,37 @@
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "paper_start_date": "2026-05-20",
-  "last_cycle_ts": "2026-06-10T06:49:38.322181+00:00",
+  "last_cycle_ts": "2026-06-12T06:00:04.769251+00:00",
   "last_cycle_status": "ok",
-  "days_running": 22,
-  "current_equity": 100010.09,
-  "total_return_pct": 0.0101,
-  "daily_return_pct": 0.0,
-  "apy_today_pct": 3.6825,
-  "daily_yield_usd": 10.089,
-  "num_adapters_live": 5,
+  "days_running": 24,
+  "current_equity": 100026.06,
+  "total_return_pct": 0.0261,
+  "daily_return_pct": 0.008759,
+  "apy_today_pct": 3.1969,
+  "daily_yield_usd": 8.7602,
+  "num_adapters_live": 6,
   "current_positions": {
-    "aave_v3": 21536.48,
-    "morpho_blue": 20000.0,
-    "yearn_v3": 18746.17,
-    "euler_v2": 19717.35,
-    "maple": 20000.0
+    "aave_v3": 31946.82,
+    "compound_v3": 29803.17,
+    "yearn_v3": 11518.6,
+    "euler_v2": 10212.78,
+    "maple": 11518.6
   },
   "last_allocation_model": "risk_adjusted",
   "strategy_loop_active": false,
-  "last_trade_id": "T001",
+  "last_trade_id": "T003",
   "notes": [
-    "archived legacy demo equity_curve_daily.json → equity_curve_daily.demo_backup.json; started a fresh real curve.",
-    "rebalance T001: |Δ|=$100,000 > $1,000 threshold."
-  ]
+    "risk_policy: target trimmed to respect the min-cash buffer (deployed capped at $95,000).",
+    "rebalance T003: |Δ|=$1,163 > $1,000 threshold."
+  ],
+  "risk_policy_checked": true,
+  "risk_policy_approved": true,
+  "risk_policy_trimmed": true,
+  "risk_policy_violations": [],
+  "risk_policy_warnings": [
+    "CHAIN_LIMIT_WARN (MP-203): Chain 'ethereum' allocation 73.3% exceeds single-chain limit 70%",
+    "CHAIN_LIMIT_WARN (MP-203): Chain 'ethereum' allocation 84.8% exceeds single-chain limit 70%"
+  ],
+  "kill_switch_active": false,
+  "kill_switch_reason": "all triggers clear"
 }
