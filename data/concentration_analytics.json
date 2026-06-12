@@ -1,39 +1,99 @@
 {
-  "generated_at": "2026-06-09T23:13:24.533635+00:00",
-  "source": "/sessions/sweet-nice-pasteur/mnt/Documents/SPA_Claude/data/portfolio_state.json",
-  "execution_mode": "read_only_simulation",
-  "metrics": {
-    "num_positions": 4,
-    "weights": {
-      "euler_v2": 0.25,
-      "maple": 0.25,
-      "morpho_blue": 0.25,
-      "yearn_v3": 0.25
-    },
-    "herfindahl_index": 0.25,
-    "hhi_normalized": 0.0,
-    "effective_num_positions": 4.0,
-    "max_weight": 0.25,
-    "max_weight_protocol": "euler_v2",
-    "min_weight": 0.25,
-    "min_weight_protocol": "yearn_v3",
-    "top1_concentration_pct": 25.0,
-    "top3_concentration_pct": 75.0,
-    "shannon_entropy": 1.386294,
-    "entropy_normalized": 1.0,
-    "gini_coefficient": 0.0,
-    "diversification_grade": "A"
+  "schema_version": 1,
+  "source": "concentration_analytics",
+  "meta": {
+    "generated_at": "2026-06-12T00:17:50.831389+00:00",
+    "source_files": [
+      "current_positions.json",
+      "adapter_orchestrator_status.json"
+    ]
   },
-  "concentration_basis": "invested_capital_only",
-  "target_allocation_source": "/sessions/sweet-nice-pasteur/mnt/Documents/SPA_Claude/data/target_allocation.json",
-  "cash_buffer_pct": 20.0,
-  "note": "Concentration is measured over INVESTED capital only; the unallocated cash buffer is reported separately as cash_buffer_pct.",
-  "concentration_vs_target": {
-    "hhi_actual": 0.25,
-    "hhi_target": 0.25,
-    "hhi_delta": 0.0,
-    "active_share": 0.0,
-    "num_actual_protocols": 4,
-    "num_target_protocols": 4
-  }
+  "available": true,
+  "advisory_only": true,
+  "execution_mode": "read_only",
+  "is_demo": false,
+  "verdict": "fail",
+  "aum_usd": 100000.0,
+  "deployed_usd": 94999.98,
+  "cash_usd": 5000.0,
+  "cash_share": 0.05,
+  "hhi_protocol": 0.227665708,
+  "hhi_protocol_index": 2277,
+  "hhi_protocol_deployed": 0.25226118,
+  "hhi_protocol_deployed_index": 2523,
+  "effective_num_positions": 3.9641,
+  "hhi_tier": 0.4918625,
+  "hhi_tier_index": 4919,
+  "top1_share": 0.315293,
+  "top1_protocol": "aave_v3",
+  "top3_share": 0.731866,
+  "num_positions": 5,
+  "concentration_class": "concentrated",
+  "max_single_position_share": 0.4,
+  "policy_ok": true,
+  "policy_breaches": [],
+  "by_tier": {
+    "T1": 61.75,
+    "T2": 33.25
+  },
+  "counts": {
+    "positions": 5,
+    "policy_breaches": 0
+  },
+  "breakdown": [
+    {
+      "protocol": "aave_v3",
+      "usd": 31529.27,
+      "share": 0.315293,
+      "share_deployed": 0.331887123,
+      "tier": "T1"
+    },
+    {
+      "protocol": "compound_v3",
+      "usd": 30220.72,
+      "share": 0.302207,
+      "share_deployed": 0.318112909,
+      "tier": "T1"
+    },
+    {
+      "protocol": "maple",
+      "usd": 11436.6,
+      "share": 0.114366,
+      "share_deployed": 0.120385289,
+      "tier": "T2"
+    },
+    {
+      "protocol": "yearn_v3",
+      "usd": 11436.6,
+      "share": 0.114366,
+      "share_deployed": 0.120385289,
+      "tier": "T2"
+    },
+    {
+      "protocol": "euler_v2",
+      "usd": 10376.79,
+      "share": 0.103768,
+      "share_deployed": 0.109229391,
+      "tier": "T2"
+    }
+  ],
+  "source_files": [
+    "current_positions.json",
+    "adapter_orchestrator_status.json"
+  ],
+  "disclaimer": "NOT investment advice",
+  "notes": [],
+  "history": [
+    {
+      "generated_at": "2026-06-12T00:17:50.831389+00:00",
+      "verdict": "fail",
+      "hhi_protocol_index": 2523,
+      "effective_num_positions": 3.9641,
+      "top1_share": 0.315293,
+      "counts": {
+        "positions": 5,
+        "policy_breaches": 0
+      }
+    }
+  ]
 }
