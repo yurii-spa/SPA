@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "source": "cost_drag_analytics",
+    "schema_version": 1,
+    "generated_at": "2026-06-12T05:14:20.531706+00:00",
+    "advisory_only": true,
+    "disclaimer": "NOT investment advice",
+    "source_modules": [
+      "yield_attribution (MP-117)",
+      "turnover_analytics (MP-121)"
+    ],
+    "is_demo": false,
+    "cost_per_turnover_bps": 10.0,
+    "gas_per_rebalance_usd": 15.0,
+    "min_reliable_obs": 20,
+    "moderate_cost_ratio": 0.1,
+    "high_cost_ratio": 0.3,
+    "annualization_days": 365,
+    "notes": [
+      "low_sample: only 1 turnover observation(s) (< 20) — annualised gas estimate is low-confidence; verdict capped at 'warn'"
+    ]
+  },
+  "available": true,
+  "reason": null,
+  "low_sample": true,
+  "gross_apy_pct": 3.170875657,
+  "net_apy_pct": -3.047708643,
+  "total_cost_drag_pp": 6.2185843,
+  "turnover_cost_pp": 0.7435843,
+  "gas_drag_pp": 5.475,
+  "cost_ratio": 1.961156782,
+  "cost_drag_bps": 621.85843,
+  "aum_usd": 100000.0,
+  "annualized_turnover": 7.435843,
+  "num_rebalance_days": 1,
+  "num_observations": 1,
+  "rebalances_per_year": 365.0,
+  "gas_cost_annual_usd": 5475.0,
+  "verdict": "warn",
+  "verdict_reason": "[low-sample, capped from fail] net APY -3.0477pp ≤ 0 — estimated trading cost (6.2186pp) exceeds gross yield (3.1709pp)",
+  "history": [
+    {
+      "generated_at": "2026-06-12T05:14:20.531706+00:00",
+      "gross_apy_pct": 3.170875657,
+      "net_apy_pct": -3.047708643,
+      "total_cost_drag_pp": 6.2185843,
+      "cost_ratio": 1.961156782,
+      "verdict": "warn"
+    }
+  ]
+}
