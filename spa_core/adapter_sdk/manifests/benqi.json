@@ -1,0 +1,14 @@
+{
+  "name": "benqi",
+  "defillama_protocol_id": "benqi-lending",
+  "chains": ["Avalanche"],
+  "symbols": ["USDC", "USDT"],
+  "tier": "T3",
+  "cap": 0.10,
+  "exit_latency": {"hours": 0.0, "profile": "instant"},
+  "quality_gates": {
+    "min_tvl_usd": 5000000,
+    "stable_only": true,
+    "max_apy_pct": 30.0
+  }
+}
