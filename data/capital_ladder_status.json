@@ -1,0 +1,102 @@
+{
+  "source": "capital_ladder",
+  "is_demo": false,
+  "updated_at": "2026-06-11T08:16:44.738236+00:00",
+  "incident_threshold_pct": 1.0,
+  "current_level": 0,
+  "level_code": "L0",
+  "level_name": "paper",
+  "aum_cap_usd": 100000.0,
+  "aum_usd": 100017.3,
+  "track_days": 23,
+  "incidents_total": 0,
+  "last_incident": null,
+  "climb": {
+    "from_level": 0,
+    "to_level": 1,
+    "eligible": false,
+    "gates": {
+      "golive_ready": true,
+      "track_days_ge_30": false,
+      "e2e_harness_green": false,
+      "safe_configured": false,
+      "owner_approval_adr": false
+    },
+    "blockers": [
+      "track_days_ge_30: track is 23 days, need >= 30",
+      "e2e_harness_green: not attested by Owner in capital_ladder_attestations.json",
+      "safe_configured: not attested by Owner in capital_ladder_attestations.json",
+      "owner_approval_adr: not attested by Owner in capital_ladder_attestations.json"
+    ],
+    "note": "advisory only: подъём = ADR + Owner approval (§8), модуль ступень НЕ поднимает"
+  },
+  "ladder": [
+    {
+      "level": 0,
+      "code": "L0",
+      "name": "paper",
+      "aum_cap_usd": 100000.0,
+      "requirements": []
+    },
+    {
+      "level": 1,
+      "code": "L1",
+      "name": "pilot",
+      "aum_cap_usd": 50000.0,
+      "requirements": [
+        "30 дней живого paper-трека",
+        "E2E harness зелёный",
+        "Safe настроен"
+      ]
+    },
+    {
+      "level": 2,
+      "code": "L2",
+      "name": "own",
+      "aum_cap_usd": 1000000.0,
+      "requirements": [
+        "90 дней live без инцидентов",
+        "APY ≥ benchmark+1пп",
+        "drill kill-switch пройден"
+      ]
+    },
+    {
+      "level": 3,
+      "code": "L3",
+      "name": "friends",
+      "aum_cap_usd": 5000000.0,
+      "requirements": [
+        "аудит #1 пройден",
+        "юр. структура",
+        "страховой буфер 0.5% AUM"
+      ]
+    },
+    {
+      "level": 4,
+      "code": "L4",
+      "name": "external",
+      "aum_cap_usd": 25000000.0,
+      "requirements": [
+        "12 мес трека",
+        "аудит #2",
+        "bug bounty",
+        "Proof-of-Track on-chain"
+      ]
+    },
+    {
+      "level": 5,
+      "code": "L5",
+      "name": "institutional",
+      "aum_cap_usd": 100000000.0,
+      "requirements": [
+        "24 мес трека",
+        "3 аудита",
+        "команда 5+",
+        "SOC-подобные процедуры"
+      ]
+    }
+  ],
+  "processed_incident_dates": [],
+  "history": [],
+  "notes": []
+}
