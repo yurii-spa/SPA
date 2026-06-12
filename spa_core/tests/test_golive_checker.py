@@ -229,6 +229,10 @@ def _run_cycle(tmp_path, **kw):
         now=NOW,
         orchestrator_fn=lambda d: orch,
         allocator=allocator,
+        # MP-012: no-op risk scorer keeps these tests network-free.
+        risk_scorer_fn=lambda d: None,
+        # MP-109: no-op track persister keeps these tests off iCloud/home dirs.
+        track_persister_fn=lambda d: None,
         **kw,
     )
 
