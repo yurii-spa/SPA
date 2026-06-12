@@ -1,0 +1,36 @@
+{
+  "simulation_date": "2026-06-12",
+  "capital_usd": 100000.0,
+  "n_days": 30,
+  "strategies": [
+    {
+      "rank": 1,
+      "strategy_id": "S0",
+      "strategy_name": "Conservative T1",
+      "final_balance": 100333.58,
+      "total_return_pct": 0.3336,
+      "annualized_apy_pct": 4.06,
+      "sharpe_approx": 52410.903
+    },
+    {
+      "rank": 2,
+      "strategy_id": "S_aave_baseline",
+      "strategy_name": "Aave Baseline",
+      "final_balance": 100328.49,
+      "total_return_pct": 0.3285,
+      "annualized_apy_pct": 4.0,
+      "sharpe_approx": 313932.4527
+    },
+    {
+      "rank": 3,
+      "strategy_id": "S1",
+      "strategy_name": "Balanced T1+T2",
+      "final_balance": 100472.97,
+      "total_return_pct": 0.473,
+      "annualized_apy_pct": 5.75,
+      "sharpe_approx": 114428.0111
+    }
+  ],
+  "winner": "S0",
+  "generated_by": "run_tournament_30d.py"
+}
