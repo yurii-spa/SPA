@@ -1,6 +1,26 @@
-# SPA Sprint Log — updated 2026-06-12 (v4.86)
+# SPA Sprint Log — updated 2026-06-12 (v4.88)
 
 ## Completed ✅
+
+---
+
+## v4.88 (2026-06-12)
+- ADR-030: Emergency Circuit Breakers (EB-01..EB-05) — ExploitProbe/OracleCascade/GasCrisis/FlashCrash/DataCorruption
+- emergency_breakers.py: check_all() → CLEAR/PAUSE/HALT, интегрирован в cycle_runner Step 2b
+- ADR-031: Portfolio Rebalancing Policy (RT-01..RT-04, Phase 0 paper mode)
+- position_tracker.py: daily snapshots, drift, HHI, ring-buffer 365d
+- CycleHealthMonitor + run_health_check.py: system health CLI
+- PromotionNotifier: Telegram алерты для ADR-029 промоций
+- Dashboard: APY Consensus + System Health panels
+
+---
+
+## v4.87 (2026-06-12)
+- ADR-029: Strategy Promotion Automation Policy (Tier A=AUTO, B=48h, C=MANUAL)
+- auto_promoter.py: evaluate_strategy, evaluate_all, save_report → promotion_report.json
+- Dashboard APY Consensus: 11 адаптеров, DeFiLlama vs Static, divergence alarm >150 bps
+- Wave 35: push_v490.sh (CURRENT_STATE v4.86, backfill_evidence.py, golive 7/7)
+- Wave 36: push_v491.sh (ADR-029, promotion_policy.json, index.html)
 
 ---
 
@@ -8488,3 +8508,20 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 - **KANBAN:** **MP-513 → done** (sprint v4.82, completed=2026-06-12, completed_by="claude (SPA-V482)"); `sprint_current=v4.82`; `sprint_completed=v4.81`.
 - **Файлы для коммита:** `spa_core/paper_trading/k_ratio.py`, `spa_core/tests/test_k_ratio.py`, `KANBAN.json`, `SPA_sprint_log.md`.
 - **Рекомендуемое сообщение коммита:** `feat(SPA-V482): K-Ratio (Kestner) Analyzer (MP-513, read-only/advisory) - cumulative_log_returns/ols_slope_intercept/slope_std_error/k_ratio/k_ratio_from_equity/build/write_status; K=slope/(se_slope*n); time-aware consistency metric vs distribution/drawdown families; reuse extract_equity_series + content_fingerprint; verdict 0.0/0.5; atomic idempotent write; 74 tests; sterling_burke+ulcer regression 173 green`
+
+---
+
+## Sprint v4.88 (MP-559) — 2026-06-12 — ✅ CODE SHIPPED (LOCAL)
+
+**SPA-V488 / MP-559: wUSDM (Mountain Protocol Wrapped USDM) ERC-4626 T2 adapter — read-only/advisory yield source.**
+
+- **Задача:** добавить новый источник доходности — Mountain Protocol `wUSDM` (ERC-4626 wrapper `0x57F5E098CaD7A3D1Eed53991D4d66C45C9Af7812`, Ethereum mainnet). Доход от US T-bills (RWA-backed, привязан к short-term Treasury yield). Расширяет покрытие T2-стейблкоин-yield (после Fluid fUSDC и sFRAX в v4.70/v4.75). Выбран автономно оркестратором: все ready-задачи в KANBAN были done (sprint_completed=v4.87, нет backlog/features type=code status=ready).
+- **Сделано (строго аддитивно, 2 новых файла + 2 аддитивных изменения):**
+  - `spa_core/adapters/wusdm_adapter.py` (новый, pure stdlib, read-only): класс `WusdmAdapter(BaseAdapter)` по образцу `SfraxAdapter`. PROTOCOL="wusdm", TIER="T2", CHAIN_ID=1, RISK_SCORE=0.45 (централизованный RWA-эмитент + регуляторный/redemption риск, выше sFRAX 0.40), T2_CAP=0.20, MIN/MAX/DEFAULT APY = 3.0/10.0/5.0%, TVL=$200M, EXIT_LATENCY_HOURS=0.0 (wUSDM→USDM unwrap атомарен; swap-friction USDM↔USDC отмечена в докстринге), PEG_TOLERANCE=0.005. Методы: `get_apy/get_apy_pct/get_yield_info` (APY из `data/adapter_status.json`→`wusdm.apy`, fallback 5.0%), peg-gate `is_peg_healthy()` (читает `usdm_price`; отсутствие→1.0→healthy; `|usdm_price-1.0|>0.005`→False; нечисловое→safe-healthy), `is_eligible()`, `vs_morpho_gap(morpho_apy=6.5)`, `allocate/withdraw` (paper-учёт `_allocated`), `health_check()`, `to_dict()` (с `t2_cap` и `peg_healthy`). `_read_status()` никогда не бросает.
+  - `spa_core/tests/test_wusdm_adapter.py` (новый): **100 unittest-кейсов**, 10 тест-классов — Init, APY (tempfile override), Peg, Eligibility, YieldInfo, VsMorpho, Allocate, Withdraw, ToDict, Registry.
+  - `spa_core/adapters/__init__.py` (аддитивно): `from .wusdm_adapter import WusdmAdapter` (# MP-559), кортеж `("wusdm","T2",WusdmAdapter)` в `ADAPTER_REGISTRY`, `"WusdmAdapter"` в `__all__`. Adapter registry 15→16.
+  - `data/adapter_status.json` (аддитивно): блок `"wusdm"` (tier=T2, apy_pct=5.0, tvl_usd=200000000, risk_score=0.45, source=fallback, notes "ERC-4626 RWA T-bill backed wrapper; atomic unwrap; peg-gate 0.5% vs USD", added_by="MP-559").
+- **Верификация (повторно оркестратором):** `python3 -m unittest spa_core.tests.test_wusdm_adapter` → **Ran 100 tests — OK**. Регрессия `test_sfrax_adapter + test_spark_susds_adapter + test_fluid_fusdc_adapter` → **Ran 282 tests — OK**. `py_compile` обоих файлов — clean. Registry smoke: `[('wusdm','T2')]`; экземпляр: apy=5.0, eligible=True, peg=True. Grep запрещённых импортов → CLEAN (единственное срабатывание — строка докстринга с правилом).
+- **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py, существующие адаптеры — НЕ тронуты. Pure stdlib, без pip/LLM SDK/subprocess/eval/exec; деньги/policy/сделки не затрагиваются; push_*.html НЕ создавался, PAT НЕ встраивался.
+- **KANBAN:** **MP-559 → done** (sprint v4.88, completed=2026-06-12, completed_by="claude (SPA-V488)"); `sprint_current=v4.88`; `sprint_completed=v4.88`; adapter_registry_count=16.
+- **Файлы для коммита:** `spa_core/adapters/wusdm_adapter.py`, `spa_core/tests/test_wusdm_adapter.py`, `spa_core/adapters/__init__.py`, `data/adapter_status.json`, `KANBAN.json`, `SPA_sprint_log.md`.
