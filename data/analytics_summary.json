@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-06-12T06:00:04.769251+00:00",
+  "source": "analytics_runner",
+  "is_demo": false,
+  "num_days": 3,
+  "first_date": "2026-06-10",
+  "last_date": "2026-06-12",
+  "metrics": {
+    "sharpe": -1941.4268490554193,
+    "drawdown": {
+      "max_drawdown_pct": 0.0,
+      "peak_date": "2026-06-10",
+      "trough_date": "2026-06-10",
+      "current_drawdown_pct": 0.0
+    },
+    "volatility": {
+      "daily_vol": 4.895507195286274e-07,
+      "annualized_vol": 9.352853364172552e-06,
+      "vol_30d": 9.352853364172552e-06
+    },
+    "benchmark": {
+      "spa_total_return": 0.017448,
+      "benchmark_total_return": 0.027397,
+      "alpha": -0.009949,
+      "outperforming": false
+    },
+    "streaks": {
+      "current_win_streak": 2,
+      "max_win_streak": 2,
+      "current_loss_streak": 0,
+      "max_loss_streak": 0
+    },
+    "calmar": 0.0,
+    "concentration": {
+      "herfindahl_index": 0.252464,
+      "top1_weight": 0.336282,
+      "top3_weight": 0.771249,
+      "n_active": 5
+    }
+  },
+  "errors": []
+}
