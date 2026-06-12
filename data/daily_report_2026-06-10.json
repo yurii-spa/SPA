@@ -1,0 +1,32 @@
+{
+  "date": "2026-06-10",
+  "generated_at": "2026-06-10T18:40:36.749693+00:00",
+  "source": "daily_report",
+  "is_demo": false,
+  "equity_usd": 100008.61,
+  "daily_pnl_usd": 8.61,
+  "daily_pnl_pct": 0.0,
+  "total_return_pct": 0.008609,
+  "days_running": 22,
+  "top_protocol": "aave_v3",
+  "golive_status": "PRE-LIVE",
+  "active_adapters": [
+    "aave_v3",
+    "compound_v3",
+    "euler_v2",
+    "maple",
+    "yearn_v3"
+  ],
+  "risk_summary": {
+    "aave_v3": "A",
+    "compound_v3": "B",
+    "morpho": "A",
+    "yearn_v3": "B",
+    "sky": "B",
+    "maker": "B",
+    "curve": "A",
+    "uniswap_v3": "B",
+    "pendle": "B",
+    "euler_v2": "B"
+  }
+}
