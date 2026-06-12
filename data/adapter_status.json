@@ -21,12 +21,14 @@
       "sky-susds"
     ],
     "unrouted_adapters": [
-      "pendle-pt"
+      "pendle-pt",
+      "spark-susds",
+      "fluid-fusdc"
     ],
     "coverage": {
       "routed": 6,
-      "total": 7,
-      "coverage_pct": 85.7
+      "total": 9,
+      "coverage_pct": 66.7
     }
   },
   "adapters": [
@@ -306,6 +308,68 @@
           "USDC": 4.1
         }
       }
+    },
+    {
+      "protocol_key": "spark-susds",
+      "name": "Spark Protocol sUSDS",
+      "tier": "T1",
+      "allocation_cap": 0.0,
+      "write_state": "Research (GSM pending)",
+      "mev_routed": false,
+      "allocation_note": "→ до 30% при GSM ≥ 48h",
+      "status": "research",
+      "apy_source": {
+        "mode": "research",
+        "live_project": "spark",
+        "live_enabled": false,
+        "live_values_present": false
+      },
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "sUSDS"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "sUSDS": 5.5
+        }
+      },
+      "risk_score": 0.28,
+      "gsm_hours": 0,
+      "added_by": "MP-392",
+      "added_at": "2026-06-12"
+    },
+    {
+      "protocol_key": "fluid-fusdc",
+      "name": "Fluid fUSDC",
+      "tier": "T2",
+      "allocation_cap": 0.0,
+      "write_state": "Research (GSM pending)",
+      "mev_routed": false,
+      "allocation_note": "→ до 20% при GSM ≥ 48h",
+      "status": "research",
+      "apy_source": {
+        "mode": "research",
+        "live_project": "fluid",
+        "live_enabled": false,
+        "live_values_present": false
+      },
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "fUSDC"
+      ],
+      "mock_apy": {
+        "ethereum": {
+          "fUSDC": 6.5
+        }
+      },
+      "risk_score": 0.38,
+      "gsm_hours": 0,
+      "added_by": "MP-392",
+      "added_at": "2026-06-12"
     }
   ],
   "morpho_steakhouse": {
@@ -357,7 +421,9 @@
     "vault_address": "0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD",
     "gsm_hours": 0,
     "status": "research",
-    "note": "GSM compliance gate: need gsm_hours >= 48 before activation"
+    "note": "GSM compliance gate: need gsm_hours >= 48 before activation",
+    "display_name": "Spark Protocol sUSDS",
+    "description": "Spark Protocol stablecoin vault; T1; GSM compliance gate pending (gsm_hours >= 48 required)"
   },
   "fluid_fusdc": {
     "apy": 6.5,
@@ -367,6 +433,60 @@
     "vault_address": "0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33",
     "gsm_hours": 0,
     "status": "research",
-    "note": "T2 cap 20% single, GSM compliance gate required"
+    "note": "T2 cap 20% single, GSM compliance gate required",
+    "display_name": "Fluid fUSDC",
+    "description": "Fluid protocol USDC vault; T2; GSM compliance gate required before activation"
+  },
+  "sfrax": {
+    "adapter_id": "sfrax",
+    "name": "Staked FRAX (sFRAX)",
+    "tier": "T2",
+    "apy_pct": 6.0,
+    "tvl_usd": 450000000,
+    "chain": "ethereum",
+    "protocol": "Frax Finance",
+    "status": "active",
+    "risk_score": 0.4,
+    "last_updated": "2026-06-12",
+    "source": "fallback",
+    "notes": "ERC-4626 saver vault; peg-gate 0.5% vs USD",
+    "added_by": "MP-432",
+    "added_at": "2026-06-12"
+  },
+  "aave_v3_base": {
+    "protocol_id": "aave-v3-base",
+    "chain": "base",
+    "tier": "T2",
+    "apy_pct": 4.5,
+    "tvl_usd": 400000000,
+    "risk_score": 0.35,
+    "t2_cap_pct": 20,
+    "write_state": "read_only",
+    "pool_id": "aave-v3-usdc-base",
+    "gas_base_usd": 0.005,
+    "gas_advantage_usd": 0.095,
+    "l2_bridge_risk": true,
+    "bridge_exit_days": 7,
+    "added_by": "MP-448",
+    "last_updated": "2026-06-12"
+  },
+  "morpho_blue_base": {
+    "protocol_id": "morpho-blue-base",
+    "chain": "base",
+    "tier": "T2",
+    "apy_pct": 6.2,
+    "tvl_usd": 180000000,
+    "risk_score": 0.38,
+    "t2_cap_pct": 20,
+    "write_state": "read_only",
+    "last_updated": "2026-06-12",
+    "mp": "MP-450",
+    "adr": "ADR-025"
+  },
+  "base_gas_monitor": {
+    "threshold_gwei": 10.0,
+    "kill_days": 3,
+    "status": "OK",
+    "last_checked": "2026-06-12"
   }
 }
