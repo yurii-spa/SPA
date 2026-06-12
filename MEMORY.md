@@ -1,6 +1,6 @@
 # SPA Memory File
 > Обновляй в конце каждой сессии. Источник истины: KANBAN.json + CURRENT_STATE.md
-> Последнее обновление: 2026-06-12 (MP-372, Wave 10 Architect Review)
+> Последнее обновление: 2026-06-12 (MP-393, Wave 13-15 Sprint v4.70)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Поле | Значение |
 |------|----------|
-| Последний завершённый | **v4.68** (2026-06-12) |
-| Следующий | **v4.69** (Wave 10) |
-| Задач в done | ~174 (KANBAN.json) |
-| Задач в backlog | 14 (включая 5 новых Wave 10) |
+| Последний завершённый | **v4.70** (2026-06-12) |
+| Следующий | **v4.71** (Wave 16) |
+| Задач в done | 183 (KANBAN.json) |
+| Задач в backlog | 11 (включая MP-394, MP-388) |
 
 ---
 
@@ -145,7 +145,13 @@ Family Fund: http_server.py (stdlib TCP port 8765), promotion_engine.py в spa_c
 
 ---
 
+## Sprint Status Files
+
+- [SPA v4.70 Status](spa_v470_status.md) — v4.70 (2026-06-12): Spark/Fluid адаптеры, S2/S3/S4 стратегии, Tournament sim, push_v470.sh готов
+
+---
+
 ## Следующий архитектурный review
 
-**v4.80** — 2026-06-26 (после двух недель Wave 10)  
+**v4.80** — 2026-06-26 (после двух недель Wave 13-15)  
 Критерии: `apy_today > 5.0%`, `tournament_ranking.json` обновляется ежедневно, ethereum chain < 70%.
