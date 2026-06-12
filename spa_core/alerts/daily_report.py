@@ -25,7 +25,8 @@ log = logging.getLogger("spa.alerts.daily_report")
 
 # Paper-trading target APY from DEV_STRATEGY_v1.0
 TARGET_APY = 7.30
-PAPER_START_DATE = date(2026, 5, 20)
+# Real track record start — prefer progress_tracker.json at runtime; fallback used only if file absent
+_PAPER_START_DATE_FALLBACK = date(2026, 6, 10)
 PAPER_TOTAL_DAYS = 56          # 8 weeks
 
 
@@ -109,55 +110,82 @@ class DailyReportBuilder:
 
     def _build(self) -> str:
         status       = self._load("status.json")
+        pts          = self._load("paper_trading_status.json")  # primary source of truth
         pnl_hist     = self._load("pnl_history.json")
         risk_data    = self._load("risk_alerts.json")
         analytics    = self._load("advanced_analytics.json")
         golive       = self._load("golive_readiness.json")
+        progress     = self._load("progress_tracker.json")  # MP-141
 
-        # ---- portfolio -----------------------------------------------
+        # ---- portfolio (paper_trading_status.json preferred) --------
         portfolio  = status.get("portfolio", {})
         positions  = status.get("positions", [])
-        total_val  = portfolio.get("total_capital_usd", 100_000.0) or 100_000.0
-        pnl_usd    = portfolio.get("total_pnl_usd", 0.0) or 0.0
-        cash_usd   = portfolio.get("cash_usd", total_val) or 0.0
-        deployed   = portfolio.get("deployed_usd", 0.0) or 0.0
 
-        # pnl % — prefer direct field, fall back to compute
-        pnl_pct    = portfolio.get("total_pnl_pct", None)
-        if pnl_pct is None:
-            initial = 100_000.0
-            pnl_pct = (pnl_usd / initial * 100) if initial else 0.0
+        # current equity — prefer paper_trading_status.json
+        total_val  = (pts.get("current_equity") or
+                      portfolio.get("total_capital_usd") or 100_000.0)
+
+        # pnl — derive from equity delta (initial always 100K)
+        initial    = 100_000.0
+        pnl_usd    = total_val - initial
+
+        # pnl % — prefer total_return_pct from pts (stored as %, e.g. 0.026)
+        _pts_ret   = pts.get("total_return_pct")
+        if _pts_ret is not None:
+            # stored as percent (0.026 = 0.026%), not fraction
+            pnl_pct = float(_pts_ret)
+            if abs(pnl_pct) < 0.01 and pnl_pct != 0.0:
+                # likely stored as fraction (0.00026) → convert
+                pnl_pct = pnl_pct * 100
         else:
-            # stored as fraction (0.001) or percent (0.1)?
-            if abs(pnl_pct) < 1 and abs(pnl_pct) > 0:
-                pnl_pct = pnl_pct * 100   # was stored as fraction
+            pnl_pct = (pnl_usd / initial * 100) if initial else 0.0
+
+        # deployed / cash from pts positions dict or portfolio fallback
+        _pts_pos   = pts.get("current_positions") or {}
+        if _pts_pos:
+            deployed = sum(float(v) for v in _pts_pos.values() if v)
+            cash_usd = max(0.0, total_val - deployed)
+        else:
+            deployed = portfolio.get("deployed_usd", 0.0) or 0.0
+            cash_usd = portfolio.get("cash_usd", total_val) or 0.0
 
         pnl_sign   = "+" if pnl_usd >= 0 else ""
         pct_sign   = "+" if pnl_pct >= 0 else ""
 
-        # ---- weighted APY from open positions -----------------------
-        open_pos   = [p for p in positions if p.get("status", "open") in ("open", None, "")]
-        # Also treat positions without explicit status as open
+        # ---- open positions list (always needed for position lines) ---
+        open_pos = [p for p in positions if p.get("status", "open") in ("open", None, "")]
         if not open_pos:
             open_pos = positions
 
-        w_apy = 0.0
-        if open_pos and deployed > 0:
-            w_apy = sum(
-                (p.get("current_apy") or 0.0) * (p.get("amount_usd") or 0.0)
-                for p in open_pos
-            ) / deployed
-        elif open_pos:
-            apys = [p.get("current_apy") or 0.0 for p in open_pos if p.get("current_apy")]
-            w_apy = sum(apys) / len(apys) if apys else 0.0
+        # ---- weighted APY — prefer apy_today_pct from pts -----------
+        w_apy = float(pts.get("apy_today_pct") or 0.0)
+        if w_apy == 0.0:
+            # fallback: compute from legacy positions list
+            if open_pos and deployed > 0:
+                w_apy = sum(
+                    (p.get("current_apy") or 0.0) * (p.get("amount_usd") or 0.0)
+                    for p in open_pos
+                ) / deployed
+            elif open_pos:
+                apys = [p.get("current_apy") or 0.0 for p in open_pos if p.get("current_apy")]
+                w_apy = sum(apys) / len(apys) if apys else 0.0
 
         gap   = w_apy - TARGET_APY
         gap_s = f"{gap:+.2f}%"
 
-        # ---- paper trading day counter ------------------------------
+        # ---- paper trading day counter — read from progress_tracker (MP-141 source of truth) ----
         today          = date.today()
-        days_elapsed   = (today - PAPER_START_DATE).days
-        days_elapsed   = max(0, days_elapsed)
+        # progress_tracker.json has paper_start_date (real track start 2026-06-10)
+        _pt_start = progress.get("paper_start_date", "")
+        try:
+            paper_start = date.fromisoformat(_pt_start) if _pt_start else _PAPER_START_DATE_FALLBACK
+        except ValueError:
+            paper_start = _PAPER_START_DATE_FALLBACK
+        # Prefer paper_days directly if available (avoids timezone drift)
+        days_elapsed   = progress.get("paper_days", None)
+        if days_elapsed is None:
+            days_elapsed = (today - paper_start).days
+        days_elapsed   = max(0, int(days_elapsed))
 
         # ---- risk alerts -------------------------------------------
         alerts      = risk_data.get("alerts", [])
@@ -193,13 +221,19 @@ class DailyReportBuilder:
             criteria_str = f" ({m.group(1)} criteria)" if m else ""
         verdict_emoji = golive.get("verdict_emoji", "🔴")
 
-        # ---- position lines -----------------------------------------
+        # ---- position lines — prefer pts.current_positions dict -------
         pos_lines = []
-        for p in open_pos[:6]:   # cap at 6 to keep message concise
-            name    = _html(p.get("protocol", p.get("protocol_key", "?")))
-            amt     = p.get("amount_usd") or 0.0
-            apy     = p.get("current_apy") or 0.0
-            pos_lines.append(f"  {name:<22} ${amt:>10,.0f}  {apy:.2f}% APY")
+        # Try paper_trading_status.current_positions first (dict of protocol→amount_usd)
+        _pts_cur = pts.get("current_positions") or {}
+        if _pts_cur:
+            for proto, amt in list(_pts_cur.items())[:6]:
+                pos_lines.append(f"  {_html(proto):<22} ${float(amt):>10,.0f}")
+        else:
+            for p in open_pos[:6]:
+                name = _html(p.get("protocol", p.get("protocol_key", "?")))
+                amt  = p.get("amount_usd") or 0.0
+                apy  = p.get("current_apy") or 0.0
+                pos_lines.append(f"  {name:<22} ${amt:>10,.0f}  {apy:.2f}% APY")
 
         if not pos_lines:
             pos_lines.append("  (no open positions — deploying capital)")
@@ -227,6 +261,16 @@ class DailyReportBuilder:
             f"⏱  Paper trading: Day {days_elapsed}/{PAPER_TOTAL_DAYS}",
             f"{verdict_emoji} Go-live: {_html(verdict)}{_html(criteria_str)}",
         ]
+
+        # ---- progress tracker (MP-141) — next milestone line --------
+        if progress.get("available"):
+            milestones = progress.get("milestones", [])
+            next_ms = next((m for m in milestones if not m.get("reached", False)), None)
+            if next_ms:
+                lines.append(
+                    f"⏳ Next: {_html(next_ms['label'])} — "
+                    f"{next_ms['days_remaining']}d ({next_ms['eta_date']})"
+                )
 
         msg = "\n".join(lines)
 
