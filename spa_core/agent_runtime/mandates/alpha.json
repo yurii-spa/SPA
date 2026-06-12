@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "alpha",
+  "role": "Alpha Agent (MP-304): еженедельный скан DeFiLlama и конкурентов поверх автодискавери MP-205 → кандидаты в whitelist с обоснованием (устойчивость APY, ёмкость, риск-оси) → data/alpha_candidates.json → candidate-tier. Только ADVISORY: листинг протокола — исключительно через ADR/человека, напрямую листить запрещено.",
+  "schedule": "weekly",
+  "token_budget_per_run": 15000,
+  "token_budget_daily": 30000,
+  "forbidden_actions": [
+    "list_protocol_directly",
+    "modify_whitelist",
+    "modify_policy",
+    "initiate_tx",
+    "move_capital",
+    "write_outside_allowed_outputs"
+  ],
+  "allowed_outputs": [
+    "data/alpha_candidates.json"
+  ],
+  "requires_llm": true,
+  "degradation_mode": "deterministic-only"
+}
