@@ -324,3 +324,29 @@
 {"level":"info","event":0,"ip":"198.41.192.107","connIndex":0,"time":"2026-06-11T06:00:11Z","message":"Retrying connection in up to 1s"}
 {"level":"info","event":0,"ip":"198.41.192.107","connIndex":0,"time":"2026-06-11T06:00:13Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
 {"level":"info","event":0,"connection":"64dcaa90-4e4a-4e52-97cf-1826db136b77","connIndex":0,"location":"mad06","ip":"198.41.192.107","protocol":"quic","time":"2026-06-11T06:00:13Z","message":"Registered tunnel connection"}
+{"level":"error","event":0,"ip":"198.41.192.107","connIndex":0,"error":"timeout: no recent network activity","time":"2026-06-12T20:14:17Z","message":"failed to run the datagram handler"}
+{"level":"error","event":0,"ip":"198.41.192.107","connIndex":0,"error":"failed to accept QUIC stream: timeout: no recent network activity","time":"2026-06-12T20:14:17Z","message":"failed to accept incoming stream requests"}
+{"level":"error","event":0,"ip":"198.41.192.107","connIndex":0,"error":"datagram manager encountered a failure while serving","time":"2026-06-12T20:14:17Z","message":"failed to serve tunnel connection"}
+{"level":"error","event":0,"ip":"198.41.192.107","connIndex":0,"error":"datagram manager encountered a failure while serving","time":"2026-06-12T20:14:17Z","message":"Serve tunnel error"}
+{"level":"info","event":0,"ip":"198.41.192.107","connIndex":0,"time":"2026-06-12T20:14:17Z","message":"Retrying connection in up to 1s"}
+{"level":"info","event":0,"ip":"198.41.192.107","connIndex":0,"time":"2026-06-12T20:14:17Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"error","event":0,"ip":"198.41.192.107","connIndex":0,"error":"failed to dial to edge with quic: timeout: no recent network activity","time":"2026-06-12T20:14:22Z","message":"Failed to dial a quic connection"}
+{"level":"info","event":0,"ip":"198.41.192.107","connIndex":0,"time":"2026-06-12T20:14:22Z","message":"Retrying connection in up to 4s"}
+{"level":"info","event":0,"ip":"198.41.200.23","connIndex":0,"time":"2026-06-12T20:14:25Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"error","event":0,"ip":"198.41.200.23","connIndex":0,"error":"failed to dial to edge with quic: write udp4 0.0.0.0:62782->198.41.200.23:7844: sendmsg: network is unreachable","time":"2026-06-12T20:14:25Z","message":"Failed to dial a quic connection"}
+{"level":"info","event":0,"ip":"198.41.200.23","connIndex":0,"time":"2026-06-12T20:14:25Z","message":"Retrying connection in up to 8s"}
+{"level":"error","error":"lookup region1.v2.argotunnel.com on [::1]:53: read udp [::1]:55298->[::1]:53: read: connection refused","time":"2026-06-12T20:14:31Z","message":"Failed to refresh DNS local resolver"}
+{"level":"info","event":0,"ip":"198.41.200.233","connIndex":0,"time":"2026-06-12T20:14:31Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"error","event":0,"ip":"198.41.200.233","connIndex":0,"error":"failed to dial to edge with quic: write udp4 0.0.0.0:62782->198.41.200.233:7844: sendmsg: network is unreachable","time":"2026-06-12T20:14:31Z","message":"Failed to dial a quic connection"}
+{"level":"info","event":0,"ip":"198.41.200.233","connIndex":0,"time":"2026-06-12T20:14:31Z","message":"Retrying connection in up to 16s"}
+{"level":"info","event":0,"ip":"198.41.192.227","connIndex":0,"time":"2026-06-12T20:14:39Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"error","event":0,"ip":"198.41.192.227","connIndex":0,"error":"failed to dial to edge with quic: write udp4 0.0.0.0:62782->198.41.192.227:7844: sendmsg: network is unreachable","time":"2026-06-12T20:14:39Z","message":"Failed to dial a quic connection"}
+{"level":"info","event":0,"ip":"198.41.192.227","connIndex":0,"time":"2026-06-12T20:14:39Z","message":"Retrying connection in up to 32s"}
+{"level":"info","event":0,"ip":"198.41.200.193","connIndex":0,"time":"2026-06-12T20:14:48Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"error","event":0,"ip":"198.41.200.193","connIndex":0,"error":"failed to dial to edge with quic: write udp4 0.0.0.0:62782->198.41.200.193:7844: sendmsg: network is unreachable","time":"2026-06-12T20:14:48Z","message":"Failed to dial a quic connection"}
+{"level":"info","event":0,"ip":"198.41.200.193","connIndex":0,"time":"2026-06-12T20:14:48Z","message":"Retrying connection in up to 1m4s"}
+{"level":"info","event":0,"ip":"198.41.200.23","connIndex":0,"time":"2026-06-12T20:15:04Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"error","event":0,"ip":"198.41.200.23","connIndex":0,"error":"failed to dial to edge with quic: write udp4 0.0.0.0:62782->198.41.200.23:7844: sendmsg: network is unreachable","time":"2026-06-12T20:15:04Z","message":"Failed to dial a quic connection"}
+{"level":"info","event":0,"ip":"198.41.200.23","connIndex":0,"time":"2026-06-12T20:15:04Z","message":"Retrying connection in up to 1m4s"}
+{"level":"info","event":0,"ip":"198.41.192.227","connIndex":0,"time":"2026-06-12T20:15:33Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
+{"level":"info","event":0,"connection":"90609ef2-47cf-4d5d-aff4-f1354f4c4bd4","connIndex":0,"location":"mad01","ip":"198.41.192.227","protocol":"quic","time":"2026-06-12T20:15:33Z","message":"Registered tunnel connection"}
