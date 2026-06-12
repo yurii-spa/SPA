@@ -8,15 +8,16 @@
     {
       "rank": 1,
       "id": "S7",
+      "strategy_id": "s7_pendle_yt",
       "name": "Pendle YT+PT Aggressive",
-      "description": "T3-SPEC · advisory · first to cross 10% APY",
-      "status": "target_met",
+      "description": "T3-SPEC · advisory · first to cross 10% APY · current leader",
+      "status": "leading",
       "tier": "T3",
       "days_running": 3,
       "composite_score": 0.844,
       "apy_target": 10.0,
-      "apy_realized": 10.1,
-      "sharpe": 0.96,
+      "apy_realized": 10.115,
+      "sharpe": 1.2,
       "calmar": 6.47,
       "ulcer": 1.3,
       "equity_now": 100830.0,
@@ -30,6 +31,26 @@
     },
     {
       "rank": 2,
+      "id": "S11",
+      "strategy_id": "s11_hybrid",
+      "name": "Hybrid Yield Maximizer",
+      "description": "T3-SPEC · advisory · 45% Pendle YT + 30% Morpho Steak + 15% Euler + 10% Maple · target 15.6% APY",
+      "status": "research",
+      "tier": "T3-SPEC",
+      "days_running": 0,
+      "composite_score": null,
+      "apy_target": 15.6,
+      "apy_realized": null,
+      "sharpe": null,
+      "calmar": null,
+      "ulcer": null,
+      "equity_now": 100000.0,
+      "equity_series": [
+        100000.0
+      ]
+    },
+    {
+      "rank": 3,
       "id": "S5",
       "name": "Pendle PT Enhanced",
       "description": "T2 · Pendle principal tokens enhanced",
@@ -52,7 +73,7 @@
       ]
     },
     {
-      "rank": 3,
+      "rank": 4,
       "id": "S6",
       "name": "Max Diversified",
       "description": "T2 · Maximum diversification across protocols",
@@ -75,11 +96,11 @@
       ]
     },
     {
-      "rank": 4,
+      "rank": 5,
       "id": "S2",
       "name": "Pendle+Morpho Heavy",
       "description": "T2 · Pendle + Morpho Steakhouse concentrated",
-      "status": "leading",
+      "status": "active",
       "tier": "T2",
       "days_running": 3,
       "composite_score": 0.61,
@@ -98,7 +119,7 @@
       ]
     },
     {
-      "rank": 5,
+      "rank": 6,
       "id": "S4",
       "name": "Spark+Fluid Conservative",
       "description": "T2 · Research phase · Spark + Fluid protocol",
@@ -121,7 +142,7 @@
       ]
     },
     {
-      "rank": 6,
+      "rank": 7,
       "id": "S1",
       "name": "T1+T2 Balanced",
       "description": "T1+T2 · Balanced allocation with T2 exposure",
@@ -144,7 +165,7 @@
       ]
     },
     {
-      "rank": 7,
+      "rank": 8,
       "id": "S3",
       "name": "Aave Arb+Morpho",
       "description": "T1+T2 · Aave Arbitrum + Morpho Blue",
@@ -167,7 +188,7 @@
       ]
     },
     {
-      "rank": 8,
+      "rank": 9,
       "id": "S0",
       "name": "Aave Baseline",
       "description": "T1 · Aave V3 mainnet conservative baseline",
@@ -190,7 +211,7 @@
       ]
     },
     {
-      "rank": 9,
+      "rank": 10,
       "id": "S10",
       "name": "Pendle YT Max Spec",
       "description": "T3-SPEC · advisory · max speculation YT: bull 42%, base 14%, bear -50%",
@@ -213,7 +234,7 @@
       ]
     },
     {
-      "rank": 10,
+      "rank": 11,
       "id": "S8",
       "name": "Delta-Neutral sUSDe",
       "description": "T3 · Ethena delta hedge · bull 27.5%, base 12%, bear 0%",
@@ -236,7 +257,27 @@
       ]
     },
     {
-      "rank": 11,
+      "rank": 12,
+      "id": "S12",
+      "strategy_id": "s12_base_layer",
+      "name": "Base Layer Yield",
+      "description": "T3 · Base chain USDC yield · Phase 1 ETH fallback · ADR-025 (activates 2026-08-01)",
+      "status": "research",
+      "tier": "T3",
+      "days_running": 0,
+      "composite_score": null,
+      "apy_target": 6.0,
+      "apy_realized": null,
+      "sharpe": null,
+      "calmar": null,
+      "ulcer": null,
+      "risk_score": 0.4,
+      "equity_now": 100000.0,
+      "equity_series": [],
+      "note": "Phase 1 ETH fallback · paper-only until 2026-08-01 · ADR-023: 30d paper + Sharpe≥1.0 + USER_APPROVAL"
+    },
+    {
+      "rank": 13,
       "id": "S9",
       "name": "E-Mode Looping",
       "description": "T2 · Aave E-Mode 4.5× leverage · health factor deleverage trigger",
@@ -259,24 +300,25 @@
       ]
     },
     {
-      "rank": 12,
-      "id": "S11",
-      "name": "Hybrid Yield Maximizer",
-      "description": "T3-SPEC · advisory · 45% Pendle YT + 30% Morpho Steak + 15% Euler + 10% Maple · target 15.6% APY",
+      "rank": 14,
+      "id": "S13",
+      "strategy_id": "s13_multi_chain_arb",
+      "name": "S13 Multi-Chain Yield Arbitrage",
+      "description": "T2 · Research · Phase 1: ETH fallback · spread threshold 1.5% · Phase 2 cross-chain arb 2026-08-01",
       "status": "research",
-      "tier": "T3-SPEC",
+      "tier": "T2",
       "days_running": 0,
-      "composite_score": null,
-      "apy_target": 15.6,
+      "composite_score": 0.45,
+      "apy_target": 8.5,
       "apy_realized": null,
       "sharpe": null,
       "calmar": null,
       "ulcer": null,
+      "risk_score": 0.45,
       "equity_now": 100000.0,
-      "equity_series": [
-        100000.0
-      ]
+      "equity_series": [],
+      "note": "Phase 1: ETH fallback only. Phase 2 cross-chain arb after 2026-08-01. Spread threshold 1.5%."
     }
   ],
-  "strategy_count": 12
+  "strategy_count": 14
 }
