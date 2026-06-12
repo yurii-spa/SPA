@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-06-11T06:17:00.987587+00:00",
+  "max_entries": 500,
+  "decisions": [
+    {
+      "ts": "2026-06-11T06:17:00.987496+00:00",
+      "snapshot_id": "snap-239cb9d5d5ae",
+      "trigger": "weekly",
+      "decision": "keep_strategy",
+      "reasoning": "[degraded=true] Детерминированная эвристика: drawdown (0.00%) в пределах 2.0% — держим текущую стратегию.",
+      "inputs_digest": "239cb9d5d5ae5141",
+      "degraded": true,
+      "schema_version": 1
+    }
+  ]
+}
