@@ -1,0 +1,19 @@
+{
+  "name": "protocol_research",
+  "role": "protocol_discovery",
+  "schedule": "weekly",
+  "token_budget_per_run": 1000,
+  "token_budget_daily": 3000,
+  "forbidden_actions": [
+    "execute_trade",
+    "modify_policy",
+    "change_allocation",
+    "add_to_whitelist"
+  ],
+  "allowed_outputs": [
+    "write_research_notes",
+    "flag_for_alpha_review"
+  ],
+  "requires_llm": false,
+  "degradation_mode": "deterministic-only"
+}
