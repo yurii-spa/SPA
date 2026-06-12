@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "source": "tear_sheet",
+  "meta": {
+    "generated_at": "2026-06-11T15:19:10.272373+00:00",
+    "period": "2026-06",
+    "is_demo": false,
+    "advisory_only": true,
+    "source_files": [
+      "equity_curve_daily.json",
+      "paper_trading_status.json",
+      "current_positions.json",
+      "adapter_orchestrator_status.json",
+      "capital_ladder_status.json",
+      "proof_of_track_anchors.json",
+      "golive_status.json",
+      "trades.json"
+    ],
+    "track": {
+      "paper_start_date": "2026-05-20",
+      "days_running": 23,
+      "execution_mode": "read_only_simulation",
+      "golive_ready": true
+    },
+    "publication": {
+      "mode": "files_only",
+      "note": "автопубликация = детерминированная генерация файлов; хостинг GitHub Pages — UA-004 (не сделан)"
+    },
+    "disclaimer": "Paper track (read-only simulation), NOT investment advice. Все цифры — виртуальный paper-трек SPA без реальных средств; прошлая доходность не гарантирует будущую."
+  },
+  "performance": {
+    "num_days_in_month": 2,
+    "num_return_days": 1,
+    "net_return_pct": 0.008687,
+    "annualized_apy_pct": 3.2214,
+    "win_rate_pct": 100.0,
+    "best_day": {
+      "date": "2026-06-11",
+      "daily_return_pct": 0.008687
+    },
+    "worst_day": {
+      "date": "2026-06-11",
+      "daily_return_pct": 0.008687
+    },
+    "annualization_days": 365,
+    "num_trades": 2
+  },
+  "risk": {
+    "daily_volatility_pct": 0.0,
+    "annualized_vol_pct": 0.0,
+    "sharpe_ratio": null,
+    "sortino_ratio": null,
+    "max_drawdown_pct": 0.0,
+    "psr": {
+      "psr": null,
+      "sharpe_daily": null,
+      "skewness": null,
+      "excess_kurtosis": null,
+      "variance_term": null,
+      "num_returns": 1,
+      "min_returns": 10,
+      "benchmark_sharpe_daily": 0.0,
+      "note": "insufficient data: 1 return(s) < min 10 — PSR not computed"
+    },
+    "incident_threshold_pct": 1.0
+  },
+  "exposure": {
+    "available": true,
+    "as_of": "2026-06-11T06:00:04.910055+00:00",
+    "capital_usd": 100000.0,
+    "deployed_usd": 94999.98,
+    "cash_pct": 5.0,
+    "by_protocol": {
+      "aave_v3": {
+        "usd": 31529.27,
+        "share_pct": 31.5293,
+        "tier": "T1"
+      },
+      "compound_v3": {
+        "usd": 30220.72,
+        "share_pct": 30.2207,
+        "tier": "T1"
+      },
+      "euler_v2": {
+        "usd": 10376.79,
+        "share_pct": 10.3768,
+        "tier": "T2"
+      },
+      "maple": {
+        "usd": 11436.6,
+        "share_pct": 11.4366,
+        "tier": "T2"
+      },
+      "yearn_v3": {
+        "usd": 11436.6,
+        "share_pct": 11.4366,
+        "tier": "T2"
+      }
+    },
+    "by_tier": {
+      "T1": 61.75,
+      "T2": 33.25
+    }
+  },
+  "incidents": {
+    "threshold_pct": 1.0,
+    "count": 0,
+    "items": []
+  },
+  "proof_of_track": {
+    "anchors_count": 1,
+    "latest_root": null,
+    "anchors": [
+      {
+        "date": "2026-06-11",
+        "merkle_root": null,
+        "leaf_count": 0,
+        "published": false,
+        "tx_hash": null
+      }
+    ],
+    "note": "Merkle roots дневного audit-трека (MP-406); published=false до on-chain публикации (MP-017)"
+  },
+  "capital_ladder": {
+    "current_level": 0,
+    "level_code": "L0",
+    "level_name": "paper",
+    "aum_cap_usd": 100000.0,
+    "aum_usd": 100017.3,
+    "track_days": 23,
+    "incidents_total": 0
+  },
+  "notes": [
+    "PSR: insufficient data: 1 return(s) < min 10 — PSR not computed"
+  ],
+  "history": [
+    {
+      "period": "2026-06",
+      "generated_at": "2026-06-11T15:19:10.272373+00:00",
+      "net_return_pct": 0.008687,
+      "sharpe_ratio": null,
+      "max_drawdown_pct": 0.0,
+      "incidents_count": 0
+    }
+  ]
+}
