@@ -182,11 +182,36 @@ def test_send_daily_summary_negative_pnl_sign():
     assert "P&L: -0.50%" in text and "+-" not in text
 
 
-def test_send_red_flag_bullets():
-    text = _sent_text(
-        alert_manager.send_red_flag, ["CRITICAL aave-v3: gov", "WARN maple: unlock"]
-    )
-    assert text == "🚨 *SPA Red Flags*\n• CRITICAL aave-v3: gov\n• WARN maple: unlock"
+def test_send_red_flag_russian_format():
+    """send_red_flag uses Russian formatting (MP-136): header + alert blocks."""
+    alerts = [
+        {
+            "severity": "CRITICAL",
+            "protocol": "aave-v3",
+            "category": "governance_proposal",
+            "message": "Risk-sensitive proposal [emergency]: Emergency shutdown",
+            "evidence": {"tag": "emergency"},
+        },
+        {
+            "severity": "WARN",
+            "protocol": "maple",
+            "category": "token_unlock",
+            "message": "Token unlock 1.80% of supply (MPL) at 2026-06-01T00:00:00Z",
+            "evidence": {},
+        },
+    ]
+    text = _sent_text(alert_manager.send_red_flag, alerts)
+    assert text.startswith("🚨 *SPA — Важные события*")
+    assert "🔴 Aave V3" in text
+    assert "Экстренное голосование в DAO" in text
+    assert "🟡 Maple Finance" in text
+    assert "Разблокировка токенов MPL" in text
+
+
+def test_send_red_flag_empty_list():
+    """Empty flag list → 'Новых событий нет.' message, still returns True."""
+    text = _sent_text(alert_manager.send_red_flag, [])
+    assert "Новых событий нет" in text
 
 
 def test_send_gap_alert_format():
@@ -248,8 +273,9 @@ def test_run_cycle_alerts_dispatch(tmp_path):
     ):
         sent = cycle_runner._run_cycle_alerts(tmp_path, date=date)
         assert sent == {"daily_summary": True, "red_flags": True, "gap": True}
+        # MP-136: cycle_runner passes raw dicts, not pre-formatted strings
         alert_manager.send_red_flag.assert_called_once_with(
-            ["CRITICAL aave-v3: gov proposal"]
+            [{"severity": "CRITICAL", "protocol": "aave-v3", "message": "gov proposal"}]
         )
         alert_manager.send_gap_alert.assert_called_once_with(49.26)
 
