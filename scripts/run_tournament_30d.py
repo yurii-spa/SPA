@@ -368,6 +368,122 @@ def _load_strategies():
             target_apy_max=8.0,
         ))
 
+    # S2 — Morpho Heavy / Pendle+Morpho Heavy (~7.0% APY)
+    try:
+        from spa_core.paper_trading.strategy_registry import S2_MORPHO_HEAVY
+        strategies.append(S2_MORPHO_HEAVY)
+    except ImportError:
+        strategies.append(_FallbackStrategyConfig(
+            id="S2",
+            name="Pendle+Morpho Heavy",
+            description=(
+                "Morpho Steakhouse 55%, Morpho Blue 35%, Cash 10%. "
+                "T1/T2 heavy Morpho exposure. Target ~7.0% APY."
+            ),
+            allocations={"morpho_steakhouse": 0.55, "morpho_blue": 0.35},
+            tier="T1+T2",
+            target_apy_min=5.0,
+            target_apy_max=10.0,
+        ))
+
+    # S3 — Pendle Rotation / Aave Arb+Morpho (~4.7% APY)
+    try:
+        from spa_core.paper_trading.strategy_registry import S3_PENDLE_ROTATION
+        strategies.append(S3_PENDLE_ROTATION)
+    except ImportError:
+        strategies.append(_FallbackStrategyConfig(
+            id="S3",
+            name="Aave Arb+Morpho",
+            description=(
+                "Pendle PT 40% (placeholder→cash), Morpho Blue 30%, Aave V3 25%, Cash 5%. "
+                "Cross-chain / Pendle rotation. Target ~4.7% APY."
+            ),
+            allocations={"pendle_pt": 0.40, "morpho_blue": 0.30, "aave_v3": 0.25},
+            tier="T2",
+            target_apy_min=3.0,
+            target_apy_max=7.0,
+        ))
+
+    # S4 — Spark+Fluid Conservative (~5.9% APY)
+    # Основной файл: spa_core/strategies/s4_spark_fluid_conservative.py
+    # Класс S4ConservativeSparkFluid (не S4SparkFluidConservative) — fallback → registry
+    try:
+        from spa_core.strategies.s4_spark_fluid_conservative import S4SparkFluidConservative
+        if hasattr(S4SparkFluidConservative, "id") and hasattr(S4SparkFluidConservative, "allocations"):
+            strategies.append(S4SparkFluidConservative)
+        else:
+            raise ImportError("S4SparkFluidConservative is not StrategyConfig-compatible")
+    except ImportError:
+        try:
+            from spa_core.paper_trading.strategy_registry import S4_T2_MAX
+            strategies.append(S4_T2_MAX)
+        except ImportError:
+            strategies.append(_FallbackStrategyConfig(
+                id="S4",
+                name="Spark+Fluid Conservative",
+                description=(
+                    "Yearn V3 35%, Euler V2 35%, Morpho Blue 25%, Cash 5%. "
+                    "Conservative T2 allocation. Target ~5.9% APY."
+                ),
+                allocations={"yearn_v3": 0.35, "euler_v2": 0.35, "morpho_blue": 0.25},
+                tier="T2",
+                target_apy_min=4.5,
+                target_apy_max=7.5,
+            ))
+
+    # S5 — Pendle PT Enhanced (~8.5% APY)
+    # Основной файл: spa_core/strategies/s5_pendle_enhanced.py
+    # S5PendleEnhanced — simulation-класс, не StrategyConfig-совместим; fallback → registry
+    try:
+        from spa_core.strategies.s5_pendle_enhanced import S5PendleEnhanced
+        if hasattr(S5PendleEnhanced, "id") and hasattr(S5PendleEnhanced, "allocations"):
+            strategies.append(S5PendleEnhanced)
+        else:
+            raise ImportError("S5PendleEnhanced is not StrategyConfig-compatible")
+    except ImportError:
+        try:
+            from spa_core.paper_trading.strategy_registry import S5_RWA_FOCUS
+            strategies.append(S5_RWA_FOCUS)
+        except ImportError:
+            strategies.append(_FallbackStrategyConfig(
+                id="S5",
+                name="Pendle PT Enhanced",
+                description=(
+                    "Pendle PT 65% (→cash), Morpho Steakhouse 25%, Compound V3 10%. "
+                    "Fixed-rate Pendle focus. Target ~8.5% APY."
+                ),
+                allocations={"morpho_steakhouse": 0.25, "compound_v3": 0.10},
+                tier="T1",
+                target_apy_min=7.0,
+                target_apy_max=11.0,
+            ))
+
+    # S6 — Max Diversified (~7.5% APY)
+    # Основной файл: spa_core/strategies/s6_max_diversified.py (в разработке)
+    try:
+        from spa_core.strategies.s6_max_diversified import S6MaxDiversified
+        if hasattr(S6MaxDiversified, "id") and hasattr(S6MaxDiversified, "allocations"):
+            strategies.append(S6MaxDiversified)
+        else:
+            raise ImportError("S6MaxDiversified is not StrategyConfig-compatible")
+    except ImportError:
+        try:
+            from spa_core.paper_trading.strategy_registry import S6_AGGRESSIVE_T2
+            strategies.append(S6_AGGRESSIVE_T2)
+        except ImportError:
+            strategies.append(_FallbackStrategyConfig(
+                id="S6",
+                name="Max Diversified",
+                description=(
+                    "Yearn V3 40%, Euler V2 30%, Morpho Blue 25%, Cash 5%. "
+                    "Aggressive T2 diversification. Target ~7.5% APY."
+                ),
+                allocations={"yearn_v3": 0.40, "euler_v2": 0.30, "morpho_blue": 0.25},
+                tier="T2",
+                target_apy_min=6.0,
+                target_apy_max=10.0,
+            ))
+
     # S_aave_baseline — mock benchmark
     strategies.append(make_aave_baseline())
 
