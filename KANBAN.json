@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-12T10:30:00Z",
-  "updated_by": "spa-dev-continue (SPA-V450 / MP-131)",
-  "sprint_current": "v4.50",
+  "last_updated": "2026-06-12",
+  "updated_by": "spa-dev-continue (SPA-V453 / MP-139 structural_break)",
+  "sprint_current": "v4.54",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -256,6 +256,23 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-137",
+        "title": "Deflated Sharpe Ratio (DSR) & Multiple-Testing-Adjusted Performance Analyzer (read-only/advisory)",
+        "description": "Вычисляет Deflated Sharpe Ratio (Bailey & Lopez de Prado): корректирует наблюдаемый Sharpe на множественное тестирование через ожидаемый максимум Sharpe под нулём по N shadow-стратегиям (S0..S5). DSR = PSR против порога sr_star=E[max]. Reuse-by-import: PSR-математика из probabilistic_sharpe + content_fingerprint из tear_sheet. Advisory verdict: DSR<0.5 -> fail (overfitting red-flag).",
+        "priority": "P2",
+        "status": "done",
+        "assigned_to": "backend_developer",
+        "model": "opus",
+        "type": "analytics",
+        "sprint": "v4.51",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V451)",
+        "depends_on": [
+          "MP-501"
+        ],
+        "note": "2 new files (spa_core/paper_trading/deflated_sharpe.py + spa_core/tests/test_deflated_sharpe.py); reuses probabilistic_sharpe PSR math (_probabilistic_sharpe/_inv_norm_cdf/_skewness/_excess_kurtosis/_variance_term/_norm_cdf/_daily_returns) and tear_sheet content_fingerprint by import; trial Sharpes from strategy_consolidator converted annualised->daily so SR_obs, V and E[max] share one scale. 48 tests OK."
+      },
       {
         "id": "MP-131",
         "title": "Regime-Conditional Performance Analyzer (read-only/advisory)",
@@ -2313,10 +2330,51 @@
         "type": "analytics",
         "resolution": "spa_core/paper_trading/protocol_scorecard.py + spa_core/tests/test_protocol_scorecard.py. 72/72 tests OK. STRICTLY READ-ONLY: no capital, no risk/execution/allocator touches. Pure stdlib. Atomic write for save_scorecard. CLI --check/--run/--data-dir. Exit 0 always.",
         "completed": "2026-06-12"
+      },
+      {
+        "id": "MP-139",
+        "title": "Structural-Break / Change-Point Detector (read-only/advisory)",
+        "description": "CUSUM стандартизованных отклонений → Welch t-test break-point detection. Verdicts: fail/warn/ok. Advisory only.",
+        "priority": "P2",
+        "status": "done",
+        "type": "analytics",
+        "sprint": "v4.53",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V453)",
+        "files_changed": [
+          "spa_core/paper_trading/structural_break.py",
+          "spa_core/tests/test_structural_break.py"
+        ]
+      },
+      {
+        "id": "MP-140",
+        "title": "Backtest vs Paper Contour Analyzer (read-only/advisory)",
+        "status": "done",
+        "sprint": "v4.54",
+        "tags": [
+          "analytics",
+          "advisory"
+        ],
+        "added": "2026-06-12",
+        "files_changed": [
+          "spa_core/paper_trading/backtest_vs_paper.py",
+          "spa_core/tests/test_backtest_vs_paper.py"
+        ]
+      },
+      {
+        "id": "MP-138",
+        "title": "Honest Metrics: Sortino/Sharpe CI + LOW_CONFIDENCE flag (<30d)",
+        "status": "done",
+        "sprint": "v4.52",
+        "tags": [
+          "analytics",
+          "advisory"
+        ],
+        "added": "2026-06-12"
       }
     ]
   },
-  "sprint_completed": "v4.50",
+  "sprint_completed": "v4.53",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
