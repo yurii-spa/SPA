@@ -1,0 +1,28 @@
+{
+  "available": false,
+  "reason": "only 0 daily returns (< 5 required)",
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 0 daily returns (< 5 required)",
+  "deflated_sharpe_ratio": null,
+  "probabilistic_sharpe": null,
+  "observed_sharpe": null,
+  "observed_sharpe_annualized": null,
+  "num_trials": null,
+  "trial_sharpe_variance": null,
+  "expected_max_sharpe_null": null,
+  "expected_max_sharpe_null_annualized": null,
+  "n_observations": null,
+  "skewness": null,
+  "excess_kurtosis": null,
+  "trials_source": null,
+  "is_demo": null,
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T10:18:43.567172+00:00",
+    "schema_version": 1,
+    "source": "deflated_sharpe",
+    "min_obs_required": 5
+  },
+  "_fingerprint": "{\"available\": false, \"deflated_sharpe_ratio\": null, \"excess_kurtosis\": null, \"expected_max_sharpe_null\": null, \"expected_max_sharpe_null_annualized\": null, \"is_demo\": null, \"meta\": {\"min_obs_required\": 5, \"schema_version\": 1, \"source\": \"deflated_sharpe\"}, \"n_observations\": null, \"notes\": [], \"num_trials\": null, \"observed_sharpe\": null, \"observed_sharpe_annualized\": null, \"probabilistic_sharpe\": null, \"reason\": \"only 0 daily returns (< 5 required)\", \"skewness\": null, \"trial_sharpe_variance\": null, \"trials_source\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 0 daily returns (< 5 required)\"}",
+  "history": []
+}
