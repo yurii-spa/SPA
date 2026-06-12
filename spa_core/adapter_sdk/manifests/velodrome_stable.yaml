@@ -1,0 +1,19 @@
+# Velodrome V2 (Optimism) stable AMM (sAMM) pool USDC/sUSD — DeFiLlama yields
+# project slug: "velodrome-v2". Stable-stable correlated pair only; AMM LP
+# exit is same-block, declared 1h liquid for conservatism.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: velodrome_stable
+defillama_protocol_id: velodrome-v2
+chains:
+  - Optimism
+symbols:
+  - USDC-SUSD
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 1.0          # AMM LP withdrawal, same-block; 1h declared for slippage
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 25.0
