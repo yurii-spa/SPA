@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-10T08:57:04.218712Z",
+  "generated_at": "2026-06-12T12:35:54.253452Z",
   "gate": "NO_GO",
-  "operational_status": "degraded",
-  "operational_score": 45.2,
+  "operational_status": "unknown",
+  "operational_score": 0.0,
   "checklist_verdict": "NOT_READY",
   "criteria_passed": 4,
   "criteria_total": 12,
   "blocking": [
-    "operational readiness degraded",
+    "operational readiness unknown",
     "checklist not_ready"
   ]
 }

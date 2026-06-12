@@ -1,52 +1,52 @@
 {
-  "generated_at": "2026-06-10T08:57:04.195473+00:00",
-  "winner": "v2_aggressive",
-  "confidence": "HIGH",
-  "recommendation": "v2_aggressive recommended (vs v1_passive): superior Sharpe (-11.94 vs -18.72); higher return (0.82% vs 0.74%); also ahead of v3_pendle_focused (score 0.15)",
+  "generated_at": "2026-06-12T12:35:54.225189+00:00",
+  "winner": "v1_passive",
+  "confidence": "LOW",
+  "recommendation": "v1_passive recommended (vs v2_aggressive): superior Sharpe (0.00 vs 0.00); higher return (0.00% vs 0.00%); also ahead of v3_pendle_focused (score 0.50)",
   "scores": {
-    "v1_passive": 0.792461,
-    "v2_aggressive": 0.85,
-    "v3_pendle_focused": 0.15
+    "v1_passive": 0.5,
+    "v2_aggressive": 0.5,
+    "v3_pendle_focused": 0.5
   },
   "metrics": {
     "v1_passive": {
-      "sharpe_ratio": -18.7241,
+      "sharpe_ratio": 0.0,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.7449,
-      "annualised_return_pct": 3.0555,
-      "win_rate": 1.0,
-      "total_trades": 7,
-      "avg_position_size_usd": 27956.11,
-      "initial_capital_usd": 100000,
-      "final_capital_usd": 100744.88,
-      "total_interest_usd": 744.88,
-      "backtest_days": 90
+      "total_return_pct": 0.0,
+      "annualised_return_pct": 0.0,
+      "win_rate": 0.0,
+      "total_trades": 0,
+      "avg_position_size_usd": 0.0,
+      "initial_capital_usd": 0.0,
+      "final_capital_usd": 0.0,
+      "total_interest_usd": 0.0,
+      "backtest_days": 0
     },
     "v2_aggressive": {
-      "sharpe_ratio": -11.9385,
+      "sharpe_ratio": 0.0,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.821,
-      "annualised_return_pct": 3.3716,
-      "win_rate": 1.0,
-      "total_trades": 7,
-      "avg_position_size_usd": 27219.13,
-      "initial_capital_usd": 100000,
-      "final_capital_usd": 100820.99,
-      "total_interest_usd": 820.99,
-      "backtest_days": 90
+      "total_return_pct": 0.0,
+      "annualised_return_pct": 0.0,
+      "win_rate": 0.0,
+      "total_trades": 0,
+      "avg_position_size_usd": 0.0,
+      "initial_capital_usd": 0.0,
+      "final_capital_usd": 0.0,
+      "total_interest_usd": 0.0,
+      "backtest_days": 0
     },
     "v3_pendle_focused": {
-      "sharpe_ratio": -107.0854,
+      "sharpe_ratio": 0.0,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.0341,
-      "annualised_return_pct": 0.1382,
-      "win_rate": 1.0,
-      "total_trades": 2,
-      "avg_position_size_usd": 30000.0,
-      "initial_capital_usd": 100000,
-      "final_capital_usd": 100034.05,
-      "total_interest_usd": 34.05,
-      "backtest_days": 90
+      "total_return_pct": 0.0,
+      "annualised_return_pct": 0.0,
+      "win_rate": 0.0,
+      "total_trades": 0,
+      "avg_position_size_usd": 0.0,
+      "initial_capital_usd": 0.0,
+      "final_capital_usd": 0.0,
+      "total_interest_usd": 0.0,
+      "backtest_days": 0
     }
   }
 }

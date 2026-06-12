@@ -1,40 +1,31 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-10T08:57:04.218045Z",
-  "overall_score": 45.2,
-  "overall_status": "degraded",
+  "generated_at": "2026-06-12T12:35:54.252659Z",
+  "overall_score": 0.0,
+  "overall_status": "unknown",
   "components": [
     {
       "key": "feed_health",
       "label": "Feed / covariance health",
       "score": 0,
-      "status": "degraded",
-      "overall_status": "degraded",
-      "counts": {
-        "ok": 3,
-        "warn": 0,
-        "degraded": 6,
-        "unknown": 0
-      },
-      "signal_count": 9,
+      "status": "unknown",
+      "error": "No module named 'spa_core.alerts'",
       "contributes_to_overall": true
     },
     {
       "key": "mev_coverage",
       "label": "MEV-routing coverage",
-      "score": 85.7,
-      "status": "ok",
-      "coverage_pct": 85.7,
-      "routed": 6,
-      "total": 7,
+      "score": 0,
+      "status": "unknown",
+      "error": "No module named 'spa_core.execution'",
       "contributes_to_overall": true
     },
     {
       "key": "live_apy",
       "label": "Live APY enrichment",
-      "score": 50,
-      "status": "warn",
-      "live_apy_enabled": false,
+      "score": 0,
+      "status": "unknown",
+      "error": "No module named 'spa_core.execution'",
       "contributes_to_overall": true
     },
     {
@@ -45,9 +36,9 @@
       "target_date": "2026-07-15",
       "contributes_to_overall": false,
       "scored": false,
-      "days_to_golive": 35
+      "days_to_golive": 33
     }
   ],
   "target_date": "2026-07-15",
-  "days_to_golive": 35
+  "days_to_golive": 33
 }

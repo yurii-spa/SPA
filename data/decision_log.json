@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-10T08:56:41.801614+00:00",
-  "total_decisions": 3,
+  "generated_at": "2026-06-12T12:35:31.272200+00:00",
+  "total_decisions": 5,
   "decisions": [
     {
-      "id": 6,
-      "timestamp": "2026-06-10T08:56:41.800323+00:00",
+      "id": 8,
+      "timestamp": "2026-06-12T12:35:31.269300+00:00",
       "agent_name": "ReportAgent",
       "decision_type": "REPORT",
       "protocol_key": null,
@@ -33,12 +33,50 @@
           "apy_gap_report.json",
           "apy_gap_report_history.json"
         ],
-        "timestamp": "2026-06-10T08:56:41.800318+00:00"
+        "timestamp": "2026-06-12T12:35:31.269292+00:00"
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
       "risk_check_result": null,
       "outcome": null
+    },
+    {
+      "id": 7,
+      "timestamp": "2026-06-12T12:35:31.117160+00:00",
+      "agent_name": "TraderAgent",
+      "decision_type": "PASS",
+      "protocol_key": "aave-v3-usdc-arbitrum",
+      "amount_usd": null,
+      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.18% outside v2 target range [3.0\u201320.0%]",
+      "data_snapshot": {
+        "tvl_usd": 47932986.0,
+        "tier": "T1",
+        "chain": "arbitrum",
+        "apy": 2.1849
+      },
+      "policy_version": "v1.0",
+      "strategy_id": "paper-v2",
+      "risk_check_result": null,
+      "outcome": "SKIPPED"
+    },
+    {
+      "id": 6,
+      "timestamp": "2026-06-12T12:35:31.114377+00:00",
+      "agent_name": "TraderAgent",
+      "decision_type": "PASS",
+      "protocol_key": "euler-v2-usdc-ethereum",
+      "amount_usd": null,
+      "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.78% outside v2 target range [3.0\u201320.0%]",
+      "data_snapshot": {
+        "tvl_usd": 15056008.0,
+        "tier": "T2",
+        "chain": "ethereum",
+        "apy": 2.7829
+      },
+      "policy_version": "v1.0",
+      "strategy_id": "paper-v2",
+      "risk_check_result": null,
+      "outcome": "SKIPPED"
     },
     {
       "id": 5,
