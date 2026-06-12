@@ -1,0 +1,94 @@
+{
+  "current_phase": "paper_trading",
+  "legal_entity": null,
+  "jurisdiction_primary": "Spain",
+  "jurisdiction_secondary": "Ukraine",
+  "compliance_items": [
+    {
+      "item": "track_record_documentation",
+      "description": "Накопление верифицированного equity curve и торговых данных",
+      "status": "in_progress",
+      "priority": "high",
+      "phase_required": 1
+    },
+    {
+      "item": "investment_policy_statement",
+      "description": "Документ IPS: стратегия, риск-профиль, ограничения",
+      "status": "pending",
+      "priority": "high",
+      "phase_required": 2
+    },
+    {
+      "item": "risk_disclosure_statement",
+      "description": "Шаблон раскрытия рисков для инвесторов",
+      "status": "pending",
+      "priority": "high",
+      "phase_required": 2
+    },
+    {
+      "item": "kyc_aml_policy",
+      "description": "Письменная AML/KYC политика для инвесторов",
+      "status": "pending",
+      "priority": "medium",
+      "phase_required": 3
+    },
+    {
+      "item": "investment_agreement_template",
+      "description": "Шаблон subscription agreement / operating agreement",
+      "status": "pending",
+      "priority": "medium",
+      "phase_required": 3
+    },
+    {
+      "item": "gdpr_privacy_policy",
+      "description": "GDPR-совместимая Privacy Policy для EU-инвесторов",
+      "status": "pending",
+      "priority": "medium",
+      "phase_required": 3
+    },
+    {
+      "item": "tax_trading_journal",
+      "description": "Торговый журнал для крипто-налоговой отчётности (FIFO)",
+      "status": "pending",
+      "priority": "high",
+      "phase_required": 2
+    },
+    {
+      "item": "smart_contract_audit",
+      "description": "Аудит собственных smart contracts (если появятся vault-контракты)",
+      "status": "deferred_mp405",
+      "priority": "high",
+      "phase_required": 3,
+      "note": "Нет собственных контрактов на Phase 1-2; только публичные протоколы"
+    },
+    {
+      "item": "legal_entity_formation",
+      "description": "Регистрация юридического лица (Delaware LLC или испанская SL)",
+      "status": "pending",
+      "priority": "low",
+      "phase_required": 3
+    },
+    {
+      "item": "aifmd_sub_threshold_registration",
+      "description": "CNMV sub-threshold AIFM регистрация (если EU-инвесторы + AUM > €100K)",
+      "status": "pending",
+      "priority": "low",
+      "phase_required": 3
+    }
+  ],
+  "recommended_structure": {
+    "phase_1": "Никакой структуры — paper trading",
+    "phase_2": "Испанский autónomo / ИП для налоговой отчётности собственных доходов",
+    "phase_3": "Delaware LLC или испанская SL + AIFMD sub-threshold (в зависимости от инвесторов)",
+    "phase_4": "Delaware LP или Cayman Islands SPC при институциональном масштабировании"
+  },
+  "next_milestone": "Phase 2 pilot — go-live ~2026-08-01. Legal entity NOT required before first external investor.",
+  "trigger_hire_lawyer": "Перед первым разговором с потенциальным инвестором",
+  "estimated_legal_cost_phase1_usd": 0,
+  "estimated_legal_cost_phase2_usd": 2000,
+  "estimated_legal_cost_phase3_usd": 15000,
+  "estimated_legal_cost_phase4_usd": 55000,
+  "reference_document": "docs/LEGAL_STRUCTURE_v1.md",
+  "updated_at": "2026-06-12",
+  "created_by": "claude (MP-409)"
+}
