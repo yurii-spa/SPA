@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-06-11T07:19:22.384361+00:00",
+  "max_entries": 500,
+  "advisory_only": true,
+  "recommendations": [
+    {
+      "ts": "2026-06-11T07:19:22.316285+00:00",
+      "snapshot_id": "snap-eb4b8fbf114e",
+      "trigger": "weekly",
+      "recommendation": "keep_current",
+      "strategy": "s0_baseline",
+      "kelly": {
+        "apy_pct": 3.1706,
+        "volatility_pp": 0.1173549076200054,
+        "risk_free_rate_pct": 5.0,
+        "kelly_fraction": 0.0,
+        "half_kelly": 0.0,
+        "recommended_deployment_pct": 0.0,
+        "source": "spa_core.optimization.dynamic_kelly",
+        "note": "APY 3.17% не превышает risk-free 5.00% с учётом σ — Kelly=0, наращивание деплоя не рекомендуется"
+      },
+      "ranking_top3": [
+        {
+          "name": "s0_baseline",
+          "label": "Baseline (Equal Weight)",
+          "sortino": null,
+          "sharpe": null,
+          "pnl_pct": 0.0,
+          "max_drawdown": 0.0,
+          "days_running": 1,
+          "eligible": false,
+          "rank": 1
+        },
+        {
+          "name": "s1_concentration",
+          "label": "Concentration",
+          "sortino": null,
+          "sharpe": null,
+          "pnl_pct": 0.0,
+          "max_drawdown": 0.0,
+          "days_running": 1,
+          "eligible": false,
+          "rank": 2
+        },
+        {
+          "name": "s2_momentum",
+          "label": "APY Momentum",
+          "sortino": null,
+          "sharpe": null,
+          "pnl_pct": 0.0,
+          "max_drawdown": 0.0,
+          "days_running": 1,
+          "eligible": false,
+          "rank": 3
+        }
+      ],
+      "reasoning": "[degraded=true] Детерминированное ядро: ни одна shadow-стратегия не набрала 7 дней истории (гейт селектора) — рекомендация keep_current, активную стратегию менять не на чем. Рейтинг: 1. s0_baseline (sortino=None, sharpe=None, pnl=0.0%, days=1, eligible=False); 2. s1_concentration (sortino=None, sharpe=None, pnl=0.0%, days=1, eligible=False); 3. s2_momentum (sortino=None, sharpe=None, pnl=0.0%, days=1, eligible=False). Kelly-sizing (детерминированный, source=spa_core.optimization.dynamic_kelly): half-Kelly деплой 0.0%.",
+      "inputs_digest": "eb4b8fbf114e3d35",
+      "degraded": true,
+      "advisory_only": true,
+      "schema_version": 1
+    },
+    {
+      "ts": "2026-06-11T07:19:22.383966+00:00",
+      "snapshot_id": "snap-eb4b8fbf114e",
+      "trigger": "forced",
+      "recommendation": "keep_current",
+      "strategy": "s0_baseline",
+      "kelly": {
+        "apy_pct": 3.1706,
+        "volatility_pp": 0.1173549076200054,
+        "risk_free_rate_pct": 5.0,
+        "kelly_fraction": 0.0,
+        "half_kelly": 0.0,
+        "recommended_deployment_pct": 0.0,
+        "source": "spa_core.optimization.dynamic_kelly",
+        "note": "APY 3.17% не превышает risk-free 5.00% с учётом σ — Kelly=0, наращивание деплоя не рекомендуется"
+      },
+      "ranking_top3": [
+        {
+          "name": "s0_baseline",
+          "label": "Baseline (Equal Weight)",
+          "sortino": null,
+          "sharpe": null,
+          "pnl_pct": 0.0,
+          "max_drawdown": 0.0,
+          "days_running": 1,
+          "eligible": false,
+          "rank": 1
+        },
+        {
+          "name": "s1_concentration",
+          "label": "Concentration",
+          "sortino": null,
+          "sharpe": null,
+          "pnl_pct": 0.0,
+          "max_drawdown": 0.0,
+          "days_running": 1,
+          "eligible": false,
+          "rank": 2
+        },
+        {
+          "name": "s2_momentum",
+          "label": "APY Momentum",
+          "sortino": null,
+          "sharpe": null,
+          "pnl_pct": 0.0,
+          "max_drawdown": 0.0,
+          "days_running": 1,
+          "eligible": false,
+          "rank": 3
+        }
+      ],
+      "reasoning": "[degraded=true] Детерминированное ядро: ни одна shadow-стратегия не набрала 7 дней истории (гейт селектора) — рекомендация keep_current, активную стратегию менять не на чем. Рейтинг: 1. s0_baseline (sortino=None, sharpe=None, pnl=0.0%, days=1, eligible=False); 2. s1_concentration (sortino=None, sharpe=None, pnl=0.0%, days=1, eligible=False); 3. s2_momentum (sortino=None, sharpe=None, pnl=0.0%, days=1, eligible=False). Kelly-sizing (детерминированный, source=spa_core.optimization.dynamic_kelly): half-Kelly деплой 0.0%.",
+      "inputs_digest": "eb4b8fbf114e3d35",
+      "degraded": true,
+      "advisory_only": true,
+      "schema_version": 1
+    }
+  ]
+}
