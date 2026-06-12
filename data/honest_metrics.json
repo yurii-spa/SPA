@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-06-12T11:30:15.514983+00:00",
+  "source": "honest_metrics",
+  "schema_version": 1,
+  "advisory_only": true,
+  "n_strategies": 6,
+  "strategies": {
+    "S0": {
+      "n_days": 2,
+      "confidence": "INSUFFICIENT",
+      "sharpe": null,
+      "sortino": null,
+      "calmar": null,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.025966484138048872,
+      "annualized_return_pct": null,
+      "sharpe_ci_95": null,
+      "sortino_ci_95": null,
+      "warning": "Fewer than 30 days: metrics are directional only"
+    },
+    "S1": {
+      "n_days": 2,
+      "confidence": "INSUFFICIENT",
+      "sharpe": null,
+      "sortino": null,
+      "calmar": null,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.0196080156688149,
+      "annualized_return_pct": null,
+      "sharpe_ci_95": null,
+      "sortino_ci_95": null,
+      "warning": "Fewer than 30 days: metrics are directional only"
+    },
+    "S2": {
+      "n_days": 2,
+      "confidence": "INSUFFICIENT",
+      "sharpe": null,
+      "sortino": null,
+      "calmar": null,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.019468051248071234,
+      "annualized_return_pct": null,
+      "sharpe_ci_95": null,
+      "sortino_ci_95": null,
+      "warning": "Fewer than 30 days: metrics are directional only"
+    },
+    "S3": {
+      "n_days": 2,
+      "confidence": "INSUFFICIENT",
+      "sharpe": null,
+      "sortino": null,
+      "calmar": null,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.017518486402778873,
+      "annualized_return_pct": null,
+      "sharpe_ci_95": null,
+      "sortino_ci_95": null,
+      "warning": "Fewer than 30 days: metrics are directional only"
+    },
+    "S4": {
+      "n_days": 2,
+      "confidence": "INSUFFICIENT",
+      "sharpe": null,
+      "sortino": null,
+      "calmar": null,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.014019031284927732,
+      "annualized_return_pct": null,
+      "sharpe_ci_95": null,
+      "sortino_ci_95": null,
+      "warning": "Fewer than 30 days: metrics are directional only"
+    },
+    "S5": {
+      "n_days": 2,
+      "confidence": "INSUFFICIENT",
+      "sharpe": null,
+      "sortino": null,
+      "calmar": null,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.01744849768434647,
+      "annualized_return_pct": null,
+      "sharpe_ci_95": null,
+      "sortino_ci_95": null,
+      "warning": "Fewer than 30 days: metrics are directional only"
+    }
+  }
+}
