@@ -1,0 +1,20 @@
+# Spark (SparkLend, Sky/MakerDAO ecosystem lending market).
+# DeFiLlama project slug: "spark" (feed matching is case-insensitive substring,
+# so the yields-API project "sparklend" qualifies too).
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: spark
+defillama_protocol_id: spark
+chains:
+  - Ethereum
+symbols:
+  - USDC
+  - DAI
+tier: T2
+cap: 0.20
+exit_latency:
+  hours: 0.0          # liquid supply position, same-block withdrawal
+  profile: instant
+quality_gates:
+  min_tvl_usd: 1000000
+  stable_only: true
+  max_apy_pct: 30.0
