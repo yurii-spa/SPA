@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-11T22:31:17Z",
-  "current_weighted_apy": 1.9893,
+  "generated_at": "2026-06-10T08:57:04Z",
+  "current_weighted_apy": 0.0,
   "target_apy": 7.3,
-  "gap": 5.3107,
-  "gap_closeable_by_pendle": 0.0,
+  "gap": 7.3,
+  "gap_closeable_by_pendle": 1.125,
   "gap_closeable_by_sky": 0.6,
-  "remaining_gap": 4.7107,
+  "remaining_gap": 5.575,
   "on_track": false,
   "pendle_status": "none",
   "sky_status": "pending_whitelist",
-  "summary": "Gap 5.31% (current 1.99% vs target 7.3%). Available levers: Sky/sUSDS +0.60% (pending whitelist). Remaining gap after levers: 4.71%."
+  "summary": "Gap 7.30% (current 0.00% vs target 7.3%). Available levers: Pendle PT +1.12%, Sky/sUSDS +0.60% (pending whitelist). Remaining gap after levers: 5.58%."
 }
