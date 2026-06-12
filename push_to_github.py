@@ -25,35 +25,53 @@ PROJECT_ROOT = Path("/Users/yuriikulieshov/Documents/SPA_Claude")
 
 
 def get_pat() -> str:
-    """Читает PAT из env или ~/.spa_pat или macOS Keychain (никогда из hardcode)."""
-    # 1. Переменная окружения
-    pat = os.environ.get("GITHUB_PAT", "").strip()
-    if pat:
-        return pat
-    # 2. Файл ~/.spa_pat (рекомендуется chmod 600)
-    pat_file = Path.home() / ".spa_pat"
-    if pat_file.exists():
-        pat = pat_file.read_text().strip()
-        if pat:
-            return pat
-    # 3. macOS Keychain — сервис GITHUB_PAT_SPA
+    """Читает PAT (никогда из hardcode).
+
+    Порядок поиска:
+      1. macOS Keychain (сервис GITHUB_PAT_SPA) — рекомендуется для локальной машины
+      2. Переменная окружения GITHUB_PAT_SPA
+      3. Переменная окружения SPA_GITHUB_PAT
+      4. Файл .github_pat (~/.github_pat или рядом со скриптом) — для агентов/Linux sandbox
+    Обратная совместимость: GITHUB_PAT env и ~/.spa_pat тоже проверяются.
+    """
+    # 1. macOS Keychain — сервис GITHUB_PAT_SPA
     try:
         result = subprocess.run(
             ["security", "find-generic-password", "-s", "GITHUB_PAT_SPA", "-w"],
             capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
-            return result.stdout.strip()
+            pat = result.stdout.strip()
+            if pat:
+                return pat
     except Exception:
         pass
+
+    # 2–3. Переменные окружения (в порядке приоритета)
+    for env_var in ("GITHUB_PAT_SPA", "SPA_GITHUB_PAT", "GITHUB_PAT"):
+        pat = os.environ.get(env_var, "").strip()
+        if pat:
+            return pat
+
+    # 4. Файл .github_pat: сначала ~/.github_pat, потом рядом со скриптом
+    #    (и ~/.spa_pat для обратной совместимости)
+    for pat_file in [
+        Path.home() / ".github_pat",
+        PROJECT_ROOT / ".github_pat",
+        Path.home() / ".spa_pat",          # backward compat
+    ]:
+        if pat_file.exists():
+            pat = pat_file.read_text().strip()
+            if pat:
+                return pat
+
     raise RuntimeError(
-        "❌ PAT не найден. Выбери один из способов:\n\n"
-        "  A) macOS Keychain (рекомендуется):\n"
-        "     bash /Users/yuriikulieshov/Documents/SPA_Claude/setup_pat.sh ghp_YOUR_NEW_TOKEN\n\n"
-        "  B) Переменная окружения (только для текущей сессии):\n"
-        "     export GITHUB_PAT=ghp_YOUR_NEW_TOKEN\n\n"
-        "  C) Файл ~/.spa_pat (chmod 600 ~/.spa_pat):\n"
-        "     echo 'ghp_YOUR_NEW_TOKEN' > ~/.spa_pat && chmod 600 ~/.spa_pat\n"
+        "❌ PAT не найден.\n\n"
+        "  Запусти: ./setup_github_pat.sh ghp_ТВОЙ_ТОКЕН\n\n"
+        "  Или вручную (один из вариантов):\n"
+        "  A) macOS Keychain:  bash setup_pat.sh ghp_ТОКЕН\n"
+        "  B) Env:             export GITHUB_PAT_SPA=ghp_ТОКЕН\n"
+        "  C) Файл:            echo 'ghp_ТОКЕН' > ~/.github_pat && chmod 600 ~/.github_pat\n"
     )
 
 
