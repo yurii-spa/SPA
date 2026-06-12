@@ -6,20 +6,20 @@
     <string>com.spa.httpserver</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>-m</string>
         <string>http.server</string>
         <string>8765</string>
+        <string>--directory</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
     </array>
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/httpserver.log</string>
+    <string>/tmp/spa_http.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/httpserver.log</string>
+    <string>/tmp/spa_http.err</string>
 </dict>
 </plist>
