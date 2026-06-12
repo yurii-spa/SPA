@@ -101,6 +101,19 @@
   .bk-card-done .bk-title { color: #999; text-decoration: line-through; text-decoration-color: #ccc; }
   .bk-meta { font-size: 10px; color: #aaa; margin-top: 4px; }
   .bk-empty { text-align: center; padding: 16px 0; color: #bbb; font-size: 11px; }
+  /* ── Bk status badges (blocked / archived / ready / rejected) ── */
+  .bk-badge { font-size:9px; font-weight:700; letter-spacing:.04em; padding:1px 6px; border-radius:10px; white-space:nowrap; }
+  .status-blocked  { background:#fee2e2; color:#991b1b; }
+  .status-archived { background:#f3f4f6; color:#6b7280; }
+  .status-ready    { background:#d1fae5; color:#065f46; }
+  .status-rejected { background:#fef2f2; color:#7f1d1d; text-decoration:line-through; }
+  .bk-col-blocked  { background: #fdeaea; }
+  .bk-col-archived { background: #f3f4f6; }
+  body.night .status-blocked  { background:#3b1212; color:#fca5a5; }
+  body.night .status-archived { background:#1f2937; color:#9ca3af; }
+  body.night .status-ready    { background:#052e16; color:#6ee7b7; }
+  body.night .status-rejected { background:#3b0909; color:#fca5a5; }
+  body.night .bk-col-blocked, body.night .bk-col-archived { background:#1a1a30; }
   body.night .bk-col-p0, body.night .bk-col-backlog,
   body.night .bk-col-features, body.night .bk-col-done { background: #1a1a30; }
   body.night .bk-card { background: #131328; border-color: #252540; }
@@ -485,13 +498,71 @@
   .compare-badge-v1 { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; background:#E6F1FB; color:#185FA5; font-weight:600; }
   .compare-badge-v2 { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; background:#f0fdf4; color:#15803d; font-weight:600; }
 
+  /* ── Dashboard v2.0 Overview ── */
+  .ov-metric-card { background:#eeecea; border-radius:10px; padding:14px 12px; cursor:pointer; transition:background .15s,transform .1s; border:1.5px solid transparent; }
+  .ov-metric-card:hover { background:#e4e2dd; transform:translateY(-1px); }
+  .ov-metric-card.active-filter { border-color:#185FA5; background:#E6F1FB; }
+  .ov-metric-label { font-size:11px; color:#888; margin-bottom:4px; line-height:1.3; }
+  .ov-metric-value { font-size:24px; font-weight:500; line-height:1; }
+  .ov-metric-sub { font-size:11px; color:#aaa; margin-top:3px; }
+  .ov-attention-card { background:#fff; border:0.5px solid #ddd; border-radius:10px; padding:14px 16px; margin-bottom:8px; }
+  .ov-attention-card:last-child { margin-bottom:0; }
+  .ov-attention-title { font-size:13.5px; font-weight:600; color:#1a1a1a; margin-bottom:4px; }
+  .ov-attention-context { font-size:12px; color:#555; line-height:1.45; margin-bottom:8px; }
+  .ov-attention-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .ov-open-btn { background:none; border:1px solid #185FA5; color:#185FA5; border-radius:6px; padding:5px 14px; font-size:12px; cursor:pointer; font-weight:500; transition:all .15s; }
+  .ov-open-btn:hover { background:#185FA5; color:#fff; }
+  .ov-urgency-high   { background:#fee2e2; color:#B91C1C; font-size:10px; font-weight:700; letter-spacing:.05em; padding:2px 8px; border-radius:10px; }
+  .ov-urgency-medium { background:#FAEEDA; color:#BA7517; font-size:10px; font-weight:700; letter-spacing:.05em; padding:2px 8px; border-radius:10px; }
+  .ov-urgency-low    { background:#E6F1FB; color:#185FA5; font-size:10px; font-weight:700; letter-spacing:.05em; padding:2px 8px; border-radius:10px; }
+  .ov-funnel-step { flex:1; min-width:80px; text-align:center; padding:10px 6px; position:relative; }
+  .ov-funnel-step:not(:last-child)::after { content:'→'; position:absolute; right:-8px; top:50%; transform:translateY(-50%); color:#ccc; font-size:16px; z-index:1; }
+  .ov-funnel-count { font-size:22px; font-weight:600; line-height:1; margin-bottom:3px; }
+  .ov-funnel-label { font-size:10px; color:#888; line-height:1.3; }
+  .ov-funnel-bar { height:4px; border-radius:2px; margin-top:6px; }
+  .ov-funnel-step.bottleneck { background:#fff7ed; border-radius:8px; outline:1.5px solid #FB923C; }
+  .ov-funnel-bottleneck-badge { font-size:9px; color:#EA580C; font-weight:600; margin-top:4px; }
+  .ov-period-btn { font-size:10px; padding:2px 9px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; color:#888; cursor:pointer; transition:all .15s; }
+  .ov-period-btn.active,.ov-period-btn:hover { background:#185FA5; color:#fff; border-color:#185FA5; }
+  .ov-aging-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .ov-aging-table th { text-align:left; padding:6px 8px; color:#888; font-weight:500; border-bottom:1px solid #f3f4f6; }
+  .ov-aging-table td { padding:6px 8px; border-bottom:1px solid #f9fafb; vertical-align:middle; }
+  .ov-aging-stale { color:#B91C1C; font-weight:600; }
+  .ov-aging-warn { color:#BA7517; }
+  .ov-problem-row { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:0.5px solid #f0f0f0; font-size:13px; }
+  .ov-problem-row:last-child { border-bottom:none; }
+  .ov-problem-icon { font-size:14px; flex-shrink:0; margin-top:1px; }
+  .ov-problem-text { flex:1; color:#333; line-height:1.4; }
+  .ov-problem-sub { font-size:11px; color:#aaa; margin-top:2px; }
+  .ov-no-problems { text-align:center; padding:16px; color:#3B6D11; font-size:13px; }
+  /* ── Decisions tab ── */
+  .dec-card { background:#fff; border:0.5px solid #ddd; border-radius:10px; padding:16px 18px; margin-bottom:10px; }
+  .dec-card:last-child { margin-bottom:0; }
+  .dec-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
+  .dec-card-title { font-size:14px; font-weight:600; color:#1a1a1a; line-height:1.35; }
+  .dec-card-id { font-size:10px; color:#bbb; font-family:monospace; margin-top:2px; }
+  .dec-card-context { font-size:12.5px; color:#555; line-height:1.45; margin-bottom:10px; }
+  .dec-card-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .dec-status-badge { font-size:10px; font-weight:700; letter-spacing:.04em; padding:3px 10px; border-radius:10px; }
+  .dec-status-needs { background:#fee2e2; color:#B91C1C; }
+  .dec-status-decided { background:#d1fae5; color:#065f46; }
+  .dec-status-review { background:#FAEEDA; color:#BA7517; }
+  .dec-status-resolved { background:#f3f4f6; color:#6b7280; }
+  .dec-open-btn { background:none; border:1px solid #ddd; color:#185FA5; border-radius:6px; padding:5px 14px; font-size:12px; cursor:pointer; font-weight:500; transition:all .15s; }
+  .dec-open-btn:hover { border-color:#185FA5; background:#E6F1FB; }
+  .dec-empty { text-align:center; padding:40px 20px; color:#aaa; font-size:13px; }
+  /* ── Filter buttons ── */
+  .filter-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .filter-btn { background:none; border:1px solid #ddd; border-radius:20px; padding:4px 14px; font-size:11px; color:#888; cursor:pointer; font-weight:500; transition:all .15s; }
+  .filter-btn.active { border-color:#185FA5; color:#185FA5; background:#E6F1FB; }
+  .filter-btn:hover:not(.active) { border-color:#aaa; color:#333; }
   /* ── PDF Export ── */
   .pdf-btn { display:inline-flex; align-items:center; gap:6px; background:#185FA5; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:500; transition:background .15s; }
   .pdf-btn:hover { background:#1a6fc4; }
   @media print {
     body { background:#fff !important; padding:12px !important; }
     .tabs, .tab-btn, .refresh-btn, .pdf-btn, .office-wrap, .office-toolbar,
-    #tab-kanban, #tab-team, #tab-analytics { display:none !important; }
+    #tab-team, #tab-analytics { display:none !important; }
     #tab-dashboard { display:block !important; }
     .db-card, .db-full { box-shadow:none; border:1px solid #ddd; }
     canvas { display:none; }
@@ -819,14 +890,14 @@
      (фолбэк: golive_combined_verdict.json). Автообновление каждые 5 минут. -->
 <div id="golive-status-bar"></div>
 
-<!-- TABS -->
+<!-- TABS v2.0 -->
 <div class="tabs">
-  <button class="tab-btn active" onclick="showTab('kanban', this)">📋 Канбан</button>
-  <button class="tab-btn"        onclick="showTab('backlog', this)">🗂 BACKLOG <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
-  <button class="tab-btn"        onclick="showTab('dashboard', this)">📊 Paper Trading <span class="spa-tip" data-tip="Paper Trading">?</span></button>
-  <button class="tab-btn"        onclick="showTab('investor', this)">💼 INVESTOR</button>
-  <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Аналітика <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"        onclick="showTab('team', this)">👾 Команда</button>
+  <button class="tab-btn active" onclick="showTab('overview', this)">📊 Dashboard</button>
+  <button class="tab-btn"        onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
+  <button class="tab-btn"        onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
+  <button class="tab-btn"        onclick="showTab('analytics', this)">📈 Statistics <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"        onclick="showTab('team', this)">👾 Team</button>
+  <button class="tab-btn"        onclick="showTab('dashboard', this)">💰 Portfolio <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"        onclick="showTab('golive', this)">🎯 Go-Live <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"        onclick="showTab('system', this)">⚙️ System</button>
 </div>
@@ -842,141 +913,163 @@
   </div>
 </div>
 
-<!-- ══════════════════ TAB: КАНБАН ══════════════════ -->
-<div id="tab-kanban" class="tab-pane active">
+<!-- Owner Decision modal -->
+<div id="decision-modal" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45)" onclick="closeDecisionModal()"></div>
+  <div style="position:relative;background:#fff;border-radius:16px;padding:28px 32px;max-width:620px;width:94%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+    <button onclick="closeDecisionModal()" style="position:absolute;top:16px;right:18px;background:none;border:none;font-size:18px;color:#aaa;cursor:pointer">✕</button>
+    <div id="dec-modal-urgency" style="font-size:10px;font-weight:700;letter-spacing:0.07em;margin-bottom:8px"></div>
+    <div id="dec-modal-title" style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:6px"></div>
+    <div id="dec-modal-id" style="font-size:11px;color:#bbb;margin-bottom:16px;font-family:monospace"></div>
 
-  <p class="section-label">ВЕХИ</p>
-  <div class="milestones">
-    <div class="ms-line"></div>
-    <div class="ms-item">
-      <div class="ms-dot done">M1</div>
-      <span class="ms-name">Data Pipeline + Risk Policy</span>
-      <span class="ms-status done">✓ Готово</span>
+    <div style="background:#f9f9f6;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.07em;color:#888;margin-bottom:5px">КОНТЕКСТ</div>
+      <div id="dec-modal-context" style="font-size:13px;color:#333;line-height:1.5"></div>
     </div>
-    <div class="ms-item">
-      <div class="ms-dot done">M2</div>
-      <span class="ms-name">Paper Trading $100K</span>
-      <span class="ms-status done">✓ Готово</span>
+
+    <div style="background:#fef9ee;border-radius:8px;padding:12px 14px;margin-bottom:14px;border-left:3px solid #BA7517">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.07em;color:#BA7517;margin-bottom:5px">ПОЧЕМУ ТРЕБУЕТСЯ РЕШЕНИЕ</div>
+      <div id="dec-modal-reason" style="font-size:13px;color:#333;line-height:1.5"></div>
     </div>
-    <div class="ms-item">
-      <div class="ms-dot done">M3</div>
-      <span class="ms-name">Monitor + Alerting</span>
-      <span class="ms-status done">✓ Готово</span>
+
+    <div style="background:#eaf3de;border-radius:8px;padding:12px 14px;margin-bottom:14px;border-left:3px solid #3B6D11">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.07em;color:#3B6D11;margin-bottom:5px">💡 РЕКОМЕНДАЦИЯ AI</div>
+      <div id="dec-modal-rec" style="font-size:13px;color:#333;line-height:1.5"></div>
     </div>
-    <div class="ms-item">
-      <div class="ms-dot done">M4</div>
-      <span class="ms-name">LLM Агенты</span>
-      <span class="ms-status done">✓ Готово</span>
+
+    <div id="dec-modal-risks-wrap" style="margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.07em;color:#888;margin-bottom:6px">РИСКИ</div>
+      <div id="dec-modal-risks" style="font-size:13px;color:#555;line-height:1.6"></div>
     </div>
-    <div class="ms-item">
-      <div class="ms-dot active">M5</div>
-      <span class="ms-name">Live Dashboard</span>
-      <span class="ms-status active">В работе</span>
+
+    <div id="dec-modal-form" style="border-top:0.5px solid #eee;padding-top:16px">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px">Ваше решение</div>
+      <div id="dec-modal-options" style="margin-bottom:12px"></div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;color:#888;margin-bottom:5px">Свой комментарий (опционально)</div>
+        <textarea id="dec-modal-comment" placeholder="Дополнительный контекст или причины..." style="width:100%;border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;outline:none"></textarea>
+      </div>
+      <button onclick="saveDecision()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;width:100%">Сохранить решение</button>
     </div>
-    <div class="ms-item">
-      <div class="ms-dot blocked">M6</div>
-      <span class="ms-name">Go-Live</span>
-      <span class="ms-status blocked">~2026-07-15</span>
+
+    <div id="dec-modal-resolved" style="display:none;border-top:0.5px solid #eee;padding-top:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:4px">Решение принято</div>
+      <div id="dec-modal-owner-decision" style="font-size:13px;color:#333;line-height:1.5"></div>
+      <div id="dec-modal-decided-at" style="font-size:11px;color:#bbb;margin-top:4px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TAB: DASHBOARD v2.0 (OVERVIEW) ══════════════════ -->
+<div id="tab-overview" class="tab-pane active">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:500">Dashboard — Обзор системы</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">Загрузка...</div>
+    </div>
+    <button class="refresh-btn" onclick="loadOverview()">↻ Обновить</button>
+  </div>
+
+  <!-- БЛОК 1: Главные метрики (кликабельные карточки) -->
+  <div id="ov-metrics" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px"></div>
+
+  <!-- БЛОК 2: Требует внимания -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>⚠️ Требует внимания Owner</span>
+      <span id="ov-attention-count" style="font-size:11px;color:#888"></span>
+    </div>
+    <div id="ov-attention-body">
+      <div style="text-align:center;padding:24px;color:#aaa;font-size:13px">Загрузка...</div>
     </div>
   </div>
 
-  <div class="kb-board">
-
-    <!-- БЭКЛОГ -->
-    <div class="kb-col backlog">
-      <div class="kb-col-header">БЭКЛОГ <span class="kb-count">9</span></div>
-
-      <div class="group-sep">M5 — Dashboard / AG-UI</div>
-      <div class="kb-card"><div class="kb-title">CopilotKit / AG-UI: live поток агентов</div><span class="tag tag-ui">UI</span></div>
-      <div class="kb-card"><div class="kb-title">WebSocket AgentStream: live статус агентов</div><span class="tag tag-ui">UI</span></div>
-      <div class="kb-card"><div class="kb-title">Голосовой интерфейс (OpenAI Realtime)</div><span class="tag tag-ui">UI</span></div>
-      <div class="kb-card"><div class="kb-title">browser-use — интеграция DEX</div><span class="tag tag-ui">UI</span></div>
-
-      <div class="group-sep">M6 — Go-Live</div>
-      <div class="kb-card"><div class="kb-title">PostgreSQL миграция</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title">Security audit + VPN + Kill Switch тест</div><span class="tag tag-adr">ADR</span></div>
-      <div class="kb-card"><div class="kb-title">ADR: Go-Live решение</div><span class="tag tag-adr">ADR</span></div>
-
-      <div class="group-sep">Данные</div>
-      <div class="kb-card"><div class="kb-title">The Graph: on-chain события (liquidations, rates)</div><span class="tag tag-data">Данные</span></div>
-      <div class="kb-card"><div class="kb-title">Backtest Engine (DeFiLlama history 2022+)</div><span class="tag tag-data">Данные</span></div>
-      <div class="kb-card"><div class="kb-title">Strategy Sandbox: v2_aggressive + v3_pendle</div><span class="tag tag-strat">Стратегия</span></div>
-      <div class="kb-card"><div class="kb-title">Sky/sUSDS 48h GSM</div><span class="tag tag-wl">Whitelist</span></div>
+  <!-- БЛОК 2b: Ожидает проверки AI -->
+  <div class="db-full" id="ov-aiReview-wrap" style="margin-bottom:18px;display:none">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🔍 Ожидает проверки AI</span>
+      <span id="ov-aiReview-count" style="font-size:11px;color:#888"></span>
     </div>
-
-    <!-- В РАБОТЕ -->
-    <div class="kb-col inprog">
-      <div class="kb-col-header">В РАБОТЕ <span class="kb-count">4</span></div>
-      <div class="kb-card">
-        <div class="kb-title">Paper Trading 8-week clock ⏳</div>
-        <span class="tag tag-paper">Paper Trading</span>
-      </div>
-      <div class="kb-card">
-        <div class="kb-title">Dashboard v0.4 — live данные из JSON</div>
-        <span class="tag tag-ui">UI</span>
-      </div>
-      <div class="kb-card">
-        <div class="kb-title">Таб Команда — агент-боты v0.4.5</div>
-        <span class="tag tag-agent">Агент</span>
-      </div>
-      <div class="kb-card">
-        <div class="kb-title">FastAPI сервер — 10 endpoints</div>
-        <span class="tag tag-infra">Инфраструктура</span>
-      </div>
-    </div>
-
-    <!-- НА ПРОВЕРКУ -->
-    <div class="kb-col review">
-      <div class="kb-col-header">НА ПРОВЕРКУ <span class="kb-count">2</span></div>
-      <div class="kb-card"><div class="kb-title">DEV_STRATEGY_v1.0.md</div><span class="tag tag-doc">Документация</span></div>
-      <div class="kb-card"><div class="kb-title">Week 0 Baseline (2026-05-20)</div><span class="tag tag-paper">Paper Trading</span></div>
-    </div>
-
-    <!-- ГОТОВО -->
-    <div class="kb-col done">
-      <div class="kb-col-header">ГОТОВО <span class="kb-count">24</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Капитал $100K + авто-миграция позиций</div><span class="tag tag-paper">Paper Trading</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">DeFiLlama fetcher — 7 протоколов</div><span class="tag tag-data">Данные</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">SQLite schema + init_db</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Risk Policy — 8 checks, 100% тесты</div><span class="tag tag-risk">Риск</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Paper Trading Engine (open/close/rebalance)</div><span class="tag tag-paper">Paper Trading</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Monitor + AlertEngine (M3)</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">85 тестов — 100% green</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Документация v0.3 (17 файлов)</div><span class="tag tag-doc">Документация</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">ADR-001 — ADR-009</div><span class="tag tag-adr">ADR</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Risk Policy v0.3 + Whitelist v0.4.5</div><span class="tag tag-adr">Политика</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Agent Architecture v0.3</div><span class="tag tag-agent">Архитектура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Strategy Passport v1_passive</div><span class="tag tag-strat">Стратегия</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Message Bus (SQLite WAL) + 19 тестов</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Monitoring Agent (HealthCheck wrapper)</div><span class="tag tag-agent">Агент</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Data Agent (DeFiLlama wrapper)</div><span class="tag tag-agent">Агент</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Strategy Agent + v1_passive логика</div><span class="tag tag-agent">Агент</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">CEO Agent (approve / HOLD)</div><span class="tag tag-agent">Агент</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">LangGraph оркестратор (5 нод)</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Канбан доска (GitHub Pages)</div><span class="tag tag-ui">UI</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">LLM Stack выбран</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">README.md SPA_Claude</div><span class="tag tag-doc">Документация</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">DEV_STRATEGY_v1.0 написана</div><span class="tag tag-doc">Документация</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">GitHub Actions: cron каждые 4ч</div><span class="tag tag-infra">Инфраструктура</span></div>
-      <div class="kb-card"><div class="kb-title strikethrough">Первые 3 позиции открыты (live)</div><span class="tag tag-paper">Paper Trading</span></div>
-    </div>
-
+    <div id="ov-aiReview-body"></div>
   </div>
 
-  <div class="legend">
-    <div><span class="tag tag-infra">Инфраструктура</span></div>
-    <div><span class="tag tag-agent">Агент</span></div>
-    <div><span class="tag tag-ui">UI</span></div>
-    <div><span class="tag tag-strat">Стратегия</span></div>
-    <div><span class="tag tag-data">Данные</span></div>
-    <div><span class="tag tag-doc">Документация</span></div>
-    <div><span class="tag tag-adr">ADR / Политика</span></div>
-    <div><span class="tag tag-wl">Whitelist</span></div>
-    <div><span class="tag tag-risk">Риск</span></div>
-    <div><span class="tag tag-paper">Paper Trading</span></div>
+  <!-- БЛОК 3: Воронка задач -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">📊 Воронка задач — статусы</div>
+    <div id="ov-funnel" style="display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:4px 0"></div>
   </div>
 
-</div><!-- /tab-kanban -->
+  <!-- БЛОК 4: Динамика (история) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📈 Динамика — задачи по дням</span>
+      <div style="display:flex;gap:4px">
+        <button class="ov-period-btn active" onclick="ovSetPeriod(7,this)">7 дней</button>
+        <button class="ov-period-btn" onclick="ovSetPeriod(30,this)">30 дней</button>
+        <button class="ov-period-btn" onclick="ovSetPeriod(0,this)">Всё время</button>
+      </div>
+    </div>
+    <div style="position:relative;height:130px">
+      <canvas id="ov-history-chart" role="img" aria-label="Динамика задач по дням"></canvas>
+      <div id="ov-history-empty" style="display:none;padding:40px 20px;text-align:center;color:#aaa;font-size:13px">История накапливается — данные появятся по мере работы</div>
+    </div>
+  </div>
+
+  <!-- БЛОК 5: Проблемные зоны -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">🔍 Проблемные зоны</div>
+    <div id="ov-problems-body">
+      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- БЛОК 6: Aging — задачи без изменений -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">⏱ Aging — задачи без изменений (&gt;7 дней)</div>
+    <div id="ov-aging-body">
+      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>
+    </div>
+  </div>
+
+</div><!-- /tab-overview -->
+
+
+<!-- ══════════════════ TAB: DECISIONS (OWNER REVIEW) ══════════════════ -->
+<div id="tab-decisions" class="tab-pane">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:500">Decisions — Owner Review</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Решения требующие участия владельца</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="refresh-btn" onclick="loadDecisions()">↻ Обновить</button>
+      <button class="refresh-btn" onclick="exportDecisions()" title="Экспорт decisions.json">📥 Экспорт</button>
+    </div>
+  </div>
+
+  <!-- Фильтры -->
+  <div class="filter-row" id="dec-filters" style="margin-bottom:16px">
+    <button class="filter-btn active" data-status="all" onclick="filterOwnerDecisions(this,'all')">Все</button>
+    <button class="filter-btn" data-status="needs_owner_decision" onclick="filterOwnerDecisions(this,'needs_owner_decision')">⚠️ Ожидают решения</button>
+    <button class="filter-btn" data-status="owner_decided" onclick="filterOwnerDecisions(this,'owner_decided')">✅ Решено владельцем</button>
+    <button class="filter-btn" data-status="ai_review" onclick="filterOwnerDecisions(this,'ai_review')">🤖 AI Review</button>
+    <button class="filter-btn" data-status="resolved" onclick="filterOwnerDecisions(this,'resolved')">✓ Закрыто</button>
+  </div>
+
+  <div id="dec-list-body">
+    <div style="text-align:center;padding:32px;color:#aaa;font-size:13px">Загрузка решений...</div>
+  </div>
+
+  <div style="font-size:11px;color:#bbb;margin-top:16px;padding-top:12px;border-top:0.5px solid #eee">
+    💡 Решения хранятся в localStorage браузера. Нажмите «Экспорт» чтобы сохранить изменения в файл decisions_export.json для ручного применения к data/decisions.json
+  </div>
+
+</div><!-- /tab-decisions -->
+
+
+<!-- TAB: КАНБАН удалён (SPA-V434, tab-backlog — живой Kanban) -->
 
 
 <!-- ══════════════════ TAB: BACKLOG (live KANBAN.json) ══════════════════ -->
@@ -1188,8 +1281,8 @@
   <!-- ── Заголовок операционного центра ── -->
   <div class="ops-header">
     <div>
-      <div class="ops-title">Операционный центр агентов</div>
-      <div class="ops-subtitle">Agent Operations Center · v1.6 · бумажный трейдинг · $100K USDC</div>
+      <div class="ops-title">Ядро системы · SPA Components</div>
+      <div class="ops-subtitle">cycle_runner · Python 3 stdlib · launchd · бумажный трейдинг · $100K USDC</div>
     </div>
     <div class="ops-live-badge">
       <span class="ops-live-dot"></span>
@@ -1200,12 +1293,12 @@
   <!-- ── Daily Commentary (agent_summaries.json) ── -->
   <div id="agent-commentary-section" style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap">
     <div style="flex:1;min-width:240px;background:rgba(24,95,165,0.10);border:1px solid rgba(24,95,165,0.30);border-radius:10px;padding:12px 14px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#60A5FA;margin-bottom:6px">📊 TRADER AGENT COMMENTARY</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#60A5FA;margin-bottom:6px">📊 STRATEGY COMMENTARY</div>
       <div id="commentary-trader" style="font-size:12px;color:#c8cfe0;line-height:1.55">Loading…</div>
       <div id="commentary-trader-badge" style="margin-top:6px;font-size:10px;color:#6b7280"></div>
     </div>
     <div style="flex:1;min-width:240px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 14px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#F87171;margin-bottom:6px">🛡️ RISK AGENT COMMENTARY</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#F87171;margin-bottom:6px">🛡️ RISK COMMENTARY</div>
       <div id="commentary-risk" style="font-size:12px;color:#c8cfe0;line-height:1.55">Loading…</div>
       <div id="commentary-risk-badge" style="margin-top:6px;font-size:10px;color:#6b7280"></div>
     </div>
@@ -1214,7 +1307,7 @@
   <!-- ── Сетка агент-карточек ── -->
   <div class="ops-grid">
 
-    <!-- Агент данных -->
+    <!-- Адаптер данных -->
     <div class="ops-card" id="ops-card-data">
       <div class="ops-card-top">
         <div class="ops-card-icon" style="background:rgba(59,130,246,0.15)">
@@ -1223,32 +1316,32 @@
           </svg>
         </div>
         <div class="ops-card-meta">
-          <div class="ops-card-name">Агент данных</div>
-          <div class="ops-card-role">DeFiLlama · Pendle · 12 пулов</div>
+          <div class="ops-card-name">Adapter Orchestrator</div>
+          <div class="ops-card-role">DeFiLlama API · 6 протоколов · read-only</div>
         </div>
       </div>
       <div class="ops-status-row">
-        <div class="ops-status active" id="ops-status-data"><span class="ops-dot"></span>АКТИВЕН</div>
-        <div class="ops-status-label">Gemini 2.5 Flash-Lite</div>
+        <div class="ops-status active" id="ops-status-data"><span class="ops-dot"></span>РАБОТАЕТ</div>
+        <div class="ops-status-label">Python 3 stdlib · детерминированный</div>
       </div>
       <div class="ops-task" id="ops-task-data" style="border-left-color:#3B82F6">
-        Сканирование протоколов DeFi · APY/TVL обновление…
+        Забирает живой snapshot APY/TVL из DeFiLlama yields API
       </div>
       <div class="ops-schedule">
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Сканирование APY/TVL всех протоколов</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Обновление Pendle PT пулов (7 quality gates)</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">1 ч</span><span class="ops-sch-desc">Проверка Sky/sUSDS GSM Pause Delay</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Snapshot APY/TVL: Aave, Compound, Morpho, Yearn, Euler, Maple</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">кэш 300 с</span><span class="ops-sch-desc">TTL DeFiLlama feed — конфиг через spa_core/adapters/config.py</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Проверка Sky/sUSDS GSM Pause Delay (sky_monitor.py)</span></div>
       </div>
       <div class="ops-card-footer">
         <div class="ops-last-action">
           <div class="ops-last-time" id="ops-lasttime-data">—</div>
-          <div id="ops-lastmsg-data" style="color:#6b7280">Ожидание событий…</div>
+          <div id="ops-lastmsg-data" style="color:#6b7280">данные из adapter_orchestrator_status.json</div>
         </div>
         <button class="ops-detail-btn" onclick="openAgentModal('data')">Подробнее</button>
       </div>
     </div>
 
-    <!-- Агент стратегии -->
+    <!-- StrategyAllocator -->
     <div class="ops-card" id="ops-card-strategy">
       <div class="ops-card-top">
         <div class="ops-card-icon" style="background:rgba(16,185,129,0.15)">
@@ -1257,32 +1350,32 @@
           </svg>
         </div>
         <div class="ops-card-meta">
-          <div class="ops-card-name">Агент стратегии</div>
-          <div class="ops-card-role">v1_passive · auto_allocate · Kelly+MVO</div>
+          <div class="ops-card-name">StrategyAllocator</div>
+          <div class="ops-card-role">spa_core/allocator · T1 40% / T2 20% / cash ≥5%</div>
         </div>
       </div>
       <div class="ops-status-row">
-        <div class="ops-status active" id="ops-status-strategy"><span class="ops-dot"></span>АКТИВЕН</div>
-        <div class="ops-status-label">Gemini 2.5 Flash</div>
+        <div class="ops-status active" id="ops-status-strategy"><span class="ops-dot"></span>РАБОТАЕТ</div>
+        <div class="ops-status-label">Python 3 stdlib · детерминированный</div>
       </div>
       <div class="ops-task" id="ops-task-strategy" style="border-left-color:#10B981">
-        APY-скоринг протоколов · аллокация по бюджету…
+        Вычисляет целевую аллокацию (USD по пулам) с соблюдением cap'ов
       </div>
       <div class="ops-schedule">
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Ранжирование APY и авто-аллокация капитала</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Kelly + Markowitz оптимизация весов</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Ребалансировка по Risk Policy v1.0</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Ранжирование APY · аллокация с TVL floor ≥$5M</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">T2 total cap ≤35% · per-protocol 40%T1 / 20%T2</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Дельта > порога → виртуальный rebalance-трейд</span></div>
       </div>
       <div class="ops-card-footer">
         <div class="ops-last-action">
           <div class="ops-last-time" id="ops-lasttime-strategy">—</div>
-          <div id="ops-lastmsg-strategy" style="color:#6b7280">Ожидание событий…</div>
+          <div id="ops-lastmsg-strategy" style="color:#6b7280">данные из current_positions.json</div>
         </div>
         <button class="ops-detail-btn" onclick="openAgentModal('strategy')">Подробнее</button>
       </div>
     </div>
 
-    <!-- Монитор рисков -->
+    <!-- RiskPolicy Gate -->
     <div class="ops-card" id="ops-card-monitor">
       <div class="ops-card-top">
         <div class="ops-card-icon" style="background:rgba(139,92,246,0.15)">
@@ -1291,60 +1384,60 @@
           </svg>
         </div>
         <div class="ops-card-meta">
-          <div class="ops-card-name">Монитор рисков</div>
-          <div class="ops-card-role">VaR · Drawdown · Kill-switch · Алерты</div>
+          <div class="ops-card-name">RiskPolicy v1.0</div>
+          <div class="ops-card-role">spa_core/risk/policy.py · LLM ЗАПРЕЩЁН</div>
         </div>
       </div>
       <div class="ops-status-row">
-        <div class="ops-status active" id="ops-status-monitor"><span class="ops-dot"></span>АКТИВЕН</div>
-        <div class="ops-status-label">Claude Haiku 4.5</div>
+        <div class="ops-status active" id="ops-status-monitor"><span class="ops-dot"></span>РАБОТАЕТ</div>
+        <div class="ops-status-label" style="color:#f87171">⛔ LLM FORBIDDEN · только правила</div>
       </div>
       <div class="ops-task" id="ops-task-monitor" style="border-left-color:#8B5CF6">
-        Мониторинг VaR и концентрации позиций…
+        Детерминированный gate: approved=False блокирует ребаланс
       </div>
       <div class="ops-schedule">
-        <div class="ops-sch-item"><span class="ops-sch-freq">непрерывно</span><span class="ops-sch-desc">Проверка drawdown / kill-switch</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">VaR 95% · горизонт 7 дней</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Концентрация T1/T2 · лимиты цепочек</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">TVL ≥$5M · APY 1%–30% · drawdown kill-switch ≥5%</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Блоки → data/risk_policy_blocks.json (ring-buffer 100)</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">версия</span><span class="ops-sch-desc">v1.0 фиксирован весь paper-период · изменение → ADR</span></div>
       </div>
       <div class="ops-card-footer">
         <div class="ops-last-action">
           <div class="ops-last-time" id="ops-lasttime-monitor">—</div>
-          <div id="ops-lastmsg-monitor" style="color:#6b7280">Ожидание событий…</div>
+          <div id="ops-lastmsg-monitor" style="color:#6b7280">данные из risk_policy_blocks.json</div>
         </div>
         <button class="ops-detail-btn" onclick="openAgentModal('monitor')">Подробнее</button>
       </div>
     </div>
 
-    <!-- CEO-агент -->
+    <!-- CycleRunner / GoLiveChecker -->
     <div class="ops-card" id="ops-card-ceo">
       <div class="ops-card-top">
         <div class="ops-card-icon" style="background:rgba(245,158,11,0.15)">
           <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M9 12l1.5 2L12 11l1.5 3 1.5-2"/>
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
         </div>
         <div class="ops-card-meta">
-          <div class="ops-card-name">CEO-агент</div>
-          <div class="ops-card-role">Оркестрация · Одобрение · Risk Policy</div>
+          <div class="ops-card-name">CycleRunner + GoLive</div>
+          <div class="ops-card-role">spa_core/paper_trading/ · launchd 08:00 UTC</div>
         </div>
       </div>
       <div class="ops-status-row">
-        <div class="ops-status active" id="ops-status-ceo"><span class="ops-dot"></span>АКТИВЕН</div>
-        <div class="ops-status-label">Claude Sonnet 4.6</div>
+        <div class="ops-status active" id="ops-status-ceo"><span class="ops-dot"></span>РАБОТАЕТ</div>
+        <div class="ops-status-label">Python 3 stdlib · launchd daily</div>
       </div>
       <div class="ops-task" id="ops-task-ceo" style="border-left-color:#F59E0B">
-        Оркестрация цикла · финальное одобрение сделок…
+        Оркестрирует весь дневной цикл → GoLiveChecker (6 критериев)
       </div>
       <div class="ops-schedule">
-        <div class="ops-sch-item"><span class="ops-sch-freq">4 ч</span><span class="ops-sch-desc">Финальное одобрение / HOLD / REJECT сделок</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">24 ч</span><span class="ops-sch-desc">Генерация PDF-отчёта (ReportLab)</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">24 ч</span><span class="ops-sch-desc">Go-live readiness check (11 критериев)</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Yield accrual → equity_curve_daily.json (ring-buffer 365)</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">GoLiveChecker: 6 критериев → golive_status.json</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">90 мин</span><span class="ops-sch-desc">autopush.py → GitHub (launchd com.spa.autopush)</span></div>
       </div>
       <div class="ops-card-footer">
         <div class="ops-last-action">
           <div class="ops-last-time" id="ops-lasttime-ceo">—</div>
-          <div id="ops-lastmsg-ceo" style="color:#6b7280">Ожидание событий…</div>
+          <div id="ops-lastmsg-ceo" style="color:#6b7280">данные из paper_trading_status.json</div>
         </div>
         <button class="ops-detail-btn" onclick="openAgentModal('ceo')">Подробнее</button>
       </div>
@@ -1354,167 +1447,94 @@
 
   <!-- ── Архитектура системы ── -->
   <div class="ops-arch">
-    <div class="ops-arch-title">Архитектура агентной системы</div>
-    <div class="arch-diagram-wrapper" style="width:100%;max-width:700px;margin:24px auto 0;display:block;">
-<svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%;max-width:700px;display:block;margin:0 auto;" id="arch-svg">
-  <defs>
-    <linearGradient id="grad-ceo" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1"/>
-    </linearGradient>
-    <linearGradient id="grad-data" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1"/>
-    </linearGradient>
-    <linearGradient id="grad-strategy" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1"/>
-    </linearGradient>
-    <linearGradient id="grad-risk" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1"/>
-    </linearGradient>
-    <linearGradient id="grad-exec" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#059669;stop-opacity:1"/>
-    </linearGradient>
-    <linearGradient id="grad-infra" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f766e;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#134e4a;stop-opacity:1"/>
-    </linearGradient>
-    <filter id="glow-gold" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="glow-green" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="glow-red" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <path id="path-data-ceo" d="M 185 130 L 305 195"/>
-    <path id="path-strategy-ceo" d="M 515 130 L 395 195"/>
-    <path id="path-risk-ceo" d="M 185 290 L 305 225"/>
-    <path id="path-ceo-exec" d="M 395 225 L 515 290"/>
-    <path id="path-risk-exec" d="M 230 310 L 470 310"/>
-    <path id="path-data-strategy" d="M 230 110 L 470 110"/>
-    <path id="path-exec-infra" d="M 515 340 L 395 380"/>
-    <path id="path-risk-infra" d="M 185 340 L 305 380"/>
-  </defs>
-  <rect width="700" height="420" fill="rgba(10,10,30,0.3)" rx="12"/>
-  <line x1="185" y1="130" x2="305" y2="195" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.4"/>
-  <line x1="515" y1="130" x2="395" y2="195" stroke="#8b5cf6" stroke-width="1.5" stroke-opacity="0.4"/>
-  <line x1="185" y1="290" x2="305" y2="225" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.4"/>
-  <line x1="395" y1="225" x2="515" y2="290" stroke="#10b981" stroke-width="2.5" stroke-opacity="0.6"/>
-  <line x1="230" y1="310" x2="470" y2="310" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="6,4"/>
-  <line x1="230" y1="110" x2="470" y2="110" stroke="#6366f1" stroke-width="1.5" stroke-opacity="0.35"/>
-  <line x1="515" y1="340" x2="395" y2="380" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.4"/>
-  <line x1="185" y1="340" x2="305" y2="380" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.4"/>
-  <circle r="4" fill="#60a5fa" filter="url(#glow-gold)">
-    <animateMotion dur="8s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-data-ceo"/></animateMotion>
-  </circle>
-  <circle r="4" fill="#a78bfa" filter="url(#glow-gold)">
-    <animateMotion dur="8s" repeatCount="indefinite" begin="2s"><mpath xlink:href="#path-strategy-ceo"/></animateMotion>
-  </circle>
-  <circle r="4" fill="#f87171" filter="url(#glow-red)">
-    <animateMotion dur="2s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-risk-ceo"/></animateMotion>
-  </circle>
-  <circle r="5" fill="#34d399" filter="url(#glow-green)">
-    <animateMotion dur="0.5s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-ceo-exec"/></animateMotion>
-  </circle>
-  <circle r="3.5" fill="#fca5a5" filter="url(#glow-red)">
-    <animateMotion dur="3s" repeatCount="indefinite" begin="1s"><mpath xlink:href="#path-risk-exec"/></animateMotion>
-  </circle>
-  <circle r="3.5" fill="#818cf8">
-    <animateMotion dur="8s" repeatCount="indefinite" begin="4s"><mpath xlink:href="#path-data-strategy"/></animateMotion>
-  </circle>
-  <circle r="4" fill="#6ee7b7" filter="url(#glow-green)">
-    <animateMotion dur="1s" repeatCount="indefinite" begin="0s"><mpath xlink:href="#path-exec-infra"/></animateMotion>
-  </circle>
-  <circle r="3.5" fill="#fdba74">
-    <animateMotion dur="1s" repeatCount="indefinite" begin="0.5s"><mpath xlink:href="#path-risk-infra"/></animateMotion>
-  </circle>
-  <text x="237" y="158" fill="rgba(255,255,255,0.55)" font-size="9" text-anchor="middle">каждые 4ч</text>
-  <text x="463" y="158" fill="rgba(255,255,255,0.55)" font-size="9" text-anchor="middle">каждые 4ч</text>
-  <text x="237" y="268" fill="rgba(255,255,255,0.55)" font-size="9" text-anchor="middle">каждые 5мин</text>
-  <text x="463" y="268" fill="#86efac" font-size="9" font-weight="bold" text-anchor="middle">~50мс</text>
-  <text x="350" y="303" fill="#fca5a5" font-size="9" text-anchor="middle">экстренный стоп</text>
-  <text x="350" y="103" fill="rgba(255,255,255,0.45)" font-size="9" text-anchor="middle">каждые 4ч</text>
-  <text x="463" y="368" fill="#86efac" font-size="9" text-anchor="middle">on-chain txn</text>
-  <text x="237" y="368" fill="#fdba74" font-size="9" text-anchor="middle">мониторинг</text>
-  <rect x="305" y="185" width="90" height="50" rx="10" fill="url(#grad-ceo)" filter="url(#glow-gold)"/>
-  <rect x="305" y="185" width="90" height="50" rx="10" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
-  <text x="350" y="206" fill="white" font-size="9" font-weight="bold" text-anchor="middle">CEO AGENT</text>
-  <text x="350" y="220" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Claude Sonnet 4.6</text>
-  <text x="350" y="232" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">оркестрация</text>
-  <rect x="95" y="85" width="90" height="50" rx="10" fill="url(#grad-data)"/>
-  <rect x="95" y="85" width="90" height="50" rx="10" fill="none" stroke="#60a5fa" stroke-width="1"/>
-  <text x="140" y="106" fill="white" font-size="9" font-weight="bold" text-anchor="middle">DATA AGENT</text>
-  <text x="140" y="120" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Gemini Flash-Lite</text>
-  <text x="140" y="132" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">данные / аномалии</text>
-  <rect x="515" y="85" width="90" height="50" rx="10" fill="url(#grad-strategy)"/>
-  <rect x="515" y="85" width="90" height="50" rx="10" fill="none" stroke="#a78bfa" stroke-width="1"/>
-  <text x="560" y="106" fill="white" font-size="9" font-weight="bold" text-anchor="middle">STRATEGY</text>
-  <text x="560" y="120" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Gemini 2.5 Flash</text>
-  <text x="560" y="132" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">выбор стратегии</text>
-  <rect x="95" y="265" width="90" height="50" rx="10" fill="url(#grad-risk)"/>
-  <rect x="95" y="265" width="90" height="50" rx="10" fill="none" stroke="#f87171" stroke-width="1"/>
-  <text x="140" y="283" fill="white" font-size="9" font-weight="bold" text-anchor="middle">RISK MONITOR</text>
-  <text x="140" y="297" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">Claude Haiku 4.5</text>
-  <text x="140" y="309" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">алерты / VaR</text>
-  <rect x="515" y="265" width="90" height="50" rx="10" fill="url(#grad-exec)"/>
-  <rect x="515" y="265" width="90" height="50" rx="10" fill="none" stroke="#34d399" stroke-width="1.5"/>
-  <text x="560" y="283" fill="white" font-size="9" font-weight="bold" text-anchor="middle">EXECUTION</text>
-  <text x="560" y="297" fill="rgba(255,255,255,0.75)" font-size="8" text-anchor="middle">детерминирован</text>
-  <text x="560" y="309" fill="rgba(255,255,255,0.6)" font-size="7.5" text-anchor="middle">paper trades</text>
-  <rect x="305" y="355" width="90" height="45" rx="10" fill="url(#grad-infra)"/>
-  <rect x="305" y="355" width="90" height="45" rx="10" fill="none" stroke="#2dd4bf" stroke-width="1"/>
-  <text x="350" y="373" fill="white" font-size="8.5" font-weight="bold" text-anchor="middle">БЛОКЧЕЙН</text>
-  <text x="350" y="386" fill="rgba(255,255,255,0.7)" font-size="7.5" text-anchor="middle">Aave/Compound</text>
-  <text x="350" y="397" fill="rgba(255,255,255,0.55)" font-size="7" text-anchor="middle">Morpho/Pendle...</text>
-  <rect x="519" y="248" width="82" height="14" rx="4" fill="rgba(239,68,68,0.25)" stroke="rgba(239,68,68,0.5)" stroke-width="0.8"/>
-  <text x="560" y="258" fill="#fca5a5" font-size="7.5" text-anchor="middle">⛔ LLM FORBIDDEN</text>
-  <rect x="309" y="168" width="82" height="14" rx="4" fill="rgba(245,158,11,0.2)" stroke="rgba(245,158,11,0.4)" stroke-width="0.8"/>
-  <text x="350" y="178" fill="#fcd34d" font-size="7.5" text-anchor="middle">✅ LLM OK</text>
-</svg>
-</div>
-  </div>
+    <div class="ops-arch-title">Архитектура системы (реальный runtime)</div>
+    <div style="margin:16px auto 0;max-width:680px;font-size:12px;line-height:1.7">
+
+      <!-- launchd daily_cycle -->
+      <div style="border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:14px 18px;margin-bottom:12px;background:rgba(245,158,11,0.06)">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#F59E0B;margin-bottom:8px">
+          🕐 launchd com.spa.daily_cycle &nbsp;·&nbsp; 08:00 UTC ежедневно
+        </div>
+        <div style="border-left:2px solid rgba(245,158,11,0.3);padding-left:14px;color:#c8cfe0">
+          <div style="font-weight:600;color:#fcd34d;margin-bottom:6px">python3 -m spa_core.paper_trading.cycle_runner</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline">
+            <span style="color:#3B82F6;font-size:11px">①</span>
+            <span><span style="color:#60A5FA;font-weight:600">Adapter Orchestrator</span> → DeFiLlama yields API <span style="color:#6b7280;font-size:10px">(кэш TTL 300с)</span> → 6 протоколов (read-only)</span>
+            <span style="color:#10B981;font-size:11px">②</span>
+            <span><span style="color:#34d399;font-weight:600">StrategyAllocator</span> → целевая аллокация USD по пулам с cap'ами T1/T2</span>
+            <span style="color:#10B981;font-size:11px">②b</span>
+            <span><span style="color:#f87171;font-weight:600">RiskPolicy gate v1.0</span> <span style="font-size:10px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:4px;margin-left:4px">⛔ LLM FORBIDDEN</span> — нарушение → блок</span>
+            <span style="color:#8B5CF6;font-size:11px">③</span>
+            <span>дельта &gt; порога → виртуальный rebalance-трейд → <code style="font-size:10px;color:#a78bfa">data/trades.json</code></span>
+            <span style="color:#6366f1;font-size:11px">④</span>
+            <span>начисление дневного yield на позиции → <code style="font-size:10px;color:#a78bfa">data/current_positions.json</code></span>
+            <span style="color:#06b6d4;font-size:11px">⑤</span>
+            <span><code style="font-size:10px;color:#a78bfa">data/equity_curve_daily.json</code> <span style="color:#6b7280;font-size:10px">(ring-buffer 365 дней)</span></span>
+            <span style="color:#fbbf24;font-size:11px">⑥</span>
+            <span><span style="color:#fcd34d;font-weight:600">GoLiveChecker</span> → <code style="font-size:10px;color:#a78bfa">data/golive_status.json</code> (6 критериев)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- autopush -->
+      <div style="border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px 18px;margin-bottom:12px;background:rgba(16,185,129,0.05)">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#10B981;margin-bottom:4px">
+          🔄 launchd com.spa.autopush &nbsp;·&nbsp; каждые 90 мин
+        </div>
+        <div style="border-left:2px solid rgba(16,185,129,0.3);padding-left:14px;color:#c8cfe0">
+          auto_push.py → пуш data/*.json в GitHub (PAT из macOS Keychain)
+        </div>
+      </div>
+
+      <!-- httpserver + cloudflared -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:10px 14px;background:rgba(99,102,241,0.05)">
+          <div style="font-size:10px;font-weight:700;color:#818cf8;margin-bottom:3px">🌐 com.spa.httpserver</div>
+          <div style="font-size:11px;color:#9ca3af">Локальный HTTP для дашборда</div>
+        </div>
+        <div style="border:1px solid rgba(6,182,212,0.25);border-radius:10px;padding:10px 14px;background:rgba(6,182,212,0.05)">
+          <div style="font-size:10px;font-weight:700;color:#22d3ee;margin-bottom:3px">🚇 com.spa.cloudflared</div>
+          <div style="font-size:11px;color:#9ca3af">Туннель для внешнего доступа</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;font-size:10px;color:#4b5563;text-align:center">
+        Стек: Python 3 stdlib · атомарные записи (tmp + os.replace) · никаких внешних зависимостей в runtime
+      </div>
+    </div>
+  </div></div>
 
   <!-- ── Стек и Роадмап ── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
     <div class="team-stack">
       <div class="flow-title">технический стек</div>
-      <div class="stack-row"><span class="stack-label">Оркестрация</span><span class="stack-value">LangGraph (5 нод)</span></div>
-      <div class="stack-row"><span class="stack-label">LLM</span><span class="stack-value">Claude Sonnet 4.6 / Gemini 2.5</span></div>
-      <div class="stack-row"><span class="stack-label">База данных</span><span class="stack-value">SQLite + WAL</span></div>
-      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama API · Pendle API</span></div>
-      <div class="stack-row"><span class="stack-label">CI/CD</span><span class="stack-value">GitHub Actions (4h)</span></div>
+      <div class="stack-row"><span class="stack-label">Оркестрация</span><span class="stack-value">launchd (daily 08:00 UTC)</span></div>
+      <div class="stack-row"><span class="stack-label">Язык</span><span class="stack-value">Python 3 · только stdlib</span></div>
+      <div class="stack-row"><span class="stack-label">Хранилище</span><span class="stack-value">data/*.json (атомарные записи)</span></div>
+      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama yields API · 6 протоколов</span></div>
+      <div class="stack-row"><span class="stack-label">Автопуш</span><span class="stack-value">launchd autopush (каждые 90 мин)</span></div>
       <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · HTML/JS</span></div>
-      <div class="stack-row"><span class="stack-label">AG-UI / CopilotKit</span><span class="stack-value">планируется v0.5 <span class="coming-soon">скоро</span></span></div>
+      <div class="stack-row"><span class="stack-label">Туннель</span><span class="stack-value">cloudflared · локальный httpserver</span></div>
     </div>
     <div class="team-stack">
       <div class="flow-title">дорожная карта</div>
-      <div class="stack-row"><span class="stack-label">v1.0–v1.3 ✓</span><span class="stack-value">Pipeline · Pendle · Analytics</span></div>
-      <div class="stack-row"><span class="stack-label">v1.4–v1.5 ✓</span><span class="stack-value">Daily reports · Sky monitor · Dashboard v2</span></div>
-      <div class="stack-row"><span class="stack-label">v1.6 ●</span><span class="stack-value">Agent Ops Center · Kanban · 140 тестов</span></div>
-      <div class="stack-row"><span class="stack-label">v1.7</span><span class="stack-value">PostgreSQL · Mac Mini сервер</span></div>
-      <div class="stack-row"><span class="stack-label">v2.0</span><span class="stack-value">Go-Live ~2026-07-15 · Реальный капитал</span></div>
-      <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный</span></div>
+      <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Rebuild: реальный трек, cycle_runner, launchd</span></div>
+      <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Dashboard v2 · Kanban · 121+ тест</span></div>
+      <div class="stack-row"><span class="stack-label">~2026-07-10 ●</span><span class="stack-value">30 честных дней трека (ADR-002)</span></div>
+      <div class="stack-row"><span class="stack-label">~2026-07-10</span><span class="stack-value">GoLiveChecker: 7 дней READY подряд</span></div>
+      <div class="stack-row"><span class="stack-label">Go-Live</span><span class="stack-value">~2026-08-01 · Реальный капитал (ADR-002)</span></div>
+      <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный AUM</span></div>
     </div>
   </div>
 
-  <!-- ── Лента активности агентов (SSE) ── -->
+  <!-- ── Последняя активность системы (из реальных data/*.json) ── -->
   <div class="agent-stream-log">
     <div class="agent-stream-log-header">
-      <span id="agent-stream-log-hdr" style="transition:color .4s">📡 STREAM АГЕНТОВ — РЕАЛЬНОЕ ВРЕМЯ</span>
-      <span id="agent-stream-status" style="font-weight:400;color:#4b5563;font-size:9px;letter-spacing:.04em">Ожидание событий…</span>
+      <span style="transition:color .4s">📋 ПОСЛЕДНЯЯ АКТИВНОСТЬ СИСТЕМЫ</span>
+      <span id="team-activity-ts" style="font-weight:400;color:#4b5563;font-size:9px;letter-spacing:.04em">Загрузка…</span>
     </div>
-    <div id="agent-stream-log-entries" class="agent-stream-entries">
-      <div class="agent-stream-empty" id="agent-stream-empty-msg">
-        Нет событий · запустите <code style="font-size:10px">uvicorn spa_core.api.server:app --port 8765</code> и <code style="font-size:10px">python spa_core/export_data.py</code>
-      </div>
+    <div id="team-activity-entries" class="agent-stream-entries" style="min-height:80px">
+      <div style="color:#4b5563;font-size:11px;padding:12px">Загрузка данных из data/*.json…</div>
     </div>
   </div>
 
@@ -1540,13 +1560,82 @@
 <!-- ══════════════════ TAB: АНАЛИТИКА ══════════════════ -->
 <div id="tab-analytics" class="tab-pane">
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <div>
-      <div style="font-size:15px;font-weight:500">Аналитика протоколов</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">APY <span class="spa-tip" data-tip="APY">?</span> · TVL <span class="spa-tip" data-tip="TVL">?</span> · риск · сравнение</div>
+      <div style="font-size:15px;font-weight:500">Статистика · Аналитика</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Kanban · APY <span class="spa-tip" data-tip="APY">?</span> · TVL <span class="spa-tip" data-tip="TVL">?</span> · риск · тренды</div>
     </div>
     <button class="refresh-btn" onclick="loadAnalytics()">↻ Обновить</button>
   </div>
+
+  <!-- ── Период ── -->
+  <div style="display:flex;gap:6px;margin-bottom:18px;align-items:center">
+    <span style="font-size:11px;color:#aaa;margin-right:2px">Период:</span>
+    <button class="filter-btn active" data-period="all" onclick="setStatsPeriod('all',this)">Всё время</button>
+    <button class="filter-btn" data-period="30" onclick="setStatsPeriod('30',this)">30 дней</button>
+    <button class="filter-btn" data-period="7" onclick="setStatsPeriod('7',this)">7 дней</button>
+    <button class="filter-btn" data-period="1" onclick="setStatsPeriod('1',this)">Сегодня</button>
+  </div>
+
+  <!-- ══ Kanban Statistics ══ -->
+  <div class="an-card" id="kanban-stats-card" style="margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="an-title" style="margin-bottom:0">📊 Статистика задач · KANBAN.json</div>
+      <span id="kanban-stats-updated" style="font-size:10px;color:#6b7280"></span>
+    </div>
+
+    <!-- KPI row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="kanban-kpi-row">
+      <div class="strat-kpi"><div class="strat-kpi-label">Всего задач</div><div class="strat-kpi-value" id="kpi-total">—</div></div>
+      <div class="strat-kpi"><div class="strat-kpi-label">Завершено</div><div class="strat-kpi-value" id="kpi-done" style="color:#10b981">—</div></div>
+      <div class="strat-kpi"><div class="strat-kpi-label">В работе</div><div class="strat-kpi-value" id="kpi-active" style="color:#f59e0b">—</div></div>
+      <div class="strat-kpi"><div class="strat-kpi-label">Completion Rate</div><div class="strat-kpi-value" id="kpi-rate" style="color:#60a5fa">—</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Aging chart -->
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:8px">
+          Aging — распределение по времени жизни
+        </div>
+        <div id="aging-chart-wrap" style="min-height:90px">
+          <div style="color:#4b5563;font-size:11px">Загрузка…</div>
+        </div>
+      </div>
+
+      <!-- Bottleneck table -->
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:8px">
+          Bottleneck — задач в каждом статусе
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px" id="bottleneck-table">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.08)">
+              <th style="text-align:left;padding:4px 6px;color:#6b7280;font-weight:600">Статус</th>
+              <th style="text-align:right;padding:4px 6px;color:#6b7280;font-weight:600">Задач</th>
+              <th style="text-align:right;padding:4px 6px;color:#6b7280;font-weight:600">% от общего</th>
+            </tr>
+          </thead>
+          <tbody id="bottleneck-tbody">
+            <tr><td colspan="3" style="color:#4b5563;padding:8px 6px;font-size:11px">Загрузка…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Completion rate breakdown -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:8px">
+        Completion Rate · за выбранный период
+      </div>
+      <div id="completion-rate-bar" style="height:18px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden;margin-bottom:6px">
+        <div id="completion-rate-fill" style="height:100%;background:linear-gradient(90deg,#10b981,#34d399);border-radius:6px;width:0%;transition:width .6s ease"></div>
+      </div>
+      <div id="completion-rate-label" style="font-size:11px;color:#9ca3af">Загрузка…</div>
+    </div>
+  </div>
+  <!-- ══ / Kanban Statistics ══ -->
 
   <!-- Chain filter -->
   <div class="filter-row" id="chain-filters" style="margin-bottom:6px">
@@ -1780,23 +1869,23 @@
   </div>
 
   <!-- ══ Strategy Tournament Panel ══ -->
-  <div id="tournament-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-top:18px">
-    <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#1f2937;margin-bottom:14px">🏆 Strategy Tournament <span class="spa-tip" data-tip="Backtest">?</span></div>
+  <div id="tournament-panel" class="an-card" style="margin-top:18px">
+    <div class="an-title">🏆 Strategy Tournament <span class="spa-tip" data-tip="Backtest">?</span></div>
     <!-- Winner card -->
-    <div id="tournament-winner-card" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-      <span id="tournament-winner-text" style="font-size:16px;font-weight:700;color:#166534;flex:1">Loading…</span>
-      <span id="tournament-confidence-badge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#d1fae5;color:#065f46">–</span>
+    <div id="tournament-winner-card" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <span id="tournament-winner-text" style="font-size:16px;font-weight:700;color:#34d399;flex:1">Loading…</span>
+      <span id="tournament-confidence-badge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(16,185,129,0.2);color:#34d399">–</span>
     </div>
     <!-- Metrics table -->
     <div style="overflow-x:auto;margin-bottom:14px">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#f9fafb">
-            <th style="text-align:left;padding:8px 10px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb">Metric</th>
-            <th style="text-align:center;padding:8px 10px;color:#3b82f6;font-weight:600;border-bottom:1px solid #e5e7eb">v1 Conservative</th>
-            <th style="text-align:center;padding:8px 10px;color:#8b5cf6;font-weight:600;border-bottom:1px solid #e5e7eb">v2 Aggressive</th>
-            <th style="text-align:center;padding:8px 10px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb">Weight</th>
-            <th style="text-align:center;padding:8px 10px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb">Winner</th>
+            <th style="text-align:left;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Metric</th>
+            <th style="text-align:center;padding:8px 10px;color:#3b82f6;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">v1 Conservative</th>
+            <th style="text-align:center;padding:8px 10px;color:#8b5cf6;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">v2 Aggressive</th>
+            <th style="text-align:center;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Weight</th>
+            <th style="text-align:center;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Winner</th>
           </tr>
         </thead>
         <tbody id="tournament-tbody">
@@ -1805,12 +1894,12 @@
       </table>
     </div>
     <!-- Recommendation -->
-    <div id="tournament-recommendation" style="font-size:12px;color:#374151;background:#f8fafc;border-left:3px solid #3b82f6;padding:10px 14px;border-radius:0 6px 6px 0;line-height:1.5"></div>
+    <div id="tournament-recommendation" style="font-size:12px;color:#c8cfe0;background:rgba(59,130,246,0.06);border-left:3px solid #3b82f6;padding:10px 14px;border-radius:0 6px 6px 0;line-height:1.5"></div>
   </div>
 
   <!-- ══ Advanced Stats Panel ══ -->
-  <div id="advanced-stats-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-top:16px">
-    <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#1f2937;margin-bottom:14px">📊 Advanced Portfolio Stats</div>
+  <div id="advanced-stats-panel" class="an-card" style="margin-top:16px">
+    <div class="an-title">📊 Advanced Portfolio Stats</div>
     <div id="advanced-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px">
       <div style="text-align:center;color:#aaa;font-size:12px;padding:16px;grid-column:1/-1">Loading advanced analytics…</div>
     </div>
@@ -1880,6 +1969,40 @@
       </table>
     </div>
   </div>
+
+
+  <!-- ══ Portfolio Analytics (MP-115/116/117/118) ══ -->
+  <div class="an-card" style="margin-top:16px" id="portfolio-analytics-card">
+    <div class="an-title">📊 Portfolio Analytics <span style="font-weight:400;font-size:9px;color:#bbb">(MP-115/116/117/118)</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+
+      <!-- Drawdown (MP-115) -->
+      <div class="strat-kpi">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:10px">📉 Drawdown</div>
+        <div id="pa-drawdown-body"><div style="color:#4b5563;font-size:11px">Загрузка…</div></div>
+      </div>
+
+      <!-- Concentration (MP-116) -->
+      <div class="strat-kpi">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:10px">🎯 Concentration</div>
+        <div id="pa-concentration-body"><div style="color:#4b5563;font-size:11px">Загрузка…</div></div>
+      </div>
+
+      <!-- Yield Attribution (MP-117) -->
+      <div class="strat-kpi">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:10px">💰 Yield Attribution</div>
+        <div id="pa-yield-body"><div style="color:#4b5563;font-size:11px">Загрузка…</div></div>
+      </div>
+
+      <!-- Risk Contribution (MP-118) -->
+      <div class="strat-kpi">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;color:#6b7280;text-transform:uppercase;margin-bottom:10px">⚡ Risk Contribution</div>
+        <div id="pa-risk-body"><div style="color:#4b5563;font-size:11px">Загрузка…</div></div>
+      </div>
+
+    </div>
+  </div>
+  <!-- ══ / Portfolio Analytics ══ -->
 
 </div><!-- /tab-analytics -->
 
@@ -2376,12 +2499,14 @@ function showTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
   btn.classList.add('active');
+  if (id === 'overview') loadOverview();
+  if (id === 'decisions') loadDecisions();
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
   if (id === 'investor') loadInvestorSummary();
   if (id === 'backlog') loadBacklog();
   if (id === 'analytics') loadAnalytics();
   if (id === 'golive') loadGoLive();
-  if (id === 'team') loadAgentCommentary();
+  if (id === 'team') { loadAgentCommentary(); loadTeamActivity(); }
   if (id === 'system') onSystemTabActivated();
 }
 
@@ -3146,8 +3271,8 @@ function closeAgentModal() {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabIds = ['kanban','backlog','dashboard','analytics','team','golive','system'];
-  if (e.key >= '1' && e.key <= '7') {
+  const tabIds = ['overview','dashboard','decisions','kanban','backlog','analytics','team','golive','system'];
+  if (e.key >= '1' && e.key <= '9') {
     const idx = parseInt(e.key) - 1;
     if (tabIds[idx] && tabBtns[idx]) showTab(tabIds[idx], tabBtns[idx]);
   }
@@ -3198,6 +3323,8 @@ async function loadAnalytics() {
     loadFeedHealth();
     renderPendlePositions();
     runBacktest();
+    loadKanbanStats();
+    loadPortfolioAnalytics();
   } catch(e) {
     console.error('Analytics load error:', e);
   }
@@ -4096,6 +4223,587 @@ function renderStratComparison(stratV2, stratComp, pnlHistory) {
   renderEquityCompareChart(pnlHistory, stratComp);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── Dashboard v2.0 Overview ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DEC_LS_KEY = 'spa_decisions_v1';
+
+function getLocalDecisions() {
+  try {
+    const raw = localStorage.getItem(DEC_LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function saveLocalDecisions(decisions) {
+  try { localStorage.setItem(DEC_LS_KEY, JSON.stringify(decisions)); } catch(e) {}
+}
+
+// Merge file data (baseline) with localStorage overrides.
+// User decisions (owner_decided, resolved) in localStorage take priority over file.
+function mergeDecisions(fileDecisions, localDec) {
+  const overrideMap = {};
+  if (localDec) {
+    localDec.forEach(d => {
+      if (d.status === 'owner_decided' || d.status === 'resolved' || d.ai_review_result) {
+        overrideMap[d.id] = d;
+      }
+    });
+  }
+  const merged = fileDecisions.map(d => overrideMap[d.id] ? { ...d, ...overrideMap[d.id] } : d);
+  if (localDec) {
+    localDec.forEach(d => {
+      if (!fileDecisions.find(f => f.id === d.id)) merged.push(d);
+    });
+  }
+  return merged;
+}
+
+async function loadOverview() {
+  const ts = Date.now();
+  document.getElementById('overview-updated').textContent = 'Загрузка...';
+  try {
+    const [kanbanData, decData, history] = await Promise.all([
+      fetch(KANBAN_RAW_URL + '?_=' + ts, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('./data/decisions.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('./data/dashboard_metrics_history.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+
+    // Merge: file is baseline, localStorage overrides applied per-id
+    let decisions = [];
+    const localDec = getLocalDecisions();
+    if (decData && decData.decisions) {
+      decisions = mergeDecisions(decData.decisions, localDec);
+      saveLocalDecisions(decisions);
+    } else if (localDec && localDec.length) {
+      decisions = localDec;
+    }
+
+    const cols = kanbanData ? kanbanData.columns : {};
+    const inProg = (cols.in_progress || []).length;
+    const review = (cols.review || []).length;
+    const done = (cols.done || []).length;
+    const backlog = (cols.backlog || []).length;
+    const features = (cols.features || []).length;
+    const ideas = (cols.ideas || []).length;
+
+    const needsDecision = decisions.filter(d => d.status === 'needs_owner_decision').length;
+    const aiPending = decisions.filter(d => d.status === 'ai_review').length;
+    const ownerDone = decisions.filter(d => d.status === 'owner_decided').length;
+    const totalActive = inProg + review + backlog + features + ideas;
+
+    // Done this week (last 7 days)
+    const weekAgo = Date.now() - 7 * 86400000;
+    const doneWeek = (cols.done || []).filter(c => {
+      if (!c.completed) return false;
+      return new Date(c.completed).getTime() >= weekAgo;
+    }).length;
+
+    // Store history globally for period selector
+    window._ovFullHistory = history;
+
+    // Block 1: metrics
+    renderOvMetrics({ needsDecision, aiPending, inProg, review, doneWeek, totalActive });
+    // Block 2: attention
+    renderOvAttention(decisions.filter(d => d.status === 'needs_owner_decision'));
+    // Block 2b: AI review pending
+    renderOvAiReview(decisions.filter(d => d.status === 'owner_decided'));
+    // Block 3: funnel
+    renderOvFunnel(cols, decisions);
+    // Block 4: history (with current period)
+    renderOvHistory(history, window._ovPeriodDays != null ? window._ovPeriodDays : 7);
+    // Block 5: problems
+    renderOvProblems(cols, decisions);
+    // Block 6: aging
+    renderOvAging(cols);
+
+    // Update decisions tab badge
+    const dtc = document.getElementById('decisions-tab-count');
+    if (dtc) {
+      if (needsDecision > 0) { dtc.style.display = ''; dtc.textContent = needsDecision; }
+      else { dtc.style.display = 'none'; }
+    }
+
+    document.getElementById('overview-updated').textContent =
+      'Обновлено: ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) +
+      (kanbanData ? ' · KANBAN.json OK' : ' · KANBAN.json недоступен');
+
+  } catch(err) {
+    document.getElementById('overview-updated').textContent = 'Ошибка загрузки: ' + err.message;
+  }
+}
+
+function renderOvMetrics(m) {
+  const el = document.getElementById('ov-metrics');
+  if (!el) return;
+  const cards = [
+    { label: 'Owner decisions', value: m.needsDecision, sub: 'требуют решения', color: m.needsDecision > 0 ? '#B91C1C' : '#3B6D11', filterStatus: 'needs_owner_decision', target: 'decisions' },
+    { label: 'AI review pending', value: m.aiPending, sub: 'на ревью AI', color: m.aiPending > 0 ? '#BA7517' : '#888', filterStatus: 'ai_review', target: 'decisions' },
+    { label: 'In progress', value: m.inProg, sub: 'в работе', color: m.inProg > 0 ? '#185FA5' : '#888', filterStatus: 'in_progress', target: 'backlog' },
+    { label: 'Review', value: m.review, sub: 'на ревью', color: m.review > 0 ? '#7F77DD' : '#888', filterStatus: 'review', target: 'backlog' },
+    { label: 'Done this week', value: m.doneWeek, sub: 'за 7 дней', color: '#3B6D11', filterStatus: 'done', target: 'backlog' },
+    { label: 'Total active', value: m.totalActive, sub: 'backlog + features', color: '#888', filterStatus: 'all', target: 'backlog' }
+  ];
+  el.innerHTML = cards.map(c => `
+    <div class="ov-metric-card" onclick="ovMetricClick('${c.target}','${c.filterStatus}')" title="Нажмите для фильтра">
+      <div class="ov-metric-label">${c.label}</div>
+      <div class="ov-metric-value" style="color:${c.color}">${c.value}</div>
+      <div class="ov-metric-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function ovMetricClick(targetTab, filterStatus) {
+  // Find the tab button for targetTab and click it
+  const btns = document.querySelectorAll('.tab-btn');
+  let found = null;
+  btns.forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + targetTab + "'")) found = b;
+  });
+  if (found) { showTab(targetTab, found); }
+  // Apply filter if applicable
+  if (targetTab === 'decisions') {
+    const f = document.querySelector(`[data-status="${filterStatus}"]`);
+    if (f) setTimeout(() => filterOwnerDecisions(f, filterStatus), 100);
+  }
+}
+
+function renderOvAttention(items) {
+  const body = document.getElementById('ov-attention-body');
+  const count = document.getElementById('ov-attention-count');
+  if (!body) return;
+  if (count) count.textContent = items.length > 0 ? items.length + ' элем.' : '';
+  if (!items.length) {
+    body.innerHTML = '<div style="text-align:center;padding:16px;color:#3B6D11;font-size:13px">✓ Нет ожидающих решений</div>';
+    return;
+  }
+  body.innerHTML = items.map(d => {
+    const urgClass = d.urgency === 'high' ? 'ov-urgency-high' : d.urgency === 'medium' ? 'ov-urgency-medium' : 'ov-urgency-low';
+    const urgLabel = d.urgency === 'high' ? 'СРОЧНО' : d.urgency === 'medium' ? 'СРЕДНЯЯ' : 'НИЗКАЯ';
+    const decId = (d.id || '').replace(/[^a-zA-Z0-9_\-]/g, '_');
+    return `
+    <div class="ov-attention-card">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+        <div style="flex:1">
+          <div class="ov-attention-title">${escHtml(d.title)}</div>
+          <div class="ov-attention-context">${escHtml(d.context || '')}</div>
+        </div>
+      </div>
+      <div class="ov-attention-footer">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="${urgClass}">${urgLabel}</span>
+          ${d.kanban_item_id ? '<span style="font-family:monospace;font-size:10px;color:#aaa">' + escHtml(d.kanban_item_id) + '</span>' : ''}
+        </div>
+        <button class="ov-open-btn" onclick="openDecisionModal('${escHtml(d.id)}')">Открыть решение →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderOvAiReview(items) {
+  const wrap = document.getElementById('ov-aiReview-wrap');
+  const body = document.getElementById('ov-aiReview-body');
+  const count = document.getElementById('ov-aiReview-count');
+  if (!wrap || !body) return;
+  if (!items.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  if (count) count.textContent = items.length + ' элем.';
+  body.innerHTML = items.map(d => `
+    <div class="ov-attention-card">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+        <div style="flex:1">
+          <div class="ov-attention-title">${escHtml(d.title)}</div>
+          <div class="ov-attention-context"><strong style="color:#3B6D11">Решение:</strong> ${escHtml(d.owner_decision || '—')}</div>
+          ${d.decided_at ? `<div style="font-size:11px;color:#aaa;margin-top:3px">Принято: ${String(d.decided_at).slice(0,16).replace('T',' ')}</div>` : ''}
+        </div>
+      </div>
+      <div class="ov-attention-footer">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="dec-status-decided" style="font-size:10px">✅ Owner Decided</span>
+          ${d.kanban_item_id ? '<span style="font-family:monospace;font-size:10px;color:#aaa">' + escHtml(d.kanban_item_id) + '</span>' : ''}
+        </div>
+        <button class="ov-open-btn" onclick="markAsReviewed('${escHtml(d.id)}')">Отметить как проверено →</button>
+      </div>
+    </div>`).join('');
+}
+
+function markAsReviewed(decId) {
+  const decisions = getLocalDecisions() || [];
+  const idx = decisions.findIndex(d => d.id === decId);
+  if (idx < 0) return;
+  decisions[idx] = {
+    ...decisions[idx],
+    status: 'resolved',
+    resolved_at: new Date().toISOString()
+  };
+  saveLocalDecisions(decisions);
+  loadOverview();
+  const remaining = decisions.filter(d => d.status === 'needs_owner_decision').length;
+  const dtc = document.getElementById('decisions-tab-count');
+  if (dtc) { if (remaining > 0) { dtc.style.display=''; dtc.textContent=remaining; } else dtc.style.display='none'; }
+}
+
+function renderOvFunnel(cols, decisions) {
+  const el = document.getElementById('ov-funnel');
+  if (!el) return;
+  const needsDec = decisions.filter(d => d.status === 'needs_owner_decision').length;
+  const aiRev = decisions.filter(d => d.status === 'ai_review').length;
+  const steps = [
+    { label: 'Ideas',          count: (cols.ideas||[]).length,      color: '#e5e7eb', textColor: '#6b7280', isFlow: false },
+    { label: 'Features',       count: (cols.features||[]).length,   color: '#dbeafe', textColor: '#185FA5', isFlow: true  },
+    { label: 'Backlog',        count: (cols.backlog||[]).length,     color: '#fef3c7', textColor: '#92400e', isFlow: true  },
+    { label: 'In Progress',    count: (cols.in_progress||[]).length, color: '#d1fae5', textColor: '#065f46', isFlow: true  },
+    { label: 'Review',         count: (cols.review||[]).length,      color: '#ede9fe', textColor: '#4c1d95', isFlow: true  },
+    { label: 'Owner Decision', count: needsDec,                      color: '#fee2e2', textColor: '#B91C1C', isFlow: true  },
+    { label: 'AI Review',      count: aiRev,                         color: '#faeeda', textColor: '#BA7517', isFlow: true  },
+    { label: 'Done',           count: (cols.done||[]).length,        color: '#dcfce7', textColor: '#15803d', isFlow: false }
+  ];
+  const maxCount = Math.max(...steps.map(s => s.count), 1);
+  // Bottleneck: active flow step with most tasks
+  const flowMax = Math.max(...steps.filter(s => s.isFlow).map(s => s.count), 0);
+  const bottleneckLabel = flowMax > 0 ? (steps.filter(s => s.isFlow && s.count === flowMax)[0] || {}).label : null;
+
+  el.innerHTML = steps.map(s => {
+    const barWidth = Math.max(4, Math.round((s.count / maxCount) * 100));
+    const isBN = s.isFlow && s.label === bottleneckLabel && flowMax > 0;
+    return `
+    <div class="ov-funnel-step${isBN ? ' bottleneck' : ''}"${isBN ? ` title="Узкое место: ${s.count} задач"` : ''}>
+      <div class="ov-funnel-count" style="color:${s.textColor}">${s.count}</div>
+      <div class="ov-funnel-label">${s.label}</div>
+      <div class="ov-funnel-bar" style="background:${s.color};width:${barWidth}%;margin:6px auto 0;max-width:60px;min-width:20px"></div>
+      ${isBN ? '<div class="ov-funnel-bottleneck-badge">⚠ Узкое место</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function ovSetPeriod(days, btn) {
+  window._ovPeriodDays = days;
+  document.querySelectorAll('.ov-period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderOvHistory(window._ovFullHistory || null, days);
+}
+
+function renderOvHistory(history, periodDays) {
+  const canvas = document.getElementById('ov-history-chart');
+  const empty = document.getElementById('ov-history-empty');
+  if (!canvas) return;
+  const days = (periodDays != null ? periodDays : (window._ovPeriodDays != null ? window._ovPeriodDays : 7));
+  const all = history && history.history ? history.history : [];
+  const entries = days > 0 ? all.slice(-days) : all;
+  if (!entries.length) {
+    canvas.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  canvas.style.display = 'block';
+  const labels = entries.map(e => e.date ? e.date.slice(5) : '');
+  const doneData = entries.map(e => e.done || 0);
+  const pendingData = entries.map(e => (e.backlog || 0) + (e.in_progress || 0));
+  if (window._ovHistChart) { try { window._ovHistChart.destroy(); } catch(e) {} }
+  window._ovHistChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Done', data: doneData, borderColor: '#3B6D11', backgroundColor: 'rgba(59,109,17,0.08)', tension: 0.3, pointRadius: 3, borderWidth: 2 },
+        { label: 'Active', data: pendingData, borderColor: '#185FA5', backgroundColor: 'rgba(24,95,165,0.08)', tension: 0.3, pointRadius: 3, borderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { font: { size: 10 }, color: '#aaa', maxTicksLimit: 10 }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, color: '#aaa' }, grid: { color: '#f0f0f0' }, min: 0 }
+      }
+    }
+  });
+}
+
+function renderOvProblems(cols, decisions) {
+  const body = document.getElementById('ov-problems-body');
+  if (!body) return;
+  const problems = [];
+  const now = Date.now();
+  const sevenDays = 7 * 86400000;
+
+  // Check stale in-progress items
+  (cols.in_progress || []).forEach(c => {
+    const upd = c.updated_at || c.added;
+    if (upd && now - new Date(upd).getTime() > sevenDays) {
+      problems.push({ icon: '🕐', text: 'In Progress задача застряла >7 дней', sub: (c.id || '') + ' · ' + (c.title || '').slice(0, 60), severity: 'warn' });
+    }
+  });
+
+  // Check review items
+  (cols.review || []).forEach(c => {
+    const upd = c.updated_at || c.added;
+    if (upd && now - new Date(upd).getTime() > sevenDays) {
+      problems.push({ icon: '🕐', text: 'Review задача застряла >7 дней', sub: (c.id || '') + ' · ' + (c.title || '').slice(0, 60), severity: 'warn' });
+    }
+  });
+
+  // Check high-urgency pending decisions
+  decisions.filter(d => d.status === 'needs_owner_decision' && d.urgency === 'high').forEach(d => {
+    problems.push({ icon: '🔴', text: 'Срочное решение без ответа', sub: d.title.slice(0, 80), severity: 'crit' });
+  });
+
+  // Check for tasks with no next action (in_progress without tags or description)
+  const noAction = (cols.in_progress || []).filter(c => !c.description || c.description.length < 10).length;
+  if (noAction > 0) problems.push({ icon: '❓', text: noAction + ' задач в In Progress без описания следующего действия', sub: '', severity: 'info' });
+
+  // Empty in_progress is also a signal
+  if (!cols.in_progress || cols.in_progress.length === 0) {
+    problems.push({ icon: 'ℹ️', text: 'Нет задач In Progress — backlog не работает', sub: 'Возможно все задачи в Done или очередь пустая', severity: 'info' });
+  }
+
+  if (!problems.length) {
+    body.innerHTML = '<div class="ov-no-problems">✓ Проблемных зон не обнаружено</div>';
+    return;
+  }
+  body.innerHTML = problems.map(p => `
+    <div class="ov-problem-row">
+      <div class="ov-problem-icon">${p.icon}</div>
+      <div>
+        <div class="ov-problem-text">${escHtml(p.text)}</div>
+        ${p.sub ? '<div class="ov-problem-sub">' + escHtml(p.sub) + '</div>' : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderOvAging(cols) {
+  const body = document.getElementById('ov-aging-body');
+  if (!body) return;
+  const now = Date.now();
+  const sevenDays = 7 * 86400000;
+  const stale = [];
+  const colLabel = { in_progress: 'In Progress', review: 'Review', backlog: 'Backlog' };
+
+  ['in_progress', 'review', 'backlog'].forEach(col => {
+    (cols[col] || []).forEach(c => {
+      const upd = c.updated_at || c.added;
+      if (!upd) return;
+      const age = Math.floor((now - new Date(upd).getTime()) / 86400000);
+      if (age >= 7) {
+        stale.push({ title: c.title || c.id || '(без названия)', status: col, age });
+      }
+    });
+  });
+
+  stale.sort((a, b) => b.age - a.age);
+
+  if (!stale.length) {
+    body.innerHTML = '<div style="text-align:center;padding:12px;color:#3B6D11;font-size:13px">✓ Нет задач без изменений более 7 дней</div>';
+    return;
+  }
+  body.innerHTML = `
+    <table class="ov-aging-table">
+      <thead><tr>
+        <th>Задача</th><th>Статус</th><th>Без изменений</th>
+      </tr></thead>
+      <tbody>
+        ${stale.map(s => `
+          <tr>
+            <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(s.title)}">${escHtml(s.title.slice(0,80))}</td>
+            <td><span style="font-size:10px;background:#f3f4f6;padding:1px 7px;border-radius:8px">${escHtml(colLabel[s.status]||s.status)}</span></td>
+            <td class="${s.age >= 14 ? 'ov-aging-stale' : 'ov-aging-warn'}">${s.age} дн.</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+
+// ─── Decisions Tab ─────────────────────────────────────────────────────────────
+
+let _decCurrentFilter = 'all';
+let _currentDecisionId = null;
+
+async function loadDecisions() {
+  const ts = Date.now();
+  const body = document.getElementById('dec-list-body');
+  if (body) body.innerHTML = '<div class="dec-empty"><span class="spinner"></span> Загрузка...</div>';
+  try {
+    const decData = await fetch('./data/decisions.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null);
+    let decisions = [];
+    const localDec = getLocalDecisions();
+    if (decData && decData.decisions) {
+      decisions = mergeDecisions(decData.decisions, localDec);
+      saveLocalDecisions(decisions);
+    } else if (localDec && localDec.length) {
+      decisions = localDec;
+    }
+    renderDecisionsList(decisions, _decCurrentFilter);
+  } catch(err) {
+    if (body) body.innerHTML = '<div class="dec-empty">Ошибка: ' + escHtml(err.message) + '</div>';
+  }
+}
+
+function renderDecisionsList(decisions, filter) {
+  const body = document.getElementById('dec-list-body');
+  if (!body) return;
+  let filtered = filter === 'all' ? decisions : decisions.filter(d => d.status === filter);
+  if (!filtered.length) {
+    body.innerHTML = '<div class="dec-empty">Решений с таким статусом нет</div>';
+    return;
+  }
+  // Sort: needs_owner_decision first, then by urgency
+  const urgOrder = { high: 0, medium: 1, low: 2 };
+  const statOrder = { needs_owner_decision: 0, ai_review: 1, owner_decided: 2, resolved: 3 };
+  filtered = [...filtered].sort((a, b) => {
+    const so = (statOrder[a.status] || 9) - (statOrder[b.status] || 9);
+    if (so !== 0) return so;
+    return (urgOrder[a.urgency] || 9) - (urgOrder[b.urgency] || 9);
+  });
+  const statusLabels = { needs_owner_decision: 'Ожидает решения', owner_decided: 'Решено', ai_review: 'AI Review', resolved: 'Закрыто' };
+  const statusClasses = { needs_owner_decision: 'dec-status-needs', owner_decided: 'dec-status-decided', ai_review: 'dec-status-review', resolved: 'dec-status-resolved' };
+  body.innerHTML = filtered.map(d => {
+    const urgBadge = d.urgency ? `<span class="ov-urgency-${d.urgency}" style="margin-right:4px">${d.urgency.toUpperCase()}</span>` : '';
+    return `
+    <div class="dec-card">
+      <div class="dec-card-header">
+        <div style="flex:1">
+          <div class="dec-card-title">${escHtml(d.title)}</div>
+          <div class="dec-card-id">${escHtml(d.id || '')}</div>
+        </div>
+        <span class="dec-status-badge ${statusClasses[d.status] || ''}">${statusLabels[d.status] || d.status}</span>
+      </div>
+      <div class="dec-card-context">${escHtml(d.context || '')}</div>
+      <div class="dec-card-footer">
+        <div>${urgBadge}${d.created_at ? '<span style="font-size:11px;color:#bbb">' + String(d.created_at).slice(0,10) + '</span>' : ''}</div>
+        <button class="dec-open-btn" onclick="openDecisionModal('${escHtml(d.id)}')">Открыть →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterOwnerDecisions(btn, status) {
+  document.querySelectorAll('#dec-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _decCurrentFilter = status;
+  const decisions = getLocalDecisions() || [];
+  renderDecisionsList(decisions, status);
+}
+
+function openDecisionModal(decId) {
+  const decisions = getLocalDecisions() || [];
+  const d = decisions.find(x => x.id === decId);
+  if (!d) return;
+  _currentDecisionId = decId;
+
+  document.getElementById('dec-modal-id').textContent = d.id;
+  document.getElementById('dec-modal-title').textContent = d.title;
+
+  // Urgency badge
+  const urgEl = document.getElementById('dec-modal-urgency');
+  const urgMap = { high: ['ov-urgency-high','⚠️ СРОЧНО'], medium: ['ov-urgency-medium','⚠ СРЕДНЯЯ'], low: ['ov-urgency-low','ℹ️ НИЗКАЯ'] };
+  const [cls, lbl] = urgMap[d.urgency] || ['ov-urgency-low','LOW'];
+  urgEl.innerHTML = `<span class="${cls}">${lbl}</span>`;
+
+  document.getElementById('dec-modal-context').textContent = d.context || '—';
+  document.getElementById('dec-modal-reason').textContent = d.reason || '—';
+  document.getElementById('dec-modal-rec').textContent = d.ai_recommendation || '—';
+
+  // Risks
+  const risksEl = document.getElementById('dec-modal-risks');
+  risksEl.innerHTML = (d.risks || []).map(r => `<div>• ${escHtml(r)}</div>`).join('') || '—';
+
+  // Options (radio buttons) or resolved view
+  const formEl = document.getElementById('dec-modal-form');
+  const resolvedEl = document.getElementById('dec-modal-resolved');
+
+  if (d.status === 'resolved' || d.status === 'owner_decided') {
+    formEl.style.display = 'none';
+    resolvedEl.style.display = 'block';
+    document.getElementById('dec-modal-owner-decision').textContent = d.owner_decision || '—';
+    document.getElementById('dec-modal-decided-at').textContent = d.decided_at ? 'Принято: ' + String(d.decided_at).slice(0,16).replace('T',' ') : '';
+  } else {
+    formEl.style.display = 'block';
+    resolvedEl.style.display = 'none';
+    const opts = d.options || [];
+    document.getElementById('dec-modal-options').innerHTML = opts.map((o, i) => `
+      <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer;font-size:13px">
+        <input type="radio" name="dec_option" value="${escHtml(o)}" style="margin-top:2px">
+        <span>${escHtml(o)}</span>
+      </label>`).join('') + `<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer;font-size:13px">
+        <input type="radio" name="dec_option" value="__custom__" style="margin-top:2px">
+        <span style="color:#888">Своё решение (в поле ниже)</span>
+      </label>`;
+    document.getElementById('dec-modal-comment').value = '';
+  }
+
+  const modal = document.getElementById('decision-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDecisionModal() {
+  const modal = document.getElementById('decision-modal');
+  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+  _currentDecisionId = null;
+}
+
+function saveDecision() {
+  if (!_currentDecisionId) return;
+  const decisions = getLocalDecisions() || [];
+  const idx = decisions.findIndex(d => d.id === _currentDecisionId);
+  if (idx < 0) return;
+
+  const radios = document.querySelectorAll('input[name="dec_option"]');
+  let selected = '';
+  radios.forEach(r => { if (r.checked) selected = r.value; });
+
+  const comment = (document.getElementById('dec-modal-comment').value || '').trim();
+  const finalDecision = selected === '__custom__' ? comment : (selected ? selected + (comment ? ' · ' + comment : '') : comment);
+
+  if (!finalDecision) { alert('Выберите вариант или напишите своё решение'); return; }
+
+  decisions[idx] = {
+    ...decisions[idx],
+    owner_decision: finalDecision,
+    status: 'owner_decided',
+    decided_at: new Date().toISOString()
+  };
+  saveLocalDecisions(decisions);
+  closeDecisionModal();
+  renderDecisionsList(decisions, _decCurrentFilter);
+
+  // Refresh dashboard metrics badge
+  const dtc = document.getElementById('decisions-tab-count');
+  const remaining = decisions.filter(d => d.status === 'needs_owner_decision').length;
+  if (dtc) { if (remaining > 0) { dtc.style.display=''; dtc.textContent=remaining; } else { dtc.style.display='none'; } }
+
+  // Refresh overview tab: move card from "Требует внимания" to "Ожидает AI Review"
+  renderOvAttention(decisions.filter(d => d.status === 'needs_owner_decision'));
+  renderOvAiReview(decisions.filter(d => d.status === 'owner_decided'));
+  const ovCount = document.getElementById('ov-attention-count');
+  if (ovCount) {
+    const n = decisions.filter(d => d.status === 'needs_owner_decision').length;
+    ovCount.textContent = n > 0 ? n + ' элем.' : '';
+  }
+}
+
+function exportDecisions() {
+  const decisions = getLocalDecisions() || [];
+  const payload = {
+    schema_version: '1.0',
+    last_updated: new Date().toISOString(),
+    exported_at: new Date().toISOString(),
+    note: 'Экспорт из браузера (localStorage). Скопируйте в data/decisions.json вручную.',
+    decisions
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'decisions_export.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+
 // ─── Live Backlog (KANBAN.json via GitHub raw API) ────────────────────────────
 // Fetches KANBAN.json straight from the repo (raw.githubusercontent.com sends
 // Access-Control-Allow-Origin: *, so this works from GitHub Pages and file://).
@@ -4137,19 +4845,28 @@ function bkFmtUpdated(lu) {
   return days + ' дн назад (' + lu + ')';
 }
 
+const BK_STATUS_ICONS  = { blocked: '🚫', archived: '📦', ready: '✅', rejected: '❌' };
+const BK_STATUS_LABELS = { blocked: 'Blocked', archived: 'Archived', ready: 'Ready', rejected: 'Rejected' };
+
 function bkCard(item, opts) {
   opts = opts || {};
   const prio = (item.priority || '').toUpperCase();
   const prioCls = BK_PRIO_CLS[prio] || 'bk-prio-p3';
   const isUser = (item.tags || []).includes('user-action') || /USER ACTION/i.test(item.title || '');
+  const st = (item.status || opts.forcedStatus || '').toLowerCase();
+  const stBadge = BK_STATUS_LABELS[st]
+    ? `<span class="bk-badge status-${st}" title="${st}">${BK_STATUS_ICONS[st]} ${BK_STATUS_LABELS[st]}</span>`
+    : '';
   const meta = [];
   if (item.phase) meta.push(bkEsc(bkPhaseLabel(item.phase)));
   if (item.estimated_days != null && item.estimated_days > 0) meta.push('~' + item.estimated_days + 'd');
   if (opts.done && item.completed) meta.push('✅ ' + bkEsc(item.completed));
-  return `<div class="bk-card${opts.done ? ' bk-card-done' : ''}" title="${bkEsc(item.description || '')}">
+  const cardCls = 'bk-card' + (opts.done ? ' bk-card-done' : '') + (st === 'archived' ? ' bk-card-done' : '');
+  return `<div class="${cardCls}" title="${bkEsc(item.description || '')}">
     <div class="bk-card-top">
       <span class="bk-id">${bkEsc(item.id)}</span>
       <span class="bk-prio ${prioCls}">${bkEsc(prio || '—')}</span>
+      ${stBadge}
       ${isUser ? '<span class="bk-user" title="USER ACTION — не автоматизируется">👤</span>' : ''}
     </div>
     <div class="bk-title">${bkEsc(item.title)}</div>
@@ -4166,6 +4883,8 @@ function renderBacklog(data, source, cachedAt) {
   const done       = cols.done || [];
   const inprog     = cols.in_progress || [];
   const review     = cols.review || [];
+  const blocked    = cols.blocked  || [];
+  const archived   = cols.archived || [];
 
   const sortItems = arr => [...arr].sort((a, b) =>
     ((BK_PRIO_RANK[(a.priority || '').toUpperCase()] ?? 9) - (BK_PRIO_RANK[(b.priority || '').toUpperCase()] ?? 9))
@@ -4179,9 +4898,9 @@ function renderBacklog(data, source, cachedAt) {
 
   // 🟡 Backlog: everything else (plus in_progress/review on top, when present)
   let restHtml = '';
-  if (inprog.length) restHtml += '<div class="group-sep">В работе</div>' + sortItems(inprog).map(it => bkCard(it)).join('');
-  if (review.length) restHtml += '<div class="group-sep">На проверке</div>' + sortItems(review).map(it => bkCard(it)).join('');
-  if (rest.length)   restHtml += (inprog.length || review.length ? '<div class="group-sep">Backlog</div>' : '') + rest.map(it => bkCard(it)).join('');
+  if (inprog.length)   restHtml += '<div class="group-sep">В работе</div>'    + sortItems(inprog).map(it => bkCard(it)).join('');
+  if (review.length)   restHtml += '<div class="group-sep">На проверке</div>' + sortItems(review).map(it => bkCard(it)).join('');
+  if (rest.length)     restHtml += (inprog.length || review.length ? '<div class="group-sep">Backlog</div>' : '') + rest.map(it => bkCard(it)).join('');
 
   // 🔵 Features: grouped by phase
   const byPhase = {};
@@ -4194,6 +4913,11 @@ function renderBacklog(data, source, cachedAt) {
   const doneSorted = [...done].sort((a, b) => String(b.completed || '').localeCompare(String(a.completed || '')));
   const doneHtml = doneSorted.map(it => bkCard(it, { done: true })).join('');
 
+  // 🚫 Blocked (optional column)
+  const blockedHtml = sortItems(blocked).map(it => bkCard(it, { forcedStatus: 'blocked' })).join('');
+  // 📦 Archived (optional column, also shows items with status=archived inside other columns)
+  const archivedHtml = sortItems(archived).map(it => bkCard(it, { forcedStatus: 'archived' })).join('');
+
   const colHtml = (cls, title, count, inner) => `<div class="bk-col ${cls}">
     <div class="kb-col-header">${title} <span class="kb-count">${count}</span></div>
     ${inner || '<div class="bk-empty">пусто</div>'}
@@ -4203,7 +4927,9 @@ function renderBacklog(data, source, cachedAt) {
     colHtml('bk-col-p0',       '🔴 PHASE 0 — СРОЧНО', urgent.length, urgent.map(it => bkCard(it)).join('')) +
     colHtml('bk-col-backlog',  '🟡 BACKLOG',          rest.length + inprog.length + review.length, restHtml) +
     colHtml('bk-col-features', '🔵 FEATURES',         features.length, featHtml) +
-    colHtml('bk-col-done',     '✅ DONE',             done.length, doneHtml);
+    colHtml('bk-col-done',     '✅ DONE',             done.length, doneHtml) +
+    (blocked.length  ? colHtml('bk-col-blocked',  '🚫 BLOCKED',   blocked.length,  blockedHtml)  : '') +
+    (archived.length ? colHtml('bk-col-archived', '📦 ARCHIVED',  archived.length, archivedHtml) : '');
 
   // Live counter in the tab header: "BACKLOG (31)"
   const tabCount = document.getElementById('backlog-tab-count');
@@ -4259,6 +4985,7 @@ const _todEl = document.getElementById('today-date');
 if (_todEl) _todEl.textContent = new Date().toISOString().slice(0,10);
 detectLiveMode();
 loadBacklog();   // live tab counter "BACKLOG (N)" + warm cache on page load
+loadOverview();  // v2.0: load Dashboard on startup (it's the default tab)
 
 // ─── MP-007: Go-Live Status Bar + live paper-trading статус ──────────────────
 // Честный статус go-live: data/golive_status.json (если появится) с фолбэком на
@@ -4552,6 +5279,274 @@ async function handleAgentChat(e) {
   }
   if (!resp) resp = { agent:'ceo', msg:'No data on that. Check the Analytics tab or Decision Log (📋) for more details.' };
   setTimeout(() => logActivity(resp.agent, resp.msg), 600);
+}
+
+// ─── Stats Period Selector ────────────────────────────────────────────────────
+let _statsPeriod = 'all';
+function setStatsPeriod(period, btn) {
+  _statsPeriod = period;
+  document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderKanbanStats(window._kanbanStatsCache || null);
+}
+
+// ─── Kanban Statistics ────────────────────────────────────────────────────────
+let _kanbanStatsCache = null;
+
+async function loadKanbanStats() {
+  try {
+    const ts = Date.now();
+    const data = await fetch(KANBAN_RAW_URL + '?_=' + ts, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+    if (!data) return;
+    _kanbanStatsCache = data;
+    window._kanbanStatsCache = data;
+    const upd = document.getElementById('kanban-stats-updated');
+    if (upd && data.last_updated) {
+      upd.textContent = 'обновлено: ' + data.last_updated.slice(0, 10);
+    }
+    renderKanbanStats(data);
+  } catch(e) {
+    console.warn('loadKanbanStats error:', e);
+  }
+}
+
+// ── Portfolio Analytics (MP-115/116/117/118) ─────────────────────────────────
+async function loadPortfolioAnalytics() {
+  const ts = Date.now();
+
+  function paVerdictBadge(v) {
+    const c = {ok:'#22c55e', warn:'#f59e0b', fail:'#ef4444'}[v] || '#9ca3af';
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:' + c + ';color:#fff;font-size:10px;font-weight:600;letter-spacing:.05em">' + ((v||'—').toUpperCase()) + '</span>';
+  }
+
+  function paNoData(el) {
+    if (el) el.innerHTML = '<span style="color:#6b7280;font-size:11px">Нет данных</span>';
+  }
+
+  function paKv(label, value, color) {
+    const clr = color || '#e5e7eb';
+    return '<div><div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">' + label + '</div><div style="font-size:14px;font-weight:600;color:' + clr + '">' + value + '</div></div>';
+  }
+
+  var results = await Promise.all([
+    fetch(BASE + '/drawdown_analytics.json?_=' + ts).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(BASE + '/concentration_analytics.json?_=' + ts).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(BASE + '/yield_attribution.json?_=' + ts).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(BASE + '/risk_contribution.json?_=' + ts).then(function(r){ return r.json(); }).catch(function(){ return null; }),
+  ]);
+  var dd = results[0], conc = results[1], yld = results[2], risk = results[3];
+
+  // Card 1 — Drawdown (MP-115)
+  var ddEl = document.getElementById('pa-drawdown-body');
+  if (!dd || !dd.available) { paNoData(ddEl); }
+  else {
+    var h = dd.headline || {};
+    var uw = h.currently_underwater;
+    var uwBadge = uw
+      ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#ef4444;color:#fff;font-size:10px;font-weight:600">UNDERWATER</span>'
+      : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#22c55e;color:#fff;font-size:10px;font-weight:600">OK</span>';
+    ddEl.innerHTML = '<div style="margin-bottom:8px">' + uwBadge + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + paKv('Current DD', ((h.current_drawdown_pct||0).toFixed(2)) + '%')
+      + paKv('Max DD', ((h.max_drawdown_pct||0).toFixed(2)) + '%')
+      + paKv('Episodes', (h.num_episodes != null ? h.num_episodes : 0).toString())
+      + paKv('Time in DD', ((h.time_in_drawdown_pct||0).toFixed(1)) + '%')
+      + '</div>';
+  }
+
+  // Card 2 — Concentration (MP-116)
+  var concEl = document.getElementById('pa-concentration-body');
+  if (!conc || !conc.available) { paNoData(concEl); }
+  else {
+    var top1Pct = ((conc.top1_share||0)*100).toFixed(1);
+    concEl.innerHTML = '<div style="margin-bottom:8px">' + paVerdictBadge(conc.verdict) + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + paKv('Eff. Positions', (conc.effective_num_positions||0).toFixed(2))
+      + paKv('HHI Index', conc.hhi_protocol_index != null ? conc.hhi_protocol_index.toString() : '—')
+      + '<div style="grid-column:1/-1">' + paKv('Top-1', '<span style="color:#93c5fd">' + (conc.top1_protocol||'—') + '</span> ' + top1Pct + '%') + '</div>'
+      + '</div>';
+  }
+
+  // Card 3 — Yield Attribution (MP-117)
+  var yldEl = document.getElementById('pa-yield-body');
+  if (!yld || !yld.available) { paNoData(yldEl); }
+  else {
+    var yldTop1Pct = ((yld.top1_yield_share||0)*100).toFixed(1);
+    yldEl.innerHTML = '<div style="margin-bottom:8px">' + paVerdictBadge(yld.verdict) + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + paKv('Portfolio APY', (yld.portfolio_apy_pp||0).toFixed(2) + '%', '#34d399')
+      + paKv('Yield HHI', yld.yield_hhi_index != null ? yld.yield_hhi_index.toString() : '—')
+      + paKv('Eff. Sources', (yld.effective_num_yield_sources||0).toFixed(2))
+      + '<div style="grid-column:1/-1">' + paKv('Top-1', '<span style="color:#93c5fd">' + (yld.top1_yield_protocol||'—') + '</span> ' + yldTop1Pct + '%') + '</div>'
+      + '</div>';
+  }
+
+  // Card 4 — Risk Contribution (MP-118)
+  var riskEl = document.getElementById('pa-risk-body');
+  if (!risk || !risk.available) { paNoData(riskEl); }
+  else {
+    var top1Prc = ((risk.top1_risk_share||0)*100).toFixed(1);
+    riskEl.innerHTML = '<div style="margin-bottom:8px">' + paVerdictBadge(risk.verdict) + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + paKv('Risk HHI', risk.risk_hhi_index != null ? risk.risk_hhi_index.toString() : '—')
+      + paKv('Eff. Risk Src', (risk.effective_num_risk_sources||0).toFixed(2))
+      + paKv('Div. Ratio', (risk.diversification_ratio||0).toFixed(2))
+      + '<div style="grid-column:1/-1">' + paKv('Top-1 PRC', '<span style="color:#93c5fd">' + (risk.top1_risk_protocol||'—') + '</span> ' + top1Prc + '%') + '</div>'
+      + '</div>';
+  }
+}
+
+function renderKanbanStats(data) {
+  if (!data || !data.columns) return;
+  const cols = data.columns;
+  const now = new Date();
+
+  // Determine cutoff date for period filter
+  let cutoffMs = 0;
+  if (_statsPeriod === '1')  cutoffMs = now.getTime() - 86400e3;
+  if (_statsPeriod === '7')  cutoffMs = now.getTime() - 7*86400e3;
+  if (_statsPeriod === '30') cutoffMs = now.getTime() - 30*86400e3;
+
+  // Collect all tasks with optional period filter
+  const allTasks = Object.entries(cols).flatMap(([colId, tasks]) =>
+    tasks.map(t => ({ ...t, _col: colId }))
+  );
+
+  const filterTask = t => {
+    if (!cutoffMs) return true;
+    const d = t.added || t.created_at || t.completed;
+    if (!d) return true;
+    return new Date(d).getTime() >= cutoffMs;
+  };
+  const filtered = allTasks.filter(filterTask);
+
+  // KPI counts
+  const total  = filtered.length;
+  const done   = filtered.filter(t => t._col === 'done').length;
+  const active = filtered.filter(t => ['in_progress','review'].includes(t._col)).length;
+  const rate   = total > 0 ? Math.round(done / total * 100) : 0;
+
+  const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  setEl('kpi-total', total);
+  setEl('kpi-done',  done);
+  setEl('kpi-active', active);
+  setEl('kpi-rate',  rate + '%');
+
+  // Aging chart — open tasks bucketed by age
+  const agingTasks = filtered.filter(t => t._col !== 'done');
+  const buckets = { '0–7 дн': 0, '7–30 дн': 0, '30+ дн': 0 };
+  agingTasks.forEach(t => {
+    const d = t.added || t.created_at;
+    if (!d) { buckets['30+ дн']++; return; }
+    const ageDays = (now - new Date(d)) / 86400e3;
+    if (ageDays < 7)  buckets['0–7 дн']++;
+    else if (ageDays < 30) buckets['7–30 дн']++;
+    else buckets['30+ дн']++;
+  });
+  const maxBucket = Math.max(...Object.values(buckets), 1);
+  const agingColors = { '0–7 дн': '#10b981', '7–30 дн': '#f59e0b', '30+ дн': '#ef4444' };
+  const agingWrap = document.getElementById('aging-chart-wrap');
+  if (agingWrap) {
+    agingWrap.innerHTML = Object.entries(buckets).map(([label, cnt]) => {
+      const pct = Math.round(cnt / maxBucket * 100);
+      const col = agingColors[label];
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<span style="font-size:10px;color:#9ca3af;width:60px;flex-shrink:0">' + label + '</span>' +
+        '<div style="flex:1;height:14px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">' +
+        '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:4px;transition:width .5s ease"></div>' +
+        '</div>' +
+        '<span style="font-size:11px;color:#c8cfe0;width:20px;text-align:right">' + cnt + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Bottleneck table
+  const COL_LABELS = { ideas:'Ideas', features:'Features', backlog:'Backlog', in_progress:'In Progress', review:'Review', done:'Done' };
+  const btbody = document.getElementById('bottleneck-tbody');
+  if (btbody) {
+    const rows = Object.entries(cols).map(([colId, tasks]) => {
+      const cnt = tasks.filter(filterTask).length;
+      const pct = total > 0 ? Math.round(cnt / total * 100) : 0;
+      const isActive = ['in_progress','review'].includes(colId) && cnt > 0;
+      return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">' +
+        '<td style="padding:5px 6px;color:' + (isActive ? '#fbbf24' : '#c8cfe0') + '">' + (isActive ? '⚡ ' : '') + (COL_LABELS[colId] || colId) + '</td>' +
+        '<td style="padding:5px 6px;text-align:right;color:#e5e7eb;font-weight:600">' + cnt + '</td>' +
+        '<td style="padding:5px 6px;text-align:right;color:#6b7280">' + pct + '%</td>' +
+        '</tr>';
+    });
+    btbody.innerHTML = rows.join('');
+  }
+
+  // Completion rate bar
+  const fill = document.getElementById('completion-rate-fill');
+  const lbl  = document.getElementById('completion-rate-label');
+  const periodLabel = _statsPeriod === 'all' ? 'всё время' : _statsPeriod + ' дн.';
+  if (fill) fill.style.width = rate + '%';
+  if (lbl)  lbl.textContent  = done + ' завершено из ' + total + ' задач · ' + rate + '% · период: ' + periodLabel;
+}
+
+// ─── Team tab: Recent System Activity from data/*.json ────────────────────────
+async function loadTeamActivity() {
+  const wrap = document.getElementById('team-activity-entries');
+  const tsEl  = document.getElementById('team-activity-ts');
+  if (!wrap) return;
+  try {
+    const ts = Date.now();
+    const [status, trades, gapMon] = await Promise.all([
+      fetch(BASE + '/paper_trading_status.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(BASE + '/trades.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(BASE + '/gap_monitor.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+
+    const events = [];
+    const fmtDate = iso => {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit'}) + ' ' +
+             d.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
+    };
+
+    if (status) {
+      const cycleAt = status.last_cycle_at || status.last_run || status.generated_at;
+      const equity = status.portfolio_value || status.current_equity || 0;
+      events.push({ icon:'🔄', color:'#60a5fa', label:'CycleRunner',
+        msg: 'последний цикл · equity $' + (equity/1000).toFixed(1) + 'K',
+        time: fmtDate(cycleAt) });
+    }
+    if (trades) {
+      const tlist = Array.isArray(trades) ? trades : (trades.trades || []);
+      const last = tlist[tlist.length - 1];
+      if (last) events.push({ icon:'💱', color:'#34d399', label:'Trade',
+        msg: (last.action||last.type||'rebalance') + ' · ' + (last.protocol||last.pool||'—') + ' · $' + Math.round(last.amount||last.usd_amount||0).toLocaleString('ru-RU'),
+        time: fmtDate(last.timestamp||last.date) });
+    }
+    if (gapMon) {
+      const gaps = gapMon.gaps || [];
+      const streak = gapMon.current_streak_days || gapMon.streak || 0;
+      events.push({ icon: gaps.length ? '⚠️' : '✅', color: gaps.length ? '#f87171' : '#34d399',
+        label:'GapMonitor',
+        msg: gaps.length ? gaps.length + ' пробел(а) · streak ' + streak + ' дн.' : 'streak ' + streak + ' дн. без пробелов',
+        time: fmtDate(gapMon.checked_at || gapMon.last_checked) });
+    }
+
+    if (!events.length) {
+      wrap.innerHTML = '<div style="color:#4b5563;font-size:11px;padding:12px">Нет данных · ожидание первого цикла</div>';
+      return;
+    }
+
+    wrap.innerHTML = events.map(e =>
+      '<div class="agent-stream-entry" style="border-left-color:' + e.color + '">' +
+      '<span class="stream-agent-tag" style="background:' + e.color + '1a;color:' + e.color + '">' + e.icon + ' ' + e.label + '</span>' +
+      '<span class="stream-msg">' + e.msg + '</span>' +
+      '<span class="stream-time">' + e.time + '</span>' +
+      '</div>'
+    ).join('');
+
+    if (tsEl) tsEl.textContent = 'обновлено: ' + new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    console.warn('loadTeamActivity error:', e);
+  }
 }
 
 // ─── Daily Commentary (agent_summaries.json) ──────────────────────────────
