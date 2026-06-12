@@ -1,0 +1,249 @@
+{
+  "generated_at": "2026-06-12T17:14:04.425040+00:00",
+  "source": "vportfolio_manager",
+  "is_demo": false,
+  "num_portfolios": 11,
+  "num_active": 11,
+  "strategy_ids": [
+    "S0",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+    "S6",
+    "S7",
+    "S8",
+    "S9",
+    "S10"
+  ],
+  "portfolios": {
+    "S0": {
+      "strategy_id": "S0",
+      "capital_usd": 100000.0,
+      "positions": {
+        "aave_v3": 50000.0,
+        "morpho_blue": 30000.0
+      },
+      "cash_usd": 20000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424891+00:00",
+      "last_updated": "2026-06-12T17:14:04.424901+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S1": {
+      "strategy_id": "S1",
+      "capital_usd": 100000.0,
+      "positions": {
+        "aave_v3": 30000.0,
+        "morpho_blue": 20000.0,
+        "yearn_v3": 25000.0,
+        "euler_v2": 20000.0
+      },
+      "cash_usd": 5000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424906+00:00",
+      "last_updated": "2026-06-12T17:14:04.424907+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S2": {
+      "strategy_id": "S2",
+      "capital_usd": 100000.0,
+      "positions": {
+        "morpho_blue": 60000.0,
+        "aave_v3": 20000.0
+      },
+      "cash_usd": 20000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424909+00:00",
+      "last_updated": "2026-06-12T17:14:04.424910+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S3": {
+      "strategy_id": "S3",
+      "capital_usd": 100000.0,
+      "positions": {
+        "morpho_blue": 30000.0,
+        "aave_v3": 25000.0
+      },
+      "cash_usd": 45000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424920+00:00",
+      "last_updated": "2026-06-12T17:14:04.424920+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S4": {
+      "strategy_id": "S4",
+      "capital_usd": 100000.0,
+      "positions": {
+        "yearn_v3": 35000.0,
+        "euler_v2": 35000.0,
+        "morpho_blue": 25000.0
+      },
+      "cash_usd": 5000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424923+00:00",
+      "last_updated": "2026-06-12T17:14:04.424924+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S5": {
+      "strategy_id": "S5",
+      "capital_usd": 100000.0,
+      "positions": {
+        "morpho_blue": 30000.0,
+        "aave_v3": 15000.0
+      },
+      "cash_usd": 55000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424925+00:00",
+      "last_updated": "2026-06-12T17:14:04.424926+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S6": {
+      "strategy_id": "S6",
+      "capital_usd": 100000.0,
+      "positions": {
+        "yearn_v3": 40000.0,
+        "euler_v2": 30000.0,
+        "morpho_blue": 25000.0
+      },
+      "cash_usd": 5000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424928+00:00",
+      "last_updated": "2026-06-12T17:14:04.424928+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S7": {
+      "strategy_id": "S7",
+      "capital_usd": 100000.0,
+      "positions": {
+        "aave_v3": 16700.0,
+        "compound_v3": 16700.0,
+        "morpho_blue": 16700.0,
+        "yearn_v3": 16700.0,
+        "euler_v2": 16700.0,
+        "maple": 11700.0
+      },
+      "cash_usd": 4800.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424930+00:00",
+      "last_updated": "2026-06-12T17:14:04.424931+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S8": {
+      "strategy_id": "S8",
+      "capital_usd": 100000.0,
+      "positions": {
+        "susde_spot": 50000.0,
+        "perp_short_hedge": 50000.0
+      },
+      "cash_usd": 0.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424933+00:00",
+      "last_updated": "2026-06-12T17:14:04.424933+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S9": {
+      "strategy_id": "S9",
+      "capital_usd": 100000.0,
+      "positions": {
+        "aave_v3": 50000.0,
+        "morpho_blue": 30000.0
+      },
+      "cash_usd": 20000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424935+00:00",
+      "last_updated": "2026-06-12T17:14:04.424936+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    },
+    "S10": {
+      "strategy_id": "S10",
+      "capital_usd": 100000.0,
+      "positions": {
+        "pendle_yt": 30000.0
+      },
+      "cash_usd": 70000.0,
+      "equity_history": [],
+      "daily_returns": [],
+      "created_at": "2026-06-12T17:14:04.424937+00:00",
+      "last_updated": "2026-06-12T17:14:04.424938+00:00",
+      "total_yield_usd": 0.0,
+      "days_simulated": 0,
+      "peak_equity": 100000.0,
+      "status": "active",
+      "current_equity": 100000.0,
+      "drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    }
+  }
+}
