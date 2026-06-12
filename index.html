@@ -849,6 +849,31 @@
   .ops-sch-freq { font-size:10px; font-weight:600; color:#374151; background:rgba(255,255,255,0.05); border-radius:4px; padding:1px 6px; white-space:nowrap; flex-shrink:0; }
   .ops-sch-desc { color:#6b7280; }
 
+  /* ── System Health Panel ─────────────────────────────────────────── */
+  #system-health-container { margin-top:18px; }
+  #system-health-container h3 { font-size:15px; font-weight:700; color:#e2e8f0; margin:0 0 14px; }
+  #health-overall-badge { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.04em; padding:7px 18px; border-radius:24px; margin-bottom:16px; transition:background .3s,color .3s; }
+  #health-overall-badge.healthy { background:rgba(16,185,129,.12); color:#34d399; border:1px solid rgba(16,185,129,.30); }
+  #health-overall-badge.warning { background:rgba(245,158,11,.12); color:#fbbf24; border:1px solid rgba(245,158,11,.28); }
+  #health-overall-badge.critical { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.28); }
+  #health-overall-badge.loading { background:rgba(255,255,255,.06); color:#6b7280; border:1px solid rgba(255,255,255,.10); }
+  #health-checks-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+  @media(max-width:700px){#health-checks-grid{grid-template-columns:1fr}}
+  .health-check-card { background:rgba(8,10,26,0.97); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; transition:border-color .22s; }
+  .health-check-card:hover { border-color:rgba(255,255,255,.18); }
+  .health-check-name { font-size:11px; font-weight:700; letter-spacing:.06em; color:#9ca3af; text-transform:uppercase; }
+  .health-check-status { font-size:13px; font-weight:700; }
+  .health-check-status.ok     { color:#34d399; }
+  .health-check-status.warning{ color:#fbbf24; }
+  .health-check-status.stale  { color:#fbbf24; }
+  .health-check-status.critical{ color:#f87171; }
+  .health-check-detail { font-size:11px; color:#6b7280; font-family:'SF Mono',monospace; }
+  #health-recommendations { background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.18); border-radius:10px; padding:12px 16px; margin-bottom:12px; }
+  #health-recommendations h4 { font-size:12px; font-weight:700; color:#fbbf24; margin:0 0 8px; letter-spacing:.05em; }
+  #health-recs-list { margin:0; padding-left:18px; }
+  #health-recs-list li { font-size:12px; color:#d1d5db; margin-bottom:4px; }
+  #health-last-checked { font-size:11px; color:#4b5563; margin-top:4px; }
+
   .ops-card-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.06); padding-top:11px; }
   .ops-last-action { font-size:10px; color:#4b5563; line-height:1.4; }
   .ops-last-time { color:#6b7280; }
@@ -1249,6 +1274,29 @@
     </div>
   </div>
 
+  <!-- SECTION 2c: APY Consensus (ADR-028) -->
+  <div class="db-full" id="apy-consensus-container" style="margin-bottom:18px">
+    <div class="db-section" style="margin-bottom:8px">📊 APY Consensus <span style="font-size:11px;font-weight:400;color:#666">(ADR-028)</span></div>
+    <p style="font-size:12px;color:#777;margin:0 0 10px">Tier 2: DeFiLlama live &nbsp;|&nbsp; Tier 3: Static fallback &nbsp;|&nbsp; ⚠️ = divergence &gt;150 bps</p>
+    <div style="overflow-x:auto">
+      <table id="apy-consensus-table" style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f5f7fa;text-align:left">
+            <th style="padding:7px 10px;border-bottom:2px solid #e0e4ea">Adapter</th>
+            <th style="padding:7px 10px;border-bottom:2px solid #e0e4ea">Tier</th>
+            <th style="padding:7px 10px;border-bottom:2px solid #e0e4ea">DeFiLlama APY</th>
+            <th style="padding:7px 10px;border-bottom:2px solid #e0e4ea">Static APY</th>
+            <th style="padding:7px 10px;border-bottom:2px solid #e0e4ea">Δ bps</th>
+            <th style="padding:7px 10px;border-bottom:2px solid #e0e4ea">Consensus</th>
+          </tr>
+        </thead>
+        <tbody id="apy-consensus-body">
+          <tr><td colspan="6" style="padding:14px 10px;text-align:center;color:#aaa;font-size:12px"><span class="spinner"></span> Loading APY consensus...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- SECTION 3: System Status Bar -->
   <div id="perf-status-bar" class="db-full" style="margin-bottom:18px;font-size:13px;padding:12px 16px;overflow:hidden">
     <span class="spinner"></span> Loading system status...
@@ -1486,6 +1534,25 @@
     </div>
     <div id="agent-feed-body">
       <div style="text-align:center;padding:24px;color:#aaa;font-size:13px">Нажмите ↻ Обновить для загрузки...</div>
+    </div>
+  </div>
+
+  <!-- 🏥 System Health (cycle_health.json) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🏥 System Health</span>
+      <button class="refresh-btn" onclick="loadHealthStatus()">↻ Обновить</button>
+    </div>
+    <div id="system-health-container">
+      <div id="health-overall-badge" class="loading">⏳ Loading...</div>
+      <div id="health-checks-grid">
+        <!-- populated by loadHealthStatus() -->
+      </div>
+      <div id="health-recommendations" style="display:none">
+        <h4>⚠️ Recommendations</h4>
+        <ul id="health-recs-list"></ul>
+      </div>
+      <div id="health-last-checked"></div>
     </div>
   </div>
 
@@ -3464,6 +3531,8 @@ async function loadPerformance() {
   loadTearSheet();
   // ── MP-542: Equity History Chart ──
   loadEquityChart();
+  // ── ADR-028: APY Consensus panel ──
+  loadApyConsensus();
 }
 
 // ─── B5: Performance Tear Sheet loader ────────────────────────────────────────
@@ -3693,6 +3762,77 @@ async function loadEquityChart() {
   });
 }
 
+// ─── ADR-028: APY Consensus Panel ────────────────────────────────────────────
+async function loadApyConsensus() {
+  const STATIC_APY = {
+    'aave_v3': 3.5, 'compound_v3': 4.0, 'morpho_blue': 4.8,
+    'spark_susds': 4.6, 'yearn_v3': 5.5, 'euler_v2': 5.2,
+    'maple': 6.5, 'pendle': 8.5, 'aave_v3_base': 3.8,
+    'morpho_blue_base': 5.0, 'extra_finance_base': 8.0
+  };
+
+  const ADAPTER_TIER = {
+    'aave_v3': 'T1', 'compound_v3': 'T1', 'morpho_steakhouse': 'T1',
+    'morpho_blue': 'T2', 'yearn_v3': 'T2', 'euler_v2': 'T2',
+    'maple': 'T2', 'spark_susds': 'T1', 'aave_v3_base': 'T1',
+    'morpho_blue_base': 'T2', 'extra_finance_base': 'T3', 'pendle': 'T3'
+  };
+
+  const tbody = document.getElementById('apy-consensus-body');
+  if (!tbody) return;
+
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+  let adapterStatus = null;
+  try {
+    const resp = await fetch(dataBase + '/adapter_status.json?_=' + Date.now());
+    if (resp.ok) adapterStatus = await resp.json();
+  } catch(e) { console.log('adapter_status.json not available', e); }
+
+  // Build rows from STATIC_APY keys, enrich with live data if available
+  const adapters = Object.keys(STATIC_APY);
+  const rows = adapters.map(key => {
+    const staticApy = STATIC_APY[key];
+    let liveApy = null;
+    if (adapterStatus) {
+      // adapter_status.json may be keyed directly or nested
+      const entry = adapterStatus[key] || adapterStatus[key + '_adapter'] || null;
+      if (entry) {
+        const raw = entry.apy_pct ?? entry.apy ?? entry.current_apy ?? null;
+        if (raw !== null && raw !== undefined) liveApy = Number(raw);
+      }
+    }
+    const deltaBps = liveApy !== null ? Math.abs(liveApy - staticApy) * 100 : null;
+    const diverged = deltaBps !== null && deltaBps > 150;
+    const tier = ADAPTER_TIER[key] || '—';
+    return { key, tier, liveApy, staticApy, deltaBps, diverged };
+  });
+
+  tbody.innerHTML = rows.map(r => {
+    const rowStyle = r.diverged ? 'background:#fff5f5' : '';
+    const liveCell = r.liveApy !== null
+      ? r.liveApy.toFixed(2) + '%'
+      : '<span style="color:#aaa">—</span>';
+    const deltaCell = r.deltaBps !== null
+      ? (r.diverged ? '⚠️ ' : '') + Math.round(r.deltaBps) + ' bps'
+      : '<span style="color:#aaa">—</span>';
+    const deltaColor = r.diverged ? 'color:#ef4444;font-weight:600' : 'color:#888';
+    const consensusCell = r.liveApy === null
+      ? '<span style="color:#aaa">no live data</span>'
+      : r.diverged
+        ? '<span style="color:#ef4444;font-weight:600">⚠️ diverged</span>'
+        : '<span style="color:#22c55e">✓ aligned</span>';
+    const tierColor = r.tier === 'T1' ? '#185FA5' : r.tier === 'T2' ? '#7c3aed' : '#b45309';
+    return `<tr style="${rowStyle}">
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-family:monospace">${r.key}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:${tierColor};font-weight:600">${r.tier}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${liveCell}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#555">${r.staticApy.toFixed(2)}%</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;${deltaColor}">${deltaCell}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${consensusCell}</td>
+    </tr>`;
+  }).join('');
+}
+
 // ─── Strategies Tab ───────────────────────────────────────────────────────────
 async function loadStrategies() {
   const ts = Date.now();
@@ -3813,6 +3953,112 @@ async function loadOps() {
 
   // MP-132: load Agent Activity Feed
   loadAgentFeed();
+
+  // System Health
+  loadHealthStatus();
+}
+
+// ─── System Health ────────────────────────────────────────────────────────────
+async function loadHealthStatus() {
+  const ts = Date.now();
+  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+
+  const badgeEl   = document.getElementById('health-overall-badge');
+  const gridEl    = document.getElementById('health-checks-grid');
+  const recsEl    = document.getElementById('health-recommendations');
+  const recsListEl= document.getElementById('health-recs-list');
+  const lastChkEl = document.getElementById('health-last-checked');
+
+  if (!badgeEl) return;
+
+  // ── fetch ──────────────────────────────────────────────────────────
+  let h = null;
+  try {
+    const resp = await fetch(dataBase + '/cycle_health.json?_=' + ts);
+    if (resp.ok) h = await resp.json();
+  } catch(e) {}
+
+  if (!h) {
+    badgeEl.className = 'loading';
+    badgeEl.textContent = '⚪ cycle_health.json not found';
+    if (gridEl) gridEl.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:8px 0">Run run_health_check.py to generate health data.</div>';
+    return;
+  }
+
+  // ── overall badge ──────────────────────────────────────────────────
+  const overall = (h.overall || 'UNKNOWN').toUpperCase();
+  const badgeMap = {
+    HEALTHY:  { cls: 'healthy',  icon: '✅' },
+    WARNING:  { cls: 'warning',  icon: '⚠️' },
+    CRITICAL: { cls: 'critical', icon: '🚨' },
+  };
+  const bm = badgeMap[overall] || { cls: 'loading', icon: '❓' };
+  badgeEl.className = bm.cls;
+  badgeEl.textContent = bm.icon + ' ' + overall;
+
+  // ── check cards ────────────────────────────────────────────────────
+  const checks = h.checks || {};
+  const checkDefs = [
+    {
+      key:   'cycle_gap',
+      label: 'Cycle Gap',
+      icon:  '🔄',
+      detail: c => c.hours_since != null ? `${Number(c.hours_since).toFixed(1)}h ago` : '',
+    },
+    {
+      key:   'equity_anomaly',
+      label: 'Equity Anomaly',
+      icon:  '📈',
+      detail: c => c.today_change_pct != null ? `Today: ${Number(c.today_change_pct).toFixed(2)}%` : '',
+    },
+    {
+      key:   'data_freshness',
+      label: 'Data Freshness',
+      icon:  '💾',
+      detail: c => Array.isArray(c.stale_files) && c.stale_files.length
+        ? `Stale: ${c.stale_files.slice(0,2).join(', ')}${c.stale_files.length > 2 ? ' +' + (c.stale_files.length-2) + ' more' : ''}`
+        : (c.stale_files && c.stale_files.length === 0 ? 'All files fresh' : ''),
+    },
+  ];
+
+  const statusLabel = { ok: '✅ OK', warning: '⚠️ WARNING', critical: '🚨 CRITICAL', stale: '⚠️ STALE' };
+
+  if (gridEl) {
+    gridEl.innerHTML = checkDefs.map(def => {
+      const c = checks[def.key] || {};
+      const st = (c.status || 'unknown').toLowerCase();
+      const label = statusLabel[st] || ('❓ ' + st.toUpperCase());
+      const detail = def.detail(c);
+      return `<div class="health-check-card">
+        <div class="health-check-name">${def.icon} ${def.label}</div>
+        <div class="health-check-status ${st}">${label}</div>
+        ${detail ? `<div class="health-check-detail">${detail}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // ── recommendations ────────────────────────────────────────────────
+  const recs = Array.isArray(h.recommendations) ? h.recommendations : [];
+  if (recsEl && recsListEl) {
+    if (recs.length > 0) {
+      recsListEl.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
+      recsEl.style.display = '';
+    } else {
+      recsEl.style.display = 'none';
+    }
+  }
+
+  // ── last checked ───────────────────────────────────────────────────
+  if (lastChkEl && h.checked_at) {
+    try {
+      const diff = Math.round((Date.now() - new Date(h.checked_at).getTime()) / 60000);
+      lastChkEl.textContent = diff < 1 ? 'Last checked: just now'
+        : diff < 60 ? `Last checked: ${diff} minute${diff !== 1 ? 's' : ''} ago`
+        : `Last checked: ${Math.round(diff/60)}h ago`;
+    } catch(e) {
+      lastChkEl.textContent = 'Last checked: ' + h.checked_at;
+    }
+  }
 }
 
 // ─── MP-132: Agent Activity Feed ─────────────────────────────────────────────
