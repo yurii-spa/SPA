@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "adr_reference": "ADR-029",
+  "generated_at": "2026-06-12T00:00:00+00:00",
+  "active_tier": "C",
+  "auto_promote_enabled": false,
+  "auto_promote_enable_date": "2026-07-12",
+  "phase": 1,
+  "phase_description": "Phase 1: advisory-only — all promotions via USER_APPROVAL (ADR-023). Tier routing computed but suppressed.",
+  "tier_a": {
+    "description": "Automatic promotion — immediate. All conditions must pass simultaneously.",
+    "min_paper_days": 30,
+    "min_sharpe": 1.0,
+    "min_apy_multiplier": 1.1,
+    "max_drawdown_pct": 5.0,
+    "zero_halts_required": true,
+    "excluded_tiers": [
+      "T3-SPEC"
+    ],
+    "revert_window_hours": 24,
+    "telegram_template": "⚡ AUTO-PROMOTED: {strategy_id} → Production\nSharpe: {sharpe:.2f} | APY: {apy:.1f}% | DD: {dd:.1f}% | Days: {days}\nTier A (all thresholds exceeded, zero halts, no T3-SPEC)\nReply REVERT within 24h to roll back."
+  },
+  "tier_b": {
+    "description": "Automatic promotion with 48-hour hold. Silence = proceed.",
+    "min_paper_days": 30,
+    "min_sharpe": 0.8,
+    "min_apy_multiplier": 0.9,
+    "max_drawdown_pct": 8.0,
+    "zero_halts_required": true,
+    "excluded_tiers": [
+      "T3-SPEC"
+    ],
+    "wait_hours": 48,
+    "cancel_keyword": "CANCEL",
+    "telegram_template": "🕐 PENDING AUTO-PROMOTE: {strategy_id} in 48h\nSharpe: {sharpe:.2f} | APY: {apy:.1f}% | DD: {dd:.1f}%\nTier B (metrics above ADR-023 floor; below Tier A threshold)\nReply CANCEL to stop. Silence = proceed."
+  },
+  "tier_c": {
+    "description": "Manual review required. No automated promotion.",
+    "requires_manual_review": true,
+    "triggers": [
+      "strategy_tier == T3-SPEC",
+      "apy < target * 0.90",
+      "drawdown_pct >= 8.0",
+      "sharpe < 0.8",
+      "any_halt_in_period == true",
+      "capital_at_risk_usd > 50000",
+      "owner_cancelled_tier_b == true"
+    ],
+    "approve_keyword": "APPROVE",
+    "reject_keyword": "REJECT",
+    "telegram_template": "🔴 MANUAL REVIEW REQUIRED: {strategy_id}\nReason: {reason}\nSharpe: {sharpe:.2f} | APY: {apy:.1f}% | DD: {dd:.1f}%\nReply APPROVE {strategy_id} or REJECT {strategy_id}"
+  },
+  "capital_at_risk_threshold_usd": 50000,
+  "pending_state_file": "data/promotion_pending.json",
+  "notes": [
+    "Phase 1 (now — 2026-07-11): auto_promote_enabled=false; tier routing is advisory only.",
+    "Phase 2 (2026-07-12): flip auto_promote_enabled=true to activate Tier A/B.",
+    "Phase 3 (2026-08-01, go-live): Tier C blockers propagate to GoLiveChecker.",
+    "approved=False from RiskPolicy cannot be overridden by any tier of this policy.",
+    "LLM is forbidden in promotion_engine.py (LLM_FORBIDDEN_AGENTS rule).",
+    "Atomic writes required for all state files: tmp + os.replace."
+  ]
+}
