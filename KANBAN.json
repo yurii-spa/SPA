@@ -1,6 +1,6 @@
 {
   "last_updated": "2026-06-12",
-  "updated_by": "spa-dev-continue (SPA-V438)",
+  "updated_by": "claude (SPA-V440)",
   "sprint_current": "Phase 0 — Emergency fixes (до 2026-06-17)",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
@@ -307,6 +307,27 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "SPA-V440-DASHBOARD-V30",
+        "title": "Dashboard v3.0 Sprint A — Performance hero, Strategies tab, nav cleanup",
+        "description": "Sprint A: дефолтный таб → Performance Hero (6 метрик, equity chart, status bar, investor narrative, strategy preview). Добавлены tab-strategies (leaderboard S0-S5, positions, roadmap) и tab-ops (operator view). Nav очищен: Decisions/Kanban/Team скрыты; добавлены Strategies/Ops. kanban-stats скрыт из Statistics. Все visible labels → English. loadPerformance/loadStrategies/loadOps добавлены; DOMContentLoaded вызывает loadPerformance.",
+        "priority": "P1",
+        "phase": "v4.40",
+        "sprint": "v4.40",
+        "sprint_completed": "v4.40",
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V440)",
+        "tags": [
+          "frontend",
+          "dashboard",
+          "ui",
+          "investor"
+        ],
+        "estimated_days": 0.5,
+        "files_changed": [
+          "index.html"
+        ]
+      },
       {
         "id": "SPA-V434-KANBAN-CLEANUP",
         "title": "Удалить tab-kanban + добавить статусы blocked/archived/ready/rejected",
