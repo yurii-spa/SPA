@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "source": "portal_data",
+  "meta": {
+    "generated_at": "2026-06-11T17:25:56.270641+00:00",
+    "advisory_only": true,
+    "is_demo": false,
+    "source_files": [
+      "equity_curve_daily.json",
+      "current_positions.json",
+      "adapter_orchestrator_status.json",
+      "risk_scores.json",
+      "tear_sheet_latest.json",
+      "capital_ladder_status.json",
+      "proof_of_track_anchors.json",
+      "golive_status.json",
+      "paper_trading_status.json",
+      "audit_trail.jsonl"
+    ],
+    "track": {
+      "real_track_start": "2026-06-10",
+      "paper_start_date": "2026-05-20",
+      "days_running": 23,
+      "execution_mode": "read_only_simulation",
+      "last_cycle_ts": "2026-06-11T06:00:04.910055+00:00",
+      "golive_ready": true
+    },
+    "disclaimer": "Paper track (read-only simulation), NOT investment advice. Все цифры — виртуальный paper-трек SPA без реальных средств; прошлая доходность не гарантирует будущую."
+  },
+  "headline": {
+    "aum_usd": 100000.0,
+    "deployed_usd": 94999.98,
+    "cash_pct": 5.0,
+    "total_return_pct": 0.008687,
+    "today_return_pct": 0.008687,
+    "apy_today_pct": 3.1706,
+    "net_apy_pct": 3.2214,
+    "sharpe_ratio": null,
+    "sortino_ratio": null,
+    "psr": null,
+    "max_drawdown_pct": 0.0,
+    "ladder_level_code": "L0",
+    "ladder_level_name": "paper",
+    "track_days": 23
+  },
+  "equity": {
+    "available": true,
+    "num_days": 2,
+    "first_date": "2026-06-10",
+    "last_date": "2026-06-11",
+    "curve": [
+      {
+        "date": "2026-06-10",
+        "equity": 100008.61,
+        "daily_return_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      {
+        "date": "2026-06-11",
+        "equity": 100017.3,
+        "daily_return_pct": 0.008687,
+        "drawdown_pct": 0.0
+      }
+    ],
+    "pnl": {
+      "total_return_pct": 0.008687,
+      "today_return_pct": 0.008687,
+      "num_return_days": 1,
+      "max_drawdown_pct": 0.0,
+      "daily": [
+        {
+          "date": "2026-06-11",
+          "return_pct": 0.008687
+        }
+      ]
+    }
+  },
+  "exposure": {
+    "available": true,
+    "as_of": "2026-06-11T06:00:04.910055+00:00",
+    "capital_usd": 100000.0,
+    "deployed_usd": 94999.98,
+    "cash_pct": 5.0,
+    "by_protocol": {
+      "aave_v3": {
+        "usd": 31529.27,
+        "share_pct": 31.5293,
+        "tier": "T1"
+      },
+      "compound_v3": {
+        "usd": 30220.72,
+        "share_pct": 30.2207,
+        "tier": "T1"
+      },
+      "euler_v2": {
+        "usd": 10376.79,
+        "share_pct": 10.3768,
+        "tier": "T2"
+      },
+      "maple": {
+        "usd": 11436.6,
+        "share_pct": 11.4366,
+        "tier": "T2"
+      },
+      "yearn_v3": {
+        "usd": 11436.6,
+        "share_pct": 11.4366,
+        "tier": "T2"
+      }
+    },
+    "by_tier": {
+      "T1": 61.75,
+      "T2": 33.25
+    },
+    "by_chain": {
+      "unknown": 95.0
+    }
+  },
+  "risk": {
+    "grades": {
+      "aave_v3": {
+        "known": true,
+        "grade": "B",
+        "score_numeric": 0.7922
+      },
+      "compound_v3": {
+        "known": true,
+        "grade": "B",
+        "score_numeric": 0.7678
+      },
+      "euler_v2": {
+        "known": true,
+        "grade": "B",
+        "score_numeric": 0.7526
+      },
+      "maple": {
+        "known": false,
+        "grade": null,
+        "score_numeric": null
+      },
+      "yearn_v3": {
+        "known": true,
+        "grade": "B",
+        "score_numeric": 0.8005
+      }
+    },
+    "max_drawdown_pct": 0.0,
+    "incidents": {
+      "threshold_pct": 1.0,
+      "count": 0,
+      "items": [],
+      "incidents_total_track": 0,
+      "last_incident": null
+    }
+  },
+  "tear_sheet": {
+    "available": true,
+    "period": "2026-06",
+    "net_return_pct": 0.008687,
+    "annualized_apy_pct": 3.2214,
+    "win_rate_pct": 100.0,
+    "sharpe_ratio": null,
+    "sortino_ratio": null,
+    "psr": null,
+    "max_drawdown_pct": 0.0
+  },
+  "capital_ladder": {
+    "current_level": 0,
+    "level_code": "L0",
+    "level_name": "paper",
+    "aum_cap_usd": 100000.0,
+    "aum_usd": 100017.3,
+    "track_days": 23,
+    "incidents_total": 0,
+    "last_incident": null,
+    "climb_eligible": false,
+    "climb_blockers": [
+      "track_days_ge_30: track is 23 days, need >= 30",
+      "e2e_harness_green: not attested by Owner in capital_ladder_attestations.json",
+      "safe_configured: not attested by Owner in capital_ladder_attestations.json",
+      "owner_approval_adr: not attested by Owner in capital_ladder_attestations.json"
+    ]
+  },
+  "proof_of_track": {
+    "available": true,
+    "anchors_count": 1,
+    "published_count": 0,
+    "latest_root": null,
+    "anchors": [
+      {
+        "date": "2026-06-11",
+        "merkle_root": null,
+        "leaf_count": 0,
+        "published": false,
+        "tx_hash": null,
+        "note": "on-chain publication pending MP-017 RPC keys"
+      }
+    ],
+    "note": "Merkle roots дневного audit-трека (MP-406); published=false до on-chain публикации (MP-017)"
+  },
+  "audit_trail": {
+    "available": false,
+    "events_returned": 0,
+    "limit": 100,
+    "events": []
+  },
+  "notes": [
+    "audit_trail.jsonl: missing/unreadable — no audit events"
+  ],
+  "history": [
+    {
+      "generated_at": "2026-06-11T17:25:56.270641+00:00",
+      "aum_usd": 100000.0,
+      "total_return_pct": 0.008687,
+      "ladder_level_code": "L0",
+      "incidents_count": 0
+    }
+  ]
+}
