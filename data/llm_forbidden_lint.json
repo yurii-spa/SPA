@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-12T08:18:03.381707+00:00",
+  "root": "/sessions/practical-sharp-rubin/mnt/Documents/SPA_Claude",
+  "forbidden_imports": [
+    "anthropic",
+    "google.generativeai",
+    "langchain",
+    "litellm",
+    "openai"
+  ],
+  "scanned_dirs": [
+    "spa_core/risk",
+    "spa_core/execution",
+    "spa_core/allocator"
+  ],
+  "files_scanned": 31,
+  "violations": [],
+  "parse_errors": [],
+  "status": "ok"
+}
