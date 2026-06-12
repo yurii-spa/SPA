@@ -1,0 +1,24 @@
+{
+  "available": false,
+  "reason": "only 3 equity points (< 10 required)",
+  "is_demo": false,
+  "ulcer_index": null,
+  "pain_index": null,
+  "max_drawdown_pct": null,
+  "annualized_return_pct": null,
+  "martin_ratio": null,
+  "n_observations": 3,
+  "start_date": null,
+  "end_date": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 3 equity points (< 10 required)",
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T12:17:03.607610+00:00",
+    "schema_version": 1,
+    "source": "ulcer_index",
+    "min_obs_required": 10
+  },
+  "_fingerprint": "{\"annualized_return_pct\": null, \"available\": false, \"end_date\": null, \"is_demo\": false, \"martin_ratio\": null, \"max_drawdown_pct\": null, \"meta\": {\"min_obs_required\": 10, \"schema_version\": 1, \"source\": \"ulcer_index\"}, \"n_observations\": 3, \"notes\": [], \"pain_index\": null, \"reason\": \"only 3 equity points (< 10 required)\", \"start_date\": null, \"ulcer_index\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 3 equity points (< 10 required)\"}",
+  "history": []
+}
