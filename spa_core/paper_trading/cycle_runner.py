@@ -1120,6 +1120,175 @@ def run_cycle(
         )
         _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
 
+        # ── MP-373: APY Aggregator ranking (fail-safe, advisory) ────────────
+        # Читает adapter_status.json, строит APY-рейтинг и сохраняет в
+        # data/apy_ranking.json. Логирует top-3 по APY.
+        # Никогда не блокирует основной цикл.
+        try:
+            from spa_core.adapters.apy_aggregator import APYAggregator as _APYAgg
+            _agg = _APYAgg.load(ddir)
+            _agg_ranking = _agg.rank_by_apy()
+            if _agg_ranking:
+                _agg.save_ranking(ddir / "apy_ranking.json")
+                _top3 = _agg_ranking[:3]
+                log.info(
+                    "MP-373 APY top-3: %s",
+                    ", ".join(
+                        f"{s.protocol}={s.apy_pct:.2f}%" for s in _top3
+                    ),
+                )
+        except Exception as _agg_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("APYAggregator failed (%s) — cycle continues", _agg_exc)
+
+        # ── MP-389: Adapter Registry Refresh (fail-safe, advisory) ───────────
+        # Вызывает get_apy_pct() у каждого зарегистрированного адаптера и
+        # обновляет data/adapter_status.json атомарно.
+        # Никогда не блокирует основной цикл.
+        try:
+            from spa_core.adapters.adapter_registry import refresh_all as _reg_refresh
+            _reg_results = _reg_refresh(str(ddir / "adapter_status.json"))
+            _live_count = len(
+                [v for v in _reg_results.values() if not isinstance(v, dict)]
+            )
+            log.info("MP-389 AdapterRegistry refreshed %d adapters", _live_count)
+        except Exception as _reg_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("MP-389 AdapterRegistry skipped: %s", _reg_exc)
+
+        # ── MP-153: Multi-strategy tournament step (fail-safe, advisory) ─────
+        # Симулирует дневной шаг для всех 8 vPortfolio параллельно, оценивает
+        # метрики (Sharpe/Calmar/Ulcer/Rachev) и сохраняет ранжирование.
+        # Strictly read-only / advisory — не трогает trades.json, equity_curve,
+        # risk/policy. Никогда не блокирует основной цикл.
+        _t_ranking: list = []  # MP-373: sentinel — PromotionEngine reads below
+        try:
+            from spa_core.paper_trading.vportfolio import VPortfolioManager
+            from spa_core.paper_trading.tournament_evaluator import TournamentEvaluator
+            _t_manager = VPortfolioManager.load(data_dir=ddir)
+            _t_manager.simulate_day(apy_map, date_str=today)
+            _t_evaluator = TournamentEvaluator(_t_manager, data_dir=ddir)
+            _t_ranking = _t_evaluator.evaluate_all()
+            _t_manager.save()
+            _t_evaluator.save_ranking(_t_ranking)
+            log.info(
+                "MP-153 tournament: %d strategies simulated, leader=%s composite=%.3f",
+                len(_t_ranking),
+                _t_ranking[0].strategy_id if _t_ranking else "n/a",
+                _t_ranking[0].composite_score if _t_ranking else 0.0,
+            )
+        except Exception as _t_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("MP-153 tournament_step error (%s) — cycle continues", _t_exc)
+
+        # ── MP-373: PromotionEngine — auto-promote/demote/kill strategies ────
+        # Принимает решения promote/demote/kill на основе метрик турнира.
+        # Сохраняет data/promotion_report.json. Advisory — не трогает реальный
+        # allocator, risk/policy или execution. Никогда не блокирует цикл.
+        try:
+            from spa_core.paper_trading.promotion_engine import PromotionEngine as _PromEng
+            _pe = _PromEng()
+            _pe_metrics: dict = {}
+            for _r in _t_ranking:
+                _pe_metrics[_r.strategy_id] = {
+                    "sharpe_30d": _r.metrics.sharpe_ratio,
+                    "calmar_30d": _r.metrics.calmar_ratio,
+                    # StrategyMetrics.max_drawdown_pct — положительная доля (0..1),
+                    # e.g. 0.15 = просадка 15%.
+                    # PromotionEngine.KILL_DRAWDOWN = -0.10 (< 0), поэтому
+                    # нужно передавать отрицательное значение: -0.15 < -0.10 → kill.
+                    "max_drawdown_pct": -abs(_r.metrics.max_drawdown_pct),
+                    "days_active": _r.metrics.days_observed,
+                }
+            _pe_decisions = _pe.evaluate_all(_pe_metrics)
+            # Применяем решения к advisory allocation_map (real allocator не затронут)
+            _pe_alloc: dict = {d.strategy_id: 0.0 for d in _pe_decisions}
+            _pe_alloc = _pe.apply_decisions(_pe_decisions, _pe_alloc)
+            _pe.save_report(_pe_decisions, ddir)
+            _non_hold = [d for d in _pe_decisions if d.action != "hold"]
+            if _non_hold:
+                for _d in _non_hold:
+                    log.info(
+                        "MP-373 promotion: %s → %s  alloc=%.3f  (%s)",
+                        _d.strategy_id,
+                        _d.action,
+                        _pe_alloc.get(_d.strategy_id, 0.0),
+                        _d.reason,
+                    )
+            else:
+                log.info(
+                    "MP-373 PromotionEngine: %d strategies evaluated — all hold",
+                    len(_pe_decisions),
+                )
+        except Exception as _pe_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("PromotionEngine failed (%s) — cycle continues", _pe_exc)
+
+        # ── MP-386: Multi-Strategy Tournament S2/S3 Integration ──────────────
+        # Запускает MultiStrategyRunner с S0/S1/S2/S3 стратегиями.
+        # S2 (Pendle PT + Morpho Heavy) и S3 (Aave Arbitrum L2 + Morpho)
+        # преобразуются в StrategyConfig из модульных констант.
+        # Advisory — не трогает trades.json, equity_curve, risk/policy.
+        # Fail-safe: любое исключение → WARNING, цикл продолжается.
+        try:
+            from spa_core.paper_trading.strategy_registry import (
+                S0_CONSERVATIVE_T1 as _ms_s0,
+                S1_BALANCED as _ms_s1,
+                StrategyConfig as _MSStrategyConfig,
+            )
+            from spa_core.paper_trading.multi_strategy_runner import (
+                MultiStrategyRunner as _MultiStrategyRunner,
+            )
+            from spa_core.strategies.s2_pendle_morpho import (
+                STRATEGY_ID as _s2_id,
+                STRATEGY_NAME as _s2_name,
+                TIER as _s2_tier,
+                ALLOCATION as _s2_alloc,
+                TARGET_APY_MIN as _s2_apy_min,
+                TARGET_APY_MAX as _s2_apy_max,
+            )
+            from spa_core.strategies.s3_aave_arb_morpho import (
+                STRATEGY_ID as _s3_id,
+                STRATEGY_NAME as _s3_name,
+                TIER as _s3_tier,
+                ALLOCATION as _s3_alloc,
+                TARGET_APY_MIN as _s3_apy_min,
+                TARGET_APY_MAX as _s3_apy_max,
+            )
+            # S2: исключаем pendle_pt (external — в _SKIP_PROTOCOLS MultiStrategyRunner)
+            _ms_s2 = _MSStrategyConfig(
+                id=_s2_id,
+                name=_s2_name,
+                description="S2 Pendle PT + Morpho Heavy (pendle_pt excl.)",
+                allocations={k: v for k, v in _s2_alloc.items() if k != "pendle_pt"},
+                tier=_s2_tier,
+                target_apy_min=_s2_apy_min,
+                target_apy_max=_s2_apy_max,
+            )
+            # S3: все T1 — aave_arbitrum + morpho_steakhouse + aave_mainnet
+            _ms_s3 = _MSStrategyConfig(
+                id=_s3_id,
+                name=_s3_name,
+                description="S3 Aave Arbitrum L2 + Morpho (all T1)",
+                allocations=dict(_s3_alloc),
+                tier=_s3_tier,
+                target_apy_min=_s3_apy_min,
+                target_apy_max=_s3_apy_max,
+            )
+            _ms_strategies = [_ms_s0, _ms_s1, _ms_s2, _ms_s3]
+            _ms_runner = _MultiStrategyRunner(
+                strategies=_ms_strategies, capital=100_000
+            )
+            _ms_runner.run_day(apy_map=apy_map)
+            _ms_rankings = _ms_runner.get_rankings()
+            _ms_runner.export_results(ddir / "tournament_ranking.json")
+            _ms_top = _ms_rankings[0] if _ms_rankings else None
+            if _ms_top:
+                log.info(
+                    "MP-386 Tournament leader: %s APY=%.4f composite=%.3f",
+                    _ms_top.get("strategy_id", "?"),
+                    _ms_top.get("net_apy", 0.0),
+                    _ms_top.get("composite_score", 0.0),
+                )
+        except Exception as _ms_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("MultiStrategyRunner S2/S3 skipped: %s", _ms_exc)
+
         from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
         try:
             _check_gaps()
@@ -1174,6 +1343,15 @@ def run_cycle(
             _run_reporting(data_dir=str(ddir), dry_run=False)
         except Exception as _rep_exc:  # noqa: BLE001
             log.warning("reporting_cycle failed (%s) — cycle continues", _rep_exc)
+
+        # ── MP-350: Telegram daily report — DailyReportBuilder + Keychain ─
+        # Rich HTML digest (portfolio/APY/positions/risk/go-live).
+        # Rate-limited once per day via sentinel; fail-safe.
+        try:
+            from spa_core.paper_trading.daily_report import run_daily_report as _run_dr
+            _run_dr(data_dir=ddir, dry_run=False, force_send=False)
+        except Exception as _dr_exc:  # noqa: BLE001
+            log.warning("daily_report (MP-350) failed (%s) — cycle continues", _dr_exc)
 
         # ── MP-106: shadow strategies S0–S5 (advisory, local-only) ────────
         # Runs AFTER the real track is persisted; a failure here can never
