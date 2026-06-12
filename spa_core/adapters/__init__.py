@@ -18,6 +18,8 @@ from .sfrax_adapter import SfraxAdapter
 from .spark_susds_adapter import SparkSusdsAdapter
 # MP-460: Ethena sUSDe ERC-4626 T3 adapter (peg gate, 7d unstake cooldown)
 from .susde_adapter import SusdeAdapter
+# MP-559: Mountain Protocol wUSDM ERC-4626 RWA T-bill-backed T2 adapter (peg gate)
+from .wusdm_adapter import WusdmAdapter  # MP-559
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -79,6 +81,7 @@ ADAPTER_REGISTRY = [
     ("sfrax",         "T2", SfraxAdapter),
     ("spark_susds",   "T1", SparkSusdsAdapter),  # MP-376
     ("susde",         "T3", SusdeAdapter),  # MP-460
+    ("wusdm",         "T2", WusdmAdapter),  # MP-559
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -109,6 +112,7 @@ __all__ = [
     "SfraxAdapter",
     "SparkSusdsAdapter",  # MP-376
     "SusdeAdapter",  # MP-460
+    "WusdmAdapter",  # MP-559
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
