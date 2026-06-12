@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "current_phase": 0,
+  "phase_0_end": "2026-07-01",
+  "phase_2_start": "2026-08-01",
+  "drift_trigger_pct": 5.0,
+  "calendar_trigger_days": 7,
+  "calendar_min_drift_pct": 2.0,
+  "max_single_move_pct": 10.0,
+  "max_total_moves_pct": 30.0,
+  "min_move_usd": 500,
+  "cost_cap_bps": 20.0,
+  "forbidden_adapters": [
+    "moonwell_base"
+  ],
+  "adr_reference": "ADR-031"
+}
