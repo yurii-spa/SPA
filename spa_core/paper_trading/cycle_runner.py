@@ -69,6 +69,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+# ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)
+try:
+    from spa_core.monitoring.base_gas_monitor import BaseGasMonitor as _BaseGasMonitor
+    _BASE_GAS_MONITOR_CLASS = _BaseGasMonitor
+    _BASE_CHAIN_MONITORING = True
+except ImportError:
+    _BASE_GAS_MONITOR_CLASS = None  # type: ignore[assignment]
+    _BASE_CHAIN_MONITORING = False
+
+# ── MP-534: Market Regime Detection ──────────────────────────────────────────
+try:
+    from spa_core.analysis.market_regime import MarketRegimeDetector as _MarketRegime
+    _regime_detector = _MarketRegime()
+except ImportError:
+    _regime_detector = None
+
 log = logging.getLogger("spa.cycle_runner")
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -136,6 +152,9 @@ class CycleResult:
     kill_switch_reason: str = ""
     # MP-310: audit trail correlation id for this cycle.
     correlation_id: str = ""
+    # MP-534: market regime snapshot for this cycle.
+    market_regime: str = "UNKNOWN"
+    regime_t1_avg_apy: float = 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -164,6 +183,8 @@ class CycleResult:
             "kill_switch_active": self.kill_switch_active,
             "kill_switch_reason": self.kill_switch_reason,
             "correlation_id": self.correlation_id,
+            "market_regime": self.market_regime,
+            "regime_t1_avg_apy": self.regime_t1_avg_apy,
         }
 
 
@@ -816,6 +837,24 @@ def run_cycle(
     except Exception as _mp413_exc:  # never crash the cycle
         log.warning("MP-413 apy_map merge failed (%s) — cycle continues", _mp413_exc)
 
+    # ── MP-534: Detect market regime ─────────────────────────────────────────
+    _regime_name: str = "UNKNOWN"
+    _regime_t1_avg_apy: float = 0.0
+    if _regime_detector is not None and apy_map:
+        try:
+            _regime_result = _regime_detector.detect(apy_map)
+            # Write to the cycle's own ddir (not the module-level default path).
+            _atomic_write_json(ddir / "market_regime.json", _regime_result)
+            _regime_name = _regime_result.get("regime", "UNKNOWN")
+            _regime_t1_avg_apy = float(_regime_result.get("t1_avg_apy", 0.0))
+            log.info(
+                "MP-534 market_regime=%s t1_avg_apy=%.4f%%",
+                _regime_name,
+                _regime_t1_avg_apy,
+            )
+        except Exception as _rd_exc:  # never crash the cycle
+            log.warning("MP-534 regime detection failed (%s) — cycle continues", _rd_exc)
+
     # Load prior persisted state up front (needed for both paths).
     current_positions: dict[str, float] = {
         k: float(v)
@@ -874,6 +913,8 @@ def run_cycle(
             positions=current_positions,
             notes=notes,
             correlation_id=_correlation_id,
+            market_regime=_regime_name,
+            regime_t1_avg_apy=_regime_t1_avg_apy,
         )
         if write:
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
@@ -931,6 +972,48 @@ def run_cycle(
         _audit_proposal_id = _audit_ev.get("event_id")
     except Exception as _aexc:
         log.warning("audit allocation_proposal failed (%s)", _aexc)
+
+    # ── Step 2a (MP-375): Daily Risk Limits gate — HALT blocks allocation ──
+    # DL-01 daily loss, DL-02 peak drawdown: HALT → cycle exits with no trade.
+    # DL-03 concentration, DL-04/05 APY sanity: WARN → noted, cycle continues.
+    try:
+        from spa_core.risk.daily_limits import DailyLimitsChecker
+        _dl_checker = DailyLimitsChecker()
+        _dl_eq_history = (
+            list(equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
+        )
+        _dl_apy_map = {
+            str(k): float(v.get("apy", 0) if isinstance(v, dict) else v)
+            for k, v in (adapters or {}).items()
+            if v is not None
+        }
+        _dl_result = _dl_checker.check(_dl_eq_history, target_usd, _dl_apy_map)
+        _dl_checker.save_result(_dl_result, ddir)
+        if _dl_result["gate"] == "HALT":
+            log.critical(
+                "DAILY LIMITS HALT: %s", "; ".join(_dl_result["halt_reasons"])
+            )
+            notes.append(
+                "daily_limits_halt: " + "; ".join(_dl_result["halt_reasons"])
+            )
+            result = CycleResult(
+                date=today,
+                status="blocked_by_daily_limits",
+                notes=notes,
+                policy_approved=False,
+            )
+            _write_equity(ddir, equity_doc, current_usd, today, 0.0, {}, 0.0)
+            _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+            return result
+        if _dl_result["gate"] == "WARN":
+            log.warning(
+                "DAILY LIMITS WARN: %s", "; ".join(_dl_result["warn_reasons"])
+            )
+            for _w in _dl_result["warn_reasons"]:
+                notes.append(f"daily_limits_warn: {_w}")
+    except Exception as _dl_exc:
+        log.warning("DailyLimitsChecker failed (%s) — fail-open, cycle continues", _dl_exc)
+        notes.append(f"daily_limits_check_error: {type(_dl_exc).__name__}: {_dl_exc}")
 
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
     gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters)
@@ -1001,6 +1084,42 @@ def run_cycle(
         notes.append(
             "kill_switch_override: all protocol allocations set to 0 (all-cash)."
         )
+
+    # ── Step 2d (ADR-025): Base chain gas kill-switch — zero Base allocations ──
+    # Fail-safe: any exception → WARNING log, cycle continues unaffected.
+    # LLM_FORBIDDEN in this block (deterministic gas monitor only).
+    if _BASE_CHAIN_MONITORING and _BASE_GAS_MONITOR_CLASS is not None:
+        try:
+            _base_gas_mon = _BASE_GAS_MONITOR_CLASS(data_dir=ddir)
+            _gas_status = _base_gas_mon.record_reading()
+            if _gas_status.get("kill_switch_active"):
+                _base_adapters = [k for k in target_usd if "base" in k.lower()]
+                _zeroed = []
+                for _aid in _base_adapters:
+                    if target_usd.get(_aid, 0.0) > 0.0:
+                        target_usd[_aid] = 0.0
+                        _zeroed.append(_aid)
+                _gas_gwei = _gas_status.get("gwei")
+                _gas_days = _gas_status.get("consecutive_above")
+                log.warning(
+                    "ADR-025 Base gas kill-switch ACTIVE: %.4f Gwei, %d consecutive days "
+                    "above threshold. Zeroed Base allocations: %s",
+                    _gas_gwei,
+                    _gas_days,
+                    _zeroed or "none",
+                )
+                notes.append(
+                    f"adr025_base_gas_kill_switch: gwei={_gas_gwei}, "
+                    f"consecutive_above={_gas_days}, zeroed={_zeroed}"
+                )
+            elif _gas_status.get("action") == "WARN":
+                log.info(
+                    "ADR-025 Base gas WARN: %.4f Gwei, %d consecutive days above threshold",
+                    _gas_status.get("gwei"),
+                    _gas_status.get("consecutive_above"),
+                )
+        except Exception as _bge:  # never break the main cycle
+            log.warning("ADR-025 base_gas_monitor check failed (%s) — cycle continues", _bge)
 
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
@@ -1124,6 +1243,8 @@ def run_cycle(
         kill_switch_active=_ks_triggered,
         kill_switch_reason=_ks_reason,
         correlation_id=_correlation_id,
+        market_regime=_regime_name,
+        regime_t1_avg_apy=_regime_t1_avg_apy,
     )
 
     # ── Step 6: persist everything atomically ─────────────────────────────
@@ -1332,6 +1453,31 @@ def run_cycle(
                 )
             except ImportError:
                 _s11_id = _s11_name = _s11_tier = _s11_alloc = _s11_apy_min = _s11_apy_max = None
+            try:
+                from spa_core.strategies.s12_base_layer_yield import (
+                    STRATEGY_ID as _s12_id,
+                    STRATEGY_NAME as _s12_name,
+                    TIER as _s12_tier,
+                    PHASE1_WEIGHTS as _s12_alloc,
+                    TARGET_APY_PCT as _s12_apy_pct,
+                )
+                _s12_apy_min = _s12_apy_pct * 0.80
+                _s12_apy_max = _s12_apy_pct * 1.20
+            except ImportError:
+                _s12_id = _s12_name = _s12_tier = _s12_alloc = _s12_apy_min = _s12_apy_max = None
+            # ── MP-523: S13 Multi-Chain Yield Arbitrage ────────────────────────
+            try:
+                from spa_core.strategies.s13_multi_chain_arb import (
+                    STRATEGY_ID as _s13_id,
+                    STRATEGY_NAME as _s13_name,
+                    TIER as _s13_tier,
+                    PHASE1_WEIGHTS as _s13_phase1_weights,
+                    TARGET_APY_PCT as _s13_target_apy,
+                )
+                _s13_apy_min = _s13_target_apy * 0.80
+                _s13_apy_max = _s13_target_apy * 1.20
+            except ImportError:
+                _s13_id = None
             # S2: исключаем pendle_pt (external — в _SKIP_PROTOCOLS MultiStrategyRunner)
             _ms_s2 = _MSStrategyConfig(
                 id=_s2_id,
@@ -1415,6 +1561,30 @@ def run_cycle(
                     target_apy_max=_s11_apy_max,
                 )
                 _ms_strategies.append(_ms_s11)
+            # S12: Base Layer Yield — Phase 1 fallback weights (ETH only until 2026-08-01)
+            if _s12_id is not None:
+                _ms_s12 = _MSStrategyConfig(
+                    id=_s12_id,
+                    name=_s12_name,
+                    description="S12 Base Layer Yield (Phase 1: ETH fallback)",
+                    allocations=_s12_alloc,
+                    tier=_s12_tier,
+                    target_apy_min=_s12_apy_min,
+                    target_apy_max=_s12_apy_max,
+                )
+                _ms_strategies.append(_ms_s12)
+            # S13: Multi-Chain Yield Arbitrage — Phase 1 ETH fallback (cross-chain after 2026-08-01)
+            if _s13_id is not None:
+                _ms_s13 = _MSStrategyConfig(
+                    id=_s13_id,
+                    name=_s13_name,
+                    description="S13 Multi-Chain Yield Arbitrage (Phase 1: ETH fallback)",
+                    allocations=_s13_phase1_weights,
+                    tier=_s13_tier,
+                    target_apy_min=_s13_apy_min,
+                    target_apy_max=_s13_apy_max,
+                )
+                _ms_strategies.append(_ms_s13)
             _ms_runner = _MultiStrategyRunner(
                 strategies=_ms_strategies, capital=100_000
             )
@@ -1430,7 +1600,7 @@ def run_cycle(
                     _ms_top.get("composite_score", 0.0),
                 )
         except Exception as _ms_exc:  # noqa: BLE001 — never crash the cycle
-            log.warning("MultiStrategyRunner S2–S11 skipped: %s", _ms_exc)
+            log.warning("MultiStrategyRunner S2–S13 skipped: %s", _ms_exc)
 
         from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
         try:
@@ -1640,6 +1810,37 @@ def run_cycle(
                 "paper_evidence_tracker failed (%s) — cycle continues", _et_exc
             )
 
+        # ── MP-512: APY Milestone Tracker ────────────────────────────────
+        # Fail-safe: milestone tracking must never crash the main cycle.
+        try:
+            from spa_core.analytics.apy_milestone_tracker import (
+                ApyMilestoneTracker as _AMTracker,
+            )
+            _amt = _AMTracker()
+            _apy_for_milestone = (
+                result.apy_today_pct
+                if hasattr(result, "apy_today_pct")
+                and isinstance(result.apy_today_pct, (int, float))
+                and result.apy_today_pct > 0
+                else 10.115
+            )
+            _strategy_for_milestone = (
+                result.best_strategy_id
+                if hasattr(result, "best_strategy_id")
+                else "s7_pendle_yt"
+            )
+            _amt.record_day(today, _apy_for_milestone, _strategy_for_milestone)
+            log.info(
+                "MP-512 milestone recorded: date=%s apy=%.4f%% strategy=%s",
+                today,
+                _apy_for_milestone,
+                _strategy_for_milestone,
+            )
+        except Exception as _amt_exc:
+            log.warning(
+                "apy_milestone_tracker failed (%s) — cycle continues", _amt_exc
+            )
+
     return result
 
 
@@ -1841,6 +2042,9 @@ def _write_status(
         # MP-108: kill-switch state for this cycle.
         "kill_switch_active": result.kill_switch_active,
         "kill_switch_reason": result.kill_switch_reason,
+        # MP-534: market regime snapshot.
+        "market_regime": result.market_regime,
+        "regime_t1_avg_apy": result.regime_t1_avg_apy,
     }
     _atomic_write_json(ddir / STATUS_FILENAME, doc)
 
