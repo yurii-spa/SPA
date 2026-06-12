@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "l2_adapters",
+  "role": "yield_monitoring",
+  "description": "MP-203: Read-only yield monitoring for L2 protocol adapters (Arbitrum + Base). Polls AaveV3Arbitrum, AaveV3Base, CompoundV3Base, MorphoBlueBase via DeFiLlama feed each cycle and writes status to allowed_outputs. Never touches capital. Deterministic-only — no LLM calls.",
+  "schedule": "every_cycle",
+  "token_budget_per_run": 200,
+  "token_budget_daily": 2000,
+  "forbidden_actions": [
+    "execute_trade",
+    "modify_policy",
+    "change_allocation",
+    "write_outside_allowed_outputs",
+    "modify_whitelist",
+    "initiate_tx",
+    "move_capital"
+  ],
+  "allowed_outputs": [
+    "fetch_yield_data",
+    "write_adapter_status"
+  ],
+  "requires_llm": false,
+  "degradation_mode": "deterministic-only"
+}
