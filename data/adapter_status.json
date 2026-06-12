@@ -453,6 +453,22 @@
     "added_by": "MP-432",
     "added_at": "2026-06-12"
   },
+  "susde": {
+    "adapter_id": "susde",
+    "name": "Ethena Staked USDe (sUSDe)",
+    "tier": "T3",
+    "apy_pct": 12.0,
+    "tvl_usd": 2500000000,
+    "chain": "ethereum",
+    "protocol": "Ethena",
+    "status": "active",
+    "risk_score": 0.62,
+    "last_updated": "2026-06-12",
+    "source": "fallback",
+    "notes": "ERC-4626 staking vault; 7d cooldown; peg-gate 1% vs USD",
+    "added_by": "MP-460",
+    "added_at": "2026-06-12"
+  },
   "aave_v3_base": {
     "protocol_id": "aave-v3-base",
     "chain": "base",
@@ -488,5 +504,41 @@
     "kill_days": 3,
     "status": "OK",
     "last_checked": "2026-06-12"
+  },
+  "moonwell_base": {
+    "adapter_id": "moonwell_base",
+    "protocol": "Moonwell Finance Base",
+    "tier": "T2",
+    "apy_pct": 4.1,
+    "tvl_usd": 96000000,
+    "chain": "base",
+    "risk_score": 0.75,
+    "status": "suspended",
+    "security_incident": "2025-11",
+    "bad_debt_usd": 3700000,
+    "last_updated": "2026-06-12"
+  },
+  "extra_finance_base": {
+    "adapter_id": "extra_finance_base",
+    "protocol": "Extra Finance XLend Base",
+    "tier": "T3",
+    "apy_pct": 8.0,
+    "tvl_usd": 135000000,
+    "tvl_usdc_lending": 15000000,
+    "chain": "base",
+    "risk_score": 0.55,
+    "status": "monitoring",
+    "audits": [
+      "BlockSec",
+      "PeckShield",
+      "Sherlock"
+    ],
+    "bug_bounty": "Immunefi",
+    "t3_cap_pct": 5,
+    "phase": "phase1_monitoring",
+    "adr": "ADR-026",
+    "last_updated": "2026-06-12",
+    "added_by": "MP-510",
+    "added_at": "2026-06-12"
   }
 }
