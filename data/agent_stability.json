@@ -1,20 +1,12 @@
 {
-  "stable_since": "2026-06-11T22:29:59Z",
-  "last_check": "2026-06-11T22:29:59Z",
+  "stable_since": "2026-06-10T08:55:55Z",
+  "last_check": "2026-06-10T08:55:55Z",
   "consecutive_stable_days": 0.0,
-  "total_failures": 3,
+  "total_failures": 1,
   "failure_history": [
     {
-      "time": "2026-06-10T21:19:36Z",
-      "reason": "status.json stale: 12.2h > 6.0h threshold"
-    },
-    {
-      "time": "2026-06-11T13:04:01Z",
-      "reason": "status.json stale: 15.7h > 6.0h threshold"
-    },
-    {
-      "time": "2026-06-11T22:29:59Z",
-      "reason": "status.json stale: 9.4h > 6.0h threshold"
+      "time": "2026-06-10T08:55:55Z",
+      "reason": "status.json stale: 459.8h > 6.0h threshold"
     }
   ],
   "is_active": true,
