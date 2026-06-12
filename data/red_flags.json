@@ -1,67 +1,27 @@
 {
-  "generated_at": "2026-05-28T01:17:36.849781Z",
+  "generated_at": "2026-06-12T06:00:32.422349Z",
   "monitor_version": "1.0",
   "sources": [
+    "defillama",
+    "historical_apy",
+    "snapshot",
     "bootstrap"
   ],
   "fallback_used": true,
   "red_flags": [
     {
-      "protocol": "ethena-susde",
-      "category": "apy_spike",
-      "severity": "WARN",
-      "message": "APY 18.40% is 2.56x baseline 7.20%",
-      "source": "historical_apy",
-      "detected_at": "2026-05-28T01:17:36.849748Z",
-      "evidence": {
-        "baseline_apy": 7.2,
-        "current_apy": 18.4,
-        "grade": "?",
-        "ratio": 2.5556
-      }
-    },
-    {
-      "protocol": "pendle-pt",
-      "category": "apy_spike",
-      "severity": "CRITICAL",
-      "message": "APY 24.60% is 4.03x baseline 6.10%",
-      "source": "historical_apy",
-      "detected_at": "2026-05-28T01:17:36.849758Z",
-      "evidence": {
-        "baseline_apy": 6.1,
-        "current_apy": 24.6,
-        "grade": "?",
-        "ratio": 4.0328
-      }
-    },
-    {
       "protocol": "aave-v3",
       "category": "governance_proposal",
-      "severity": "WARN",
-      "message": "Risk-sensitive proposal [risk-param]: Risk Param Update: increase WETH borrow cap",
+      "severity": "CRITICAL",
+      "message": "Risk-sensitive proposal [emergency]: Elect DAO facilitators with a realistically reduced pay rate",
       "source": "snapshot",
-      "detected_at": "2026-05-28T01:17:36.849762Z",
+      "detected_at": "2026-06-12T06:00:31.092179Z",
       "evidence": {
-        "deadline": "2026-05-28T12:00:00Z",
-        "grade": "A",
-        "proposal_id": "0xaavev3-2026-05-risk-param-update",
-        "space": "aave.eth",
-        "tag": "risk-param"
-      }
-    },
-    {
-      "protocol": "compound-v3",
-      "category": "governance_proposal",
-      "severity": "WARN",
-      "message": "Risk-sensitive proposal [upgrade]: Upgrade Comet implementation — collateral asset migration",
-      "source": "snapshot",
-      "detected_at": "2026-05-28T01:17:36.849765Z",
-      "evidence": {
-        "deadline": "2026-05-28T18:00:00Z",
+        "deadline": "2026-06-19T01:49:00Z",
         "grade": "B",
-        "proposal_id": "0xcompoundv3-2026-05-upgrade-comet",
-        "space": "comp-vote.eth",
-        "tag": "upgrade"
+        "proposal_id": "0x7e008020503b16992747eff05403a386ea9d006fd2cdaf56e7fb53bbc4c0abb8",
+        "space": "aavegotchi.eth",
+        "tag": "emergency"
       }
     },
     {
@@ -70,7 +30,7 @@
       "severity": "CRITICAL",
       "message": "Token unlock 6.40% of supply (ENA) at 2026-06-03T00:00:00Z",
       "source": "defillama",
-      "detected_at": "2026-05-28T01:17:36.849770Z",
+      "detected_at": "2026-06-12T06:00:32.422250Z",
       "evidence": {
         "grade": "?",
         "pct_supply": 6.4,
@@ -85,7 +45,7 @@
       "severity": "WARN",
       "message": "Token unlock 1.80% of supply (PENDLE) at 2026-06-01T00:00:00Z",
       "source": "defillama",
-      "detected_at": "2026-05-28T01:17:36.849768Z",
+      "detected_at": "2026-06-12T06:00:32.422189Z",
       "evidence": {
         "grade": "?",
         "pct_supply": 1.8,
@@ -93,60 +53,25 @@
         "tokens": 5400000.0,
         "unlock_at": "2026-06-01T00:00:00Z"
       }
-    },
-    {
-      "protocol": "euler-v2",
-      "category": "tvl_drop",
-      "severity": "WARN",
-      "message": "TVL dropped 33.4% over 7d",
-      "source": "defillama",
-      "detected_at": "2026-05-28T01:17:36.849726Z",
-      "evidence": {
-        "delta_24h": -8.2,
-        "delta_7d": -33.4,
-        "grade": "A",
-        "tvl_24h_ago": 850000000.0,
-        "tvl_7d_ago": 1170000000.0,
-        "tvl_now": 780000000.0
-      }
-    },
-    {
-      "protocol": "maple",
-      "category": "tvl_drop",
-      "severity": "WARN",
-      "message": "TVL dropped 22.0% over 7d",
-      "source": "defillama",
-      "detected_at": "2026-05-28T01:17:36.849742Z",
-      "evidence": {
-        "delta_24h": -17.1,
-        "delta_7d": -22.0,
-        "grade": "?",
-        "tvl_24h_ago": 495000000.0,
-        "tvl_7d_ago": 525000000.0,
-        "tvl_now": 410000000.0
-      }
     }
   ],
   "summary": {
-    "total_flags": 8,
+    "total_flags": 3,
     "by_category": {
-      "apy_spike": 2,
-      "governance_proposal": 2,
+      "apy_spike": 0,
+      "governance_proposal": 1,
       "token_unlock": 2,
-      "tvl_drop": 2
+      "tvl_drop": 0
     },
     "by_severity": {
       "CRITICAL": 2,
-      "WARN": 6
+      "WARN": 1
     },
     "by_protocol": {
       "aave-v3": 1,
-      "compound-v3": 1,
-      "ethena-susde": 2,
-      "euler-v2": 1,
-      "maple": 1,
-      "pendle-pt": 2
+      "ethena-susde": 1,
+      "pendle-pt": 1
     },
-    "protocols_clean": 4
+    "protocols_clean": 7
   }
 }
