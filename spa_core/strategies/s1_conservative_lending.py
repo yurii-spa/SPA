@@ -301,6 +301,25 @@ class ConservativeLendingStrategy:
             "metrics":      metrics,
         }
 
+    def run_day(self, apy_map: dict = None) -> float:
+        """Thin adapter for cycle_runner compatibility.
+        Returns weighted APY from allowed T1 protocols in apy_map."""
+        _FALLBACK_APY = 5.0  # midpoint of 4–6% target range
+        if not apy_map:
+            return _FALLBACK_APY
+        apys = []
+        for key, val in apy_map.items():
+            if not isinstance(val, (int, float)):
+                continue
+            if not any(key.startswith(prefix) for prefix in ALLOWED_PROTOCOL_PREFIXES):
+                continue
+            apy = float(val)
+            if MIN_APY <= apy <= MAX_APY:
+                apys.append(apy)
+        if apys:
+            return float(sum(apys) / len(apys))
+        return _FALLBACK_APY
+
     def _empty_result(self, initial_capital: float) -> dict:
         return {
             "strategy_id": STRATEGY_ID,
