@@ -372,6 +372,29 @@ class LPStableStrategy:
             "metrics":      metrics,
         }
 
+    def run_day(self, apy_map: dict = None) -> float:
+        """Thin adapter for cycle_runner compatibility.
+        Returns effective APY (LP fee premium + base lending) from apy_map."""
+        _FALLBACK_APY = 10.0  # midpoint of 8–12% target range
+        if not apy_map:
+            return _FALLBACK_APY
+        effective_apys = []
+        for key, val in apy_map.items():
+            if not isinstance(val, (int, float)):
+                continue
+            apy = float(val)
+            if any(key.startswith(prefix) for prefix in LP_POOL_PREFIXES):
+                eff = apy
+            elif any(key.startswith(prefix) for prefix in LENDING_PREFIXES):
+                eff = apy + FEE_APY_PREMIUM
+            else:
+                continue
+            if MIN_APY <= eff <= MAX_APY:
+                effective_apys.append(eff)
+        if effective_apys:
+            return float(sum(effective_apys) / len(effective_apys))
+        return _FALLBACK_APY
+
     def _empty_result(self, initial_capital):
         return {
             "strategy_id": STRATEGY_ID,
