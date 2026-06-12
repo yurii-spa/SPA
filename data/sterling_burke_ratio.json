@@ -1,0 +1,25 @@
+{
+  "available": false,
+  "reason": "only 3 equity points (< 10 required)",
+  "is_demo": false,
+  "sterling_ratio": null,
+  "burke_ratio": null,
+  "avg_drawdown_pct": null,
+  "max_drawdown_pct": null,
+  "n_drawdown_episodes": null,
+  "annualized_return_pct": null,
+  "n_observations": 3,
+  "start_date": null,
+  "end_date": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 3 equity points (< 10 required)",
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-12T17:17:31.569336+00:00",
+    "schema_version": 1,
+    "source": "sterling_burke_ratio",
+    "min_obs_required": 10
+  },
+  "_fingerprint": "{\"annualized_return_pct\": null, \"available\": false, \"avg_drawdown_pct\": null, \"burke_ratio\": null, \"end_date\": null, \"is_demo\": false, \"max_drawdown_pct\": null, \"meta\": {\"min_obs_required\": 10, \"schema_version\": 1, \"source\": \"sterling_burke_ratio\"}, \"n_drawdown_episodes\": null, \"n_observations\": 3, \"notes\": [], \"reason\": \"only 3 equity points (< 10 required)\", \"start_date\": null, \"sterling_ratio\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 3 equity points (< 10 required)\"}",
+  "history": []
+}
