@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-12T12:31:00Z",
-  "updated_by": "spa-dev (SPA audit: added MP-314 Telegram report)",
-  "sprint_current": "v4.61",
+  "last_updated": "2026-06-12T14:16:40.986787+00:00",
+  "updated_by": "spa-dev-continue (SPA-V463 / MP-148 rachev_ratio)",
+  "sprint_current": "v4.63",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -253,46 +253,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "SYS-001",
-        "title": "Create CURRENT_STATE.md — single source of infra truth",
-        "description": "CLAUDE.md говорит autopush работает, RULES.md говорит не установлен — агент не знает кому верить. Создать файл с секциями: launchd statuses, последний sprint, дней трека, active blockers. Обновляется атомарно в конце каждого спринта (DoD).",
-        "priority": "P0",
-        "category": "infra",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
-        "tags": [
-          "infra",
-          "docs",
-          "p0"
-        ],
-        "sprint": null,
-        "sprint_target": "v4.7x",
-        "added": "2026-06-12"
-      },
-      {
-        "id": "SYS-002",
-        "title": "Reconcile CLAUDE.md vs RULES.md (autopush, push method, sprint current)",
-        "description": "Два противоречащих документа → агент получает ложный контекст каждую сессию. CLAUDE.md должен ссылаться на CURRENT_STATE.md для статусов, не дублировать их. Убрать 'autopush работает' если не работает. Добавить: читай CURRENT_STATE.md первым.",
-        "priority": "P0",
-        "category": "infra",
-        "phase": "phase0",
-        "estimated_days": 0.3,
-        "depends_on": [
-          "SYS-001"
-        ],
-        "estimate": "0.3d",
-        "tags": [
-          "infra",
-          "docs",
-          "p0"
-        ],
-        "sprint": null,
-        "sprint_target": "v4.7x",
-        "added": "2026-06-12"
-      },
-      {
         "id": "SYS-003",
         "title": "Sprint close DoD checklist — mandatory sync KANBAN + sprint_log + CURRENT_STATE",
         "description": "9 спринтов (v4.31-v4.47) пропущены в sprint log → потеря исторической памяти. В RULES.md добавить обязательный чеклист закрытия: 1. KANBAN.json done+sprint_completed 2. SPA_sprint_log.md — новая запись 3. CURRENT_STATE.md — sprint_last + infra_status. Без всех 3х пунктов спринт не считается done.",
@@ -311,7 +271,11 @@
         ],
         "sprint": null,
         "sprint_target": "v4.7x",
-        "added": "2026-06-12"
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed": "2026-06-12",
+        "delivery_status": "shipped_remote"
       },
       {
         "id": "SYS-004",
@@ -330,7 +294,11 @@
         ],
         "sprint": null,
         "sprint_target": "v4.7x",
-        "added": "2026-06-12"
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed": "2026-06-12",
+        "delivery_status": "shipped_remote"
       },
       {
         "id": "SYS-005",
@@ -349,26 +317,11 @@
         ],
         "sprint": null,
         "sprint_target": "v4.7x",
-        "added": "2026-06-12"
-      },
-      {
-        "id": "SYS-006",
-        "title": "DECISIONS.md — cross-session decision journal",
-        "description": "Между сессиями теряется контекст решений. Агент каждый раз знакомится с проектом заново. Создать docs/DECISIONS.md. Каждая сессия добавляет: что сделано, что НЕ сделано и почему, блокеры для следующей сессии, следующий приоритет. Агент читает последние 5 записей в начале сессии.",
-        "priority": "P1",
-        "category": "process",
-        "phase": "phase0",
-        "estimated_days": 0.3,
-        "depends_on": [],
-        "estimate": "0.3d",
-        "tags": [
-          "process",
-          "docs",
-          "p1"
-        ],
-        "sprint": null,
-        "sprint_target": "v4.7x",
-        "added": "2026-06-12"
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed": "2026-06-12",
+        "delivery_status": "shipped_remote"
       },
       {
         "id": "SYS-007",
@@ -389,7 +342,11 @@
         ],
         "sprint": null,
         "sprint_target": "v4.7x",
-        "added": "2026-06-12"
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed": "2026-06-12",
+        "delivery_status": "shipped_remote"
       },
       {
         "id": "SYS-008",
@@ -408,67 +365,11 @@
         ],
         "sprint": null,
         "sprint_target": "v4.7x",
-        "added": "2026-06-12"
-      },
-      {
-        "id": "SYS-009",
-        "title": "Sprint log recovery: восстановить v4.31-v4.47 из KANBAN done",
-        "description": "9 спринтов отсутствуют в SPA_sprint_log.md — история провала. DD-аудиторы увидят дыру. Прочитать KANBAN.json, найти done-карточки sprint_completed=v4.31..v4.47, написать минимальные sprint log записи для каждого спринта. Пометить как 'Restored from KANBAN (sprint log не был записан своевременно)'.",
-        "priority": "P1",
-        "category": "process",
-        "phase": "phase0",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
-        "tags": [
-          "process",
-          "docs",
-          "history",
-          "p1"
-        ],
-        "sprint": null,
-        "sprint_target": "v4.7x",
-        "added": "2026-06-12"
-      },
-      {
-        "id": "SYS-010",
-        "title": "Push-paradox resolution: 3-state push в CURRENT_STATE + auto-fix в startup",
-        "description": "Правило 'не просить юзера пушить' + сломанный autopush = логический тупик. Добавить в CURRENT_STATE.md: push_method, autopush_status, push_last_success. Добавить в startup protocol: если autopush_status=not_installed → первым действием выполнить bash mp009_fix_launchd.command (не ждать).",
-        "priority": "P0",
-        "category": "infra",
-        "phase": "phase0",
-        "estimated_days": 0.3,
-        "depends_on": [
-          "SYS-001"
-        ],
-        "estimate": "0.3d",
-        "tags": [
-          "infra",
-          "process",
-          "p0"
-        ],
-        "sprint": null,
-        "sprint_target": "v4.7x",
-        "added": "2026-06-12"
-      },
-      {
-        "id": "MP-312",
-        "title": "Kill-switch drill documented (MP-108)",
-        "description": "'Мы можем закрыть всё за <1 мин' — это обещание, а не факт без drill. e2e тест: имитировать 5% drawdown → проверить что RiskPolicy блокирует. Результат → docs/kill_switch_drill.md (дата, сценарий, время реакции).",
-        "priority": "P1",
-        "category": "risk",
-        "phase": "phase1",
-        "estimated_days": 0.5,
-        "depends_on": [],
-        "estimate": "0.5d",
-        "tags": [
-          "risk",
-          "testing",
-          "p1"
-        ],
-        "sprint": null,
-        "sprint_target": "v4.7x",
-        "added": "2026-06-12"
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed": "2026-06-12",
+        "delivery_status": "shipped_remote"
       },
       {
         "id": "MP-313",
@@ -513,6 +414,21 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-148",
+        "type": "analytics",
+        "status": "done",
+        "priority": "P2",
+        "title": "Rachev Ratio — Tail-Reward / Tail-Risk Analyzer (read-only/advisory)",
+        "sprint": "v4.63",
+        "completed_at": "2026-06-12",
+        "completed_by": "claude (SPA-V463)",
+        "depends_on": [
+          "MP-115",
+          "MP-501"
+        ],
+        "description": "Rachev Ratio = Expected Tail Gain (mean of best alpha-fraction of returns) / Expected Tail Loss (magnitude of mean of worst beta-fraction). CVaR-style whole-tail reward/risk asymmetry on the equity track. RR<0.6 -> fail (extreme losses dominate extreme gains). Low-sample guard caps fail->warn when a tail has <2 obs. Reuses drawdown_analytics.extract_equity_series + tear_sheet.content_fingerprint by import. Pure stdlib, read-only, atomic write, 61 tests."
+      },
       {
         "id": "MP-146",
         "title": "Ulcer Index & Martin Ratio Analyzer (read-only/advisory)",
@@ -2705,10 +2621,166 @@
         "description": "Real equity growth SVG chart in Statistics tab reading from data/pnl_history.json",
         "status": "done",
         "sprint": "v4.60"
+      },
+      {
+        "id": "MP-147",
+        "title": "Bias Ratio — Return-Smoothing / Mark-Manipulation Detector (read-only/advisory)",
+        "description": "Abdulali Bias Ratio = #{0<=r<=+s} / (1 + #{-s<=r<0}) over daily returns (s = sample std). ~1 honest; >>1 = small losses suppressed / marks smoothed (illiquid/mark-to-model red flag). Reuses drawdown_analytics.extract_equity_series + tear_sheet.content_fingerprint by import; pure stdlib, atomic write, idempotent. fail if BR>3.0; warn if BR>2.0; low-sample guard caps fail->warn when <6 near-zero returns; zero-dispersion -> ok+note.",
+        "status": "done",
+        "type": "analytics",
+        "priority": "P2",
+        "phase": "phase1",
+        "sprint": "v4.62",
+        "depends_on": [
+          "MP-115",
+          "MP-501"
+        ],
+        "completed": "2026-06-12",
+        "completed_by": "claude (SPA-V462)",
+        "added": "2026-06-12"
+      },
+      {
+        "id": "SYS-001",
+        "title": "Create CURRENT_STATE.md — single source of infra truth",
+        "description": "CLAUDE.md говорит autopush работает, RULES.md говорит не установлен — агент не знает кому верить. Создать файл с секциями: launchd statuses, последний sprint, дней трека, active blockers. Обновляется атомарно в конце каждого спринта (DoD).",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "infra",
+          "docs",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed_at": "2026-06-12"
+      },
+      {
+        "id": "SYS-002",
+        "title": "Reconcile CLAUDE.md vs RULES.md (autopush, push method, sprint current)",
+        "description": "Два противоречащих документа → агент получает ложный контекст каждую сессию. CLAUDE.md должен ссылаться на CURRENT_STATE.md для статусов, не дублировать их. Убрать 'autopush работает' если не работает. Добавить: читай CURRENT_STATE.md первым.",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [
+          "SYS-001"
+        ],
+        "estimate": "0.3d",
+        "tags": [
+          "infra",
+          "docs",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed_at": "2026-06-12"
+      },
+      {
+        "id": "SYS-006",
+        "title": "DECISIONS.md — cross-session decision journal",
+        "description": "Между сессиями теряется контекст решений. Агент каждый раз знакомится с проектом заново. Создать docs/DECISIONS.md. Каждая сессия добавляет: что сделано, что НЕ сделано и почему, блокеры для следующей сессии, следующий приоритет. Агент читает последние 5 записей в начале сессии.",
+        "priority": "P1",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [],
+        "estimate": "0.3d",
+        "tags": [
+          "process",
+          "docs",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed_at": "2026-06-12"
+      },
+      {
+        "id": "SYS-010",
+        "title": "Push-paradox resolution: 3-state push в CURRENT_STATE + auto-fix в startup",
+        "description": "Правило 'не просить юзера пушить' + сломанный autopush = логический тупик. Добавить в CURRENT_STATE.md: push_method, autopush_status, push_last_success. Добавить в startup protocol: если autopush_status=not_installed → первым действием выполнить bash mp009_fix_launchd.command (не ждать).",
+        "priority": "P0",
+        "category": "infra",
+        "phase": "phase0",
+        "estimated_days": 0.3,
+        "depends_on": [
+          "SYS-001"
+        ],
+        "estimate": "0.3d",
+        "tags": [
+          "infra",
+          "process",
+          "p0"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed_at": "2026-06-12"
+      },
+      {
+        "id": "MP-312",
+        "title": "Kill-switch drill documented (MP-108)",
+        "description": "'Мы можем закрыть всё за <1 мин' — это обещание, а не факт без drill. e2e тест: имитировать 5% drawdown → проверить что RiskPolicy блокирует. Результат → docs/kill_switch_drill.md (дата, сценарий, время реакции).",
+        "priority": "P1",
+        "category": "risk",
+        "phase": "phase1",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "risk",
+          "testing",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed_at": "2026-06-12",
+        "completion_note": "Kill-switch drill MP-312 выполнен: scripts/kill_switch_drill.py + scripts/tests/test_kill_switch_drill.py (37 тестов) + docs/kill_switch_drill.md. Drill PASS ✅ за 13ms."
+      },
+      {
+        "id": "SYS-009",
+        "title": "Sprint log recovery: восстановить v4.31-v4.47 из KANBAN done",
+        "description": "9 спринтов отсутствуют в SPA_sprint_log.md — история провала. DD-аудиторы увидят дыру. Прочитать KANBAN.json, найти done-карточки sprint_completed=v4.31..v4.47, написать минимальные sprint log записи для каждого спринта. Пометить как 'Restored from KANBAN (sprint log не был записан своевременно)'.",
+        "priority": "P1",
+        "category": "process",
+        "phase": "phase0",
+        "estimated_days": 0.5,
+        "depends_on": [],
+        "estimate": "0.5d",
+        "tags": [
+          "process",
+          "docs",
+          "history",
+          "p1"
+        ],
+        "sprint": null,
+        "sprint_target": "v4.7x",
+        "added": "2026-06-12",
+        "status": "done",
+        "sprint_completed": "v4.63",
+        "completed_date": "2026-06-12",
+        "completed_by": "claude (SYS-009)"
       }
     ]
   },
-  "sprint_completed": "v4.61",
+  "sprint_completed": "v4.63",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
