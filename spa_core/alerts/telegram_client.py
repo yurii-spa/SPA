@@ -66,12 +66,9 @@ def get_chat_id() -> str:
     return _read_keychain(CHAT_ID_SERVICE)
 
 
-def send_message(text: str) -> bool:
-    """POST the message to the Telegram Bot API (parse_mode=Markdown).
-
-    Fail-safe: missing credentials, HTTP or network errors → WARNING + False.
-    One retry on network error. Never raises.
-    """
+def _post_message(payload_dict: dict) -> bool:
+    """Internal: POST a sendMessage payload. Shared by send_message and
+    send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
     try:
         token = get_bot_token()
         chat_id = get_chat_id()
@@ -79,15 +76,12 @@ def send_message(text: str) -> bool:
         log.warning("Telegram send skipped: %s", exc)
         return False
 
+    payload_dict["chat_id"] = chat_id
+    payload_dict.setdefault("parse_mode", "Markdown")
+    payload_dict.setdefault("disable_web_page_preview", True)
+
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = json.dumps(
-        {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": True,
-        }
-    ).encode("utf-8")
+    payload = json.dumps(payload_dict).encode("utf-8")
 
     last_err: Exception | None = None
     for attempt in range(1 + RETRIES):
@@ -103,7 +97,6 @@ def send_message(text: str) -> bool:
                     return True
                 last_err = RuntimeError(f"HTTP status {resp.status}")
         except urllib.error.HTTPError as exc:
-            # The API answered — a retry with the same payload won't help.
             log.warning("Telegram API error %s: %s", exc.code, exc.reason)
             return False
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
@@ -113,3 +106,24 @@ def send_message(text: str) -> bool:
 
     log.warning("Telegram send failed after %d attempt(s): %s", 1 + RETRIES, last_err)
     return False
+
+
+def send_message(text: str) -> bool:
+    """POST the message to the Telegram Bot API (parse_mode=Markdown).
+
+    Fail-safe: missing credentials, HTTP or network errors → WARNING + False.
+    One retry on network error. Never raises.
+    """
+    return _post_message({"text": text})
+
+
+def send_message_with_keyboard(text: str, keyboard: dict) -> bool:
+    """POST the message with an inline keyboard to the Telegram Bot API.
+
+    ``keyboard`` must be a dict ready to be JSON-serialised, e.g.::
+
+        {"inline_keyboard": [[{"text": "X", "callback_data": "cmd_x"}]]}
+
+    Fail-safe: any failure → WARNING + False. Never raises.
+    """
+    return _post_message({"text": text, "reply_markup": json.dumps(keyboard)})
