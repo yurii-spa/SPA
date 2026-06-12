@@ -469,6 +469,22 @@
     "added_by": "MP-460",
     "added_at": "2026-06-12"
   },
+  "wusdm": {
+    "adapter_id": "wusdm",
+    "name": "Mountain Protocol Wrapped USDM (wUSDM)",
+    "tier": "T2",
+    "apy_pct": 5.0,
+    "tvl_usd": 200000000,
+    "chain": "ethereum",
+    "protocol": "Mountain Protocol",
+    "status": "active",
+    "risk_score": 0.45,
+    "last_updated": "2026-06-12",
+    "source": "fallback",
+    "notes": "ERC-4626 RWA T-bill backed wrapper; atomic unwrap; peg-gate 0.5% vs USD",
+    "added_by": "MP-559",
+    "added_at": "2026-06-12"
+  },
   "aave_v3_base": {
     "protocol_id": "aave-v3-base",
     "chain": "base",
