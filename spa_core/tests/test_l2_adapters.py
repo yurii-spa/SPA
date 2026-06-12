@@ -318,8 +318,8 @@ class TestCheckChainLimits:
         result = check_chain_limits(alloc)
         assert result["ok"] is True
 
-    def test_ethereum_at_limit_ok(self):
-        # Exactly 70% on Ethereum — should pass (≤ not <)
+    def test_ethereum_at_70pct_ok(self):
+        # 70% on Ethereum — well within new 90% limit (MP-352)
         alloc = {"aave_v3": 0.40, "compound_v3": 0.30}
         result = check_chain_limits(alloc)
         assert result["ok"] is True
@@ -336,18 +336,42 @@ class TestCheckChainLimits:
         assert result["ok"] is True
         assert result["l2_total_pct"] == pytest.approx(0.30)
 
-    # ── single-chain > 70% → violation ──────────────────────────────────────
+    # ── single-chain > 90% → violation (MP-352: threshold raised 70%→90%) ──────
 
-    def test_ethereum_over_70pct_violation(self):
+    def test_ethereum_over_70pct_now_ok(self):
+        """MP-352: 75% ethereum used to trigger violation at 70%, now OK at 90% limit."""
         alloc = {"aave_v3": 0.40, "compound_v3": 0.35}  # 75% ethereum
+        result = check_chain_limits(alloc)
+        # With new 90% limit, 75% is within bounds
+        assert result["ok"] is True, (
+            f"MP-352: 75% ethereum must be OK with new 90% limit. "
+            f"Violations: {result['violations']}"
+        )
+
+    def test_ethereum_84pct_ok_mp352(self):
+        """MP-352: 84% ethereum (max seen in logs) must NOT trigger violation."""
+        alloc = {"aave_v3": 0.40, "compound_v3": 0.25, "morpho_blue": 0.19}
+        result = check_chain_limits(alloc)
+        assert result["ok"] is True
+
+    def test_ethereum_over_90pct_violation(self):
+        """MP-352: 91% ethereum must trigger violation with new 90% limit."""
+        alloc = {"aave_v3": 0.50, "compound_v3": 0.41}  # 91% ethereum
         result = check_chain_limits(alloc)
         assert result["ok"] is False
         assert any("ethereum" in v.lower() for v in result["violations"])
 
-    def test_single_chain_at_71pct_violation(self):
-        alloc = {"aave_v3": 0.71}
+    def test_single_chain_at_91pct_violation(self):
+        """MP-352: 91% on any single chain → violation."""
+        alloc = {"aave_v3": 0.91}
         result = check_chain_limits(alloc)
         assert result["ok"] is False
+
+    def test_single_chain_at_90pct_ok(self):
+        """MP-352: Exactly 90% on any single chain must pass (≤ not <)."""
+        alloc = {"aave_v3": 0.90}
+        result = check_chain_limits(alloc)
+        assert result["ok"] is True
 
     # ── L2 combined > 50% → violation ───────────────────────────────────────
 
