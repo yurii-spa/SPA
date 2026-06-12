@@ -1,18 +1,18 @@
 {
-  "date": "2026-06-10",
-  "generated_at": "2026-06-10T18:40:35.254234+00:00",
+  "date": "2026-06-12",
+  "generated_at": "2026-06-12T06:00:04.769251+00:00",
   "source": "shadow_tracker",
   "advisory_only": true,
   "initial_capital": 100000.0,
-  "real_equity_usd": 100008.61,
+  "real_equity_usd": 100026.06,
   "strategies": {
     "S0": {
       "name": "MaxYield",
-      "equity": 100013.54,
-      "daily_pnl": 13.5444,
-      "prev_equity": 100000.0,
-      "weighted_apy_pct": 4.9437,
-      "total_return_pct": 0.0135,
+      "equity": 100039.51,
+      "daily_pnl": 13.0191,
+      "prev_equity": 100026.49,
+      "weighted_apy_pct": 4.7507,
+      "total_return_pct": 0.0395,
       "weights": {
         "morpho_blue": 1.0
       },
@@ -20,28 +20,28 @@
     },
     "S1": {
       "name": "MaxSharpe",
-      "equity": 100010.12,
-      "daily_pnl": 10.125,
-      "prev_equity": 100000.0,
-      "weighted_apy_pct": 3.6956,
-      "total_return_pct": 0.0101,
+      "equity": 100029.73,
+      "daily_pnl": 10.1276,
+      "prev_equity": 100019.6,
+      "weighted_apy_pct": 3.6959,
+      "total_return_pct": 0.0297,
       "weights": {
-        "aave_v3": 0.221666,
-        "compound_v3": 0.225094,
-        "euler_v2": 0.098051,
-        "maple": 0.167346,
-        "morpho_blue": 0.175095,
-        "yearn_v3": 0.112749
+        "aave_v3": 0.225923,
+        "compound_v3": 0.224995,
+        "euler_v2": 0.097788,
+        "maple": 0.166439,
+        "morpho_blue": 0.166935,
+        "yearn_v3": 0.117919
       },
       "cash_pct": 0.0
     },
     "S2": {
       "name": "EqualWeight",
-      "equity": 100010.01,
-      "daily_pnl": 10.0125,
-      "prev_equity": 100000.0,
-      "weighted_apy_pct": 3.6546,
-      "total_return_pct": 0.01,
+      "equity": 100029.48,
+      "daily_pnl": 10.0669,
+      "prev_equity": 100019.41,
+      "weighted_apy_pct": 3.6737,
+      "total_return_pct": 0.0295,
       "weights": {
         "aave_v3": 0.166667,
         "compound_v3": 0.166667,
@@ -54,11 +54,11 @@
     },
     "S3": {
       "name": "T1Only",
-      "equity": 100008.64,
-      "daily_pnl": 8.6397,
-      "prev_equity": 100000.0,
-      "weighted_apy_pct": 3.1535,
-      "total_return_pct": 0.0086,
+      "equity": 100026.16,
+      "daily_pnl": 8.7908,
+      "prev_equity": 100017.37,
+      "weighted_apy_pct": 3.2081,
+      "total_return_pct": 0.0262,
       "weights": {
         "aave_v3": 0.5,
         "compound_v3": 0.5
@@ -67,11 +67,11 @@
     },
     "S4": {
       "name": "Conservative",
-      "equity": 100006.91,
-      "daily_pnl": 6.9118,
-      "prev_equity": 100000.0,
-      "weighted_apy_pct": 2.5228,
-      "total_return_pct": 0.0069,
+      "equity": 100020.93,
+      "daily_pnl": 7.0324,
+      "prev_equity": 100013.9,
+      "weighted_apy_pct": 2.5665,
+      "total_return_pct": 0.0209,
       "weights": {
         "aave_v3": 0.4,
         "compound_v3": 0.4
@@ -80,19 +80,19 @@
     },
     "S5": {
       "name": "CurrentSPA",
-      "equity": 100008.61,
-      "daily_pnl": 8.6082,
-      "prev_equity": 100000.0,
-      "weighted_apy_pct": 3.142,
-      "total_return_pct": 0.0086,
+      "equity": 100026.06,
+      "daily_pnl": 8.7595,
+      "prev_equity": 100017.3,
+      "weighted_apy_pct": 3.1967,
+      "total_return_pct": 0.0261,
       "weights": {
-        "aave_v3": 0.3314,
-        "compound_v3": 0.286047,
-        "euler_v2": 0.100542,
-        "maple": 0.116316,
-        "yearn_v3": 0.115613
+        "aave_v3": 0.319385,
+        "compound_v3": 0.297954,
+        "euler_v2": 0.102101,
+        "maple": 0.115156,
+        "yearn_v3": 0.115156
       },
-      "cash_pct": 5.01
+      "cash_pct": 5.02
     }
   },
   "history": [
@@ -104,6 +104,24 @@
       "S3": 100008.64,
       "S4": 100006.91,
       "S5": 100008.61
+    },
+    {
+      "date": "2026-06-11",
+      "S0": 100026.49,
+      "S1": 100019.6,
+      "S2": 100019.41,
+      "S3": 100017.37,
+      "S4": 100013.9,
+      "S5": 100017.3
+    },
+    {
+      "date": "2026-06-12",
+      "S0": 100039.51,
+      "S1": 100029.73,
+      "S2": 100029.48,
+      "S3": 100026.16,
+      "S4": 100020.93,
+      "S5": 100026.06
     }
   ]
 }
