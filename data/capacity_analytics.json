@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-10T09:14:35.310209+00:00",
+  "execution_mode": "read_only_simulation",
+  "source": "/sessions/keen-youthful-volta/mnt/Documents/SPA_Claude/data/adapter_orchestrator_status.json",
+  "allocation_source": "/sessions/keen-youthful-volta/mnt/Documents/SPA_Claude/data/target_allocation.json",
+  "assumptions": {
+    "max_tvl_share": 0.02,
+    "max_daily_volume_share": 0.1,
+    "daily_liquidity_fraction": 0.1,
+    "max_slippage_penalty": 0.3,
+    "grade_a_min_aum_usd": 50000000.0,
+    "grade_b_min_aum_usd": 10000000.0,
+    "grade_c_min_aum_usd": 1000000.0,
+    "daily_volume_proxy": "When a pool has no explicit daily exit volume, daily exit volume is approximated as TVL * daily_liquidity_fraction (volume_source='proxy_from_tvl').",
+    "max_position_model": "max_position_usd = min(TVL * max_tvl_share, daily_exit_volume * max_daily_volume_share).",
+    "capacity_adjusted_apy_model": "effective_apy = base_apy * (1 - max_slippage_penalty * utilization), utilization = clamp(position_usd / max_position_usd, 0, 1).",
+    "apy_units": "base_apy stored as a decimal fraction (apy_pct / 100)."
+  },
+  "metrics": {
+    "num_pools": 6,
+    "pools": [
+      {
+        "protocol": "aave_v3",
+        "tvl_usd": 232179842.0,
+        "base_apy": 0.030614,
+        "daily_exit_volume_usd": 23217984.200000003,
+        "volume_source": "proxy_from_tvl",
+        "max_position_usd": 2321798.4200000004,
+        "weight": null,
+        "position_usd_at_current_aum": null,
+        "utilization_at_current_aum": null,
+        "capacity_adjusted_apy_at_current": 0.030614,
+        "capacity_adjusted_apy_at_cap": 0.0214298
+      },
+      {
+        "protocol": "compound_v3",
+        "tvl_usd": 58547060.0,
+        "base_apy": 0.030709,
+        "daily_exit_volume_usd": 5854706.0,
+        "volume_source": "proxy_from_tvl",
+        "max_position_usd": 585470.6,
+        "weight": null,
+        "position_usd_at_current_aum": null,
+        "utilization_at_current_aum": null,
+        "capacity_adjusted_apy_at_current": 0.030709,
+        "capacity_adjusted_apy_at_cap": 0.0214963
+      },
+      {
+        "protocol": "morpho_blue",
+        "tvl_usd": 402790.0,
+        "base_apy": 0.048076,
+        "daily_exit_volume_usd": 40279.0,
+        "volume_source": "proxy_from_tvl",
+        "max_position_usd": 4027.9,
+        "weight": 0.2,
+        "position_usd_at_current_aum": 20000.0,
+        "utilization_at_current_aum": 1.0,
+        "capacity_adjusted_apy_at_current": 0.0336532,
+        "capacity_adjusted_apy_at_cap": 0.0336532
+      },
+      {
+        "protocol": "yearn_v3",
+        "tvl_usd": 26684541.0,
+        "base_apy": 0.031404999999999995,
+        "daily_exit_volume_usd": 2668454.1,
+        "volume_source": "proxy_from_tvl",
+        "max_position_usd": 266845.41000000003,
+        "weight": 0.2,
+        "position_usd_at_current_aum": 20000.0,
+        "utilization_at_current_aum": 0.0749497621113288,
+        "capacity_adjusted_apy_at_current": 0.03069886081626811,
+        "capacity_adjusted_apy_at_cap": 0.021983499999999996
+      },
+      {
+        "protocol": "euler_v2",
+        "tvl_usd": 15430996.0,
+        "base_apy": 0.027986,
+        "daily_exit_volume_usd": 1543099.6,
+        "volume_source": "proxy_from_tvl",
+        "max_position_usd": 154309.96000000002,
+        "weight": 0.2,
+        "position_usd_at_current_aum": 20000.0,
+        "utilization_at_current_aum": 0.12960926177415896,
+        "capacity_adjusted_apy_at_current": 0.026897826559996518,
+        "capacity_adjusted_apy_at_cap": 0.0195902
+      },
+      {
+        "protocol": "maple",
+        "tvl_usd": 3081165996.0,
+        "base_apy": 0.047249,
+        "daily_exit_volume_usd": 308116599.6,
+        "volume_source": "proxy_from_tvl",
+        "max_position_usd": 30811659.960000005,
+        "weight": 0.2,
+        "position_usd_at_current_aum": 20000.0,
+        "utilization_at_current_aum": 0.0006491049176176874,
+        "capacity_adjusted_apy_at_current": 0.04723979913252425,
+        "capacity_adjusted_apy_at_cap": 0.033074299999999994
+      }
+    ],
+    "portfolio": {
+      "current_aum_usd": 100000.0,
+      "max_aum_usd": 20139.5,
+      "binding_pool": "morpho_blue",
+      "num_weighted_pools": 4,
+      "blended_apy_at_current": 0.03462242162719722,
+      "blended_apy_at_ceiling": 0.03498249535010938,
+      "grade": "D",
+      "verdict": "capacity_constrained"
+    }
+  }
+}
