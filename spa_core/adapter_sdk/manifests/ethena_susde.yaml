@@ -1,0 +1,20 @@
+# Ethena staked USDe (sUSDe) — DeFiLlama yields project slug: "ethena-usde".
+# MP-206 card: "Ethena (capped, ось peg)" — deliberately capped at 0.05 (below
+# the T3 default 0.10) because the yield source is a synthetic-dollar basis
+# trade, not plain lending. 7-day unstake cooldown => honest illiquid profile.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: ethena_susde
+defillama_protocol_id: ethena-usde
+chains:
+  - Ethereum
+symbols:
+  - SUSDE
+tier: T3
+cap: 0.05
+exit_latency:
+  hours: 168.0        # 7-day unstaking cooldown — > 72h threshold => illiquid
+  profile: illiquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0
