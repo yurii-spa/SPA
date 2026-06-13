@@ -236,7 +236,7 @@
         "live_enabled": false,
         "live_values_present": false
       },
-      "allocation_note": "→0.30 when ELIGIBLE",
+      "allocation_note": "\u21920.30 when ELIGIBLE",
       "chains": [
         "ethereum"
       ],
@@ -316,7 +316,7 @@
       "allocation_cap": 0.0,
       "write_state": "Research (GSM pending)",
       "mev_routed": false,
-      "allocation_note": "→ до 30% при GSM ≥ 48h",
+      "allocation_note": "\u2192 \u0434\u043e 30% \u043f\u0440\u0438 GSM \u2265 48h",
       "status": "research",
       "apy_source": {
         "mode": "research",
@@ -347,7 +347,7 @@
       "allocation_cap": 0.0,
       "write_state": "Research (GSM pending)",
       "mev_routed": false,
-      "allocation_note": "→ до 20% при GSM ≥ 48h",
+      "allocation_note": "\u2192 \u0434\u043e 20% \u043f\u0440\u0438 GSM \u2265 48h",
       "status": "research",
       "apy_source": {
         "mode": "research",
@@ -376,7 +376,7 @@
     "protocol_key": "morpho-blue",
     "morpho_vault": "Steakhouse USDC",
     "apy_source": "morpho_blue_steakhouse",
-    "comment": "Morpho Blue Steakhouse USDC vault (0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb): 6.5% APY vs Aave mainnet 3.2% — Quick Win #1 (+200 bps, no code change required)",
+    "comment": "Morpho Blue Steakhouse USDC vault (0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb): 6.5% APY vs Aave mainnet 3.2% \u2014 Quick Win #1 (+200 bps, no code change required)",
     "quick_win": true,
     "bps_gain": 200
   },
@@ -601,7 +601,7 @@
     "risk_score": 0.38,
     "last_updated": "2026-06-13",
     "source": "fallback",
-    "notes": "ERC-4626 DAI savings vault (DSR); atomic redeem; hard-peg gate 0.5% vs USD (PSM); T2 due to DAI→USDS migration",
+    "notes": "ERC-4626 DAI savings vault (DSR); atomic redeem; hard-peg gate 0.5% vs USD (PSM); T2 due to DAI\u2192USDS migration",
     "added_by": "MP-562",
     "added_at": "2026-06-13"
   },
