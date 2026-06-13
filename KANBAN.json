@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-13T07:49:39.433648+00:00",
-  "updated_by": "claude (SPA-V548)",
-  "sprint_current": "v5.48",
+  "last_updated": "2026-06-13",
+  "updated_by": "claude (SPA-V549)",
+  "sprint_current": "v5.49",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -5535,6 +5535,92 @@
         "stdlib-only",
         "SPA-BL-011"
       ]
+    },
+    {
+      "id": "MP-626",
+      "title": "PositionSizingEngine — risk-parity + Kelly + tier caps; 73 tests green",
+      "description": "spa_core/analytics/position_sizing_engine.py: PositionSizeResult dataclass (adapter_id, recommended_weight, max_weight, rationale, risk_score). PositionSizingEngine(capital_usd, risk_budget=0.10): compute_equal_weight (1/N), compute_risk_parity (w_i=1/r_i/Σ1/r_j, zero-risk floor 1e-9), apply_tier_caps (water-filling: T1≤40%, T2≤25%, T3≤10%, total T2≤50%, T3≤15%), compute_kelly_fraction (kelly=(WR*win-LR*loss)/win, capped 0.25), optimize (risk-parity+tier-caps blended 60/40 with Kelly, advisory rationale), generate_report (weights_table, HHI diversification_score, advisory disclaimer). Pure stdlib, advisory/read-only, SPA-BL-011 compliant. 73 tests green.",
+      "status": "done",
+      "priority": "MEDIUM",
+      "type": "code",
+      "sprint": "v5.48",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V548)",
+      "tags": [
+        "analytics",
+        "advisory",
+        "position-sizing",
+        "risk-parity",
+        "kelly",
+        "stdlib-only",
+        "SPA-BL-011"
+      ],
+      "files": [
+        "spa_core/analytics/position_sizing_engine.py",
+        "spa_core/tests/test_position_sizing_engine.py"
+      ],
+      "tests": "73 tests green (Ran 73 tests in 0.002s — OK)"
+    },
+    {
+      "id": "MP-627",
+      "title": "TelegramDailyDigest — all-module aggregator, MarkdownV2, send/save; 75 tests green",
+      "description": "spa_core/analytics/telegram_daily_digest.py: DigestSection dataclass (title, emoji, lines). TelegramDailyDigest(data_dir): _load_json (fail-safe), _format_section (MDv2 header+indented lines), build_portfolio_section (strategy_summary/paper_trading_status), build_alert_section (alert_report/alert_threshold_log), build_progress_section (progress_tracker, milestones), build_paper_trading_section (paper_trading_log/equity_curve_daily), build_forecast_section (yield_forecast 7d/30d/trend), build_digest (assembles all sections, header, footer, truncate 4096), send_digest (urllib.request.urlopen POST, timeout=10, returns {ok, status_code, message_id/error}), save_digest (atomic tmp+os.replace to data/telegram_digests/YYYY-MM-DD.txt). escape_mdv2 escapes all 16 MarkdownV2 special chars. Pure stdlib, advisory/read-only, SPA-BL-011 compliant. 75 tests green.",
+      "status": "done",
+      "priority": "MEDIUM",
+      "type": "code",
+      "sprint": "v5.48",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V548)",
+      "tags": [
+        "analytics",
+        "advisory",
+        "telegram",
+        "digest",
+        "markdownv2",
+        "stdlib-only",
+        "SPA-BL-011"
+      ],
+      "files": [
+        "spa_core/analytics/telegram_daily_digest.py",
+        "spa_core/tests/test_telegram_daily_digest.py"
+      ],
+      "tests": "75 tests green (Ran 75 tests in 0.009s — OK)"
+    },
+    {
+      "id": "MP-628",
+      "title": "StrategyTournament leaderboard (S0-S19) + Dashboard v3.5 gas/risk/leaderboard panels",
+      "description": "spa_core/analytics/strategy_tournament.py: StrategyScore dataclass + StrategyTournament class (rank_strategies/compute_sharpe/get_top_n/generate_leaderboard_report/save_report). Reads strategy_shadow_comparison.json → pnl_history.json → deterministic defaults S0-S19. Ring-buffer 100. Dashboard v3.5: 3 new panels in Statistics tab — ⛽ Gas Cost Impact (gas_cost_log.json, drag bps, net APY, grade A-D), 🛡️ Protocol Risk Profile (protocol_risk_scores.json, top-5 safest, suspended count), 🏆 Strategy Leaderboard (strategy_tournament.json, top-5, gold winner row). 90 tests green.",
+      "status": "done",
+      "priority": "MEDIUM",
+      "type": "code",
+      "sprint": "v5.49",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V549)",
+      "tags": [
+        "analytics",
+        "advisory",
+        "strategy-tournament",
+        "leaderboard",
+        "dashboard",
+        "stdlib-only",
+        "SPA-BL-011"
+      ]
+    },
+    {
+      "id": "Dashboard-v3.5",
+      "title": "Dashboard v3.5 — Gas Cost Impact + Protocol Risk Profile + Strategy Leaderboard panels",
+      "description": "index.html updated: 3 new an-card panels in Statistics tab with fetch()/graceful error handling. Wired into loadAnalytics() deferred queue.",
+      "status": "done",
+      "priority": "MEDIUM",
+      "type": "ui",
+      "sprint": "v5.49",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V549)",
+      "tags": [
+        "dashboard",
+        "ui",
+        "v3.5"
+      ]
     }
   ],
   "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
@@ -5542,7 +5628,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 23,
+  "done_count": 25,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -5821,5 +5907,8 @@
   "_v547_dispatch_note": "SPA-V547 / MP-623: создан advisory/read-only модуль DataFeedHealthScoreboard (spa_core/analytics/data_feed_health_scoreboard.py), агрегирующий 8 файлов data/apy_feed_*_health_state.json в единый дашборд качества данных: per-check HEALTHY/DEGRADED/CRITICAL по consecutive-счётчику + staleness-проверка updated_at (>24ч floor до DEGRADED) + общий грейд, health_score, worst_check, ring-buffer 48, atomic save, format_telegram_message. 87 unittest-кейсов зелёные. Pure stdlib, STRICTLY READ-ONLY (SPA-BL-011 соблюдён).",
   "_v548_mp624_dispatch_note": "MP-624 (SPA-V548): GasCostTracker — record_gas/get_total_cost_usd/get_cost_by_adapter/get_cost_by_chain/compute_net_apy/generate_report; ring-buffer 100 entries; gas drag bps graded A(<5)/B(<15)/C(<30)/D(>=30); atomic tmp+os.replace; data/gas_cost_log.json stub. 76 tests green. Pure stdlib, advisory/read-only.",
   "_v548_mp625_dispatch_note": "MP-625 (SPA-V548): ProtocolRiskScorer — 15 KNOWN_PROTOCOLS (Aave/Compound/Morpho/Euler/Maple/Sky/Pendle/Spark/ExtraFinance/Moonwell); score formula tvl+audit+age+exploit_penalty capped 100; A(0-20)/B(21-40)/C(41-60)/D(61-80)/F(81-100) grade; get_portfolio_risk_profile weighted score; flag_suspended (moonwell/extra_finance); atomic save; data/protocol_risk_scores.json. 96 tests green. Pure stdlib, advisory/read-only.",
-  "_v548_dispatch_note": "MP-624 GasCostTracker + MP-625 ProtocolRiskScorer — 172 tests green — 2026-06-13"
+  "_v548_dispatch_note": "MP-626 PositionSizingEngine + MP-627 TelegramDailyDigest added to done. 148 tests green. scripts/push_v548.sh created.",
+  "_v549_dispatch_note": "MP-628 StrategyTournament + Dashboard v3.5 — 90 tests — 2026-06-13",
+  "_v549_mp628_dispatch_note": "strategy_tournament.py: StrategyScore dataclass, StrategyTournament(rank_strategies/compute_sharpe/get_top_n/generate_leaderboard_report/save_report), 90 tests, data/strategy_tournament.json written",
+  "_v549_dashv35_dispatch_note": "index.html v3.5: loadGasCostPanel/loadProtocolRiskPanel/loadStrategyLeaderboard — deferred in loadAnalytics()"
 }
