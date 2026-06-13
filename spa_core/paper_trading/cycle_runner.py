@@ -1681,6 +1681,75 @@ def run_cycle(
                 _ms_strategies.append(_ms_s15)
             except ImportError:
                 pass
+            # ── MP-599: S17 Polygon Yield — Core60%+Anchor25%+Boost15% ──────────
+            try:
+                from spa_core.strategies.s17_polygon_yield import (
+                    STRATEGY_ID as _s17_id,
+                    STRATEGY_NAME as _s17_name,
+                    TIER as _s17_tier,
+                    ALLOCATION_WEIGHTS as _s17_weights,
+                    TARGET_APY_PCT as _s17_target_apy,
+                )
+                _s17_apy_min = _s17_target_apy * 0.80
+                _s17_apy_max = _s17_target_apy * 1.20
+                _ms_s17 = _MSStrategyConfig(
+                    id=_s17_id,
+                    name=_s17_name,
+                    description="S17 Polygon Yield (Core 60%+Anchor 25%+Boost 15%)",
+                    allocations=dict(_s17_weights),
+                    tier=_s17_tier,
+                    target_apy_min=_s17_apy_min,
+                    target_apy_max=_s17_apy_max,
+                )
+                _ms_strategies.append(_ms_s17)
+            except ImportError:
+                pass
+            # ── MP-604: S18 High Yield T2 — Safety30%+CoreA35%+CoreB25%+Boost10% ──
+            try:
+                from spa_core.strategies.s18_high_yield_t2 import (
+                    STRATEGY_ID as _s18_id,
+                    STRATEGY_NAME as _s18_name,
+                    TIER as _s18_tier,
+                    ALLOCATION_WEIGHTS as _s18_weights,
+                    TARGET_APY_PCT as _s18_target_apy,
+                )
+                _s18_apy_min = _s18_target_apy * 0.80
+                _s18_apy_max = _s18_target_apy * 1.20
+                _ms_s18 = _MSStrategyConfig(
+                    id=_s18_id,
+                    name=_s18_name,
+                    description="S18 High Yield T2 (Safety30%+CoreA35%+CoreB25%+Boost10%)",
+                    allocations=dict(_s18_weights),
+                    tier=_s18_tier,
+                    target_apy_min=_s18_apy_min,
+                    target_apy_max=_s18_apy_max,
+                )
+                _ms_strategies.append(_ms_s18)
+            except ImportError:
+                pass
+            # ── MP-608: S19 Balanced L2 — equal 25% across ARB+BASE+OPT+POLY ─────
+            try:
+                from spa_core.strategies.s19_balanced_l2 import (
+                    STRATEGY_ID as _s19_id,
+                    STRATEGY_NAME as _s19_name,
+                    TIER as _s19_tier,
+                    L2_ADAPTERS as _s19_weights,
+                    TARGET_APY_PCT as _s19_target_apy,
+                )
+                _s19_apy_min = _s19_target_apy * 0.80
+                _s19_apy_max = _s19_target_apy * 1.20
+                _ms_s19 = _MSStrategyConfig(
+                    id=_s19_id,
+                    name=_s19_name,
+                    description="S19 Balanced L2 (ARB25%+BASE25%+OPT25%+POLY25%)",
+                    allocations=dict(_s19_weights),
+                    tier=_s19_tier,
+                    target_apy_min=_s19_apy_min,
+                    target_apy_max=_s19_apy_max,
+                )
+                _ms_strategies.append(_ms_s19)
+            except ImportError:
+                pass
             _ms_runner = _MultiStrategyRunner(
                 strategies=_ms_strategies, capital=100_000
             )
