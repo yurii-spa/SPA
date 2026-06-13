@@ -5,7 +5,8 @@ from .morpho_blue import MorphoBlueAdapter
 from .yearn_v3 import YearnV3Adapter
 from .euler_v2 import EulerV2Adapter
 from .maple import MapleAdapter
-from .compound_v3 import CompoundV3Adapter
+# MP-564: upgraded to BaseAdapter with peg-gate, is_eligible, simulate_deposit/withdraw, get_health
+from .compound_v3_adapter import CompoundV3Adapter
 from .aave_v3 import AaveV3Adapter
 from .pendle_adapter import PendleAdapter
 # MP-356: Aave V3 Arbitrum T1 anchor (L2, отдельный адаптер с allocate/withdraw)
@@ -26,6 +27,12 @@ from .scrvusd_adapter import ScrvusdAdapter  # MP-560
 from .stusd_adapter import StusdAdapter  # MP-561
 # MP-562: MakerDAO Savings DAI (sDAI) ERC-4626 T2 adapter (hard-peg gate 0.5%, DSR yield)
 from .sdai_adapter import SdaiAdapter  # MP-562
+# MP-563: Frax Finance FraxLend USDC T2 adapter (hard-peg gate 0.5%, utilisation-based yield)
+from .frax_adapter import FraxAdapter  # MP-563
+# MP-565: Aave V3 Optimism USDC lending T1 L2 adapter (hard-peg gate 0.5%, gas 95% cheaper)
+from .aave_v3_optimism_adapter import AaveV3OptimismAdapter  # MP-565
+# MP-593: Aave V3 Polygon USDC.e lending T1 L2 adapter (hard-peg gate 0.5%, gas 90% cheaper, USDC.e bridge note)
+from .aave_v3_polygon_adapter import AaveV3PolygonAdapter  # MP-593
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -91,6 +98,9 @@ ADAPTER_REGISTRY = [
     ("scrvusd",       "T2", ScrvusdAdapter),  # MP-560
     ("stusd",         "T2", StusdAdapter),  # MP-561
     ("sdai",          "T2", SdaiAdapter),   # MP-562
+    ("frax",          "T2", FraxAdapter),   # MP-563
+    ("aave_v3_optimism", "T1", AaveV3OptimismAdapter),  # MP-565
+    ("aave_v3_polygon",  "T1", AaveV3PolygonAdapter),   # MP-593
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -125,6 +135,9 @@ __all__ = [
     "ScrvusdAdapter",  # MP-560
     "StusdAdapter",  # MP-561
     "SdaiAdapter",   # MP-562
+    "FraxAdapter",   # MP-563
+    "AaveV3OptimismAdapter",  # MP-565
+    "AaveV3PolygonAdapter",   # MP-593
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
