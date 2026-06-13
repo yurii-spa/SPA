@@ -1,0 +1,32 @@
+{
+  "sprint": "v4.86",
+  "date": "2026-06-12",
+  "pass": 7,
+  "total": 7,
+  "ready": true,
+  "checks": {
+    "adapter_registry": {
+      "status": "PASS",
+      "count": 16
+    },
+    "cycle_runner": {
+      "status": "PASS"
+    },
+    "market_regime": {
+      "status": "PASS"
+    },
+    "daily_limits": {
+      "status": "PASS"
+    },
+    "defi_llama_feed": {
+      "status": "PASS"
+    },
+    "protocol_direct": {
+      "status": "PASS"
+    },
+    "tournament": {
+      "status": "PASS",
+      "count": 14
+    }
+  }
+}
