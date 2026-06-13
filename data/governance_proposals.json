@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T06:00:36Z",
+  "generated_at": "2026-06-13T06:00:28Z",
   "watcher_version": "1.0",
   "sources": [
     "bootstrap"
@@ -20,7 +20,7 @@
       "votes_for": 780000,
       "votes_against": 95000,
       "quorum_met": false,
-      "detected_at": "2026-06-12T06:00:32Z"
+      "detected_at": "2026-06-13T06:00:26Z"
     },
     {
       "id": "snapshot:bootstrap-003",
@@ -36,7 +36,7 @@
       "votes_for": 3100000,
       "votes_against": 220000,
       "quorum_met": true,
-      "detected_at": "2026-06-12T06:00:32Z"
+      "detected_at": "2026-06-13T06:00:26Z"
     },
     {
       "id": "snapshot:bootstrap-004",
@@ -52,7 +52,7 @@
       "votes_for": 5500000,
       "votes_against": 0,
       "quorum_met": true,
-      "detected_at": "2026-06-12T06:00:32Z"
+      "detected_at": "2026-06-13T06:00:26Z"
     },
     {
       "id": "snapshot:bootstrap-001",
@@ -68,7 +68,7 @@
       "votes_for": 1250000,
       "votes_against": 45000,
       "quorum_met": true,
-      "detected_at": "2026-06-12T06:00:32Z"
+      "detected_at": "2026-06-13T06:00:26Z"
     },
     {
       "id": "snapshot:bootstrap-006",
@@ -84,7 +84,7 @@
       "votes_for": 42000000,
       "votes_against": 1200000,
       "quorum_met": true,
-      "detected_at": "2026-06-12T06:00:32Z"
+      "detected_at": "2026-06-13T06:00:26Z"
     },
     {
       "id": "snapshot:bootstrap-002",
@@ -100,7 +100,7 @@
       "votes_for": 890000,
       "votes_against": 12000,
       "quorum_met": true,
-      "detected_at": "2026-06-12T06:00:32Z"
+      "detected_at": "2026-06-13T06:00:26Z"
     }
   ],
   "summary": {
@@ -140,7 +140,7 @@
         "votes_for": 780000,
         "votes_against": 95000,
         "quorum_met": false,
-        "detected_at": "2026-06-12T06:00:32Z"
+        "detected_at": "2026-06-13T06:00:26Z"
       }
     ]
   }
