@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "source": "yield_forecast_engine",
+  "ring_buffer_max": 48,
+  "snapshot_count": 1,
+  "updated_at": "2026-06-13T04:24:05.717980+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T04:24:05.717980+00:00",
+    "portfolio_current_apy": 0.0,
+    "portfolio_forecast_1d": 0.0,
+    "portfolio_forecast_7d": 0.0,
+    "portfolio_forecast_30d": 0.0,
+    "portfolio_trend": "STABLE",
+    "high_confidence_count": 0,
+    "low_data_warning": true,
+    "disclaimer": "ADVISORY ONLY: This is not financial advice.",
+    "adapters": []
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T04:24:05.717980+00:00",
+      "portfolio_current_apy": 0.0,
+      "portfolio_forecast_1d": 0.0,
+      "portfolio_forecast_7d": 0.0,
+      "portfolio_forecast_30d": 0.0,
+      "portfolio_trend": "STABLE",
+      "high_confidence_count": 0,
+      "low_data_warning": true,
+      "disclaimer": "ADVISORY ONLY: This is not financial advice.",
+      "adapters": []
+    }
+  ]
+}
