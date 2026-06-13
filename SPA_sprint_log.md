@@ -1,6 +1,298 @@
-# SPA Sprint Log — updated 2026-06-13 (v5.17)
+# SPA Sprint Log — updated 2026-06-13 (v5.32)
 
 ## Completed ✅
+
+---
+
+## Sprint v5.32 (MP-608) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-608 — S19 Balanced L2 Strategy: равномерная аллокация по 4 L2 сетям (Arbitrum, Base, Optimism, Polygon) через Aave V3 адаптеры.
+
+**Files created/modified:**
+- `spa_core/strategies/s19_balanced_l2.py` (новый): `BalancedL2Strategy` — стратегия максимальной L2 chain-диверсификации, target APY 5.0%, RISK_SCORE 0.26. `L2_ADAPTERS` 4 ключа по 0.25 (aave_arbitrum T1 4.6% / aave_v3_base T2 5.0% / aave_v3_optimism T1 4.8% / aave_v3_polygon T1 5.1%). `FALLBACK_APY`, `RISK_SCORES`, `GAS_INFO` (arb:90%/base:95%/opt:95%/poly:90%). `_compute_effective_weights()` — равные 1/n для eligible. `get_allocation()` — перераспределение при ineligible, {} при всех неeligible. `get_expected_apy()` — equal-weight avg (default 4.875%). `get_chain_diversity_score()` — score=eligible/4, description Perfect/High/Moderate/Low/None. `get_gas_savings_summary()` — avg_savings 92.5%, chains_breakdown. `get_health()`, `simulate()`, `to_dict()`. `_register()` авто-регистрация.
+- `spa_core/tests/test_s19_balanced_l2.py` (новый): **111 unittest-кейсов**, 13 тест-классов — TestInit(10): S19/Balanced L2/5.0/0.26/T1; TestAdapterKeys(8): 4 ключа/0.25/sum=1.0; TestGetAllocation(18): 25% ×4, перераспределение 1/2/3 неeligible, {} при всех неeligible, edge-cases; TestGetExpectedAPY(10): avg 4.875%, 1 eligible, все неeligible=0, fallback; TestGetChainDiversityScore(12): 1.0/Perfect, 0.75/0.5/0.25, len(chains)=4; TestGetGasSavingsSummary(10): 92.5% avg, 4 chain names; TestGetHealth(8): strategy_id/all_eligible/status ok; TestSimulate(9): yield correctness 4875$/100k, chain_results; TestToDict(4): JSON-serializable; TestConstants(2): float types; TestModuleConstants(8): FALLBACK_APY/RISK_SCORES/GAS_INFO структура; TestAllIneligibleEdgeCases(8): {}/0.0/degraded/no_eligible_adapters; TestAdapterLoading(4): real instance no raise.
+- `spa_core/paper_trading/cycle_runner.py` (обновлён): аддитивный блок `# MP-608: S19 Balanced L2` — try/except ImportError, L2_ADAPTERS, _MSStrategyConfig, append. 24 строки.
+- `KANBAN.json` (обновлён): MP-608 → done (sprint v5.32); sprint_current=v5.32; _v532_dispatch_note.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_s19_balanced_l2 -v` → **Ran 111 tests in 0.083s — OK** (111/111). cycle_runner.py compile → OK. KANBAN.json valid JSON.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, golive_checker.py — НЕ тронуты. cycle_runner.py — только аддитивный S19-блок (24 строки). Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-608 (S19 BalancedL2) → done** (sprint v5.32, completed=2026-06-13); `sprint_current=v5.32`; `sprint_completed=v5.32`.
+
+**Файлы для коммита:** `spa_core/strategies/s19_balanced_l2.py`, `spa_core/tests/test_s19_balanced_l2.py`, `spa_core/paper_trading/cycle_runner.py`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v532.sh`.
+
+**PUSH:** ⛔ не выполнен из Linux sandbox (нет доступа к macOS Keychain). Создан `scripts/push_v532.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.31 (MP-607) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-607 — BenchmarkTracker: отслеживание доходности портфеля относительно бенчмарков (T-Bill / USDC Hold / ETH Staking / Best Adapter) с вердиктом ALPHA+ / ALPHA / BENCHMARK / LAGGING.
+
+**Files created/modified:**
+- `spa_core/analytics/benchmark_tracker.py` (новый): `BenchmarkResult` (name/apy_pct/portfolio_apy_pct/excess_return_pct/information_ratio/outperforming, to_dict). `BenchmarkReport` (generated_at, portfolio_apy_pct, portfolio_allocated_usd, benchmarks, best_benchmark_name, best_benchmark_apy, overall_excess_return, annual_alpha_usd, outperforming_count, total_benchmarks, verdict, to_dict). `BenchmarkTracker`: `BENCHMARKS={T-Bill:4.50, USDC Hold:4.00, ETH Staking:3.50}` (статические), Best Adapter — dynamic из adapter_status.json. `ASSUMED_VOL=1.0`. `load_portfolio_data` — yield_attribution_tracker.json latest.effective_apy_pct + total_allocated_usd, fallback: 5.0% / $100k. `get_best_adapter_apy` — max APY из adapter_status.json (top-level + adapters[], dual-source, skip_keys фильтр), fallback 5.0. `compute_benchmark` — excess=portfolio-bench, IR=excess/ASSUMED_VOL, outperforming=excess>0. `_determine_verdict` — ALPHA+>1.5%, ALPHA>0.3%, BENCHMARK|excess|≤0.3%, LAGGING<-0.3%. `generate_report` — 4 BenchmarkResult (3 статич. + Best Adapter), best_benchmark=max APY, overall_excess_return, annual_alpha_usd=excess*allocated/100, outperforming_count, verdict. `save_report` — atomic tmp+os.replace, ring-buffer 30 snapshots в data/benchmark_report.json. `format_telegram_message` — ≤1500 chars, emoji 🏆/✅/➡️/⚠️ по verdict, APY + delta vs каждого бенчмарка + IR. `to_dict` — JSON-serializable dict. CLI --check/--run/--data-dir. Pure stdlib, атомарные записи.
+- `spa_core/tests/test_benchmark_tracker.py` (новый): **97 unittest-кейсов**, 9 тест-классов — TestBenchmarkResult(10): поля/outperforming true+false+zero/IR sign/to_dict keys+values+json/разные имена; TestBenchmarkReport(10): поля/verdict 4 варианта/outperforming_count/alpha_usd/to_dict benchmarks list/default empty benchmarks; TestLoadPortfolioData(10): missing→defaults/valid apy+allocated/malformed JSON/missing latest/latest not dict/zero apy fallback/zero allocated fallback/negative apy fallback/both keys present; TestGetBestAdapterAPY(8): missing→fallback/max из adapters list/mock_apy fallback/top-level+adapters merged/malformed→fallback/empty→fallback/skip_keys/returns float>0; TestComputeBenchmark(12): excess formula/negative excess/zero excess/IR=excess/vol/IR negative/outperforming true+false+zero/name/apy_pct/portfolio_apy/large IR; TestGenerateReport(15): instance type/4 benchmarks/all 4 names/best=max APY/overall_excess formula/annual_alpha formula/outperforming count/total=4/ALPHA+/LAGGING/portfolio apy+allocated matching; TestSaveReport(5): файл создан/valid JSON/latest key/ring-buffer cap/custom path; TestFormatTelegramMessage(6): ≤1500 chars/portfolio apy/verdict/T-Bill/Best Adapter/string; TestToDict(4): dict/json-serializable/verdict key/benchmarks list=4; TestVerdictThresholds(5): ALPHA+ boundary/ALPHA boundary/BENCHMARK+/BENCHMARK-/LAGGING boundary; TestSafeFloat(7): int/float/string/None/bool/nan/inf; TestExtractApyFromAdapter(5): apy_pct priority/apy fallback/mock_apy/empty/bool rejected.
+- `data/benchmark_report.json` (новый): первый снапшот — Portfolio APY=5.2172%, LAGGING (Best Adapter=12.0% из adapter_status.json), beating 3/4 (T-Bill/USDC/ETH Staking).
+- `KANBAN.json` (обновлён аддитивно): MP-607 → done (sprint v5.31); sprint_current=v5.31; sprint_completed=v5.31.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_benchmark_tracker -v` → **Ran 97 tests in 0.090s — OK** (97/97). `python3 -m spa_core.analytics.benchmark_tracker --run` → Portfolio APY=5.2172%, LAGGING (Best Adapter 12.0%), beating 3/4, data/benchmark_report.json saved. Compile check → OK.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-607 (BenchmarkTracker) → done** (sprint v5.31, completed=2026-06-13, completed_by="claude (SPA-V531)"); `sprint_current=v5.31`; `sprint_completed=v5.31`.
+
+**Файлы для коммита:** `spa_core/analytics/benchmark_tracker.py`, `spa_core/tests/test_benchmark_tracker.py`, `data/benchmark_report.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v531.sh`.
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v531.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.29 (MP-605) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-605 — IntegratedRiskDashboard: агрегация risk-сигналов peg/concentration/watchdog/momentum в единый weighted score GREEN/YELLOW/ORANGE/RED.
+
+**Files created/modified:**
+- `spa_core/analytics/integrated_risk_dashboard.py` (новый): `RiskSignal` (source/level/score/summary/details, to_dict), `IntegratedRiskAssessment` (generated_at, overall_score, overall_level, signals, critical_count, warning_count, top_risk, recommendations, data_freshness, to_dict). `IntegratedRiskDashboard`: `SIGNAL_WEIGHTS={peg:0.35, concentration:0.25, watchdog:0.25, momentum:0.15}` (сумма=1.0). Пороги: `SCORE_GREEN<0.10→GREEN`, `SCORE_YELLOW<0.30→YELLOW`, `SCORE_ORANGE<0.55→ORANGE`, `≥0.55→RED`. `_safe_load_json` — None при missing/malformed/empty. `_read_peg_signal` — GREEN→0.0/YELLOW→0.5/RED→0.9/missing→0.3(WARNING). `_read_concentration_signal` — LOW→0.1/MEDIUM→0.4/HIGH→0.7/missing→0.3(WARNING). `_read_watchdog_signal` — score=(critical×0.9+warning×0.4)/max(total,1) capped 1.0, empty latest→0.3(INFO). `_read_momentum_signal` — score=(falling/max(total,1))×0.6, missing→0.15(OK). `_check_data_freshness` — {source: OK/STALE_Xh/MISSING}, порог 2h, поля: generated_at/updated_at/last_updated/timestamp. `_build_recommendations` — peg CRITICAL→EMERGENCY halt deposits; peg WARNING→monitor; concentration CRITICAL→reduce below 35%; concentration WARNING→review; watchdog CRITICAL→check immediately; watchdog WARNING→investigate; momentum CRITICAL→consider rebalancing; все OK→no action required. `_find_top_risk` — max(score) среди CRITICAL, иначе WARNING, иначе "All systems normal". `assess()` — pure-read, 4 сигнала, weighted avg, IntegratedRiskAssessment. `save_assessment()` — атомарная запись data/integrated_risk.json, ring-buffer 48 snapshots. `format_telegram_message()` — ≤2000 chars, emoji 🟢🟡🟠🔴 по уровню, Signals section, Recommendations (top 3). CLI `--check`/`--run`/`--telegram`/`--data-dir`. Pure stdlib, атомарные записи.
+- `spa_core/tests/test_integrated_risk_dashboard.py` (новый): **100 unittest-кейсов**, 12 тест-классов — TestRiskSignal(8): source/level/score range/details default/custom/to_dict keys+serializable; TestIntegratedRiskAssessment(8): GREEN/YELLOW/ORANGE/RED levels/signals default/to_dict keys+serializable/score range; TestSafeLoadJson(8): missing→None/valid→dict/malformed→None/empty→None/nested intact/truncated→None/array ok/unicode ok; TestReadPegSignal(12): GREEN score=0.0+level OK/YELLOW score=0.5+level WARNING/RED score=0.9+level CRITICAL/missing score=0.3+level WARNING/source=peg/details overall_status+critical count/summary not empty; TestReadConcentrationSignal(10): LOW/MEDIUM/HIGH scores+levels/missing score=0.3/source=concentration/details top_protocol+overall_risk; TestReadWatchdogSignal(12): missing score=0.3/empty latest score=0.3/all healthy score=0.0/one critical formula/one warning formula/critical dominates/score capped 1.0/source=watchdog/details healthy+critical/level OK+CRITICAL; TestReadMomentumSignal(10): missing score=0.15/no falling score=0.0/falling proportion formula/all falling capped/source=momentum/details falling+rising/level OK no falling/top_falling in details/empty latest fallback; TestCheckDataFreshness(8): all MISSING/fresh OK/stale detected/stale contains hours Xh/4 sources/updated_at field/last_updated field/no timestamp → OK; TestAssess(12): all green→GREEN/YELLOW/returns IntegratedRiskAssessment/weighted score formula/red peg lifts score/critical count ≥2/warning count ≥1/recommendations not empty/top risk not empty/data freshness dict/4 signals always/level not RED when all missing/to_dict serializable; TestSaveAssessment(5): creates file/no .tmp leftover/ring buffer grows/max 48/latest key in output; TestFormatTelegramMessage(5): ≤2000 chars/contains level/🟢 emoji for green data/Recommendations section/Signals section; TestWeights(2): sum=1.0/all 4 sources have weights.
+- `data/integrated_risk.json` (новый): первый снапшот — overall_level=YELLOW score=0.1000, critical=0, warning=0 (concentration LOW=0.1 × 0.25 = 0.025 от concentration; остальные OK или INFO).
+- `KANBAN.json` (обновлён аддитивно): MP-605 → done (sprint v5.29); sprint_current=v5.29; sprint_completed=v5.29.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_integrated_risk_dashboard -v` → **Ran 100 tests in 0.147s — OK** (100/100). `python3 -m spa_core.analytics.integrated_risk_dashboard --run` → overall_level=YELLOW score=0.1000, data/integrated_risk.json saved. Compile check → OK.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/ (других файлов), allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-605 (IntegratedRiskDashboard) → done** (sprint v5.29, completed=2026-06-13, completed_by="claude (SPA-V529)"); `sprint_current=v5.29`; `sprint_completed=v5.29`.
+
+**Файлы для коммита:** `spa_core/analytics/integrated_risk_dashboard.py`, `spa_core/tests/test_integrated_risk_dashboard.py`, `data/integrated_risk.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v529.sh`.
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v529.sh` для ручного запуска на Mac.
+
+---
+
+## SPA Sprint v5.28 — MP-604 S18 High Yield T2 Strategy (2026-06-13)
+
+**Files created/modified:**
+- `spa_core/strategies/s18_high_yield_t2.py` (новый): `HighYieldT2Strategy` — агрессивная T2-ориентированная стратегия, target APY 8.0%, RISK_SCORE 0.42, MAX_T2_WEIGHT 0.70.
+  - `SLOTS` (4 слота): `safety_net` T1 30% (compound_v3→spark_susds, ~5.0%), `core_a` T2 35% (sfrax→wusdm, ~8.5%), `core_b` T2 25% (sdai→scrvusd, ~6.5%), `boost` T2 10% (max APY среди sfrax/wusdm/sdai, ~10.0%).
+  - `FALLBACK_APY` (8 адаптеров), `RISK_SCORES` (8 адаптеров), `ALLOCATION_WEIGHTS` (4 уникальных ключа, сумма=1.0).
+  - `_load_adapters()`: индивидуальные try/except для compound_v3, spark_susds, sfrax, wusdm, sdai, scrvusd.
+  - `_resolve_slot(slot_name)`: для не-boost — первый eligible кандидат; для boost — eligible с max APY. Возвращает `(adapter_key, adapter_instance|None)`.
+  - `get_allocation(capital_usd)`: перераспределяет unresolved слот → safety_net; если safety_net тоже unresolved → `__unallocated__`. При capital≤0 → нулевые аллокации.
+  - `get_expected_apy()`: использует get_allocation(1.0) для нормированного weighted APY. При 0 eligible → TARGET_APY_PCT.
+  - `get_risk_summary()`: t1_weight_pct=30, t2_weight_pct=70, adr_019_compliant=False (задокументировано).
+  - `get_health()`: eligible_slots/total_slots, overall_status ok/degraded/critical, per-slot detail.
+  - `simulate(capital_usd)`: per-adapter annual yield, risk_summary, timestamp_utc, ring-buffer 365.
+  - `to_dict()`: полный JSON-serializable snapshot. `_register()`: авто-регистрация в REGISTRY.
+  - ADR-019 aggressive: T2=70%>50% cap — задокументировано в DESCRIPTION и to_dict.
+- `spa_core/tests/test_s18_high_yield_t2.py` (новый): **80 unittest-кейсов**, 8 тест-классов:
+  - `TestInit` (8): STRATEGY_ID, STRATEGY_NAME, TARGET_APY_PCT, RISK_SCORE, MAX_T2_WEIGHT, class attrs, _adapters dict, SLOTS 4 entries.
+  - `TestResolveSlot` (12): safety_net→compound_v3, fallback→spark_susds, none if all ineligible; core_a→sfrax, fallback→wusdm; core_b→sdai, fallback→scrvusd; boost→max APY (8.5>5.5>5.0), boost→only eligible, boost single eligible, boost none if all ineligible, returns adapter instance.
+  - `TestGetAllocation` (15): safety_net 30000, core_a 35000, core_b 25000, boost 10000 (sfrax=45000 total), sum==capital, capital=0/negative zeros, unresolved→safety_net, all T2 unresolved→safety_net 100%, all unresolved→__unallocated__, values float, keys str, same adapter accumulates, small/large capital.
+  - `TestGetExpectedAPY` (10): float, positive, fallback APYs, target 8.0%, weighted correctness (0.30×6+0.45×10+0.25×7=8.05), all unresolved→target, partial unresolved redistributes, range [1,30], boost max APY effect, deterministic.
+  - `TestGetRiskSummary` (12): risk_score=0.42, t1=30, t2=70, t2_count≥1, risk_note str, note mentions 50%, adr_019=False, max_t2=0.70, t1+t2=100%, risk_score in [0,1], t2>t1, key exists.
+  - `TestGetHealth` (8): returns dict, strategy_id S18, total_slots 4, all eligible=4, status ok, status degraded, slots 4 entries, expected_apy>0.
+  - `TestSimulate` (8): dict, yield>0, capital preserved, apy_pct>0, allocation non-empty, status ok, slot_results, capital=0→yield=0.
+  - `TestToDict` (7): dict, json.dumps OK, strategy_id, target_apy_pct, risk_score, slots 4, timestamp.
+- `spa_core/paper_trading/cycle_runner.py` (обновлён): аддитивный блок `# MP-604: S18 High Yield T2` по паттерну S17 — `try/except ImportError`, импорт STRATEGY_ID/STRATEGY_NAME/TIER/ALLOCATION_WEIGHTS/TARGET_APY_PCT, `_MSStrategyConfig`, `_ms_strategies.append`.
+- `KANBAN.json` (обновлён): MP-604 → done, sprint_current/sprint_completed="v5.28", `_v528_dispatch_note`.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_s18_high_yield_t2 -v` → **Ran 80 tests in 0.016s — OK** (80/80).
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, golive_checker.py — НЕ тронуты. cycle_runner.py — только аддитивное добавление S18-блока (19 строк). Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-604 (S18 HighYieldT2) → done** (sprint v5.28, completed=2026-06-13, completed_by="claude (SPA-V528)"); `sprint_current=v5.28`; `sprint_completed=v5.28`.
+
+**Файлы для коммита:** `spa_core/strategies/s18_high_yield_t2.py`, `spa_core/tests/test_s18_high_yield_t2.py`, `spa_core/paper_trading/cycle_runner.py`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v528.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V528): S18 HighYieldT2 strategy (MP-604) — Safety30%+CoreA35%+CoreB25%+Boost10%, target APY 8.0%, T2 risk management, 80 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — создан `scripts/push_v528.sh` для ручного запуска на Mac.
+
+---
+
+## SPA Sprint v5.27 — MP-603 ProtocolConcentrationRisk (2026-06-13)
+
+**Files created/modified:**
+- `spa_core/analytics/protocol_concentration_risk.py` (новый): advisory/read-only модуль. `PROTOCOL_MAP` — 20 prefixes (aave→aave, morpho→morpho, spark/sky/sdai/susds→makerdao, sfrax/frax→frax, wusdm→mountain, stusd→angle, scrvusd→curve, susde→ethena, fluid→fluid, extra→extra_finance, …); `_SORTED_PROTOCOL_KEYS` — отсортированы desc по длине для приоритета более длинных префиксов. `ProtocolExposure` dataclass (protocol, adapter_ids, adapter_count, total_tvl_usd, avg_apy_pct, chains, portfolio_weight_pct, risk_level, risk_note). `ConcentrationReport` dataclass (generated_at, total_protocols, total_adapters, total_tvl_usd, exposures, concentration_score, top_protocol, top_protocol_weight_pct, warnings, overall_risk). `ProtocolConcentrationRisk(data_path)` — пороги: MEDIUM≥25%, HIGH≥40%, CRITICAL≥60%; CROSS_CHAIN_MIN=3. Методы: `load_adapter_data()` (top-level tier-entries + adapters[] array, _SKIP_KEYS); `infer_protocol(adapter_id)` (longest prefix match → PROTOCOL_MAP, fallback: первый сегмент до '_', "unknown" при пустом/None); `group_by_protocol(adapter_data)` ({protocol: [adapter_ids]}); `compute_exposure(protocol, adapter_ids, adapter_data, total_tvl)` (TVL агрегация, chains дедупликация, avg_apy, portfolio_weight_pct, risk_level по порогам, risk_note с cross-chain предупреждением при N≥3 цепочек); `compute_hhi(exposures)` (HHI=Σ(weight_i/100)², clamped [0,1]); `generate_report(adapter_data=None)` (полный анализ: sorted desc по weight, warnings для HIGH/CRITICAL + cross-chain≥3 на MEDIUM+, дедупликация warnings, overall_risk=max из exposures с CRITICAL→HIGH маппингом); `get_safe_allocation_caps(adapter_data=None)` (LOW→40/MEDIUM→30/HIGH→20/CRITICAL→10% per protocol); `save_report(output_path=None)` (atomic tmp+os.replace, ring-buffer 30 → data/concentration_risk.json); `format_telegram_message()` (≤1500 chars, overall_risk + HHI + top-3 protocols + warnings); `to_dict()` (JSON-ready snapshot). CLI `--check`/`--run`/`--data-dir`. Pure stdlib, no external deps.
+- `spa_core/tests/test_protocol_concentration_risk.py` (новый): **90 unittest-кейсов**, 10 тест-классов — TestProtocolMap(8), TestInferProtocol(12), TestGroupByProtocol(10), TestComputeExposure(15), TestComputeHHI(10), TestGenerateReport(15), TestGetSafeAllocationCaps(8), TestSaveReport(5), TestFormatTelegramMessage(5), TestToDict(2). Покрыты: PROTOCOL_MAP наличие ключей/типы; prefix matching (aave/morpho/compound/spark→makerdao/sdai→makerdao/sfrax→frax/pendle); fallback до первого слова; empty/None → "unknown"; группировка по протоколу (единый/два/MakerDAO-консолидация/unknown-попадание/каждый ровно один раз/дефис-нормализация); TVL агрегация; weight_pct 0 при total_tvl=0; risk_level LOW/MEDIUM/HIGH/CRITICAL; chains уникальны + дедупликация; avg_apy; adapter_ids sorted; risk_note cross-chain; HHI 1 протокол=1.0/2 равных=0.5/4 равных=0.25/пустой=0/clamp≤1/8020=0.68/float-тип; generate_report сортировка/top_protocol/HHI/предупреждения/total_tvl/adapters/generated_at ISO8601/cross-chain warning 3 цепочек/makerdao-консолидация/types; caps LOW→40/MEDIUM→30/HIGH→20/CRITICAL→10/all covered/float/empty→empty; save ring-buffer≤30/custom path/valid JSON/no tmp; Telegram ≤1500/top protocol/risk level/string/not empty; to_dict JSON-serializable/required keys.
+- `data/concentration_risk.json` (новый): первый снапшот — 16 протоколов, 36 адаптеров, TVL $18.1B, HHI 0.1765, top=compound (23.7%), overall_risk=LOW, no warnings.
+- `KANBAN.json` (обновлён): MP-603 → done, sprint_current/sprint_completed="v5.27".
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_protocol_concentration_risk -v` → **Ran 90 tests in 0.078s — OK** (90/90). CLI `--run` → 16 protocols, 36 adapters, concentration_risk.json saved. Grep запрещённых импортов (risk/execution/monitoring/allocator + numpy/pandas/requests/web3) → IMPORTS CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-603 (ProtocolConcentrationRisk) → done** (sprint v5.27, completed=2026-06-13, completed_by="claude (SPA-V527)"); `sprint_current=v5.27`; `sprint_completed=v5.27`.
+
+**Файлы для коммита:** `spa_core/analytics/protocol_concentration_risk.py`, `spa_core/tests/test_protocol_concentration_risk.py`, `data/concentration_risk.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v527.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V527): ProtocolConcentrationRisk (MP-603) — smart contract exposure HHI, MEDIUM/HIGH/CRITICAL thresholds, cross-chain warnings, 90 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — создан `scripts/push_v527.sh` для ручного запуска на Mac.
+
+---
+
+## SPA Sprint v5.26 — MP-602 Dashboard v3.2 Heat Map Panel (2026-06-13)
+
+**Files created/modified:**
+- `index.html` (обновлён): добавлена панель **Adapter Heat Map** в конец вкладки `tab-analytics`.
+  - **HTML** (`id="heat-map-panel"`, `.an-card`): заголовок «🌡 Adapter Heat Map», кнопка ↻ Refresh (`loadHeatMap(true)`), `id="hm-last-updated"`, легенда (hm-badge: Low/Mid/High/Top), `id="hm-grid"`, `id="hm-summary"`.
+  - **CSS** (40+ правил в `<style>`): `.hm-grid`, `.hm-chain-label`, `.hm-cells`, `.hm-cell` (hover scale+shadow), `.hm-label/.hm-apy/.hm-tvl`, size buckets (`small/medium/large`), color buckets (`hm-low/medium/high/very-high`), night-mode overrides для всех 4 buckets, mobile @media.
+  - **JavaScript**: `async function loadHeatMap(force=false)` — fetch `data/heat_map.json` с cache-bust при force; `function renderHeatMap(data)` — групповой render по chain, создаёт `.hm-cell` с tooltip/opacity/size/color из JSON; `function _hmChainEmoji(chain)` — emoji map для 7 сетей + fallback. Подключено deferred в `loadAnalytics()` (`_defer(() => { loadHeatMap(); })`).
+- `spa_core/tests/test_heatmap_dashboard_integration.py` (новый): **124 unittest-кейса**, 7 тест-классов:
+  - `TestHeatMapJsonTopLevel` (20): generated_at, total_adapters, groups, apy_range (min/max/avg), tvl_total_usd
+  - `TestHeatMapJsonGroups` (11): group_id, chain, tier, cells, avg_apy_pct, total_tvl_usd, count==cells.length, no dup IDs
+  - `TestHeatMapJsonCells` (21): adapter_id, chain, apy_pct, color_bucket∈{low/medium/high/very_high}, size_bucket∈{small/medium/large}, label, tvl_formatted, tooltip(APY), is_eligible bool, risk_score 0–1, total matches
+  - `TestIndexHtmlHeatMapHTML` (14): panel div, hm-grid, hm-summary, hm-last-updated, legend badges, refresh button, panel inside tab-analytics, title text
+  - `TestIndexHtmlHeatMapJS` (25): loadHeatMap/renderHeatMap/_hmChainEmoji defined, deferred call, fetch heat_map.json, cache-bust, DOM selectors, chain emoji map, cells loop, class assignment, is_eligible opacity, error handler, summary fields, MP-602 comment
+  - `TestIndexHtmlHeatMapCSS` (24): все .hm-* классы, night-mode overrides, hover transform, transition
+  - `TestHeatMapEdgeCases` (10): empty groups guard, cells fallback, label fallback, bucket defaults, apy dash fallback, null grid guard (≥2), summary null guard, no-store cache, generated_at guard
+- `KANBAN.json` (обновлён): MP-602 → done, sprint_current="v5.26".
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_heatmap_dashboard_integration -v` → **Ran 124 tests in 0.155s — OK** (124/124). Структура index.html проверена: CSS добавлен перед `</style>`, HTML — в `tab-analytics` перед `</div><!-- /tab-analytics -->`, JS — перед `loadEquityCurve()`, deferred hook — в `loadAnalytics()`.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-602 (Dashboard v3.2 Heat Map) → done** (sprint v5.26, completed=2026-06-13); `sprint_current=v5.26`.
+
+**Файлы для коммита:** `index.html`, `spa_core/tests/test_heatmap_dashboard_integration.py`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v526.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V526): Dashboard v3.2 Heat Map panel (MP-602) — chain-grouped adapter grid, APY color buckets, TVL size, fetch heat_map.json, 124 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — создан `scripts/push_v526.sh` для ручного запуска на Mac.
+
+---
+
+## SPA Sprint v5.24 — MP-600 YieldAttributionTracker (2026-06-13)
+
+**Files created/modified:**
+- `spa_core/analytics/yield_attribution_tracker.py` (новый): advisory/read-only модуль. `AdapterContribution` dataclass (adapter_id, chain, tier, weight_pct, allocated_usd, apy_pct, daily_yield_usd, annual_yield_usd, contribution_pct). `AttributionReport` dataclass (generated_at, total_allocated_usd, total_daily_yield_usd, total_annual_yield_usd, effective_apy_pct, contributions, top_contributor, top_by_apy, chain_breakdown, tier_breakdown, diversification_score). `YieldAttributionTracker(data_path)` с DEFAULT_PORTFOLIO_USD=100_000. Методы: `load_positions()` (dual-source: paper_positions.json → current_positions.json → _simulate_positions из TVL); `_simulate_positions()` (TVL-proportional, TVL≥$5M eligible, 95% deployed); `load_adapter_data()` (top-level tier-entries + adapters[] array, _SKIP_KEYS={generated_at, mev_protection, …}); `compute_contribution(adapter_id, allocated_usd, adapter_data, total_allocated, total_daily_yield=0.0)` (daily=allocated×apy/100/365, contribution_pct=daily/total_daily×100); `compute_diversification_score(contributions)` (HHI=Σ(weight_i/100)², score=1−HHI); `generate_report(positions=None)` (two-pass: pass1 yields → total_daily, pass2 contribution_pct; sorted desc; chain/tier breakdowns; effective APY); `save_report(output_path=None)` (atomic tmp+os.replace, ring-buffer 30 → data/yield_attribution_tracker.json); `get_rebalance_suggestions(target_min=5.0)` (underweight<target → increase; overweight>2×target → decrease; both conditions required); `format_telegram_message()` (≤1500 chars, effective APY + div_score + top-3); `to_dict()` (JSON-ready full snapshot). CLI `--check`/`--run`/`--data-dir`. Pure stdlib, no external deps.
+- `spa_core/tests/test_yield_attribution_tracker.py` (новый): **105 unittest-кейсов**, 11 тест-классов — TestAdapterContribution(10), TestAttributionReport(10), TestLoadPositions(12), TestLoadAdapterData(8), TestComputeContribution(15), TestComputeDiversificationScore(12), TestGenerateReport(15), TestGetRebalanceSuggestions(8), TestSaveReport(5), TestFormatTelegramMessage(5), TestToDict(5). Покрыты: все поля/типы; daily/annual yield formula; weight/contribution_pct proportion; HHI 2/4/10 equal adapters, 80/20 split, clamping; chain/tier breakdown aggregation; dual-source load (paper_positions→current_positions→simulation); TVL simulation sum; corrupt JSON; rebalance under/over условия; ring-buffer ≤30; no .tmp leftover; custom path; ≤1500 chars Telegram; JSON-serializable dict.
+- `data/yield_attribution_tracker.json` (новый): первый снапшот — 5 adapters, Effective APY 5.22%, daily_yield $13.58, diversification_score 0.7476, top=compound_v3 (contrib 28.9%), top_apy=euler_v2 (7.4%).
+- `KANBAN.json` (обновлён): MP-600 → done, sprint_current/sprint_completed="v5.24".
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_yield_attribution_tracker -v` → **Ran 105 tests in 0.091s — OK** (105/105). CLI `--run` → 5 adapters, yield_attribution_tracker.json saved. Grep запрещённых импортов (risk/execution/monitoring/allocator + numpy/pandas/requests/web3) → IMPORTS CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-600 (YieldAttributionTracker) → done** (sprint v5.24, completed=2026-06-13, completed_by="claude (SPA-V524)"); `sprint_current=v5.24`; `sprint_completed=v5.24`.
+
+**Файлы для коммита:** `spa_core/analytics/yield_attribution_tracker.py`, `spa_core/tests/test_yield_attribution_tracker.py`, `data/yield_attribution_tracker.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v524.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V524): YieldAttributionTracker (MP-600) — per-adapter contribution, HHI diversification, chain/tier breakdown, rebalance hints, 105 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v524.sh` для ручного запуска на Mac.
+
+---
+
+---
+
+## SPA Sprint v5.22 — MP-598 APYMomentumDetector (2026-06-13)
+
+**Files created/modified:**
+- `spa_core/analytics/apy_momentum.py` (новый): advisory/read-only модуль. `MomentumSignal` dataclass (adapter_id, trend, confidence, current_apy, ema_apy, apy_change_24h, apy_change_7d, slope_per_day, data_points, signal_strength). `MomentumReport` dataclass (generated_at, total_adapters, rising/falling/stable/unknown counts, top_rising, top_falling, signals). `APYMomentumDetector(history_path)` с константами: EMA_ALPHA=0.3; MIN_POINTS_MEDIUM=3; MIN_POINTS_HIGH=7; STABLE_THRESHOLD=0.1 %/day; RISING_THRESHOLD=0.05 %/day. Методы: `load_history()` (dual-source: watchdog_history.json + apy_history.json, unified list[dict], fail-safe); `extract_apy_series(adapter_id, history)` (exact + prefix matching, timestamp_days = ts_unix/86400); `compute_ema(series, alpha)` (online EMA, α∈(0,1], raises ValueError); `compute_ols_slope(xy_pairs)` (OLS pure stdlib: slope=(n·Σxy−Σx·Σy)/(n·Σx²−(Σx)²), returns 0.0 for <2 points or denom=0); `classify_trend(slope, data_points)` (0pts→UNKNOWN/LOW; 1-2pts→RISING/FALLING/UNKNOWN/LOW with RISING_THRESHOLD; 3-6pts→MEDIUM; 7+pts→HIGH; |slope|<STABLE_THRESHOLD→STABLE); `get_signal(adapter_id, current_apy, history)` (apy_change_24h/7d via nearest-ts search ±2d/±3d, signal_strength=min(1.0,|slope|×conf_factor)); `get_report()` (reads adapter_status.json, load_history(), signals sorted alpha, top_rising/falling ≤3 by slope); `save_report(output_path)` (atomic tmp+os.replace, ring-buffer 30, returns path); `to_dict()`; `format_telegram_message()` (≤1500 chars, TOP RISING / TOP FALLING sections). `_extract_current_apy()` helper (apy_pct→apy→mock_apy fallback chain). CLI `--check`/`--run`/`--data-dir`. Pure stdlib, no external deps.
+- `spa_core/tests/test_apy_momentum.py` (новый): **97 unittest-кейсов**, 10 тест-классов — TestComputeEMA(12), TestComputeOLSSlope(12), TestExtractAPYSeries(10), TestClassifyTrend(15), TestGetSignal(15), TestGetReport(12), TestSaveReport(6), TestFormatTelegramMessage(8), TestExtractCurrentAPY(4), TestParseTsUnix(3). Покрыты: alpha edge-cases (0, >1, raise), alpha=1 pass-through, constant series, EMA convergence; OLS 2-10 points, perfect/noisy/descending lines, denominator=0, large x-values (реальные day-timestamps); prefix matching ("aave-v3" → "aave-v3-usdc-ethereum"), empty history/adapter, mixed adapters; 0/1/2/3/6/7/30 data_points, boundary thresholds (0.05/0.1), HIGH/MEDIUM/LOW conf; apy_change_24h/7d computation, signal_strength clamp [0,1], to_dict keys; count sum invariant, top_rising sorting desc, ≤3 entries, missing adapter_status; ring-buffer ≤30, atomic write, no .tmp leftovers, custom path; ≤1500 chars, falling/rising keywords, many-adapters cap.
+- `data/momentum_report.json` (новый): первый снапшот — 11 адаптеров, 5 STABLE / 6 UNKNOWN (watchdog_history пустой; apy_history даёт 90-180 pts для aave/compound/euler/maple/yearn). Slopes: maple -0.0449 %/d, yearn +0.0336 %/d, compound -0.0132 %/d, aave-v3 +0.0082 %/d — все STABLE (|slope|<0.1).
+- `KANBAN.json` (обновлён): MP-598 → done, sprint_current/sprint_completed="v5.22", _v522_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_apy_momentum -v` → **Ran 97 tests in 0.078s — OK** (97/97). CLI `--run` → 11 adapters, momentum_report.json saved. Grep запрещённых импортов (risk/execution/monitoring/allocator + numpy/pandas/requests/web3) → IMPORTS CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-598 (APYMomentumDetector) → done** (sprint v5.22, completed=2026-06-13, completed_by="claude (SPA-V522)"); `sprint_current=v5.22`; `sprint_completed=v5.22`.
+
+**Файлы для коммита:** `spa_core/analytics/apy_momentum.py`, `spa_core/tests/test_apy_momentum.py`, `data/momentum_report.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v522.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V522): APYMomentumDetector (MP-598) — EMA/OLS trend detection RISING/FALLING/STABLE, confidence HIGH/MEDIUM/LOW, 97 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v522.sh` для ручного запуска на Mac.
+
+---
+
+---
+
+## SPA Sprint v5.21 — MP-597 PortfolioHeatMapGenerator (2026-06-13)
+
+**Files created/modified:**
+- `spa_core/analytics/portfolio_heat_map.py` (новый): advisory/read-only модуль. `HeatMapCell` dataclass (adapter_id, chain, tier, apy_pct, risk_score, tvl_usd, tvl_formatted, color_bucket, size_bucket, label, chain_emoji, tooltip, is_eligible). `HeatMapGroup` dataclass (group_id, chain, tier, cells, avg_apy_pct, total_tvl_usd, count). `HeatMapData` dataclass (generated_at, total_adapters, groups, apy_range, tvl_total_usd, color_legend, chain_summary). `PortfolioHeatMapGenerator(data_path)` с: APY_BUCKETS [(low<4%, medium 4-7%, high 7-10%, very_high>10%)]; TVL_BUCKETS [(small<100M, medium 100M-1B, large>1B)]; CHAIN_EMOJIS (⚪ eth, 🔵 arb/base, 🔴 opt, 🟣 poly); `format_tvl(tvl_usd)` → "$1.2B"/"$800.0M"/"$350K"; `get_color_bucket(apy_pct)` → APY bucket; `get_size_bucket(tvl_usd)` → TVL bucket; `make_cell(adapter_id, data)` → HeatMapCell (label: underscore/hyphen → title case; tooltip: "APY: X.X% | TVL: $Y | Risk: Z | Chain: C"; is_eligible: APY∈[1%,30%] AND tvl≥$5M); `_parse_raw_entries()` (dual-source: protocol-level priority + adapters[] gap-fill, dedup by (chain, normalized_id)); `generate()` (builds cells → groups by tier×chain → sort groups by chain-order then tier → apy_range/tvl_total/chain_summary → HeatMapData); `to_dict()` (JSON-serializable dict); `save(output_path)` (atomic tmp+os.replace, always-overwrite, no ring-buffer). CLI `--check`/`--run`.
+- `spa_core/tests/test_portfolio_heat_map.py` (новый): **112 unittest-кейсов**, 9 тест-классов — TestFormatTvl(10), TestColorBucket(11), TestSizeBucket(8), TestMakeCell(26), TestGenerate(22), TestHeatMapData(11), TestSave(8), TestToDict(4), TestNormalization(4), TestSourceDedup(4). Покрыты: $B/$M/$K форматирование, APY/TVL bucket граничные значения, label parsing (underscores/hyphens), chain_emoji для 5 chains + unknown, tooltip содержимое, is_eligible boundary cases, группировка chain×tier, avg_apy/total_tvl расчёт, сортировка групп, apy_range min/max/avg, chain_summary структура, атомарная запись, JSON-валидность, no-.tmp-leftover, вложенные директории, Source1/Source2 дедупликация, _SKIP_KEYS фильтрация, missing-chain-field обработка.
+- `data/heat_map.json` (новый): первый снапшот — 31 adapter, 11 groups (T1_ethereum/T2_ethereum/T3_ethereum/T2-conditional_ethereum/T1_arbitrum/T2_arbitrum/T1_base/T2_base/T3_base/T1_optimism/T1_polygon), APY range 4.10%–12.00% avg=5.85%, TVL total $18.1B.
+- `KANBAN.json` (обновлён): MP-597 → done, sprint_current/sprint_completed="v5.21".
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_portfolio_heat_map -v` → **Ran 112 tests in 0.012s — OK** (112/112). CLI `--run` → 31 adapters, 11 groups, heat_map.json saved. Grep запрещённых импортов → CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-597 (PortfolioHeatMapGenerator) → done** (sprint v5.21, completed=2026-06-13, completed_by="claude (SPA-V521)"); `sprint_current=v5.21`; `sprint_completed=v5.21`.
+
+**Файлы для коммита:** `spa_core/analytics/portfolio_heat_map.py`, `spa_core/tests/test_portfolio_heat_map.py`, `data/heat_map.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v521.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V521): PortfolioHeatMapGenerator (MP-597) — chain/tier grid, APY color buckets, TVL size buckets, dashboard-ready heat_map.json, 112 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v521.sh` для ручного запуска на Mac.
+
+---
+
+## SPA Sprint v5.20 — MP-596 AdapterWatchdog (2026-06-13)
+
+**Files created/modified:**
+- `spa_core/monitoring/adapter_watchdog.py` (новый): advisory/read-only watchdog-модуль. `AdapterHealth` dataclass (adapter_id, chain, tier, apy_pct, risk_score, peg_price, is_healthy, apy_change_pct, alert_level). `WatchdogReport` dataclass (generated_at, total/healthy/warning/critical counts, alerts_created, adapter_statuses, summary). `AdapterWatchdog(data_path, use_alert_dispatcher)` с порогами: APY_FLOOR=0.5%, APY_DROP_WARNING=1%, APY_DROP_CRITICAL=2%, PEG_TOLERANCE=0.5%, PEG_CRITICAL=2%, RISK_SCORE_CEILING=0.9. Методы: `load_current_status()` (fail-safe, {} при ошибке), `load_previous_snapshot()` (watchdog_history.json latest), `classify_adapter(id, current, previous)` (APY/peg/risk классификация OK/WARNING/CRITICAL), `create_alerts(statuses)` → int (AlertDispatcher integration + log-only fallback), `run_check()` (полный цикл + save_snapshot), `get_report()` (read-only, no side effects), `to_dict()` (JSON-ready), `format_summary()` (≤500 chars). Ring-buffer watchdog_history.json ≤48 снимков. CLI `--check`/`--run`. Atomic tmp+os.replace. Pure stdlib.
+- `spa_core/tests/test_adapter_watchdog.py` (обновлён): **136 unittest-кейсов**, 14 тест-классов — TestAdapterHealth(10), TestWatchdogReport(8), TestLoadCurrentStatus(10), TestLoadPreviousSnapshot(8), TestClassifyAdapter(20), TestCreateAlerts(10), TestRunCheck(10), TestGetReport(6), TestToDict(4), TestFormatSummary(4), TestAdapterHealthToDict(5), TestWatchdogReportToDict(5), TestExtractAdapterIds(5), TestExtractApy(5), TestBuildPrevApyIndex(5), TestClassifyLevel(6), TestAtomicWriteJson(4), TestWatchdogDefaultPath(3), TestExtractChain(4), TestExtractRiskScore(4).
+- `data/watchdog_history.json` (новый): начальный пустой ring-buffer (snapshots=[]).
+- `KANBAN.json` (обновлён аддитивно): добавлен done-item AdapterWatchdog (id=MP-596, sprint v5.20); sprint_current=v5.20; sprint_completed=v5.20; done_count=278; last_updated=2026-06-13; updated_by="claude (SPA-V520)"; _v520_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_adapter_watchdog -v` → **Ran 136 tests in 0.031s — OK** (136/136). `get_report()` на реальных данных → 11 адаптеров, 8 OK / 3 CRITICAL. Grep запрещённых импортов (requests/web3/numpy/pandas/openai/anthropic/execution/risk/monitoring) → IMPORTS CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/ (кроме нового adapter_watchdog.py в monitoring/), allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов в runtime. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-596 (AdapterWatchdog) → done** (sprint v5.20, completed=2026-06-13, completed_by="claude (SPA-V520)"); `sprint_current=v5.20`; `sprint_completed=v5.20`; `done_count=278`.
+
+**Файлы для коммита:** `spa_core/monitoring/adapter_watchdog.py`, `spa_core/tests/test_adapter_watchdog.py`, `data/watchdog_history.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v520.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V520): AdapterWatchdog monitoring (MP-596) — APY/peg health checks, AlertDispatcher integration, ring-buffer 48h, 136 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v520.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.18 (MP-593) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**SPA-V518 / MP-593: AaveV3PolygonAdapter — T1 L2 anchor Polygon USDC.e.**
+
+- **Задача:** реализовать `spa_core/adapters/aave_v3_polygon_adapter.py` — финальный L2 адаптер (Arbitrum ✅ Base ✅ Optimism ✅ Polygon ← этот). Aave V3 USDC.e на Polygon (PoS), RISK=0.27, TVL=$800M, APY=5.1%, GAS=90% экономии.
+- **Сделано (3 новых/обновлённых файла + data, strictly additive):**
+  - `spa_core/adapters/aave_v3_polygon_adapter.py` (новый, pure stdlib): класс `AaveV3PolygonAdapter(BaseAdapter)`, PROTOCOL="aave_v3_polygon", TIER="T1", RISK_SCORE=0.27, TVL_USD=800_000_000, DEFAULT_APY_PCT=5.1%, CHAIN="polygon", CHAIN_ID=137, POOL_ADDRESS="0x794a…", USDC_ADDRESS="0x2791…" (USDC.e). Методы:
+    - `get_apy()` / `get_apy_pct()` — APY из data/adapter_status.json → aave_v3_polygon.apy, fallback 5.1%;
+    - `get_yield_info()` → YieldInfo (apy=0.051 decimal, tier=T1, risk_score=0.27, tvl=800M);
+    - `is_peg_healthy()` — |usdc_price - 1.0| ≤ 0.005, default-safe (missing → True);
+    - `is_eligible()` — peg OK + APY ∈ [1.0%, 30.0%];
+    - `get_gas_savings_vs_mainnet()` → {savings_pct=90.0, chain="polygon", gas_l2_usd=0.001, gas_mainnet_usd=0.10, finality_minutes=2, mainnet_bridge_exit_days=7};
+    - **`get_bridge_risk_note()`** → str упоминающий "USDC.e" и "bridged" (Polygon-специфичный метод: USDC.e ≠ native Circle USDC, создан через Polygon PoS Bridge; RISK_SCORE=0.27 > Optimism 0.25 именно из-за bridge-риска);
+    - `simulate_deposit(amount_usd)` — ValueError при ≤0, status="ok";
+    - `simulate_withdraw(amount_usd)` — error-dict при insufficient, ValueError при ≤0;
+    - `allocate(capital_usd)` — backward-compat алиас (status="allocated", gas_cost_usd=0.001);
+    - `withdraw(amount_usd)` — raises ValueError при недостатке;
+    - `get_health()` — {status, apy_pct, apy_in_range, tvl_floor_ok, peg_healthy, eligible, gas_savings_pct, apy_source};
+    - `to_dict()` — полный снапшот с chain, chain_id, pool_address, usdc_address, bridge_risk_note, l2_advantages.
+  - `spa_core/adapters/__init__.py` (аддитивно): import AaveV3PolygonAdapter + ("aave_v3_polygon", "T1", AaveV3PolygonAdapter) в ADAPTER_REGISTRY + в __all__;
+  - `data/adapter_status.json` (аддитивно): блок "aave_v3_polygon" {apy=5.1, usdc_price=1.0, chain="polygon", chain_id=137, risk_score=0.27, t1_cap=0.4, gas_savings_pct=90.0, gas_l2_usd=0.001, bridge_risk="usdc_e_bridged", added_by="MP-593"}.
+  - `spa_core/tests/test_aave_v3_polygon_adapter.py` (новый): **140 unittest-кейсов**, 14 тест-классов: TestInit(15), TestAPY(14), TestPeg(13), TestEligibility(12), TestYieldInfo(10), TestSimulateDeposit(10), TestSimulateWithdraw(10), TestAllocate(10), TestWithdraw(9), TestGetHealth(11), TestToDict(10), TestGasSavings(9), TestBridgeRisk(5), TestRegistry(2).
+- **L2 набор завершён:** Arbitrum (RISK=0.22/TVL=$1.2B) ✅ + Base (RISK=0.35) ✅ + Optimism (RISK=0.25/TVL=$600M) ✅ + **Polygon (RISK=0.27/TVL=$800M)** ✅.
+- **Верификация:** `python3 -m unittest spa_core.tests.test_aave_v3_polygon_adapter -v` → **Ran 140 tests — OK** (140/140). Pure stdlib (json/logging/time/pathlib), без pip/LLM SDK; PAT не встраивался, push_*.html не создавался.
+- **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты.
+- **KANBAN:** **MP-593 → done** (sprint v5.18, completed=2026-06-13, completed_by="claude (SPA-V518)"); `sprint_current=v5.18`.
+- **Файлы для коммита:** `spa_core/adapters/aave_v3_polygon_adapter.py`, `spa_core/adapters/__init__.py`, `data/adapter_status.json`, `spa_core/tests/test_aave_v3_polygon_adapter.py`, `KANBAN.json`, `SPA_sprint_log.md`.
 
 ---
 
@@ -9071,3 +9363,154 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 **Рекомендуемое сообщение коммита:** `feat(SPA-V515): MultiChainMonitor — L2 APY/TVL aggregator Base/Opt/Arb (MP-590) — ChainSnapshot, MultiChainReport, l2_premium_pct, dual-source parsing, chain alias normalization, 103 tests green`
 
 **PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v515.sh` для ручного запуска на Mac.
+
+## Sprint v5.19 (MP-594) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-594 — RiskAdjustedRanker — advisory risk-adjusted yield ranking (APY/risk_score)
+
+> Примечание: оркестратор обнаружил, что v5.18/MP-593 уже занят завершённой задачей AaveV3PolygonAdapter (гонка одновременного запуска). RiskAdjustedRanker перенумерован на **v5.19 / MP-594** для уникальности.
+
+**Files created/modified:**
+- `spa_core/analytics/risk_adjusted_ranker.py` (новый): advisory/read-only модуль. `RankedAdapter` dataclass (name/protocol/tier/network/apy_pct/risk_score/tvl_usd/risk_adjusted_score/excess_yield_pct/peg_healthy/eligible/rank + to_dict), `RankerReport` dataclass (generated_at/ranked/total_adapters/eligible_count/best_adapter/best_score/top_tier_leaders + to_dict). `RiskAdjustedRanker(data_path)` с методами: `load_adapter_status()` (fail-safe → {} при missing/битом JSON/non-dict), `_extract_adapters()` (dual-source: protocol-level entries с 'apy' приоритет + adapters[] list, дедуп по имени, skip служебных ключей/non-dict/без apy), `rank_all()` (eligible only, сортировка risk_adjusted_score desc, tie-break apy desc → name asc, rank=1..N), `get_excluded()` (non-eligible, rank=None), `get_top_n(n)` (n≤0 → []), `get_by_tier(tier)` (upper-normalize, неизвестный → []), `get_tier_leaders()` (лучший по score в каждом tier), `get_report()`, `to_dict()`, `save_report(output_path=None)` (ring-buffer 30, атомарный tmp+os.replace, без .tmp-мусора). Формулы: `risk_adjusted_score = apy_pct / max(risk_score, EPS)` (EPS=1e-9 защита от деления на ноль); `excess_yield_pct = apy_pct - RISK_FREE_PCT` (RISK_FREE_PCT=4.0 T-bill baseline); `DEFAULT_RISK_SCORE=0.5` fallback; peg_healthy: |usdc_price-1.0| ≤ 0.005 (default-safe при отсутствии поля); eligible = peg_healthy AND apy ≥ MIN_APY_PCT(0.0). CLI `--check`/`--run`. НЕ двигает средства, не вызывает execution/risk/monitoring.
+- `spa_core/tests/test_risk_adjusted_ranker.py` (новый): **173 unittest-кейса**, 18 тест-классов — TestConstants(5), TestNumHelper(10), TestExtractHelpers(15), TestPegHealthy(10), TestResolveHelpers(8), TestRankedAdapter(18), TestRankerReport(11), TestLoadAdapterStatus(8), TestExtractAdapters(14), TestMath(9), TestEligibility(6), TestRankAll(9), TestGetExcluded(4), TestGetTopN(6), TestGetByTier(7), TestTierLeaders(5), TestGetReport(7), TestToDict(4), TestSaveReport(11), TestEdgeCases(6), TestCLI(2). Покрыты: fail-safe load (missing/empty/malformed/array/string/dir), dual-source extract + дедуп + skip служебных, RAS математика (fallback risk, EPS-защита risk_score=0), excess, peg boundary (0.995/1.005 healthy, 0.99/1.01 unhealthy, missing healthy), eligible, rank_all сортировка/tie-break/rank, get_top_n (n>len/0/negative), get_by_tier (case-insensitive/несуществующий), get_tier_leaders, get_excluded, save_report ring-buffer ≤30 (35 итераций), no .tmp leftover, JSON-сериализуемость, edge cases (пустой/все non-eligible/один адаптер/50 адаптеров). Все на tempfile-изолированных путях — боевой data/risk_adjusted_report.json не перезаписывается.
+- `data/risk_adjusted_report.json` (новый): первый снапшот — 29 адаптеров (все eligible), best=susde (score=19.35), tier leaders T1/T2/T2-CONDITIONAL/T3.
+- `KANBAN.json` (обновлён аддитивно): добавлен done-item RiskAdjustedRanker (id=MP-594, sprint v5.19); sprint_current=v5.19; sprint_completed=v5.19; done_count=277; last_updated=2026-06-13; updated_by="claude (SPA-V519)"; _v519_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_risk_adjusted_ranker -v` → **Ran 173 tests in 0.026s — OK** (173/173). CLI `--run` → report saved, 29 адаптеров. `py_compile risk_adjusted_ranker.py` → clean. Grep запрещённых импортов (requests/web3/numpy/pandas/openai/anthropic/execution/risk/monitoring) → IMPORTS CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Модуль advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-594 (RiskAdjustedRanker) → done** (sprint v5.19, completed=2026-06-13, completed_by="claude (SPA-V519)"); `sprint_current=v5.19`; `sprint_completed=v5.19`; `done_count=277`.
+
+**Файлы для коммита:** `spa_core/analytics/risk_adjusted_ranker.py`, `spa_core/tests/test_risk_adjusted_ranker.py`, `data/risk_adjusted_report.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v519.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V519): RiskAdjustedRanker — advisory risk-adjusted yield ranking (MP-594) — RankedAdapter/RankerReport, risk_adjusted_score=apy/risk_score, excess vs T-bill 4%, dual-source extract, rank_all tie-break, get_top_n/get_by_tier/get_tier_leaders/get_excluded, ring-buffer save_report, read-only stdlib, 173 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v519.sh` для ручного запуска на Mac.
+
+---
+
+## SPA Sprint v5.19b — MP-595 CrossChainOpportunityAnalyzer (2026-06-13)
+
+> Примечание: MP-594 slot уже занят RiskAdjustedRanker (предыдущая сессия). CrossChainOpportunityAnalyzer зарегистрирован как **MP-595**.
+
+**Files created/modified:**
+- `spa_core/analytics/cross_chain_opportunity.py` (новый): advisory/read-only модуль. `BridgeCost` dataclass (chain_from, chain_to, gas_cost_usd, slippage_pct, time_hours + `total_cost_usd(capital_usd)` метод). `CrossChainOpportunity` dataclass (from/to_chain, adapters, APY fields, apy_diff_pct, bridge_cost, breakeven_days, is_profitable, annual_gain_usd, recommendation). `CrossChainOpportunityAnalyzer(data_path)` с: `BRIDGE_COSTS` dict — 14 пар (ETH↔ARB/BASE/OPT/POLY, L2↔L2); `load_chain_data()` (fail-safe dual-source: protocol-level + adapters[], group by chain); `get_bridge_cost(from, to)` → `Optional[BridgeCost]`; `compute_breakeven(apy_diff, bridge_cost_usd, capital_usd=100k)` → `float | inf`; `analyze_pair(from_chain, to_chain, capital)` → `Optional[CrossChainOpportunity]`; `get_all_opportunities(capital, min_diff_pct=0.5)` (filter + sort by breakeven_days); `get_top_opportunity(capital)` (min breakeven среди is_profitable); `format_report(capital)` (≤2000 chars); `to_dict()` (JSON-ready); `save_analysis(output_path)` (atomic tmp+os.replace, ring-buffer 30). Recommendations: MOVE (breakeven<30d), MONITOR (30-90d), HOLD (≥90d или apy_diff≤0). CLI `--check`/`--run`.
+- `spa_core/tests/test_cross_chain_opportunity.py` (новый): **92 unittest-кейса**, 9 тест-классов — TestBridgeCost(10), TestCrossChainOpportunity(10), TestLoadChainData(10), TestGetBridgeCost(10), TestComputeBreakeven(12), TestAnalyzePair(15), TestGetAllOpportunities(12), TestGetTopOpportunity(8), TestSaveAnalysis(5). Покрыты: BridgeCost fields/total_cost_usd formula, CrossChainOpportunity is_profitable/recommendation logic, load_chain_data (missing/empty/invalid JSON/multi-chain/APY extraction/tier/risk_score/chain normalization), get_bridge_cost (14 known pairs, None для unknown, asymmetric ETH→ARB vs ARB→ETH wait times), compute_breakeven (formula verification, zero/negative/inf cases, capital sensitivity), analyze_pair (unknown chains → None, no bridge → None, valid pair full pipeline), get_all_opportunities (filter min_diff, sort breakeven, empty data, capital sensitivity), get_top_opportunity (None when empty/no profitable, lowest breakeven, valid chains), save_analysis (creates file, returns path, latest/snapshots keys, ring-buffer ≤30, no .tmp leftover). Все на tempfile-изолированных путях.
+- `data/cross_chain_analysis.json` (новый): первый снапшот — 8 opportunities found, 8 profitable, top: optimism→ethereum +7.20% breakeven=5.1d [MOVE].
+- `KANBAN.json` (обновлён аддитивно): добавлен done-item CrossChainOpportunityAnalyzer (id=MP-595, sprint v5.19); sprint_current=v5.19; sprint_completed=v5.19; _v519b_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_cross_chain_opportunity -v` → **Ran 92 tests in 0.101s — OK** (92/92). CLI `--run` → 8 opportunities, top: optimism→ethereum +7.20% [MOVE]. Grep запрещённых импортов → CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-595 (CrossChainOpportunityAnalyzer) → done** (sprint v5.19, completed=2026-06-13, completed_by="claude (SPA-V519)"); `sprint_current=v5.19`; `sprint_completed=v5.19`.
+
+**Файлы для коммита:** `spa_core/analytics/cross_chain_opportunity.py`, `spa_core/tests/test_cross_chain_opportunity.py`, `data/cross_chain_analysis.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v519b.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V519b): CrossChainOpportunityAnalyzer (MP-595) — BridgeCost matrix 14 pairs, compute_breakeven, MOVE/HOLD/MONITOR rec, 92 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения. Создан `scripts/push_v519b.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.23 (MP-599) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-599 — S17 Polygon Yield Strategy: Core 60% (AaveV3Polygon) + Anchor 25% (SparkSUSDS) + Boost 15% (MorphoBlue). Target APY 5.8%, gas savings 90%.
+
+**Files created/modified:**
+- `spa_core/strategies/s17_polygon_yield.py` (новый): `PolygonYieldStrategy` (S17). Аллокация: `aave_v3_polygon` 60% (T1, Core, APY ~5.1%, gas 90% cheaper), `spark_susds` 25% (T1, Anchor, APY ~5.5%, L1 stability), `morpho_blue` 15% (T2, Boost, APY ~7.0%). Weighted APY ≈ 5.485%, target 5.8%, RISK_SCORE=0.25 (blended). Методы: `get_allocation(capital_usd)` — перераспределение при is_eligible=False; `get_expected_apy()` — взвешенный APY по eligible адаптерам; `get_polygon_advantages()` — вызывает `adapter.get_gas_savings_vs_mainnet()` + `adapter.get_bridge_risk_note()`, fallback к константам; `get_health()` — chain_breakdown + polygon_core_eligible + overall_status; `simulate(capital_usd)` — slot_results с deposit_result; `to_dict()` — JSON-serializable полный снапшот. Авторегистрация в `strategy_registry` (tags: polygon, l2, aave, spark, morpho, gas_efficient, t1, s17, usdc_e). ALLOCATION_WEIGHTS экспортируется для cycle_runner. Stdlib only, no external deps.
+- `spa_core/tests/test_s17_polygon_yield.py` (новый): **90 unittest-кейса**, 9 тест-классов — TestInit(10), TestAllocationWeights(10), TestGetAllocation(15), TestGetExpectedAPY(10), TestGetPolygonAdvantages(10), TestGetHealth(10), TestSimulate(8), TestToDict(7), TestModuleConstants(10). Покрыты: class attrs, weight sum=1.0, core=60%/anchor=25%/boost=15%, redistribution при ineligible (core/boost/two/all ineligible), fallback APY при недоступном адаптере, gas_savings_pct>0, chain=polygon, bridge_risk nonempty, usdc_note nonempty, adapter gas_info used if loaded, health all_eligible/status/chain_breakdown fields, simulate yield formula verification (60k*5.1%+25k*5.5%+15k*7.0%), JSON-serializable to_dict, polygon_advantages keys.
+- `spa_core/paper_trading/cycle_runner.py` (изменён аддитивно): добавлена регистрация S17 по паттерну S15 — `from spa_core.strategies.s17_polygon_yield import STRATEGY_ID, STRATEGY_NAME, TIER, ALLOCATION_WEIGHTS, TARGET_APY_PCT` → `_MSStrategyConfig` → `_ms_strategies.append(_ms_s17)`. Вся логика wrapped в `try/except ImportError`. Блок добавлен между S15 и `_ms_runner = _MultiStrategyRunner(...)`.
+- `KANBAN.json` (обновлён аддитивно): MP-599 → done (sprint v5.23); sprint_current=v5.23; sprint_completed=v5.23; _v522_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_s17_polygon_yield -v` → **Ran 90 tests in 0.040s — OK** (90/90). `python3 -c "import py_compile; py_compile.compile('spa_core/paper_trading/cycle_runner.py', doraise=True)"` → syntax OK. Grep запрещённых импортов (requests/web3/numpy/pandas/openai/anthropic/execution/risk) → CLEAN. Grep ADAPTER_REGISTRY ключей (aave_v3_polygon, spark_susds, morpho_blue) → все присутствуют в реестре.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, golive_checker.py — НЕ тронуты. cycle_runner.py изменён аддитивно (только добавлен S17 блок по паттерну S15). Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-599 (S17 Polygon Yield) → done** (sprint v5.23, completed=2026-06-13, completed_by="claude (SPA-V522)"); `sprint_current=v5.23`; `sprint_completed=v5.23`; `done_count=2`.
+
+**Файлы для коммита:** `spa_core/strategies/s17_polygon_yield.py`, `spa_core/tests/test_s17_polygon_yield.py`, `spa_core/paper_trading/cycle_runner.py`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v522.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V522): S17 PolygonYield strategy (MP-599) — Core60%+Anchor25%+Boost15%, target APY 5.8%, gas savings 90%, 90 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v522.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.25 (MP-601) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-601 — PegStabilityMonitor: USDC/DAI/FRAX depeg detection STABLE/CAUTION/WARNING/CRITICAL.
+
+**Files created/modified:**
+- `spa_core/monitoring/peg_monitor.py` (новый): `PegStabilityMonitor`. Dataclasses: `PegStatus` (adapter_id, asset, chain, current_price, deviation_pct, status, last_checked + to_dict), `PegReport` (generated_at, total_monitored, stable/caution/warning/critical counts, worst_adapter, worst_deviation_pct, statuses, overall_status + to_dict). Пороги: CAUTION_PCT=0.10%, WARNING_PCT=0.30%, CRITICAL_PCT=1.00%. `ASSET_MAP` (12 записей): aave→USDC, morpho→USDC, compound→USDC, sdai→DAI, spark→USDC/DAI, sfrax→FRAX, frax→FRAX, susds→USDS, sky→USDS, wusdm→USDM, stusd→USD+, scrvusd→crvUSD. `infer_asset(adapter_id)` — exact match → longest substring → fallback "USDC". `get_peg_price(adapter_id, data)` — usdc_price → dai_price → frax_price → peg_price → price → asset_price → 1.0. `_find_entry` — adapters[].protocol_key → top-level key → {}. `_extract_chain` — chains[] → chain/network → "ethereum". `classify_status(deviation_pct)` — CRITICAL≥1.0% / WARNING≥0.3% / CAUTION≥0.1% / STABLE. `check_adapter(adapter_id, data)` → PegStatus. `_extract_adapter_ids` — adapters[].protocol_key + top-level dict keys (skip _META_KEYS), дедуплицирует. `_compute_overall_status` — RED(any CRITICAL) / YELLOW(any WARNING or CAUTION) / GREEN. `_create_alerts` — создаёт AlertLevel.WARNING/CRITICAL алерты для WARNING+ (не для STABLE/CAUTION); fail-safe log-only. `run_check()` — загружает → проверяет → алерты → history ring-buffer 96 → PegReport. `get_report()` — read-only, без side effects. `format_telegram_message()` — ≤1500 chars, emoji GREEN/YELLOW/RED. `to_dict()` — JSON-serializable. `save_report()` — атомарная запись data/peg_report.json → возвращает путь. CLI `--check`/`--run`/`--data-dir`. Только stdlib, атомарные записи tmp+os.replace.
+- `spa_core/tests/test_peg_monitor.py` (новый): **103 unittest-кейса**, 10 тест-классов — TestPegStatus(10), TestPegReport(8), TestInferAsset(10), TestGetPegPrice(12), TestClassifyStatus(10), TestCheckAdapter(12), TestRunCheck(10), TestGetReport(5), TestFormatTelegramMessage(5), TestToDict(8), TestOverallStatusIntegration(6), TestRingBufferAndSaveReport(7). Покрыты: field types/values, to_dict JSON-serializable, overall_status логика (GREEN/YELLOW/RED × all trigger combos), caution/warning/critical counts, infer_asset (exact/substring/fallback), get_peg_price (6 field names + priority + bool rejection + adapters list vs top-level), classify_status (все пороги + boundary values), check_adapter (STABLE/CAUTION/WARNING/CRITICAL × price formula × asset источники × chain extraction × ISO timestamp × missing-entry fallback × price>1.0 abs), run_check (counts × history file × alert call × no-alert-for-stable × failsafe), get_report (no side effects × no file writes × failsafe), format_telegram_message (≤1500 × GREEN/RED × truncation × empty data), to_dict (all keys × JSON dumps), ring-buffer trim ≤96 × save_report atomic × no .tmp leftover.
+- `data/peg_report.json` (новый): первый снапшот — 31 адаптер, все STABLE (все цены = 1.0 по умолчанию).
+- `data/peg_history.json` (новый): ring-buffer history, 1 snapshot.
+- `KANBAN.json` (обновлён аддитивно): MP-601 → done (sprint v5.25); sprint_current=v5.25; sprint_completed=v5.25.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_peg_monitor -v` → **Ran 103 tests in 0.039s — OK** (103/103). `python3 -m spa_core.monitoring.peg_monitor --run` → 31 adapters, all STABLE, peg_report.json saved. Grep запрещённых импортов → CLEAN.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/ (других файлов), allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-601 (PegStabilityMonitor) → done** (sprint v5.25, completed=2026-06-13, completed_by="claude (SPA-V525)"); `sprint_current=v5.25`; `sprint_completed=v5.25`.
+
+**Файлы для коммита:** `spa_core/monitoring/peg_monitor.py`, `spa_core/tests/test_peg_monitor.py`, `data/peg_report.json`, `data/peg_history.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v525.sh`.
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v525.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.29 (MP-605) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+> Примечание: гонка одновременных запусков — слоты v5.26/MP-602 (Dashboard Heat Map), v5.27/MP-603 (ProtocolConcentrationRisk), v5.28/MP-604 (S18 HighYieldT2) уже заняты завершёнными задачами. YieldStabilityScorer перенумерован на **v5.29 / MP-605** для уникальности.
+
+**Task:** MP-605 — YieldStabilityScorer — advisory/read-only ранжирование адаптеров по СТАБИЛЬНОСТИ/ПЕРСИСТЕНТНОСТИ APY (coefficient of variation, drawdown APY, grade A-D). Отличается от apy_momentum (направление тренда RISING/FALLING) — здесь оценивается низкая дисперсия доходности (стабильные 5% лучше эрратичных 8% для пассивного фонда).
+
+**Files created/modified:**
+- `spa_core/analytics/yield_stability_scorer.py` (новый): advisory/read-only модуль. Константы: RISK_FREE_PCT=4.0, MIN_POINTS_HIGH=7/MIN_POINTS_MEDIUM=3, CV_EXCELLENT=0.05/CV_GOOD=0.15/CV_FAIR=0.30, EPS=1e-9. Хелперы (pure): `_mean`, `_stddev` (population), `_coefficient_of_variation` (stddev/|mean|, EPS-guard), `_apy_drawdown_pct` (max peak-to-trough в п.п.), `_extract_apy_series` (apy floats в порядке, skip non-numeric/bool), `_stability_score(cv)=100*(1-cv/CV_FAIR)` clamp[0,100] (монотонно убывает по cv; cv=0→100, cv≥0.30→0), `_grade` (A≤0.05/B≤0.15/C≤0.30/D), `_confidence` (HIGH≥7/MEDIUM 3-6/LOW 1-2/UNKNOWN 0). Dataclasses: `AdapterStability` (adapter_key, n_points, mean_apy_pct, std_apy_pct, cv, apy_drawdown_pct, stability_score, grade, confidence, latest_apy_pct, excess_yield_pct=mean-RISK_FREE_PCT, rank + to_dict), `StabilityReport` (generated_at, total_adapters, scored_count, most_stable, least_stable, avg_stability_score, grade_distribution, adapters[] + to_dict). Класс `YieldStabilityScorer(data_path="data")`: `load_apy_history`/`load_adapter_status` (fail-safe → {}), `_collect_series` (merge apy_history.json protocol_history (primary) + watchdog_history.json (supplementary) + adapter_status.json (universe single-point); dedup; skip служебных/_meta ключей), `score_adapter`, `score_all` (rank по stability_score desc, tie-break cv asc → excess desc → key asc, rank=1..N, zero-point UNKNOWN внизу), `get_top_n` (n≤0→[]), `get_by_grade` (case-insensitive, unknown→[]), `get_report` (no side effects), `to_dict`, `save_report` (атомарный tmp+os.replace, ring-buffer 30, `{latest, snapshots}`) → data/yield_stability_report.json. CLI `--check`/`--run`/`--data-dir`. Только stdlib+math. НЕ двигает средства, не вызывает execution/risk/monitoring.
+- `spa_core/tests/test_yield_stability_scorer.py` (новый): **165 unittest-кейсов**, 16 тест-классов. Покрыты: все константы; каждый хелпер с boundary-значениями (cv ровно на CV_EXCELLENT/GOOD/FAIR, пустой/один/два-точечный ряд, bool-rejection, missing keys); fail-safe loaders (missing/empty/malformed/list/string/number); `_collect_series` dedup + skip служебных + history/status merge; `score_adapter` математика (hand-computed mean/std/cv/drawdown/score/grade/confidence); `score_all` ranking + tie-break + rank=1..N + zero-point внизу; `get_top_n` (n>len/0/negative); `get_by_grade` (case-insensitive/несуществующий); `get_report` no-side-effects (нет записи файла); `to_dict` JSON-сериализуемость; `save_report` создаёт файл/возвращает путь/ring-buffer ≤30 (35 итераций)/no .tmp leftover; grade_distribution; edge cases (пустой universe/все-UNKNOWN/один/50 адаптеров/real-shape smoke). Все на tempfile-изолированных путях — боевой data/yield_stability_report.json не перезаписывается тестами.
+- `data/yield_stability_report.json` (новый): первый снапшот — 38 адаптеров total, 37 scored (1 zero-point UNKNOWN: morpho_steakhouse). most_stable=susde, least_stable=compound-v3-usdc-ethereum, avg stability score 81.08, grade distribution A=30/B=0/C=0/D=7.
+- `KANBAN.json` (обновлён аддитивно): MP-605 → done (sprint v5.29); sprint_current=v5.29; sprint_completed=v5.29; done col +1 (281); _v529_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_yield_stability_scorer` → **Ran 165 tests — OK** (165/165). `py_compile yield_stability_scorer.py` → PYCOMPILE OK. CLI `--run` → 38 адаптеров, report saved. Grep запрещённых импортов (numpy/pandas/scipy/requests/web3/openai/anthropic) → IMPORTS CLEAN. Grep доменных импортов (risk/execution/monitoring/allocator) → DOMAINS CLEAN. `ls data/*.tmp` → NO TMP LEFTOVER.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib+math, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Модуль advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-605 (YieldStabilityScorer) → done** (sprint v5.29, completed=2026-06-13, completed_by="claude (SPA-V529)"); `sprint_current=v5.29`; `sprint_completed=v5.29`.
+
+**Файлы для коммита:** `spa_core/analytics/yield_stability_scorer.py`, `spa_core/tests/test_yield_stability_scorer.py`, `data/yield_stability_report.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v529.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V529): YieldStabilityScorer (MP-605) — advisory APY stability scoring (CV/drawdown/grade A-D), confidence by history depth, excess vs T-bill 4%, rank by stability_score, ring-buffer save, read-only stdlib, 165 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v529.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.30 (MP-606) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-606 — DailyOperationsReport: comprehensive daily operations report that aggregates all analytics module outputs into a unified document (JSON + Telegram ≤4000 chars + log summary).
+
+**Files created/modified:**
+- `spa_core/analytics/daily_operations_report.py` (новый): advisory/read-only модуль. Dataclasses: `OpsReportSection` (name, status: OK/WARNING/CRITICAL/UNKNOWN, headline, details, data_source, data_fresh, to_dict), `DailyOpsReport` (report_date, generated_at, day_number, overall_status, sections[], portfolio_summary, risk_summary, strategy_summary, chain_summary, peg_summary, action_items, auto_generated, to_dict). Хелпер `_parse_timestamp` (нормализует Z→+00:00, fromisoformat, UTC-aware). Класс `DailyOperationsReport(data_path)`: `_safe_load(filename)` → None при missing/invalid/non-dict; `_is_fresh(data, max_age_hours=2.0)` → проверяет 4 timestamp-ключа (generated_at/updated_at/last_updated/timestamp) на root и внутри `latest`; `_build_risk_section` (reads integrated_risk.json → latest.overall_level GREEN/YELLOW/ORANGE/RED → OK/WARNING/WARNING/CRITICAL, headline с top_risk); `_build_yield_section` (reads yield_attribution_tracker.json → latest: allocated/apy/daily_yield, apy>0→OK/allocated>0→WARNING); `_build_chains_section` (reads multi_chain_report.json → latest: best_chain/best_apy/total_adapters/total_tvl_usd); `_build_strategies_section` (reads tournament_ranking.json → winner + apy_realized из strategies list); `_build_peg_section` (reads peg_report.json → overall_status + critical/warning counts, worst_adapter/worst_deviation_pct); `_compute_portfolio_summary(yield_data)` → {total_allocated_usd, effective_apy, daily_yield_usd}; `_compute_day_number()` → paper_trading_status.json[days_running], fallback 0; `_determine_overall_status(sections)` → CRITICAL если любой CRITICAL, DEGRADED если любой WARNING, OPERATIONAL иначе; `_generate_action_items(sections)` → конкретные тексты для каждого CRITICAL/WARNING по имени секции (peg CRITICAL→"Halt new deposits", risk CRITICAL→"Review risk immediately", yield WARNING→"Low yield detected", peg WARNING→"Monitor peg stability", etc.); `generate()` → строит DailyOpsReport из всех секций; `save(output_path)` → атомарная запись tmp+os.replace, ring-buffer 30 в data/daily_ops_report.json ({schema_version, source, ring_buffer_max, report_count, last_updated, latest, history}); `format_telegram_message()` ≤4000 chars с emoji 🟢🟡🔴✅⚠️🚨❓; `format_summary()` ≤200 chars для логов. CLI `--check`/`--run`/`--data-dir`. Только stdlib, атомарные записи tmp+os.replace. НЕ импортирует risk/execution/monitoring/allocator/cycle_runner.
+- `spa_core/tests/test_daily_operations_report.py` (новый): **90 unittest-кейсов**, 13 тест-классов — TestSafeLoad(8): missing/invalid/empty/array/null/number/valid/nested; TestIsFresh(10): None→False, fresh/stale generated_at, updated_at/last_updated/timestamp, no-ts→False, invalid-ts→False, latest-nested, custom max_age_hours; TestBuildRiskSection(8): missing→UNKNOWN, GREEN/YELLOW/ORANGE/RED mapping, headline/details/warning_count; TestBuildYieldSection(8): missing/positive-apy/zero-apy-warning/headline-apy/headline-daily/details/allocated/data_source; TestBuildChainsSection(8): missing/valid/empty-chain/adapters/TVL/details-adapters/best_apy/l2_premium; TestBuildStrategiesSection(6): missing/winner-ok/no-winner/headline-apy/active_count/winner_apy; TestBuildPegSection(6): missing/GREEN/critical/warning/headline-stable/depeg-adapter; TestDetermineOverallStatus(8): all-OK/one-WARNING/one-CRITICAL/CRITICAL>WARNING/all-UNKNOWN/empty/multi-WARNING/CRITICAL+UNKNOWN; TestGenerateActionItems(8): no-issues/peg-critical/risk-critical/generic-critical/risk-warning/peg-warning/yield-warning/multiple; TestGenerate(6): instance/5-sections/overall_status/portfolio_summary-keys/risk_summary-keys/day_number; TestSave(4): creates-file/no-tmp/ring-buffer≤30/second-save-appends; TestFormatTelegramMessage(6): ≤4000/date/status/APY/truncation/sections; TestFormatSummary(4): ≤200/date/status/APY. Все на tempfile-изолированных tmpdir, боевые data/ не затрагиваются.
+- `data/daily_ops_report.json` (новый): первый снапшот — Day#24, DEGRADED (Risk YELLOW), Portfolio $95K APY 5.22%, Best chain ethereum 12.0% 34 adapters TVL $17B, S7 leads 10.1%, all pegs STABLE 31 adapters, 1 action item.
+- `KANBAN.json` (обновлён аддитивно): MP-606 → done (sprint v5.30); sprint_current=v5.30; sprint_completed=v5.30; _v530_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_daily_operations_report -v` → **Ran 90 tests in 0.066s — OK** (90/90). `python3 -m spa_core.analytics.daily_operations_report --run` → Day#24, DEGRADED (Risk YELLOW), saved. Grep запрещённых domain-импортов (from/import spa_core.risk/execution/monitoring/allocator) → CLEAN. `ls data/*.tmp` → NO TMP LEFTOVER.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Модуль advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-606 (DailyOperationsReport) → done** (sprint v5.30, completed=2026-06-13, completed_by="claude (SPA-V530)"); `sprint_current=v5.30`; `sprint_completed=v5.30`.
+
+**Файлы для коммита:** `spa_core/analytics/daily_operations_report.py`, `spa_core/tests/test_daily_operations_report.py`, `data/daily_ops_report.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v530.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V530): DailyOperationsReport (MP-606) — unified risk/yield/chains/strategies/peg report, Telegram ≤4000 chars, action items, 90 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v530.sh` для ручного запуска на Mac.
