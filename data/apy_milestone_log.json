@@ -1,7 +1,7 @@
 {
   "start_date": "2026-06-05",
-  "last_updated": "2026-06-12",
-  "days_recorded": 8,
+  "last_updated": "2026-06-13",
+  "days_recorded": 9,
   "daily_log": [
     {
       "date": "2026-06-05",
@@ -47,7 +47,12 @@
     },
     {
       "date": "2026-06-12",
-      "apy_pct": 2.137,
+      "apy_pct": 3.32,
+      "strategy_id": "s7_pendle_yt"
+    },
+    {
+      "date": "2026-06-13",
+      "apy_pct": 3.32,
       "strategy_id": "s7_pendle_yt"
     }
   ],
