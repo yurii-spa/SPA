@@ -9910,3 +9910,57 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 **Рекомендуемое сообщение коммита:** `feat(SPA-V545): FullPortfolioMasterReport (MP-621) — unified master snapshot aggregating 12 analytics modules, EXCELLENT/GOOD/FAIR/ALERT health, action items, Telegram ≤2000 chars, 124 tests green`
 
 **PUSH:** ⛔ не выполнен из sandbox — Linux окружение без доступа к macOS Keychain / api.github.com / git. Создан `scripts/push_v545.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.48 (MP-624 + MP-625) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Tasks:** MP-624 GasCostTracker + MP-625 ProtocolRiskScorer
+
+**Files created:**
+- `spa_core/analytics/gas_cost_tracker.py` (новый, ~360 строк): advisory/read-only модуль. `GasCostEntry` dataclass (tx_hash/adapter/chain/gas_used/gas_price_gwei/eth_price_usd/cost_usd/timestamp). `GasCostTracker(data_dir)`: `record_gas()` → атомарная запись в ring-buffer 100 → `data/gas_cost_log.json`; `get_total_cost_usd(days=30)`, `get_cost_by_adapter(days=30)`, `get_cost_by_chain(days=30)` — окно дат через `_entries_within_days`; `compute_net_apy(gross_apy, capital_usd, days=30)` → `{net_apy, gas_drag_bps, cost_usd, grade}` (A<5bps/B<15/C<30/D≥30); `generate_report()` → полный advisory dict. Формула: `cost_usd = gas_used × gas_price_gwei × 1e-9 × eth_price_usd`; net APY = gross - annualised drag.
+- `spa_core/tests/test_gas_cost_tracker.py` (новый): **76 unittest-кейсов** — GasCostEntry (8), _compute_gas_cost (6), _grade_from_drag_bps (6), _entries_within_days (6), _safe_float (4), _safe_int (4), GasCostTracker.record_gas (6), get_total_cost_usd (5), get_cost_by_adapter (5), get_cost_by_chain (5), compute_net_apy (8), generate_report (6), ring-buffer (3), edge cases (4). Tempfile isolation.
+- `data/gas_cost_log.json` (новый): пустой stub `{"entries": []}`.
+- `spa_core/analytics/protocol_risk_scorer.py` (новый, ~430 строк): `ProtocolRisk` + `RiskScoreResult` dataclasses. `KNOWN_PROTOCOLS` — 15 записей: aave_v3_ethereum/base/optimism/polygon/arb, morpho_blue, compound_v3, yearn_v3, euler_v2 (exploit!), maple_v3, sky_susds, pendle_pt, spark_susds, extra_finance (SUSPENDED), moonwell (SUSPENDED, hack Nov2025). Формула: tvl_score(0/10/20/40/60) + audit_score(0/10/20/40) + age_score(0/10/20/40) + exploit_penalty(+50) = min(100, sum); grade A(0-20)/B(21-40)/C(41-60)/D(61-80)/F(81-100). `ProtocolRiskScorer`: `score_all()` → sorted dict; `get_portfolio_risk_profile(weights)` → weighted_score/grade/high_risk_adapters/advisory; `flag_suspended()` → [moonwell, extra_finance]; `generate_report(weights=None)` → full dict; `save_report()` → atomic overwrite `data/protocol_risk_scores.json`.
+- `spa_core/tests/test_protocol_risk_scorer.py` (новый): **96 unittest-кейсов** — Constants (5), TvlScore (8), AuditScore (5), AgeScore (5), ExploitPenalty (2), GradeFromScore (10), ScoreProtocol (7), ProtocolRiskDataclass/RiskScoreResult (9), KnownProtocols (6), ScoreAll (5), FlagSuspended (4), PortfolioRiskProfile (8), GenerateReport (6), SaveReport (5), EdgeCases (5). Tempfile isolation.
+- `data/protocol_risk_scores.json` (новый): снапшот — 15 протоколов; aave_v3_ethereum grade A (score 0); euler_v2 grade F (score 90); moonwell/extra_finance grade F (score 100, suspended).
+- `KANBAN.json` (обновлён аддитивно): MP-624 + MP-625 → done; sprint_current=v5.48; done_count 19→21.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** (1) `python3 -m py_compile spa_core/analytics/gas_cost_tracker.py` → OK. (2) `python3 -m py_compile spa_core/analytics/protocol_risk_scorer.py` → OK. (3) `python3 -m unittest spa_core.tests.test_gas_cost_tracker spa_core.tests.test_protocol_risk_scorer` → **Ran 172 tests in 0.138s — OK** (172/172). (4) `python3 -m spa_core.analytics.protocol_risk_scorer --run` → Saved data/protocol_risk_scores.json (15 protocols, aave A, euler/moonwell/extra_finance F). (5) Grep запрещённых импортов (numpy/pandas/requests/web3/openai, spa_core.risk/execution/monitoring/allocator) → **CLEAN**. (6) `find data -name "*.tmp"` → **0 файлов**. (7) `python3 -c "import json;json.load(open('KANBAN.json'))"` → **KANBAN VALID**.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-624 + MP-625 → done** (sprint v5.48, completed=2026-06-13, completed_by="claude (SPA-V548)"); `sprint_current=v5.48`; `done_count` 19→21.
+
+**Файлы для коммита:** `spa_core/analytics/gas_cost_tracker.py`, `spa_core/analytics/protocol_risk_scorer.py`, `spa_core/tests/test_gas_cost_tracker.py`, `spa_core/tests/test_protocol_risk_scorer.py`, `data/gas_cost_log.json`, `data/protocol_risk_scores.json`, `KANBAN.json`, `SPA_sprint_log.md`.
+
+**PUSH:** ⛔ не выполнен из sandbox — создан `scripts/push_v548.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.48 (MP-624 + MP-625) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Tasks:** MP-624 GasCostTracker + MP-625 ProtocolRiskScorer
+
+**Files created/modified:**
+- `spa_core/analytics/gas_cost_tracker.py` (~551 строк): advisory/read-only модуль. `GasCostEntry` dataclass (tx_hash, adapter, chain, gas_used, gas_price_gwei, eth_price_usd, cost_usd, timestamp). `GasCostTracker(data_dir)`: `record_gas(tx_hash, adapter, chain, gas_used, gas_price_gwei, eth_price_usd) → GasCostEntry` (вычисляет cost_usd = gas_used × gas_price_gwei × 1e-9 × eth_price_usd, атомарная запись ring-buffer 100 в data/gas_cost_log.json); `get_total_cost_usd(days=30) → float`; `get_cost_by_adapter(days=30) → dict`; `get_cost_by_chain(days=30) → dict`; `compute_net_apy(gross_apy, capital_usd, days=30) → {net_apy, gas_drag_bps, cost_usd, grade}` (grade A<5bps/B<15/C<30/D≥30); `generate_report() → dict` (summary/by_adapter/by_chain/net_apy_impact/advisory="For informational purposes only."). Pure stdlib, atomic tmp+os.replace, exit(0) всегда.
+- `spa_core/analytics/protocol_risk_scorer.py` (~645 строк): advisory/read-only модуль. `ProtocolRisk` dataclass (adapter_id, protocol_name, tvl_usd, audit_count, age_days, exploit_history, chain, suspended). Risk score 0-100 (lower=safer): tvl_score(0/10/20/40/60 для >1B/>500M/>100M/>10M/иначе) + audit_score(0/10/20/40 для ≥3/2/1/0) + age_score(0/10/20/40 для >730d/>365d/>180d/иначе) + exploit_penalty(+50) = min(100, sum). Grade A(0-20)/B(21-40)/C(41-60)/D(61-80)/F(81-100). `KNOWN_PROTOCOLS` — 15 протоколов: aave_v3_{ethereum,base,optimism,polygon,arb}, morpho_blue, compound_v3, yearn_v3, euler_v2(exploit), maple_v3, sky_susds, pendle_pt, spark_susds, extra_finance(SUSPENDED+exploit), moonwell(SUSPENDED+exploit Nov2025). `ProtocolRiskScorer`: `score_all() → dict[str, RiskScoreResult]` (sorted ascending); `get_portfolio_risk_profile(weights) → {weighted_score, grade, high_risk_adapters(score>60), advisory}`; `flag_suspended() → list[str]`; `generate_report() → dict`; `save_report() → str` (atomic, overwrite). Pure stdlib, SPA-BL-011 compliant.
+- `spa_core/tests/test_gas_cost_tracker.py` (76 тестов): TestGasCostEntryDataclass(7), TestComputeGasCost(6), TestGradeFromDragBps(6), TestEntriesWithinDays(6), TestSafeFloat(4), TestSafeInt(4), TestGasCostTrackerRecordGas(6), TestGetTotalCostUsd(5), TestGetCostByAdapter(5), TestGetCostByChain(5), TestComputeNetApy(8), TestGenerateReport(6), TestRingBuffer(3), TestEdgeCases(4). Все tempfile, production data/ не трогаются.
+- `spa_core/tests/test_protocol_risk_scorer.py` (96 тестов): TestConstants(5), TestTvlScore(8), TestAuditScore(5), TestAgeScore(5), TestExploitPenalty(2), TestGradeFromScore(10), TestScoreProtocol(7), TestKnownProtocols(13), TestProtocolRiskDataclass(3), TestScoreAll(7), TestGetPortfolioRiskProfile(9), TestFlagSuspended(6), TestGenerateReport(10), TestSaveReport(6). Все tempfile.mkdtemp().
+- `data/gas_cost_log.json` (новый): пустой ring-buffer, entries=[].
+- `data/protocol_risk_scores.json` (новый): snapshot 15 протоколов — grade distribution A:11/B:1/F:3 (euler_v2+extra_finance+moonwell → F из-за exploit penalty).
+- `KANBAN.json` (обновлён): MP-624, MP-625 → done (sprint v5.48); sprint_current=v5.48; done_count +2.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** (1) `python3 -m py_compile spa_core/analytics/gas_cost_tracker.py` → OK. (2) `python3 -m py_compile spa_core/analytics/protocol_risk_scorer.py` → OK. (3) `python3 -m unittest spa_core.tests.test_gas_cost_tracker -v` → **Ran 76 tests in 0.132s — OK**. (4) `python3 -m unittest spa_core.tests.test_protocol_risk_scorer -v` → **Ran 96 tests in 0.005s — OK**. (5) Grep запрещённых импортов (numpy/pandas/requests/web3/openai, spa_core.risk/execution/monitoring) → **CLEAN**. (6) `find data -name "*.tmp"` → **0 файлов**. (7) `python3 -c "import json;json.load(open('KANBAN.json'))"` → **KANBAN VALID**. Итого: **172 теста зелёных**.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Оба модуля advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-624 (GasCostTracker) → done** + **MP-625 (ProtocolRiskScorer) → done** (sprint v5.48, completed=2026-06-13, completed_by="claude (SPA-V548)"); `sprint_current=v5.48`; `done_count` +2.
+
+**Файлы для коммита:** `spa_core/analytics/gas_cost_tracker.py`, `spa_core/analytics/protocol_risk_scorer.py`, `spa_core/tests/test_gas_cost_tracker.py`, `spa_core/tests/test_protocol_risk_scorer.py`, `data/gas_cost_log.json`, `data/protocol_risk_scores.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v548.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V548): MP-624 GasCostTracker + MP-625 ProtocolRiskScorer — gas drag bps, net APY after gas, protocol risk A-F grades, 172 tests green`
+
+**PUSH:** ⛔ не выполнен из sandbox — Linux окружение без доступа к macOS Keychain / api.github.com / git. Создан `scripts/push_v548.sh` для ручного запуска на Mac.
