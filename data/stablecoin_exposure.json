@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "source": "stablecoin_exposure_report",
+  "last_updated": "2026-06-13T03:17:36.728850+00:00",
+  "count": 2,
+  "latest": {
+    "generated_at": "2026-06-13T03:17:36.728850+00:00",
+    "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+    "total_allocated_usd": 94999.97,
+    "total_stablecoins": 1,
+    "exposures": [
+      {
+        "symbol": "USDC",
+        "allocated_usd": 94999.97,
+        "weight_pct": 99.9999,
+        "adapter_count": 5,
+        "adapters": [
+          "aave_v3",
+          "compound_v3",
+          "euler_v2",
+          "maple",
+          "yearn_v3"
+        ],
+        "avg_apy_pct": 5.2172
+      }
+    ],
+    "dominant_stablecoin": "USDC",
+    "dominant_weight_pct": 99.9999,
+    "hhi": 0.999998,
+    "concentration_label": "CONCENTRATED",
+    "contagion_risk": "CRITICAL",
+    "unknown_weight_pct": 0,
+    "recommendations": [
+      "! USDC exposure 100.0% -- vysokij risk depeg-kontagiona, diversificiruj bazovyj aktiv"
+    ],
+    "summary": "Stablecoin exposure: 1 coins, dominant USDC 100.0%, HHI 1.000, contagion CRITICAL"
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T03:17:02.544107+00:00",
+      "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+      "total_allocated_usd": 94999.97,
+      "total_stablecoins": 1,
+      "exposures": [
+        {
+          "symbol": "USDC",
+          "allocated_usd": 94999.97,
+          "weight_pct": 99.9999,
+          "adapter_count": 5,
+          "adapters": [
+            "aave_v3",
+            "compound_v3",
+            "euler_v2",
+            "maple",
+            "yearn_v3"
+          ],
+          "avg_apy_pct": 5.2172
+        }
+      ],
+      "dominant_stablecoin": "USDC",
+      "dominant_weight_pct": 99.9999,
+      "hhi": 0.999998,
+      "concentration_label": "CONCENTRATED",
+      "contagion_risk": "CRITICAL",
+      "unknown_weight_pct": 0,
+      "recommendations": [
+        "! USDC exposure 100.0% -- vysokij risk depeg-kontagiona, diversificiruj bazovyj aktiv"
+      ],
+      "summary": "Stablecoin exposure: 1 coins, dominant USDC 100.0%, HHI 1.000, contagion CRITICAL"
+    },
+    {
+      "generated_at": "2026-06-13T03:17:36.728850+00:00",
+      "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+      "total_allocated_usd": 94999.97,
+      "total_stablecoins": 1,
+      "exposures": [
+        {
+          "symbol": "USDC",
+          "allocated_usd": 94999.97,
+          "weight_pct": 99.9999,
+          "adapter_count": 5,
+          "adapters": [
+            "aave_v3",
+            "compound_v3",
+            "euler_v2",
+            "maple",
+            "yearn_v3"
+          ],
+          "avg_apy_pct": 5.2172
+        }
+      ],
+      "dominant_stablecoin": "USDC",
+      "dominant_weight_pct": 99.9999,
+      "hhi": 0.999998,
+      "concentration_label": "CONCENTRATED",
+      "contagion_risk": "CRITICAL",
+      "unknown_weight_pct": 0,
+      "recommendations": [
+        "! USDC exposure 100.0% -- vysokij risk depeg-kontagiona, diversificiruj bazovyj aktiv"
+      ],
+      "summary": "Stablecoin exposure: 1 coins, dominant USDC 100.0%, HHI 1.000, contagion CRITICAL"
+    }
+  ]
+}
