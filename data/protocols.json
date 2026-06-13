@@ -6,11 +6,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.85492,
-    "apy_base": 3.85492,
+    "apy_total": 3.91808,
+    "apy_base": 3.91808,
     "apy_reward": 0.0,
-    "tvl_usd": 98161602.0,
-    "last_snapshot": "2026-06-13T17:01:36.007285+00:00"
+    "tvl_usd": 98301952.0,
+    "last_snapshot": "2026-06-13T23:46:13.849134+00:00"
   },
   {
     "key": "compound-v3-usdc-ethereum",
@@ -19,11 +19,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.21679,
-    "apy_base": 3.10817,
-    "apy_reward": 0.10862,
-    "tvl_usd": 44621943.0,
-    "last_snapshot": "2026-06-13T17:01:36.006806+00:00"
+    "apy_total": 3.21628,
+    "apy_base": 3.10785,
+    "apy_reward": 0.10843,
+    "tvl_usd": 44652944.0,
+    "last_snapshot": "2026-06-13T23:46:13.848629+00:00"
   },
   {
     "key": "aave-v3-usdc-ethereum",
@@ -32,11 +32,11 @@
     "chain": "Ethereum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.16205,
-    "apy_base": 3.16205,
+    "apy_total": 3.15891,
+    "apy_base": 3.15891,
     "apy_reward": 0.0,
-    "tvl_usd": 200128680.0,
-    "last_snapshot": "2026-06-13T17:01:36.004728+00:00"
+    "tvl_usd": 201108588.0,
+    "last_snapshot": "2026-06-13T23:46:13.846769+00:00"
   },
   {
     "key": "aave-v3-usdc-base",
@@ -45,11 +45,11 @@
     "chain": "Base",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 3.12185,
-    "apy_base": 3.12185,
+    "apy_total": 3.11714,
+    "apy_base": 3.11714,
     "apy_reward": 0.0,
-    "tvl_usd": 29546498.0,
-    "last_snapshot": "2026-06-13T17:01:36.008521+00:00"
+    "tvl_usd": 29699422.0,
+    "last_snapshot": "2026-06-13T23:46:13.850170+00:00"
   },
   {
     "key": "aave-v3-usdc-arbitrum",
@@ -58,11 +58,11 @@
     "chain": "Arbitrum",
     "tier": "T1",
     "is_active": 1,
-    "apy_total": 2.19078,
-    "apy_base": 2.19078,
+    "apy_total": 2.19249,
+    "apy_base": 2.19249,
     "apy_reward": 0.0,
-    "tvl_usd": 47526995.0,
-    "last_snapshot": "2026-06-13T17:01:36.007925+00:00"
+    "tvl_usd": 47504349.0,
+    "last_snapshot": "2026-06-13T23:46:13.849663+00:00"
   },
   {
     "key": "aave-v3-usdt-ethereum",
@@ -123,11 +123,11 @@
     "chain": "Ethereum",
     "tier": "T2",
     "is_active": 1,
-    "apy_total": 2.78757,
-    "apy_base": 2.78757,
+    "apy_total": 2.78758,
+    "apy_base": 2.78758,
     "apy_reward": 0.0,
-    "tvl_usd": 14820547.0,
-    "last_snapshot": "2026-06-13T17:01:36.010923+00:00"
+    "tvl_usd": 14820129.0,
+    "last_snapshot": "2026-06-13T23:46:13.852516+00:00"
   },
   {
     "key": "yearn-v3-usdc-ethereum",

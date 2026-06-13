@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-13T17:02:23.332786+00:00",
+  "generated_at": "2026-06-13T23:47:02.955663+00:00",
   "total_decisions": 5,
   "decisions": [
     {
       "id": 8,
-      "timestamp": "2026-06-13T17:02:23.330029+00:00",
+      "timestamp": "2026-06-13T23:47:02.953071+00:00",
       "agent_name": "ReportAgent",
       "decision_type": "REPORT",
       "protocol_key": null,
@@ -33,7 +33,7 @@
           "apy_gap_report.json",
           "apy_gap_report_history.json"
         ],
-        "timestamp": "2026-06-13T17:02:23.330017+00:00"
+        "timestamp": "2026-06-13T23:47:02.953061+00:00"
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -42,17 +42,17 @@
     },
     {
       "id": 7,
-      "timestamp": "2026-06-13T17:02:23.202208+00:00",
+      "timestamp": "2026-06-13T23:47:02.825953+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "aave-v3-usdc-arbitrum",
       "amount_usd": null,
       "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.19% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 47526995.0,
+        "tvl_usd": 47504349.0,
         "tier": "T1",
         "chain": "arbitrum",
-        "apy": 2.1908
+        "apy": 2.1925
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
@@ -61,14 +61,14 @@
     },
     {
       "id": 6,
-      "timestamp": "2026-06-13T17:02:23.199909+00:00",
+      "timestamp": "2026-06-13T23:47:02.823200+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "euler-v2-usdc-ethereum",
       "amount_usd": null,
       "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.79% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 14820547.0,
+        "tvl_usd": 14820129.0,
         "tier": "T2",
         "chain": "ethereum",
         "apy": 2.7876
