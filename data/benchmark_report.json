@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "source": "benchmark_tracker",
+  "last_updated": "2026-06-13T02:34:44.965236+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T02:34:44.965236+00:00",
+    "portfolio_apy_pct": 5.2172,
+    "portfolio_allocated_usd": 94999.97,
+    "best_benchmark_name": "Best Adapter",
+    "best_benchmark_apy": 12.0,
+    "overall_excess_return": -6.7828,
+    "annual_alpha_usd": -6443.66,
+    "outperforming_count": 3,
+    "total_benchmarks": 4,
+    "verdict": "LAGGING",
+    "benchmarks": [
+      {
+        "name": "T-Bill",
+        "apy_pct": 4.5,
+        "portfolio_apy_pct": 5.2172,
+        "excess_return_pct": 0.7172,
+        "information_ratio": 0.7172,
+        "outperforming": true
+      },
+      {
+        "name": "USDC Hold",
+        "apy_pct": 4.0,
+        "portfolio_apy_pct": 5.2172,
+        "excess_return_pct": 1.2172,
+        "information_ratio": 1.2172,
+        "outperforming": true
+      },
+      {
+        "name": "ETH Staking",
+        "apy_pct": 3.5,
+        "portfolio_apy_pct": 5.2172,
+        "excess_return_pct": 1.7172,
+        "information_ratio": 1.7172,
+        "outperforming": true
+      },
+      {
+        "name": "Best Adapter",
+        "apy_pct": 12.0,
+        "portfolio_apy_pct": 5.2172,
+        "excess_return_pct": -6.7828,
+        "information_ratio": -6.7828,
+        "outperforming": false
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T02:34:44.965236+00:00",
+      "portfolio_apy_pct": 5.2172,
+      "portfolio_allocated_usd": 94999.97,
+      "best_benchmark_name": "Best Adapter",
+      "best_benchmark_apy": 12.0,
+      "overall_excess_return": -6.7828,
+      "annual_alpha_usd": -6443.66,
+      "outperforming_count": 3,
+      "total_benchmarks": 4,
+      "verdict": "LAGGING",
+      "benchmarks": [
+        {
+          "name": "T-Bill",
+          "apy_pct": 4.5,
+          "portfolio_apy_pct": 5.2172,
+          "excess_return_pct": 0.7172,
+          "information_ratio": 0.7172,
+          "outperforming": true
+        },
+        {
+          "name": "USDC Hold",
+          "apy_pct": 4.0,
+          "portfolio_apy_pct": 5.2172,
+          "excess_return_pct": 1.2172,
+          "information_ratio": 1.2172,
+          "outperforming": true
+        },
+        {
+          "name": "ETH Staking",
+          "apy_pct": 3.5,
+          "portfolio_apy_pct": 5.2172,
+          "excess_return_pct": 1.7172,
+          "information_ratio": 1.7172,
+          "outperforming": true
+        },
+        {
+          "name": "Best Adapter",
+          "apy_pct": 12.0,
+          "portfolio_apy_pct": 5.2172,
+          "excess_return_pct": -6.7828,
+          "information_ratio": -6.7828,
+          "outperforming": false
+        }
+      ]
+    }
+  ]
+}
