@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0",
+  "source": "rebalance_optimizer",
+  "last_updated": "2026-06-13T05:30:02.035466+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T05:30:02.035466+00:00",
+    "current_portfolio_apy": 5.2172,
+    "optimized_portfolio_apy": 7.025,
+    "apy_improvement": 1.8078,
+    "annual_improvement_usd": 1717.41,
+    "moves": [
+      {
+        "from_adapter": "maple",
+        "to_adapter": "pendle_pt",
+        "amount_usd": 11518.6,
+        "from_apy": 5.6,
+        "to_apy": 8.0,
+        "apy_gain_pct": 2.4,
+        "annual_gain_usd": 276.45,
+        "priority": "HIGH",
+        "reason": "Higher APY: 8.0% vs 5.6%"
+      },
+      {
+        "from_adapter": "aave_v3",
+        "to_adapter": "sky_susds",
+        "amount_usd": 31946.82,
+        "from_apy": 4.2,
+        "to_apy": 6.5,
+        "apy_gain_pct": 2.3,
+        "annual_gain_usd": 734.78,
+        "priority": "HIGH",
+        "reason": "Higher APY: 6.5% vs 4.2%"
+      },
+      {
+        "from_adapter": "compound_v3",
+        "to_adapter": "sky_susds",
+        "amount_usd": 29803.17,
+        "from_apy": 4.8,
+        "to_apy": 6.5,
+        "apy_gain_pct": 1.7,
+        "annual_gain_usd": 506.65,
+        "priority": "HIGH",
+        "reason": "Higher APY: 6.5% vs 4.8%"
+      },
+      {
+        "from_adapter": "yearn_v3",
+        "to_adapter": "pendle_pt",
+        "amount_usd": 11518.6,
+        "from_apy": 6.8,
+        "to_apy": 8.0,
+        "apy_gain_pct": 1.2,
+        "annual_gain_usd": 138.22,
+        "priority": "MEDIUM",
+        "reason": "Higher APY: 8.0% vs 6.8%"
+      },
+      {
+        "from_adapter": "euler_v2",
+        "to_adapter": "pendle_pt",
+        "amount_usd": 10212.78,
+        "from_apy": 7.4,
+        "to_apy": 8.0,
+        "apy_gain_pct": 0.6,
+        "annual_gain_usd": 61.28,
+        "priority": "MEDIUM",
+        "reason": "Higher APY: 8.0% vs 7.4%"
+      }
+    ],
+    "high_priority_moves": [
+      {
+        "from_adapter": "maple",
+        "to_adapter": "pendle_pt",
+        "amount_usd": 11518.6,
+        "from_apy": 5.6,
+        "to_apy": 8.0,
+        "apy_gain_pct": 2.4,
+        "annual_gain_usd": 276.45,
+        "priority": "HIGH",
+        "reason": "Higher APY: 8.0% vs 5.6%"
+      },
+      {
+        "from_adapter": "aave_v3",
+        "to_adapter": "sky_susds",
+        "amount_usd": 31946.82,
+        "from_apy": 4.2,
+        "to_apy": 6.5,
+        "apy_gain_pct": 2.3,
+        "annual_gain_usd": 734.78,
+        "priority": "HIGH",
+        "reason": "Higher APY: 6.5% vs 4.2%"
+      },
+      {
+        "from_adapter": "compound_v3",
+        "to_adapter": "sky_susds",
+        "amount_usd": 29803.17,
+        "from_apy": 4.8,
+        "to_apy": 6.5,
+        "apy_gain_pct": 1.7,
+        "annual_gain_usd": 506.65,
+        "priority": "HIGH",
+        "reason": "Higher APY: 6.5% vs 4.8%"
+      }
+    ],
+    "total_moves": 5,
+    "tier_limits_respected": true,
+    "min_move_usd": 500.0,
+    "recommendation": "REBALANCE",
+    "summary": "5 moves suggested, +1.81% APY → $1,717/yr gain",
+    "disclaimer": "Advisory only. No transactions executed."
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T05:30:02.035466+00:00",
+      "current_portfolio_apy": 5.2172,
+      "optimized_portfolio_apy": 7.025,
+      "apy_improvement": 1.8078,
+      "annual_improvement_usd": 1717.41,
+      "moves": [
+        {
+          "from_adapter": "maple",
+          "to_adapter": "pendle_pt",
+          "amount_usd": 11518.6,
+          "from_apy": 5.6,
+          "to_apy": 8.0,
+          "apy_gain_pct": 2.4,
+          "annual_gain_usd": 276.45,
+          "priority": "HIGH",
+          "reason": "Higher APY: 8.0% vs 5.6%"
+        },
+        {
+          "from_adapter": "aave_v3",
+          "to_adapter": "sky_susds",
+          "amount_usd": 31946.82,
+          "from_apy": 4.2,
+          "to_apy": 6.5,
+          "apy_gain_pct": 2.3,
+          "annual_gain_usd": 734.78,
+          "priority": "HIGH",
+          "reason": "Higher APY: 6.5% vs 4.2%"
+        },
+        {
+          "from_adapter": "compound_v3",
+          "to_adapter": "sky_susds",
+          "amount_usd": 29803.17,
+          "from_apy": 4.8,
+          "to_apy": 6.5,
+          "apy_gain_pct": 1.7,
+          "annual_gain_usd": 506.65,
+          "priority": "HIGH",
+          "reason": "Higher APY: 6.5% vs 4.8%"
+        },
+        {
+          "from_adapter": "yearn_v3",
+          "to_adapter": "pendle_pt",
+          "amount_usd": 11518.6,
+          "from_apy": 6.8,
+          "to_apy": 8.0,
+          "apy_gain_pct": 1.2,
+          "annual_gain_usd": 138.22,
+          "priority": "MEDIUM",
+          "reason": "Higher APY: 8.0% vs 6.8%"
+        },
+        {
+          "from_adapter": "euler_v2",
+          "to_adapter": "pendle_pt",
+          "amount_usd": 10212.78,
+          "from_apy": 7.4,
+          "to_apy": 8.0,
+          "apy_gain_pct": 0.6,
+          "annual_gain_usd": 61.28,
+          "priority": "MEDIUM",
+          "reason": "Higher APY: 8.0% vs 7.4%"
+        }
+      ],
+      "high_priority_moves": [
+        {
+          "from_adapter": "maple",
+          "to_adapter": "pendle_pt",
+          "amount_usd": 11518.6,
+          "from_apy": 5.6,
+          "to_apy": 8.0,
+          "apy_gain_pct": 2.4,
+          "annual_gain_usd": 276.45,
+          "priority": "HIGH",
+          "reason": "Higher APY: 8.0% vs 5.6%"
+        },
+        {
+          "from_adapter": "aave_v3",
+          "to_adapter": "sky_susds",
+          "amount_usd": 31946.82,
+          "from_apy": 4.2,
+          "to_apy": 6.5,
+          "apy_gain_pct": 2.3,
+          "annual_gain_usd": 734.78,
+          "priority": "HIGH",
+          "reason": "Higher APY: 6.5% vs 4.2%"
+        },
+        {
+          "from_adapter": "compound_v3",
+          "to_adapter": "sky_susds",
+          "amount_usd": 29803.17,
+          "from_apy": 4.8,
+          "to_apy": 6.5,
+          "apy_gain_pct": 1.7,
+          "annual_gain_usd": 506.65,
+          "priority": "HIGH",
+          "reason": "Higher APY: 6.5% vs 4.8%"
+        }
+      ],
+      "total_moves": 5,
+      "tier_limits_respected": true,
+      "min_move_usd": 500.0,
+      "recommendation": "REBALANCE",
+      "summary": "5 moves suggested, +1.81% APY → $1,717/yr gain",
+      "disclaimer": "Advisory only. No transactions executed."
+    }
+  ]
+}
