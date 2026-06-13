@@ -1,0 +1,386 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-13T01:20:14.894716+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T01:20:14.894716+00:00",
+    "capital_usd": 100000.0,
+    "min_apy_diff_pct": 0.5,
+    "max_breakeven_days": 90.0,
+    "top_opportunity": {
+      "from_chain": "optimism",
+      "to_chain": "ethereum",
+      "from_adapter": "aave_v3_optimism",
+      "to_adapter": "susde",
+      "from_apy_pct": 4.8,
+      "to_apy_pct": 12.0,
+      "apy_diff_pct": 7.2,
+      "bridge_cost": {
+        "chain_from": "optimism",
+        "chain_to": "ethereum",
+        "gas_cost_usd": 0.8,
+        "slippage_pct": 0.001,
+        "time_hours": 168.0
+      },
+      "breakeven_days": 5.11,
+      "is_profitable": true,
+      "annual_gain_usd": 7200.0,
+      "recommendation": "MOVE"
+    },
+    "opportunities": [
+      {
+        "from_chain": "optimism",
+        "to_chain": "ethereum",
+        "from_adapter": "aave_v3_optimism",
+        "to_adapter": "susde",
+        "from_apy_pct": 4.8,
+        "to_apy_pct": 12.0,
+        "apy_diff_pct": 7.2,
+        "bridge_cost": {
+          "chain_from": "optimism",
+          "chain_to": "ethereum",
+          "gas_cost_usd": 0.8,
+          "slippage_pct": 0.001,
+          "time_hours": 168.0
+        },
+        "breakeven_days": 5.11,
+        "is_profitable": true,
+        "annual_gain_usd": 7200.0,
+        "recommendation": "MOVE"
+      },
+      {
+        "from_chain": "polygon",
+        "to_chain": "ethereum",
+        "from_adapter": "aave_v3_polygon",
+        "to_adapter": "susde",
+        "from_apy_pct": 5.1,
+        "to_apy_pct": 12.0,
+        "apy_diff_pct": 6.9,
+        "bridge_cost": {
+          "chain_from": "polygon",
+          "chain_to": "ethereum",
+          "gas_cost_usd": 0.5,
+          "slippage_pct": 0.001,
+          "time_hours": 168.0
+        },
+        "breakeven_days": 5.32,
+        "is_profitable": true,
+        "annual_gain_usd": 6900.0,
+        "recommendation": "MOVE"
+      },
+      {
+        "from_chain": "arbitrum",
+        "to_chain": "ethereum",
+        "from_adapter": "yearn-v3",
+        "to_adapter": "susde",
+        "from_apy_pct": 7.1,
+        "to_apy_pct": 12.0,
+        "apy_diff_pct": 4.9,
+        "bridge_cost": {
+          "chain_from": "arbitrum",
+          "chain_to": "ethereum",
+          "gas_cost_usd": 0.8,
+          "slippage_pct": 0.001,
+          "time_hours": 168.0
+        },
+        "breakeven_days": 7.51,
+        "is_profitable": true,
+        "annual_gain_usd": 4900.0,
+        "recommendation": "MOVE"
+      },
+      {
+        "from_chain": "base",
+        "to_chain": "ethereum",
+        "from_adapter": "extra_finance_base",
+        "to_adapter": "susde",
+        "from_apy_pct": 8.0,
+        "to_apy_pct": 12.0,
+        "apy_diff_pct": 4.0,
+        "bridge_cost": {
+          "chain_from": "base",
+          "chain_to": "ethereum",
+          "gas_cost_usd": 0.8,
+          "slippage_pct": 0.001,
+          "time_hours": 168.0
+        },
+        "breakeven_days": 9.2,
+        "is_profitable": true,
+        "annual_gain_usd": 4000.0,
+        "recommendation": "MOVE"
+      },
+      {
+        "from_chain": "optimism",
+        "to_chain": "base",
+        "from_adapter": "aave_v3_optimism",
+        "to_adapter": "extra_finance_base",
+        "from_apy_pct": 4.8,
+        "to_apy_pct": 8.0,
+        "apy_diff_pct": 3.2,
+        "bridge_cost": {
+          "chain_from": "optimism",
+          "chain_to": "base",
+          "gas_cost_usd": 3.5,
+          "slippage_pct": 0.001,
+          "time_hours": 0.3
+        },
+        "breakeven_days": 11.81,
+        "is_profitable": true,
+        "annual_gain_usd": 3200.0,
+        "recommendation": "MOVE"
+      },
+      {
+        "from_chain": "polygon",
+        "to_chain": "base",
+        "from_adapter": "aave_v3_polygon",
+        "to_adapter": "extra_finance_base",
+        "from_apy_pct": 5.1,
+        "to_apy_pct": 8.0,
+        "apy_diff_pct": 2.9,
+        "bridge_cost": {
+          "chain_from": "polygon",
+          "chain_to": "base",
+          "gas_cost_usd": 5.0,
+          "slippage_pct": 0.002,
+          "time_hours": 1.0
+        },
+        "breakeven_days": 25.8,
+        "is_profitable": true,
+        "annual_gain_usd": 2900.0,
+        "recommendation": "MOVE"
+      },
+      {
+        "from_chain": "polygon",
+        "to_chain": "arbitrum",
+        "from_adapter": "aave_v3_polygon",
+        "to_adapter": "yearn-v3",
+        "from_apy_pct": 5.1,
+        "to_apy_pct": 7.1,
+        "apy_diff_pct": 2.0,
+        "bridge_cost": {
+          "chain_from": "polygon",
+          "chain_to": "arbitrum",
+          "gas_cost_usd": 5.0,
+          "slippage_pct": 0.002,
+          "time_hours": 1.0
+        },
+        "breakeven_days": 37.41,
+        "is_profitable": true,
+        "annual_gain_usd": 2000.0,
+        "recommendation": "MONITOR"
+      },
+      {
+        "from_chain": "arbitrum",
+        "to_chain": "base",
+        "from_adapter": "yearn-v3",
+        "to_adapter": "extra_finance_base",
+        "from_apy_pct": 7.1,
+        "to_apy_pct": 8.0,
+        "apy_diff_pct": 0.9,
+        "bridge_cost": {
+          "chain_from": "arbitrum",
+          "chain_to": "base",
+          "gas_cost_usd": 4.0,
+          "slippage_pct": 0.002,
+          "time_hours": 0.5
+        },
+        "breakeven_days": 82.73,
+        "is_profitable": true,
+        "annual_gain_usd": 900.0,
+        "recommendation": "MONITOR"
+      }
+    ],
+    "total_opportunities": 8,
+    "profitable_count": 8
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T01:20:14.894716+00:00",
+      "capital_usd": 100000.0,
+      "min_apy_diff_pct": 0.5,
+      "max_breakeven_days": 90.0,
+      "top_opportunity": {
+        "from_chain": "optimism",
+        "to_chain": "ethereum",
+        "from_adapter": "aave_v3_optimism",
+        "to_adapter": "susde",
+        "from_apy_pct": 4.8,
+        "to_apy_pct": 12.0,
+        "apy_diff_pct": 7.2,
+        "bridge_cost": {
+          "chain_from": "optimism",
+          "chain_to": "ethereum",
+          "gas_cost_usd": 0.8,
+          "slippage_pct": 0.001,
+          "time_hours": 168.0
+        },
+        "breakeven_days": 5.11,
+        "is_profitable": true,
+        "annual_gain_usd": 7200.0,
+        "recommendation": "MOVE"
+      },
+      "opportunities": [
+        {
+          "from_chain": "optimism",
+          "to_chain": "ethereum",
+          "from_adapter": "aave_v3_optimism",
+          "to_adapter": "susde",
+          "from_apy_pct": 4.8,
+          "to_apy_pct": 12.0,
+          "apy_diff_pct": 7.2,
+          "bridge_cost": {
+            "chain_from": "optimism",
+            "chain_to": "ethereum",
+            "gas_cost_usd": 0.8,
+            "slippage_pct": 0.001,
+            "time_hours": 168.0
+          },
+          "breakeven_days": 5.11,
+          "is_profitable": true,
+          "annual_gain_usd": 7200.0,
+          "recommendation": "MOVE"
+        },
+        {
+          "from_chain": "polygon",
+          "to_chain": "ethereum",
+          "from_adapter": "aave_v3_polygon",
+          "to_adapter": "susde",
+          "from_apy_pct": 5.1,
+          "to_apy_pct": 12.0,
+          "apy_diff_pct": 6.9,
+          "bridge_cost": {
+            "chain_from": "polygon",
+            "chain_to": "ethereum",
+            "gas_cost_usd": 0.5,
+            "slippage_pct": 0.001,
+            "time_hours": 168.0
+          },
+          "breakeven_days": 5.32,
+          "is_profitable": true,
+          "annual_gain_usd": 6900.0,
+          "recommendation": "MOVE"
+        },
+        {
+          "from_chain": "arbitrum",
+          "to_chain": "ethereum",
+          "from_adapter": "yearn-v3",
+          "to_adapter": "susde",
+          "from_apy_pct": 7.1,
+          "to_apy_pct": 12.0,
+          "apy_diff_pct": 4.9,
+          "bridge_cost": {
+            "chain_from": "arbitrum",
+            "chain_to": "ethereum",
+            "gas_cost_usd": 0.8,
+            "slippage_pct": 0.001,
+            "time_hours": 168.0
+          },
+          "breakeven_days": 7.51,
+          "is_profitable": true,
+          "annual_gain_usd": 4900.0,
+          "recommendation": "MOVE"
+        },
+        {
+          "from_chain": "base",
+          "to_chain": "ethereum",
+          "from_adapter": "extra_finance_base",
+          "to_adapter": "susde",
+          "from_apy_pct": 8.0,
+          "to_apy_pct": 12.0,
+          "apy_diff_pct": 4.0,
+          "bridge_cost": {
+            "chain_from": "base",
+            "chain_to": "ethereum",
+            "gas_cost_usd": 0.8,
+            "slippage_pct": 0.001,
+            "time_hours": 168.0
+          },
+          "breakeven_days": 9.2,
+          "is_profitable": true,
+          "annual_gain_usd": 4000.0,
+          "recommendation": "MOVE"
+        },
+        {
+          "from_chain": "optimism",
+          "to_chain": "base",
+          "from_adapter": "aave_v3_optimism",
+          "to_adapter": "extra_finance_base",
+          "from_apy_pct": 4.8,
+          "to_apy_pct": 8.0,
+          "apy_diff_pct": 3.2,
+          "bridge_cost": {
+            "chain_from": "optimism",
+            "chain_to": "base",
+            "gas_cost_usd": 3.5,
+            "slippage_pct": 0.001,
+            "time_hours": 0.3
+          },
+          "breakeven_days": 11.81,
+          "is_profitable": true,
+          "annual_gain_usd": 3200.0,
+          "recommendation": "MOVE"
+        },
+        {
+          "from_chain": "polygon",
+          "to_chain": "base",
+          "from_adapter": "aave_v3_polygon",
+          "to_adapter": "extra_finance_base",
+          "from_apy_pct": 5.1,
+          "to_apy_pct": 8.0,
+          "apy_diff_pct": 2.9,
+          "bridge_cost": {
+            "chain_from": "polygon",
+            "chain_to": "base",
+            "gas_cost_usd": 5.0,
+            "slippage_pct": 0.002,
+            "time_hours": 1.0
+          },
+          "breakeven_days": 25.8,
+          "is_profitable": true,
+          "annual_gain_usd": 2900.0,
+          "recommendation": "MOVE"
+        },
+        {
+          "from_chain": "polygon",
+          "to_chain": "arbitrum",
+          "from_adapter": "aave_v3_polygon",
+          "to_adapter": "yearn-v3",
+          "from_apy_pct": 5.1,
+          "to_apy_pct": 7.1,
+          "apy_diff_pct": 2.0,
+          "bridge_cost": {
+            "chain_from": "polygon",
+            "chain_to": "arbitrum",
+            "gas_cost_usd": 5.0,
+            "slippage_pct": 0.002,
+            "time_hours": 1.0
+          },
+          "breakeven_days": 37.41,
+          "is_profitable": true,
+          "annual_gain_usd": 2000.0,
+          "recommendation": "MONITOR"
+        },
+        {
+          "from_chain": "arbitrum",
+          "to_chain": "base",
+          "from_adapter": "yearn-v3",
+          "to_adapter": "extra_finance_base",
+          "from_apy_pct": 7.1,
+          "to_apy_pct": 8.0,
+          "apy_diff_pct": 0.9,
+          "bridge_cost": {
+            "chain_from": "arbitrum",
+            "chain_to": "base",
+            "gas_cost_usd": 4.0,
+            "slippage_pct": 0.002,
+            "time_hours": 0.5
+          },
+          "breakeven_days": 82.73,
+          "is_profitable": true,
+          "annual_gain_usd": 900.0,
+          "recommendation": "MONITOR"
+        }
+      ],
+      "total_opportunities": 8,
+      "profitable_count": 8
+    }
+  ]
+}
