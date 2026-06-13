@@ -1,7 +1,7 @@
 {
   "last_updated": "2026-06-13",
-  "updated_by": "claude (SPA-V532)",
-  "sprint_current": "v5.32",
+  "updated_by": "claude (SPA-V535 orchestrator)",
+  "sprint_current": "v5.37",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -5138,10 +5138,59 @@
           "scoring",
           "mp-605"
         ]
+      },
+      {
+        "id": "MP-609",
+        "title": "PortfolioSnapshotDiff — adapter-level change tracking between consecutive snapshots",
+        "status": "done",
+        "sprint": "v5.33",
+        "sprint_completed": "v5.33",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V533)",
+        "description": "spa_core/analytics/portfolio_snapshot_diff.py: PortfolioSnapshotDiff — advisory/read-only. Compares two consecutive yield_attribution_tracker.json snapshots. Dataclasses: AdapterChange (adapter_key, change_type: added/removed/weight_up/weight_down/apy_up/apy_down/unchanged, old/new weight_pct, old/new apy_pct, weight_delta, apy_delta, is_significant: |weight_delta|>1% or |apy_delta|>0.1%), PortfolioDiff (portfolio APY delta, capital delta, added/removed/significant_changes lists, trend IMPROVING/STABLE/DECLINING, one-line summary). Class PortfolioSnapshotDiff(data_path): load_snapshots (ring-buffer 30 from yield_attribution_tracker.json), get_last_two (raise ValueError if <2), diff_adapters (weight priority over apy in change_type), compute_diff (load from disk when no args), save_diff (atomic tmp+os.replace, ring-buffer 30 → data/snapshot_diff.json), format_telegram_message (≤1500 chars, trend/APY/added/removed/significant), to_dict. CLI --check/--run/--data-dir. Pure stdlib, SPA-BL-011 compliant. 85 tests green.",
+        "tags": [
+          "analytics",
+          "advisory",
+          "read-only",
+          "diff",
+          "snapshot",
+          "mp-609"
+        ],
+        "files": [
+          "spa_core/analytics/portfolio_snapshot_diff.py",
+          "spa_core/tests/test_portfolio_snapshot_diff.py",
+          "data/snapshot_diff.json",
+          "KANBAN.json",
+          "SPA_sprint_log.md"
+        ]
+      },
+      {
+        "id": "MP-613",
+        "title": "Dashboard v3.3 — Benchmark + Weekly Summary panels in Stats/Analytics tab",
+        "status": "done",
+        "sprint": "v5.37",
+        "sprint_completed": "v5.37",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V537)",
+        "description": "index.html: added two panels to tab-analytics (Stats/Analytics). 1) Benchmark Panel (#benchmark-panel) — loads data/benchmark_report.json (.latest), renders portfolio APY vs each benchmark with colored excess-return badges (ALPHA+🏆/ALPHA✅/BENCHMARK➡️/LAGGING⚠️ verdict). 2) Weekly Summary Panel (#weekly-panel) — loads data/weekly_summary.json (.latest), renders weekly verdict (EXCELLENT/GOOD/FAIR/POOR), days/operational/avg-APY/top-chain stats, trend arrow (↗️↘️→). CSS: .bm-panel .bm-row-mp613 .bm-name-mp613 .bm-apy-mp613 .bm-excess(.positive|.negative) .bm-verdict-mp613 .wk-panel .wk-stat .wk-stat-val .wk-stat-label .wk-grid .wk-verdict(.excellent|.good|.fair|.poor) — all with body.night overrides and @media(max-width:480px) responsive. JS: loadBenchmarkPanel(force) + loadWeeklyPanel(force) — fetch with no-store on force, handle raw.latest wrapper, graceful error fallback. Both deferred in loadAnalytics() via _defer(). 98 tests green: spa_core/tests/test_dashboard_bm_weekly.py.",
+        "tags": [
+          "dashboard",
+          "ui",
+          "benchmark",
+          "weekly-summary",
+          "stats",
+          "mp-613"
+        ],
+        "files": [
+          "index.html",
+          "spa_core/tests/test_dashboard_bm_weekly.py",
+          "KANBAN.json",
+          "SPA_sprint_log.md"
+        ]
       }
     ]
   },
-  "sprint_completed": "v5.31",
+  "sprint_completed": "v5.37",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
@@ -5335,7 +5384,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 26,
+  "done_count": 27,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -5514,6 +5563,44 @@
         "scripts/push_v532.sh"
       ],
       "tests": "111 tests green (Ran 111 tests in 0.083s — OK)"
+    },
+    {
+      "id": "MP-610",
+      "title": "WeeklySummaryReport — 7-day aggregation of daily ops reports",
+      "status": "done",
+      "sprint": "v5.34",
+      "sprint_completed": "v5.34",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V534)",
+      "description": "WeeklySummaryReport: агрегирует последние 7 дней из data/daily_ops_report.json (ring-buffer). Dataclasses: WeeklyStats (metric_name, values, avg, min, max, trend: RISING/FALLING/STABLE — last > first+0.1→RISING, last < first-0.1→FALLING, иначе STABLE), WeeklySummaryReportData (generated_at, week_start, week_end, days_covered, apy_stats, operational_days, degraded_days, critical_days, best_day_apy, worst_day_apy, top_chain_this_week, top_chain_apy, weekly_verdict, summary_line). Helpers: _safe_float, _parse_timestamp (Z→+00:00, fromisoformat), _compute_trend, _trend_arrow. WeeklySummaryReport(data_path): load_daily_history()→list[dict] (daily_ops_report.json history, фильтр non-dict, graceful на missing); get_last_7_days(history)→sort ascending by generated_at, tail 7; compute_weekly_stats(values, name)→WeeklyStats; _determine_verdict(avg_apy, op_days): EXCELLENT(>6%+≥5op)/GOOD(>5% OR ≥4op)/FAIR(>4%)/POOR; _extract_top_chain→(chain, avg_apy); generate_report()→WeeklySummaryReportData (0 дней→POOR/нули); save_report()→атомарный tmp+os.replace, ring-buffer 12 в data/weekly_summary.json; format_telegram_message()≤1500 chars (📅 header, verdict emoji, APY avg/min/max/trend, best/worst day, top chain, degraded/critical, trend label); to_dict()→JSON-serializable. CLI: --check/--run/--data-dir. Pure stdlib, 97 tests green.",
+      "files": [
+        "spa_core/analytics/weekly_summary_report.py",
+        "spa_core/tests/test_weekly_summary_report.py",
+        "data/weekly_summary.json",
+        "KANBAN.json",
+        "SPA_sprint_log.md",
+        "scripts/push_v534.sh"
+      ],
+      "tests": "97 tests green (Ran 97 tests in 0.012s — OK)"
+    },
+    {
+      "id": "MP-611",
+      "type": "code",
+      "status": "done",
+      "priority": "MEDIUM",
+      "title": "StablecoinExposureReport — exposure aggregation by underlying stablecoin (USDC/DAI/FRAX/USDS/crvUSD/USDe/USDM), HHI concentration, depeg-contagion risk LOW/MODERATE/HIGH/CRITICAL, Telegram <=1500 chars; 143 tests green",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V535)",
+      "sprint": "v5.35"
+    },
+    {
+      "id": "MP-612",
+      "title": "AdapterCorrelationMatrix — Pearson APY correlation for all adapter pairs",
+      "status": "done",
+      "priority": "medium",
+      "sprint": "v5.36",
+      "completed": "2026-06-13",
+      "description": "spa_core/analytics/adapter_correlation_matrix.py — Pearson correlation between APY series, diversification score, STRONGLY/CORRELATED/UNCORRELATED/NEGATIVELY classification, 97 tests."
     }
   ],
   "_v520_dispatch_note": "MP-596 AdapterWatchdog: APY/peg/risk thresholds, AlertDispatcher integration, ring-buffer 48h, 136 tests OK (2026-06-13)",
@@ -5525,5 +5612,8 @@
   "_v529_dispatch_note": "MP-605 IntegratedRiskDashboard: aggregates peg+concentration+watchdog+momentum into weighted GREEN/YELLOW/ORANGE/RED score, recommendations, 100 tests green.",
   "_v530_dispatch_note": "MP-606 DailyOperationsReport: 5-section unified daily ops report (risk/yield/chains/strategies/peg), Telegram ≤4000 chars, action items, ring-buffer 30, 90 tests green. data/daily_ops_report.json saved.",
   "_v531_dispatch_note": "MP-607 BenchmarkTracker: portfolio alpha vs T-Bill/USDC/ETH/BestAdapter, ALPHA+/ALPHA/BENCHMARK/LAGGING verdict, 4 benchmarks, annual_alpha_usd, ring-buffer 30, Telegram message, 97 tests green",
-  "_v532_dispatch_note": "MP-608 S19 BalancedL2: equal 25% ARB+BASE+OPT+POLY, chain_diversity_score, gas_savings_summary avg 92.5%, target APY 5.0%, RISK_SCORE 0.26, cycle_runner additive, 111 tests green (2026-06-13)"
+  "_v532_dispatch_note": "MP-608 S19 BalancedL2: equal 25% ARB+BASE+OPT+POLY, chain_diversity_score, gas_savings_summary avg 92.5%, target APY 5.0%, RISK_SCORE 0.26, cycle_runner additive, 111 tests green (2026-06-13)",
+  "_v533_dispatch_note": "MP-609 PortfolioSnapshotDiff: spa_core/analytics/portfolio_snapshot_diff.py — adapter-level change tracking (added/removed/weight/apy delta), trend IMPROVING/STABLE/DECLINING, Telegram ≤1500 chars, ring-buffer 30, 85 tests green.",
+  "_v534_dispatch_note": "MP-610 WeeklySummaryReport: 7-day daily_ops aggregation, EXCELLENT/GOOD/FAIR/POOR verdict (>6%+≥5op/OR >5%/OR≥4op/>4%/else), top_chain extraction, Telegram ≤1500 chars, ring-buffer 12, 97 tests green (2026-06-13)",
+  "_v535_dispatch_note": "MP-611 StablecoinExposureReport done (v5.35). New advisory/read-only module: aggregates portfolio exposure by underlying stablecoin via ADAPTER_STABLECOIN_MAP, computes HHI, dominant coin, depeg-contagion risk (CRITICAL>80/HIGH>60/MODERATE>40/LOW), recommendations, Telegram <=1500. stdlib-only, atomic ring-buffer 30 -> data/stablecoin_exposure.json. 143 tests green. Current portfolio: 100% USDC -> CRITICAL contagion (single-stablecoin concentration flagged)."
 }
