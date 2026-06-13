@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "source": "full_portfolio_report",
+  "ring_buffer_max": 30,
+  "report_count": 1,
+  "last_updated": "2026-06-13T06:26:10.822936+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T06:26:10.822936+00:00",
+    "portfolio_apy_pct": 5.2172,
+    "total_allocated_usd": 94999.97,
+    "modules": [
+      {
+        "name": "attribution",
+        "file_path": "data/yield_attribution_tracker.json",
+        "loaded": true,
+        "key_metric": "APY 5.22% ($95K)",
+        "status_level": "GREEN",
+        "last_updated": "2026-06-13T01:53:37"
+      },
+      {
+        "name": "benchmark",
+        "file_path": "data/benchmark_report.json",
+        "loaded": true,
+        "key_metric": "LAGGING (5.22%)",
+        "status_level": "RED",
+        "last_updated": "2026-06-13T02:34:44"
+      },
+      {
+        "name": "weekly",
+        "file_path": "data/weekly_summary.json",
+        "loaded": true,
+        "key_metric": "GOOD (1 days)",
+        "status_level": "GREEN",
+        "last_updated": "2026-06-13T02:48:05"
+      },
+      {
+        "name": "risk",
+        "file_path": "data/integrated_risk.json",
+        "loaded": true,
+        "key_metric": "YELLOW (score 0.10)",
+        "status_level": "YELLOW",
+        "last_updated": "2026-06-13T02:18:35"
+      },
+      {
+        "name": "rebalance",
+        "file_path": "data/rebalance_plan.json",
+        "loaded": true,
+        "key_metric": "REBALANCE (+1.81%)",
+        "status_level": "RED",
+        "last_updated": "2026-06-13T05:30:02"
+      },
+      {
+        "name": "capital_efficiency",
+        "file_path": "data/capital_efficiency.json",
+        "loaded": true,
+        "key_metric": "Grade B (RAROC 1.43x)",
+        "status_level": "GREEN",
+        "last_updated": "2026-06-13T04:26:15"
+      },
+      {
+        "name": "tier_exposure",
+        "file_path": "data/tier_exposure.json",
+        "loaded": true,
+        "key_metric": "COMPLIANT (HHI 0.545)",
+        "status_level": "GREEN",
+        "last_updated": "2026-06-13T05:17:08"
+      },
+      {
+        "name": "chain_exposure",
+        "file_path": "data/chain_exposure.json",
+        "loaded": true,
+        "key_metric": "BREACH (HHI 1.000)",
+        "status_level": "RED",
+        "last_updated": "2026-06-13T06:15:57"
+      },
+      {
+        "name": "peg_monitor",
+        "file_path": "data/peg_report.json",
+        "loaded": true,
+        "key_metric": "GREEN",
+        "status_level": "GREEN",
+        "last_updated": "2026-06-13T02:03:36"
+      },
+      {
+        "name": "forecast",
+        "file_path": "data/yield_forecast.json",
+        "loaded": true,
+        "key_metric": "STABLE (cur 0.00%)",
+        "status_level": "YELLOW",
+        "last_updated": "2026-06-13T04:24:05"
+      },
+      {
+        "name": "stablecoin",
+        "file_path": "data/stablecoin_exposure.json",
+        "loaded": true,
+        "key_metric": "Contagion:CRITICAL (100.0%)",
+        "status_level": "RED",
+        "last_updated": "2026-06-13T03:17:36"
+      },
+      {
+        "name": "concentration",
+        "file_path": "data/concentration_analytics.json",
+        "loaded": true,
+        "key_metric": "FAIL (HHI 0.228)",
+        "status_level": "RED",
+        "last_updated": "unknown"
+      }
+    ],
+    "modules_loaded": 12,
+    "modules_failed": 0,
+    "benchmark_verdict": "LAGGING",
+    "weekly_verdict": "GOOD",
+    "risk_level": "YELLOW",
+    "rebalance_recommendation": "REBALANCE",
+    "capital_grade": "B",
+    "tier_policy_status": "COMPLIANT",
+    "chain_policy_status": "BREACH",
+    "peg_status": "GREEN",
+    "forecast_trend": "STABLE",
+    "overall_health": "ALERT",
+    "health_score": 0.4166666666666667,
+    "action_items": [
+      "⚠️ Performance LAGGING: review allocation strategy",
+      "Monitor risk level: elevated signals detected",
+      "⚠️ Rebalance required: REBALANCE signal active",
+      "⚠️ Policy BREACH: check chain exposure",
+      "Yield stable: watch for trend change"
+    ],
+    "summary": "APY 5.22%, ALERT health, 5 action items"
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T06:26:10.822936+00:00",
+      "portfolio_apy_pct": 5.2172,
+      "total_allocated_usd": 94999.97,
+      "modules": [
+        {
+          "name": "attribution",
+          "file_path": "data/yield_attribution_tracker.json",
+          "loaded": true,
+          "key_metric": "APY 5.22% ($95K)",
+          "status_level": "GREEN",
+          "last_updated": "2026-06-13T01:53:37"
+        },
+        {
+          "name": "benchmark",
+          "file_path": "data/benchmark_report.json",
+          "loaded": true,
+          "key_metric": "LAGGING (5.22%)",
+          "status_level": "RED",
+          "last_updated": "2026-06-13T02:34:44"
+        },
+        {
+          "name": "weekly",
+          "file_path": "data/weekly_summary.json",
+          "loaded": true,
+          "key_metric": "GOOD (1 days)",
+          "status_level": "GREEN",
+          "last_updated": "2026-06-13T02:48:05"
+        },
+        {
+          "name": "risk",
+          "file_path": "data/integrated_risk.json",
+          "loaded": true,
+          "key_metric": "YELLOW (score 0.10)",
+          "status_level": "YELLOW",
+          "last_updated": "2026-06-13T02:18:35"
+        },
+        {
+          "name": "rebalance",
+          "file_path": "data/rebalance_plan.json",
+          "loaded": true,
+          "key_metric": "REBALANCE (+1.81%)",
+          "status_level": "RED",
+          "last_updated": "2026-06-13T05:30:02"
+        },
+        {
+          "name": "capital_efficiency",
+          "file_path": "data/capital_efficiency.json",
+          "loaded": true,
+          "key_metric": "Grade B (RAROC 1.43x)",
+          "status_level": "GREEN",
+          "last_updated": "2026-06-13T04:26:15"
+        },
+        {
+          "name": "tier_exposure",
+          "file_path": "data/tier_exposure.json",
+          "loaded": true,
+          "key_metric": "COMPLIANT (HHI 0.545)",
+          "status_level": "GREEN",
+          "last_updated": "2026-06-13T05:17:08"
+        },
+        {
+          "name": "chain_exposure",
+          "file_path": "data/chain_exposure.json",
+          "loaded": true,
+          "key_metric": "BREACH (HHI 1.000)",
+          "status_level": "RED",
+          "last_updated": "2026-06-13T06:15:57"
+        },
+        {
+          "name": "peg_monitor",
+          "file_path": "data/peg_report.json",
+          "loaded": true,
+          "key_metric": "GREEN",
+          "status_level": "GREEN",
+          "last_updated": "2026-06-13T02:03:36"
+        },
+        {
+          "name": "forecast",
+          "file_path": "data/yield_forecast.json",
+          "loaded": true,
+          "key_metric": "STABLE (cur 0.00%)",
+          "status_level": "YELLOW",
+          "last_updated": "2026-06-13T04:24:05"
+        },
+        {
+          "name": "stablecoin",
+          "file_path": "data/stablecoin_exposure.json",
+          "loaded": true,
+          "key_metric": "Contagion:CRITICAL (100.0%)",
+          "status_level": "RED",
+          "last_updated": "2026-06-13T03:17:36"
+        },
+        {
+          "name": "concentration",
+          "file_path": "data/concentration_analytics.json",
+          "loaded": true,
+          "key_metric": "FAIL (HHI 0.228)",
+          "status_level": "RED",
+          "last_updated": "unknown"
+        }
+      ],
+      "modules_loaded": 12,
+      "modules_failed": 0,
+      "benchmark_verdict": "LAGGING",
+      "weekly_verdict": "GOOD",
+      "risk_level": "YELLOW",
+      "rebalance_recommendation": "REBALANCE",
+      "capital_grade": "B",
+      "tier_policy_status": "COMPLIANT",
+      "chain_policy_status": "BREACH",
+      "peg_status": "GREEN",
+      "forecast_trend": "STABLE",
+      "overall_health": "ALERT",
+      "health_score": 0.4166666666666667,
+      "action_items": [
+        "⚠️ Performance LAGGING: review allocation strategy",
+        "Monitor risk level: elevated signals detected",
+        "⚠️ Rebalance required: REBALANCE signal active",
+        "⚠️ Policy BREACH: check chain exposure",
+        "Yield stable: watch for trend change"
+      ],
+      "summary": "APY 5.22%, ALERT health, 5 action items"
+    }
+  ]
+}
