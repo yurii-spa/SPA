@@ -9964,3 +9964,58 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 **Рекомендуемое сообщение коммита:** `feat(SPA-V548): MP-624 GasCostTracker + MP-625 ProtocolRiskScorer — gas drag bps, net APY after gas, protocol risk A-F grades, 172 tests green`
 
 **PUSH:** ⛔ не выполнен из sandbox — Linux окружение без доступа к macOS Keychain / api.github.com / git. Создан `scripts/push_v548.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.48 (MP-626 + MP-627) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Tasks:** MP-626 PositionSizingEngine + MP-627 TelegramDailyDigest
+
+**Files created:**
+- `spa_core/analytics/position_sizing_engine.py` (~320 строк): PositionSizeResult dataclass (adapter_id, recommended_weight, max_weight, rationale, risk_score + to_dict). PositionSizingEngine(capital_usd, risk_budget=0.10): compute_equal_weight (1/N), compute_risk_parity (w_i=1/r_i/Σ1/r_j, нулевой риск → floor 1e-9), apply_tier_caps (water-filling итерация: T1≤40%/адаптер, T2≤25%/адаптер, T3≤10%/адаптер, total T2≤50%, total T3≤15%, Phase 2/3 для portfolio caps, финальная нормализация), compute_kelly_fraction (kelly=(WR×win−LR×loss)/win, capped 0.25), optimize (risk-parity + kelly 60/40 blend, re-apply tier caps, advisory rationale со всеми метриками), generate_report (weights_table, HHI diversification_score, advisory disclaimer). Pure stdlib, advisory/read-only, SPA-BL-011 compliant.
+- `spa_core/tests/test_position_sizing_engine.py` (~320 строк): **73 теста** — TestPositionSizeResult(4), TestEngineInit(7), TestComputeEqualWeight(6), TestComputeRiskParity(8), TestApplyTierCaps(11), TestComputeKellyFraction(9), TestOptimize(14), TestGenerateReport(11), TestIntegration(3). Все тесты feasible (3+ адаптеров для tier cap сценариев).
+- `spa_core/analytics/telegram_daily_digest.py` (~340 строк): escape_mdv2 (16 спец. символов MDv2, backslash первым). DigestSection dataclass (title, emoji, lines). TelegramDailyDigest(data_dir): _load_json (fail-safe, None при ошибке), _format_section ("EMOJI *Title*\n  lines"), _latest (ring-buffer или plain dict/list), build_portfolio_section (strategy_summary → paper_trading_status fallback), build_alert_section (alert_threshold_log → alert_report → alerts), build_progress_section (progress_tracker + milestones count), build_paper_trading_section (paper_trading_log → equity_curve_daily), build_forecast_section (yield_forecast 7d/30d/trend/top adapter), build_digest (все секции + header + divider + footer + escape + truncate 4096), send_digest (urllib.request.urlopen POST JSON, timeout=10, returns {ok, status_code, message_id/error}, handles HTTPError/URLError/Exception), save_digest (atomic tmp+os.replace → data/telegram_digests/YYYY-MM-DD.txt).
+- `spa_core/tests/test_telegram_daily_digest.py` (~340 строк): **75 тестов** — TestEscapeMdv2(16), TestDigestSection(3), TestLoadJson(6), TestFormatSection(6), TestBuildPortfolioSection(4), TestBuildAlertSection(3), TestBuildProgressSection(3), TestBuildPaperTradingSection(4), TestBuildForecastSection(3), TestBuildDigest(8), TestSaveDigest(8), TestSendDigest(8), TestIntegration(3). Все сетевые вызовы мокированы (unittest.mock).
+- `scripts/push_v548.sh` (новый): PAT из Keychain/env, без встроенных секретов.
+
+**Верификация:**
+1. `python3 -m unittest spa_core.tests.test_position_sizing_engine -v` → **Ran 73 tests in 0.002s — OK**
+2. `python3 -m unittest spa_core.tests.test_telegram_daily_digest -v` → **Ran 75 tests in 0.009s — OK**
+3. Combined → **Ran 148 tests in 0.011s — OK**
+4. Grep запрещённых импортов (numpy/pandas/requests/web3/openai, spa_core.risk/execution/monitoring/allocator) → CLEAN на обоих файлах.
+5. Атомарные записи только в save_digest (tmp+os.replace). position_sizing_engine не пишет на диск.
+6. `python3 -c "import json;json.load(open('KANBAN.json'))"` → KANBAN VALID.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/ — НЕ тронуты. Pure stdlib. PAT не встраивался. Оба модуля advisory.
+
+**KANBAN:** MP-626 (PositionSizingEngine) → done (sprint v5.48); MP-627 (TelegramDailyDigest) → done (sprint v5.48); done_count +2; sprint_current=v5.48.
+
+**Файлы для коммита:** `spa_core/analytics/position_sizing_engine.py`, `spa_core/analytics/telegram_daily_digest.py`, `spa_core/tests/test_position_sizing_engine.py`, `spa_core/tests/test_telegram_daily_digest.py`, `KANBAN.json`, `SPA_sprint_log.md`.
+
+**PUSH:** ⛔ не выполнен из sandbox — Linux окружение без доступа к macOS Keychain. Создан `scripts/push_v548.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.49 (MP-628 + Dashboard v3.5) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Tasks:** MP-628 StrategyTournament Leaderboard + Dashboard v3.5 (Gas Cost / Protocol Risk / Strategy Leaderboard panels)
+
+**Files created/modified:**
+- `spa_core/analytics/strategy_tournament.py` (~380 строк): advisory/read-only модуль. `StrategyScore` dataclass (strategy_id, name, paper_apy, sharpe, max_drawdown, days_active, rank, medal). `StrategyTournament(data_dir)`: `_load_scores()` — трёхуровневый fallback: strategy_shadow_comparison.json → pnl_history.json → deterministic defaults S0–S19; `rank_strategies(metric="paper_apy") → list[StrategyScore]` (sort desc, ascending для max_drawdown, rank 1..N, medals 🥇🥈🥉 для top-3); `compute_sharpe(returns, rf_rate=0.045) → float` (pure stdlib, annualised, 0.0 при stdev=0 или len<2); `get_top_n(n=3) → list[StrategyScore]`; `generate_leaderboard_report() → dict` (schema_version, generated_at, metric, total_strategies, ranked_strategies, top_3, winner, advisory); `save_report(report) → str` (atomic tmp+os.replace, ring-buffer 100). VALID_METRICS = paper_apy/sharpe/max_drawdown/days_active. Детерминированные имена и seed-значения для S0–S19.
+- `spa_core/tests/test_strategy_tournament.py` (90 тестов): TestStrategyScoreDataclass(5), TestSafeFloat(7), TestSafeInt(5), TestMeanStdev(8), TestPnlPctToApy(4), TestMaxDrawdownFromEquity(5), TestComputeSharpe(6), TestLoadScores(8), TestRankStrategies(9), TestGetTopN(4), TestGenerateLeaderboardReport(8), TestSaveReport(7), TestMedalAssignment(4), TestConstants(6), TestEdgeCases(5). Все tempfile.TemporaryDirectory(), production data/ не трогается.
+- `data/strategy_tournament.json` (новый): leaderboard snapshot, 6 стратегий из strategy_shadow_comparison.json, winner=S5 (highest APY from shadow data).
+- `index.html` (обновлён → v3.5, +212 строк): добавлены 3 новых an-card панели в конце tab-analytics + 3 async JS-функции + 3 deferred вызова в loadAnalytics(): (1) `⛽ Gas Cost Impact` — загружает gas_cost_log.json, вычисляет client-side: drag_bps=(cost_usd/100000)*10000*365/n_entries; net_apy=gross_apy-drag_bps/10000; grade A(<5bps)/B(<15)/C(<30)/D(≥30), цветной badge; (2) `🛡️ Protocol Risk Profile` — загружает protocol_risk_scores.json, top-5 safest (lowest total_score), grade badge A(green)...F(red), счётчик suspended адаптеров; (3) `🏆 Strategy Leaderboard` — загружает strategy_tournament.json, top-5 стратегий с medal+name+paper_apy, winner строка с gold background (#fef9c3).
+- `KANBAN.json` (обновлён): MP-628 + Dashboard-v3.5 → done (sprint v5.49); sprint_current=v5.49; done_count=25.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** (1) `python3 -m py_compile spa_core/analytics/strategy_tournament.py` → OK. (2) `python3 -m unittest spa_core.tests.test_strategy_tournament -v` → **Ran 90 tests in 0.010s — OK**. (3) `python3 -m spa_core.analytics.strategy_tournament --run` → `data/strategy_tournament.json` written. (4) index.html: grep проверка → gas-cost-panel, protocol-risk-panel, strategy-leaderboard-panel + loadGasCostPanel/loadProtocolRiskPanel/loadStrategyLeaderboard + deferred calls в loadAnalytics() — все присутствуют. (5) `python3 -c "import json; json.load(open('KANBAN.json'))"` → KANBAN VALID. (6) Grep запрещённых импортов (numpy/pandas/requests/web3/openai, spa_core.risk/execution/monitoring) → **CLEAN**. (7) PAT не встраивался, push_*.html не создавался.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. strategy_tournament.py — advisory, деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-628 (StrategyTournament) → done** + **Dashboard-v3.5 → done** (sprint v5.49, completed=2026-06-13, completed_by="claude (SPA-V549)"); `sprint_current=v5.49`; `done_count=25`.
+
+**Файлы для коммита:** `spa_core/analytics/strategy_tournament.py`, `spa_core/tests/test_strategy_tournament.py`, `data/strategy_tournament.json`, `index.html`, `KANBAN.json`, `SPA_sprint_log.md`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V549): MP-628 StrategyTournament leaderboard + Dashboard v3.5 gas/risk/leaderboard panels — 90 tests`
+
+**PUSH:** ⛔ не выполнен из sandbox — создан `scripts/push_v549.sh` для ручного запуска на Mac.
