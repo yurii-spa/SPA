@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T06:00:32.422349Z",
+  "generated_at": "2026-06-13T06:00:26.445485Z",
   "monitor_version": "1.0",
   "sources": [
     "defillama",
@@ -15,7 +15,7 @@
       "severity": "CRITICAL",
       "message": "Risk-sensitive proposal [emergency]: Elect DAO facilitators with a realistically reduced pay rate",
       "source": "snapshot",
-      "detected_at": "2026-06-12T06:00:31.092179Z",
+      "detected_at": "2026-06-13T06:00:24.986863Z",
       "evidence": {
         "deadline": "2026-06-19T01:49:00Z",
         "grade": "B",
@@ -30,7 +30,7 @@
       "severity": "CRITICAL",
       "message": "Token unlock 6.40% of supply (ENA) at 2026-06-03T00:00:00Z",
       "source": "defillama",
-      "detected_at": "2026-06-12T06:00:32.422250Z",
+      "detected_at": "2026-06-13T06:00:26.445374Z",
       "evidence": {
         "grade": "?",
         "pct_supply": 6.4,
@@ -45,7 +45,7 @@
       "severity": "WARN",
       "message": "Token unlock 1.80% of supply (PENDLE) at 2026-06-01T00:00:00Z",
       "source": "defillama",
-      "detected_at": "2026-06-12T06:00:32.422189Z",
+      "detected_at": "2026-06-13T06:00:26.445315Z",
       "evidence": {
         "grade": "?",
         "pct_supply": 1.8,
