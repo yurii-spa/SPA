@@ -1,0 +1,569 @@
+{
+  "schema_version": "1.0",
+  "source": "protocol_concentration_risk",
+  "last_updated": "2026-06-13T02:09:05.345765+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T02:09:05.345765+00:00",
+    "total_protocols": 16,
+    "total_adapters": 36,
+    "total_tvl_usd": 18111000000.0,
+    "concentration_score": 0.176535,
+    "top_protocol": "compound",
+    "top_protocol_weight_pct": 23.7425,
+    "overall_risk": "LOW",
+    "warnings": [],
+    "exposures": [
+      {
+        "protocol": "compound",
+        "adapter_ids": [
+          "compound-v3",
+          "compound_v3",
+          "compound_v3_adapter"
+        ],
+        "adapter_count": 3,
+        "total_tvl_usd": 4300000000.0,
+        "avg_apy_pct": 4.9333,
+        "chains": [
+          "ethereum",
+          "arbitrum",
+          "base"
+        ],
+        "portfolio_weight_pct": 23.7425,
+        "risk_level": "LOW",
+        "risk_note": "3 adapters on 3 chains share compound smart contracts — cross-chain smart contract risk"
+      },
+      {
+        "protocol": "makerdao",
+        "adapter_ids": [
+          "sdai",
+          "sky-susds",
+          "sky_susds",
+          "spark-susds",
+          "spark_susds"
+        ],
+        "adapter_count": 5,
+        "total_tvl_usd": 4300000000.0,
+        "avg_apy_pct": 5.9,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 23.7425,
+        "risk_level": "LOW",
+        "risk_note": "5 adapters share makerdao smart contracts"
+      },
+      {
+        "protocol": "aave",
+        "adapter_ids": [
+          "aave-v3",
+          "aave-v3-arbitrum",
+          "aave_arbitrum",
+          "aave_v3",
+          "aave_v3_arbitrum",
+          "aave_v3_base",
+          "aave_v3_optimism",
+          "aave_v3_polygon"
+        ],
+        "adapter_count": 8,
+        "total_tvl_usd": 3000000000.0,
+        "avg_apy_pct": 4.3875,
+        "chains": [
+          "arbitrum",
+          "base",
+          "optimism",
+          "polygon",
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 16.5645,
+        "risk_level": "LOW",
+        "risk_note": "8 adapters on 5 chains share aave smart contracts — cross-chain smart contract risk"
+      },
+      {
+        "protocol": "ethena",
+        "adapter_ids": [
+          "susde"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 2500000000.0,
+        "avg_apy_pct": 12.0,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 13.8038,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses ethena smart contracts"
+      },
+      {
+        "protocol": "fluid",
+        "adapter_ids": [
+          "fluid-fusdc",
+          "fluid_fusdc"
+        ],
+        "adapter_count": 2,
+        "total_tvl_usd": 2000000000.0,
+        "avg_apy_pct": 6.5,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 11.043,
+        "risk_level": "LOW",
+        "risk_note": "2 adapters share fluid smart contracts"
+      },
+      {
+        "protocol": "frax",
+        "adapter_ids": [
+          "frax",
+          "sfrax"
+        ],
+        "adapter_count": 2,
+        "total_tvl_usd": 1250000000.0,
+        "avg_apy_pct": 6.75,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 6.9019,
+        "risk_level": "LOW",
+        "risk_note": "2 adapters share frax smart contracts"
+      },
+      {
+        "protocol": "mountain",
+        "adapter_ids": [
+          "wusdm"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 200000000.0,
+        "avg_apy_pct": 5.0,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 1.1043,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses mountain smart contracts"
+      },
+      {
+        "protocol": "morpho",
+        "adapter_ids": [
+          "morpho-steakhouse",
+          "morpho_blue_base",
+          "morpho_steakhouse"
+        ],
+        "adapter_count": 3,
+        "total_tvl_usd": 180000000.0,
+        "avg_apy_pct": 6.4,
+        "chains": [
+          "base",
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 0.9939,
+        "risk_level": "LOW",
+        "risk_note": "3 adapters share morpho smart contracts"
+      },
+      {
+        "protocol": "extra_finance",
+        "adapter_ids": [
+          "extra_finance_base"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 135000000.0,
+        "avg_apy_pct": 8.0,
+        "chains": [
+          "base"
+        ],
+        "portfolio_weight_pct": 0.7454,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses extra_finance smart contracts"
+      },
+      {
+        "protocol": "curve",
+        "adapter_ids": [
+          "scrvusd"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 100000000.0,
+        "avg_apy_pct": 7.0,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 0.5522,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses curve smart contracts"
+      },
+      {
+        "protocol": "moonwell",
+        "adapter_ids": [
+          "moonwell_base"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 96000000.0,
+        "avg_apy_pct": 4.1,
+        "chains": [
+          "base"
+        ],
+        "portfolio_weight_pct": 0.5301,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses moonwell smart contracts"
+      },
+      {
+        "protocol": "angle",
+        "adapter_ids": [
+          "stusd"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 50000000.0,
+        "avg_apy_pct": 6.0,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 0.2761,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses angle smart contracts"
+      },
+      {
+        "protocol": "pendle",
+        "adapter_ids": [
+          "pendle-pt",
+          "pendle_pt"
+        ],
+        "adapter_count": 2,
+        "total_tvl_usd": 0.0,
+        "avg_apy_pct": 8.0,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 0.0,
+        "risk_level": "LOW",
+        "risk_note": "2 adapters share pendle smart contracts"
+      },
+      {
+        "protocol": "yearn",
+        "adapter_ids": [
+          "yearn-v3",
+          "yearn_v3"
+        ],
+        "adapter_count": 2,
+        "total_tvl_usd": 0.0,
+        "avg_apy_pct": 6.8,
+        "chains": [
+          "ethereum",
+          "arbitrum"
+        ],
+        "portfolio_weight_pct": 0.0,
+        "risk_level": "LOW",
+        "risk_note": "2 adapters share yearn smart contracts"
+      },
+      {
+        "protocol": "euler",
+        "adapter_ids": [
+          "euler-v2",
+          "euler_v2"
+        ],
+        "adapter_count": 2,
+        "total_tvl_usd": 0.0,
+        "avg_apy_pct": 7.4,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 0.0,
+        "risk_level": "LOW",
+        "risk_note": "2 adapters share euler smart contracts"
+      },
+      {
+        "protocol": "maple",
+        "adapter_ids": [
+          "maple"
+        ],
+        "adapter_count": 1,
+        "total_tvl_usd": 0.0,
+        "avg_apy_pct": 5.6,
+        "chains": [
+          "ethereum"
+        ],
+        "portfolio_weight_pct": 0.0,
+        "risk_level": "LOW",
+        "risk_note": "1 adapter uses maple smart contracts"
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T02:09:05.345765+00:00",
+      "total_protocols": 16,
+      "total_adapters": 36,
+      "total_tvl_usd": 18111000000.0,
+      "concentration_score": 0.176535,
+      "top_protocol": "compound",
+      "top_protocol_weight_pct": 23.7425,
+      "overall_risk": "LOW",
+      "warnings": [],
+      "exposures": [
+        {
+          "protocol": "compound",
+          "adapter_ids": [
+            "compound-v3",
+            "compound_v3",
+            "compound_v3_adapter"
+          ],
+          "adapter_count": 3,
+          "total_tvl_usd": 4300000000.0,
+          "avg_apy_pct": 4.9333,
+          "chains": [
+            "ethereum",
+            "arbitrum",
+            "base"
+          ],
+          "portfolio_weight_pct": 23.7425,
+          "risk_level": "LOW",
+          "risk_note": "3 adapters on 3 chains share compound smart contracts — cross-chain smart contract risk"
+        },
+        {
+          "protocol": "makerdao",
+          "adapter_ids": [
+            "sdai",
+            "sky-susds",
+            "sky_susds",
+            "spark-susds",
+            "spark_susds"
+          ],
+          "adapter_count": 5,
+          "total_tvl_usd": 4300000000.0,
+          "avg_apy_pct": 5.9,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 23.7425,
+          "risk_level": "LOW",
+          "risk_note": "5 adapters share makerdao smart contracts"
+        },
+        {
+          "protocol": "aave",
+          "adapter_ids": [
+            "aave-v3",
+            "aave-v3-arbitrum",
+            "aave_arbitrum",
+            "aave_v3",
+            "aave_v3_arbitrum",
+            "aave_v3_base",
+            "aave_v3_optimism",
+            "aave_v3_polygon"
+          ],
+          "adapter_count": 8,
+          "total_tvl_usd": 3000000000.0,
+          "avg_apy_pct": 4.3875,
+          "chains": [
+            "arbitrum",
+            "base",
+            "optimism",
+            "polygon",
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 16.5645,
+          "risk_level": "LOW",
+          "risk_note": "8 adapters on 5 chains share aave smart contracts — cross-chain smart contract risk"
+        },
+        {
+          "protocol": "ethena",
+          "adapter_ids": [
+            "susde"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 2500000000.0,
+          "avg_apy_pct": 12.0,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 13.8038,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses ethena smart contracts"
+        },
+        {
+          "protocol": "fluid",
+          "adapter_ids": [
+            "fluid-fusdc",
+            "fluid_fusdc"
+          ],
+          "adapter_count": 2,
+          "total_tvl_usd": 2000000000.0,
+          "avg_apy_pct": 6.5,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 11.043,
+          "risk_level": "LOW",
+          "risk_note": "2 adapters share fluid smart contracts"
+        },
+        {
+          "protocol": "frax",
+          "adapter_ids": [
+            "frax",
+            "sfrax"
+          ],
+          "adapter_count": 2,
+          "total_tvl_usd": 1250000000.0,
+          "avg_apy_pct": 6.75,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 6.9019,
+          "risk_level": "LOW",
+          "risk_note": "2 adapters share frax smart contracts"
+        },
+        {
+          "protocol": "mountain",
+          "adapter_ids": [
+            "wusdm"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 200000000.0,
+          "avg_apy_pct": 5.0,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 1.1043,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses mountain smart contracts"
+        },
+        {
+          "protocol": "morpho",
+          "adapter_ids": [
+            "morpho-steakhouse",
+            "morpho_blue_base",
+            "morpho_steakhouse"
+          ],
+          "adapter_count": 3,
+          "total_tvl_usd": 180000000.0,
+          "avg_apy_pct": 6.4,
+          "chains": [
+            "base",
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 0.9939,
+          "risk_level": "LOW",
+          "risk_note": "3 adapters share morpho smart contracts"
+        },
+        {
+          "protocol": "extra_finance",
+          "adapter_ids": [
+            "extra_finance_base"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 135000000.0,
+          "avg_apy_pct": 8.0,
+          "chains": [
+            "base"
+          ],
+          "portfolio_weight_pct": 0.7454,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses extra_finance smart contracts"
+        },
+        {
+          "protocol": "curve",
+          "adapter_ids": [
+            "scrvusd"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 100000000.0,
+          "avg_apy_pct": 7.0,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 0.5522,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses curve smart contracts"
+        },
+        {
+          "protocol": "moonwell",
+          "adapter_ids": [
+            "moonwell_base"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 96000000.0,
+          "avg_apy_pct": 4.1,
+          "chains": [
+            "base"
+          ],
+          "portfolio_weight_pct": 0.5301,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses moonwell smart contracts"
+        },
+        {
+          "protocol": "angle",
+          "adapter_ids": [
+            "stusd"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 50000000.0,
+          "avg_apy_pct": 6.0,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 0.2761,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses angle smart contracts"
+        },
+        {
+          "protocol": "pendle",
+          "adapter_ids": [
+            "pendle-pt",
+            "pendle_pt"
+          ],
+          "adapter_count": 2,
+          "total_tvl_usd": 0.0,
+          "avg_apy_pct": 8.0,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 0.0,
+          "risk_level": "LOW",
+          "risk_note": "2 adapters share pendle smart contracts"
+        },
+        {
+          "protocol": "yearn",
+          "adapter_ids": [
+            "yearn-v3",
+            "yearn_v3"
+          ],
+          "adapter_count": 2,
+          "total_tvl_usd": 0.0,
+          "avg_apy_pct": 6.8,
+          "chains": [
+            "ethereum",
+            "arbitrum"
+          ],
+          "portfolio_weight_pct": 0.0,
+          "risk_level": "LOW",
+          "risk_note": "2 adapters share yearn smart contracts"
+        },
+        {
+          "protocol": "euler",
+          "adapter_ids": [
+            "euler-v2",
+            "euler_v2"
+          ],
+          "adapter_count": 2,
+          "total_tvl_usd": 0.0,
+          "avg_apy_pct": 7.4,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 0.0,
+          "risk_level": "LOW",
+          "risk_note": "2 adapters share euler smart contracts"
+        },
+        {
+          "protocol": "maple",
+          "adapter_ids": [
+            "maple"
+          ],
+          "adapter_count": 1,
+          "total_tvl_usd": 0.0,
+          "avg_apy_pct": 5.6,
+          "chains": [
+            "ethereum"
+          ],
+          "portfolio_weight_pct": 0.0,
+          "risk_level": "LOW",
+          "risk_note": "1 adapter uses maple smart contracts"
+        }
+      ]
+    }
+  ]
+}
