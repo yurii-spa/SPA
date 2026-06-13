@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "source": "integrated_risk_dashboard",
+  "ring_buffer_max": 48,
+  "snapshot_count": 1,
+  "updated_at": "2026-06-13T02:18:35.946686+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T02:18:35.946686+00:00",
+    "overall_score": 0.1,
+    "overall_level": "YELLOW",
+    "critical_count": 0,
+    "warning_count": 0,
+    "top_risk": "All systems normal",
+    "recommendations": [
+      "All risk signals normal — no action required"
+    ],
+    "data_freshness": {
+      "peg": "OK",
+      "watchdog": "OK",
+      "concentration": "OK",
+      "momentum": "OK"
+    },
+    "signals": [
+      {
+        "source": "peg",
+        "level": "OK",
+        "score": 0.0,
+        "summary": "All 31 adapters stable (peg OK)",
+        "details": {
+          "overall_status": "GREEN",
+          "total_monitored": 31,
+          "critical": 0,
+          "warning": 0,
+          "caution": 0,
+          "worst_adapter": "aave-v3",
+          "worst_deviation_pct": 0.0
+        }
+      },
+      {
+        "source": "concentration",
+        "level": "OK",
+        "score": 0.1,
+        "summary": "Concentration risk LOW: top=compound (23.7%), 16 protocols",
+        "details": {
+          "overall_risk": "LOW",
+          "top_protocol": "compound",
+          "top_protocol_weight_pct": 23.7425,
+          "total_protocols": 16,
+          "warnings": []
+        }
+      },
+      {
+        "source": "watchdog",
+        "level": "INFO",
+        "score": 0.3,
+        "summary": "No watchdog snapshot yet — adapter health unknown",
+        "details": {
+          "snapshot_count": 0
+        }
+      },
+      {
+        "source": "momentum",
+        "level": "OK",
+        "score": 0.0,
+        "summary": "APY momentum: 0 rising, 5 stable, 0 falling, 6 unknown of 11",
+        "details": {
+          "total_adapters": 11,
+          "rising": 0,
+          "stable": 5,
+          "falling": 0,
+          "unknown": 6,
+          "top_falling": [],
+          "top_rising": []
+        }
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T02:18:35.946686+00:00",
+      "overall_score": 0.1,
+      "overall_level": "YELLOW",
+      "critical_count": 0,
+      "warning_count": 0,
+      "top_risk": "All systems normal",
+      "recommendations": [
+        "All risk signals normal — no action required"
+      ],
+      "data_freshness": {
+        "peg": "OK",
+        "watchdog": "OK",
+        "concentration": "OK",
+        "momentum": "OK"
+      },
+      "signals": [
+        {
+          "source": "peg",
+          "level": "OK",
+          "score": 0.0,
+          "summary": "All 31 adapters stable (peg OK)",
+          "details": {
+            "overall_status": "GREEN",
+            "total_monitored": 31,
+            "critical": 0,
+            "warning": 0,
+            "caution": 0,
+            "worst_adapter": "aave-v3",
+            "worst_deviation_pct": 0.0
+          }
+        },
+        {
+          "source": "concentration",
+          "level": "OK",
+          "score": 0.1,
+          "summary": "Concentration risk LOW: top=compound (23.7%), 16 protocols",
+          "details": {
+            "overall_risk": "LOW",
+            "top_protocol": "compound",
+            "top_protocol_weight_pct": 23.7425,
+            "total_protocols": 16,
+            "warnings": []
+          }
+        },
+        {
+          "source": "watchdog",
+          "level": "INFO",
+          "score": 0.3,
+          "summary": "No watchdog snapshot yet — adapter health unknown",
+          "details": {
+            "snapshot_count": 0
+          }
+        },
+        {
+          "source": "momentum",
+          "level": "OK",
+          "score": 0.0,
+          "summary": "APY momentum: 0 rising, 5 stable, 0 falling, 6 unknown of 11",
+          "details": {
+            "total_adapters": 11,
+            "rising": 0,
+            "stable": 5,
+            "falling": 0,
+            "unknown": 6,
+            "top_falling": [],
+            "top_rising": []
+          }
+        }
+      ]
+    }
+  ]
+}
