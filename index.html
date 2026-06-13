@@ -1155,6 +1155,41 @@
     .wk-stat-val { font-size: 15px; }
   }
 
+  /* ── Capital Efficiency Panel (MP-618) ── */
+  .ce-panel { margin: 16px 0; }
+  .ce-grade { font-size: 32px; font-weight: 800; text-align: center; }
+  .ce-grade.grade-a { color: #00c864; }
+  .ce-grade.grade-b { color: #64b4ff; }
+  .ce-grade.grade-c { color: #ffc800; }
+  .ce-grade.grade-d { color: #ff5050; }
+  .ce-bar { height: 8px; border-radius: 4px; background: #e5e7eb; margin: 8px 0; overflow: hidden; }
+  body.night .ce-bar { background: #1e1e3a; }
+  .ce-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #00c864, #64b4ff); transition: width 0.4s; }
+  .ce-metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .ce-metric { flex: 1; min-width: 100px; padding: 8px; background: #f9fafb; border-radius: 6px; text-align: center; }
+  body.night .ce-metric { background: #131328; }
+  .ce-metric-val { font-size: 15px; font-weight: 700; color: #374151; }
+  body.night .ce-metric-val { color: #d1d5db; }
+  .ce-metric-label { font-size: 11px; color: #6b7280; }
+  body.night .ce-metric-label { color: #9ca3af; }
+
+  /* ── Yield Forecast Panel (MP-618) ── */
+  .fc-panel { margin: 16px 0; }
+  .fc-row { display: flex; justify-content: space-around; margin: 12px 0; }
+  .fc-col { text-align: center; }
+  .fc-val { font-size: 20px; font-weight: 700; color: #374151; }
+  body.night .fc-val { color: #d1d5db; }
+  .fc-label { font-size: 11px; color: #6b7280; }
+  body.night .fc-label { color: #9ca3af; }
+  .fc-trend { text-align: center; font-size: 13px; margin: 8px 0; color: #374151; }
+  body.night .fc-trend { color: #d1d5db; }
+  .fc-disclaimer { font-size: 10px; color: #6b7280; text-align: center; padding: 6px; border: 1px solid #e5e7eb; border-radius: 4px; margin-top: 8px; }
+  body.night .fc-disclaimer { color: #9ca3af; border-color: #2a2a4a; }
+  @media (max-width:480px) {
+    .ce-metric { min-width: 80px; padding: 6px; }
+    .fc-val { font-size: 16px; }
+  }
+
 </style>
 </head>
 <body>
@@ -2684,6 +2719,26 @@
     <div id="weekly-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Загрузка…</div></div>
   </div>
   <!-- ══ / Weekly Summary Panel ══ -->
+
+  <!-- ══ MP-618: Capital Efficiency Panel ══ -->
+  <div class="an-card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">💰 Capital Efficiency</div>
+      <button class="refresh-btn" onclick="loadCapitalEfficiencyPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="capital-efficiency-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Capital Efficiency Panel ══ -->
+
+  <!-- ══ MP-618: Yield Forecast Panel ══ -->
+  <div class="an-card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">🔮 Yield Forecast (Advisory)</div>
+      <button class="refresh-btn" onclick="loadForecastPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="forecast-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Yield Forecast Panel ══ -->
 
 </div><!-- /tab-analytics -->
 
@@ -5098,6 +5153,8 @@ async function loadAnalytics() {
     _defer(() => { loadHeatMap(); });        // MP-602
     _defer(() => { loadBenchmarkPanel(); }); // MP-613
     _defer(() => { loadWeeklyPanel(); });    // MP-613
+    _defer(() => { loadCapitalEfficiencyPanel(); }); // MP-618
+    _defer(() => { loadForecastPanel(); });           // MP-618
   } catch(e) {
     console.error('Analytics load error:', e);
   }
@@ -5518,6 +5575,68 @@ async function loadWeeklyPanel(force) {
     el.innerHTML = html;
   } catch(e) {
     el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Weekly data unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ── MP-618: Capital Efficiency Panel ─────────────────────────────────────────
+async function loadCapitalEfficiencyPanel(force) {
+  const el = document.getElementById('capital-efficiency-panel');
+  if (!el) return;
+  try {
+    const url = 'data/capital_efficiency.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+    const d = Array.isArray(raw) ? raw[raw.length - 1] : (raw.latest || raw);
+    const grade = (d.overall_grade || 'D').toLowerCase();
+    const depRate = (d.deployment_rate_pct || 0).toFixed(1);
+    const raroc = (d.portfolio_raroc || 0).toFixed(2);
+    const oppCost = (d.idle_opportunity_cost_daily || 0).toFixed(2);
+    const deployedK = ((d.deployed_capital_usd || 0) / 1000).toFixed(1);
+    const totalK = ((d.total_capital_usd || 100000) / 1000).toFixed(1);
+    let html = `<div class="ce-grade grade-${grade}">Grade ${d.overall_grade || 'D'}</div>`;
+    html += `<div style="font-size:12px;text-align:center;margin:4px 0;">${d.summary || ''}</div>`;
+    html += `<div class="ce-bar"><div class="ce-bar-fill" style="width:${Math.min(depRate,100)}%"></div></div>`;
+    html += `<div class="ce-metrics">`;
+    html += `<div class="ce-metric"><div class="ce-metric-val">${depRate}%</div><div class="ce-metric-label">Deployed</div></div>`;
+    html += `<div class="ce-metric"><div class="ce-metric-val">$${deployedK}K/$${totalK}K</div><div class="ce-metric-label">Capital</div></div>`;
+    html += `<div class="ce-metric"><div class="ce-metric-val">${raroc}x</div><div class="ce-metric-label">RAROC</div></div>`;
+    html += `<div class="ce-metric"><div class="ce-metric-val">$${oppCost}/d</div><div class="ce-metric-label">Opp.Cost</div></div>`;
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Capital efficiency data unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ── MP-618: Yield Forecast Panel ─────────────────────────────────────────────
+async function loadForecastPanel(force) {
+  const el = document.getElementById('forecast-panel');
+  if (!el) return;
+  try {
+    const url = 'data/yield_forecast.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+    const d = Array.isArray(raw) ? raw[raw.length - 1] : (raw.latest || raw);
+    const trendArrow = {'RISING':'↗️','FALLING':'↘️','STABLE':'→'}[d.portfolio_trend] || '→';
+    const curr = (d.portfolio_current_apy || 0).toFixed(2);
+    const f1d = (d.portfolio_forecast_1d || 0).toFixed(2);
+    const f7d = (d.portfolio_forecast_7d || 0).toFixed(2);
+    const f30d = (d.portfolio_forecast_30d || 0).toFixed(2);
+    const hiConf = d.high_confidence_count || 0;
+    let html = `<div class="fc-trend">${trendArrow} ${d.portfolio_trend || 'STABLE'} | High-confidence adapters: ${hiConf}</div>`;
+    html += `<div class="fc-row">`;
+    html += `<div class="fc-col"><div class="fc-val">${curr}%</div><div class="fc-label">Current</div></div>`;
+    html += `<div class="fc-col"><div class="fc-val">${f1d}%</div><div class="fc-label">+1 Day</div></div>`;
+    html += `<div class="fc-col"><div class="fc-val">${f7d}%</div><div class="fc-label">+7 Days</div></div>`;
+    html += `<div class="fc-col"><div class="fc-val">${f30d}%</div><div class="fc-label">+30 Days</div></div>`;
+    html += `</div>`;
+    if (d.low_data_warning) html += `<div style="color:#ffc800;font-size:11px;text-align:center;">⚠️ Low data — forecast may be unreliable</div>`;
+    html += `<div class="fc-disclaimer">${d.disclaimer || 'Advisory only. Not financial advice.'}</div>`;
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Forecast data unavailable: ' + e.message + '</div>';
   }
 }
 
