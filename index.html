@@ -1115,6 +1115,46 @@
     .hm-apy   { font-size:12px; }
   }
 
+  /* ── Benchmark Panel (MP-613) ── */
+  .bm-panel { margin: 16px 0; }
+  .bm-row-mp613 { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 6px; margin: 4px 0; background: #f9fafb; }
+  body.night .bm-row-mp613 { background: #131328; }
+  .bm-name-mp613 { font-size: 13px; color: #6b7280; }
+  body.night .bm-name-mp613 { color: #9ca3af; }
+  .bm-apy-mp613 { font-size: 13px; font-weight: 600; color: #374151; }
+  body.night .bm-apy-mp613 { color: #d1d5db; }
+  .bm-excess { font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+  .bm-excess.positive { background: rgba(0,200,100,0.15); color: #16a34a; }
+  .bm-excess.negative { background: rgba(255,80,80,0.15); color: #dc2626; }
+  body.night .bm-excess.positive { color: #4ade80; }
+  body.night .bm-excess.negative { color: #f87171; }
+  .bm-verdict-mp613 { font-size: 15px; font-weight: 700; text-align: center; margin: 8px 0; color: #185FA5; }
+  body.night .bm-verdict-mp613 { color: #60a5fa; }
+
+  /* ── Weekly Summary Panel (MP-613) ── */
+  .wk-panel { margin: 16px 0; }
+  .wk-stat { display: inline-flex; flex-direction: column; align-items: center; padding: 10px 16px; background: #f9fafb; border-radius: 8px; margin: 4px; }
+  body.night .wk-stat { background: #131328; }
+  .wk-stat-val { font-size: 18px; font-weight: 700; color: #374151; }
+  body.night .wk-stat-val { color: #d1d5db; }
+  .wk-stat-label { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  body.night .wk-stat-label { color: #9ca3af; }
+  .wk-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+  .wk-verdict { font-size: 14px; font-weight: 700; text-align: center; padding: 8px; border-radius: 8px; margin: 8px 0; }
+  .wk-verdict.excellent { background: rgba(0,200,100,0.15); color: #16a34a; }
+  .wk-verdict.good      { background: rgba(100,180,255,0.15); color: #185FA5; }
+  .wk-verdict.fair      { background: rgba(255,200,0,0.15); color: #b45309; }
+  .wk-verdict.poor      { background: rgba(255,80,80,0.15); color: #dc2626; }
+  body.night .wk-verdict.excellent { color: #4ade80; }
+  body.night .wk-verdict.good      { color: #60a5fa; }
+  body.night .wk-verdict.fair      { color: #fbbf24; }
+  body.night .wk-verdict.poor      { color: #f87171; }
+  @media (max-width:480px) {
+    .bm-row-mp613 { flex-wrap: wrap; gap: 4px; }
+    .wk-stat { padding: 8px 10px; }
+    .wk-stat-val { font-size: 15px; }
+  }
+
 </style>
 </head>
 <body>
@@ -2624,6 +2664,26 @@
     <div id="hm-summary" class="hm-summary"></div>
   </div>
   <!-- ══ / Adapter Heat Map ══ -->
+
+  <!-- ══ MP-613: Benchmark Panel ══ -->
+  <div class="an-card" style="margin-top:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">📊 Benchmark Comparison</div>
+      <button class="refresh-btn" onclick="loadBenchmarkPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="benchmark-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Загрузка…</div></div>
+  </div>
+  <!-- ══ / Benchmark Panel ══ -->
+
+  <!-- ══ MP-613: Weekly Summary Panel ══ -->
+  <div class="an-card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">📅 Weekly Summary</div>
+      <button class="refresh-btn" onclick="loadWeeklyPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="weekly-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Загрузка…</div></div>
+  </div>
+  <!-- ══ / Weekly Summary Panel ══ -->
 
 </div><!-- /tab-analytics -->
 
@@ -5036,6 +5096,8 @@ async function loadAnalytics() {
     _defer(() => { loadGoLiveTimeline(); }); // MP-142
     _defer(() => { loadEquityCurve(); });    // MP-145
     _defer(() => { loadHeatMap(); });        // MP-602
+    _defer(() => { loadBenchmarkPanel(); }); // MP-613
+    _defer(() => { loadWeeklyPanel(); });    // MP-613
   } catch(e) {
     console.error('Analytics load error:', e);
   }
@@ -5391,6 +5453,72 @@ function renderTournament(data) {
   }).join('');
 
   if (rec) rec.textContent = data.recommendation || '–';
+}
+
+// ── MP-613: Benchmark Panel ─────────────────────────────────────────────────
+async function loadBenchmarkPanel(force) {
+  const el = document.getElementById('benchmark-panel');
+  if (!el) return;
+  try {
+    const url = 'data/benchmark_report.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+    // Поддерживаем как {latest:{...}} так и прямой объект
+    const d = raw.latest || raw;
+    const verdictEmoji = {'ALPHA+':'🏆','ALPHA':'✅','BENCHMARK':'➡️','LAGGING':'⚠️'}[d.verdict] || '➡️';
+    let html = `<div class="bm-verdict-mp613">${verdictEmoji} ${d.verdict || '—'} — Portfolio ${(d.portfolio_apy_pct||0).toFixed(2)}%</div>`;
+    html += `<div style="font-size:12px;color:#6b7280;text-align:center;margin-bottom:8px;">Annual alpha: $${(d.annual_alpha_usd||0).toFixed(0)}</div>`;
+    html += '<div class="bm-panel">';
+    (d.benchmarks || []).forEach(b => {
+      const excess = b.excess_return_pct || 0;
+      const cls = excess >= 0 ? 'positive' : 'negative';
+      const sign = excess >= 0 ? '+' : '';
+      html += `<div class="bm-row-mp613">
+        <span class="bm-name-mp613">${b.name}</span>
+        <span class="bm-apy-mp613">${(b.apy_pct||0).toFixed(2)}%</span>
+        <span class="bm-excess ${cls}">${sign}${excess.toFixed(2)}%</span>
+      </div>`;
+    });
+    html += '</div>';
+    if ((d.benchmarks||[]).length === 0) {
+      html += '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">Нет данных бенчмарков</div>';
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Benchmark data unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ── MP-613: Weekly Summary Panel ─────────────────────────────────────────────
+async function loadWeeklyPanel(force) {
+  const el = document.getElementById('weekly-panel');
+  if (!el) return;
+  try {
+    const url = 'data/weekly_summary.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+    // Поддерживаем {latest:{...}}, массив, или прямой объект
+    const report = raw.latest || (Array.isArray(raw) ? raw[raw.length - 1] : raw);
+    const apyStats = report.apy_stats || {};
+    const verdictRaw = (report.weekly_verdict || 'FAIR');
+    const verdictCls = verdictRaw.toLowerCase();
+    const trendArrow = {'RISING':'↗️','FALLING':'↘️','STABLE':'→'}[apyStats.trend] || '→';
+    let html = `<div class="wk-verdict ${verdictCls}">${verdictRaw} ${trendArrow}</div>`;
+    html += '<div class="wk-grid">';
+    html += `<div class="wk-stat"><span class="wk-stat-val">${report.days_covered || 0}</span><span class="wk-stat-label">Days</span></div>`;
+    html += `<div class="wk-stat"><span class="wk-stat-val">${report.operational_days || 0}/${report.days_covered || 0}</span><span class="wk-stat-label">Operational</span></div>`;
+    html += `<div class="wk-stat"><span class="wk-stat-val">${(apyStats.avg || 0).toFixed(2)}%</span><span class="wk-stat-label">Avg APY</span></div>`;
+    html += `<div class="wk-stat"><span class="wk-stat-val">${report.top_chain_this_week || '—'}</span><span class="wk-stat-label">Top Chain</span></div>`;
+    html += '</div>';
+    if (report.summary_line) {
+      html += `<div style="font-size:12px;color:#6b7280;margin-top:8px;">${report.summary_line}</div>`;
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Weekly data unavailable: ' + e.message + '</div>';
+  }
 }
 
 // ── Advanced Portfolio Stats ─────────────────────────────────────────────────
