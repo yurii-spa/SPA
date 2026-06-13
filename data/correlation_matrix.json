@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "ring_buffer_max": 10,
+  "snapshot_count": 1,
+  "updated_at": "2026-06-13T03:24:53.941693+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T03:24:53.941693+00:00",
+    "adapters": [],
+    "pairs": [],
+    "best_diversifying_pairs": [],
+    "most_correlated_pairs": [],
+    "avg_correlation": 0.0,
+    "min_data_points": 0,
+    "low_data_warning": true
+  },
+  "reports": [
+    {
+      "generated_at": "2026-06-13T03:24:53.941693+00:00",
+      "adapters": [],
+      "pairs": [],
+      "best_diversifying_pairs": [],
+      "most_correlated_pairs": [],
+      "avg_correlation": 0.0,
+      "min_data_points": 0,
+      "low_data_warning": true
+    }
+  ]
+}
