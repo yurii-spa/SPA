@@ -1658,6 +1658,29 @@ def run_cycle(
                     target_apy_max=_s13_apy_max,
                 )
                 _ms_strategies.append(_ms_s13)
+            # ── MP-591: S15 MultiChain L2 Yield — Base40%+Opt35%+Arb25% ──────────
+            try:
+                from spa_core.strategies.s15_multichain_l2 import (
+                    STRATEGY_ID as _s15_id,
+                    STRATEGY_NAME as _s15_name,
+                    TIER as _s15_tier,
+                    CHAIN_WEIGHTS as _s15_weights,
+                    TARGET_APY_PCT as _s15_target_apy,
+                )
+                _s15_apy_min = _s15_target_apy * 0.80
+                _s15_apy_max = _s15_target_apy * 1.20
+                _ms_s15 = _MSStrategyConfig(
+                    id=_s15_id,
+                    name=_s15_name,
+                    description="S15 MultiChain L2 Yield (Base 40%+Opt 35%+Arb 25%)",
+                    allocations=dict(_s15_weights),
+                    tier=_s15_tier,
+                    target_apy_min=_s15_apy_min,
+                    target_apy_max=_s15_apy_max,
+                )
+                _ms_strategies.append(_ms_s15)
+            except ImportError:
+                pass
             _ms_runner = _MultiStrategyRunner(
                 strategies=_ms_strategies, capital=100_000
             )
@@ -1673,7 +1696,7 @@ def run_cycle(
                     _ms_top.get("composite_score", 0.0),
                 )
         except Exception as _ms_exc:  # noqa: BLE001 — never crash the cycle
-            log.warning("MultiStrategyRunner S2–S13 skipped: %s", _ms_exc)
+            log.warning("MultiStrategyRunner S2–S15 skipped: %s", _ms_exc)
 
         from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
         try:
