@@ -3198,10 +3198,11 @@ function _trnNormalise(data) {
         id:          s.id          || sup.id          || s.strategy_id,
         name:        s.name        || s.strategy_name || sup.name || s.strategy_id,
         description: s.description || sup.description,
-        days_running: s.days_running != null ? s.days_running : (s.days_paper != null ? s.days_paper : (sup.days_running || 0)),
-        calmar:      s.calmar      != null ? s.calmar      : (sup.calmar      ?? null),
-        ulcer:       s.ulcer       != null ? s.ulcer       : (sup.ulcer       ?? null),
-        equity_now:  s.equity_now  != null ? s.equity_now  : (sup.equity_now  ?? 100000),
+        days_running:  s.days_running != null ? s.days_running : (s.days_paper != null ? s.days_paper : (sup.days_running || 0)),
+        calmar:        s.calmar        != null ? s.calmar        : (sup.calmar        ?? null),
+        ulcer:         s.ulcer         != null ? s.ulcer         : (sup.ulcer         ?? null),
+        max_drawdown:  s.max_drawdown  != null ? s.max_drawdown  : (sup.max_drawdown  ?? null),
+        equity_now:    s.equity_now    != null ? s.equity_now    : (sup.equity_now    ?? 100000),
         equity_series: Array.isArray(s.equity_series) ? s.equity_series : (sup.equity_series || []),
       });
     });
@@ -3272,6 +3273,7 @@ function _trnRender(data) {
       <td class="trn-col-hide">${_trnFmt(s.sharpe, 2)}</td>
       <td class="trn-col-hide">${_trnFmt(s.calmar, 2)}</td>
       <td class="trn-col-hide">${_trnFmt(s.ulcer, 2)}</td>
+      <td class="trn-col-hide">${s.max_drawdown != null ? '<span style="color:#dc2626">−' + _trnFmt(s.max_drawdown, 2, '%') + '</span>' : '<span style="color:#bbb">—</span>'}</td>
       <td>${_trnStatusBadge(s.status)}</td>
       <td>${s.days_running != null ? s.days_running + 'd' : '—'}</td>
       <td>$${(s.equity_now || 0).toLocaleString('en', { maximumFractionDigits: 0 })}</td>
@@ -3284,7 +3286,10 @@ function _trnRender(data) {
         <div class="trn-title">🏆 Strategy Tournament — Leaderboard</div>
         ${updatedAt ? `<div class="trn-updated">Updated: ${updatedAt}</div>` : ''}
       </div>
-      <div class="trn-eval-date">📅 Next eval: ${evalDate}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="trn-eval-date">📅 Next eval: ${evalDate}</div>
+        <button class="refresh-btn" onclick="trnReload()" title="Reload tournament data from disk">↻ Refresh</button>
+      </div>
     </div>
 
     <div class="db-full" style="padding:0;overflow:hidden;margin-bottom:18px">
@@ -3297,6 +3302,7 @@ function _trnRender(data) {
             <th class="trn-col-hide">Sharpe</th>
             <th class="trn-col-hide">Calmar</th>
             <th class="trn-col-hide">Ulcer</th>
+            <th class="trn-col-hide">Max DD</th>
             <th>Status</th><th>Days</th><th>Equity</th><th>Chart</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -3341,8 +3347,8 @@ function trnToggleRules(btn) {
 }
 
 let _trnLoaded = false;
-async function loadTournamentTab() {
-  if (_trnLoaded) return;
+async function loadTournamentTab(force) {
+  if (_trnLoaded && !force) return;
   const el = document.getElementById('trn-content');
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:#aaa"><span class="spinner"></span> Loading tournament data…</div>`;
@@ -3367,6 +3373,8 @@ async function loadTournamentTab() {
     _trnRenderPlaceholder();
   }
 }
+// Force-reload the tournament tab (bound to the ↻ Refresh button)
+function trnReload() { _trnLoaded = false; loadTournamentTab(true); }
 
 // ─── Dashboard v3.0 Sprint A: Performance Hero, Strategies, Ops ──────────────
 
