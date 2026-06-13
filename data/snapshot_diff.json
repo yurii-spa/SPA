@@ -1,0 +1,168 @@
+{
+  "schema_version": "1.0",
+  "source": "portfolio_snapshot_diff",
+  "last_updated": "2026-06-13T02:44:46.054467+00:00",
+  "count": 1,
+  "latest": {
+    "generated_at": "2026-06-13T02:44:46.054467+00:00",
+    "snapshot_old_at": "2026-06-12T01:53:37.155318+00:00",
+    "snapshot_new_at": "2026-06-13T01:53:37.155318+00:00",
+    "hours_apart": 24.0,
+    "old_portfolio_apy": 5.0972,
+    "new_portfolio_apy": 5.2172,
+    "apy_delta": 0.12,
+    "old_allocated_usd": 94999.97,
+    "new_allocated_usd": 94999.97,
+    "allocated_delta_usd": 0.0,
+    "changes": [
+      {
+        "adapter_key": "aave_v3",
+        "change_type": "unchanged",
+        "old_weight_pct": 33.6282,
+        "new_weight_pct": 33.6282,
+        "old_apy_pct": 4.2,
+        "new_apy_pct": 4.2,
+        "weight_delta": 0.0,
+        "apy_delta": 0.0,
+        "is_significant": false
+      },
+      {
+        "adapter_key": "compound_v3",
+        "change_type": "weight_up",
+        "old_weight_pct": 28.8718,
+        "new_weight_pct": 31.3718,
+        "old_apy_pct": 4.65,
+        "new_apy_pct": 4.8,
+        "weight_delta": 2.5,
+        "apy_delta": 0.15,
+        "is_significant": true
+      },
+      {
+        "adapter_key": "euler_v2",
+        "change_type": "unchanged",
+        "old_weight_pct": 10.7503,
+        "new_weight_pct": 10.7503,
+        "old_apy_pct": 7.4,
+        "new_apy_pct": 7.4,
+        "weight_delta": 0.0,
+        "apy_delta": 0.0,
+        "is_significant": false
+      },
+      {
+        "adapter_key": "maple",
+        "change_type": "unchanged",
+        "old_weight_pct": 12.1248,
+        "new_weight_pct": 12.1248,
+        "old_apy_pct": 5.6,
+        "new_apy_pct": 5.6,
+        "weight_delta": 0.0,
+        "apy_delta": 0.0,
+        "is_significant": false
+      },
+      {
+        "adapter_key": "yearn_v3",
+        "change_type": "unchanged",
+        "old_weight_pct": 12.1248,
+        "new_weight_pct": 12.1248,
+        "old_apy_pct": 6.8,
+        "new_apy_pct": 6.8,
+        "weight_delta": 0.0,
+        "apy_delta": 0.0,
+        "is_significant": false
+      }
+    ],
+    "added_adapters": [],
+    "removed_adapters": [],
+    "significant_changes": [
+      "compound_v3"
+    ],
+    "total_adapters_old": 5,
+    "total_adapters_new": 5,
+    "unchanged_count": 4,
+    "changed_count": 1,
+    "trend": "IMPROVING",
+    "summary": "APY +0.12% (5.10%→5.22%), 1 significant change(s)"
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T02:44:46.054467+00:00",
+      "snapshot_old_at": "2026-06-12T01:53:37.155318+00:00",
+      "snapshot_new_at": "2026-06-13T01:53:37.155318+00:00",
+      "hours_apart": 24.0,
+      "old_portfolio_apy": 5.0972,
+      "new_portfolio_apy": 5.2172,
+      "apy_delta": 0.12,
+      "old_allocated_usd": 94999.97,
+      "new_allocated_usd": 94999.97,
+      "allocated_delta_usd": 0.0,
+      "changes": [
+        {
+          "adapter_key": "aave_v3",
+          "change_type": "unchanged",
+          "old_weight_pct": 33.6282,
+          "new_weight_pct": 33.6282,
+          "old_apy_pct": 4.2,
+          "new_apy_pct": 4.2,
+          "weight_delta": 0.0,
+          "apy_delta": 0.0,
+          "is_significant": false
+        },
+        {
+          "adapter_key": "compound_v3",
+          "change_type": "weight_up",
+          "old_weight_pct": 28.8718,
+          "new_weight_pct": 31.3718,
+          "old_apy_pct": 4.65,
+          "new_apy_pct": 4.8,
+          "weight_delta": 2.5,
+          "apy_delta": 0.15,
+          "is_significant": true
+        },
+        {
+          "adapter_key": "euler_v2",
+          "change_type": "unchanged",
+          "old_weight_pct": 10.7503,
+          "new_weight_pct": 10.7503,
+          "old_apy_pct": 7.4,
+          "new_apy_pct": 7.4,
+          "weight_delta": 0.0,
+          "apy_delta": 0.0,
+          "is_significant": false
+        },
+        {
+          "adapter_key": "maple",
+          "change_type": "unchanged",
+          "old_weight_pct": 12.1248,
+          "new_weight_pct": 12.1248,
+          "old_apy_pct": 5.6,
+          "new_apy_pct": 5.6,
+          "weight_delta": 0.0,
+          "apy_delta": 0.0,
+          "is_significant": false
+        },
+        {
+          "adapter_key": "yearn_v3",
+          "change_type": "unchanged",
+          "old_weight_pct": 12.1248,
+          "new_weight_pct": 12.1248,
+          "old_apy_pct": 6.8,
+          "new_apy_pct": 6.8,
+          "weight_delta": 0.0,
+          "apy_delta": 0.0,
+          "is_significant": false
+        }
+      ],
+      "added_adapters": [],
+      "removed_adapters": [],
+      "significant_changes": [
+        "compound_v3"
+      ],
+      "total_adapters_old": 5,
+      "total_adapters_new": 5,
+      "unchanged_count": 4,
+      "changed_count": 1,
+      "trend": "IMPROVING",
+      "summary": "APY +0.12% (5.10%→5.22%), 1 significant change(s)"
+    }
+  ]
+}
