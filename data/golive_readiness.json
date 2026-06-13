@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-06-12T22:04:45.694225+00:00",
+  "generated_at": "2026-06-13T10:13:45.525996+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
-  "days_remaining": 32,
+  "days_remaining": 31,
   "go_live_date": "2026-07-15",
   "paper_start_date": "2026-05-20",
   "min_paper_days": 56,
@@ -11,9 +11,9 @@
     {
       "name": "Paper Duration",
       "status": "PENDING",
-      "value": 23,
+      "value": 24,
       "threshold": 56,
-      "note": "23/56 days elapsed \u2014 keep paper trading"
+      "note": "24/56 days elapsed \u2014 keep paper trading"
     },
     {
       "name": "PnL Positive",
@@ -101,10 +101,10 @@
       "status": "FAIL",
       "value": 0.0,
       "threshold": 28,
-      "note": "0.0/28 days stable \u2014 need 28.0 more days (3 prior failure(s))"
+      "note": "0.0/28 days stable \u2014 need 28.0 more days (4 prior failure(s))"
     }
   ],
-  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (33 days away). Review again after 2026-07-15.",
+  "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (32 days away). Review again after 2026-07-15.",
   "owner_action_required": false,
   "criteria_passed": 5,
   "criteria_total": 12,
@@ -113,5 +113,5 @@
     "Wallet Ready",
     "Agent Stability"
   ],
-  "next_check_date": "2026-06-13"
+  "next_check_date": "2026-06-14"
 }

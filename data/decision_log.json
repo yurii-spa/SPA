@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-12T22:04:45.687003+00:00",
+  "generated_at": "2026-06-13T10:13:45.518599+00:00",
   "total_decisions": 5,
   "decisions": [
     {
       "id": 8,
-      "timestamp": "2026-06-12T22:04:45.683987+00:00",
+      "timestamp": "2026-06-13T10:13:45.515546+00:00",
       "agent_name": "ReportAgent",
       "decision_type": "REPORT",
       "protocol_key": null,
@@ -33,7 +33,7 @@
           "apy_gap_report.json",
           "apy_gap_report_history.json"
         ],
-        "timestamp": "2026-06-12T22:04:45.683978+00:00"
+        "timestamp": "2026-06-13T10:13:45.515535+00:00"
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -42,17 +42,17 @@
     },
     {
       "id": 7,
-      "timestamp": "2026-06-12T22:04:45.557554+00:00",
+      "timestamp": "2026-06-13T10:13:45.377640+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "aave-v3-usdc-arbitrum",
       "amount_usd": null,
-      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.19% outside v2 target range [3.0\u201320.0%]",
+      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.18% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 47656692.0,
+        "tvl_usd": 47775194.0,
         "tier": "T1",
         "chain": "arbitrum",
-        "apy": 2.1862
+        "apy": 2.1835
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
@@ -61,17 +61,17 @@
     },
     {
       "id": 6,
-      "timestamp": "2026-06-12T22:04:45.554740+00:00",
+      "timestamp": "2026-06-13T10:13:45.374511+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "euler-v2-usdc-ethereum",
       "amount_usd": null,
-      "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.78% outside v2 target range [3.0\u201320.0%]",
+      "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.79% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 15057439.0,
+        "tvl_usd": 14820461.0,
         "tier": "T2",
         "chain": "ethereum",
-        "apy": 2.7829
+        "apy": 2.7876
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
