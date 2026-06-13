@@ -82,5 +82,103 @@
     "action": "restart_triggered",
     "hour_key": "2026-06-12T06",
     "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:04.142494+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:04.143640+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:04.144247+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:04.144838+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:04.146400+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:04.147080+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:04.147709+00:00",
+    "adapter": "pendle",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-13T06:00:30.329840+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:30.333294+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:30.336281+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:30.338781+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:30.341477+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:30.343396+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-13T06:00:30.344920+00:00",
+    "adapter": "pendle",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-13T06",
+    "restart_count_this_hour": 2
   }
 ]
