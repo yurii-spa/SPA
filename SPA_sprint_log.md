@@ -1,6 +1,66 @@
-# SPA Sprint Log — updated 2026-06-13 (v5.32)
+# SPA Sprint Log — updated 2026-06-13 (v5.37)
 
 ## Completed ✅
+
+---
+
+## Sprint v5.37 (MP-613) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-613 — Dashboard v3.3: Benchmark + Weekly Summary panels in Analytics/Stats tab.
+
+**Files created/modified:**
+- `index.html` (обновлён): добавлены два новых панели в `#tab-analytics`.
+  - **Benchmark Panel** (`#benchmark-panel`): загружает `data/benchmark_report.json` (`.latest`), рендерит Portfolio APY vs каждого бенчмарка (T-Bill/USDC Hold/ETH Staking/Best Adapter) с цветными excess-return бейджами (.bm-excess.positive/.negative), вердикт ALPHA+🏆/ALPHA✅/BENCHMARK➡️/LAGGING⚠️ + annual alpha USD. Кнопка ↻ Refresh.
+  - **Weekly Summary Panel** (`#weekly-panel`): загружает `data/weekly_summary.json` (`.latest`), рендерит недельный вердикт (EXCELLENT/GOOD/FAIR/POOR с CSS-классами) + trend arrow (↗️↘️→), плитки Days/Operational/Avg APY/Top Chain, summary_line. Кнопка ↻ Refresh.
+  - CSS: `.bm-panel` `.bm-row-mp613` `.bm-name-mp613` `.bm-apy-mp613` `.bm-excess(.positive|.negative)` `.bm-verdict-mp613` `.wk-panel` `.wk-stat` `.wk-stat-val` `.wk-stat-label` `.wk-grid` `.wk-verdict(.excellent|.good|.fair|.poor)` — все с `body.night` overrides и `@media(max-width:480px)` responsive.
+  - JS: `loadBenchmarkPanel(force)` + `loadWeeklyPanel(force)` — fetch с `no-store` при force, обрабатывают `raw.latest` wrapper, graceful error fallback. Оба вызываются через `_defer()` в `loadAnalytics()` (MP-613).
+- `spa_core/tests/test_dashboard_bm_weekly.py` (новый): **98 unittest-кейсов**, 9 тест-классов:
+  - TestIndexHtmlStructure (12): файл, div'ы, классы, JS-функции, вызов в loadAnalytics;
+  - TestBenchmarkPanelCSS (10): .bm-excess.positive/negative, .bm-panel, .bm-verdict-mp613, .bm-row-mp613, border-radius, night mode, цвет positive;
+  - TestWeeklyPanelCSS (10): .wk-verdict.excellent/good/fair/poor, .wk-stat/grid/val/label;
+  - TestBenchmarkDataStructure (20): JSON schema — benchmarks list, verdict строгий enum, portfolio_apy_pct, annual_alpha_usd, benchmark item fields;
+  - TestWeeklyDataStructure (20): JSON schema — weekly_verdict enum, days_covered, apy_stats(avg/min/max/trend), operational_days, top_chain_this_week, summary_line;
+  - TestNightModeCSS (6): body.night overrides для обеих панелей;
+  - TestMobileMedia (5): @media(max-width:480px) — bm-row-mp613/wk-stat/wk-stat-val/flex-wrap;
+  - TestNoHardcodedTokens (5): нет ghp_, Bearer token, api.github.com;
+  - TestJsFunctions (10): fetch paths, raw.latest handling, verdict/trend maps, no-store, error handling, _defer вызовы.
+- `KANBAN.json` (обновлён): MP-613 → done; sprint_current=v5.37; sprint_completed=v5.37.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_dashboard_bm_weekly -v` → **Ran 98 tests in 0.109s — OK** (98/98). Grep запрещённых импортов → CLEAN. `grep -n "ghp_\|api.github.com" index.html` → пусто. Ключевые CSS/JS точки вставки верифицированы через grep.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec. PAT не встраивался, push_*.html не создавался. Только фронтенд-код (fetch→render).
+
+**KANBAN:** **MP-613 (Dashboard Benchmark+Weekly) → done** (sprint v5.37, completed=2026-06-13, completed_by="claude (SPA-V537)"); `sprint_current=v5.37`; `sprint_completed=v5.37`.
+
+**Файлы для коммита:** `index.html`, `spa_core/tests/test_dashboard_bm_weekly.py`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v537.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V537): Dashboard v3.3 — Benchmark + Weekly Summary panels in Stats tab, ALPHA+/ALPHA/BENCHMARK/LAGGING verdict, EXCELLENT/GOOD/FAIR/POOR weekly verdict, 98 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v537.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.36 (MP-612) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-612 — AdapterCorrelationMatrix: вычисляет корреляцию Пирсона между APY рядами адаптеров на основе истории из watchdog_history.json. Помогает выбирать некоррелированные пары для диверсификации.
+
+**Files created/modified:**
+- `spa_core/analytics/adapter_correlation_matrix.py` (новый): `AdapterCorrelationMatrix` — pure stdlib Pearson correlation engine. `CorrelationPair` dataclass: adapter_a/b, correlation [-1,1], relationship (STRONGLY_CORRELATED/CORRELATED/WEAKLY_CORRELATED/UNCORRELATED/NEGATIVELY_CORRELATED), data_points, is_diversifying (r<0.5). `CorrelationMatrix` dataclass: generated_at, adapters, pairs, best_diversifying_pairs (top-5 lowest r), most_correlated_pairs (top-5 highest r), avg_correlation, min_data_points, low_data_warning (<5 pts). `load_apy_series()` — читает watchdog_history.json, хронологически сортирует снапшоты, строит dict[adapter_key → list[apy_pct]]. `pearson_correlation()` — формула Пирсона pure stdlib (n·Σxy−Σx·Σy)/sqrt(...), возврат 0.0 при std=0/мало точек. `align_series()` — обрезает до min(len(a), len(b)) последних точек. `classify_relationship()` — 5 категорий по порогам 0.8/0.5/0.2/-0.2. `compute_pair()` → CorrelationPair|None. `generate_matrix()` — все пары a<b, фильтрация None, топ-5, avg. `save_matrix()` — атомарная запись data/correlation_matrix.json, ring-buffer 10. `format_telegram_message()` — ≤1500 chars, 🔗/⚠️/✅/⚠️. CLI: --check/--run/--data-dir.
+- `spa_core/tests/test_adapter_correlation_matrix.py` (новый): **97 unittest-кейсов**, 9 тест-классов — TestCorrelationPair(10): поля/is_diversifying/to_dict/граничные значения; TestCorrelationMatrix(8): avg_correlation/low_data_warning/сортировки/to_dict; TestPearsonCorrelation(20): r=1/r=-1/const=0/len<min=0/difflen=0/ортогональные=0/мануальная проверка; TestAlignSeries(6): равные/a<b/b<a/пустые; TestClassifyRelationship(8+6 boundary): все 5 категорий + граничные 0.8/0.5/0.2/-0.2/±1; TestLoadApySeries(8): missing/empty/single/multi/sort/malformed; TestGenerateMatrix(18): 0 адаптеров/1/2/3, дедупликация пар, low_data_warning, avg, a<b, сортировки, is_diversifying; TestSaveMatrix(5): создаёт/absolute/valid JSON/ring-buffer≤10/принимает precomputed; TestFormatTelegramMessage(7): ≤1500 chars/Avg correlation/no crash/names/warnings.
+- `data/correlation_matrix.json` (новый): инициализирован через `--run` (0 адаптеров, пустой watchdog).
+- `KANBAN.json` (обновлён): MP-612 → done (sprint v5.36); sprint_current=v5.36; sprint_completed=v5.36.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_adapter_correlation_matrix -v` → **Ran 97 tests in 0.036s — OK** (97/97). CLI `--run` → saved correlation_matrix.json. KANBAN.json valid JSON.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался.
+
+**KANBAN:** **MP-612 (AdapterCorrelationMatrix) → done** (sprint v5.36, completed=2026-06-13); `sprint_current=v5.36`; `sprint_completed=v5.36`.
+
+**Файлы для коммита:** `spa_core/analytics/adapter_correlation_matrix.py`, `spa_core/tests/test_adapter_correlation_matrix.py`, `data/correlation_matrix.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v536.sh`.
+
+**PUSH:** ⛔ не выполнен из Linux sandbox (нет доступа к macOS Keychain). Создан `scripts/push_v536.sh` для ручного запуска на Mac.
 
 ---
 
@@ -9514,3 +9574,78 @@ SPA-V327: DeFiLlama APY feed — live APY reads для T2 адаптеров (Ye
 **Рекомендуемое сообщение коммита:** `feat(SPA-V530): DailyOperationsReport (MP-606) — unified risk/yield/chains/strategies/peg report, Telegram ≤4000 chars, action items, 90 tests green`
 
 **PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v530.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.33 (MP-609) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-609 — PortfolioSnapshotDiff — сравнивает два последовательных снапшота из `yield_attribution_tracker.json` и выявляет изменения: какие адаптеры добавились/убрались, как изменились веса и APY. Trend: IMPROVING / STABLE / DECLINING.
+
+**Files created/modified:**
+- `spa_core/analytics/portfolio_snapshot_diff.py` (новый): advisory/read-only модуль. Dataclasses: `AdapterChange` (adapter_key, change_type: "added"/"removed"/"weight_up"/"weight_down"/"apy_up"/"apy_down"/"unchanged", old/new_weight_pct Optional[float], old/new_apy_pct Optional[float], weight_delta: new−old (0.0 при added/removed), apy_delta: new−old (0.0 при added/removed), is_significant: |weight_delta|>1.0% или |apy_delta|>0.1%); `PortfolioDiff` (generated_at, snapshot_old_at/new_at, hours_apart, old/new_portfolio_apy, apy_delta, old/new_allocated_usd, allocated_delta_usd, changes, added_adapters, removed_adapters, significant_changes, total_adapters_old/new, unchanged_count, changed_count, trend, summary). Класс `PortfolioSnapshotDiff(data_path)`: `load_snapshots` (fail-safe → [], ring-buffer 30 из yield_attribution_tracker.json[«snapshots»]); `get_last_two` (raise ValueError если <2 снапшотов); `diff_adapters` (строит {adapter_id: {weight_pct,apy_pct}} для old/new, обходит all_keys=sorted(old∪new), приоритет change_type: weight > apy > unchanged); `_parse_timestamp` (ISO-8601 с Z→+00:00 нормализацией, UTC-aware); `compute_diff` (если args=None → load from disk; считает apy_delta, allocated_delta, hours_apart, changes, added/removed/significant lists, unchanged/changed counts, trend IMPROVING/DECLINING/STABLE, summary); `save_diff` (atomic tmp+os.replace, ring-buffer 30 → data/snapshot_diff.json, структура: schema_version/source/last_updated/count/latest/history); `format_telegram_message` (≤1500 chars, emoji 📊📈📉➡️➕➖✅, содержит trend+APY+capital+added/removed/significant); `to_dict`. CLI `--check`/`--run`/`--data-dir`. Pure stdlib, zero external deps. НЕ импортирует risk/execution/monitoring/allocator. Атомарные записи tmp+os.replace.
+- `spa_core/tests/test_portfolio_snapshot_diff.py` (новый): **85 unittest-кейсов**, 8 тест-классов — TestAdapterChange(12): все 7 change_type значения, is_significant logic (|weight|>1% или |apy|>0.1% — strictly greater), deltas, to_dict keys; TestPortfolioDiff(8): trend IMPROVING/STABLE/DECLINING, summary содержит APY, unchanged/changed counts, to_dict ключи и сериализация changes; TestLoadSnapshots(8): missing/empty/invalid-json/non-dict/no-snapshots-key → [], одна запись, несколько, >30 → cap до 30 с newest last; TestGetLastTwo(6): no snapshots → ValueError с count в сообщении, одна → ValueError, ровно 2, >2 → последние два, returns tuple of 2; TestDiffAdapters(25): added (5 кейсов: change_type/old_weight=None/new_weight populated/old_apy=None/new_apy populated), removed (3), weight_up/down (4: change_type/delta/is_significant/threshold), apy_up/down (4), unchanged (3), all-same, mix, weight-priority-over-apy, empty contributions, missing key; TestComputeDiff(15): apy_delta+/−, allocated_delta, trend 3 варианта, added/removed/significant lists, hours_apart normal/zero, timestamps stored, summary non-empty, load from disk, generated_at ISO parseable; TestSaveDiff(5): creates file, returns string path, no .tmp leftover, ring-buffer ≤30 (35 iterations), second save appends; TestFormatTelegramMessage(6): ≤1500 chars, contains trend/old_apy/new_apy/declining, call without diff (load from disk). Все на tempfile tmpdir — боевые data/ не перезаписываются.
+- `data/snapshot_diff.json` (новый): первый снапшот — Trend IMPROVING, APY +0.12% (5.10%→5.22%), compound_v3 weight_up +2.5% (1 significant change).
+- `KANBAN.json` (обновлён аддитивно): MP-609 → done (sprint v5.33); sprint_current=v5.33; sprint_completed=v5.33; done col +1 (282); _v533_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_portfolio_snapshot_diff -v` → **Ran 85 tests in 0.079s — OK** (85/85). `python3 -m py_compile spa_core/analytics/portfolio_snapshot_diff.py` → OK. Grep domain-импортов (risk/execution/monitoring/allocator) → CLEAN. Grep внешних зависимостей (numpy/pandas/requests/web3/openai) → CLEAN. `ls data/*.tmp` → NO TMP LEFTOVER.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Модуль advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-609 (PortfolioSnapshotDiff) → done** (sprint v5.33, completed=2026-06-13, completed_by="claude (SPA-V533)"); `sprint_current=v5.33`; `sprint_completed=v5.33`.
+
+**Файлы для коммита:** `spa_core/analytics/portfolio_snapshot_diff.py`, `spa_core/tests/test_portfolio_snapshot_diff.py`, `data/snapshot_diff.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v533.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V533): PortfolioSnapshotDiff (MP-609) — adapter-level change tracking (added/removed/weight/apy delta), trend IMPROVING/STABLE/DECLINING, 85 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v533.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.34 (MP-610) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-610 — WeeklySummaryReport: агрегирует 7 дней истории daily_ops_report.json и формирует недельную сводку (APY статистика, вердикт, топ-цепочка, Telegram ≤1500 chars).
+
+**Files created/modified:**
+- `spa_core/analytics/weekly_summary_report.py` (новый): advisory/read-only модуль. Dataclasses: `WeeklyStats` (metric_name, values: list[float], avg, min, max, trend: "RISING"/"FALLING"/"STABLE" — last > first+0.1→RISING, last < first−0.1→FALLING, иначе STABLE), `WeeklySummaryReportData` (generated_at, week_start, week_end, days_covered, apy_stats: WeeklyStats, operational_days, degraded_days, critical_days, best_day_apy, worst_day_apy, top_chain_this_week, top_chain_apy, weekly_verdict: "EXCELLENT"/"GOOD"/"FAIR"/"POOR", summary_line). Helpers: `_safe_float` (bool→0.0, TypeError→0.0), `_parse_timestamp` (Z→+00:00 нормализация, fromisoformat, UTC-aware), `_compute_trend` (len<2→STABLE, last>first+0.1→RISING, last<first−0.1→FALLING, иначе STABLE), `_trend_arrow` (↗️/↘️/→). Класс `WeeklySummaryReport(data_path)`: `HISTORY_FILE="daily_ops_report.json"`, `OUTPUT_FILE="weekly_summary.json"`, `RING_BUFFER_SIZE=12`; `load_daily_history()` → читает data/daily_ops_report.json[history], фильтрует non-dict, graceful на missing/invalid/пустой; `get_last_7_days(history)` → sort ascending by generated_at, tail 7 (или меньше); `compute_weekly_stats(values, metric_name)` → avg/min/max/_compute_trend, пустой→нули+STABLE; `_determine_verdict(avg_apy, op_days)` → EXCELLENT(avg>6.0 AND op≥5) / GOOD(avg>5.0 OR op≥4) / FAIR(avg>4.0) / POOR; `_extract_top_chain(days)` → chain с max avg APY из sections.chains.details.best_apy_overall, fallback ("",0.0); `generate_report()` → 0 дней→POOR+нули; иначе week_start/week_end, apy_values из portfolio_summary.effective_apy, operational/degraded/critical counts, best/worst_day_apy, top_chain, verdict, summary_line "Week: APY avg X.X% (Y.Y→Z.Z%), N/M operational"; `save_report(report=None)` → атомарная запись tmp+os.replace, ring-buffer 12 в data/weekly_summary.json ({schema_version, source, ring_buffer_max, report_count, last_updated, latest, history}); `format_telegram_message(report=None)` ≤1500 chars: "📅 Weekly Summary — VERDICT EMOJI / Days covered: X | Operational: Y/X / APY: avg X.XX% | min | max | trend ↗️ / Best day/Top chain / ⚠️ Degraded/Critical / trend_label / ⏱ timestamp"; `to_dict(report=None)` → JSON-serializable dict с apy_stats как вложенным dict. CLI `--check`/`--run`/`--data-dir`. Только stdlib, атомарные записи tmp+os.replace. НЕ импортирует risk/execution/monitoring/allocator/cycle_runner.
+- `spa_core/tests/test_weekly_summary_report.py` (новый): **97 unittest-кейсов**, 9 тест-классов — TestWeeklyStats(12): avg/min/max, trend RISING/FALLING/STABLE пограничные +0.1/−0.1 (exact=STABLE, above=RISING/below=FALLING), пустые values→нули, single value→STABLE; TestWeeklySummaryReportData(10): verdict EXCELLENT(оба условия)/GOOD(по APY/по op_days)/FAIR/POOR/poor_zero, summary_line APY avg+range+fraction "X/Y operational", no_data; TestLoadDailyHistory(8): missing→[], empty→[], non-dict-json→[], no-history-key→[], valid→entries, non-dict-entries-filtered, multiple, type-check; TestGetLast7Days(10): empty→[], <7→all, =7→all, >7→last7, sorted-ascending, newest-7-check, single, missing-generated_at-no-crash, all-same-ts, 14→7; TestComputeWeeklyStats(12): avg/min/max, metric_name, values-list, trend RISING/FALLING/STABLE, empty→stable/zero, returns-WeeklyStats; TestGenerateReport(18): no-history→POOR/0days/0apy, 7days-all-op, operational/degraded/critical counts, best/worst_apy, top_chain, week_start/week_end, EXCELLENT/GOOD/FAIR verdict, apy_avg_from_portfolio, return-type; TestSaveReport(5): creates-file (проверка внутри with-блока), no-tmp, ring-buffer≤12, valid-json, second-save-appends; TestFormatTelegramMessage(6): ≤1500, contains-EXCELLENT, contains-avg-APY, truncation, header, no-data-valid; TestToDict(4): returns-dict, json-serializable, required-keys, apy_stats-is-dict. Плюс TestHelpers(13): _safe_float(bool/string/none/float), _parse_timestamp(Z/offset/invalid), _compute_trend(single/empty), _trend_arrow(rising/falling/stable).
+- `data/weekly_summary.json` (новый): первый снапшот — GOOD verdict, 1 day covered (daily_ops_report.json), APY avg 5.22%, top chain ethereum 12.0%, DEGRADED 1 day, ring-buffer 12.
+- `KANBAN.json` (обновлён аддитивно): MP-610 → done (sprint v5.34); sprint_current=v5.34; sprint_completed=v5.34; _v534_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_weekly_summary_report -v` → **Ran 97 tests in 0.012s — OK** (97/97). `python3 -m spa_core.analytics.weekly_summary_report --run` → GOOD, APY avg 5.22%, top chain ethereum 12.0%, saved data/weekly_summary.json. Grep запрещённых domain-импортов (from/import spa_core.risk/execution/monitoring/allocator) → CLEAN. `ls data/*.tmp` → NO TMP LEFTOVER.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Модуль advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-610 (WeeklySummaryReport) → done** (sprint v5.34, completed=2026-06-13, completed_by="claude (SPA-V534)"); `sprint_current=v5.34`; `sprint_completed=v5.34`.
+
+**Файлы для коммита:** `spa_core/analytics/weekly_summary_report.py`, `spa_core/tests/test_weekly_summary_report.py`, `data/weekly_summary.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v534.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V534): WeeklySummaryReport (MP-610) — 7-day aggregation of daily ops, EXCELLENT/GOOD/FAIR/POOR verdict, Telegram ≤1500 chars, 97 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v534.sh` для ручного запуска на Mac.
+
+---
+
+## Sprint v5.35 (MP-611) — 2026-06-13 — ✅ CODE SHIPPED (LOCAL)
+
+**Task:** MP-611 — StablecoinExposureReport: агрегирует экспозицию портфеля по БАЗОВОМУ стейблкоину (underlying) каждого адаптера, считает концентрацию (HHI), определяет уровень depeg-контагион риска и формирует Telegram-сводку. (Все KANBAN-задачи были done → оркестратор сам придумал и добавил полезный код-спринт: дополняет PegStabilityMonitor — тот мониторит сам peg, а этот отчитывается об ЭКСПОЗИЦИИ по активам.)
+
+**Files created/modified:**
+- `spa_core/analytics/stablecoin_exposure_report.py` (новый, 672 строки): advisory/read-only модуль. Module-level `ADAPTER_STABLECOIN_MAP` (24 адаптера → USDC/FRAX/DAI/USDS/crvUSD/USDe/USDM) + `resolve_stablecoin(adapter_id)` (точное совпадение → префикс-эвристика → "UNKNOWN", регистронезависимо). Dataclasses: `StablecoinExposure` (symbol, allocated_usd, weight_pct, adapter_count, adapters sorted, avg_apy_pct взвешенный по капиталу, to_dict); `StablecoinExposureReportData` (generated_at, snapshot_at, total_allocated_usd, total_stablecoins, exposures sorted weight desc, dominant_stablecoin, dominant_weight_pct, hhi=Σ(weight/100)², concentration_label CONCENTRATED>0.5/MODERATE>0.25/DIVERSIFIED, contagion_risk CRITICAL>80/HIGH>60/MODERATE>40/LOW, unknown_weight_pct, recommendations, summary, to_dict). Класс `StablecoinExposureReport(data_path)`: SOURCE_FILE=yield_attribution_tracker.json, OUTPUT_FILE=stablecoin_exposure.json, RING_BUFFER_SIZE=30; `load_latest_snapshot` (fail-safe → {}), `_parse_timestamp` (Z→+00:00, UTC-aware), `compute_exposures` (группировка contributions по resolve_stablecoin, суммы allocated/weight, weighted avg_apy, HHI, dominant, labels, unknown_weight, recommendations, summary; пустой снапшот → пустой валидный отчёт), `save_report` (atomic tmp+os.replace, ring-buffer 30 → data/stablecoin_exposure.json: schema_version/source/last_updated/count/latest/history), `format_telegram_message` (≤1500 chars, dominant+%+HHI+contagion+топ-3+timestamp), `to_dict`. CLI `--check`/`--run`/`--data-dir`. Pure stdlib, НЕ импортирует risk/execution/monitoring/allocator/cycle_runner/golive_checker. Атомарные записи.
+- `spa_core/tests/test_stablecoin_exposure_report.py` (новый, 1059 строк): **143 unittest-кейса** на tempfile.TemporaryDirectory (боевые data/ не трогаются). Покрытие: resolve_stablecoin (exact/prefix/UNKNOWN/регистр), StablecoinExposure (weighted avg_apy, zero-capital, to_dict), verdict-границы concentration_label (HHI 0.25/0.5 строго >) и contagion_risk (40/60/80 строго >), load_latest_snapshot (missing/битый/non-dict/no-key/пустой/валидный), compute_exposures (нет contributions → пустой; 1 coin 100% → CRITICAL/CONCENTRATED HHI≈1.0; два по 50% → HHI 0.5; много мелких → DIVERSIFIED; группировка адаптеров; UNKNOWN → unknown_weight_pct; recommendations для CRITICAL), HHI assertAlmostEqual, save_report (создаёт файл/нет .tmp/ring-buffer≤30 на 35 итерациях/append/валидный json), format_telegram_message (≤1500, содержит dominant/HHI/contagion), to_dict (json-сериализуем, exposures=list of dict).
+- `data/stablecoin_exposure.json` (новый): первый снапшот — текущий портфель 5 адаптеров (aave_v3/compound_v3/euler_v2/maple/yearn_v3) все → USDC, $94 999.97. dominant USDC ~100%, HHI≈1.0 → CONCENTRATED, contagion **CRITICAL** (флаг single-stablecoin концентрации — корректный полезный вывод), weighted avg_apy 5.22%, unknown_weight 0%, recommendation о диверсификации базового актива. ring-buffer 30.
+- `KANBAN.json` (обновлён аддитивно): MP-611 → done (sprint v5.35); sprint_current=v5.35; sprint_completed=v5.35; done_count 26→27; _v535_dispatch_note добавлен.
+- `SPA_sprint_log.md` (текущий файл): добавлена эта запись.
+
+**Верификация:** `python3 -m unittest spa_core.tests.test_stablecoin_exposure_report` → **Ran 143 tests in 0.098s — OK** (143/143). `python3 -m py_compile spa_core/analytics/stablecoin_exposure_report.py` → OK. `python3 -m spa_core.analytics.stablecoin_exposure_report --run` → Saved data/stablecoin_exposure.json, dominant USDC 100.0%, HHI 1.000, contagion CRITICAL. Grep запрещённых импортов (numpy/pandas/requests/web3/openai, spa_core.risk/execution/monitoring/allocator, cycle_runner/golive_checker) → CLEAN. `ls data/*.tmp` → NO TMP LEFTOVER.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Pure stdlib, без pip/LLM SDK/eval/exec/сетевых вызовов. PAT не встраивался, push_*.html не создавался. Модуль advisory — деньги/policy/сделки не затрагиваются.
+
+**KANBAN:** **MP-611 (StablecoinExposureReport) → done** (sprint v5.35, completed=2026-06-13, completed_by="claude (SPA-V535)"); `sprint_current=v5.35`; `sprint_completed=v5.35`.
+
+**Файлы для коммита:** `spa_core/analytics/stablecoin_exposure_report.py`, `spa_core/tests/test_stablecoin_exposure_report.py`, `data/stablecoin_exposure.json`, `KANBAN.json`, `SPA_sprint_log.md`, `scripts/push_v535.sh`.
+
+**Рекомендуемое сообщение коммита:** `feat(SPA-V535): StablecoinExposureReport (MP-611) — exposure by underlying stablecoin, HHI concentration, depeg-contagion risk LOW/MODERATE/HIGH/CRITICAL, Telegram <=1500 chars, 143 tests green`
+
+**PUSH:** ⛔ не выполнен из текущего окружения — Linux sandbox без доступа к macOS Keychain / api.github.com. Создан `scripts/push_v535.sh` для ручного запуска на Mac.
