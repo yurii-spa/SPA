@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-13T00:17:32.377347+00:00",
+  "latest": {
+    "schema_version": "1.0",
+    "generated_at": "2026-06-13T00:17:32.377083+00:00",
+    "portfolio_value": 1000000.0,
+    "n_trades": 5,
+    "turnover_pct": 35.0,
+    "gas_cost_usd": 108.0,
+    "slippage_cost_usd": 1674.89167,
+    "total_cost_usd": 1782.89167,
+    "cost_bps": 17.828917,
+    "apy_gain_pct": 1.7,
+    "break_even_days": 38.279733,
+    "verdict": "NOT_WORTHWHILE",
+    "recommendation": "Skip: break-even 38d exceeds limit 30d.",
+    "trades": [
+      {
+        "adapter_id": "aave_v3",
+        "notional_usd": 150000.0,
+        "slippage_bps": 2.3725,
+        "direction": "exit"
+      },
+      {
+        "adapter_id": "extra_finance",
+        "notional_usd": 100000.0,
+        "slippage_bps": 34.166667,
+        "direction": "exit"
+      },
+      {
+        "adapter_id": "moonwell",
+        "notional_usd": 100000.0,
+        "slippage_bps": 8.6875,
+        "direction": "exit"
+      },
+      {
+        "adapter_id": "morpho_blue",
+        "notional_usd": 150000.0,
+        "slippage_bps": 3.1175,
+        "direction": "enter"
+      },
+      {
+        "adapter_id": "pendle_yt",
+        "notional_usd": 200000.0,
+        "slippage_bps": 58.2,
+        "direction": "enter"
+      }
+    ],
+    "warnings": [
+      "Break-even 38.3d exceeds threshold 30d."
+    ],
+    "label": "cli-self-test"
+  },
+  "history": [
+    {
+      "schema_version": "1.0",
+      "generated_at": "2026-06-13T00:17:32.377083+00:00",
+      "portfolio_value": 1000000.0,
+      "n_trades": 5,
+      "turnover_pct": 35.0,
+      "gas_cost_usd": 108.0,
+      "slippage_cost_usd": 1674.89167,
+      "total_cost_usd": 1782.89167,
+      "cost_bps": 17.828917,
+      "apy_gain_pct": 1.7,
+      "break_even_days": 38.279733,
+      "verdict": "NOT_WORTHWHILE",
+      "recommendation": "Skip: break-even 38d exceeds limit 30d.",
+      "trades": [
+        {
+          "adapter_id": "aave_v3",
+          "notional_usd": 150000.0,
+          "slippage_bps": 2.3725,
+          "direction": "exit"
+        },
+        {
+          "adapter_id": "extra_finance",
+          "notional_usd": 100000.0,
+          "slippage_bps": 34.166667,
+          "direction": "exit"
+        },
+        {
+          "adapter_id": "moonwell",
+          "notional_usd": 100000.0,
+          "slippage_bps": 8.6875,
+          "direction": "exit"
+        },
+        {
+          "adapter_id": "morpho_blue",
+          "notional_usd": 150000.0,
+          "slippage_bps": 3.1175,
+          "direction": "enter"
+        },
+        {
+          "adapter_id": "pendle_yt",
+          "notional_usd": 200000.0,
+          "slippage_bps": 58.2,
+          "direction": "enter"
+        }
+      ],
+      "warnings": [
+        "Break-even 38.3d exceeds threshold 30d."
+      ],
+      "label": "cli-self-test"
+    }
+  ],
+  "history_depth": 1
+}
