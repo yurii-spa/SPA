@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0",
+  "source": "capital_efficiency_report",
+  "last_updated": "2026-06-13T04:26:15.481092+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T04:26:15.481092+00:00",
+    "total_capital_usd": 94999.97,
+    "deployed_capital_usd": 94999.97,
+    "idle_capital_usd": 0.0,
+    "deployment_rate_pct": 100.0,
+    "portfolio_apy_pct": 5.2172,
+    "daily_yield_usd": 13.579009,
+    "annual_yield_usd": 4956.3384,
+    "avg_risk_score": 0.5,
+    "portfolio_raroc": 1.4344,
+    "tbill_rate_pct": 4.5,
+    "best_adapter_apy_pct": 12.0,
+    "idle_opportunity_cost_daily": 0.0,
+    "adapters": [
+      {
+        "adapter_key": "compound_v3",
+        "allocated_usd": 29803.17,
+        "apy_pct": 4.8,
+        "risk_score": 0.5,
+        "daily_yield_usd": 3.919321,
+        "raroc": 0.6,
+        "efficiency_grade": "D"
+      },
+      {
+        "adapter_key": "aave_v3",
+        "allocated_usd": 31946.82,
+        "apy_pct": 4.2,
+        "risk_score": 0.5,
+        "daily_yield_usd": 3.676072,
+        "raroc": -0.6,
+        "efficiency_grade": "D"
+      },
+      {
+        "adapter_key": "yearn_v3",
+        "allocated_usd": 11518.6,
+        "apy_pct": 6.8,
+        "risk_score": 0.5,
+        "daily_yield_usd": 2.145931,
+        "raroc": 4.6,
+        "efficiency_grade": "C"
+      },
+      {
+        "adapter_key": "euler_v2",
+        "allocated_usd": 10212.78,
+        "apy_pct": 7.4,
+        "risk_score": 0.5,
+        "daily_yield_usd": 2.070536,
+        "raroc": 5.8,
+        "efficiency_grade": "C"
+      },
+      {
+        "adapter_key": "maple",
+        "allocated_usd": 11518.6,
+        "apy_pct": 5.6,
+        "risk_score": 0.5,
+        "daily_yield_usd": 1.767237,
+        "raroc": 2.2,
+        "efficiency_grade": "D"
+      }
+    ],
+    "top_efficiency_adapter": "euler_v2",
+    "bottom_efficiency_adapter": "aave_v3",
+    "overall_grade": "B",
+    "summary": "Deployed 100.0% ($95K / $95K), RAROC 1.4x, Grade B"
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T04:24:46.451044+00:00",
+      "total_capital_usd": 94999.97,
+      "deployed_capital_usd": 94999.97,
+      "idle_capital_usd": 0.0,
+      "deployment_rate_pct": 100.0,
+      "portfolio_apy_pct": 5.2172,
+      "daily_yield_usd": 13.579009,
+      "annual_yield_usd": 4956.3384,
+      "avg_risk_score": 0.5,
+      "portfolio_raroc": 1.4344,
+      "tbill_rate_pct": 4.5,
+      "best_adapter_apy_pct": 12.0,
+      "idle_opportunity_cost_daily": 0.0,
+      "adapters": [
+        {
+          "adapter_key": "compound_v3",
+          "allocated_usd": 29803.17,
+          "apy_pct": 4.8,
+          "risk_score": 0.5,
+          "daily_yield_usd": 3.919321,
+          "raroc": 0.0,
+          "efficiency_grade": "D"
+        },
+        {
+          "adapter_key": "aave_v3",
+          "allocated_usd": 31946.82,
+          "apy_pct": 4.2,
+          "risk_score": 0.5,
+          "daily_yield_usd": 3.676072,
+          "raroc": 0.0,
+          "efficiency_grade": "D"
+        },
+        {
+          "adapter_key": "yearn_v3",
+          "allocated_usd": 11518.6,
+          "apy_pct": 6.8,
+          "risk_score": 0.5,
+          "daily_yield_usd": 2.145931,
+          "raroc": 0.0,
+          "efficiency_grade": "D"
+        },
+        {
+          "adapter_key": "euler_v2",
+          "allocated_usd": 10212.78,
+          "apy_pct": 7.4,
+          "risk_score": 0.5,
+          "daily_yield_usd": 2.070536,
+          "raroc": 0.0,
+          "efficiency_grade": "D"
+        },
+        {
+          "adapter_key": "maple",
+          "allocated_usd": 11518.6,
+          "apy_pct": 5.6,
+          "risk_score": 0.5,
+          "daily_yield_usd": 1.767237,
+          "raroc": 0.0,
+          "efficiency_grade": "D"
+        }
+      ],
+      "top_efficiency_adapter": "compound_v3",
+      "bottom_efficiency_adapter": "compound_v3",
+      "overall_grade": "B",
+      "summary": "Deployed 100.0% ($95K / $95K), RAROC 1.4x, Grade B"
+    },
+    {
+      "generated_at": "2026-06-13T04:26:15.481092+00:00",
+      "total_capital_usd": 94999.97,
+      "deployed_capital_usd": 94999.97,
+      "idle_capital_usd": 0.0,
+      "deployment_rate_pct": 100.0,
+      "portfolio_apy_pct": 5.2172,
+      "daily_yield_usd": 13.579009,
+      "annual_yield_usd": 4956.3384,
+      "avg_risk_score": 0.5,
+      "portfolio_raroc": 1.4344,
+      "tbill_rate_pct": 4.5,
+      "best_adapter_apy_pct": 12.0,
+      "idle_opportunity_cost_daily": 0.0,
+      "adapters": [
+        {
+          "adapter_key": "compound_v3",
+          "allocated_usd": 29803.17,
+          "apy_pct": 4.8,
+          "risk_score": 0.5,
+          "daily_yield_usd": 3.919321,
+          "raroc": 0.6,
+          "efficiency_grade": "D"
+        },
+        {
+          "adapter_key": "aave_v3",
+          "allocated_usd": 31946.82,
+          "apy_pct": 4.2,
+          "risk_score": 0.5,
+          "daily_yield_usd": 3.676072,
+          "raroc": -0.6,
+          "efficiency_grade": "D"
+        },
+        {
+          "adapter_key": "yearn_v3",
+          "allocated_usd": 11518.6,
+          "apy_pct": 6.8,
+          "risk_score": 0.5,
+          "daily_yield_usd": 2.145931,
+          "raroc": 4.6,
+          "efficiency_grade": "C"
+        },
+        {
+          "adapter_key": "euler_v2",
+          "allocated_usd": 10212.78,
+          "apy_pct": 7.4,
+          "risk_score": 0.5,
+          "daily_yield_usd": 2.070536,
+          "raroc": 5.8,
+          "efficiency_grade": "C"
+        },
+        {
+          "adapter_key": "maple",
+          "allocated_usd": 11518.6,
+          "apy_pct": 5.6,
+          "risk_score": 0.5,
+          "daily_yield_usd": 1.767237,
+          "raroc": 2.2,
+          "efficiency_grade": "D"
+        }
+      ],
+      "top_efficiency_adapter": "euler_v2",
+      "bottom_efficiency_adapter": "aave_v3",
+      "overall_grade": "B",
+      "summary": "Deployed 100.0% ($95K / $95K), RAROC 1.4x, Grade B"
+    }
+  ]
+}
