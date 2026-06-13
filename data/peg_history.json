@@ -1,0 +1,593 @@
+{
+  "schema_version": 1,
+  "source": "peg_monitor",
+  "ring_buffer_max": 96,
+  "snapshot_count": 1,
+  "updated_at": "2026-06-13T02:03:36.867060+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T02:03:36.867060+00:00",
+    "total_monitored": 31,
+    "stable": 31,
+    "caution": 0,
+    "warning": 0,
+    "critical": 0,
+    "worst_adapter": "aave-v3",
+    "worst_deviation_pct": 0.0,
+    "overall_status": "GREEN",
+    "statuses": [
+      {
+        "adapter_id": "aave-v3",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867542+00:00"
+      },
+      {
+        "adapter_id": "compound-v3",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867563+00:00"
+      },
+      {
+        "adapter_id": "yearn-v3",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867570+00:00"
+      },
+      {
+        "adapter_id": "euler-v2",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867574+00:00"
+      },
+      {
+        "adapter_id": "maple",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867577+00:00"
+      },
+      {
+        "adapter_id": "pendle-pt",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867581+00:00"
+      },
+      {
+        "adapter_id": "sky-susds",
+        "asset": "USDS",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867586+00:00"
+      },
+      {
+        "adapter_id": "morpho-steakhouse",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867590+00:00"
+      },
+      {
+        "adapter_id": "aave-v3-arbitrum",
+        "asset": "USDC",
+        "chain": "arbitrum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867595+00:00"
+      },
+      {
+        "adapter_id": "spark-susds",
+        "asset": "sUSDS",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867609+00:00"
+      },
+      {
+        "adapter_id": "fluid-fusdc",
+        "asset": "fUSDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867613+00:00"
+      },
+      {
+        "adapter_id": "morpho_steakhouse",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867616+00:00"
+      },
+      {
+        "adapter_id": "compound_v3",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867620+00:00"
+      },
+      {
+        "adapter_id": "aave_arbitrum",
+        "asset": "USDC",
+        "chain": "arbitrum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867624+00:00"
+      },
+      {
+        "adapter_id": "pendle_pt",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867627+00:00"
+      },
+      {
+        "adapter_id": "spark_susds",
+        "asset": "USDC/DAI",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867632+00:00"
+      },
+      {
+        "adapter_id": "fluid_fusdc",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867635+00:00"
+      },
+      {
+        "adapter_id": "sfrax",
+        "asset": "FRAX",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867639+00:00"
+      },
+      {
+        "adapter_id": "susde",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867642+00:00"
+      },
+      {
+        "adapter_id": "wusdm",
+        "asset": "USDM",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867645+00:00"
+      },
+      {
+        "adapter_id": "scrvusd",
+        "asset": "crvUSD",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867648+00:00"
+      },
+      {
+        "adapter_id": "stusd",
+        "asset": "USD+",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867651+00:00"
+      },
+      {
+        "adapter_id": "aave_v3_base",
+        "asset": "USDC",
+        "chain": "base",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867654+00:00"
+      },
+      {
+        "adapter_id": "morpho_blue_base",
+        "asset": "USDC",
+        "chain": "base",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867657+00:00"
+      },
+      {
+        "adapter_id": "moonwell_base",
+        "asset": "USDC",
+        "chain": "base",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867660+00:00"
+      },
+      {
+        "adapter_id": "extra_finance_base",
+        "asset": "USDC",
+        "chain": "base",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867664+00:00"
+      },
+      {
+        "adapter_id": "sdai",
+        "asset": "DAI",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867667+00:00"
+      },
+      {
+        "adapter_id": "frax",
+        "asset": "FRAX",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867670+00:00"
+      },
+      {
+        "adapter_id": "compound_v3_adapter",
+        "asset": "USDC",
+        "chain": "ethereum",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867673+00:00"
+      },
+      {
+        "adapter_id": "aave_v3_optimism",
+        "asset": "USDC",
+        "chain": "optimism",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867677+00:00"
+      },
+      {
+        "adapter_id": "aave_v3_polygon",
+        "asset": "USDC",
+        "chain": "polygon",
+        "current_price": 1.0,
+        "deviation_pct": 0.0,
+        "status": "STABLE",
+        "last_checked": "2026-06-13T02:03:36.867681+00:00"
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T02:03:36.867060+00:00",
+      "total_monitored": 31,
+      "stable": 31,
+      "caution": 0,
+      "warning": 0,
+      "critical": 0,
+      "worst_adapter": "aave-v3",
+      "worst_deviation_pct": 0.0,
+      "overall_status": "GREEN",
+      "statuses": [
+        {
+          "adapter_id": "aave-v3",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867542+00:00"
+        },
+        {
+          "adapter_id": "compound-v3",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867563+00:00"
+        },
+        {
+          "adapter_id": "yearn-v3",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867570+00:00"
+        },
+        {
+          "adapter_id": "euler-v2",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867574+00:00"
+        },
+        {
+          "adapter_id": "maple",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867577+00:00"
+        },
+        {
+          "adapter_id": "pendle-pt",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867581+00:00"
+        },
+        {
+          "adapter_id": "sky-susds",
+          "asset": "USDS",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867586+00:00"
+        },
+        {
+          "adapter_id": "morpho-steakhouse",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867590+00:00"
+        },
+        {
+          "adapter_id": "aave-v3-arbitrum",
+          "asset": "USDC",
+          "chain": "arbitrum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867595+00:00"
+        },
+        {
+          "adapter_id": "spark-susds",
+          "asset": "sUSDS",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867609+00:00"
+        },
+        {
+          "adapter_id": "fluid-fusdc",
+          "asset": "fUSDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867613+00:00"
+        },
+        {
+          "adapter_id": "morpho_steakhouse",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867616+00:00"
+        },
+        {
+          "adapter_id": "compound_v3",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867620+00:00"
+        },
+        {
+          "adapter_id": "aave_arbitrum",
+          "asset": "USDC",
+          "chain": "arbitrum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867624+00:00"
+        },
+        {
+          "adapter_id": "pendle_pt",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867627+00:00"
+        },
+        {
+          "adapter_id": "spark_susds",
+          "asset": "USDC/DAI",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867632+00:00"
+        },
+        {
+          "adapter_id": "fluid_fusdc",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867635+00:00"
+        },
+        {
+          "adapter_id": "sfrax",
+          "asset": "FRAX",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867639+00:00"
+        },
+        {
+          "adapter_id": "susde",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867642+00:00"
+        },
+        {
+          "adapter_id": "wusdm",
+          "asset": "USDM",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867645+00:00"
+        },
+        {
+          "adapter_id": "scrvusd",
+          "asset": "crvUSD",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867648+00:00"
+        },
+        {
+          "adapter_id": "stusd",
+          "asset": "USD+",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867651+00:00"
+        },
+        {
+          "adapter_id": "aave_v3_base",
+          "asset": "USDC",
+          "chain": "base",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867654+00:00"
+        },
+        {
+          "adapter_id": "morpho_blue_base",
+          "asset": "USDC",
+          "chain": "base",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867657+00:00"
+        },
+        {
+          "adapter_id": "moonwell_base",
+          "asset": "USDC",
+          "chain": "base",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867660+00:00"
+        },
+        {
+          "adapter_id": "extra_finance_base",
+          "asset": "USDC",
+          "chain": "base",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867664+00:00"
+        },
+        {
+          "adapter_id": "sdai",
+          "asset": "DAI",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867667+00:00"
+        },
+        {
+          "adapter_id": "frax",
+          "asset": "FRAX",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867670+00:00"
+        },
+        {
+          "adapter_id": "compound_v3_adapter",
+          "asset": "USDC",
+          "chain": "ethereum",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867673+00:00"
+        },
+        {
+          "adapter_id": "aave_v3_optimism",
+          "asset": "USDC",
+          "chain": "optimism",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867677+00:00"
+        },
+        {
+          "adapter_id": "aave_v3_polygon",
+          "asset": "USDC",
+          "chain": "polygon",
+          "current_price": 1.0,
+          "deviation_pct": 0.0,
+          "status": "STABLE",
+          "last_checked": "2026-06-13T02:03:36.867681+00:00"
+        }
+      ]
+    }
+  ]
+}
