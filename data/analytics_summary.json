@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-06-12T06:00:04.769251+00:00",
+  "generated_at": "2026-06-13T06:00:01.571560+00:00",
   "source": "analytics_runner",
   "is_demo": false,
-  "num_days": 3,
+  "num_days": 4,
   "first_date": "2026-06-10",
-  "last_date": "2026-06-12",
+  "last_date": "2026-06-13",
   "metrics": {
-    "sharpe": -1941.4268490554193,
+    "sharpe": -66.4727430057268,
     "drawdown": {
       "max_drawdown_pct": 0.0,
       "peak_date": "2026-06-10",
@@ -14,27 +14,27 @@
       "current_drawdown_pct": 0.0
     },
     "volatility": {
-      "daily_vol": 4.895507195286274e-07,
-      "annualized_vol": 9.352853364172552e-06,
-      "vol_30d": 9.352853364172552e-06
+      "daily_vol": 1.2263793092484704e-05,
+      "annualized_vol": 0.00023429943805006355,
+      "vol_30d": 0.00023429943805006355
     },
     "benchmark": {
-      "spa_total_return": 0.017448,
-      "benchmark_total_return": 0.027397,
-      "alpha": -0.009949,
+      "spa_total_return": 0.028298,
+      "benchmark_total_return": 0.041096,
+      "alpha": -0.012798,
       "outperforming": false
     },
     "streaks": {
-      "current_win_streak": 2,
-      "max_win_streak": 2,
+      "current_win_streak": 3,
+      "max_win_streak": 3,
       "current_loss_streak": 0,
       "max_loss_streak": 0
     },
     "calmar": 0.0,
     "concentration": {
-      "herfindahl_index": 0.252464,
-      "top1_weight": 0.336282,
-      "top3_weight": 0.771249,
+      "herfindahl_index": 0.263794,
+      "top1_weight": 0.4,
+      "top3_weight": 0.780099,
       "n_active": 5
     }
   },
