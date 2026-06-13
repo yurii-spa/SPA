@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-06-12T06:00:04.769251+00:00",
+  "generated_at": "2026-06-13T06:00:01.571560+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
   "summary": {
-    "num_days": 3,
-    "num_snapshots": 3,
+    "num_days": 4,
+    "num_snapshots": 4,
     "start_equity": 100000.0,
-    "end_equity": 100026.06,
-    "total_return_pct": 0.0261,
+    "end_equity": 100036.91,
+    "total_return_pct": 0.0369,
     "best_day": {
-      "date": "2026-06-12",
-      "daily_return_pct": 0.0088
+      "date": "2026-06-13",
+      "daily_return_pct": 0.0108
     },
     "worst_day": {
       "date": "2026-06-11",
       "daily_return_pct": 0.0087
     },
     "max_drawdown_pct": 0.0,
-    "positive_days": 2,
+    "positive_days": 3,
     "negative_days": 0,
-    "daily_volatility_pct": 0.0,
+    "daily_volatility_pct": 0.001,
     "first_date": "2026-06-10",
-    "last_date": "2026-06-12"
+    "last_date": "2026-06-13"
   },
   "daily": [
     {
@@ -86,6 +86,27 @@
         "yearn_v3": 11518.6,
         "euler_v2": 10212.78,
         "maple": 11518.6
+      }
+    },
+    {
+      "date": "2026-06-13",
+      "open_equity": 100026.06,
+      "close_equity": 100036.91,
+      "high_equity": 100036.91,
+      "low_equity": 100026.06,
+      "snapshots": 1,
+      "daily_return_pct": 0.010842,
+      "cumulative_return_pct": 0.036905,
+      "drawdown_pct": 0.0,
+      "equity": 100036.91,
+      "apy_today": 3.9575,
+      "daily_yield_usd": 10.8453,
+      "positions": {
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11371.73,
+        "euler_v2": 9518.9,
+        "maple": 12359.35
       }
     }
   ]
