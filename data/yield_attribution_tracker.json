@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0",
+  "source": "yield_attribution_tracker",
+  "last_updated": "2026-06-13T01:53:37.155318+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T01:53:37.155318+00:00",
+    "total_allocated_usd": 94999.97,
+    "total_daily_yield_usd": 13.579098,
+    "total_annual_yield_usd": 4956.3707,
+    "effective_apy_pct": 5.2172,
+    "top_contributor": "compound_v3",
+    "top_by_apy": "euler_v2",
+    "chain_breakdown": {
+      "ethereum": {
+        "allocated_usd": 94999.97,
+        "annual_yield_usd": 4956.3707,
+        "weight_pct": 100.0
+      }
+    },
+    "tier_breakdown": {
+      "T1": {
+        "allocated_usd": 61749.99,
+        "annual_yield_usd": 2772.3186,
+        "weight_pct": 65.0
+      },
+      "T2": {
+        "allocated_usd": 33249.98,
+        "annual_yield_usd": 2184.0521,
+        "weight_pct": 35.0
+      }
+    },
+    "diversification_score": 0.747536,
+    "contributions": [
+      {
+        "adapter_id": "compound_v3",
+        "chain": "ethereum",
+        "tier": "T1",
+        "weight_pct": 31.3718,
+        "allocated_usd": 29803.17,
+        "apy_pct": 4.8,
+        "daily_yield_usd": 3.919321,
+        "annual_yield_usd": 1430.5522,
+        "contribution_pct": 28.8629
+      },
+      {
+        "adapter_id": "aave_v3",
+        "chain": "ethereum",
+        "tier": "T1",
+        "weight_pct": 33.6282,
+        "allocated_usd": 31946.82,
+        "apy_pct": 4.2,
+        "daily_yield_usd": 3.676072,
+        "annual_yield_usd": 1341.7664,
+        "contribution_pct": 27.0716
+      },
+      {
+        "adapter_id": "yearn_v3",
+        "chain": "ethereum",
+        "tier": "T2",
+        "weight_pct": 12.1248,
+        "allocated_usd": 11518.6,
+        "apy_pct": 6.8,
+        "daily_yield_usd": 2.145931,
+        "annual_yield_usd": 783.2648,
+        "contribution_pct": 15.8032
+      },
+      {
+        "adapter_id": "euler_v2",
+        "chain": "ethereum",
+        "tier": "T2",
+        "weight_pct": 10.7503,
+        "allocated_usd": 10212.78,
+        "apy_pct": 7.4,
+        "daily_yield_usd": 2.070536,
+        "annual_yield_usd": 755.7457,
+        "contribution_pct": 15.248
+      },
+      {
+        "adapter_id": "maple",
+        "chain": "ethereum",
+        "tier": "T2",
+        "weight_pct": 12.1248,
+        "allocated_usd": 11518.6,
+        "apy_pct": 5.6,
+        "daily_yield_usd": 1.767237,
+        "annual_yield_usd": 645.0416,
+        "contribution_pct": 13.0144
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T01:53:37.155318+00:00",
+      "total_allocated_usd": 94999.97,
+      "total_daily_yield_usd": 13.579098,
+      "total_annual_yield_usd": 4956.3707,
+      "effective_apy_pct": 5.2172,
+      "top_contributor": "compound_v3",
+      "top_by_apy": "euler_v2",
+      "chain_breakdown": {
+        "ethereum": {
+          "allocated_usd": 94999.97,
+          "annual_yield_usd": 4956.3707,
+          "weight_pct": 100.0
+        }
+      },
+      "tier_breakdown": {
+        "T1": {
+          "allocated_usd": 61749.99,
+          "annual_yield_usd": 2772.3186,
+          "weight_pct": 65.0
+        },
+        "T2": {
+          "allocated_usd": 33249.98,
+          "annual_yield_usd": 2184.0521,
+          "weight_pct": 35.0
+        }
+      },
+      "diversification_score": 0.747536,
+      "contributions": [
+        {
+          "adapter_id": "compound_v3",
+          "chain": "ethereum",
+          "tier": "T1",
+          "weight_pct": 31.3718,
+          "allocated_usd": 29803.17,
+          "apy_pct": 4.8,
+          "daily_yield_usd": 3.919321,
+          "annual_yield_usd": 1430.5522,
+          "contribution_pct": 28.8629
+        },
+        {
+          "adapter_id": "aave_v3",
+          "chain": "ethereum",
+          "tier": "T1",
+          "weight_pct": 33.6282,
+          "allocated_usd": 31946.82,
+          "apy_pct": 4.2,
+          "daily_yield_usd": 3.676072,
+          "annual_yield_usd": 1341.7664,
+          "contribution_pct": 27.0716
+        },
+        {
+          "adapter_id": "yearn_v3",
+          "chain": "ethereum",
+          "tier": "T2",
+          "weight_pct": 12.1248,
+          "allocated_usd": 11518.6,
+          "apy_pct": 6.8,
+          "daily_yield_usd": 2.145931,
+          "annual_yield_usd": 783.2648,
+          "contribution_pct": 15.8032
+        },
+        {
+          "adapter_id": "euler_v2",
+          "chain": "ethereum",
+          "tier": "T2",
+          "weight_pct": 10.7503,
+          "allocated_usd": 10212.78,
+          "apy_pct": 7.4,
+          "daily_yield_usd": 2.070536,
+          "annual_yield_usd": 755.7457,
+          "contribution_pct": 15.248
+        },
+        {
+          "adapter_id": "maple",
+          "chain": "ethereum",
+          "tier": "T2",
+          "weight_pct": 12.1248,
+          "allocated_usd": 11518.6,
+          "apy_pct": 5.6,
+          "daily_yield_usd": 1.767237,
+          "annual_yield_usd": 645.0416,
+          "contribution_pct": 13.0144
+        }
+      ]
+    }
+  ]
+}
