@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-13T00:55:35.644315+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T00:55:35.644315+00:00",
+    "chains": {
+      "ethereum": {
+        "chain": "ethereum",
+        "adapter_count": 22,
+        "avg_apy_pct": 5.5591,
+        "best_apy_pct": 12.0,
+        "best_adapter": "susde",
+        "avg_risk_score": 0.34,
+        "total_tvl_usd": 14700000000.0,
+        "avg_gas_savings_pct": 0.0,
+        "healthy_count": 22,
+        "timestamp": "2026-06-13T00:55:35.644316+00:00"
+      },
+      "arbitrum": {
+        "chain": "arbitrum",
+        "adapter_count": 5,
+        "avg_apy_pct": 4.86,
+        "best_apy_pct": 7.1,
+        "best_adapter": "yearn-v3",
+        "avg_risk_score": 0.23,
+        "total_tvl_usd": 1200000000.0,
+        "avg_gas_savings_pct": 90.0,
+        "healthy_count": 5,
+        "timestamp": "2026-06-13T00:55:35.644693+00:00"
+      },
+      "base": {
+        "chain": "base",
+        "adapter_count": 6,
+        "avg_apy_pct": 5.3,
+        "best_apy_pct": 8.0,
+        "best_adapter": "extra_finance_base",
+        "avg_risk_score": 0.405,
+        "total_tvl_usd": 811000000.0,
+        "avg_gas_savings_pct": 95.0,
+        "healthy_count": 6,
+        "timestamp": "2026-06-13T00:55:35.645055+00:00"
+      },
+      "optimism": {
+        "chain": "optimism",
+        "adapter_count": 1,
+        "avg_apy_pct": 4.8,
+        "best_apy_pct": 4.8,
+        "best_adapter": "aave_v3_optimism",
+        "avg_risk_score": 0.25,
+        "total_tvl_usd": 600000000.0,
+        "avg_gas_savings_pct": 95.0,
+        "healthy_count": 1,
+        "timestamp": "2026-06-13T00:55:35.645404+00:00"
+      },
+      "polygon": {
+        "chain": "polygon",
+        "adapter_count": 0,
+        "avg_apy_pct": 0.0,
+        "best_apy_pct": 0.0,
+        "best_adapter": "",
+        "avg_risk_score": 0.0,
+        "total_tvl_usd": 0.0,
+        "avg_gas_savings_pct": 80.0,
+        "healthy_count": 0,
+        "timestamp": "2026-06-13T00:55:35.645781+00:00"
+      }
+    },
+    "best_chain": "ethereum",
+    "best_adapter_overall": "susde",
+    "best_apy_overall": 12.0,
+    "total_adapters": 34,
+    "total_tvl_usd": 17311000000.0,
+    "l2_premium_pct": -0.5724
+  },
+  "snapshots": [
+    {
+      "generated_at": "2026-06-13T00:55:35.644315+00:00",
+      "chains": {
+        "ethereum": {
+          "chain": "ethereum",
+          "adapter_count": 22,
+          "avg_apy_pct": 5.5591,
+          "best_apy_pct": 12.0,
+          "best_adapter": "susde",
+          "avg_risk_score": 0.34,
+          "total_tvl_usd": 14700000000.0,
+          "avg_gas_savings_pct": 0.0,
+          "healthy_count": 22,
+          "timestamp": "2026-06-13T00:55:35.644316+00:00"
+        },
+        "arbitrum": {
+          "chain": "arbitrum",
+          "adapter_count": 5,
+          "avg_apy_pct": 4.86,
+          "best_apy_pct": 7.1,
+          "best_adapter": "yearn-v3",
+          "avg_risk_score": 0.23,
+          "total_tvl_usd": 1200000000.0,
+          "avg_gas_savings_pct": 90.0,
+          "healthy_count": 5,
+          "timestamp": "2026-06-13T00:55:35.644693+00:00"
+        },
+        "base": {
+          "chain": "base",
+          "adapter_count": 6,
+          "avg_apy_pct": 5.3,
+          "best_apy_pct": 8.0,
+          "best_adapter": "extra_finance_base",
+          "avg_risk_score": 0.405,
+          "total_tvl_usd": 811000000.0,
+          "avg_gas_savings_pct": 95.0,
+          "healthy_count": 6,
+          "timestamp": "2026-06-13T00:55:35.645055+00:00"
+        },
+        "optimism": {
+          "chain": "optimism",
+          "adapter_count": 1,
+          "avg_apy_pct": 4.8,
+          "best_apy_pct": 4.8,
+          "best_adapter": "aave_v3_optimism",
+          "avg_risk_score": 0.25,
+          "total_tvl_usd": 600000000.0,
+          "avg_gas_savings_pct": 95.0,
+          "healthy_count": 1,
+          "timestamp": "2026-06-13T00:55:35.645404+00:00"
+        },
+        "polygon": {
+          "chain": "polygon",
+          "adapter_count": 0,
+          "avg_apy_pct": 0.0,
+          "best_apy_pct": 0.0,
+          "best_adapter": "",
+          "avg_risk_score": 0.0,
+          "total_tvl_usd": 0.0,
+          "avg_gas_savings_pct": 80.0,
+          "healthy_count": 0,
+          "timestamp": "2026-06-13T00:55:35.645781+00:00"
+        }
+      },
+      "best_chain": "ethereum",
+      "best_adapter_overall": "susde",
+      "best_apy_overall": 12.0,
+      "total_adapters": 34,
+      "total_tvl_usd": 17311000000.0,
+      "l2_premium_pct": -0.5724
+    }
+  ]
+}
