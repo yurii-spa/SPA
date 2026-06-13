@@ -27,7 +27,8 @@
         100387.0,
         100581.0,
         100830.0
-      ]
+      ],
+      "max_drawdown": 1.56
     },
     {
       "rank": 2,
@@ -47,7 +48,8 @@
       "equity_now": 100000.0,
       "equity_series": [
         100000.0
-      ]
+      ],
+      "max_drawdown": null
     },
     {
       "rank": 3,
@@ -70,7 +72,8 @@
         100326.0,
         100489.0,
         100699.0
-      ]
+      ],
+      "max_drawdown": 1.26
     },
     {
       "rank": 4,
@@ -93,7 +96,8 @@
         100288.0,
         100432.0,
         100616.0
-      ]
+      ],
+      "max_drawdown": 1.05
     },
     {
       "rank": 5,
@@ -116,7 +120,8 @@
         100268.0,
         100403.0,
         100575.0
-      ]
+      ],
+      "max_drawdown": 1.2
     },
     {
       "rank": 6,
@@ -139,7 +144,8 @@
         100226.0,
         100339.0,
         100485.0
-      ]
+      ],
+      "max_drawdown": 0.93
     },
     {
       "rank": 7,
@@ -162,7 +168,8 @@
         100201.0,
         100301.0,
         100431.0
-      ]
+      ],
+      "max_drawdown": 0.75
     },
     {
       "rank": 8,
@@ -185,7 +192,8 @@
         100180.0,
         100270.0,
         100386.0
-      ]
+      ],
+      "max_drawdown": 0.9
     },
     {
       "rank": 9,
@@ -208,7 +216,8 @@
         100123.0,
         100184.0,
         100263.0
-      ]
+      ],
+      "max_drawdown": 0.3
     },
     {
       "rank": 10,
@@ -231,7 +240,8 @@
         100538.0,
         100844.0,
         101150.0
-      ]
+      ],
+      "max_drawdown": 7.49
     },
     {
       "rank": 11,
@@ -254,7 +264,8 @@
         100461.0,
         100722.0,
         100985.0
-      ]
+      ],
+      "max_drawdown": 6.52
     },
     {
       "rank": 12,
@@ -274,7 +285,8 @@
       "risk_score": 0.4,
       "equity_now": 100000.0,
       "equity_series": [],
-      "note": "Phase 1 ETH fallback · paper-only until 2026-08-01 · ADR-023: 30d paper + Sharpe≥1.0 + USER_APPROVAL"
+      "note": "Phase 1 ETH fallback · paper-only until 2026-08-01 · ADR-023: 30d paper + Sharpe≥1.0 + USER_APPROVAL",
+      "max_drawdown": null
     },
     {
       "rank": 13,
@@ -297,7 +309,8 @@
         100224.0,
         100352.0,
         100480.0
-      ]
+      ],
+      "max_drawdown": 4.49
     },
     {
       "rank": 14,
@@ -317,7 +330,8 @@
       "risk_score": 0.45,
       "equity_now": 100000.0,
       "equity_series": [],
-      "note": "Phase 1: ETH fallback only. Phase 2 cross-chain arb after 2026-08-01. Spread threshold 1.5%."
+      "note": "Phase 1: ETH fallback only. Phase 2 cross-chain arb after 2026-08-01. Spread threshold 1.5%.",
+      "max_drawdown": null
     }
   ],
   "strategy_count": 14
