@@ -524,11 +524,11 @@ class TestEstimateSlippage:
 
     def test_formula_t1(self, planner):
         # slippage = amount / (tvl * factor_T1)
-        # factor_T1 = 0.01
+        # factor_T1 = 0.20  (20% of TVL = effective depth for T1)
         step  = self._step(9_000_000.0)
         tvl   = 9_000_000_000.0
-        # expected = 9e6 / (9e9 * 0.01) = 9e6 / 9e7 = 0.1
-        expected = 9_000_000.0 / (9_000_000_000.0 * 0.01)
+        # expected = 9e6 / (9e9 * 0.20) = 9e6 / 1.8e9 = 0.005
+        expected = 9_000_000.0 / (9_000_000_000.0 * 0.20)
         slip = planner.estimate_slippage(step, {"tvl": tvl, "tier": "T1"})
         assert abs(slip - expected) < 1e-9
 
@@ -834,14 +834,25 @@ class TestIntegration:
         assert abs(entry["actual_usd"] - plan["planned_usd"]) < 1e-3
         assert abs(entry["execution_gap_usd"]) < 1e-3
 
-    def test_multiple_strategies_different_order(self, planner, portfolio, adapters):
-        s_impact = planner.plan_withdrawal(50000.0, portfolio, adapters,
-                                           strategy=STRATEGY_MIN_IMPACT)
-        s_yield  = planner.plan_withdrawal(50000.0, portfolio, adapters,
-                                           strategy=STRATEGY_MAX_YIELD)
+    def test_multiple_strategies_different_order(self, planner):
+        # Build a portfolio where highest-TVL T1 != lowest-APY T1,
+        # so the two strategies disagree on which adapter to liquidate first.
+        port = {
+            "high_tvl_high_yield": 20000.0,   # T1: 9B TVL, 8% APY
+            "low_tvl_low_yield":   20000.0,    # T1: 100M TVL, 2% APY
+        }
+        adp = {
+            "high_tvl_high_yield": {"apy": 8.0, "tvl": 9_000_000_000.0, "tier": "T1"},
+            "low_tvl_low_yield":   {"apy": 2.0, "tvl":   100_000_000.0, "tier": "T1"},
+        }
+        s_impact = planner.plan_withdrawal(5000.0, port, adp, strategy=STRATEGY_MIN_IMPACT)
+        s_yield  = planner.plan_withdrawal(5000.0, port, adp, strategy=STRATEGY_MAX_YIELD)
+        # min_impact → highest TVL first: high_tvl_high_yield
+        # max_yield  → lowest APY first:  low_tvl_low_yield
+        assert s_impact[0].adapter_id == "high_tvl_high_yield"
+        assert s_yield[0].adapter_id  == "low_tvl_low_yield"
         ids_impact = [s.adapter_id for s in s_impact]
         ids_yield  = [s.adapter_id for s in s_yield]
-        # The two strategies should produce different orderings for this portfolio
         assert ids_impact != ids_yield
 
     def test_plan_to_sequence_consistency(self, planner, portfolio, adapters):
