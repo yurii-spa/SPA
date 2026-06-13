@@ -1,0 +1,615 @@
+{
+  "generated_at": "2026-06-13T01:33:12.611671+00:00",
+  "total_adapters": 31,
+  "groups": [
+    {
+      "group_id": "T1_ethereum",
+      "chain": "ethereum",
+      "tier": "T1",
+      "cells": [
+        {
+          "adapter_id": "morpho_steakhouse",
+          "chain": "ethereum",
+          "tier": "T1",
+          "apy_pct": 6.5,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Morpho Steakhouse",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 6.5% | TVL: $0K | Risk: 0.20 | Chain: ethereum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "spark_susds",
+          "chain": "ethereum",
+          "tier": "T1",
+          "apy_pct": 5.5,
+          "risk_score": 0.2,
+          "tvl_usd": 3000000000.0,
+          "tvl_formatted": "$3.0B",
+          "color_bucket": "medium",
+          "size_bucket": "large",
+          "label": "Spark Susds",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 5.5% | TVL: $3.0B | Risk: 0.20 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "compound_v3_adapter",
+          "chain": "ethereum",
+          "tier": "T1",
+          "apy_pct": 5.2,
+          "risk_score": 0.28,
+          "tvl_usd": 1500000000.0,
+          "tvl_formatted": "$1.5B",
+          "color_bucket": "medium",
+          "size_bucket": "large",
+          "label": "Compound V3 Adapter",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 5.2% | TVL: $1.5B | Risk: 0.28 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "compound_v3",
+          "chain": "ethereum",
+          "tier": "T1",
+          "apy_pct": 4.8,
+          "risk_score": 0.2,
+          "tvl_usd": 2800000000.0,
+          "tvl_formatted": "$2.8B",
+          "color_bucket": "medium",
+          "size_bucket": "large",
+          "label": "Compound V3",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 4.8% | TVL: $2.8B | Risk: 0.20 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "aave_v3_ethereum",
+          "chain": "ethereum",
+          "tier": "T1",
+          "apy_pct": 4.2,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Aave V3 Ethereum",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 4.2% | TVL: $0K | Risk: 0.20 | Chain: ethereum",
+          "is_eligible": false
+        }
+      ],
+      "avg_apy_pct": 5.24,
+      "total_tvl_usd": 7300000000.0,
+      "count": 5
+    },
+    {
+      "group_id": "T2_ethereum",
+      "chain": "ethereum",
+      "tier": "T2",
+      "cells": [
+        {
+          "adapter_id": "pendle_pt",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 8.0,
+          "risk_score": 0.35,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "high",
+          "size_bucket": "small",
+          "label": "Pendle Pt",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 8.0% | TVL: $0K | Risk: 0.35 | Chain: ethereum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "frax",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 7.5,
+          "risk_score": 0.45,
+          "tvl_usd": 800000000.0,
+          "tvl_formatted": "$800.0M",
+          "color_bucket": "high",
+          "size_bucket": "medium",
+          "label": "Frax",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 7.5% | TVL: $800.0M | Risk: 0.45 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "euler_v2",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 7.4,
+          "risk_score": 0.35,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "high",
+          "size_bucket": "small",
+          "label": "Euler V2",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 7.4% | TVL: $0K | Risk: 0.35 | Chain: ethereum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "scrvusd",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 7.0,
+          "risk_score": 0.42,
+          "tvl_usd": 100000000.0,
+          "tvl_formatted": "$100.0M",
+          "color_bucket": "high",
+          "size_bucket": "medium",
+          "label": "Scrvusd",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 7.0% | TVL: $100.0M | Risk: 0.42 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "yearn_v3_ethereum",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 6.8,
+          "risk_score": 0.35,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Yearn V3 Ethereum",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 6.8% | TVL: $0K | Risk: 0.35 | Chain: ethereum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "fluid_fusdc",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 6.5,
+          "risk_score": 0.35,
+          "tvl_usd": 2000000000.0,
+          "tvl_formatted": "$2.0B",
+          "color_bucket": "medium",
+          "size_bucket": "large",
+          "label": "Fluid Fusdc",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 6.5% | TVL: $2.0B | Risk: 0.35 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "sfrax",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 6.0,
+          "risk_score": 0.4,
+          "tvl_usd": 450000000.0,
+          "tvl_formatted": "$450.0M",
+          "color_bucket": "medium",
+          "size_bucket": "medium",
+          "label": "Sfrax",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 6.0% | TVL: $450.0M | Risk: 0.40 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "stusd",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 6.0,
+          "risk_score": 0.43,
+          "tvl_usd": 50000000.0,
+          "tvl_formatted": "$50.0M",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Stusd",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 6.0% | TVL: $50.0M | Risk: 0.43 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "maple",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 5.6,
+          "risk_score": 0.35,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Maple",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 5.6% | TVL: $0K | Risk: 0.35 | Chain: ethereum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "sdai",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 5.5,
+          "risk_score": 0.38,
+          "tvl_usd": 1300000000.0,
+          "tvl_formatted": "$1.3B",
+          "color_bucket": "medium",
+          "size_bucket": "large",
+          "label": "Sdai",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 5.5% | TVL: $1.3B | Risk: 0.38 | Chain: ethereum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "wusdm",
+          "chain": "ethereum",
+          "tier": "T2",
+          "apy_pct": 5.0,
+          "risk_score": 0.45,
+          "tvl_usd": 200000000.0,
+          "tvl_formatted": "$200.0M",
+          "color_bucket": "medium",
+          "size_bucket": "medium",
+          "label": "Wusdm",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 5.0% | TVL: $200.0M | Risk: 0.45 | Chain: ethereum",
+          "is_eligible": true
+        }
+      ],
+      "avg_apy_pct": 6.4818,
+      "total_tvl_usd": 4900000000.0,
+      "count": 11
+    },
+    {
+      "group_id": "T2-conditional_ethereum",
+      "chain": "ethereum",
+      "tier": "T2-conditional",
+      "cells": [
+        {
+          "adapter_id": "sky_susds",
+          "chain": "ethereum",
+          "tier": "T2-conditional",
+          "apy_pct": 0.0,
+          "risk_score": 0.4,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "low",
+          "size_bucket": "small",
+          "label": "Sky Susds",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 0.0% | TVL: $0K | Risk: 0.40 | Chain: ethereum",
+          "is_eligible": false
+        }
+      ],
+      "avg_apy_pct": 0.0,
+      "total_tvl_usd": 0.0,
+      "count": 1
+    },
+    {
+      "group_id": "T3_ethereum",
+      "chain": "ethereum",
+      "tier": "T3",
+      "cells": [
+        {
+          "adapter_id": "susde",
+          "chain": "ethereum",
+          "tier": "T3",
+          "apy_pct": 12.0,
+          "risk_score": 0.62,
+          "tvl_usd": 2500000000.0,
+          "tvl_formatted": "$2.5B",
+          "color_bucket": "very_high",
+          "size_bucket": "large",
+          "label": "Susde",
+          "chain_emoji": "⚪",
+          "tooltip": "APY: 12.0% | TVL: $2.5B | Risk: 0.62 | Chain: ethereum",
+          "is_eligible": true
+        }
+      ],
+      "avg_apy_pct": 12.0,
+      "total_tvl_usd": 2500000000.0,
+      "count": 1
+    },
+    {
+      "group_id": "T1_arbitrum",
+      "chain": "arbitrum",
+      "tier": "T1",
+      "cells": [
+        {
+          "adapter_id": "compound_v3_arbitrum",
+          "chain": "arbitrum",
+          "tier": "T1",
+          "apy_pct": 4.8,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Compound V3 Arbitrum",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.8% | TVL: $0K | Risk: 0.20 | Chain: arbitrum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "aave_v3_arbitrum",
+          "chain": "arbitrum",
+          "tier": "T1",
+          "apy_pct": 4.2,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Aave V3 Arbitrum",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.2% | TVL: $0K | Risk: 0.20 | Chain: arbitrum",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "aave_arbitrum",
+          "chain": "arbitrum",
+          "tier": "T1",
+          "apy_pct": 4.1,
+          "risk_score": 0.2,
+          "tvl_usd": 1200000000.0,
+          "tvl_formatted": "$1.2B",
+          "color_bucket": "medium",
+          "size_bucket": "large",
+          "label": "Aave Arbitrum",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.1% | TVL: $1.2B | Risk: 0.20 | Chain: arbitrum",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "aave_v3_arbitrum",
+          "chain": "arbitrum",
+          "tier": "T1",
+          "apy_pct": 4.1,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Aave V3 Arbitrum",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.1% | TVL: $0K | Risk: 0.20 | Chain: arbitrum",
+          "is_eligible": false
+        }
+      ],
+      "avg_apy_pct": 4.3,
+      "total_tvl_usd": 1200000000.0,
+      "count": 4
+    },
+    {
+      "group_id": "T2_arbitrum",
+      "chain": "arbitrum",
+      "tier": "T2",
+      "cells": [
+        {
+          "adapter_id": "yearn_v3_arbitrum",
+          "chain": "arbitrum",
+          "tier": "T2",
+          "apy_pct": 7.1,
+          "risk_score": 0.35,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "high",
+          "size_bucket": "small",
+          "label": "Yearn V3 Arbitrum",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 7.1% | TVL: $0K | Risk: 0.35 | Chain: arbitrum",
+          "is_eligible": false
+        }
+      ],
+      "avg_apy_pct": 7.1,
+      "total_tvl_usd": 0.0,
+      "count": 1
+    },
+    {
+      "group_id": "T1_base",
+      "chain": "base",
+      "tier": "T1",
+      "cells": [
+        {
+          "adapter_id": "compound_v3_base",
+          "chain": "base",
+          "tier": "T1",
+          "apy_pct": 4.8,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Compound V3 Base",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.8% | TVL: $0K | Risk: 0.20 | Chain: base",
+          "is_eligible": false
+        },
+        {
+          "adapter_id": "aave_v3_base",
+          "chain": "base",
+          "tier": "T1",
+          "apy_pct": 4.2,
+          "risk_score": 0.2,
+          "tvl_usd": 0.0,
+          "tvl_formatted": "$0K",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Aave V3 Base",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.2% | TVL: $0K | Risk: 0.20 | Chain: base",
+          "is_eligible": false
+        }
+      ],
+      "avg_apy_pct": 4.5,
+      "total_tvl_usd": 0.0,
+      "count": 2
+    },
+    {
+      "group_id": "T2_base",
+      "chain": "base",
+      "tier": "T2",
+      "cells": [
+        {
+          "adapter_id": "morpho-blue-base",
+          "chain": "base",
+          "tier": "T2",
+          "apy_pct": 6.2,
+          "risk_score": 0.38,
+          "tvl_usd": 180000000.0,
+          "tvl_formatted": "$180.0M",
+          "color_bucket": "medium",
+          "size_bucket": "medium",
+          "label": "Morpho Blue Base",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 6.2% | TVL: $180.0M | Risk: 0.38 | Chain: base",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "aave-v3-base",
+          "chain": "base",
+          "tier": "T2",
+          "apy_pct": 4.5,
+          "risk_score": 0.35,
+          "tvl_usd": 400000000.0,
+          "tvl_formatted": "$400.0M",
+          "color_bucket": "medium",
+          "size_bucket": "medium",
+          "label": "Aave V3 Base",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.5% | TVL: $400.0M | Risk: 0.35 | Chain: base",
+          "is_eligible": true
+        },
+        {
+          "adapter_id": "moonwell_base",
+          "chain": "base",
+          "tier": "T2",
+          "apy_pct": 4.1,
+          "risk_score": 0.75,
+          "tvl_usd": 96000000.0,
+          "tvl_formatted": "$96.0M",
+          "color_bucket": "medium",
+          "size_bucket": "small",
+          "label": "Moonwell Base",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 4.1% | TVL: $96.0M | Risk: 0.75 | Chain: base",
+          "is_eligible": true
+        }
+      ],
+      "avg_apy_pct": 4.9333,
+      "total_tvl_usd": 676000000.0,
+      "count": 3
+    },
+    {
+      "group_id": "T3_base",
+      "chain": "base",
+      "tier": "T3",
+      "cells": [
+        {
+          "adapter_id": "extra_finance_base",
+          "chain": "base",
+          "tier": "T3",
+          "apy_pct": 8.0,
+          "risk_score": 0.55,
+          "tvl_usd": 135000000.0,
+          "tvl_formatted": "$135.0M",
+          "color_bucket": "high",
+          "size_bucket": "medium",
+          "label": "Extra Finance Base",
+          "chain_emoji": "🔵",
+          "tooltip": "APY: 8.0% | TVL: $135.0M | Risk: 0.55 | Chain: base",
+          "is_eligible": true
+        }
+      ],
+      "avg_apy_pct": 8.0,
+      "total_tvl_usd": 135000000.0,
+      "count": 1
+    },
+    {
+      "group_id": "T1_optimism",
+      "chain": "optimism",
+      "tier": "T1",
+      "cells": [
+        {
+          "adapter_id": "aave_v3_optimism",
+          "chain": "optimism",
+          "tier": "T1",
+          "apy_pct": 4.8,
+          "risk_score": 0.25,
+          "tvl_usd": 600000000.0,
+          "tvl_formatted": "$600.0M",
+          "color_bucket": "medium",
+          "size_bucket": "medium",
+          "label": "Aave V3 Optimism",
+          "chain_emoji": "🔴",
+          "tooltip": "APY: 4.8% | TVL: $600.0M | Risk: 0.25 | Chain: optimism",
+          "is_eligible": true
+        }
+      ],
+      "avg_apy_pct": 4.8,
+      "total_tvl_usd": 600000000.0,
+      "count": 1
+    },
+    {
+      "group_id": "T1_polygon",
+      "chain": "polygon",
+      "tier": "T1",
+      "cells": [
+        {
+          "adapter_id": "aave_v3_polygon",
+          "chain": "polygon",
+          "tier": "T1",
+          "apy_pct": 5.1,
+          "risk_score": 0.27,
+          "tvl_usd": 800000000.0,
+          "tvl_formatted": "$800.0M",
+          "color_bucket": "medium",
+          "size_bucket": "medium",
+          "label": "Aave V3 Polygon",
+          "chain_emoji": "🟣",
+          "tooltip": "APY: 5.1% | TVL: $800.0M | Risk: 0.27 | Chain: polygon",
+          "is_eligible": true
+        }
+      ],
+      "avg_apy_pct": 5.1,
+      "total_tvl_usd": 800000000.0,
+      "count": 1
+    }
+  ],
+  "apy_range": {
+    "min": 4.1,
+    "max": 12.0,
+    "avg": 5.85
+  },
+  "tvl_total_usd": 18111000000.0,
+  "color_legend": {
+    "low": "<4%",
+    "medium": "4–7%",
+    "high": "7–10%",
+    "very_high": ">10%"
+  },
+  "chain_summary": {
+    "ethereum": {
+      "count": 18,
+      "avg_apy": 6.4412
+    },
+    "arbitrum": {
+      "count": 5,
+      "avg_apy": 4.86
+    },
+    "base": {
+      "count": 6,
+      "avg_apy": 5.3
+    },
+    "optimism": {
+      "count": 1,
+      "avg_apy": 4.8
+    },
+    "polygon": {
+      "count": 1,
+      "avg_apy": 5.1
+    }
+  }
+}
