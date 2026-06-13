@@ -4,6 +4,22 @@
   "min_days_required": 30,
   "golive_target": "2026-08-01",
   "base_capital": 100000.0,
-  "days": [],
-  "strategies": {}
+  "days": [
+    {
+      "date": "2026-06-13",
+      "strategy_id": "S7",
+      "apy_pct": 3.9575,
+      "equity_value": 100036.91,
+      "day_return_pct": 0.03691,
+      "notes": "auto-recorded by cycle_runner v4.73"
+    }
+  ],
+  "strategies": {
+    "S7": {
+      "day_count": 1,
+      "total_apy": 3.9575,
+      "first_date": "2026-06-13",
+      "last_date": "2026-06-13"
+    }
+  }
 }
