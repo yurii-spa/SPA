@@ -65,12 +65,14 @@ HISTORY_FILENAME = "withdrawal_history.json"
 HISTORY_MAX = 365  # ring-buffer cap (one year)
 
 # ─── Tier liquidity factors ───────────────────────────────────────────────────
-# Fraction of TVL that acts as the "effective depth" for slippage calculation.
-# Higher tier → more liquid → less slippage per dollar withdrawn.
+# Effective tradeable depth = TVL * factor.
+# Higher factor → deeper effective depth → lower slippage per dollar withdrawn.
+# T1 protocols (Aave, Compound) have large, liquid markets: 20% of TVL depth.
+# T3 protocols are thin: only ~1% of TVL depth.
 _TIER_LIQUIDITY_FACTOR: Dict[str, float] = {
-    "T1": 0.01,   # T1: ~1% of TVL is tradeable depth per unit of slippage
-    "T2": 0.05,   # T2: shallower book
-    "T3": 0.20,   # T3: much thinner liquidity
+    "T1": 0.20,   # T1: ~20% of TVL is effective tradeable depth (most liquid)
+    "T2": 0.05,   # T2: ~5% — moderately liquid
+    "T3": 0.01,   # T3: ~1% — thin, illiquid pools
 }
 _DEFAULT_LIQUIDITY_FACTOR: float = 0.10  # conservative fallback for unknown tiers
 
@@ -517,13 +519,15 @@ class WithdrawalPlanner:
 
             take = min(remaining, position)
 
-            # Sweep if the residual would be a tiny dust amount
+            # Sweep if the residual would be a tiny dust amount.
+            # After the sweep, take may exceed remaining — that is intentional
+            # (we accept slightly over-withdrawing to avoid dust positions).
             residual = position - take
             if 0.0 < residual < self.min_position_residual_usd:
-                take = position  # take the whole position
+                take = position  # take the whole position (may exceed remaining)
 
-            # Re-cap (sweep may push take above remaining)
-            take = min(take, remaining)
+            # Hard cap: never exceed the position itself
+            take = min(take, position)
 
             if take <= 1e-9:
                 continue
@@ -538,7 +542,7 @@ class WithdrawalPlanner:
                     order=order,
                 )
             )
-            remaining -= take
+            remaining = max(0.0, remaining - take)   # guard against tiny negatives
             order     += 1
 
         return steps
