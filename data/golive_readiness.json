@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-13T10:13:45.525996+00:00",
+  "generated_at": "2026-06-13T17:02:23.340272+00:00",
   "verdict": "NOT_READY",
   "verdict_emoji": "\ud83d\udd34",
   "days_remaining": 31,
@@ -101,7 +101,7 @@
       "status": "FAIL",
       "value": 0.0,
       "threshold": 28,
-      "note": "0.0/28 days stable \u2014 need 28.0 more days (4 prior failure(s))"
+      "note": "0.0/28 days stable \u2014 need 28.0 more days (5 prior failure(s))"
     }
   ],
   "recommendation": "Continue paper trading. Next milestone: duration criterion passes on 2026-07-15 (32 days away). Review again after 2026-07-15.",
