@@ -355,6 +355,39 @@
       "live_data": true,
       "adapters_with_live_apy": 6,
       "data_freshness": "live"
+    },
+    {
+      "run_ts": "2026-06-13T06:00:01.990960+00:00",
+      "duration_sec": 1.0656,
+      "summary": {
+        "total": 7,
+        "ok": 6,
+        "partial": 0,
+        "error": 1,
+        "avg_health_score": 0.8571,
+        "grade": "B",
+        "best_apy": {
+          "protocol": "compound_v3",
+          "apy_pct": 5.2
+        },
+        "total_tvl_usd": 4867145339.0,
+        "live_data": true,
+        "adapters_with_live_apy": 6,
+        "data_freshness": "live"
+      },
+      "overall_health": {
+        "score": 0.8571,
+        "grade": "B",
+        "total": 7,
+        "ok_count": 6,
+        "partial_count": 0,
+        "stale_count": 0,
+        "error_count": 1
+      },
+      "status": "ok",
+      "live_data": true,
+      "adapters_with_live_apy": 6,
+      "data_freshness": "live"
     }
   ],
   "max_runs": 30
