@@ -1,7 +1,7 @@
 {
   "last_updated": "2026-06-13",
-  "updated_by": "claude (SPA-V517 MP-592)",
-  "sprint_current": "v5.17",
+  "updated_by": "claude (SPA-V532)",
+  "sprint_current": "v5.32",
   "notes": "Источник истины плана: MASTER_PLAN_v1.md (схема MP-xxx, маппинг ex RB-xxx в описаниях). Аудит: REBUILD_PLAN_v1.md. Состояние: SYSTEM_HEALTH.md. Финмодель: GRAND_VISION_v1.md + MASTER_PLAN §1. Pitch: INVESTOR_PITCH_v1.md. Phase 0/1 — детально (backlog), Phase 2-5 — эпики (features). Старый архив: KANBAN_ARCHIVE_2026-06-10.json (локально).",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -272,6 +272,14 @@
     "in_progress": [],
     "review": [],
     "done": [
+      {
+        "id": "MP-593",
+        "title": "AaveV3PolygonAdapter — T1 L2 adapter Polygon USDC.e (RISK=0.27/TVL=$800M/APY=5.1%/CHAIN=polygon/get_bridge_risk_note)",
+        "status": "done",
+        "sprint": "v5.18",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V518)"
+      },
       {
         "id": "MP-561",
         "title": "Angle Staked USDA (stUSD) ERC-4626 T2 adapter — read-only/advisory yield source",
@@ -5056,10 +5064,84 @@
           "wusdm",
           "multi_rung"
         ]
+      },
+      {
+        "id": "MP-594",
+        "title": "RiskAdjustedRanker — advisory risk-adjusted yield ranking (APY/risk_score)",
+        "description": "spa_core/analytics/risk_adjusted_ranker.py: RiskAdjustedRanker — advisory/read-only модуль, ранжирует все DeFi-адаптеры по risk-adjusted yield (risk_adjusted_score = apy_pct / max(risk_score, EPS); excess_yield_pct = apy - RISK_FREE_PCT=4.0). Dual-source extract (protocol-level + adapters[]), fail-safe load, peg_healthy/eligible логика, rank_all (eligible only, tie-break apy desc/name asc), get_top_n/get_by_tier/get_tier_leaders/get_excluded, ring-buffer save_report (30 снапшотов, atomic). НЕ двигает средства, не вызывает execution/risk/monitoring. 173 теста. data/risk_adjusted_report.json создан.",
+        "status": "done",
+        "priority": "MEDIUM",
+        "type": "code",
+        "sprint": "v5.19",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V519)",
+        "tags": [
+          "analytics",
+          "advisory",
+          "read-only",
+          "risk-adjusted",
+          "ranking",
+          "yield",
+          "MP-593",
+          "stdlib-only",
+          "SPA-BL-011"
+        ]
+      },
+      {
+        "id": "MP-597",
+        "title": "PortfolioHeatMapGenerator — chain/tier heat map grid, APY color buckets, TVL size buckets, dashboard-ready heat_map.json",
+        "status": "done",
+        "sprint": "v5.21",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V521)"
+      },
+      {
+        "id": "MP-600",
+        "title": "YieldAttributionTracker — per-adapter contribution, HHI diversification, chain/tier breakdown, rebalance hints",
+        "status": "done",
+        "sprint": "v5.24",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V524)"
+      },
+      {
+        "id": "MP-603",
+        "title": "ProtocolConcentrationRisk — smart contract exposure HHI",
+        "status": "done",
+        "sprint": "v5.27",
+        "sprint_completed": "v5.27",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V527)",
+        "description": "ProtocolConcentrationRisk: PROTOCOL_MAP (20 prefixes → canonical protocol), ProtocolExposure/ConcentrationReport dataclasses, infer_protocol (prefix match + fallback), group_by_protocol, compute_exposure (TVL agg + avg_apy + chains deduplicated + risk_level thresholds 25/40/60%), compute_hhi (HHI=Σ(w/100)²), generate_report (sorted desc, warnings HIGH/CRITICAL + cross-chain ≥3, overall_risk), get_safe_allocation_caps (LOW→40/MEDIUM→30/HIGH→20/CRITICAL→10%), save_report (atomic tmp+os.replace, ring-buffer 30 → data/concentration_risk.json), format_telegram_message (≤1500 chars), to_dict (JSON-serializable), CLI --check/--run/--data-dir. 90 tests green.",
+        "files": [
+          "spa_core/analytics/protocol_concentration_risk.py",
+          "spa_core/tests/test_protocol_concentration_risk.py",
+          "data/concentration_risk.json",
+          "KANBAN.json",
+          "SPA_sprint_log.md"
+        ]
+      },
+      {
+        "id": "MP-605",
+        "title": "YieldStabilityScorer — advisory APY stability/persistence scoring (CV, drawdown, grade A-D)",
+        "status": "done",
+        "sprint": "v5.29",
+        "sprint_completed": "v5.29",
+        "completed": "2026-06-13",
+        "completed_by": "claude (SPA-V529)",
+        "description": "spa_core/analytics/yield_stability_scorer.py: YieldStabilityScorer — advisory/read-only. Scores each adapter by APY STABILITY/PERSISTENCE over time (distinct from apy_momentum trend direction). Helpers: _mean/_stddev/_coefficient_of_variation/_apy_drawdown_pct/_extract_apy_series/_stability_score/_grade/_confidence. Dataclasses AdapterStability (cv, apy_drawdown_pct, stability_score, grade A-D, confidence HIGH/MEDIUM/LOW/UNKNOWN, excess_yield_pct vs T-bill 4%, rank) + StabilityReport (most/least_stable, grade_distribution, avg_stability_score). Sources: apy_history.json protocol_history (primary) + watchdog_history.json (supplementary) + adapter_status.json (universe). score_all ranking by stability_score desc (tie-break cv asc/excess desc/key asc), get_top_n/get_by_grade, atomic ring-buffer save_report(30) → data/yield_stability_report.json. CLI --check/--run/--data-dir. Pure stdlib, SPA-BL-011 compliant, не двигает средства. 165 tests green.",
+        "tags": [
+          "analytics",
+          "advisory",
+          "read-only",
+          "apy",
+          "stability",
+          "scoring",
+          "mp-605"
+        ]
       }
     ]
   },
-  "sprint_completed": "v5.17",
+  "sprint_completed": "v5.31",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
   "_v414_dispatch_note": "SPA-V414 (MP-007): dashboard live-data only. loadDashboard now feeds renderDashboard via buildLiveStatus()/mapOrchToProtocols() built from adapter_orchestrator_status.json + current_positions.json + paper_trading_status.json + equity_curve_daily.json; demo snapshot reads (status.json, protocols.json, strategy_state.json, strategy_v2.json, backtest_results.json, alerts.json, latest_report.json, optimization_recommendations.json, decision_log.json, portfolio_status.json) removed; widgets without live feed show honest 'no data'. Staleness banner when freshest key source >24h (red >72h); real-track day counter computed in JS from REAL_TRACK_START=2026-06-10. VaR shows '—' while risk_metrics stale (MP-012). node --check syntax-clean; +9 static tests green (test_dashboard_live_data.py); regression 76/78 (2 pre-existing fails in test_dashboard_adapter_sync: SPA-V334 contract pins 5 adapters vs 7 in data/adapter_status.json since 2026-05-31 — drift unrelated to this sprint, follow-up flagged). Unblocks MP-110 (investor view). STRICTLY READ-ONLY: HTML/JS + tests only; execution/risk/wallet/feed-health untouched (SPA-BL-011). || SPA-V414 (MP-011+MP-012): Compound V3 полностью в runtime — tier T1 синхронизирован везде (класс TIER=\"T1\"/T1_CAP=0.40 как у Aave, fetch(), YieldInfo, оба ADAPTER_REGISTRY; ровно 2 T1-якоря), production-снимок: compound_v3 ok, live APY 3.18%, TVL $48.6M. risk_scores.json теперь регенерируется каждым daily-циклом ДО аллокации (cycle_runner шаг 0b, fail-safe: исключение → WARNING, цикл живёт на старом снимке; запись атомарная tmp+os.replace в scoring_engine.export). Живой прогон: ts 2026-06-10T18:19Z (stale с 2026-05-27 устранён), compound-v3 = B. Тесты: 12 новых (test_risk_scores_regen.py) + обновлён test_compound_v3 (31); регрессия 290/290 green по 11 сьютам (orchestrator 29, compound_v3 31, risk_adjusted_alloc 24, allocator 19, risk_policy_gate 15, cycle_runner 20, golive 17, scoring_engine 92, aave 18, cash_drag 13, regen 12). STRICTLY READ-ONLY: execution/feed_health/детерминированные агенты не тронуты.",
@@ -5090,6 +5172,14 @@
   "_v478_mp443_dispatch_note": "MP-443 done: fund_api_server.py + launchd plist + 9 tests",
   "_v479_dispatch_note": "MP-509 done: Ethena sUSDe ERC-4626 T3 adapter (susde_adapter.py). 100 tests PASS, regression 282 green. Registered in ADAPTER_REGISTRY (susde, T3).",
   "done": [
+    {
+      "id": "MP-593",
+      "title": "AaveV3PolygonAdapter — T1 L2 adapter Polygon USDC.e (RISK=0.27/TVL=$800M/APY=5.1%/CHAIN=polygon/get_bridge_risk_note)",
+      "status": "done",
+      "sprint": "v5.18",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V518)"
+    },
     {
       "id": "MP-466",
       "title": "Вплести S12 в cycle_runner tournament",
@@ -5218,6 +5308,26 @@
       "completed": "2026-06-13",
       "completed_by": "claude (SPA-V514 MP-382)",
       "status": "done"
+    },
+    {
+      "id": "MP-595",
+      "title": "CrossChainOpportunityAnalyzer — BridgeCost matrix, breakeven_days, MOVE/HOLD/MONITOR rec",
+      "description": "spa_core/analytics/cross_chain_opportunity.py: CrossChainOpportunityAnalyzer — анализирует cross-chain yield arbitrage с учётом bridge cost. BridgeCost dataclass (gas_cost_usd, slippage_pct, time_hours, total_cost_usd). 14-entry BRIDGE_COSTS matrix (ETH/ARB/BASE/OPT/POLY). compute_breakeven = bridge_cost / (capital * apy_diff/100 / 365). Recommendations: MOVE (<30d), MONITOR (30-90d), HOLD (≥90d). load_chain_data (fail-safe, dual-source), analyze_pair, get_all_opportunities (sorted by breakeven_days), get_top_opportunity, format_report (≤2000 chars), save_analysis (atomic ring-buffer 30). 92 теста green. data/cross_chain_analysis.json создан. Pure stdlib, advisory/read-only, SPA-BL-011 compliant.",
+      "status": "done",
+      "priority": "MEDIUM",
+      "type": "code",
+      "sprint": "v5.19",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V519)",
+      "tags": [
+        "analytics",
+        "advisory",
+        "cross-chain",
+        "bridge",
+        "yield",
+        "stdlib-only",
+        "SPA-BL-011"
+      ]
     }
   ],
   "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
@@ -5225,7 +5335,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 275,
+  "done_count": 26,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -5244,5 +5354,176 @@
   "_v512_dispatch_note": "MP-565: AaveV3OptimismAdapter T1 L2 Optimism — 145 tests green",
   "_v514_dispatch_note": "MP-382 done (SPA-V514): Dashboard v3.1 Tournament tab — max_drawdown column, refresh button trnReload(), tournament_ranking.json max_drawdown for all 14 strategies; 100 tests green",
   "_v515_dispatch_note": "MP-590 MultiChainMonitor done 2026-06-13",
-  "_v517_dispatch_note": "SPA-V517 MP-592: S16 Stablecoin Ladder strategy — Conservative/T1 40% (compound_v3+spark_susds), Balanced/T1+T2 35% (sdai+morpho_blue), Growth/T2 25% (sfrax+wusdm). Target APY 6.2%, Risk 0.32. 98 tests. s16_stablecoin_ladder.py + test_s16_stablecoin_ladder.py. 2026-06-13"
+  "_v517_dispatch_note": "SPA-V517 MP-592: S16 Stablecoin Ladder strategy — Conservative/T1 40% (compound_v3+spark_susds), Balanced/T1+T2 35% (sdai+morpho_blue), Growth/T2 25% (sfrax+wusdm). Target APY 6.2%, Risk 0.32. 98 tests. s16_stablecoin_ladder.py + test_s16_stablecoin_ladder.py. 2026-06-13",
+  "_v518_dispatch_note": "MP-593 AaveV3PolygonAdapter — T1 L2 adapter Polygon USDC.e (RISK=0.27/TVL=$800M/APY=5.1%/CHAIN=polygon, get_bridge_risk_note). 2026-06-13",
+  "_v519_dispatch_note": "MP-593 RiskAdjustedRanker (advisory/read-only): ранжирует адаптеры по risk_adjusted_score = apy/risk_score, excess vs T-bill 4%. risk_adjusted_ranker.py + test_risk_adjusted_ranker.py (173 теста green), data/risk_adjusted_report.json. Pure stdlib, SPA-BL-011 compliant, не двигает средства. 2026-06-13",
+  "_v519b_dispatch_note": "MP-595 CrossChainOpportunityAnalyzer: BridgeCost matrix 14 пар (ETH/ARB/BASE/OPT/POLY), compute_breakeven, MOVE/HOLD/MONITOR rec, analyze_pair, get_all_opportunities (sorted), get_top_opportunity, save_analysis (ring-buffer 30). cross_chain_opportunity.py + test_cross_chain_opportunity.py (92 теста green), data/cross_chain_analysis.json. 2026-06-13 (Note: MP-594 slot used by RiskAdjustedRanker; CrossChainOpportunityAnalyzer = MP-595)",
+  "tasks": [
+    {
+      "id": "MP-596",
+      "title": "AdapterWatchdog — мониторинг здоровья адаптеров",
+      "status": "done",
+      "sprint": "v5.20",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V520)",
+      "description": "AdapterWatchdog: AdapterHealth/WatchdogReport dataclasses, classify_adapter (APY/peg/risk thresholds), create_alerts (AlertDispatcher integration), run_check + get_report, ring-buffer 48h watchdog_history.json, 136 tests green.",
+      "files": [
+        "spa_core/monitoring/adapter_watchdog.py",
+        "spa_core/tests/test_adapter_watchdog.py",
+        "data/watchdog_history.json"
+      ]
+    },
+    {
+      "id": "MP-599",
+      "title": "S17 Polygon Yield Strategy — Core60%+Anchor25%+Boost15%, target APY 5.8%, gas 90%",
+      "status": "done",
+      "sprint": "v5.23",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V522)",
+      "files": [
+        "spa_core/strategies/s17_polygon_yield.py",
+        "spa_core/tests/test_s17_polygon_yield.py",
+        "spa_core/paper_trading/cycle_runner.py",
+        "KANBAN.json",
+        "SPA_sprint_log.md",
+        "scripts/push_v522.sh"
+      ],
+      "tests": "90 tests green (Ran 90 tests in 0.040s — OK)",
+      "description": "PolygonYieldStrategy: AaveV3Polygon 60% (T1, ~5.1% APY, gas 90% cheaper) + SparkSUSDS 25% (T1, ~5.5%, L1 stability) + MorphoBlue 15% (T2, ~7.0% boost). Weighted APY ~5.49%, target 5.8%. get_polygon_advantages() использует adapter.get_gas_savings_vs_mainnet() + get_bridge_risk_note(). Авторегистрация в strategy_registry. S17 добавлен в MultiStrategyRunner tournament. 90 тестов: TestInit(10), TestAllocationWeights(10), TestGetAllocation(15), TestGetExpectedAPY(10), TestGetPolygonAdvantages(10), TestGetHealth(10), TestSimulate(8), TestToDict(7), TestModuleConstants(10)."
+    },
+    {
+      "id": "MP-598",
+      "title": "APYMomentumDetector — EMA/OLS trend detection RISING/FALLING/STABLE",
+      "status": "done",
+      "sprint": "v5.22",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V522)",
+      "description": "APYMomentumDetector: MomentumSignal/MomentumReport dataclasses, compute_ema (alpha=0.3), compute_ols_slope (pure stdlib OLS), extract_apy_series (exact + prefix matching), classify_trend (RISING/FALLING/STABLE/UNKNOWN, HIGH/MEDIUM/LOW confidence), get_signal (apy_change_24h/7d, signal_strength [0,1]), get_report (sorted signals, top_rising/top_falling), save_report (atomic, ring-buffer 30), format_telegram_message (≤1500 chars). Dual data sources: watchdog_history.json + apy_history.json. 97 tests green.",
+      "files": [
+        "spa_core/analytics/apy_momentum.py",
+        "spa_core/tests/test_apy_momentum.py",
+        "data/momentum_report.json"
+      ]
+    },
+    {
+      "id": "MP-602",
+      "title": "Dashboard v3.2: Heat Map Panel",
+      "status": "done",
+      "sprint": "v5.26",
+      "sprint_completed": "v5.26"
+    },
+    {
+      "id": "MP-601",
+      "title": "PegStabilityMonitor — USDC/DAI/FRAX depeg detection",
+      "status": "done",
+      "sprint": "v5.25",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V525)",
+      "description": "PegStabilityMonitor: PegStatus/PegReport dataclasses, infer_asset (ASSET_MAP + substring match), get_peg_price (usdc/dai/frax/peg_price fields), classify_status (STABLE/CAUTION/WARNING/CRITICAL thresholds), check_adapter, _create_alerts (WARNING+ only, AlertDispatcher integration), run_check + get_report (side-effect-free), format_telegram_message (≤1500 chars), ring-buffer 96 peg_history.json, atomic save_report, 103 tests green.",
+      "files": [
+        "spa_core/monitoring/peg_monitor.py",
+        "spa_core/tests/test_peg_monitor.py",
+        "data/peg_report.json",
+        "data/peg_history.json"
+      ]
+    },
+    {
+      "id": "MP-604",
+      "title": "S18 High Yield T2 Strategy — Safety30%+CoreA35%+CoreB25%+Boost10%",
+      "status": "done",
+      "sprint": "v5.28",
+      "sprint_completed": "v5.28",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V528)",
+      "description": "S18 HighYieldT2Strategy: агрессивная T2-ориентированная стратегия, target APY 8.0%, RISK_SCORE 0.42. Слоты: safety_net T1 30% (compound_v3→spark_susds), core_a T2 35% (sfrax→wusdm), core_b T2 25% (sdai→scrvusd), boost T2 10% (max APY среди sfrax/wusdm/sdai). _resolve_slot: первый eligible / max APY для boost. get_allocation с перераспределением unresolved→safety_net. ADR-019 aggressive: T2=70%>50% задокументировано. ALLOCATION_WEIGHTS для cycle_runner. 80 тестов green.",
+      "files": [
+        "spa_core/strategies/s18_high_yield_t2.py",
+        "spa_core/tests/test_s18_high_yield_t2.py",
+        "spa_core/paper_trading/cycle_runner.py",
+        "KANBAN.json",
+        "SPA_sprint_log.md"
+      ]
+    },
+    {
+      "id": "MP-605",
+      "title": "IntegratedRiskDashboard — weighted peg/concentration/watchdog/momentum signals, GREEN/YELLOW/ORANGE/RED",
+      "status": "done",
+      "sprint": "v5.29",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V529)",
+      "description": "IntegratedRiskDashboard: RiskSignal/IntegratedRiskAssessment dataclasses, SIGNAL_WEIGHTS={peg:0.35, concentration:0.25, watchdog:0.25, momentum:0.15} (sum=1.0), _safe_load_json (None on missing/malformed), _read_peg_signal (GREEN→0.0/YELLOW→0.5/RED→0.9/missing→0.3), _read_concentration_signal (LOW→0.1/MEDIUM→0.4/HIGH→0.7/missing→0.3), _read_watchdog_signal (score=(critical*0.9+warning*0.4)/max(total,1), capped 1.0, empty→0.3), _read_momentum_signal (score=(falling/max(total,1))*0.6, missing→0.15), _check_data_freshness (OK/STALE_Xh/MISSING, 2h threshold), _score_to_overall_level (GREEN<0.10/YELLOW<0.30/ORANGE<0.55/RED≥0.55), _build_recommendations (peg EMERGENCY/concentration reduce/watchdog check/momentum rebalance), assess() pure-read weighted aggregation, save_assessment() atomic ring-buffer 48, format_telegram_message() ≤2000 chars emoji 🟢🟡🟠🔴. 100 tests green.",
+      "files": [
+        "spa_core/analytics/integrated_risk_dashboard.py",
+        "spa_core/tests/test_integrated_risk_dashboard.py",
+        "data/integrated_risk.json"
+      ],
+      "tests": "100 tests green (Ran 100 tests in 0.147s — OK)"
+    },
+    {
+      "id": "MP-606",
+      "title": "DailyOperationsReport — comprehensive daily ops report aggregating all analytics modules",
+      "status": "done",
+      "sprint": "v5.30",
+      "sprint_completed": "v5.30",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V530)",
+      "description": "DailyOperationsReport: OpsReportSection/DailyOpsReport dataclasses. 5 section builders: _build_risk_section (integrated_risk.json → GREEN/YELLOW/ORANGE/RED→OK/WARNING/CRITICAL), _build_yield_section (yield_attribution_tracker.json → APY-based status), _build_chains_section (multi_chain_report.json → best_chain/adapters/TVL), _build_strategies_section (tournament_ranking.json → winner+APY), _build_peg_section (peg_report.json → STABLE/WARNING/CRITICAL). _is_fresh (4 timestamp keys + latest nested, 2h threshold). _safe_load (None on missing/invalid/non-dict). _compute_portfolio_summary, _compute_day_number (paper_trading_status.json days_running). _determine_overall_status (CRITICAL>WARNING>OPERATIONAL). _generate_action_items (per-section CRITICAL/WARNING domain-specific text). generate() assembles DailyOpsReport. save() atomic tmp+os.replace ring-buffer 30. format_telegram_message() ≤4000 chars with emoji. format_summary() ≤200 chars. data/daily_ops_report.json created. 90 tests green.",
+      "files": [
+        "spa_core/analytics/daily_operations_report.py",
+        "spa_core/tests/test_daily_operations_report.py",
+        "data/daily_ops_report.json",
+        "KANBAN.json",
+        "SPA_sprint_log.md",
+        "scripts/push_v530.sh"
+      ],
+      "tests": "90 tests green (Ran 90 tests in 0.066s — OK)"
+    },
+    {
+      "id": "MP-607",
+      "title": "BenchmarkTracker — portfolio alpha vs T-Bill/USDC/ETH/BestAdapter",
+      "status": "done",
+      "sprint": "v5.31",
+      "sprint_completed": "v5.31",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V531)",
+      "description": "BenchmarkTracker: BenchmarkResult/BenchmarkReport dataclasses, 4 benchmarks (T-Bill 4.5%, USDC Hold 4.0%, ETH Staking 3.5%, Best Adapter dynamic), ALPHA+/ALPHA/BENCHMARK/LAGGING verdict (excess vs best_benchmark thresholds 1.5/0.3/0.3), load_portfolio_data (yield_attribution_tracker.json latest, fallback defaults), get_best_adapter_apy (adapter_status.json max APY), compute_benchmark (excess/IR/outperforming), generate_report (4 benchmarks + verdict), save_report (atomic ring-buffer 30), format_telegram_message (≤1500 chars emoji), to_dict (JSON-serializable), CLI --check/--run. 97 tests green.",
+      "files": [
+        "spa_core/analytics/benchmark_tracker.py",
+        "spa_core/tests/test_benchmark_tracker.py",
+        "data/benchmark_report.json",
+        "KANBAN.json",
+        "SPA_sprint_log.md"
+      ],
+      "tests": "97 tests green (Ran 97 tests in 0.090s — OK)"
+    },
+    {
+      "id": "MP-608",
+      "title": "S19 Balanced L2 Strategy — equal 25% across ARB+BASE+OPT+POLY",
+      "status": "done",
+      "sprint": "v5.32",
+      "sprint_completed": "v5.32",
+      "completed": "2026-06-13",
+      "completed_by": "claude (SPA-V532)",
+      "description": "BalancedL2Strategy (S19): равномерная аллокация 25% по 4 L2 адаптерам (aave_arbitrum T1/aave_v3_base T2/aave_v3_optimism T1/aave_v3_polygon T1). L2_ADAPTERS={arb:0.25, base:0.25, opt:0.25, poly:0.25}. FALLBACK_APY (4.6/5.0/4.8/5.1%), RISK_SCORES (0.22/0.35/0.25/0.27). _load_adapters: 4 try/except. _compute_effective_weights: равные 1/n для eligible. get_allocation: перераспределение при ineligible, {} при всех неeligible. get_expected_apy: equal-weight avg (default 4.875%). get_chain_diversity_score: score=eligible/4, description Perfect/High/Moderate/Low/None. get_gas_savings_summary: avg_savings_pct (default 92.5%), chains_breakdown {arb:90, base:95, opt:95, poly:90}. get_health: all_eligible bool, overall_status ok/warning/degraded. simulate: expected_annual_yield_usd, chain_results. to_dict: JSON-serializable, timestamp. _register: авто-регистрация в REGISTRY. cycle_runner.py additive S19-блок (24 строки). 111 tests green.",
+      "files": [
+        "spa_core/strategies/s19_balanced_l2.py",
+        "spa_core/tests/test_s19_balanced_l2.py",
+        "spa_core/paper_trading/cycle_runner.py",
+        "KANBAN.json",
+        "SPA_sprint_log.md",
+        "scripts/push_v532.sh"
+      ],
+      "tests": "111 tests green (Ran 111 tests in 0.083s — OK)"
+    }
+  ],
+  "_v520_dispatch_note": "MP-596 AdapterWatchdog: APY/peg/risk thresholds, AlertDispatcher integration, ring-buffer 48h, 136 tests OK (2026-06-13)",
+  "_v521_dispatch_note": "MP-597 PortfolioHeatMapGenerator: heat_map.json 31 adapters, 11 groups, 112 tests",
+  "_v522_dispatch_note": "MP-598 APYMomentumDetector: EMA/OLS, RISING/FALLING/STABLE/UNKNOWN, 97 tests green",
+  "_v524_dispatch_note": "MP-600: YieldAttributionTracker — AdapterContribution/AttributionReport dataclasses, HHI diversification, chain/tier breakdowns, rebalance suggestions, ring-buffer save, Telegram formatter, 105 tests green",
+  "_v527_dispatch_note": "MP-603 ProtocolConcentrationRisk: PROTOCOL_MAP 20 entries, smart contract cross-chain exposure HHI, MEDIUM/HIGH/CRITICAL thresholds, safe allocation caps, ring-buffer save, Telegram formatter, 90 tests green (2026-06-13)",
+  "_v528_dispatch_note": "MP-604 S18 HighYieldT2: Safety30%+CoreA35%+CoreB25%+Boost10%, target APY 8.0%, T2=70% aggressive, ALLOCATION_WEIGHTS, cycle_runner additive, 80 tests green (2026-06-13)",
+  "_v529_dispatch_note": "MP-605 IntegratedRiskDashboard: aggregates peg+concentration+watchdog+momentum into weighted GREEN/YELLOW/ORANGE/RED score, recommendations, 100 tests green.",
+  "_v530_dispatch_note": "MP-606 DailyOperationsReport: 5-section unified daily ops report (risk/yield/chains/strategies/peg), Telegram ≤4000 chars, action items, ring-buffer 30, 90 tests green. data/daily_ops_report.json saved.",
+  "_v531_dispatch_note": "MP-607 BenchmarkTracker: portfolio alpha vs T-Bill/USDC/ETH/BestAdapter, ALPHA+/ALPHA/BENCHMARK/LAGGING verdict, 4 benchmarks, annual_alpha_usd, ring-buffer 30, Telegram message, 97 tests green",
+  "_v532_dispatch_note": "MP-608 S19 BalancedL2: equal 25% ARB+BASE+OPT+POLY, chain_diversity_score, gas_savings_summary avg 92.5%, target APY 5.0%, RISK_SCORE 0.26, cycle_runner additive, 111 tests green (2026-06-13)"
 }
