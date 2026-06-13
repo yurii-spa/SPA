@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "source": "tier_exposure_report",
+  "ring_buffer_max": 30,
+  "report_count": 3,
+  "last_updated": "2026-06-13T05:17:08.527927+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T05:17:08.527927+00:00",
+    "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+    "total_allocated_usd": 94999.97,
+    "total_tiers": 2,
+    "exposures": [
+      {
+        "tier": "T1",
+        "allocated_usd": 61749.99,
+        "weight_pct": 65.0,
+        "adapter_count": 2,
+        "adapters": [
+          "aave_v3",
+          "compound_v3"
+        ],
+        "avg_apy_pct": 4.4896,
+        "annual_yield_usd": 2772.32,
+        "cap_pct": null,
+        "within_cap": true,
+        "headroom_pct": null
+      },
+      {
+        "tier": "T2",
+        "allocated_usd": 33249.98,
+        "weight_pct": 34.9999,
+        "adapter_count": 3,
+        "adapters": [
+          "euler_v2",
+          "maple",
+          "yearn_v3"
+        ],
+        "avg_apy_pct": 6.5686,
+        "annual_yield_usd": 2184.05,
+        "cap_pct": 50.0,
+        "within_cap": true,
+        "headroom_pct": 15.0001
+      }
+    ],
+    "dominant_tier": "T1",
+    "dominant_weight_pct": 65.0,
+    "hhi": 0.544999,
+    "concentration_label": "CONCENTRATED",
+    "policy_status": "COMPLIANT",
+    "breaches": [],
+    "portfolio_apy_pct": 5.2172,
+    "t1_weight_pct": 65.0,
+    "t2_weight_pct": 34.9999,
+    "t3_weight_pct": 0.0,
+    "recommendations": [
+      "Tier concentration high (HHI>0.5) -- consider diversifying across risk tiers"
+    ],
+    "summary": "Tiers: T1 65.0% / T2 35.0% / T3 0.0%, HHI=0.545, policy COMPLIANT"
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T05:15:41.788759+00:00",
+      "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+      "total_allocated_usd": 94999.97,
+      "total_tiers": 2,
+      "exposures": [
+        {
+          "tier": "T1",
+          "allocated_usd": 61749.99,
+          "weight_pct": 65.0,
+          "adapter_count": 2,
+          "adapters": [
+            "aave_v3",
+            "compound_v3"
+          ],
+          "avg_apy_pct": 4.4896,
+          "annual_yield_usd": 2772.32,
+          "cap_pct": null,
+          "within_cap": true,
+          "headroom_pct": null
+        },
+        {
+          "tier": "T2",
+          "allocated_usd": 33249.98,
+          "weight_pct": 34.9999,
+          "adapter_count": 3,
+          "adapters": [
+            "euler_v2",
+            "maple",
+            "yearn_v3"
+          ],
+          "avg_apy_pct": 6.5686,
+          "annual_yield_usd": 2184.05,
+          "cap_pct": 50.0,
+          "within_cap": true,
+          "headroom_pct": 15.0001
+        }
+      ],
+      "dominant_tier": "T1",
+      "dominant_weight_pct": 65.0,
+      "hhi": 0.544999,
+      "concentration_label": "CONCENTRATED",
+      "policy_status": "COMPLIANT",
+      "breaches": [],
+      "portfolio_apy_pct": 5.2172,
+      "t1_weight_pct": 65.0,
+      "t2_weight_pct": 34.9999,
+      "t3_weight_pct": 0.0,
+      "recommendations": [
+        "Tier concentration high (HHI>0.5) -- consider diversifying across risk tiers"
+      ],
+      "summary": "Tiers: T1 65.0% / T2 35.0% / T3 0.0%, HHI=0.545, policy COMPLIANT"
+    },
+    {
+      "generated_at": "2026-06-13T05:16:46.770971+00:00",
+      "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+      "total_allocated_usd": 94999.97,
+      "total_tiers": 2,
+      "exposures": [
+        {
+          "tier": "T1",
+          "allocated_usd": 61749.99,
+          "weight_pct": 65.0,
+          "adapter_count": 2,
+          "adapters": [
+            "aave_v3",
+            "compound_v3"
+          ],
+          "avg_apy_pct": 4.4896,
+          "annual_yield_usd": 2772.32,
+          "cap_pct": null,
+          "within_cap": true,
+          "headroom_pct": null
+        },
+        {
+          "tier": "T2",
+          "allocated_usd": 33249.98,
+          "weight_pct": 34.9999,
+          "adapter_count": 3,
+          "adapters": [
+            "euler_v2",
+            "maple",
+            "yearn_v3"
+          ],
+          "avg_apy_pct": 6.5686,
+          "annual_yield_usd": 2184.05,
+          "cap_pct": 50.0,
+          "within_cap": true,
+          "headroom_pct": 15.0001
+        }
+      ],
+      "dominant_tier": "T1",
+      "dominant_weight_pct": 65.0,
+      "hhi": 0.544999,
+      "concentration_label": "CONCENTRATED",
+      "policy_status": "COMPLIANT",
+      "breaches": [],
+      "portfolio_apy_pct": 5.2172,
+      "t1_weight_pct": 65.0,
+      "t2_weight_pct": 34.9999,
+      "t3_weight_pct": 0.0,
+      "recommendations": [
+        "Tier concentration high (HHI>0.5) -- consider diversifying across risk tiers"
+      ],
+      "summary": "Tiers: T1 65.0% / T2 35.0% / T3 0.0%, HHI=0.545, policy COMPLIANT"
+    },
+    {
+      "generated_at": "2026-06-13T05:17:08.527927+00:00",
+      "snapshot_at": "2026-06-13T01:53:37.155318+00:00",
+      "total_allocated_usd": 94999.97,
+      "total_tiers": 2,
+      "exposures": [
+        {
+          "tier": "T1",
+          "allocated_usd": 61749.99,
+          "weight_pct": 65.0,
+          "adapter_count": 2,
+          "adapters": [
+            "aave_v3",
+            "compound_v3"
+          ],
+          "avg_apy_pct": 4.4896,
+          "annual_yield_usd": 2772.32,
+          "cap_pct": null,
+          "within_cap": true,
+          "headroom_pct": null
+        },
+        {
+          "tier": "T2",
+          "allocated_usd": 33249.98,
+          "weight_pct": 34.9999,
+          "adapter_count": 3,
+          "adapters": [
+            "euler_v2",
+            "maple",
+            "yearn_v3"
+          ],
+          "avg_apy_pct": 6.5686,
+          "annual_yield_usd": 2184.05,
+          "cap_pct": 50.0,
+          "within_cap": true,
+          "headroom_pct": 15.0001
+        }
+      ],
+      "dominant_tier": "T1",
+      "dominant_weight_pct": 65.0,
+      "hhi": 0.544999,
+      "concentration_label": "CONCENTRATED",
+      "policy_status": "COMPLIANT",
+      "breaches": [],
+      "portfolio_apy_pct": 5.2172,
+      "t1_weight_pct": 65.0,
+      "t2_weight_pct": 34.9999,
+      "t3_weight_pct": 0.0,
+      "recommendations": [
+        "Tier concentration high (HHI>0.5) -- consider diversifying across risk tiers"
+      ],
+      "summary": "Tiers: T1 65.0% / T2 35.0% / T3 0.0%, HHI=0.545, policy COMPLIANT"
+    }
+  ]
+}
