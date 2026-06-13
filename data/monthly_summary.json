@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "source": "monthly_summary_report",
+  "ring_buffer_max": 12,
+  "report_count": 1,
+  "last_updated": "2026-06-13T04:15:21.005706+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T04:15:21.005706+00:00",
+    "month_start": "2026-06-13T02:27:07.222408+00:00",
+    "month_end": "2026-06-13T02:27:07.222408+00:00",
+    "weeks_covered": 1,
+    "apy_stats": {
+      "metric_name": "weekly_apy_avg_pct",
+      "values": [
+        5.2172
+      ],
+      "avg": 5.2172,
+      "min": 5.2172,
+      "max": 5.2172,
+      "trend": "STABLE"
+    },
+    "total_operational_days": 0,
+    "total_degraded_days": 1,
+    "total_critical_days": 0,
+    "best_week_apy": 5.2172,
+    "worst_week_apy": 5.2172,
+    "dominant_verdict": "GOOD",
+    "verdict_distribution": {
+      "GOOD": 1
+    },
+    "top_chain_this_month": "ethereum",
+    "top_chain_apy": 12.0,
+    "monthly_verdict": "GOOD",
+    "summary_line": "Month: APY avg 5.22% (5.22→5.22%), 1/4 weeks, 0 operational days"
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T04:15:21.005706+00:00",
+      "month_start": "2026-06-13T02:27:07.222408+00:00",
+      "month_end": "2026-06-13T02:27:07.222408+00:00",
+      "weeks_covered": 1,
+      "apy_stats": {
+        "metric_name": "weekly_apy_avg_pct",
+        "values": [
+          5.2172
+        ],
+        "avg": 5.2172,
+        "min": 5.2172,
+        "max": 5.2172,
+        "trend": "STABLE"
+      },
+      "total_operational_days": 0,
+      "total_degraded_days": 1,
+      "total_critical_days": 0,
+      "best_week_apy": 5.2172,
+      "worst_week_apy": 5.2172,
+      "dominant_verdict": "GOOD",
+      "verdict_distribution": {
+        "GOOD": 1
+      },
+      "top_chain_this_month": "ethereum",
+      "top_chain_apy": 12.0,
+      "monthly_verdict": "GOOD",
+      "summary_line": "Month: APY avg 5.22% (5.22→5.22%), 1/4 weeks, 0 operational days"
+    }
+  ]
+}
