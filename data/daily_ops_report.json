@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "source": "daily_operations_report",
+  "ring_buffer_max": 30,
+  "report_count": 1,
+  "last_updated": "2026-06-13T02:27:07.222408+00:00",
+  "latest": {
+    "report_date": "2026-06-13",
+    "generated_at": "2026-06-13T02:27:07.222408+00:00",
+    "day_number": 24,
+    "overall_status": "DEGRADED",
+    "sections": [
+      {
+        "name": "risk",
+        "status": "WARNING",
+        "headline": "Risk: YELLOW — warnings: 0",
+        "details": {
+          "overall_level": "YELLOW",
+          "critical_count": 0,
+          "warning_count": 0,
+          "top_risk": "All systems normal",
+          "recommendations": [
+            "All risk signals normal — no action required"
+          ]
+        },
+        "data_source": "integrated_risk.json",
+        "data_fresh": true
+      },
+      {
+        "name": "yield",
+        "status": "OK",
+        "headline": "Portfolio: $95K | APY 5.22% | Daily yield $13.58",
+        "details": {
+          "total_allocated_usd": 94999.97,
+          "effective_apy_pct": 5.2172,
+          "total_daily_yield_usd": 13.579098,
+          "top_contributor": "compound_v3"
+        },
+        "data_source": "yield_attribution_tracker.json",
+        "data_fresh": true
+      },
+      {
+        "name": "chains",
+        "status": "OK",
+        "headline": "Best chain: ethereum (12.0%) | 34 adapters | TVL $17B",
+        "details": {
+          "best_chain": "ethereum",
+          "best_apy_overall": 12.0,
+          "total_adapters": 34,
+          "total_tvl_usd": 17311000000.0,
+          "l2_premium_pct": -0.5724
+        },
+        "data_source": "multi_chain_report.json",
+        "data_fresh": true
+      },
+      {
+        "name": "strategies",
+        "status": "OK",
+        "headline": "S7 leads at 10.1% | 14 strategies active",
+        "details": {
+          "winner": "S7",
+          "winner_apy": 10.115,
+          "active_count": 14,
+          "tournament_days": 3
+        },
+        "data_source": "tournament_ranking.json",
+        "data_fresh": false
+      },
+      {
+        "name": "peg",
+        "status": "OK",
+        "headline": "All pegs STABLE (31 adapters)",
+        "details": {
+          "overall_status": "GREEN",
+          "stable": 31,
+          "warning": 0,
+          "critical": 0,
+          "worst_adapter": "aave-v3",
+          "worst_deviation_pct": 0.0
+        },
+        "data_source": "peg_report.json",
+        "data_fresh": true
+      }
+    ],
+    "portfolio_summary": {
+      "total_allocated_usd": 94999.97,
+      "effective_apy": 5.2172,
+      "daily_yield_usd": 13.579098
+    },
+    "risk_summary": {
+      "overall_level": "YELLOW",
+      "top_risk": "All systems normal"
+    },
+    "strategy_summary": {
+      "best_strategy": "S7",
+      "best_apy": 10.115,
+      "active_count": 14
+    },
+    "chain_summary": {
+      "best_chain": "ethereum",
+      "l2_adapters_count": 34
+    },
+    "peg_summary": {
+      "all_stable": true,
+      "critical_count": 0
+    },
+    "action_items": [
+      "WARNING: Review risk signal — All systems normal"
+    ],
+    "auto_generated": true
+  },
+  "history": [
+    {
+      "report_date": "2026-06-13",
+      "generated_at": "2026-06-13T02:27:07.222408+00:00",
+      "day_number": 24,
+      "overall_status": "DEGRADED",
+      "sections": [
+        {
+          "name": "risk",
+          "status": "WARNING",
+          "headline": "Risk: YELLOW — warnings: 0",
+          "details": {
+            "overall_level": "YELLOW",
+            "critical_count": 0,
+            "warning_count": 0,
+            "top_risk": "All systems normal",
+            "recommendations": [
+              "All risk signals normal — no action required"
+            ]
+          },
+          "data_source": "integrated_risk.json",
+          "data_fresh": true
+        },
+        {
+          "name": "yield",
+          "status": "OK",
+          "headline": "Portfolio: $95K | APY 5.22% | Daily yield $13.58",
+          "details": {
+            "total_allocated_usd": 94999.97,
+            "effective_apy_pct": 5.2172,
+            "total_daily_yield_usd": 13.579098,
+            "top_contributor": "compound_v3"
+          },
+          "data_source": "yield_attribution_tracker.json",
+          "data_fresh": true
+        },
+        {
+          "name": "chains",
+          "status": "OK",
+          "headline": "Best chain: ethereum (12.0%) | 34 adapters | TVL $17B",
+          "details": {
+            "best_chain": "ethereum",
+            "best_apy_overall": 12.0,
+            "total_adapters": 34,
+            "total_tvl_usd": 17311000000.0,
+            "l2_premium_pct": -0.5724
+          },
+          "data_source": "multi_chain_report.json",
+          "data_fresh": true
+        },
+        {
+          "name": "strategies",
+          "status": "OK",
+          "headline": "S7 leads at 10.1% | 14 strategies active",
+          "details": {
+            "winner": "S7",
+            "winner_apy": 10.115,
+            "active_count": 14,
+            "tournament_days": 3
+          },
+          "data_source": "tournament_ranking.json",
+          "data_fresh": false
+        },
+        {
+          "name": "peg",
+          "status": "OK",
+          "headline": "All pegs STABLE (31 adapters)",
+          "details": {
+            "overall_status": "GREEN",
+            "stable": 31,
+            "warning": 0,
+            "critical": 0,
+            "worst_adapter": "aave-v3",
+            "worst_deviation_pct": 0.0
+          },
+          "data_source": "peg_report.json",
+          "data_fresh": true
+        }
+      ],
+      "portfolio_summary": {
+        "total_allocated_usd": 94999.97,
+        "effective_apy": 5.2172,
+        "daily_yield_usd": 13.579098
+      },
+      "risk_summary": {
+        "overall_level": "YELLOW",
+        "top_risk": "All systems normal"
+      },
+      "strategy_summary": {
+        "best_strategy": "S7",
+        "best_apy": 10.115,
+        "active_count": 14
+      },
+      "chain_summary": {
+        "best_chain": "ethereum",
+        "l2_adapters_count": 34
+      },
+      "peg_summary": {
+        "all_stable": true,
+        "critical_count": 0
+      },
+      "action_items": [
+        "WARNING: Review risk signal — All systems normal"
+      ],
+      "auto_generated": true
+    }
+  ]
+}
