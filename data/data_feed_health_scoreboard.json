@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "source": "data_feed_health_scoreboard",
+  "ring_buffer_max": 48,
+  "report_count": 1,
+  "last_updated": "2026-06-13T07:14:28.307979+00:00",
+  "latest": {
+    "generated_at": "2026-06-13T07:14:28.307979+00:00",
+    "checks_total": 8,
+    "healthy_count": 0,
+    "degraded_count": 8,
+    "critical_count": 0,
+    "stale_count": 8,
+    "overall_status": "DEGRADED",
+    "worst_check": "anomaly",
+    "health_score": 0.0,
+    "checks": [
+      {
+        "check_name": "feed_freshness",
+        "filename": "apy_feed_health_state.json",
+        "consecutive_count": 0,
+        "last_alerted_cycle": 0,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "anomaly",
+        "filename": "apy_feed_anomaly_health_state.json",
+        "consecutive_count": 1,
+        "last_alerted_cycle": 1,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "bounds",
+        "filename": "apy_feed_bounds_health_state.json",
+        "consecutive_count": 1,
+        "last_alerted_cycle": 1,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "tvl_drop",
+        "filename": "apy_feed_tvl_health_state.json",
+        "consecutive_count": 1,
+        "last_alerted_cycle": 1,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "schema_drift",
+        "filename": "apy_feed_schema_health_state.json",
+        "consecutive_count": 1,
+        "last_alerted_cycle": 1,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "monotonicity",
+        "filename": "apy_feed_monotonicity_health_state.json",
+        "consecutive_count": 1,
+        "last_alerted_cycle": 1,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "protocol_count",
+        "filename": "apy_feed_protocol_health_state.json",
+        "consecutive_count": 0,
+        "last_alerted_cycle": 0,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      },
+      {
+        "check_name": "protocol_stale",
+        "filename": "apy_feed_protocol_stale_health_state.json",
+        "consecutive_count": 1,
+        "last_alerted_cycle": 1,
+        "updated_at": "2026-06-10T08:57:04Z",
+        "age_hours": 70.2901,
+        "is_stale": true,
+        "status": "DEGRADED",
+        "note": "feed stale (70.3h old)"
+      }
+    ],
+    "summary": "Feeds: 0 healthy / 8 degraded / 0 critical, overall=DEGRADED"
+  },
+  "history": [
+    {
+      "generated_at": "2026-06-13T07:14:28.307979+00:00",
+      "checks_total": 8,
+      "healthy_count": 0,
+      "degraded_count": 8,
+      "critical_count": 0,
+      "stale_count": 8,
+      "overall_status": "DEGRADED",
+      "worst_check": "anomaly",
+      "health_score": 0.0,
+      "checks": [
+        {
+          "check_name": "feed_freshness",
+          "filename": "apy_feed_health_state.json",
+          "consecutive_count": 0,
+          "last_alerted_cycle": 0,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "anomaly",
+          "filename": "apy_feed_anomaly_health_state.json",
+          "consecutive_count": 1,
+          "last_alerted_cycle": 1,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "bounds",
+          "filename": "apy_feed_bounds_health_state.json",
+          "consecutive_count": 1,
+          "last_alerted_cycle": 1,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "tvl_drop",
+          "filename": "apy_feed_tvl_health_state.json",
+          "consecutive_count": 1,
+          "last_alerted_cycle": 1,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "schema_drift",
+          "filename": "apy_feed_schema_health_state.json",
+          "consecutive_count": 1,
+          "last_alerted_cycle": 1,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "monotonicity",
+          "filename": "apy_feed_monotonicity_health_state.json",
+          "consecutive_count": 1,
+          "last_alerted_cycle": 1,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "protocol_count",
+          "filename": "apy_feed_protocol_health_state.json",
+          "consecutive_count": 0,
+          "last_alerted_cycle": 0,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        },
+        {
+          "check_name": "protocol_stale",
+          "filename": "apy_feed_protocol_stale_health_state.json",
+          "consecutive_count": 1,
+          "last_alerted_cycle": 1,
+          "updated_at": "2026-06-10T08:57:04Z",
+          "age_hours": 70.2901,
+          "is_stale": true,
+          "status": "DEGRADED",
+          "note": "feed stale (70.3h old)"
+        }
+      ],
+      "summary": "Feeds: 0 healthy / 8 degraded / 0 critical, overall=DEGRADED"
+    }
+  ]
+}
