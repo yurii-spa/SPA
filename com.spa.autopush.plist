@@ -31,8 +31,8 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>/Users/yuriikulieshov/Documents/SPA_Claude/auto_push.py</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/auto_push.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
