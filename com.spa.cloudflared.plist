@@ -24,17 +24,28 @@
     <key>Label</key>
     <string>com.spa.cloudflared</string>
 
+    <!-- Запуск через wrapper: устойчив к Intel (/usr/local) и
+         Apple Silicon (/opt/homebrew) путям установки cloudflared. -->
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/cloudflared</string>
-        <string>tunnel</string>
-        <string>--no-autoupdate</string>
-        <string>run</string>
-        <string>spa</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/run_cloudflared.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
     <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- HOME нужен cloudflared, чтобы найти ~/.cloudflared/{config.yml,
+         credentials, cert.pem}. Без него launchd-контекст не имеет HOME
+         и tunnel падает (exit 19968 / cannot read credentials). PATH —
+         чтобы wrapper нашёл brew-бинарник. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
 
     <!-- L1: перезапуск при падении туннеля -->
     <key>KeepAlive</key>
