@@ -1,0 +1,794 @@
+[
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443216.944563
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443216.945872
+  },
+  {
+    "name": "Lock-vault (inverted)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 12.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 9.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 7.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 12.0,
+    "long_apr_pct": 7.0,
+    "term_spread_pct": -5.0,
+    "curve_slope_pct_per_year": -5.447761194029851,
+    "is_inverted": true,
+    "inversion_magnitude_pct": 5.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 7.0,
+    "optimal_tenor_carry_pct": 7.0,
+    "pickup_vs_short_pct": 2.3424657534246576,
+    "term_structure_score": 15.616438356164384,
+    "steepness_classification": "DEEPLY_INVERTED",
+    "classification": "DEEPLY_INVERTED",
+    "grade": "F",
+    "flags": [
+      "INVERTED_CURVE",
+      "DEEPLY_INVERTED",
+      "NEGATIVE_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Deeply inverted curve: the short tenor pays ~12.00% vs ~7.00% at the long end (inverted by ~5.00%). Do not lock long; stay short and roll, or wait for the curve to normalise.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~7.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~2.34%)."
+    ],
+    "timestamp": 1781443216.947251
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443232.5985131
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443232.6002138
+  },
+  {
+    "name": "Lock-vault (inverted)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 12.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 9.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 7.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 12.0,
+    "long_apr_pct": 7.0,
+    "term_spread_pct": -5.0,
+    "curve_slope_pct_per_year": -5.447761194029851,
+    "is_inverted": true,
+    "inversion_magnitude_pct": 5.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 7.0,
+    "optimal_tenor_carry_pct": 7.0,
+    "pickup_vs_short_pct": 2.3424657534246576,
+    "term_structure_score": 15.616438356164384,
+    "steepness_classification": "DEEPLY_INVERTED",
+    "classification": "DEEPLY_INVERTED",
+    "grade": "F",
+    "flags": [
+      "INVERTED_CURVE",
+      "DEEPLY_INVERTED",
+      "NEGATIVE_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Deeply inverted curve: the short tenor pays ~12.00% vs ~7.00% at the long end (inverted by ~5.00%). Do not lock long; stay short and roll, or wait for the curve to normalise.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~7.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~2.34%)."
+    ],
+    "timestamp": 1781443232.6017358
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443232.9070575
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443232.9090698
+  },
+  {
+    "name": "Lock-vault (inverted)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 12.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 9.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 7.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 12.0,
+    "long_apr_pct": 7.0,
+    "term_spread_pct": -5.0,
+    "curve_slope_pct_per_year": -5.447761194029851,
+    "is_inverted": true,
+    "inversion_magnitude_pct": 5.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 7.0,
+    "optimal_tenor_carry_pct": 7.0,
+    "pickup_vs_short_pct": 2.3424657534246576,
+    "term_structure_score": 15.616438356164384,
+    "steepness_classification": "DEEPLY_INVERTED",
+    "classification": "DEEPLY_INVERTED",
+    "grade": "F",
+    "flags": [
+      "INVERTED_CURVE",
+      "DEEPLY_INVERTED",
+      "NEGATIVE_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Deeply inverted curve: the short tenor pays ~12.00% vs ~7.00% at the long end (inverted by ~5.00%). Do not lock long; stay short and roll, or wait for the curve to normalise.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~7.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~2.34%)."
+    ],
+    "timestamp": 1781443232.910764
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443289.7795627
+  },
+  {
+    "name": "Pendle-PT (normal, steep)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 5.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 8.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 11.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 5.0,
+    "long_apr_pct": 11.0,
+    "term_spread_pct": 6.0,
+    "curve_slope_pct_per_year": 6.537313432835821,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 11.0,
+    "optimal_tenor_carry_pct": 11.0,
+    "pickup_vs_short_pct": 6.917808219178082,
+    "term_structure_score": 100.0,
+    "steepness_classification": "STEEP_NORMAL",
+    "classification": "STEEP_NORMAL",
+    "grade": "A",
+    "flags": [
+      "STEEP_CURVE",
+      "HIGH_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Steep normal curve: a slope of ~6.54%/yr and a ~6.00% term spread pay a real premium for locking longer. Locking the longer tenor is well compensated.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~11.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~6.92%).",
+      "High term premium: the curve pays ~6.00% extra at the long end. Confirm the long-tenor source is durable before locking into it."
+    ],
+    "timestamp": 1781443289.781815
+  },
+  {
+    "name": "Lock-vault (inverted)",
+    "points": [
+      {
+        "tenor_days": 30.0,
+        "apr_pct": 12.0
+      },
+      {
+        "tenor_days": 180.0,
+        "apr_pct": 9.0
+      },
+      {
+        "tenor_days": 365.0,
+        "apr_pct": 7.0
+      }
+    ],
+    "point_count": 3,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 30.0,
+    "long_tenor_days": 365.0,
+    "short_apr_pct": 12.0,
+    "long_apr_pct": 7.0,
+    "term_spread_pct": -5.0,
+    "curve_slope_pct_per_year": -5.447761194029851,
+    "is_inverted": true,
+    "inversion_magnitude_pct": 5.0,
+    "optimal_tenor_days": 365.0,
+    "optimal_tenor_apr_pct": 7.0,
+    "optimal_tenor_carry_pct": 7.0,
+    "pickup_vs_short_pct": 2.3424657534246576,
+    "term_structure_score": 15.616438356164384,
+    "steepness_classification": "DEEPLY_INVERTED",
+    "classification": "DEEPLY_INVERTED",
+    "grade": "F",
+    "flags": [
+      "INVERTED_CURVE",
+      "DEEPLY_INVERTED",
+      "NEGATIVE_TERM_PREMIUM"
+    ],
+    "recommendations": [
+      "Deeply inverted curve: the short tenor pays ~12.00% vs ~7.00% at the long end (inverted by ~5.00%). Do not lock long; stay short and roll, or wait for the curve to normalise.",
+      "Reinvest-adjusted optimum: the ~365-day tenor (~7.00% APR) gives the best carry once a reinvestment-rate assumption is priced onto the short end (pickup vs short ~2.34%)."
+    ],
+    "timestamp": 1781443289.7834828
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449326.5353868
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449326.859116
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449326.894528
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449326.93121
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449326.966432
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449327.002669
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449327.039018
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1781449327.075168
+  }
+]
