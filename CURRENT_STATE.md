@@ -9,22 +9,28 @@
 | Демон | Статус | Последний запуск | Комментарий |
 |-------|--------|-----------------|-------------|
 | com.spa.daily_cycle | ✅ РАБОТАЕТ | 2026-06-12T06:00:04Z | Ежедневный paper-trading цикл 08:00 |
-| com.spa.autopush | ❌ НЕ УСТАНОВЛЕН | — | PYTHON_PATH-заглушка. Фикс: `bash mp009_fix_launchd.command` |
+| com.spa.autopush | ✅ УСТАНОВЛЕН | — | com.spa.autopush запускает `scripts/auto_push.sh` каждые 90 мин |
+| com.spa.analytics_tier_c | ✅ УСТАНОВЛЕН | — | Tier C analytics daily 05:00 → `data/analytics_signals_tier_c.json` |
+| com.spa.bot_commands | ✅ УСТАНОВЛЕН | — | Telegram-бот (KeepAlive long-poll), `spa_core.alerts.bot_commands` |
 | com.spa.httpserver | ⚠️ ПРОВЕРИТЬ | — | HTTP дашборд localhost:8765; plist есть, статус launchd неизвестен |
 | com.spa.cloudflared | ⚠️ ПРОВЕРИТЬ | — | Cloudflare tunnel; plist есть, статус launchd неизвестен |
 
 > Для проверки реального статуса в Terminal: `launchctl list | grep com.spa`
 
+**Агенты launchd: 19** (было 17; +com.spa.analytics_tier_c, +com.spa.bot_commands). Установка: `bash scripts/install_agents.sh`.
+**Аналитические модули: 578 интегрированы** — Tier A=12, Tier B=386, Tier C=180.
+**Kill-switch:** MIN_DAYS_FOR_SHARPE=30, текущий статус: **inactive** (трек < 30 дней).
+
 ## Push-метод
 
 ```
-push_method: manual          # autopush не установлен
-autopush_status: not_installed   # PYTHON_PATH-заглушка, нужен bash mp009_fix_launchd.command
+push_method: autopush        # com.spa.autopush запускает scripts/auto_push.sh каждые 90 мин
+autopush_status: installed    # plist scripts/com.spa.autopush.plist → scripts/auto_push.sh
 push_last_success: unknown   # проверить: git log --oneline -5
 push_command: python3 push_to_github.py --files <files> --message "<msg>"
 ```
 
-**Правило для агента:** если autopush_status=not_installed → ПЕРВЫЙ шаг сессии: `bash mp009_fix_launchd.command` (не ждать, не спрашивать).
+**Правило для агента:** autopush установлен (каждые 90 мин). Для немедленной синхронизации — `bash scripts/auto_push.sh`.
 
 ## Спринты
 
@@ -50,6 +56,7 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 ## Алерты
 
 - Telegram: ✅ НАСТРОЕН (TELEGRAM_BOT_TOKEN_SPA / TELEGRAM_CHAT_ID_SPA в Keychain)
+- Telegram bot polling: ✅ com.spa.bot_commands (`spa_core.alerts.bot_commands`, KeepAlive long-poll, инлайн-кнопки)
 - Daily report: ❌ не активирован (dry_run). Задача MP-314.
 - cycle_gap_monitor: ✅ в cycle_runner (MP-144)
 - milestone_alert: ✅ в cycle_runner (MP-143)
