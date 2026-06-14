@@ -1,18 +1,18 @@
 {
-  "paper_days": 4,
+  "paper_days": 5,
   "paper_start_date": "2026-06-10",
-  "current_equity": 100036.91,
-  "apy_today_pct": 3.9575,
+  "current_equity": 100047.74,
+  "apy_today_pct": 3.9505,
   "go_live_target_date": "2026-07-15",
-  "days_to_golive": 32,
+  "days_to_golive": 31,
   "milestones": [
     {
       "id": "backtest_contour_min",
       "label": "Backtest vs Paper: readable (Spearman ≥7d)",
       "module": "backtest_vs_paper",
       "required_days": 7,
-      "current_days": 4,
-      "days_remaining": 3,
+      "current_days": 5,
+      "days_remaining": 2,
       "eta_date": "2026-06-16",
       "reached": false
     },
@@ -21,8 +21,8 @@
       "label": "Honest Metrics: LOW_CONFIDENCE (≥7d)",
       "module": "honest_metrics",
       "required_days": 7,
-      "current_days": 4,
-      "days_remaining": 3,
+      "current_days": 5,
+      "days_remaining": 2,
       "eta_date": "2026-06-16",
       "reached": false
     },
@@ -31,8 +31,8 @@
       "label": "Structural Break: sufficient data (≥12d)",
       "module": "structural_break",
       "required_days": 12,
-      "current_days": 4,
-      "days_remaining": 8,
+      "current_days": 5,
+      "days_remaining": 7,
       "eta_date": "2026-06-21",
       "reached": false
     },
@@ -41,8 +41,8 @@
       "label": "Honest Metrics: MODERATE_CONFIDENCE (≥30d)",
       "module": "honest_metrics",
       "required_days": 30,
-      "current_days": 4,
-      "days_remaining": 26,
+      "current_days": 5,
+      "days_remaining": 25,
       "eta_date": "2026-07-09",
       "reached": false
     },
@@ -51,13 +51,13 @@
       "label": "Honest Metrics: HIGH_CONFIDENCE (≥90d)",
       "module": "honest_metrics",
       "required_days": 90,
-      "current_days": 4,
-      "days_remaining": 86,
+      "current_days": 5,
+      "days_remaining": 85,
       "eta_date": "2026-09-07",
       "reached": false
     }
   ],
   "summary_verdict": "on_track",
   "available": true,
-  "generated_at": "2026-06-13T06:00:04.126104+00:00"
+  "generated_at": "2026-06-14T15:02:09.225380+00:00"
 }
