@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-12T17:17:41.486694+00:00",
-  "root": "/sessions/inspiring-funny-mayer/mnt/Documents/SPA_Claude",
+  "generated_at": "2026-06-13T09:19:22.545278+00:00",
+  "root": "/sessions/affectionate-gracious-cannon/mnt/Documents/SPA_Claude",
   "forbidden_imports": [
     "anthropic",
     "google.generativeai",
@@ -14,7 +14,7 @@
     "spa_core/execution",
     "spa_core/allocator"
   ],
-  "files_scanned": 32,
+  "files_scanned": 34,
   "violations": [],
   "parse_errors": [],
   "status": "ok"
