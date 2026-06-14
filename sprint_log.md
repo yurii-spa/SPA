@@ -670,3 +670,28 @@
 
 **Total sprint tests:** 266 (all green) | **Push:** `bash scripts/push_v819.sh`
 **Note:** Self-authored vault-safety/capital-efficiency код-спринт — готовых задач type=code/status=ready в backlog не было (только USER ACTION P0–P2: MP-017/UA-004/UA-006/MP-313/MP-379 и AGENT-P0/P1-* type=agent_infra, требующие git/launchd/keychain на Mac — недоступно из sandbox).
+
+---
+
+## v8.20 — 2026-06-14
+
+### MP-1158: DeFiProtocolVaultPendingHarvestPremiumAnalyzer (`spa_core/analytics/defi_protocol_vault_pending_harvest_premium_analyzer.py`)
+- Advisory/read-only: премия незахарвестенных наград. Угол: «накопленные, но ещё не захарвестенные награды волта не отражены в share price → при следующем харвесте цена шара ступенчато растёт; вкладчик, входящий перед харвестом, ловит это «бесплатное» окно».
+- Вход: `vault`/`token`, `total_tvl_usd`, `pending_rewards_usd` (default 0), `hours_since_last_harvest` (default 0), `harvest_interval_hours` (default 24), `performance_fee_pct` (default 0).
+- Метрики: `pending_premium_pct` (= pending/tvl, sentinel при tvl<=0), `net_premium_pct` (после perf-fee), `harvest_progress_pct`, `hours_to_next_harvest`, `timing_edge_pct`, `score` (выше=лучше окно входа).
+- classification CLEAN/MINOR_PREMIUM/MODERATE_PREMIUM/LARGE_PREMIUM (+ INSUFFICIENT_DATA); recommendation ENTER_BEFORE_HARVEST/NEUTRAL/NO_TIMING_EDGE/AVOID; grade A–F; флаги JUST_IN_TIME_OPPORTUNITY, STALE_HARVEST, HIGH_PERF_FEE_DRAG, CLEAN_ENTRY, INSUFFICIENT_DATA.
+- `analyze` + `analyze_portfolio` (best_timing_vault, avg_score, large_premium_count, position_count) + класс-обёртка. Чистый stdlib, read-only/advisory, атомарный ring-buffer лог, без inf/NaN. Новая категория vault_timing.
+- **132 tests green**
+
+### MP-1159: DeFiProtocolVaultRoundTripCostAnalyzer (`spa_core/analytics/defi_protocol_vault_round_trip_cost_analyzer.py`)
+- Advisory/read-only: round-trip стоимость ротации капитала в волт vs APR-преимущество за период удержания. Угол: «вход+выход стоят deposit_fee+withdrawal_fee+slippage один раз; окупит ли APR-edge этот round-trip за мой горизонт удержания?».
+- Вход: `vault`/`token`, `deposit_fee_pct`, `withdrawal_fee_pct`, `entry_slippage_pct`, `exit_slippage_pct` (все default 0), `apr_advantage_pct` (default 0), `expected_holding_days` (default 0).
+- Метрики: `round_trip_cost_pct`, `daily_advantage_pct`, `breakeven_days` (None=никогда не окупается), `net_gain_pct` на горизонте, `covers_horizon`, `score` (выше=дешевле/быстрее окупается).
+- classification CHEAP/FAIR/EXPENSIVE/PROHIBITIVE/NEVER_BREAKS_EVEN (+ INSUFFICIENT_DATA); recommendation ROTATE/ROTATE_IF_LONG_HOLD/STAY/AVOID; grade A–F; флаги FREE_ENTRY_EXIT, BREAKS_EVEN_IN_HORIZON, NEVER_BREAKS_EVEN, HIGH_ROUND_TRIP_COST, NEGATIVE_NET_AT_HORIZON, INSUFFICIENT_DATA.
+- `analyze` + `analyze_portfolio` (cheapest_vault, most_expensive_vault, avg_score, rotate_count, position_count) + класс-обёртка. Чистый stdlib, read-only/advisory, атомарный ring-buffer лог, без inf/NaN. Новая категория cost_efficiency.
+- **134 tests green**
+
+**Total sprint tests:** 266 (all green) | **Push:** `bash scripts/push_v820.sh`
+**Note:** Self-authored vault_timing/cost_efficiency код-спринт — готовых задач type=code/status=ready в backlog не было (только USER ACTION P0–P2: MP-017/UA-004/UA-006/MP-313/MP-379 и AGENT-P0/P1-* type=agent_infra, требующие git/launchd/keychain на Mac — недоступно из sandbox). Architect review не требуется (v8.19 не кратен 5).
+**Верификация (независимо оркестратором):** py_compile OK; `python3 -m unittest` обоих → Ran 266 — OK; forbidden-import grep (numpy/pandas/requests/web3/scipy/openai/anthropic, spa_core.risk/execution/monitoring/allocator, subprocess/os.system/eval/exec) → CLEAN; CLI обоих exit 0 + валидный JSON; data-стабы `[]`; нет `.tmp` в data/. registry Tier-B +2.
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT не встраивался, push_*.html не создавался.
