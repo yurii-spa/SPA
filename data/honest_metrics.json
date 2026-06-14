@@ -1,108 +1,108 @@
 {
-  "generated_at": "2026-06-13T06:00:04.113865+00:00",
+  "generated_at": "2026-06-14T15:02:09.222444+00:00",
   "source": "honest_metrics",
   "schema_version": 1,
   "advisory_only": true,
   "n_strategies": 6,
   "strategies": {
     "S0": {
-      "n_days": 3,
+      "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 291.70119867360626,
+      "sharpe": 296.6139004406382,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.04021455494926104,
+      "total_return_pct": 0.0544626257604732,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 283.8437976747765,
-        "upper": 5230.501648830409,
-        "n_valid": 900
+        "lower": 288.6413321168708,
+        "upper": 222896.07598291544,
+        "n_valid": 987
       },
       "sortino_ci_95": null,
       "warning": "Fewer than 30 days: metrics are directional only"
     },
     "S1": {
-      "n_days": 3,
+      "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 137.80324089194553,
+      "sharpe": 149.44935832517882,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.03142681960586345,
+      "total_return_pct": 0.04306564175706117,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 120.66740780794005,
-        "upper": 419.9341485839873,
-        "n_valid": 900
+        "lower": 129.53849631985085,
+        "upper": 2045.2318974986308,
+        "n_valid": 987
       },
       "sortino_ci_95": null,
       "warning": "Fewer than 30 days: metrics are directional only"
     },
     "S2": {
-      "n_days": 3,
+      "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 192.51619645013216,
+      "sharpe": 213.14555207100162,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.03053694325198863,
+      "total_return_pct": 0.04142585327209503,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 164.1299243425712,
-        "upper": 404.63308595661914,
-        "n_valid": 900
+        "lower": 177.0294477486486,
+        "upper": 1915.7679269848588,
+        "n_valid": 987
       },
       "sortino_ci_95": null,
       "warning": "Fewer than 30 days: metrics are directional only"
     },
     "S3": {
-      "n_days": 3,
+      "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 98.7363740459886,
+      "sharpe": 103.51265257057874,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.028967497208242373,
+      "total_return_pct": 0.040406508877636464,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 97.47854431907946,
-        "upper": 4070.7379476308806,
-        "n_valid": 900
+        "lower": 102.24475947275185,
+        "upper": 32119.947486335044,
+        "n_valid": 987
       },
       "sortino_ci_95": null,
       "warning": "Fewer than 30 days: metrics are directional only"
     },
     "S4": {
-      "n_days": 3,
+      "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 98.84076435191488,
+      "sharpe": 103.65310516422352,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.023178398372665464,
+      "total_return_pct": 0.03232776615136069,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 97.78589352014261,
-        "upper": 4882.913653938474,
-        "n_valid": 900
+        "lower": 102.58978471400081,
+        "upper": 26809.920740820882,
+        "n_valid": 987
       },
       "sortino_ci_95": null,
       "warning": "Fewer than 30 days: metrics are directional only"
     },
     "S5": {
-      "n_days": 3,
+      "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 122.61880118624697,
+      "sharpe": 127.5162056960065,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.028287564440695252,
+      "total_return_pct": 0.03911663205797515,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 120.39577629446387,
-        "upper": 3469.216138664005,
-        "n_valid": 900
+        "lower": 125.26749109289861,
+        "upper": 30777.470787049322,
+        "n_valid": 987
       },
       "sortino_ci_95": null,
       "warning": "Fewer than 30 days: metrics are directional only"
