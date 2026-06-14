@@ -892,17 +892,30 @@ class RedFlagMonitor:
     def _classify_unlocks(self, records: Iterable[dict[str, Any]],
                           grades: dict[str, str]) -> list[RedFlag]:
         out: list[RedFlag] = []
+        now_utc = datetime.now(timezone.utc)
         for rec in records:
             slug = rec.get("protocol")
             if slug not in SPA_WHITELIST:
                 continue
+            # Skip events that already happened more than 24 hours ago
+            unlock_at_str = str(rec.get("unlock_at") or "")
+            if unlock_at_str:
+                try:
+                    unlock_dt = datetime.fromisoformat(
+                        unlock_at_str.replace("Z", "+00:00")
+                    )
+                    if (now_utc - unlock_dt).total_seconds() > 86400:
+                        log.debug("Skipping stale unlock for %s at %s (>24h ago)", slug, unlock_at_str)
+                        continue
+                except Exception:
+                    pass  # If we can't parse, include the alert anyway
             pct_supply = _safe_float(rec.get("pct_supply"), 0.0)
             severity = "WARN"
             if pct_supply >= UNLOCK_CRITICAL_PCT_SUPPLY:
                 severity = "CRITICAL"
             elif self._grade_is_poor(grades.get(slug)):
                 severity = "CRITICAL"
-            unlock_at = str(rec.get("unlock_at") or "")
+            unlock_at = unlock_at_str
             symbol    = str(rec.get("symbol") or "").upper()
             out.append(RedFlag(
                 protocol=slug,
