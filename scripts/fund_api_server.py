@@ -24,7 +24,7 @@ from pathlib import Path
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_PORT = 8765
+DEFAULT_PORT = 8766
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 # Приоритет: аргумент командной строки → env → default
