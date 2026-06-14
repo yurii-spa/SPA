@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "timestamp": "2026-06-14T17:03:09.188854Z",
+    "tier": "A",
+    "module_count": 12
+  },
+  "generated_at": "2026-06-14T17:03:09.188856Z",
+  "protocols": {
+    "aave_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "compound_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "yearn_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "euler_v2": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "maple": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    }
+  },
+  "signals": {
+    "aave_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "compound_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "yearn_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "euler_v2": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "maple": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    }
+  }
+}
