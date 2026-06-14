@@ -1,0 +1,2448 @@
+[
+  {
+    "timestamp": 1781346507.8149745,
+    "run_at": "2026-06-13T10:28:27.814963+00:00",
+    "elapsed_sec": 0.011834,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.039575,
+      "current_apy_pct": 3.9575,
+      "positions_count": 5,
+      "positions": {
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11371.73,
+        "euler_v2": 9518.9,
+        "maple": 12359.35
+      }
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781346507.8061118,
+        "strategy_id": "portfolio",
+        "current_vol": 0.003945,
+        "regime": "CALM",
+        "regime_label": "Calm \u2014 very stable yields",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\ud83d\udca4 Low volatility. Good time for entries. Watch for regime change."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 94999.98,
+        "liquid_capital": 94999.98,
+        "locked_capital": 0,
+        "withdrawable_stress": 71249.99,
+        "coverage_ratio": 0.75,
+        "at_risk_adapters": [],
+        "verdict": "SAFE"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": []
+      },
+      "protocol_risk_scores": [
+        {
+          "protocol_id": "aave_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "compound_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "yearn_v3",
+          "tvl_score": 100.0,
+          "audit_score": 75.0,
+          "age_score": 100.0,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "euler_v2",
+          "tvl_score": 95.0,
+          "audit_score": 75.0,
+          "age_score": 67.57,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 70.0135,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "maple",
+          "tvl_score": 85.0,
+          "audit_score": 50.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        }
+      ],
+      "apy_momentum": {
+        "strategy_id": "portfolio",
+        "timestamp": 1781346507.8091052,
+        "apy_3d_avg": 0.034417,
+        "apy_7d_avg": 0.033667,
+        "apy_14d_avg": 0.033667,
+        "momentum_3v7": 0.02226,
+        "momentum_7v14": 0.0,
+        "momentum_score": 0.013356,
+        "signal": "UP",
+        "trend": "ACCELERATING",
+        "days_of_data": 4
+      },
+      "yield_benchmarks": {
+        "strategy_id": "portfolio",
+        "strategy_apy": 0.039575,
+        "comparisons": [
+          {
+            "strategy_id": "portfolio",
+            "strategy_apy": 0.039575,
+            "benchmark_id": "US_TREASURY_10Y",
+            "benchmark_apy": 0.0425,
+            "spread_bps": -29.25,
+            "outperforms": false,
+            "alpha_pct": -6.8824,
+            "verdict": "UNDERPERFORM"
+          },
+          {
+            "strategy_id": "portfolio",
+            "strategy_apy": 0.039575,
+            "benchmark_id": "ETH_STAKING",
+            "benchmark_apy": 0.035,
+            "spread_bps": 45.75,
+            "outperforms": true,
+            "alpha_pct": 13.0714,
+            "verdict": "ACCEPTABLE"
+          },
+          {
+            "strategy_id": "portfolio",
+            "strategy_apy": 0.039575,
+            "benchmark_id": "USDC_SAVINGS",
+            "benchmark_apy": 0.05,
+            "spread_bps": -104.25,
+            "outperforms": false,
+            "alpha_pct": -20.85,
+            "verdict": "UNDERPERFORM"
+          },
+          {
+            "strategy_id": "portfolio",
+            "strategy_apy": 0.039575,
+            "benchmark_id": "RISK_FREE_FLOOR",
+            "benchmark_apy": 0.03,
+            "spread_bps": 95.75,
+            "outperforms": true,
+            "alpha_pct": 31.9167,
+            "verdict": "GOOD"
+          }
+        ],
+        "beats_all": false,
+        "beats_none": false,
+        "best_spread_bps": 95.75,
+        "worst_spread_bps": -104.25,
+        "overall_verdict": "BELOW_MARKET"
+      },
+      "drawdown_episodes": [],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.03613630066666666,
+          "lower_bound": 0.032126600780477924,
+          "upper_bound": 0.0401460005528554,
+          "confidence": "HIGH",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.042818826666666664,
+          "lower_bound": 0.02962702615680638,
+          "upper_bound": 0.056010627176526946,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.0684351763333333,
+          "lower_bound": 0.019911344160857006,
+          "upper_bound": 0.1169590085058096,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.13526043633333326,
+          "lower_bound": 0.0,
+          "upper_bound": 0.27598316740330997,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781346507.8123462,
+        "triggered": true,
+        "reason": "ALLOCATION_DRIFT",
+        "drifted_slots": [
+          "compound_v3",
+          "yearn_v3",
+          "euler_v2",
+          "maple"
+        ],
+        "apy_changed_slots": [],
+        "max_drift": 0.17986,
+        "total_drift": 0.484895,
+        "urgency": "IMMEDIATE",
+        "actions": [
+          "Rebalance 4 slot(s): compound_v3, yearn_v3, euler_v2, maple",
+          "Execute rebalance within 24h"
+        ]
+      },
+      "slippage_estimates": [
+        {
+          "adapter_id": "aave_v3",
+          "protocol": "aave_v3",
+          "trade_size_usd": 10003.69,
+          "tvl_usd": 15000000000.0,
+          "trade_pct_of_tvl": 1e-06,
+          "estimated_slippage_bps": 0.0163,
+          "slippage_cost_usd": 0.0163,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "compound_v3",
+          "protocol": "compound_v3",
+          "trade_size_usd": 10003.69,
+          "tvl_usd": 3000000000.0,
+          "trade_pct_of_tvl": 3e-06,
+          "estimated_slippage_bps": 0.0365,
+          "slippage_cost_usd": 0.0365,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "yearn_v3",
+          "protocol": "yearn_v3",
+          "trade_size_usd": 10003.69,
+          "tvl_usd": 500000000.0,
+          "trade_pct_of_tvl": 2e-05,
+          "estimated_slippage_bps": 0.0895,
+          "slippage_cost_usd": 0.0895,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "euler_v2",
+          "protocol": "euler_v2",
+          "trade_size_usd": 9518.9,
+          "tvl_usd": 400000000.0,
+          "trade_pct_of_tvl": 2.4e-05,
+          "estimated_slippage_bps": 0.0976,
+          "slippage_cost_usd": 0.0929,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "maple",
+          "protocol": "maple",
+          "trade_size_usd": 10003.69,
+          "tvl_usd": 200000000.0,
+          "trade_pct_of_tvl": 5e-05,
+          "estimated_slippage_bps": 0.1414,
+          "slippage_cost_usd": 0.1415,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        }
+      ],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 3958.9607,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4547,
+        "break_even_days": 1.66,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781416855.828162,
+    "run_at": "2026-06-14T06:00:55.828154+00:00",
+    "elapsed_sec": 0.029308,
+    "portfolio_summary": {
+      "total_capital_usd": 100047.74,
+      "current_apy": 0.039507,
+      "current_apy_pct": 3.9507,
+      "positions_count": 5,
+      "positions": {
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11371.73,
+        "euler_v2": 9518.9,
+        "maple": 12359.35
+      }
+    },
+    "modules_run": 9,
+    "modules_failed": 3,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781416855.802688,
+        "strategy_id": "portfolio",
+        "current_vol": 0.0043,
+        "regime": "CALM",
+        "regime_label": "Calm \u2014 very stable yields",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\ud83d\udca4 Low volatility. Good time for entries. Watch for regime change."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 94999.98,
+        "liquid_capital": 94999.98,
+        "locked_capital": 0,
+        "withdrawable_stress": 71249.99,
+        "coverage_ratio": 0.75,
+        "at_risk_adapters": [],
+        "verdict": "SAFE"
+      },
+      "collateral_health": {
+        "error": "cannot import name 'CollateralHealthMonitor' from 'spa_core.analytics.collateral_health_monitor' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/collateral_health_monitor.py)",
+        "module": "collateral_health"
+      },
+      "protocol_risk_scores": [
+        {
+          "protocol_id": "aave_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "compound_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "yearn_v3",
+          "tvl_score": 100.0,
+          "audit_score": 75.0,
+          "age_score": 100.0,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "euler_v2",
+          "tvl_score": 95.0,
+          "audit_score": 75.0,
+          "age_score": 67.57,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 70.0135,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "maple",
+          "tvl_score": 85.0,
+          "audit_score": 50.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        }
+      ],
+      "apy_momentum": {
+        "error": "cannot import name 'APYMomentumTracker' from 'spa_core.analytics.apy_momentum_tracker' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/apy_momentum_tracker.py)",
+        "module": "apy_momentum"
+      },
+      "yield_benchmarks": {
+        "error": "cannot import name 'YieldBenchmarkComparator' from 'spa_core.analytics.yield_benchmark_comparator' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/yield_benchmark_comparator.py)",
+        "module": "yield_benchmarks"
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.039507,
+          "drawdown_pct": 0.001718,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "RECOVERING",
+          "severity": "MINOR"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.037871609291666664,
+          "lower_bound": 0.033291569259104745,
+          "upper_bound": 0.04245164932422858,
+          "confidence": "HIGH",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.044805380441666647,
+          "lower_bound": 0.03143120767335039,
+          "upper_bound": 0.0581795532099829,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.0713848365166666,
+          "lower_bound": 0.024090314189770923,
+          "upper_bound": 0.11867935884356229,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.14072254801666648,
+          "lower_bound": 0.004887719308058175,
+          "upper_bound": 0.2765573767252748,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781416855.8223438,
+        "triggered": true,
+        "reason": "ALLOCATION_DRIFT",
+        "drifted_slots": [
+          "compound_v3",
+          "yearn_v3",
+          "euler_v2",
+          "maple"
+        ],
+        "apy_changed_slots": [],
+        "max_drift": 0.179819,
+        "total_drift": 0.484864,
+        "urgency": "IMMEDIATE",
+        "actions": [
+          "Rebalance 4 slot(s): compound_v3, yearn_v3, euler_v2, maple",
+          "Execute rebalance within 24h"
+        ]
+      },
+      "slippage_estimates": [
+        {
+          "adapter_id": "aave_v3",
+          "protocol": "aave_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 15000000000.0,
+          "trade_pct_of_tvl": 1e-06,
+          "estimated_slippage_bps": 0.0163,
+          "slippage_cost_usd": 0.0163,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "compound_v3",
+          "protocol": "compound_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 3000000000.0,
+          "trade_pct_of_tvl": 3e-06,
+          "estimated_slippage_bps": 0.0365,
+          "slippage_cost_usd": 0.0365,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "yearn_v3",
+          "protocol": "yearn_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 500000000.0,
+          "trade_pct_of_tvl": 2e-05,
+          "estimated_slippage_bps": 0.0895,
+          "slippage_cost_usd": 0.0895,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "euler_v2",
+          "protocol": "euler_v2",
+          "trade_size_usd": 9518.9,
+          "tvl_usd": 400000000.0,
+          "trade_pct_of_tvl": 2.4e-05,
+          "estimated_slippage_bps": 0.0976,
+          "slippage_cost_usd": 0.0929,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "maple",
+          "protocol": "maple",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 200000000.0,
+          "trade_pct_of_tvl": 5e-05,
+          "estimated_slippage_bps": 0.1415,
+          "slippage_cost_usd": 0.1415,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        }
+      ],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100047.74,
+        "expected_yield_usd": 3952.5861,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4554,
+        "break_even_days": 1.66,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781440268.2857301,
+    "run_at": "2026-06-14T12:31:08.285723+00:00",
+    "elapsed_sec": 0.014175,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 9,
+    "modules_failed": 3,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781440268.274101,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "error": "cannot import name 'CollateralHealthMonitor' from 'spa_core.analytics.collateral_health_monitor' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/collateral_health_monitor.py)",
+        "module": "collateral_health"
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "error": "cannot import name 'APYMomentumTracker' from 'spa_core.analytics.apy_momentum_tracker' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/apy_momentum_tracker.py)",
+        "module": "apy_momentum"
+      },
+      "yield_benchmarks": {
+        "error": "cannot import name 'YieldBenchmarkComparator' from 'spa_core.analytics.yield_benchmark_comparator' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/yield_benchmark_comparator.py)",
+        "module": "yield_benchmarks"
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781440268.282732,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781440507.7075367,
+    "run_at": "2026-06-14T12:35:07.707509+00:00",
+    "elapsed_sec": 0.014034,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 9,
+    "modules_failed": 3,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781440507.6978824,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "error": "cannot import name 'CollateralHealthMonitor' from 'spa_core.analytics.collateral_health_monitor' (/sessions/focused-awesome-cori/mnt/SPA_Claude/spa_core/analytics/collateral_health_monitor.py)",
+        "module": "collateral_health"
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "error": "cannot import name 'APYMomentumTracker' from 'spa_core.analytics.apy_momentum_tracker' (/sessions/focused-awesome-cori/mnt/SPA_Claude/spa_core/analytics/apy_momentum_tracker.py)",
+        "module": "apy_momentum"
+      },
+      "yield_benchmarks": {
+        "error": "cannot import name 'YieldBenchmarkComparator' from 'spa_core.analytics.yield_benchmark_comparator' (/sessions/focused-awesome-cori/mnt/SPA_Claude/spa_core/analytics/yield_benchmark_comparator.py)",
+        "module": "yield_benchmarks"
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781440507.7049067,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781440605.3421462,
+    "run_at": "2026-06-14T12:36:45.342136+00:00",
+    "elapsed_sec": 0.011385,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781440605.3333888,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": {
+          "positions": [],
+          "portfolio_summary": {
+            "total_collateral_usd": 0,
+            "total_debt_usd": 0,
+            "portfolio_ltv": 0.0,
+            "at_risk_count": 0,
+            "healthiest_protocol": "",
+            "riskiest_protocol": ""
+          },
+          "alerts": [],
+          "timestamp": 1781440605.335915
+        }
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "protocols": [
+          {
+            "name": "portfolio",
+            "current_apy": 0.0,
+            "ema_short": 0.025201113281250003,
+            "ema_long": 0.029297701659722696,
+            "momentum": -0.004096588378472692,
+            "momentum_pct": -13.982627122265082,
+            "signal": "STRONG_SELL",
+            "trend": "DECELERATING"
+          }
+        ],
+        "top_momentum": "portfolio",
+        "bottom_momentum": "portfolio",
+        "bullish_count": 0,
+        "bearish_count": 1,
+        "market_sentiment": "BEARISH",
+        "timestamp": 1781440605.3371258
+      },
+      "yield_benchmarks": {
+        "strategies": [
+          {
+            "name": "portfolio",
+            "apy": 0.04,
+            "risk_score": 20,
+            "risk_adjusted_apy": 0.032,
+            "excess_over_rfr": -0.0049999999999999975,
+            "excess_over_eth_staking": 0.0020000000000000018,
+            "risk_premium": -0.012999999999999998,
+            "verdict": "POOR",
+            "better_than_rfr": false,
+            "better_than_eth": true,
+            "liquidity_tier": "HIGH"
+          }
+        ],
+        "best_risk_adjusted": "portfolio",
+        "best_raw_yield": "portfolio",
+        "benchmark_summary": {
+          "risk_free_rate": 0.045,
+          "eth_staking_apy": 0.038,
+          "btc_holding_apy": 0.0,
+          "strategies_beating_rfr": 0,
+          "strategies_beating_eth": 1
+        },
+        "timestamp": 1781440605.337463
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781440605.3399503,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781442083.200755,
+    "run_at": "2026-06-14T13:01:23.200747+00:00",
+    "elapsed_sec": 0.010347,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781442083.193355,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": {
+          "positions": [],
+          "portfolio_summary": {
+            "total_collateral_usd": 0,
+            "total_debt_usd": 0,
+            "portfolio_ltv": 0.0,
+            "at_risk_count": 0,
+            "healthiest_protocol": "",
+            "riskiest_protocol": ""
+          },
+          "alerts": [],
+          "timestamp": 1781442083.194603
+        }
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "protocols": [
+          {
+            "name": "portfolio",
+            "current_apy": 0.0,
+            "ema_short": 0.025201113281250003,
+            "ema_long": 0.029297701659722696,
+            "momentum": -0.004096588378472692,
+            "momentum_pct": -13.982627122265082,
+            "signal": "STRONG_SELL",
+            "trend": "DECELERATING"
+          }
+        ],
+        "top_momentum": "portfolio",
+        "bottom_momentum": "portfolio",
+        "bullish_count": 0,
+        "bearish_count": 1,
+        "market_sentiment": "BEARISH",
+        "timestamp": 1781442083.195528
+      },
+      "yield_benchmarks": {
+        "strategies": [
+          {
+            "name": "portfolio",
+            "apy": 0.04,
+            "risk_score": 20,
+            "risk_adjusted_apy": 0.032,
+            "excess_over_rfr": -0.0049999999999999975,
+            "excess_over_eth_staking": 0.0020000000000000018,
+            "risk_premium": -0.012999999999999998,
+            "verdict": "POOR",
+            "better_than_rfr": false,
+            "better_than_eth": true,
+            "liquidity_tier": "HIGH"
+          }
+        ],
+        "best_risk_adjusted": "portfolio",
+        "best_raw_yield": "portfolio",
+        "benchmark_summary": {
+          "risk_free_rate": 0.045,
+          "eth_staking_apy": 0.038,
+          "btc_holding_apy": 0.0,
+          "strategies_beating_rfr": 0,
+          "strategies_beating_eth": 1
+        },
+        "timestamp": 1781442083.195746
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781442083.19792,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781443897.8140318,
+    "run_at": "2026-06-14T13:31:37.814021+00:00",
+    "elapsed_sec": 0.013989,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781443897.802839,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": {
+          "positions": [],
+          "portfolio_summary": {
+            "total_collateral_usd": 0,
+            "total_debt_usd": 0,
+            "portfolio_ltv": 0.0,
+            "at_risk_count": 0,
+            "healthiest_protocol": "",
+            "riskiest_protocol": ""
+          },
+          "alerts": [],
+          "timestamp": 1781443897.8049002
+        }
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "protocols": [
+          {
+            "name": "portfolio",
+            "current_apy": 0.0,
+            "ema_short": 0.025201113281250003,
+            "ema_long": 0.029297701659722696,
+            "momentum": -0.004096588378472692,
+            "momentum_pct": -13.982627122265082,
+            "signal": "STRONG_SELL",
+            "trend": "DECELERATING"
+          }
+        ],
+        "top_momentum": "portfolio",
+        "bottom_momentum": "portfolio",
+        "bullish_count": 0,
+        "bearish_count": 1,
+        "market_sentiment": "BEARISH",
+        "timestamp": 1781443897.807275
+      },
+      "yield_benchmarks": {
+        "strategies": [
+          {
+            "name": "portfolio",
+            "apy": 0.04,
+            "risk_score": 20,
+            "risk_adjusted_apy": 0.032,
+            "excess_over_rfr": -0.0049999999999999975,
+            "excess_over_eth_staking": 0.0020000000000000018,
+            "risk_premium": -0.012999999999999998,
+            "verdict": "POOR",
+            "better_than_rfr": false,
+            "better_than_eth": true,
+            "liquidity_tier": "HIGH"
+          }
+        ],
+        "best_risk_adjusted": "portfolio",
+        "best_raw_yield": "portfolio",
+        "benchmark_summary": {
+          "risk_free_rate": 0.045,
+          "eth_staking_apy": 0.038,
+          "btc_holding_apy": 0.0,
+          "strategies_beating_rfr": 0,
+          "strategies_beating_eth": 1
+        },
+        "timestamp": 1781443897.80755
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781443897.811081,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781445711.652729,
+    "run_at": "2026-06-14T14:01:51.652718+00:00",
+    "elapsed_sec": 0.013176,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781445711.643033,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": {
+          "positions": [],
+          "portfolio_summary": {
+            "total_collateral_usd": 0,
+            "total_debt_usd": 0,
+            "portfolio_ltv": 0.0,
+            "at_risk_count": 0,
+            "healthiest_protocol": "",
+            "riskiest_protocol": ""
+          },
+          "alerts": [],
+          "timestamp": 1781445711.64513
+        }
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "protocols": [
+          {
+            "name": "portfolio",
+            "current_apy": 0.0,
+            "ema_short": 0.025201113281250003,
+            "ema_long": 0.029297701659722696,
+            "momentum": -0.004096588378472692,
+            "momentum_pct": -13.982627122265082,
+            "signal": "STRONG_SELL",
+            "trend": "DECELERATING"
+          }
+        ],
+        "top_momentum": "portfolio",
+        "bottom_momentum": "portfolio",
+        "bullish_count": 0,
+        "bearish_count": 1,
+        "market_sentiment": "BEARISH",
+        "timestamp": 1781445711.6466172
+      },
+      "yield_benchmarks": {
+        "strategies": [
+          {
+            "name": "portfolio",
+            "apy": 0.04,
+            "risk_score": 20,
+            "risk_adjusted_apy": 0.032,
+            "excess_over_rfr": -0.0049999999999999975,
+            "excess_over_eth_staking": 0.0020000000000000018,
+            "risk_premium": -0.012999999999999998,
+            "verdict": "POOR",
+            "better_than_rfr": false,
+            "better_than_eth": true,
+            "liquidity_tier": "HIGH"
+          }
+        ],
+        "best_risk_adjusted": "portfolio",
+        "best_raw_yield": "portfolio",
+        "benchmark_summary": {
+          "risk_free_rate": 0.045,
+          "eth_staking_apy": 0.038,
+          "btc_holding_apy": 0.0,
+          "strategies_beating_rfr": 0,
+          "strategies_beating_eth": 1
+        },
+        "timestamp": 1781445711.646796
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781445711.649703,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781447526.156123,
+    "run_at": "2026-06-14T14:32:06.156113+00:00",
+    "elapsed_sec": 0.015088,
+    "portfolio_summary": {
+      "total_capital_usd": 100036.91,
+      "current_apy": 0.0,
+      "current_apy_pct": 0.0,
+      "positions_count": 0,
+      "positions": {}
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781447526.145974,
+        "strategy_id": "portfolio",
+        "current_vol": 0.015439,
+        "regime": "NORMAL",
+        "regime_label": "Normal \u2014 typical market conditions",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\u2705 Normal operations. Standard rebalance schedule."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 0.0,
+        "liquid_capital": 0.0,
+        "locked_capital": 0,
+        "withdrawable_stress": 0.0,
+        "coverage_ratio": 0.0,
+        "at_risk_adapters": [],
+        "verdict": "CRITICAL"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": {
+          "positions": [],
+          "portfolio_summary": {
+            "total_collateral_usd": 0,
+            "total_debt_usd": 0,
+            "portfolio_ltv": 0.0,
+            "at_risk_count": 0,
+            "healthiest_protocol": "",
+            "riskiest_protocol": ""
+          },
+          "alerts": [],
+          "timestamp": 1781447526.148125
+        }
+      },
+      "protocol_risk_scores": [],
+      "apy_momentum": {
+        "protocols": [
+          {
+            "name": "portfolio",
+            "current_apy": 0.0,
+            "ema_short": 0.025201113281250003,
+            "ema_long": 0.029297701659722696,
+            "momentum": -0.004096588378472692,
+            "momentum_pct": -13.982627122265082,
+            "signal": "STRONG_SELL",
+            "trend": "DECELERATING"
+          }
+        ],
+        "top_momentum": "portfolio",
+        "bottom_momentum": "portfolio",
+        "bullish_count": 0,
+        "bearish_count": 1,
+        "market_sentiment": "BEARISH",
+        "timestamp": 1781447526.1496189
+      },
+      "yield_benchmarks": {
+        "strategies": [
+          {
+            "name": "portfolio",
+            "apy": 0.04,
+            "risk_score": 20,
+            "risk_adjusted_apy": 0.032,
+            "excess_over_rfr": -0.0049999999999999975,
+            "excess_over_eth_staking": 0.0020000000000000018,
+            "risk_premium": -0.012999999999999998,
+            "verdict": "POOR",
+            "better_than_rfr": false,
+            "better_than_eth": true,
+            "liquidity_tier": "HIGH"
+          }
+        ],
+        "best_risk_adjusted": "portfolio",
+        "best_raw_yield": "portfolio",
+        "benchmark_summary": {
+          "risk_free_rate": 0.045,
+          "eth_staking_apy": 0.038,
+          "btc_holding_apy": 0.0,
+          "strategies_beating_rfr": 0,
+          "strategies_beating_eth": 1
+        },
+        "timestamp": 1781447526.149833
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.0,
+          "drawdown_pct": 1.0,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "DEEP",
+          "severity": "SEVERE"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.01976423429166667,
+          "lower_bound": 0.009411138222198601,
+          "upper_bound": 0.030117330361134738,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.012481922108333328,
+          "lower_bound": 0.0,
+          "upper_bound": 0.029107261501164515,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.008977933333333332,
+          "lower_bound": 0.0,
+          "upper_bound": 0.028023005956455564,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781447526.1530921,
+        "triggered": false,
+        "reason": "NO_SLOTS",
+        "drifted_slots": [],
+        "apy_changed_slots": [],
+        "max_drift": 0.0,
+        "total_drift": 0.0,
+        "urgency": "NONE",
+        "actions": [
+          "No slots to evaluate"
+        ]
+      },
+      "slippage_estimates": [],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100036.91,
+        "expected_yield_usd": 4001.4764,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4498,
+        "break_even_days": 1.64,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  },
+  {
+    "timestamp": 1781449340.73594,
+    "run_at": "2026-06-14T15:02:20.735928+00:00",
+    "elapsed_sec": 0.006186,
+    "portfolio_summary": {
+      "total_capital_usd": 100047.74,
+      "current_apy": 0.039505,
+      "current_apy_pct": 3.9505,
+      "positions_count": 5,
+      "positions": {
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11312.02,
+        "euler_v2": 9562.23,
+        "maple": 12375.74
+      }
+    },
+    "modules_run": 12,
+    "modules_failed": 0,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781449340.7309802,
+        "strategy_id": "portfolio",
+        "current_vol": 0.0043,
+        "regime": "CALM",
+        "regime_label": "Calm \u2014 very stable yields",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\ud83d\udca4 Low volatility. Good time for entries. Watch for regime change."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 94999.99,
+        "liquid_capital": 94999.99,
+        "locked_capital": 0,
+        "withdrawable_stress": 71249.99,
+        "coverage_ratio": 0.75,
+        "at_risk_adapters": [],
+        "verdict": "SAFE"
+      },
+      "collateral_health": {
+        "positions_assessed": 0,
+        "results": {
+          "positions": [],
+          "portfolio_summary": {
+            "total_collateral_usd": 0,
+            "total_debt_usd": 0,
+            "portfolio_ltv": 0.0,
+            "at_risk_count": 0,
+            "healthiest_protocol": "",
+            "riskiest_protocol": ""
+          },
+          "alerts": [],
+          "timestamp": 1781449340.731322
+        }
+      },
+      "protocol_risk_scores": [
+        {
+          "protocol_id": "aave_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "compound_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "yearn_v3",
+          "tvl_score": 100.0,
+          "audit_score": 75.0,
+          "age_score": 100.0,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "euler_v2",
+          "tvl_score": 95.0,
+          "audit_score": 75.0,
+          "age_score": 67.57,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 70.0135,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "maple",
+          "tvl_score": 85.0,
+          "audit_score": 50.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        }
+      ],
+      "apy_momentum": {
+        "protocols": [
+          {
+            "name": "portfolio",
+            "current_apy": 0.039505,
+            "ema_short": 0.03507736328125,
+            "ema_long": 0.03288906529608633,
+            "momentum": 0.0021882979851636716,
+            "momentum_pct": 6.65357305068828,
+            "signal": "BUY",
+            "trend": "ACCELERATING"
+          }
+        ],
+        "top_momentum": "portfolio",
+        "bottom_momentum": "portfolio",
+        "bullish_count": 1,
+        "bearish_count": 0,
+        "market_sentiment": "BULLISH",
+        "timestamp": 1781449340.731688
+      },
+      "yield_benchmarks": {
+        "strategies": [
+          {
+            "name": "portfolio",
+            "apy": 0.039505,
+            "risk_score": 20,
+            "risk_adjusted_apy": 0.031604,
+            "excess_over_rfr": -0.005495,
+            "excess_over_eth_staking": 0.0015049999999999994,
+            "risk_premium": -0.013395999999999998,
+            "verdict": "POOR",
+            "better_than_rfr": false,
+            "better_than_eth": true,
+            "liquidity_tier": "HIGH"
+          }
+        ],
+        "best_risk_adjusted": "portfolio",
+        "best_raw_yield": "portfolio",
+        "benchmark_summary": {
+          "risk_free_rate": 0.045,
+          "eth_staking_apy": 0.038,
+          "btc_holding_apy": 0.0,
+          "strategies_beating_rfr": 0,
+          "strategies_beating_eth": 1
+        },
+        "timestamp": 1781449340.731754
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.039505,
+          "drawdown_pct": 0.001769,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "RECOVERING",
+          "severity": "MINOR"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.037870692625,
+          "lower_bound": 0.03329140803397615,
+          "upper_bound": 0.04244997721602385,
+          "confidence": "HIGH",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.044803363774999994,
+          "lower_bound": 0.031431427853703814,
+          "upper_bound": 0.05817529969629617,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.07137860318333329,
+          "lower_bound": 0.02409199367746502,
+          "upper_bound": 0.11866521268920156,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.14070531468333322,
+          "lower_bound": 0.004893204929861589,
+          "upper_bound": 0.2765174244368048,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781449340.734299,
+        "triggered": true,
+        "reason": "ALLOCATION_DRIFT",
+        "drifted_slots": [
+          "compound_v3",
+          "yearn_v3",
+          "euler_v2",
+          "maple"
+        ],
+        "apy_changed_slots": [],
+        "max_drift": 0.179819,
+        "total_drift": 0.484865,
+        "urgency": "IMMEDIATE",
+        "actions": [
+          "Rebalance 4 slot(s): compound_v3, yearn_v3, euler_v2, maple",
+          "Execute rebalance within 24h"
+        ]
+      },
+      "slippage_estimates": [
+        {
+          "adapter_id": "aave_v3",
+          "protocol": "aave_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 15000000000.0,
+          "trade_pct_of_tvl": 1e-06,
+          "estimated_slippage_bps": 0.0163,
+          "slippage_cost_usd": 0.0163,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "compound_v3",
+          "protocol": "compound_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 3000000000.0,
+          "trade_pct_of_tvl": 3e-06,
+          "estimated_slippage_bps": 0.0365,
+          "slippage_cost_usd": 0.0365,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "yearn_v3",
+          "protocol": "yearn_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 500000000.0,
+          "trade_pct_of_tvl": 2e-05,
+          "estimated_slippage_bps": 0.0895,
+          "slippage_cost_usd": 0.0895,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "euler_v2",
+          "protocol": "euler_v2",
+          "trade_size_usd": 9562.23,
+          "tvl_usd": 400000000.0,
+          "trade_pct_of_tvl": 2.4e-05,
+          "estimated_slippage_bps": 0.0978,
+          "slippage_cost_usd": 0.0935,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "maple",
+          "protocol": "maple",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 200000000.0,
+          "trade_pct_of_tvl": 5e-05,
+          "estimated_slippage_bps": 0.1415,
+          "slippage_cost_usd": 0.1415,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        }
+      ],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100047.74,
+        "expected_yield_usd": 3952.386,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4554,
+        "break_even_days": 1.66,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
+  }
+]
