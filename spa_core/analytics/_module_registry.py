@@ -430,6 +430,8 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_autocompound_keeper_reliability_analyzer', "class": 'DeFiProtocolAutoCompoundKeeperReliabilityAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_performance_fee_high_water_mark_analyzer', "class": 'DeFiProtocolPerformanceFeeHighWaterMarkAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_performance_fee_crystallization_frequency_analyzer', "class": 'DeFiProtocolPerformanceFeeCrystallizationFrequencyAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_deposit_cap_headroom_analyzer', "class": 'DeFiProtocolDepositCapHeadroomAnalyzer', "tier": 'B', "category": 'vault_capacity', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_depositor_concentration_analyzer', "class": 'DeFiProtocolDepositorConcentrationAnalyzer', "tier": 'B', "category": 'vault_capacity', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
