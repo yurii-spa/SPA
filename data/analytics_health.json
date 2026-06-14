@@ -1,602 +1,602 @@
 {
-  "generated_at": "2026-06-14T17:03:09.189163Z",
+  "generated_at": "2026-06-14T18:33:53.120889Z",
   "entries": [
     {
-      "ts": "2026-06-14T17:03:07.722067Z",
-      "module": "yield_decay_tracker",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722163Z",
-      "module": "yield_forecast",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722172Z",
-      "module": "yield_farming_calendar",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722279Z",
-      "module": "yield_farming_roi_calculator",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722333Z",
-      "module": "yield_farming_risk_assessor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722381Z",
-      "module": "yield_farming_roi_tracker",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722497Z",
-      "module": "yield_ladder_builder",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722509Z",
-      "module": "yield_dilution_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722525Z",
-      "module": "yield_forecast_engine",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722606Z",
-      "module": "yield_momentum_tracker",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722703Z",
-      "module": "yield_runway_estimator",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722746Z",
-      "module": "yield_opportunity_scanner",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722813Z",
-      "module": "yield_optimization_summary",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722878Z",
-      "module": "yield_recycler_engine",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722963Z",
-      "module": "yield_route_optimizer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722987Z",
-      "module": "yield_reinvestment_engine",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.722998Z",
-      "module": "yield_reinvestment_optimizer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723126Z",
-      "module": "yield_sentiment_scorer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723180Z",
-      "module": "yield_source_diversifier",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723226Z",
-      "module": "yield_smoothing_filter",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723328Z",
-      "module": "yield_source_concentration_risk",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723357Z",
-      "module": "yield_spread_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723401Z",
-      "module": "yield_source_classifier",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723449Z",
-      "module": "yield_sustainability_index",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723526Z",
-      "module": "yield_opportunity_scorer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723553Z",
-      "module": "yield_spread_zscore_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723659Z",
-      "module": "defi_protocol_mev_protection_effectiveness_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723699Z",
-      "module": "yield_strategy_backtester",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723760Z",
-      "module": "defi_protocol_insurance_fund_adequacy_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723834Z",
-      "module": "yield_spread_arbitrage_detector",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723875Z",
-      "module": "yield_volatility_surface",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.723988Z",
-      "module": "defi_protocol_borrower_concentration_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724050Z",
-      "module": "defi_protocol_cross_chain_yield_basis_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724112Z",
-      "module": "yield_stability_scorer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724139Z",
-      "module": "defi_protocol_yield_harvesting_frequency_optimizer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724178Z",
-      "module": "defi_protocol_lending_utilization_elasticity_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724290Z",
-      "module": "yield_timing_optimizer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724307Z",
-      "module": "defi_protocol_stablecoin_par_redemption_capacity_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724375Z",
-      "module": "yield_volatility_surface_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:07.724402Z",
-      "module": "defi_protocol_emergency_withdrawal_pause_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.181982Z",
-      "module": "defi_lending_protocol_bad_debt_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.182283Z",
-      "module": "defi_protocol_systemic_risk_contagion_modeler",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.182411Z",
-      "module": "defi_protocol_exit_liquidity_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.182933Z",
-      "module": "defi_stablecoin_depeg_risk_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.182977Z",
-      "module": "defi_liquidation_cascade_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.183118Z",
-      "module": "defi_protocol_depeg_contagion_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.183561Z",
+      "ts": "2026-06-14T18:03:37.738608Z",
       "module": "defi_protocol_admin_key_control_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.183695Z",
+      "ts": "2026-06-14T18:03:37.738629Z",
       "module": "defi_liquidity_crisis_predictor",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.183788Z",
-      "module": "defi_oracle_manipulation_risk_scorer",
+      "ts": "2026-06-14T18:03:37.738682Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.183918Z",
+      "ts": "2026-06-14T18:03:37.738713Z",
       "module": "defi_protocol_sequencer_downtime_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.184110Z",
+      "ts": "2026-06-14T18:03:37.739204Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739330Z",
+      "module": "defi_stablecoin_depeg_risk_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739349Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739461Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739491Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739500Z",
+      "module": "defi_liquidation_cascade_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739609Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739742Z",
+      "module": "defi_protocol_depeg_contagion_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739887Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739978Z",
+      "module": "defi_protocol_admin_key_control_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739990Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.739999Z",
       "module": "defi_protocol_token_bridge_security_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.184128Z",
-      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.184682Z",
-      "module": "defi_lending_protocol_bad_debt_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.184774Z",
+      "ts": "2026-06-14T18:03:37.740522Z",
       "module": "defi_oracle_manipulation_risk_scorer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.184787Z",
-      "module": "defi_protocol_exit_liquidity_analyzer",
+      "ts": "2026-06-14T18:03:37.740545Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.184868Z",
-      "module": "defi_stablecoin_depeg_risk_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.184967Z",
-      "module": "defi_protocol_systemic_risk_contagion_modeler",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.184979Z",
-      "module": "defi_liquidation_cascade_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.185112Z",
-      "module": "defi_protocol_depeg_contagion_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.185193Z",
-      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.185256Z",
-      "module": "defi_liquidity_crisis_predictor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.185267Z",
+      "ts": "2026-06-14T18:03:37.740636Z",
       "module": "defi_protocol_admin_key_control_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.185353Z",
-      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
+      "ts": "2026-06-14T18:03:37.740739Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.185364Z",
+      "ts": "2026-06-14T18:03:37.740769Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.740812Z",
+      "module": "defi_liquidation_cascade_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.740876Z",
+      "module": "defi_protocol_depeg_contagion_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.740947Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.740969Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.741019Z",
+      "module": "defi_stablecoin_depeg_risk_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.741096Z",
       "module": "defi_protocol_token_bridge_security_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.185865Z",
-      "module": "defi_oracle_manipulation_risk_scorer",
+      "ts": "2026-06-14T18:03:37.741109Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.185917Z",
+      "ts": "2026-06-14T18:03:37.741621Z",
       "module": "defi_lending_protocol_bad_debt_monitor",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186028Z",
+      "ts": "2026-06-14T18:03:37.741731Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.741790Z",
       "module": "defi_protocol_exit_liquidity_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186040Z",
-      "module": "defi_protocol_systemic_risk_contagion_modeler",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.186051Z",
+      "ts": "2026-06-14T18:03:37.741901Z",
       "module": "defi_stablecoin_depeg_risk_monitor",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186178Z",
+      "ts": "2026-06-14T18:03:37.741942Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.742032Z",
       "module": "defi_protocol_depeg_contagion_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186235Z",
+      "ts": "2026-06-14T18:03:37.742039Z",
       "module": "defi_liquidation_cascade_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186313Z",
-      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.186380Z",
+      "ts": "2026-06-14T18:03:37.742103Z",
       "module": "defi_liquidity_crisis_predictor",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186397Z",
+      "ts": "2026-06-14T18:03:37.742124Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:03:37.742227Z",
       "module": "defi_protocol_admin_key_control_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186467Z",
+      "ts": "2026-06-14T18:03:37.742263Z",
       "module": "defi_protocol_token_bridge_security_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.186486Z",
+      "ts": "2026-06-14T18:03:37.742279Z",
       "module": "defi_protocol_sequencer_downtime_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.187003Z",
-      "module": "defi_lending_protocol_bad_debt_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187060Z",
-      "module": "defi_oracle_manipulation_risk_scorer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187116Z",
-      "module": "defi_protocol_exit_liquidity_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187182Z",
-      "module": "defi_protocol_systemic_risk_contagion_modeler",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187207Z",
-      "module": "defi_stablecoin_depeg_risk_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187262Z",
-      "module": "defi_liquidation_cascade_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187382Z",
-      "module": "defi_liquidity_crisis_predictor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187401Z",
+      "ts": "2026-06-14T18:33:53.113024Z",
       "module": "defi_protocol_depeg_contagion_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.187481Z",
+      "ts": "2026-06-14T18:33:53.113157Z",
+      "module": "defi_stablecoin_depeg_risk_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.113392Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.113500Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.113673Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.114602Z",
       "module": "defi_protocol_withdrawal_queue_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.187586Z",
+      "ts": "2026-06-14T18:33:53.114668Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.114684Z",
+      "module": "defi_protocol_admin_key_control_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.114693Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.114788Z",
       "module": "defi_protocol_token_bridge_security_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.187598Z",
-      "module": "defi_protocol_admin_key_control_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.187621Z",
-      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188095Z",
-      "module": "defi_oracle_manipulation_risk_scorer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188123Z",
-      "module": "defi_lending_protocol_bad_debt_monitor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188246Z",
-      "module": "defi_protocol_exit_liquidity_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188269Z",
-      "module": "defi_protocol_admin_key_control_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188387Z",
-      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188444Z",
+      "ts": "2026-06-14T18:33:53.114802Z",
       "module": "defi_liquidation_cascade_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.188501Z",
-      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "ts": "2026-06-14T18:33:53.114827Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.188622Z",
+      "ts": "2026-06-14T18:33:53.115477Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.115551Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.115620Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.115707Z",
       "module": "defi_stablecoin_depeg_risk_monitor",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.188658Z",
-      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "ts": "2026-06-14T18:33:53.115726Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.188704Z",
-      "module": "defi_liquidity_crisis_predictor",
-      "status": "dormant",
-      "detail": ""
-    },
-    {
-      "ts": "2026-06-14T17:03:09.188740Z",
+      "ts": "2026-06-14T18:33:53.115877Z",
       "module": "defi_protocol_depeg_contagion_risk_analyzer",
       "status": "dormant",
       "detail": ""
     },
     {
-      "ts": "2026-06-14T17:03:09.188755Z",
+      "ts": "2026-06-14T18:33:53.115957Z",
+      "module": "defi_liquidation_cascade_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.115971Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.116054Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.116155Z",
+      "module": "defi_protocol_admin_key_control_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.116535Z",
+      "module": "defi_protocol_token_bridge_security_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.116584Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117439Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117465Z",
+      "module": "defi_stablecoin_depeg_risk_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117593Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117603Z",
+      "module": "defi_protocol_admin_key_control_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117667Z",
+      "module": "defi_protocol_depeg_contagion_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117717Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117853Z",
+      "module": "defi_liquidation_cascade_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.117868Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118030Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118048Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118100Z",
+      "module": "defi_protocol_token_bridge_security_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118138Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118641Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118669Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118714Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118827Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118854Z",
+      "module": "defi_protocol_admin_key_control_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.118901Z",
+      "module": "defi_liquidation_cascade_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119008Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119053Z",
+      "module": "defi_protocol_depeg_contagion_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119142Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119186Z",
+      "module": "defi_protocol_token_bridge_security_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119219Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119229Z",
+      "module": "defi_stablecoin_depeg_risk_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119728Z",
+      "module": "defi_oracle_manipulation_risk_scorer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119754Z",
+      "module": "defi_lending_protocol_bad_debt_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119863Z",
+      "module": "defi_protocol_admin_key_control_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119923Z",
+      "module": "defi_protocol_exit_liquidity_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.119936Z",
+      "module": "defi_protocol_systemic_risk_contagion_modeler",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120030Z",
+      "module": "defi_protocol_depeg_contagion_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120074Z",
+      "module": "defi_liquidation_cascade_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120184Z",
+      "module": "defi_protocol_withdrawal_queue_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120243Z",
+      "module": "defi_liquidity_crisis_predictor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120252Z",
+      "module": "defi_stablecoin_depeg_risk_monitor",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120325Z",
+      "module": "defi_protocol_sequencer_downtime_risk_analyzer",
+      "status": "dormant",
+      "detail": ""
+    },
+    {
+      "ts": "2026-06-14T18:33:53.120339Z",
       "module": "defi_protocol_token_bridge_security_risk_analyzer",
       "status": "dormant",
       "detail": ""
