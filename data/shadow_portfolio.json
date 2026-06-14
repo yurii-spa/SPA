@@ -1,6 +1,6 @@
 {
   "date": "2026-06-14",
-  "generated_at": "2026-06-14T17:03:07.199798+00:00",
+  "generated_at": "2026-06-14T18:33:51.460432+00:00",
   "source": "shadow_tracker",
   "advisory_only": true,
   "initial_capital": 100000.0,
@@ -20,27 +20,27 @@
     },
     "S1": {
       "name": "MaxSharpe",
-      "equity": 100053.2,
-      "daily_pnl": 11.6499,
+      "equity": 100053.19,
+      "daily_pnl": 11.6428,
       "prev_equity": 100041.55,
-      "weighted_apy_pct": 4.2504,
+      "weighted_apy_pct": 4.2479,
       "total_return_pct": 0.0532,
       "weights": {
-        "aave_v3": 0.194416,
-        "compound_v3": 0.323322,
-        "euler_v2": 0.086663,
-        "maple": 0.14801,
-        "morpho_blue": 0.145069,
-        "yearn_v3": 0.102521
+        "aave_v3": 0.194481,
+        "compound_v3": 0.323493,
+        "euler_v2": 0.086708,
+        "maple": 0.148088,
+        "morpho_blue": 0.144654,
+        "yearn_v3": 0.102575
       },
       "cash_pct": 0.0
     },
     "S2": {
       "name": "EqualWeight",
-      "equity": 100051.44,
-      "daily_pnl": 10.8899,
+      "equity": 100051.43,
+      "daily_pnl": 10.8824,
       "prev_equity": 100040.55,
-      "weighted_apy_pct": 3.9732,
+      "weighted_apy_pct": 3.9705,
       "total_return_pct": 0.0514,
       "weights": {
         "aave_v3": 0.166667,
@@ -55,9 +55,9 @@
     "S3": {
       "name": "T1Only",
       "equity": 100049.02,
-      "daily_pnl": 11.4109,
+      "daily_pnl": 11.41,
       "prev_equity": 100037.61,
-      "weighted_apy_pct": 4.1634,
+      "weighted_apy_pct": 4.1631,
       "total_return_pct": 0.049,
       "weights": {
         "aave_v3": 0.5,
@@ -68,9 +68,9 @@
     "S4": {
       "name": "Conservative",
       "equity": 100039.22,
-      "daily_pnl": 9.128,
+      "daily_pnl": 9.1273,
       "prev_equity": 100030.09,
-      "weighted_apy_pct": 3.3307,
+      "weighted_apy_pct": 3.3305,
       "total_return_pct": 0.0392,
       "weights": {
         "aave_v3": 0.4,
@@ -81,9 +81,9 @@
     "S5": {
       "name": "CurrentSPA",
       "equity": 100047.71,
-      "daily_pnl": 10.8136,
+      "daily_pnl": 10.8132,
       "prev_equity": 100036.9,
-      "weighted_apy_pct": 3.9455,
+      "weighted_apy_pct": 3.9454,
       "total_return_pct": 0.0477,
       "weights": {
         "aave_v3": 0.237387,
@@ -135,8 +135,8 @@
     {
       "date": "2026-06-14",
       "S0": 100068.01,
-      "S1": 100053.2,
-      "S2": 100051.44,
+      "S1": 100053.19,
+      "S2": 100051.43,
       "S3": 100049.02,
       "S4": 100039.22,
       "S5": 100047.71
