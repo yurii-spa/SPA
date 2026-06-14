@@ -1,0 +1,8 @@
+{
+  "active": false,
+  "reason": "reset_after_false_positive",
+  "detail": "Sharpe -61 was artifact of <30 days data (had 5). Min 30 days now required before Sharpe affects kill-switch.",
+  "reset_at": "2026-06-14T14:30:00Z",
+  "threshold_updated": true,
+  "min_days_for_sharpe": 30
+}
