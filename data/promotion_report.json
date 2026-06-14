@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T17:03:09.403842+00:00",
+  "generated_at": "2026-06-14T18:33:53.398898+00:00",
   "source": "promotion_engine",
   "is_demo": false,
   "num_decisions": 11,
@@ -13,135 +13,135 @@
   "decisions": [
     {
       "strategy_id": "S0",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=9.2774 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 9.277362758507186,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403766+00:00"
+      "ts": "2026-06-14T18:33:53.398854+00:00"
     },
     {
       "strategy_id": "S7",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=860.9234 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 860.9233883558961,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403774+00:00"
+      "ts": "2026-06-14T18:33:53.398860+00:00"
     },
     {
       "strategy_id": "S2",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=157.8053 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 157.80527616519797,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403779+00:00"
+      "ts": "2026-06-14T18:33:53.398863+00:00"
     },
     {
       "strategy_id": "S1",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=262.3984 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 262.39839783304035,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403782+00:00"
+      "ts": "2026-06-14T18:33:53.398864+00:00"
     },
     {
       "strategy_id": "S4",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=249.4329 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 249.43287637486222,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403784+00:00"
+      "ts": "2026-06-14T18:33:53.398866+00:00"
     },
     {
       "strategy_id": "S9",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=9.2774 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 9.277362758507186,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403787+00:00"
+      "ts": "2026-06-14T18:33:53.398867+00:00"
     },
     {
       "strategy_id": "S6",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "action": "promote",
+      "reason": "Promote: sharpe_30d=264.3233 > PROMOTE_SHARPE=0.8",
       "metrics": {
-        "sharpe_30d": null,
+        "sharpe_30d": 264.3232946859596,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403790+00:00"
-    },
-    {
-      "strategy_id": "S5",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 13
-      },
-      "ts": "2026-06-14T17:03:09.403792+00:00"
-    },
-    {
-      "strategy_id": "S3",
-      "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 13
-      },
-      "ts": "2026-06-14T17:03:09.403794+00:00"
+      "ts": "2026-06-14T18:33:53.398869+00:00"
     },
     {
       "strategy_id": "S8",
       "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Hold: sharpe_30d недоступен",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403797+00:00"
+      "ts": "2026-06-14T18:33:53.398871+00:00"
     },
     {
       "strategy_id": "S10",
       "action": "hold",
-      "reason": "Недостаточно данных: 13 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Hold: sharpe_30d недоступен",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 13
+        "days_active": 16
       },
-      "ts": "2026-06-14T17:03:09.403800+00:00"
+      "ts": "2026-06-14T18:33:53.398872+00:00"
+    },
+    {
+      "strategy_id": "S5",
+      "action": "demote",
+      "reason": "Demote: sharpe_30d=-722.0526 < DEMOTE_SHARPE=0.0",
+      "metrics": {
+        "sharpe_30d": -722.0525977190385,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 16
+      },
+      "ts": "2026-06-14T18:33:53.398874+00:00"
+    },
+    {
+      "strategy_id": "S3",
+      "action": "demote",
+      "reason": "Demote: sharpe_30d=-505.6776 < DEMOTE_SHARPE=0.0",
+      "metrics": {
+        "sharpe_30d": -505.677616896468,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 16
+      },
+      "ts": "2026-06-14T18:33:53.398876+00:00"
     }
   ]
 }
