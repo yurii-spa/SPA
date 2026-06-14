@@ -1,0 +1,601 @@
+"""
+Tests for the adapter_status backend JSON source of truth (Sprint v3.33 / SPA-V333).
+
+All tests are deterministic and network-free.  Mock APY values are verified by
+importing the real adapter modules and comparing against their ``_DRY_RUN_APY``
+dicts, so the test stays in lock-step with the adapters (the whole point of the
+single-source-of-truth refactor).  Pattern mirrors test_pendle_pt_adapter.py.
+"""
+import json
+import os
+from unittest import mock
+
+import pytest
+
+from spa_core.execution import adapter_status
+from spa_core.execution.adapter_status import (
+    build_status_document,
+    collect_adapter_status,
+    write_status_json,
+)
+
+EXPECTED_PROTOCOL_KEYS = [
+    # T1 (Sprint v3.57 / SPA-V357) — listed first by tier priority.
+    "aave-v3",
+    "compound-v3",
+    # T2 (v3.52 / earlier).
+    "yearn-v3",
+    "euler-v2",
+    "maple",
+    "pendle-pt",
+    "sky-susds",
+]
+
+# T1 adapters wired in v3.57. Their mock APY is synthesised from the class-level
+# ``_MOCK_APYS`` (asset→apy) × SUPPORTED_CHAINS rather than a module-level
+# ``_DRY_RUN_APY`` dict.
+T1_PROTOCOL_KEYS = ["aave-v3", "compound-v3"]
+
+REQUIRED_FIELDS = (
+    "protocol_key",
+    "name",
+    "tier",
+    "allocation_cap",
+    "chains",
+    "assets",
+    "mock_apy",
+    "write_state",
+    "apy_source",
+)
+
+
+@pytest.fixture
+def adapters():
+    return collect_adapter_status()
+
+
+@pytest.fixture
+def by_key(adapters):
+    return {a["protocol_key"]: a for a in adapters}
+
+
+# ─── Collection: count + identity ────────────────────────────────────────────
+
+class TestCollectAdapterStatus:
+    def test_returns_seven_adapters(self, adapters):
+        assert len(adapters) == 7
+
+    def test_protocol_keys(self, adapters):
+        keys = [a["protocol_key"] for a in adapters]
+        assert keys == EXPECTED_PROTOCOL_KEYS
+
+    def test_all_keys_unique(self, adapters):
+        keys = [a["protocol_key"] for a in adapters]
+        assert len(set(keys)) == len(keys)
+
+    def test_no_errors_on_happy_path(self, adapters):
+        assert all("error" not in a for a in adapters)
+
+    def test_collect_does_not_raise(self):
+        # Idempotent / repeatable with no side effects.
+        collect_adapter_status()
+        collect_adapter_status()
+
+
+# ─── Required fields ─────────────────────────────────────────────────────────
+
+class TestRequiredFields:
+    @pytest.mark.parametrize("key", EXPECTED_PROTOCOL_KEYS)
+    def test_has_required_fields(self, by_key, key):
+        rec = by_key[key]
+        for field in REQUIRED_FIELDS:
+            assert field in rec, f"{key} missing {field}"
+
+    @pytest.mark.parametrize("key", EXPECTED_PROTOCOL_KEYS)
+    def test_apy_source_shape(self, by_key, key):
+        src = by_key[key]["apy_source"]
+        assert src["mode"] == "mock"
+        assert "live_project" in src
+        assert isinstance(src["live_enabled"], bool)
+
+    @pytest.mark.parametrize("key", EXPECTED_PROTOCOL_KEYS)
+    def test_chains_and_assets_nonempty(self, by_key, key):
+        rec = by_key[key]
+        assert rec["chains"], f"{key} has empty chains"
+        assert rec["assets"], f"{key} has empty assets"
+
+
+# ─── Tier values ─────────────────────────────────────────────────────────────
+
+class TestTiers:
+    def test_sky_is_conditional(self, by_key):
+        assert by_key["sky-susds"]["tier"] == "T2-conditional"
+
+    @pytest.mark.parametrize(
+        "key", ["yearn-v3", "euler-v2", "maple", "pendle-pt"]
+    )
+    def test_others_are_t2(self, by_key, key):
+        assert by_key[key]["tier"] == "T2"
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_adapters_are_t1(self, by_key, key):
+        assert by_key[key]["tier"] == "T1"
+
+
+# ─── Write-state values ──────────────────────────────────────────────────────
+
+class TestWriteState:
+    def test_pendle_not_implemented(self, by_key):
+        assert by_key["pendle-pt"]["write_state"] == "NOT_IMPLEMENTED"
+
+    @pytest.mark.parametrize(
+        "key", ["aave-v3", "compound-v3", "yearn-v3", "euler-v2", "maple", "sky-susds"]
+    )
+    def test_others_blocked(self, by_key, key):
+        assert by_key[key]["write_state"] == "BLOCKED"
+
+
+# ─── Allocation cap ──────────────────────────────────────────────────────────
+
+class TestAllocationCap:
+    @pytest.mark.parametrize(
+        "key", ["yearn-v3", "euler-v2", "maple", "pendle-pt"]
+    )
+    def test_t2_cap_is_020(self, by_key, key):
+        assert by_key[key]["allocation_cap"] == 0.20
+
+    def test_sky_cap_is_zero(self, by_key):
+        assert by_key["sky-susds"]["allocation_cap"] == 0.0
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_cap_is_040(self, by_key, key):
+        # Canonical T1 per-protocol concentration cap (risk/policy.py
+        # max_concentration_t1 = 0.40).
+        assert by_key[key]["allocation_cap"] == 0.40
+
+    def test_sky_has_allocation_note(self, by_key):
+        assert "allocation_note" in by_key["sky-susds"]
+        assert "0.30" in by_key["sky-susds"]["allocation_note"]
+
+
+# ─── Mock APY matches the adapter modules ────────────────────────────────────
+
+class TestMockApyMatchesModules:
+    def test_mock_apy_nonempty(self, by_key):
+        for key in EXPECTED_PROTOCOL_KEYS:
+            assert by_key[key]["mock_apy"], f"{key} mock_apy empty"
+
+    def test_yearn_matches_module(self, by_key):
+        from spa_core.execution.adapters import yearn_v3_adapter as m
+        assert by_key["yearn-v3"]["mock_apy"] == m._DRY_RUN_APY
+
+    def test_euler_matches_module(self, by_key):
+        from spa_core.execution.adapters import euler_v2_adapter as m
+        assert by_key["euler-v2"]["mock_apy"] == m._DRY_RUN_APY
+
+    def test_maple_matches_module(self, by_key):
+        from spa_core.execution.adapters import maple_adapter as m
+        assert by_key["maple"]["mock_apy"] == m._DRY_RUN_APY
+
+    def test_pendle_matches_module(self, by_key):
+        from spa_core.execution.adapters import pendle_pt_adapter as m
+        assert by_key["pendle-pt"]["mock_apy"] == m._DRY_RUN_APY
+
+    def test_sky_matches_module(self, by_key):
+        from spa_core.execution.adapters import sky_susds_adapter as m
+        assert by_key["sky-susds"]["mock_apy"] == m._DRY_RUN_APY
+
+    def test_chains_match_module(self, by_key):
+        from spa_core.execution.adapters import yearn_v3_adapter as m
+        assert by_key["yearn-v3"]["chains"] == list(m.YearnV3Adapter.SUPPORTED_CHAINS)
+
+    # ── T1 mock-APY synthesis from class-level _MOCK_APYS (Sprint v3.57) ──────
+    def test_aave_mock_apy_synthesised_from_class(self, by_key):
+        from spa_core.execution import aave_v3_adapter as m
+        cls = m.AaveV3Adapter
+        expected = {
+            chain: dict(cls._MOCK_APYS) for chain in cls.SUPPORTED_CHAINS
+        }
+        assert by_key["aave-v3"]["mock_apy"] == expected
+
+    def test_compound_mock_apy_synthesised_from_class(self, by_key):
+        from spa_core.execution import compound_v3_adapter as m
+        cls = m.CompoundV3Adapter
+        expected = {
+            chain: dict(cls._MOCK_APYS) for chain in cls.SUPPORTED_CHAINS
+        }
+        assert by_key["compound-v3"]["mock_apy"] == expected
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_mock_apy_nonempty(self, by_key, key):
+        assert by_key[key]["mock_apy"], f"{key} mock_apy empty"
+
+
+# ─── Document assembly ───────────────────────────────────────────────────────
+
+class TestBuildStatusDocument:
+    def test_top_level_fields(self):
+        doc = build_status_document()
+        assert "generated_at" in doc
+        assert doc["schema_version"] == 1
+        assert "adapters" in doc
+        assert "execution_mode" in doc
+        assert "live_apy_enabled" in doc
+
+    def test_adapters_count(self):
+        assert len(build_status_document()["adapters"]) == 7
+
+    def test_generated_at_is_iso8601_utc(self):
+        from datetime import datetime
+        doc = build_status_document()
+        # Parses without error and carries timezone info.
+        parsed = datetime.fromisoformat(doc["generated_at"])
+        assert parsed.tzinfo is not None
+
+    def test_execution_mode_default(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_EXECUTION_MODE", None)
+            assert build_status_document()["execution_mode"] == "dry_run"
+
+    def test_document_is_json_serialisable(self):
+        # Round-trips through json without raising.
+        json.dumps(build_status_document())
+
+
+# ─── write_status_json ───────────────────────────────────────────────────────
+
+class TestWriteStatusJson:
+    def test_writes_valid_json(self, tmp_path):
+        out = tmp_path / "adapter_status.json"
+        returned = write_status_json(out)
+        assert returned == str(out)
+        assert out.exists()
+        with out.open() as fh:
+            data = json.load(fh)
+        assert data["schema_version"] == 1
+        assert len(data["adapters"]) == 7
+
+    def test_creates_parent_dir(self, tmp_path):
+        out = tmp_path / "nested" / "deeper" / "adapter_status.json"
+        write_status_json(out)
+        assert out.exists()
+
+    def test_roundtrip_preserves_protocol_keys(self, tmp_path):
+        out = tmp_path / "adapter_status.json"
+        write_status_json(out)
+        with out.open() as fh:
+            data = json.load(fh)
+        keys = [a["protocol_key"] for a in data["adapters"]]
+        assert keys == EXPECTED_PROTOCOL_KEYS
+
+
+# ─── live_apy_enabled gate ───────────────────────────────────────────────────
+
+class TestLiveApyGate:
+    def test_live_apy_disabled_by_default(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_LIVE_APY", None)
+            doc = build_status_document()
+            assert doc["live_apy_enabled"] is False
+            assert all(
+                a["apy_source"]["live_enabled"] is False
+                for a in doc["adapters"]
+            )
+
+    def test_live_apy_enabled_via_env(self):
+        with mock.patch.dict(os.environ, {"SPA_LIVE_APY": "true"}):
+            doc = build_status_document()
+            assert doc["live_apy_enabled"] is True
+            assert all(
+                a["apy_source"]["live_enabled"] is True
+                for a in doc["adapters"]
+            )
+
+    def test_live_apy_gate_helper_default_false(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_LIVE_APY", None)
+            assert adapter_status._live_apy_enabled() is False
+
+
+# ─── Live APY enrichment (Sprint v3.35 / SPA-V335) ───────────────────────────
+
+class TestLiveApyEnrichment:
+    """Live APY embedding is gated on SPA_LIVE_APY and degrades gracefully."""
+
+    def test_no_live_apy_field_when_disabled(self):
+        """With the gate off, no record carries a live_apy map and mode=mock."""
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_LIVE_APY", None)
+            for rec in collect_adapter_status():
+                assert "live_apy" not in rec
+                assert rec["apy_source"]["mode"] == "mock"
+                assert rec["apy_source"]["live_values_present"] is False
+
+    def test_feed_not_touched_when_disabled(self, monkeypatch):
+        """The feed (network) must never be queried when the gate is off."""
+        from spa_core.execution import defillama_apy_feed
+
+        calls = []
+
+        def _spy(protocol, asset, chain):
+            calls.append((protocol, asset, chain))
+            return 9.99
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _spy)
+        monkeypatch.delenv("SPA_LIVE_APY", raising=False)
+        collect_adapter_status()
+        assert calls == []
+
+    def test_live_values_embedded_when_enabled(self, monkeypatch):
+        """With the gate on and the feed returning a number, live_apy is embedded."""
+        from spa_core.execution import defillama_apy_feed
+
+        monkeypatch.setattr(
+            defillama_apy_feed, "get_live_apy",
+            lambda protocol, asset, chain: 8.25,
+        )
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+
+        by_key = {a["protocol_key"]: a for a in collect_adapter_status()}
+        yearn = by_key["yearn-v3"]
+        assert "live_apy" in yearn
+        assert yearn["apy_source"]["mode"] == "live"
+        assert yearn["apy_source"]["live_values_present"] is True
+        # live_apy keys are a subset of the mock_apy (chain, asset) combos.
+        for chain, assets in yearn["live_apy"].items():
+            assert chain in yearn["mock_apy"]
+            for asset, apy in assets.items():
+                assert asset in yearn["mock_apy"][chain]
+                assert apy == 8.25
+
+    def test_live_apy_omitted_when_feed_returns_none(self, monkeypatch):
+        """Feed returning None for every pair → no live_apy, mode stays mock."""
+        from spa_core.execution import defillama_apy_feed
+
+        monkeypatch.setattr(
+            defillama_apy_feed, "get_live_apy",
+            lambda protocol, asset, chain: None,
+        )
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+
+        for rec in collect_adapter_status():
+            assert "live_apy" not in rec
+            assert rec["apy_source"]["mode"] == "mock"
+            assert rec["apy_source"]["live_values_present"] is False
+
+    def test_live_apy_never_raises_on_feed_error(self, monkeypatch):
+        """A feed that raises must not abort collection — graceful empty map."""
+        from spa_core.execution import defillama_apy_feed
+
+        def _boom(protocol, asset, chain):
+            raise RuntimeError("network down")
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _boom)
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+
+        adapters = collect_adapter_status()  # must not raise
+        assert len(adapters) == 7
+        for rec in adapters:
+            assert "live_apy" not in rec
+            assert rec["apy_source"]["mode"] == "mock"
+
+    def test_fetch_live_apy_map_subset(self, monkeypatch):
+        """_fetch_live_apy_map keeps only non-None pairs, omitting empty chains."""
+        from spa_core.execution import defillama_apy_feed
+
+        mock_apy = {
+            "ethereum": {"USDC": 6.8, "USDT": 6.5},
+            "arbitrum": {"USDC": 7.1},
+        }
+
+        def _selective(protocol, asset, chain):
+            # Only ethereum/USDC resolves; everything else misses.
+            if chain == "ethereum" and asset == "USDC":
+                return 6.42
+            return None
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _selective)
+        out = adapter_status._fetch_live_apy_map("yearn-v3", mock_apy)
+        assert out == {"ethereum": {"USDC": 6.42}}
+
+    def test_partial_live_flips_mode_to_live(self, monkeypatch):
+        """Even a single live match flips the source to live."""
+        from spa_core.execution import defillama_apy_feed
+
+        def _one_hit(protocol, asset, chain):
+            return 5.0 if (protocol == "maple") else None
+
+        monkeypatch.setattr(defillama_apy_feed, "get_live_apy", _one_hit)
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+        by_key = {a["protocol_key"]: a for a in collect_adapter_status()}
+        assert by_key["maple"]["apy_source"]["mode"] == "live"
+        assert by_key["yearn-v3"]["apy_source"]["mode"] == "mock"
+
+    def test_document_with_live_is_json_serialisable(self, monkeypatch):
+        from spa_core.execution import defillama_apy_feed
+
+        monkeypatch.setattr(
+            defillama_apy_feed, "get_live_apy",
+            lambda protocol, asset, chain: 7.0,
+        )
+        monkeypatch.setenv("SPA_LIVE_APY", "true")
+        doc = build_status_document()
+        json.dumps(doc)  # must not raise
+        assert doc["live_apy_enabled"] is True
+        assert any("live_apy" in a for a in doc["adapters"])
+
+
+# ─── MEV-protection status (Sprint v3.55 / SPA-V355) ─────────────────────────
+
+class TestMevProtectionStatus:
+    """build_status_document() surfaces the Flashbots Protect routing state."""
+
+    def test_mev_block_present(self):
+        doc = build_status_document()
+        assert "mev_protection" in doc
+        mev = doc["mev_protection"]
+        assert isinstance(mev, dict)
+        assert isinstance(mev["enabled"], bool)
+        assert "endpoint" in mev
+        assert "flashbots_mode" in mev
+        assert isinstance(mev["fallback_endpoints"], list)
+
+    def test_mev_disabled_by_default(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_MEV_PROTECTION", None)
+            assert build_status_document()["mev_protection"]["enabled"] is False
+
+    def test_mev_enabled_when_env_set(self):
+        with mock.patch.dict(os.environ, {"SPA_MEV_PROTECTION": "true"}):
+            mev = build_status_document()["mev_protection"]
+            assert mev["enabled"] is True
+            assert mev["endpoint"]  # non-empty
+
+    def test_mev_mode_fast_default(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SPA_FLASHBOTS_MODE", None)
+            mev = build_status_document()["mev_protection"]
+            assert mev["flashbots_mode"] == "fast"
+            assert "/fast" in mev["endpoint"]
+
+    def test_mev_mode_standard(self):
+        with mock.patch.dict(os.environ, {"SPA_FLASHBOTS_MODE": "standard"}):
+            mev = build_status_document()["mev_protection"]
+            assert mev["endpoint"] == "https://rpc.flashbots.net"
+
+    def test_document_still_json_serialisable(self):
+        json.dumps(build_status_document())  # must not raise
+
+
+# ─── MEV-routing applicability (Sprint v3.56 / SPA-V356) ─────────────────────
+
+class TestMevRoutingApplicability:
+    """Per-adapter MEV-routing flags + document-level routed/unrouted summary."""
+
+    # T1 aave-v3 / compound-v3 route via mev_protection.send_protected (v3.57).
+    ROUTED = ["aave-v3", "compound-v3", "yearn-v3", "euler-v2", "maple", "sky-susds"]
+    UNROUTED = ["pendle-pt"]
+
+    def test_every_record_has_bool_mev_routed(self, adapters):
+        for rec in adapters:
+            assert "mev_routed" in rec
+            assert isinstance(rec["mev_routed"], bool)
+
+    @pytest.mark.parametrize("key", ROUTED)
+    def test_routed_adapters_true(self, by_key, key):
+        assert by_key[key]["mev_routed"] is True
+
+    @pytest.mark.parametrize("key", UNROUTED)
+    def test_unrouted_adapters_false(self, by_key, key):
+        assert by_key[key]["mev_routed"] is False
+
+    def test_mev_block_has_routing_lists(self):
+        mev = build_status_document()["mev_protection"]
+        assert isinstance(mev["routed_adapters"], list)
+        assert isinstance(mev["unrouted_adapters"], list)
+
+    def test_pendle_in_unrouted_not_routed(self):
+        mev = build_status_document()["mev_protection"]
+        assert "pendle-pt" in mev["unrouted_adapters"]
+        assert "pendle-pt" not in mev["routed_adapters"]
+
+    def test_routed_plus_unrouted_partition_all_keys(self):
+        mev = build_status_document()["mev_protection"]
+        routed = set(mev["routed_adapters"])
+        unrouted = set(mev["unrouted_adapters"])
+        assert routed | unrouted == set(EXPECTED_PROTOCOL_KEYS)
+        assert routed & unrouted == set()
+
+    def test_broken_import_record_mev_routed_false(self):
+        broken = dict(adapter_status._ADAPTER_SPECS[0])
+        broken["module"] = "spa_core.execution.adapters.does_not_exist"
+        rec = adapter_status._adapter_record(broken, live_enabled=False)
+        # Must not KeyError and must default to False.
+        assert rec["mev_routed"] is False
+
+    def test_adapter_mev_routed_never_raises_on_sourceless(self):
+        # An object with no retrievable source → False, no exception.
+        assert adapter_status._adapter_mev_routed(object()) is False
+
+    def test_document_with_routing_is_json_serialisable(self):
+        json.dumps(build_status_document())  # must not raise
+
+    # ── T1 adapters present + routed (Sprint v3.57 / SPA-V357) ────────────────
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_present_in_document(self, by_key, key):
+        assert key in by_key
+
+    @pytest.mark.parametrize("key", T1_PROTOCOL_KEYS)
+    def test_t1_mev_routed_true(self, by_key, key):
+        assert by_key[key]["mev_routed"] is True
+
+    def test_t1_in_routed_adapters(self):
+        routed = build_status_document()["mev_protection"]["routed_adapters"]
+        assert "aave-v3" in routed
+        assert "compound-v3" in routed
+
+
+# ─── MEV-routing coverage summary (Sprint v3.58 / SPA-V358) ──────────────────
+
+class TestMevCoverageSummary:
+    """Derived mev_protection.coverage {routed, total, coverage_pct}."""
+
+    def _coverage(self):
+        return build_status_document()["mev_protection"]["coverage"]
+
+    def test_coverage_block_present_with_keys(self):
+        cov = self._coverage()
+        assert isinstance(cov, dict)
+        assert set(cov.keys()) == {"routed", "total", "coverage_pct"}
+
+    def test_coverage_types(self):
+        cov = self._coverage()
+        assert isinstance(cov["routed"], int)
+        assert isinstance(cov["total"], int)
+        assert isinstance(cov["coverage_pct"], float)
+
+    def test_routed_not_greater_than_total(self):
+        cov = self._coverage()
+        assert 0 <= cov["routed"] <= cov["total"]
+
+    def test_total_matches_all_protocol_keys(self):
+        cov = self._coverage()
+        assert cov["total"] == len(EXPECTED_PROTOCOL_KEYS)
+
+    def test_coverage_consistent_with_routing_lists(self):
+        mev = build_status_document()["mev_protection"]
+        cov = mev["coverage"]
+        assert cov["routed"] == len(mev["routed_adapters"])
+        assert cov["total"] == len(mev["routed_adapters"]) + len(mev["unrouted_adapters"])
+
+    def test_coverage_pct_matches_formula(self):
+        cov = self._coverage()
+        expected = round(100.0 * cov["routed"] / cov["total"], 1) if cov["total"] else 0.0
+        assert cov["coverage_pct"] == expected
+
+    def test_coverage_pct_within_bounds(self):
+        cov = self._coverage()
+        assert 0.0 <= cov["coverage_pct"] <= 100.0
+
+    def test_empty_adapter_set_is_zerodivision_safe(self, monkeypatch):
+        # No adapters → coverage_pct must be 0.0, not a ZeroDivisionError.
+        monkeypatch.setattr(adapter_status, "_ADAPTER_SPECS", [])
+        cov = build_status_document()["mev_protection"]["coverage"]
+        assert cov == {"routed": 0, "total": 0, "coverage_pct": 0.0}
+
+    def test_document_with_coverage_is_json_serialisable(self):
+        json.dumps(build_status_document())  # must not raise
+
+
+# ─── Resilience: broken adapter does not abort collection ────────────────────
+
+class TestResilience:
+    def test_broken_import_yields_error_record(self):
+        broken = dict(adapter_status._ADAPTER_SPECS[0])
+        broken["module"] = "spa_core.execution.adapters.does_not_exist"
+        rec = adapter_status._adapter_record(broken, live_enabled=False)
+        assert "error" in rec
+        # Graceful defaults so downstream consumers never KeyError.
+        assert rec["chains"] == []
+        assert rec["assets"] == []
+        assert rec["mock_apy"] == {}

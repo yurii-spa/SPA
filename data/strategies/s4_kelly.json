@@ -1,0 +1,25 @@
+{
+  "name": "s4_kelly",
+  "initial_capital": 100000.0,
+  "cash": 50000.0,
+  "positions": {
+    "morpho_blue": 12500.0,
+    "yearn_v3": 12500.0,
+    "euler_v2": 12500.0,
+    "maple": 12500.0
+  },
+  "equity": 100000.0,
+  "last_ts": "2026-06-09T17:27:26.761479+00:00",
+  "equity_curve": [
+    {
+      "ts": "2026-06-09T17:27:26.761479+00:00",
+      "equity": 100000.0,
+      "positions": {
+        "morpho_blue": 12500.0,
+        "yearn_v3": 12500.0,
+        "euler_v2": 12500.0,
+        "maple": 12500.0
+      }
+    }
+  ]
+}

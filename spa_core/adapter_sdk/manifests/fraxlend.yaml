@@ -1,0 +1,21 @@
+# Fraxlend (Frax Finance isolated lending pairs) — DeFiLlama yields project
+# slug: "fraxlend". MP-206 card: "Frax". Lending FRAX carries FRAX peg
+# exposure (algorithmic origins, now fully collateralized) on top of lending
+# risk, so the cap is deliberately 0.05 (below the T3 default 0.10) — same
+# convention as ethena_susde ("capped, ось peg").
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: fraxlend
+defillama_protocol_id: fraxlend
+chains:
+  - Ethereum
+symbols:
+  - FRAX
+tier: T3
+cap: 0.05
+exit_latency:
+  hours: 1.0          # supply withdrawal, utilisation-dependent => liquid
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0

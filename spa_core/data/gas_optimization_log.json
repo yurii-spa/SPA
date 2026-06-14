@@ -1,0 +1,72 @@
+[
+  {
+    "transactions": [
+      {
+        "protocol": "Aave V3",
+        "chain": "ethereum",
+        "tx_type": "deposit",
+        "estimated_gas_usd": 12.0,
+        "net_gain_usd": 13.0,
+        "gas_pct_of_position": 0.024,
+        "gas_efficiency": "EXCELLENT",
+        "recommendation": "Execute now \u2014 net gain $13.00 with minimal gas overhead",
+        "batch_candidate": false
+      },
+      {
+        "protocol": "Compound V3",
+        "chain": "ethereum",
+        "tx_type": "harvest",
+        "estimated_gas_usd": 8.0,
+        "net_gain_usd": -2.0,
+        "gas_pct_of_position": 0.08,
+        "gas_efficiency": "SKIP",
+        "recommendation": "Skip \u2014 gas $8.00 exceeds gain $6.00",
+        "batch_candidate": false
+      },
+      {
+        "protocol": "Morpho",
+        "chain": "base",
+        "tx_type": "rebalance",
+        "estimated_gas_usd": 0.5,
+        "net_gain_usd": 29.5,
+        "gas_pct_of_position": 0.0025,
+        "gas_efficiency": "EXCELLENT",
+        "recommendation": "Execute now \u2014 net gain $29.50 with minimal gas overhead",
+        "batch_candidate": false
+      },
+      {
+        "protocol": "Yearn V3",
+        "chain": "arbitrum",
+        "tx_type": "withdraw",
+        "estimated_gas_usd": 2.0,
+        "net_gain_usd": -0.5,
+        "gas_pct_of_position": 0.013333333333333334,
+        "gas_efficiency": "SKIP",
+        "recommendation": "Skip \u2014 gas $2.00 exceeds gain $1.50",
+        "batch_candidate": false
+      }
+    ],
+    "chain_summary": {
+      "ethereum": {
+        "tx_count": 2,
+        "avg_gas_usd": 10.0,
+        "total_gas_usd": 20.0
+      },
+      "base": {
+        "tx_count": 1,
+        "avg_gas_usd": 0.5,
+        "total_gas_usd": 0.5
+      },
+      "arbitrum": {
+        "tx_count": 1,
+        "avg_gas_usd": 2.0,
+        "total_gas_usd": 2.0
+      }
+    },
+    "batchable_transactions": [],
+    "total_estimated_gas_usd": 22.5,
+    "total_net_gain_usd": 40.0,
+    "skip_count": 2,
+    "timestamp": 1781378499.215516
+  }
+]

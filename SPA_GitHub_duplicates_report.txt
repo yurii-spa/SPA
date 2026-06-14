@@ -1,0 +1,297 @@
+================================================================================
+ОТЧЁТ ОБ АНАЛИЗЕ РЕПОЗИТОРИЯ SPA НА GITHUB
+Дата: 2026-06-13
+Репо: https://github.com/yurii-spa/SPA
+Метод: GitHub API (рекурсивный tree), только чтение — ничего не изменено
+================================================================================
+
+ИТОГ ОДНОЙ СТРОКОЙ
+------------------
+Репо содержит 1 500 файлов. Около 83 root-уровневых .py-файлов дублируют
+spa_core/, существуют три конкурирующих места для тестов, 23 операционных
+отчёта-черновика в корне, и ~8 файлов-мусора прямо в git. Главная путаница —
+неполная миграция кода в spa_core/ при которой старые корневые файлы
+так и не были удалены.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§1. ОБЩАЯ СТАТИСТИКА
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Всего файлов в репо:  1 500
+
+Разбивка по директориям верхнего уровня:
+   752  spa_core/           ← активный код
+   245  (корень репо)       ← ПРОБЛЕМА: слишком много мусора
+   245  data/               ← state-файлы (нормально)
+    86  docs/               ← документация и ADR
+    66  tests/              ← "интеграционные тесты" (но дублируют spa_core/tests/)
+    47  scripts/            ← вспомогательные скрипты
+    31  SPA/                ← АРХИВ v0.3 (устаревший, вводит в заблуждение)
+    19  spa_frontend/       ← фронтенд
+     4  .pytest_cache/      ← МУСОР: не должен быть в git
+     2  memory/
+     1  .claude/
+     1  .github/
+     1  reports/
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§2. ПРОБЛЕМА №1 — САМАЯ БОЛЬШАЯ: 83 root-уровневых .py дублируют spa_core/
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+В корне репо находятся 87 .py-файлов. Из них 83 имеют точные копии
+(по имени файла) внутри spa_core/. Это означает, что ВСЯ кодовая база
+была когда-то плоской (всё в корне), затем мигрировала в spa_core/,
+но старые файлы из корня так и не были удалены.
+
+Таблица дублей (выборка наиболее критичных):
+
+  ФАЙЛ В КОРНЕ                 | КОПИЯ В SPA_CORE/
+  -----------------------------|--------------------------------------------------
+  cycle_runner.py              | spa_core/paper_trading/cycle_runner.py   ← ЯДРО!
+  adapter_orchestrator.py      | spa_core/orchestrator/adapter_orchestrator.py
+  adapter_watchdog.py          | spa_core/monitoring/adapter_watchdog.py
+                               | spa_core/scheduler/adapter_watchdog.py   (×2 копии!)
+  allocator.py                 | spa_core/allocator/allocator.py
+  alert_config.py              | spa_core/alerts/alert_config.py
+  alert_dispatcher.py          | spa_core/alerts/alert_dispatcher.py
+  alert_rules.py               | spa_core/alerts/alert_rules.py
+  allocation_models.py         | spa_core/allocator/allocation_models.py
+  apy_gap_report.py            | spa_core/data_pipeline/apy_gap_report.py
+  backtester.py                | spa_core/strategies/backtester.py
+  base.py                      | spa_core/agents/base.py
+                               | spa_core/strategies/base.py              (×2 копии!)
+  baseline.py                  | spa_core/strategies/baseline.py
+  compound_v3.py               | spa_core/adapters/compound_v3.py
+  concentration.py             | spa_core/risk/concentration.py
+  concentration_analytics.py   | spa_core/paper_trading/concentration_analytics.py
+  correlation_analyzer.py      | spa_core/paper_trading/correlation_analyzer.py
+  criteria.py                  | spa_core/golive/criteria.py
+  cycle_runner.py              | spa_core/paper_trading/cycle_runner.py
+  drawdown_analytics.py        | spa_core/paper_trading/drawdown_analytics.py
+  drift_calculator.py          | spa_core/paper_trading/drift_calculator.py
+  health_score.py              | spa_core/paper_trading/health_score.py
+  honest_metrics.py            | spa_core/paper_trading/honest_metrics.py
+  kelly.py                     | spa_core/strategies/kelly.py
+  readiness_checker.py         | spa_core/golive/readiness_checker.py
+  readiness_report.py          | spa_core/paper_trading/readiness_report.py
+  rebalance_optimizer.py       | spa_core/paper_trading/rebalance_optimizer.py
+  risk_contribution.py         | spa_core/paper_trading/risk_contribution.py
+  risk_parity.py               | spa_core/strategies/risk_parity.py
+  run_cycle.py                 | spa_core/paper_trading/run_cycle.py
+  state_tracker.py             | spa_core/paper_trading/state_tracker.py
+  tail_risk.py                 | spa_core/strategies/tail_risk.py
+  yield_attribution.py         | spa_core/paper_trading/yield_attribution.py
+  push_to_github.py            | (+ множество других push-скриптов в разных местах)
+  ...и ещё ~49 файлов
+
+КРИТИЧЕСКИ ВАЖНО: root/cycle_runner.py и spa_core/paper_trading/cycle_runner.py
+существуют одновременно. CLAUDE.md явно указывает, что правильный модуль —
+spa_core-версия. Root-копия — потенциальный источник запуска УСТАРЕВШЕГО кода
+если кто-то сделает `python3 cycle_runner.py` из корня репо.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§3. ПРОБЛЕМА №2: ТРИ места для тестов вместо двух (как указано в CLAUDE.md)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLAUDE.md заявляет: "tests/ — 11 файлов" и "spa_core/tests/ — ~800+ файлов".
+На самом деле в репо ТРИ места для тестов:
+
+  МЕСТО 1: tests/           — 63 файла  (CLAUDE.md говорил "11" — расхождение ×6!)
+  МЕСТО 2: spa_core/tests/  — 279 файлов (CLAUDE.md говорил "~800+")
+  МЕСТО 3: корень репо      — 30 файлов test_*.py прямо в корне (вообще не упомянуто!)
+
+Пересечение по именам файлов (один и тот же basename в tests/ И spa_core/tests/):
+  11 файлов дублированы:
+  - conftest.py                  — в обоих местах
+  - test_apy_tracker.py          — в обоих местах (и ещё в корне = 3 копии!)
+  - test_concurrent_fetch.py     — в обоих местах
+  - test_conftest_fixtures.py    — в обоих местах
+  - test_defillama_feed.py       — в обоих местах
+  - test_dev_agents.py           — в обоих местах
+  - test_integration_e2e.py      — в обоих местах
+  - test_mev_protection.py       — в обоих местах
+  - test_rebalancing.py          — в обоих местах
+  - test_retry_logic.py          — в обоих местах
+  - test_seed_demo.py            — в обоих местах
+
+ROOT-уровневые test_*.py (30 штук — полностью неожиданное место):
+  test_adapter_orchestrator.py, test_alert_dispatcher.py, test_apy_tracker.py,
+  test_backtester.py, test_cycle_runner.py, test_defillama_feed.py,
+  test_golive_checker.py, test_risk_policy.py, ...и ещё ~22 файла.
+
+ИТОГО: test_apy_tracker.py существует в ТРЁХ МЕСТАХ одновременно:
+  - test_apy_tracker.py                              (корень)
+  - tests/test_apy_tracker.py                        (tests/)
+  - spa_core/tests/.../test_apy_tracker.py           (spa_core/tests/)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§4. ПРОБЛЕМА №3: Стратегии S15–S19 в корне (не в spa_core/strategies/)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+В корне репо найдены 4 файла стратегий вне spa_core/strategies/:
+
+  s15_multichain_l2.py       ← стратегия S15 (CLAUDE.md описывает S0–S10)
+  s16_stablecoin_ladder.py   ← стратегия S16
+  s18_high_yield_t2.py       ← стратегия S18
+  s19_balanced_l2.py         ← стратегия S19
+
+CLAUDE.md описывает tournament S0–S10. S15–S19 — либо устаревшие эксперименты,
+либо разработка, потерявшаяся в корне. Tournament-evaluator их скорее всего
+не видит, т.к. ищет стратегии в spa_core/strategies/.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§5. ПРОБЛЕМА №4: Директория SPA/ — архив v0.3, вводящий в заблуждение
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Директория SPA/ содержит 31 файл — документацию ранней версии v0.3
+(Risk_Policy_v0.3.md, ADR-2026-001, Architecture_v0.3 и т.д.).
+
+Проблема: открыв репо, можно прочитать SPA/01_Docs/Risk_Policy_v0.3.md
+и перепутать с актуальной политикой (которая в docs/ и CLAUDE.md).
+Два пространства ADR (SPA/06_ADR/ и docs/adr/) ведут к дублированию истории.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§6. ПРОБЛЕМА №5: 23 DISPATCH_REPORT файла и 56 корневых .md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+23 файла DISPATCH_REPORT_*.md в корне — операционные отчёты одного-двух дней
+с многочисленными версиями: v1, v2, v3, v350_orchestrator, v351_architect...
+
+  DISPATCH_REPORT_2026-05-30_v2.md
+  DISPATCH_REPORT_2026-05-30_v3.md
+  DISPATCH_REPORT_2026-05-30_v350_orchestrator.md   ← версия 350?!
+  DISPATCH_REPORT_2026-05-30_v351_architect.md
+  ...и т.д.
+
+Корень репо выглядит как рабочий стол разработчика. Итого 56 .md файлов
+в корне — смесь активных (MASTER_PLAN_v1.md, KANBAN) и архивных
+(CHANGELOG_v0.3.md, ADR-strategy-shadow.md, ARCHITECT_REPORT_v1.md).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§7. ПРОБЛЕМА №6: Мусор в git (не должен быть в репо)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Файлы, которые не должны быть в git:
+  .pytest_cache/CACHEDIR.TAG           ← кэш pytest (4 файла)
+  .pytest_cache/README.md
+  .pytest_cache/v/cache/lastfailed
+  .pytest_cache/v/cache/nodeids
+  .ts_err                              ← случайный файл ошибки TypeScript/TS
+  =0.10.0                              ← артефакт pip ("pip install =0.10.0"?)
+  CLAUDE.md.bak                        ← backup
+  CURRENT_STATE.md.bak                 ← backup
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§8. ТОП-10 САМЫХ ЗАПУТАННЫХ ПАТТЕРНОВ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+#1  cycle_runner.py в корне vs spa_core/paper_trading/cycle_runner.py
+    → Запуск не того файла нарушит production-цикл. КРИТИЧНО.
+
+#2  83 из 87 корневых .py имеют копии в spa_core/
+    → Непонятно, какая версия актуальна. Возможны расхождения в логике.
+
+#3  test_apy_tracker.py существует в 3 местах одновременно
+    → pytest --rootdir может запускать все три, давая ложные результаты.
+
+#4  CLAUDE.md утверждает "11 файлов в tests/" — реально 63
+    → Документация устарела, вводит в заблуждение при онбординге Claude.
+
+#5  SPA/ папка с Risk_Policy_v0.3.md в корне репо
+    → Кто-то прочтёт устаревшую политику как актуальную v1.0.
+
+#6  23 DISPATCH_REPORT черновика в корне с версиями v350, v351...
+    → Корень выглядит как папка с черновиками, а не production-репо.
+
+#7  adapter_watchdog.py: 3 копии (корень + 2 внутри spa_core/)
+    → Три версии одного watchdog. Какой реально запускается launchd?
+
+#8  s15–s19 стратегии в корне (не в spa_core/strategies/)
+    → Tournament-evaluator их не обнаружит. Статус не задокументирован.
+
+#9  .pytest_cache/ в git — .gitignore не покрывает кэши
+    → Засоряет историю коммитов, CI может получать устаревшие результаты.
+
+#10 38 push-скриптов и 27 .command файлов без реестра статуса
+    → Неясно, какие fix-скрипты выполнены, а какие ещё нужны или сломаны.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§9. РЕКОМЕНДУЕМЫЕ ДЕЙСТВИЯ ПО ОЧИСТКЕ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ПРИОРИТЕТ КРИТИЧЕСКИЙ (риск запуска устаревшего кода):
+
+  [C1] Провести git diff между каждым root-уровневым .py и его spa_core/-копией.
+       Для файлов где spa_core-версия новее — удалить root-копию.
+       Особо срочно: cycle_runner.py, adapter_orchestrator.py, allocator.py.
+       (ориентировочно 83 файла к удалению из корня)
+
+  [C2] Выбрать ЕДИНСТВЕННОЕ место для тестов. Рекомендация:
+       - tests/ → только e2e/интеграционные (10–15 файлов, остальное удалить)
+       - spa_core/tests/ → все unit-тесты
+       - Перенести или удалить 30 test_*.py из корня репо
+       - Разрешить 11 файлов с одинаковыми именами в обоих местах
+
+  [C3] Выбрать одну версию adapter_watchdog.py из двух в spa_core/,
+       вторую удалить. Удалить root-копию.
+
+ПРИОРИТЕТ ВЫСОКИЙ (путаница при разработке):
+
+  [H1] Переместить SPA/ → docs/archive/v0.3/ или в отдельный тег/ветку.
+       Добавить README с пометкой "АРХИВ: устарело, НЕ использовать".
+
+  [H2] Переместить все 23 DISPATCH_REPORT_*.md → docs/dispatch_archive/
+       Оставить только финальную версию каждого дня если нужна история.
+
+  [H3] Определить судьбу s15–s19:
+       a) Если актуальны → переместить в spa_core/strategies/ и добавить в реестр
+       b) Если устарели → удалить, задокументировать причину в ADR
+
+  [H4] Обновить CLAUDE.md: скорректировать числа тестов (tests/: 63, не 11).
+
+ПРИОРИТЕТ СРЕДНИЙ (порядок):
+
+  [M1] Добавить в .gitignore: __pycache__/, .pytest_cache/, *.pyc, *.bak, .ts_err
+
+  [M2] Удалить файлы-мусор: .ts_err, =0.10.0, *.bak
+
+  [M3] Провести аудит 27 .command файлов: создать список «выполнено/активно»,
+       удалить одноразовые выполненные fix-скрипты.
+
+  [M4] Перенести ADR-strategy-shadow.md из корня → docs/adr/
+
+  [M5] Разделить 56 корневых .md:
+       - Активные (MASTER_PLAN, KANBAN, CURRENT_STATE) → остаются в корне
+       - Архивные (CHANGELOG_v0.3, DISPATCH_REPORT, ANALYST_REPORT_v1) → docs/archive/
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+§10. ТАБЛИЦА РИСКОВ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Проблема                   | Кол-во файлов | Риск       | Действие
+---------------------------|---------------|------------|-------------------
+Root .py дубли (spa_core/) | 83 файла      | КРИТИЧ.    | git diff + удалить
+Тест-хаос (3 места)        | ~372 файла    | ВЫСОКИЙ    | Выбрать одно место
+Архив SPA/ v0.3            | 31 файл       | ВЫСОКИЙ    | В docs/archive/
+DISPATCH черновики          | 23 файла      | СРЕДНИЙ    | В docs/archive/
+.command файлы (статус?)   | 27 файлов     | СРЕДНИЙ    | Аудит и удаление
+Стратегии s15–s19 в корне  | 4 файла       | СРЕДНИЙ    | Переместить/удалить
+Мусор в git                | 8 файлов      | НИЗКИЙ     | .gitignore + удалить
+
+Если делать одно действие: удалить 83 root-уровневых .py-дубля
+(после git diff) — это убирает главный источник путаницы и риска
+запуска устаревшего кода из корня репо.
+
+================================================================================
+Отчёт создан автоматически 2026-06-13. Репо не изменялось — только чтение.
+================================================================================

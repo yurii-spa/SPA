@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Data files (runtime, не в git)
+data/*.json
+logs/*.log
+/tmp/
+
+# Backup files
+*.bak
+*.bak_*
+
+# Push script archives
+scripts/archive/
+
+# OS
+.DS_Store
+.env
+
+# Venv
+venv/
+.venv/
+.github_pat
+.github_config

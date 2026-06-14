@@ -1,0 +1,20 @@
+# Across Protocol bridge LP (hub pool) — DeFiLlama yields project slug:
+# "across". MP-206 card: "Across LP". Stable legs only (USDC/USDT); LP exits
+# are quick but depend on hub-pool utilisation — conservative 1h liquid.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: across
+defillama_protocol_id: across
+chains:
+  - Ethereum
+symbols:
+  - USDC
+  - USDT
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 1.0          # LP exit subject to hub-pool utilisation
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0

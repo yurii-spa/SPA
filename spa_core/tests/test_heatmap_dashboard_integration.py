@@ -1,0 +1,508 @@
+"""
+MP-602 — Dashboard v3.2 Heat Map Panel
+Integration tests: data/heat_map.json structure + index.html Heat Map panel elements.
+
+Run:
+    python3 -m unittest spa_core.tests.test_heatmap_dashboard_integration -v
+"""
+
+import json
+import os
+import unittest
+
+# ── Path helpers ────────────────────────────────────────────────────────────────
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_HEAT_MAP_JSON = os.path.join(_ROOT, "data", "heat_map.json")
+_INDEX_HTML    = os.path.join(_ROOT, "index.html")
+
+
+def _load_heat_map():
+    with open(_HEAT_MAP_JSON, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _load_html():
+    with open(_INDEX_HTML, encoding="utf-8") as f:
+        return f.read()
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 1. heat_map.json — top-level structure
+# ════════════════════════════════════════════════════════════════════════════════
+class TestHeatMapJsonTopLevel(unittest.TestCase):
+    """heat_map.json — top-level required fields and types."""
+
+    def setUp(self):
+        self.data = _load_heat_map()
+
+    def test_file_exists(self):
+        self.assertTrue(os.path.isfile(_HEAT_MAP_JSON))
+
+    def test_valid_json(self):
+        # Loading in setUp already proves it; explicit assertion for clarity
+        self.assertIsInstance(self.data, dict)
+
+    def test_has_generated_at(self):
+        self.assertIn("generated_at", self.data)
+
+    def test_generated_at_is_string(self):
+        self.assertIsInstance(self.data["generated_at"], str)
+
+    def test_generated_at_nonempty(self):
+        self.assertTrue(len(self.data["generated_at"]) > 0)
+
+    def test_has_total_adapters(self):
+        self.assertIn("total_adapters", self.data)
+
+    def test_total_adapters_is_int(self):
+        self.assertIsInstance(self.data["total_adapters"], int)
+
+    def test_total_adapters_positive(self):
+        self.assertGreater(self.data["total_adapters"], 0)
+
+    def test_has_groups(self):
+        self.assertIn("groups", self.data)
+
+    def test_groups_is_list(self):
+        self.assertIsInstance(self.data["groups"], list)
+
+    def test_groups_nonempty(self):
+        self.assertGreater(len(self.data["groups"]), 0)
+
+    def test_has_apy_range(self):
+        self.assertIn("apy_range", self.data)
+
+    def test_apy_range_is_dict(self):
+        self.assertIsInstance(self.data["apy_range"], dict)
+
+    def test_apy_range_has_min(self):
+        self.assertIn("min", self.data["apy_range"])
+
+    def test_apy_range_has_max(self):
+        self.assertIn("max", self.data["apy_range"])
+
+    def test_apy_range_has_avg(self):
+        self.assertIn("avg", self.data["apy_range"])
+
+    def test_apy_range_min_lte_max(self):
+        ar = self.data["apy_range"]
+        self.assertLessEqual(ar["min"], ar["max"])
+
+    def test_apy_range_avg_between_min_max(self):
+        ar = self.data["apy_range"]
+        self.assertGreaterEqual(ar["avg"], ar["min"])
+        self.assertLessEqual(ar["avg"], ar["max"])
+
+    def test_has_tvl_total_usd(self):
+        self.assertIn("tvl_total_usd", self.data)
+
+    def test_tvl_total_usd_numeric(self):
+        self.assertIsInstance(self.data["tvl_total_usd"], (int, float))
+
+    def test_tvl_total_usd_nonnegative(self):
+        self.assertGreaterEqual(self.data["tvl_total_usd"], 0)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 2. heat_map.json — group structure
+# ════════════════════════════════════════════════════════════════════════════════
+class TestHeatMapJsonGroups(unittest.TestCase):
+    """heat_map.json — each group object structure."""
+
+    def setUp(self):
+        self.data   = _load_heat_map()
+        self.groups = self.data["groups"]
+        self.first  = self.groups[0]
+
+    def test_group_has_group_id(self):
+        self.assertIn("group_id", self.first)
+
+    def test_group_has_chain(self):
+        self.assertIn("chain", self.first)
+
+    def test_group_has_tier(self):
+        self.assertIn("tier", self.first)
+
+    def test_group_has_cells(self):
+        self.assertIn("cells", self.first)
+
+    def test_group_cells_is_list(self):
+        self.assertIsInstance(self.first["cells"], list)
+
+    def test_group_has_avg_apy_pct(self):
+        self.assertIn("avg_apy_pct", self.first)
+
+    def test_group_has_total_tvl_usd(self):
+        self.assertIn("total_tvl_usd", self.first)
+
+    def test_group_has_count(self):
+        self.assertIn("count", self.first)
+
+    def test_group_count_equals_cells_length(self):
+        for g in self.groups:
+            self.assertEqual(g["count"], len(g["cells"]))
+
+    def test_all_groups_have_chain(self):
+        for g in self.groups:
+            self.assertIn("chain", g)
+            self.assertIsInstance(g["chain"], str)
+
+    def test_no_duplicate_group_ids(self):
+        ids = [g["group_id"] for g in self.groups]
+        self.assertEqual(len(ids), len(set(ids)))
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 3. heat_map.json — cell structure
+# ════════════════════════════════════════════════════════════════════════════════
+class TestHeatMapJsonCells(unittest.TestCase):
+    """heat_map.json — each cell object structure."""
+
+    def setUp(self):
+        self.data  = _load_heat_map()
+        self.cells = [c for g in self.data["groups"] for c in g["cells"]]
+        self.first = self.cells[0]
+
+    def test_cells_nonempty(self):
+        self.assertGreater(len(self.cells), 0)
+
+    def test_cell_has_adapter_id(self):
+        self.assertIn("adapter_id", self.first)
+
+    def test_cell_has_chain(self):
+        self.assertIn("chain", self.first)
+
+    def test_cell_has_apy_pct(self):
+        self.assertIn("apy_pct", self.first)
+
+    def test_cell_apy_pct_numeric(self):
+        self.assertIsInstance(self.first["apy_pct"], (int, float))
+
+    def test_cell_has_color_bucket(self):
+        self.assertIn("color_bucket", self.first)
+
+    def test_cell_color_bucket_valid(self):
+        valid = {"low", "medium", "high", "very_high"}
+        for c in self.cells:
+            self.assertIn(c["color_bucket"], valid,
+                          msg=f"adapter {c.get('adapter_id')} has invalid color_bucket {c['color_bucket']!r}")
+
+    def test_cell_has_size_bucket(self):
+        self.assertIn("size_bucket", self.first)
+
+    def test_cell_size_bucket_valid(self):
+        valid = {"small", "medium", "large"}
+        for c in self.cells:
+            self.assertIn(c["size_bucket"], valid,
+                          msg=f"adapter {c.get('adapter_id')} has invalid size_bucket {c['size_bucket']!r}")
+
+    def test_cell_has_label(self):
+        self.assertIn("label", self.first)
+
+    def test_cell_label_nonempty(self):
+        self.assertTrue(len(self.first["label"]) > 0)
+
+    def test_cell_has_tvl_formatted(self):
+        self.assertIn("tvl_formatted", self.first)
+
+    def test_cell_has_tooltip(self):
+        self.assertIn("tooltip", self.first)
+
+    def test_cell_tooltip_contains_apy(self):
+        self.assertIn("APY", self.first["tooltip"])
+
+    def test_cell_has_is_eligible(self):
+        self.assertIn("is_eligible", self.first)
+
+    def test_cell_is_eligible_bool(self):
+        self.assertIsInstance(self.first["is_eligible"], bool)
+
+    def test_cell_has_tvl_usd(self):
+        self.assertIn("tvl_usd", self.first)
+
+    def test_cell_has_risk_score(self):
+        self.assertIn("risk_score", self.first)
+
+    def test_cell_risk_score_between_0_and_1(self):
+        for c in self.cells:
+            rs = c.get("risk_score", 0)
+            self.assertGreaterEqual(rs, 0)
+            self.assertLessEqual(rs, 1)
+
+    def test_total_adapters_matches_cells_count(self):
+        n = self.data["total_adapters"]
+        self.assertEqual(n, len(self.cells))
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 4. index.html — HTML elements
+# ════════════════════════════════════════════════════════════════════════════════
+class TestIndexHtmlHeatMapHTML(unittest.TestCase):
+    """index.html must contain all required Heat Map HTML elements."""
+
+    def setUp(self):
+        self.html = _load_html()
+
+    def test_heat_map_panel_div_exists(self):
+        self.assertIn('id="heat-map-panel"', self.html)
+
+    def test_hm_grid_div_exists(self):
+        self.assertIn('id="hm-grid"', self.html)
+
+    def test_hm_summary_div_exists(self):
+        self.assertIn('id="hm-summary"', self.html)
+
+    def test_hm_last_updated_span_exists(self):
+        self.assertIn('id="hm-last-updated"', self.html)
+
+    def test_hm_legend_div_exists(self):
+        self.assertIn('class="hm-legend"', self.html)
+
+    def test_hm_badge_low_exists(self):
+        self.assertIn('hm-badge hm-low', self.html)
+
+    def test_hm_badge_medium_exists(self):
+        self.assertIn('hm-badge hm-medium', self.html)
+
+    def test_hm_badge_high_exists(self):
+        self.assertIn('hm-badge hm-high', self.html)
+
+    def test_hm_badge_very_high_exists(self):
+        self.assertIn('hm-badge hm-very-high', self.html)
+
+    def test_refresh_button_exists(self):
+        self.assertIn('onclick="loadHeatMap(true)"', self.html)
+
+    def test_heat_map_inside_tab_analytics(self):
+        start = self.html.index('id="tab-analytics"')
+        end   = self.html.index('<!-- /tab-analytics -->')
+        self.assertIn('id="heat-map-panel"', self.html[start:end])
+
+    def test_heat_map_title_text(self):
+        self.assertIn('Adapter Heat Map', self.html)
+
+    def test_low_legend_label(self):
+        self.assertIn('Low', self.html)
+
+    def test_high_legend_label(self):
+        self.assertIn('High', self.html)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 5. index.html — JavaScript
+# ════════════════════════════════════════════════════════════════════════════════
+class TestIndexHtmlHeatMapJS(unittest.TestCase):
+    """index.html must contain correct JavaScript for Heat Map."""
+
+    def setUp(self):
+        self.html = _load_html()
+
+    def test_loadHeatMap_function_defined(self):
+        self.assertIn('async function loadHeatMap', self.html)
+
+    def test_renderHeatMap_function_defined(self):
+        self.assertIn('function renderHeatMap', self.html)
+
+    def test_hmChainEmoji_function_defined(self):
+        self.assertIn('function _hmChainEmoji', self.html)
+
+    def test_loadHeatMap_called_deferred_in_loadAnalytics(self):
+        self.assertIn('loadHeatMap()', self.html)
+
+    def test_fetch_heat_map_json(self):
+        self.assertIn('heat_map.json', self.html)
+
+    def test_force_cache_busting(self):
+        # force=true should use ?t= cache-bust
+        self.assertIn("?t=' + Date.now()", self.html)
+
+    def test_renderHeatMap_uses_hm_grid(self):
+        self.assertIn("getElementById('hm-grid')", self.html)
+
+    def test_renderHeatMap_uses_hm_summary(self):
+        self.assertIn("getElementById('hm-summary')", self.html)
+
+    def test_hm_last_updated_set_in_loadHeatMap(self):
+        self.assertIn("getElementById('hm-last-updated')", self.html)
+
+    def test_generated_at_used_for_timestamp(self):
+        self.assertIn('generated_at', self.html)
+
+    def test_chain_emoji_ethereum(self):
+        self.assertIn("ethereum:'⚪'", self.html)
+
+    def test_chain_emoji_arbitrum(self):
+        self.assertIn("arbitrum:'🔵'", self.html)
+
+    def test_chain_emoji_optimism(self):
+        self.assertIn("optimism:'🔴'", self.html)
+
+    def test_chain_emoji_polygon(self):
+        self.assertIn("polygon:'🟣'", self.html)
+
+    def test_fallback_emoji_in_chain_emoji(self):
+        self.assertIn("'🔘'", self.html)
+
+    def test_cells_loop_in_renderHeatMap(self):
+        self.assertIn("group.cells", self.html)
+
+    def test_color_bucket_css_class_applied(self):
+        # class assigned as 'hm-cell hm-' + bucket + ' hm-size-' + size
+        self.assertIn("'hm-cell hm-' + bucket", self.html)
+
+    def test_size_bucket_css_class_applied(self):
+        self.assertIn("' hm-size-' + size", self.html)
+
+    def test_is_eligible_opacity_applied(self):
+        self.assertIn("is_eligible", self.html)
+        self.assertIn("opacity", self.html)
+
+    def test_error_handler_in_loadHeatMap(self):
+        self.assertIn("hm-error", self.html)
+
+    def test_summary_shows_adapter_count(self):
+        self.assertIn("total_adapters", self.html)
+
+    def test_summary_shows_tvl(self):
+        self.assertIn("tvl_total_usd", self.html)
+
+    def test_summary_shows_apy_range(self):
+        self.assertIn("apy_range", self.html)
+
+    def test_mp602_comment_in_js(self):
+        self.assertIn("MP-602", self.html)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 6. index.html — CSS classes
+# ════════════════════════════════════════════════════════════════════════════════
+class TestIndexHtmlHeatMapCSS(unittest.TestCase):
+    """index.html must define all required Heat Map CSS classes."""
+
+    def setUp(self):
+        self.html = _load_html()
+
+    def test_hm_grid_css(self):
+        self.assertIn('.hm-grid', self.html)
+
+    def test_hm_cell_css(self):
+        self.assertIn('.hm-cell', self.html)
+
+    def test_hm_label_css(self):
+        self.assertIn('.hm-label', self.html)
+
+    def test_hm_apy_css(self):
+        self.assertIn('.hm-apy', self.html)
+
+    def test_hm_tvl_css(self):
+        self.assertIn('.hm-tvl', self.html)
+
+    def test_hm_low_css(self):
+        self.assertIn('.hm-low', self.html)
+
+    def test_hm_medium_css(self):
+        self.assertIn('.hm-medium', self.html)
+
+    def test_hm_high_css(self):
+        self.assertIn('.hm-high', self.html)
+
+    def test_hm_very_high_css(self):
+        self.assertIn('.hm-very-high', self.html)
+
+    def test_hm_size_small_css(self):
+        self.assertIn('.hm-size-small', self.html)
+
+    def test_hm_size_medium_css(self):
+        self.assertIn('.hm-size-medium', self.html)
+
+    def test_hm_size_large_css(self):
+        self.assertIn('.hm-size-large', self.html)
+
+    def test_hm_legend_css(self):
+        self.assertIn('.hm-legend', self.html)
+
+    def test_hm_badge_css(self):
+        self.assertIn('.hm-badge', self.html)
+
+    def test_hm_summary_css(self):
+        self.assertIn('.hm-summary', self.html)
+
+    def test_hm_error_css(self):
+        self.assertIn('.hm-error', self.html)
+
+    def test_hm_chain_label_css(self):
+        self.assertIn('.hm-chain-label', self.html)
+
+    def test_hm_cells_css(self):
+        self.assertIn('.hm-cells', self.html)
+
+    def test_night_mode_hm_low(self):
+        self.assertIn('body.night .hm-low', self.html)
+
+    def test_night_mode_hm_medium(self):
+        self.assertIn('body.night .hm-medium', self.html)
+
+    def test_night_mode_hm_high(self):
+        self.assertIn('body.night .hm-high', self.html)
+
+    def test_night_mode_hm_very_high(self):
+        self.assertIn('body.night .hm-very-high', self.html)
+
+    def test_hover_transform_scale(self):
+        self.assertIn('transform:scale(1.05)', self.html)
+
+    def test_transition_on_cell(self):
+        self.assertIn('transition:', self.html)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 7. Edge cases
+# ════════════════════════════════════════════════════════════════════════════════
+class TestHeatMapEdgeCases(unittest.TestCase):
+    """Edge case: empty groups list handled by renderHeatMap guard."""
+
+    def setUp(self):
+        self.html = _load_html()
+
+    def test_empty_groups_guard_in_renderHeatMap(self):
+        # renderHeatMap checks for empty groups and shows error div
+        self.assertIn("groups.length", self.html)
+
+    def test_cells_fallback_empty_array(self):
+        # guard: (group.cells || []) prevents crash on missing cells key
+        self.assertIn("group.cells || []", self.html)
+
+    def test_cell_label_fallback(self):
+        # label uses adapter_id as fallback
+        self.assertIn("adapter_id", self.html)
+
+    def test_color_bucket_default_fallback(self):
+        # color_bucket fallback to 'low'
+        self.assertIn("color_bucket || 'low'", self.html)
+
+    def test_size_bucket_default_fallback(self):
+        # size_bucket fallback to 'small'
+        self.assertIn("size_bucket  || 'small'", self.html)
+
+    def test_apy_pct_dash_fallback(self):
+        # apy_pct uses '—' when not a number
+        self.assertIn("'—'", self.html)
+
+    def test_null_check_on_hm_grid(self):
+        # loadHeatMap and renderHeatMap both guard against null grid (at least 2 occurrences)
+        self.assertGreaterEqual(self.html.count("if (!grid) return;"), 2)
+
+    def test_null_check_on_hm_summary(self):
+        self.assertIn("if (summary)", self.html)
+
+    def test_no_demo_heat_map_bypasses_cache(self):
+        # force=true must pass cache:'no-store'
+        self.assertIn("'no-store'", self.html)
+
+    def test_generated_at_guard_before_display(self):
+        # hm-last-updated only updated when generated_at exists
+        self.assertIn("d.generated_at", self.html)
+
+
+if __name__ == "__main__":
+    unittest.main()

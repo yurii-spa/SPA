@@ -1,0 +1,50 @@
+name: SPA — Build & Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'spa_frontend/**'
+  workflow_dispatch:          # ручной запуск из GitHub UI
+
+permissions:
+  contents: write             # нужно для git push
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: spa_frontend
+
+      - name: Build React app
+        run: npm run build
+        working-directory: spa_frontend
+
+      - name: Deploy built files to repo root
+        run: |
+          # Replace root index.html with the React build output
+          cp spa_frontend/dist/index.html index.html
+          # Sync assets/ folder (JS/CSS chunks)
+          rm -rf assets
+          cp -r spa_frontend/dist/assets assets
+
+      - name: Commit & push
+        run: |
+          git config user.name  "SPA Frontend Bot 🤖"
+          git config user.email "spa-bot@users.noreply.github.com"
+          git add index.html assets/
+          git diff --staged --quiet && echo "No changes to deploy" || \
+            ( git commit -m "frontend: React build $(date -u '+%Y-%m-%d %H:%M UTC')" && git push )

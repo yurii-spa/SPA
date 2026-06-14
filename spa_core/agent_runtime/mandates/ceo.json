@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "ceo",
+  "role": "CEO Agent (MP-302): еженедельно + при drawdown >2% читает equity / strategy_comparison / regime, принимает решения уровня стратегии (выбор стратегии, allocation model, эскалации к человеку) и логирует каждое решение с reasoning и snapshot_id в data/ceo_decisions.json. Советует — не исполняет: policy и транзакции вне мандата.",
+  "schedule": "weekly",
+  "token_budget_per_run": 20000,
+  "token_budget_daily": 40000,
+  "forbidden_actions": [
+    "modify_policy",
+    "initiate_tx",
+    "modify_risk_limits",
+    "modify_whitelist",
+    "move_capital",
+    "write_outside_allowed_outputs"
+  ],
+  "allowed_outputs": [
+    "data/ceo_decisions.json"
+  ],
+  "requires_llm": true,
+  "degradation_mode": "skip"
+}

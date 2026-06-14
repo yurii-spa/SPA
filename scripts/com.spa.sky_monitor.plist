@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    L4 — Sky/sUSDS GSM Pause Delay Monitor (ежедневно в 07:00)
+    Module: spa_core/data_pipeline/sky_monitor.py
+    Функция: проверяет on-chain GSM Pause Delay для Sky/sUSDS.
+             Условие апгрейда до T1: GSM delay ≥ 48h (подтверждено on-chain).
+             При выполнении условия: пишет data/sky_upgrade_signal.json
+             с action_required (промоция sUSDS в POOL_WHITELIST, KANBAN BL-007).
+             Текущий статус: 0% аллокации (FORBIDDEN до подтверждения).
+    CLI:     python3 -m spa_core.data_pipeline.sky_monitor
+    Установка:
+      cp scripts/com.spa.sky_monitor.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.sky_monitor.plist
+    -->
+
+    <key>Label</key>
+    <string>com.spa.sky_monitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.data_pipeline.sky_monitor</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Ежедневно в 07:00 (за 1 час до cycle_runner в 08:00) -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_sky_monitor.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_sky_monitor_err.log</string>
+</dict>
+</plist>

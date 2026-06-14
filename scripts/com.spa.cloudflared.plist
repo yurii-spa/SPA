@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    L1 PERSISTENT DAEMON — Cloudflare Tunnel (spa → public HTTPS)
+    Бинарник: /usr/local/bin/cloudflared (стандартный путь macOS homebrew)
+    Функция: пробрасывает localhost:8765 через Cloudflare Zero Trust tunnel.
+             Название туннеля: spa (см. ~/.cloudflared/config.yml или
+             cloudflared tunnel list).
+    Установка:
+      cp scripts/com.spa.cloudflared.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.cloudflared.plist
+    Проверка:
+      launchctl list | grep com.spa.cloudflared
+      # Посмотреть tunnel URL в логе:
+      tail -f /tmp/spa_cloudflared.log
+    Prereq:
+      cloudflared tunnel login        (один раз)
+      cloudflared tunnel create spa   (один раз)
+      cloudflared tunnel route dns spa <subdomain>.<domain>
+    -->
+
+    <key>Label</key>
+    <string>com.spa.cloudflared</string>
+
+    <!-- Запуск через wrapper: устойчив к Intel (/usr/local) и
+         Apple Silicon (/opt/homebrew) путям установки cloudflared. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/run_cloudflared.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- HOME нужен cloudflared, чтобы найти ~/.cloudflared/{config.yml,
+         credentials, cert.pem}. Без него launchd-контекст не имеет HOME
+         и tunnel падает (exit 19968 / cannot read credentials). PATH —
+         чтобы wrapper нашёл brew-бинарник. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <!-- L1: перезапуск при падении туннеля -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Защита от crash loop: не рестартовать быстрее 10 сек -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_cloudflared.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_cloudflared_err.log</string>
+</dict>
+</plist>

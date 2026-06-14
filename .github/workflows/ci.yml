@@ -1,0 +1,49 @@
+name: SPA CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest
+
+      - name: Run SPA core tests
+        run: |
+          cd spa_core
+          python -m pytest tests/ -q --tb=short --ignore=tests/test_golive_checker.py
+        env:
+          SPA_ENV: ci
+
+      - name: Check for forbidden imports
+        run: |
+          # CI lint: запрещённые импорты в spa_core/risk, spa_core/execution
+          python3 -c "
+          import ast, os, sys
+          forbidden = ['anthropic', 'openai', 'langchain', 'numpy', 'pandas']
+          errors = []
+          for root, dirs, files in os.walk('spa_core/risk'):
+              for f in files:
+                  if f.endswith('.py'):
+                      src = open(os.path.join(root, f)).read()
+                      for lib in forbidden:
+                          if f'import {lib}' in src or f'from {lib}' in src:
+                              errors.append(f'{os.path.join(root, f)}: forbidden import {lib}')
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print('Import check PASS')
+          "

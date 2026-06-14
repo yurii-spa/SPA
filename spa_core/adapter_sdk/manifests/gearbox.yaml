@@ -1,0 +1,20 @@
+# Gearbox passive (lending-side) USDC/USDT pools — DeFiLlama yields project
+# slug: "gearbox". MP-206 card: "Gearbox passive". Passive LPs supply stables
+# to credit accounts; withdrawal is same-block while utilisation allows.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: gearbox
+defillama_protocol_id: gearbox
+chains:
+  - Ethereum
+symbols:
+  - USDC
+  - USDT
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 0.0          # passive pool, same-block withdrawal while liquid
+  profile: instant
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0

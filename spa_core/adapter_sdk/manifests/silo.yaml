@@ -1,0 +1,20 @@
+# Silo v2 (isolated lending markets) — DeFiLlama yields project slug:
+# "silo-v2". Conservative stable-lending candidate from the MP-206 epic list:
+# isolated-pair design contains bad-debt blast radius per market. No slug
+# overlap with euler-v2 / velodrome-v2 / balancer-v2 — substring-checked
+# both ways. NOT covered by the existing file adapters — declarative-only.
+name: silo
+defillama_protocol_id: silo-v2
+chains:
+  - Arbitrum
+symbols:
+  - USDC
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 1.0          # supply withdrawal, utilisation-dependent => liquid
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0

@@ -1,0 +1,30 @@
+# SPA Core — зависимости
+# Установка: pip install -r requirements.txt
+
+# HTTP-запросы к DeFiLlama API
+requests>=2.31.0
+
+# Тесты
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# M5: REST API Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
+
+# PDF report generation
+reportlab>=4.0.0
+
+# WebSocket support
+websockets>=12.0
+
+# Multipart form data (FastAPI file uploads)
+python-multipart>=0.0.9
+
+# PostgreSQL driver (BL-008 Phase 1) — optional, only needed if SPA_DATABASE_URL is set
+psycopg2-binary>=2.9.0
+
+# Schema migrations (BL-008 Phase 3) — alembic CLI in spa_core/database/
+# Run: cd spa_core/database && alembic upgrade head
+alembic>=1.13.0

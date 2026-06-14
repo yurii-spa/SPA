@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "strategy",
+  "role": "Strategy Agent (MP-306): еженедельно читает historical data (equity_curve_daily) + shadow-сравнение S0-S5 (strategy_shadow_comparison), детерминированно ранжирует стратегии по sortino/sharpe/pnl/drawdown, считает Kelly-sizing (интеграция spa_core/optimization/) и пишет РЕКОМЕНДАЦИИ селектору в data/strategy_recommendations.json. Строго ADVISORY: активную стратегию меняет ТОЛЬКО детерминированный селектор (strategy_selector.py); policy, risk-limits и транзакции вне мандата.",
+  "schedule": "weekly",
+  "token_budget_per_run": 15000,
+  "token_budget_daily": 30000,
+  "forbidden_actions": [
+    "change_active_strategy",
+    "modify_policy",
+    "initiate_tx",
+    "modify_risk_limits",
+    "modify_whitelist",
+    "move_capital",
+    "write_outside_allowed_outputs"
+  ],
+  "allowed_outputs": [
+    "data/strategy_recommendations.json"
+  ],
+  "requires_llm": true,
+  "degradation_mode": "deterministic-only"
+}

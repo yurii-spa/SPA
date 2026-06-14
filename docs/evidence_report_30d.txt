@@ -1,0 +1,57 @@
+============================================================
+SPA FAMILY FUND — 30-DAY EVIDENCE REPORT
+Договір простого товариства | Prepared: 2026-06-12
+============================================================
+
+SECTION 1: PAPER TRADING SUMMARY
+----------------------------------
+Period: 2026-06-12 → 2026-08-01
+Capital: $100,000 USDC
+Days completed: 0 / 30
+
+Performance Metrics:
+  Average APY:      10.10%  (Target: 10-15%)
+  Maximum Drawdown: N/A%   (Limit: -5%)
+  Sharpe Ratio:     0.960    (Minimum: 0.8)
+
+Go-Live Recommendation: PENDING
+
+SECTION 2: STRATEGY TOURNAMENT (Top 5)
+---------------------------------------
+Rank  Strategy                     APY Target   Days Status        
+-------------------------------------------------------------------
+1     Pendle YT+PT Aggressive           10.0%      3 target_met    
+2     Pendle PT Enhanced                 8.0%      3 new           
+3     Max Diversified                    7.0%      3 new           
+4     Pendle+Morpho Heavy                6.5%      3 leading       
+5     Spark+Fluid Conservative           6.0%      3 research      
+
+Tournament winner: S7
+
+SECTION 3: GO-LIVE CHECKLIST
+------------------------------
+Status: READY
+Checks passed: 6/6
+
+Checks:
+  [✓] equity_curve_real
+  [✓] trades_real
+  [✓] status_real
+  [✓] no_demo_data
+  [✓] data_fresh_48h
+  [✓] cycle_runner_exists
+
+Blockers: None
+Last checked: 2026-06-12 18:31:16 UTC
+
+SECTION 4: OWNER DECISION
+---------------------------
+[ ] Approve go-live with $100K USDC
+[ ] Request additional 30 days paper trading
+[ ] Decline — specify reason: ___________
+
+Signature: ___________________  Date: ___________
+
+============================================================
+CONFIDENTIAL — ДОГОВІР ПРОСТОГО ТОВАРИСТВА
+============================================================

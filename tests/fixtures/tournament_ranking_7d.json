@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-06-12",
+  "rankings": [
+    {
+      "rank": 1,
+      "strategy_id": "s7",
+      "name": "Pendle YT+PT Aggressive",
+      "target_apy": 10.115,
+      "status": "paper",
+      "days": 7
+    },
+    {
+      "rank": 2,
+      "strategy_id": "s11",
+      "name": "Hybrid Yield Max",
+      "target_apy": 15.6,
+      "status": "research",
+      "days": 7
+    },
+    {
+      "rank": 3,
+      "strategy_id": "s5",
+      "name": "Pendle PT Enhanced",
+      "target_apy": 8.5,
+      "status": "paper",
+      "days": 7
+    }
+  ]
+}

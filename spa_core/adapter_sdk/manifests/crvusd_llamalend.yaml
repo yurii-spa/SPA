@@ -1,0 +1,22 @@
+# Curve LlamaLend (crvUSD lending markets) — DeFiLlama yields project slug:
+# "curve-llamalend". MP-206 card: "crvUSD". Supplying crvUSD to LlamaLend
+# markets carries crvUSD peg exposure on top of lending risk, so the cap is
+# deliberately 0.05 (below the T3 default 0.10) — same convention as
+# ethena_susde ("capped, ось peg"). No slug overlap with the batch-1
+# curve_3pool manifest (curve-dex) — substring-checked both ways.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: crvusd_llamalend
+defillama_protocol_id: curve-llamalend
+chains:
+  - Ethereum
+symbols:
+  - CRVUSD
+tier: T3
+cap: 0.05
+exit_latency:
+  hours: 1.0          # supply withdrawal, utilisation-dependent => liquid
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0

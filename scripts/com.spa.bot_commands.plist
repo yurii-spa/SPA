@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.bot_commands — SPA Telegram Bot v2.0, continuous long-polling
+  (instant responses). Runs spa_core.telegram.bot as a module; default mode =
+  run_polling() (KeepAlive, no StartInterval). The process holds a getUpdates
+  long-poll open and launchd restarts it on crash. Credentials are read at
+  runtime from the macOS Keychain (TELEGRAM_BOT_TOKEN_SPA / TELEGRAM_CHAT_ID_SPA),
+  never stored in files. Uses the absolute miniconda interpreter so the module
+  resolves regardless of the launchd PATH (the previous /usr/bin/python3 plist
+  failed with ModuleNotFoundError: No module named 'spa_core').
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.bot_commands</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.telegram.bot</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_bot_commands.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_bot_commands_err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+    </dict>
+</dict>
+</plist>

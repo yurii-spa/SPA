@@ -1,0 +1,21 @@
+# Stargate (LayerZero) stable bridge pools — DeFiLlama yields project slug:
+# "stargate" (case-insensitive substring matching also covers "stargate-v2").
+# Single-sided stable LP; instant redeem while pool-side liquidity allows —
+# conservative 1h liquid profile declared.
+# NOT covered by the existing file adapters — declarative-only protocol.
+name: stargate
+defillama_protocol_id: stargate
+chains:
+  - Ethereum
+symbols:
+  - USDC
+  - USDT
+tier: T3
+cap: 0.10
+exit_latency:
+  hours: 1.0          # redeem subject to pool-side liquidity balance
+  profile: liquid
+quality_gates:
+  min_tvl_usd: 5000000
+  stable_only: true
+  max_apy_pct: 30.0
