@@ -1191,6 +1191,20 @@
     .fc-val { font-size: 16px; }
   }
 
+  /* P1-1: hide internal tabs on GitHub Pages (IS_PUBLIC) */
+  body.is-public [data-tab="analytics"],
+  body.is-public [data-tab="system"],
+  body.is-public [data-tab="tournament"],
+  body.is-public [data-tab="decisions"],
+  body.is-public [data-tab="backlog"],
+  body.is-public [data-tab="team"] {
+    display: none !important;
+  }
+  /* P1-2: hide RU/EN toggle on public — EN is fixed */
+  body.is-public #lang-btn {
+    display: none !important;
+  }
+
 </style>
 </head>
 <body>
@@ -1224,12 +1238,12 @@
 <div class="tabs">
   <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
-  <button class="tab-btn"         onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"         data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"         data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
+  <button class="tab-btn"         data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
   <button class="tab-btn"         data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
-  <button class="tab-btn"                               onclick="showTab('tournament', this)">🏆 Tournament</button>
+  <button class="tab-btn"         data-tab="tournament"  onclick="showTab('tournament', this)">🏆 Tournament</button>
   <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
   <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
   <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
@@ -3115,6 +3129,7 @@ let LIVE_MODE = false;
 const LIVE_BASE = 'http://localhost:8765/api';
 // P0-2: on GitHub Pages there is no local server — skip all localhost probes
 const IS_PUBLIC = location.hostname.endsWith('github.io') || location.hostname.endsWith('github.com');
+if (IS_PUBLIC) document.body.classList.add('is-public'); // P1-1: hide internal tabs via CSS
 let _liveWs = null;
 
 async function detectLiveMode() {
@@ -10654,7 +10669,7 @@ function toggleLang() {
 document.addEventListener('DOMContentLoaded', () => {
   initTooltips();
   loadPerformance(); // default tab is Performance Hero
-  setLang(currentLang); // restore language from localStorage
+  setLang(IS_PUBLIC ? 'en' : currentLang); // P1-2: always EN on public, else restore from localStorage
 });
 </script>
 
