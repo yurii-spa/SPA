@@ -553,12 +553,12 @@ class AnalyticsPipeline:
     def _run_collateral_health(self) -> Any:
         """Return empty result — no leveraged positions in paper trading."""
         def _inner():
-            from spa_core.analytics.collateral_health_monitor import (
-                CollateralHealthMonitor,
-            )
-            monitor = CollateralHealthMonitor()
-            results = monitor.assess_batch([])
-            return {"positions_assessed": len(results), "results": _to_dict(results)}
+            from spa_core.analytics.collateral_health_monitor import analyze
+            result = analyze([])
+            return {
+                "positions_assessed": len(result.get("positions", [])),
+                "results": _to_dict(result),
+            }
         return self._run_module("collateral_health", _inner)
 
     def _run_protocol_risk(self, positions: Dict[str, float]) -> Any:
@@ -574,26 +574,23 @@ class AnalyticsPipeline:
 
     def _run_apy_momentum(self, apy_history: List[float]) -> Any:
         def _inner():
-            from spa_core.analytics.apy_momentum_tracker import APYMomentumTracker
-            tracker = APYMomentumTracker()
-            snap = tracker.compute(
-                strategy_id="portfolio",
-                apy_series=apy_history if apy_history else [0.04],
-            )
-            return _to_dict(snap)
+            from spa_core.analytics.apy_momentum_tracker import analyze
+            history = apy_history if apy_history else [0.04]
+            protocols = [{"name": "portfolio", "apy_history": history}]
+            result = analyze(protocols)
+            return _to_dict(result)
         return self._run_module("apy_momentum", _inner)
 
     def _run_yield_benchmarks(self, portfolio_apy: float) -> Any:
         def _inner():
-            from spa_core.analytics.yield_benchmark_comparator import (
-                YieldBenchmarkComparator,
-            )
-            comparator = YieldBenchmarkComparator()
-            suite = comparator.compare_all(
-                strategy_id="portfolio",
-                strategy_apy=portfolio_apy if portfolio_apy > 0 else 0.04,
-            )
-            return _to_dict(suite)
+            from spa_core.analytics.yield_benchmark_comparator import analyze
+            apy = portfolio_apy if portfolio_apy > 0 else 0.04
+            strategies = [{"name": "portfolio", "apy": apy, "risk_score": 20,
+                           "liquidity": "HIGH"}]
+            benchmarks = {"risk_free_rate": 0.045, "eth_staking_apy": 0.038,
+                          "btc_holding_apy": 0.0}
+            result = analyze(strategies, benchmarks)
+            return _to_dict(result)
         return self._run_module("yield_benchmarks", _inner)
 
     def _run_drawdown_recovery(self, apy_history: List[float]) -> Any:
