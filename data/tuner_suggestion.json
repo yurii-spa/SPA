@@ -1,0 +1,58 @@
+{
+  "optimal_weights": {
+    "aave_v3": 0.236482,
+    "compound_v3": 0.4,
+    "yearn_v3": 0.045006,
+    "euler_v2": 0.070401,
+    "maple": 0.21614
+  },
+  "expected_apy": 4.1976,
+  "expected_sharpe": 1.2565,
+  "backtest_return": 0.3456,
+  "backtest_days": 30,
+  "improvements": [
+    "yearn_v3: 11.9% → 4.5%",
+    "maple: 13.0% → 21.6%"
+  ],
+  "protocol_breakdown": [
+    {
+      "id": "compound_v3",
+      "weight": 0.4,
+      "weight_pct": 40.0,
+      "apy": 5.2,
+      "tier": "T1"
+    },
+    {
+      "id": "aave_v3",
+      "weight": 0.2365,
+      "weight_pct": 23.65,
+      "apy": 3.1459,
+      "tier": "T1"
+    },
+    {
+      "id": "maple",
+      "weight": 0.2161,
+      "weight_pct": 21.61,
+      "apy": 4.7609,
+      "tier": "T2"
+    },
+    {
+      "id": "euler_v2",
+      "weight": 0.0704,
+      "weight_pct": 7.04,
+      "apy": 2.7876,
+      "tier": "T2"
+    },
+    {
+      "id": "yearn_v3",
+      "weight": 0.045,
+      "weight_pct": 4.5,
+      "apy": 3.2977,
+      "tier": "T2"
+    }
+  ],
+  "objective_score": 4.062826,
+  "timestamp": "2026-06-14T15:02:20.726127+00:00",
+  "generated_at": "2026-06-14T15:02:20.726335+00:00",
+  "note": "Предложение тюнера — только для информации. Применяется вручную после review (MP-207)."
+}
