@@ -1,6 +1,6 @@
 """
-Tests for MP-1033: ProtocolDeFiLiquidationCascadeRiskAnalyzer
-Run: python3 -m unittest spa_core.tests.test_protocol_defi_liquidation_cascade_risk_analyzer -v
+Tests for MP-1087: ProtocolDeFiLiquidationCascadeRiskAnalyzer
+Target: >=110 tests, all pass with `python3 -m unittest`
 """
 
 import json
@@ -8,610 +8,657 @@ import os
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from spa_core.analytics.protocol_defi_liquidation_cascade_risk_analyzer import (
     ProtocolDeFiLiquidationCascadeRiskAnalyzer,
-    _compute_cascade_risk_score,
-    _compute_estimated_liquidation_volume_usd,
-    _compute_market_impact_pct,
-    _compute_recovery_time_days,
-    _cascade_label,
-    _compute_flags,
-    _append_log,
-    DATA_FILE,
-    MAX_ENTRIES,
-    _LABEL_THRESHOLDS,
-    _MARKET_IMPACT_COEFF,
 )
 
 
-# ─────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────
-
-def _eth_scenario(**kw):
-    base = dict(
-        collateral_asset="ETH",
-        ltv_ratio=0.65,
-        liquidation_threshold=0.80,
-        total_collateral_usd=5_000_000_000,
-        daily_volume_usd=10_000_000_000,
-        concentrated_positions_pct=20.0,
-        price_drop_trigger_pct=15.0,
+def _make(
+    total_collateral_usd=1_000_000.0,
+    total_debt_usd=600_000.0,
+    liquidation_threshold_pct=80.0,
+    current_ltv_pct=60.0,
+    price_drop_pct=10.0,
+    liquidation_penalty_pct=5.0,
+    protocol_tvl_usd=5_000_000.0,
+    daily_volume_usd=500_000.0,
+    protocol_name="TestProtocol",
+    data_dir=None,
+):
+    a = ProtocolDeFiLiquidationCascadeRiskAnalyzer(data_dir=data_dir or tempfile.mkdtemp())
+    return a.analyze(
+        total_collateral_usd=total_collateral_usd,
+        total_debt_usd=total_debt_usd,
+        liquidation_threshold_pct=liquidation_threshold_pct,
+        current_ltv_pct=current_ltv_pct,
+        price_drop_pct=price_drop_pct,
+        liquidation_penalty_pct=liquidation_penalty_pct,
+        protocol_tvl_usd=protocol_tvl_usd,
+        daily_volume_usd=daily_volume_usd,
+        protocol_name=protocol_name,
     )
-    base.update(kw)
-    return base
 
 
-def _risky_scenario(**kw):
-    base = dict(
-        collateral_asset="LUNA",
-        ltv_ratio=0.78,
-        liquidation_threshold=0.80,
-        total_collateral_usd=18_000_000_000,
-        daily_volume_usd=300_000_000,
-        concentrated_positions_pct=75.0,
-        price_drop_trigger_pct=40.0,
-    )
-    base.update(kw)
-    return base
+class TestReturnStructure(unittest.TestCase):
+    def test_returns_dict(self): self.assertIsInstance(_make(), dict)
+    def test_has_buffer(self): self.assertIn("buffer_to_liquidation_pct", _make())
+    def test_has_at_risk(self): self.assertIn("at_risk_collateral_usd", _make())
+    def test_has_liquidations(self): self.assertIn("estimated_liquidations_usd", _make())
+    def test_has_market_impact(self): self.assertIn("market_impact_pct", _make())
+    def test_has_risk_score(self): self.assertIn("cascade_risk_score", _make())
+    def test_has_label(self): self.assertIn("cascade_label", _make())
+    def test_has_log_entry(self): self.assertIn("log_entry", _make())
+    def test_seven_keys(self): self.assertEqual(len(_make()), 7)
+    def test_buffer_is_float(self): self.assertIsInstance(_make()["buffer_to_liquidation_pct"], float)
+    def test_at_risk_is_float(self): self.assertIsInstance(_make()["at_risk_collateral_usd"], float)
+    def test_liquidations_is_float(self): self.assertIsInstance(_make()["estimated_liquidations_usd"], float)
+    def test_market_impact_is_float(self): self.assertIsInstance(_make()["market_impact_pct"], float)
+    def test_risk_score_is_int(self): self.assertIsInstance(_make()["cascade_risk_score"], int)
+    def test_label_is_str(self): self.assertIsInstance(_make()["cascade_label"], str)
+    def test_log_entry_is_dict(self): self.assertIsInstance(_make()["log_entry"], dict)
 
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: _compute_cascade_risk_score
-# ─────────────────────────────────────────────────────────────────
+class TestBufferToLiquidation(unittest.TestCase):
+    def test_formula_60_80(self):
+        r = _make(current_ltv_pct=60.0, liquidation_threshold_pct=80.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 25.0, places=6)
 
-class TestComputeCascadeRiskScore(unittest.TestCase):
+    def test_zero_when_ltv_equals_threshold(self):
+        r = _make(current_ltv_pct=80.0, liquidation_threshold_pct=80.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 0.0, places=6)
 
-    def test_returns_float(self):
-        s = _compute_cascade_risk_score(0.65, 0.80, 15.0, 20.0, 5e9, 10e9)
-        self.assertIsInstance(s, float)
+    def test_negative_when_ltv_exceeds_threshold(self):
+        r = _make(current_ltv_pct=90.0, liquidation_threshold_pct=80.0)
+        self.assertLess(r["buffer_to_liquidation_pct"], 0.0)
 
-    def test_score_min_0(self):
-        s = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1e12)
-        self.assertGreaterEqual(s, 0.0)
+    def test_large_buffer_low_ltv(self):
+        r = _make(current_ltv_pct=10.0, liquidation_threshold_pct=80.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 87.5, places=6)
 
-    def test_score_max_100(self):
-        s = _compute_cascade_risk_score(0.799, 0.80, 100.0, 100.0, 1e15, 1.0)
-        self.assertLessEqual(s, 100.0)
+    def test_formula_50_80(self):
+        r = _make(current_ltv_pct=50.0, liquidation_threshold_pct=80.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 37.5, places=6)
 
-    def test_high_ltv_proximity_raises_score(self):
-        # LTV just below threshold → high score
-        s_near = _compute_cascade_risk_score(0.79, 0.80, 10.0, 20.0, 1e9, 5e9)
-        s_far = _compute_cascade_risk_score(0.30, 0.80, 10.0, 20.0, 1e9, 5e9)
-        self.assertGreater(s_near, s_far)
+    def test_formula_68_85(self):
+        r = _make(current_ltv_pct=68.0, liquidation_threshold_pct=85.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 20.0, places=4)
 
-    def test_larger_pdrop_increases_score(self):
-        s_big = _compute_cascade_risk_score(0.65, 0.80, 50.0, 20.0, 1e9, 5e9)
-        s_small = _compute_cascade_risk_score(0.65, 0.80, 5.0, 20.0, 1e9, 5e9)
-        self.assertGreater(s_big, s_small)
+    def test_zero_threshold_returns_zero(self):
+        r = _make(current_ltv_pct=50.0, liquidation_threshold_pct=0.0)
+        self.assertEqual(r["buffer_to_liquidation_pct"], 0.0)
 
-    def test_pdrop_50_adds_25(self):
-        s_high = _compute_cascade_risk_score(0.0, 0.80, 50.0, 0.0, 0.0, 1.0)
-        s_none = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(s_high - s_none, 25.0, places=3)
+    def test_negative_buffer_exact(self):
+        r = _make(current_ltv_pct=85.0, liquidation_threshold_pct=80.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], -6.25, places=4)
 
-    def test_pdrop_30_adds_18(self):
-        s_high = _compute_cascade_risk_score(0.0, 0.80, 30.0, 0.0, 0.0, 1.0)
-        s_none = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(s_high - s_none, 18.0, places=3)
+    def test_formula_75_75_zero(self):
+        r = _make(current_ltv_pct=75.0, liquidation_threshold_pct=75.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 0.0, places=6)
 
-    def test_pdrop_15_adds_12(self):
-        s_high = _compute_cascade_risk_score(0.0, 0.80, 15.0, 0.0, 0.0, 1.0)
-        s_none = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(s_high - s_none, 12.0, places=3)
-
-    def test_pdrop_5_adds_6(self):
-        s_high = _compute_cascade_risk_score(0.0, 0.80, 5.0, 0.0, 0.0, 1.0)
-        s_none = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(s_high - s_none, 6.0, places=3)
-
-    def test_pdrop_1_adds_2(self):
-        s_high = _compute_cascade_risk_score(0.0, 0.80, 1.0, 0.0, 0.0, 1.0)
-        s_none = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(s_high - s_none, 2.0, places=3)
-
-    def test_concentration_adds_up_to_20(self):
-        s_full_conc = _compute_cascade_risk_score(0.0, 0.80, 0.0, 100.0, 0.0, 1.0)
-        s_no_conc = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(s_full_conc - s_no_conc, 20.0, places=3)
-
-    def test_liquidity_ratio_5x_adds_20(self):
-        # collateral 5x daily vol → liquidity_ratio = 5
-        s = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 5_000_000.0, 1_000_000.0)
-        s0 = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1_000_000.0)
-        self.assertAlmostEqual(s - s0, 20.0, places=3)
-
-    def test_liquidity_ratio_2x_adds_12(self):
-        s = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 2_000_000.0, 1_000_000.0)
-        s0 = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1_000_000.0)
-        self.assertAlmostEqual(s - s0, 12.0, places=3)
-
-    def test_liquidity_ratio_1x_adds_6(self):
-        s = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 1_000_000.0, 1_000_000.0)
-        s0 = _compute_cascade_risk_score(0.0, 0.80, 0.0, 0.0, 0.0, 1_000_000.0)
-        self.assertAlmostEqual(s - s0, 6.0, places=3)
-
-    def test_risky_scenario_high_score(self):
-        s = _compute_cascade_risk_score(0.78, 0.80, 40.0, 75.0, 18e9, 300e6)
-        self.assertGreater(s, 60.0)
+    def test_formula_64_80_twenty(self):
+        r = _make(current_ltv_pct=64.0, liquidation_threshold_pct=80.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 20.0, places=4)
 
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: _compute_estimated_liquidation_volume_usd
-# ─────────────────────────────────────────────────────────────────
+class TestAtRiskCollateral(unittest.TestCase):
+    def test_10pct_drop(self):
+        r = _make(total_collateral_usd=1_000_000.0, price_drop_pct=10.0)
+        self.assertAlmostEqual(r["at_risk_collateral_usd"], 900_000.0, places=2)
 
-class TestComputeEstimatedLiquidationVolume(unittest.TestCase):
+    def test_zero_drop(self):
+        r = _make(total_collateral_usd=1_000_000.0, price_drop_pct=0.0)
+        self.assertAlmostEqual(r["at_risk_collateral_usd"], 1_000_000.0, places=2)
 
-    def test_returns_float(self):
-        v = _compute_estimated_liquidation_volume_usd(1e9, 0.65, 0.80, 15.0, 20.0)
-        self.assertIsInstance(v, float)
+    def test_100_pct_drop(self):
+        r = _make(total_collateral_usd=1_000_000.0, price_drop_pct=100.0)
+        self.assertAlmostEqual(r["at_risk_collateral_usd"], 0.0, places=2)
 
-    def test_zero_collateral_returns_zero(self):
-        v = _compute_estimated_liquidation_volume_usd(0.0, 0.65, 0.80, 15.0, 20.0)
-        self.assertEqual(v, 0.0)
+    def test_50_pct_drop(self):
+        r = _make(total_collateral_usd=2_000_000.0, price_drop_pct=50.0)
+        self.assertAlmostEqual(r["at_risk_collateral_usd"], 1_000_000.0, places=2)
 
-    def test_zero_price_drop_no_liquidation(self):
-        v = _compute_estimated_liquidation_volume_usd(1e9, 0.65, 0.80, 0.0, 20.0)
-        self.assertEqual(v, 0.0)
+    def test_20_pct_drop(self):
+        r = _make(total_collateral_usd=1_000_000.0, price_drop_pct=20.0)
+        self.assertAlmostEqual(r["at_risk_collateral_usd"], 800_000.0, places=2)
 
-    def test_ltv_below_threshold_zero_liquidations(self):
-        # LTV 0.5, threshold 0.80, small drop → stays below threshold
-        v = _compute_estimated_liquidation_volume_usd(1e9, 0.50, 0.80, 5.0, 0.0)
-        self.assertEqual(v, 0.0)
+    def test_never_negative(self):
+        r = _make(total_collateral_usd=1_000_000.0, price_drop_pct=150.0)
+        self.assertGreaterEqual(r["at_risk_collateral_usd"], 0.0)
 
-    def test_100pct_drop_liquidates_all(self):
-        v = _compute_estimated_liquidation_volume_usd(1e9, 0.65, 0.80, 100.0, 0.0)
-        self.assertAlmostEqual(v, 1e9, delta=1.0)
-
-    def test_larger_drop_triggers_more_liquidation(self):
-        v_big = _compute_estimated_liquidation_volume_usd(1e9, 0.75, 0.80, 30.0, 20.0)
-        v_small = _compute_estimated_liquidation_volume_usd(1e9, 0.75, 0.80, 10.0, 20.0)
-        self.assertGreaterEqual(v_big, v_small)
-
-    def test_concentration_amplifies_volume(self):
-        v_conc = _compute_estimated_liquidation_volume_usd(1e9, 0.75, 0.80, 20.0, 80.0)
-        v_disp = _compute_estimated_liquidation_volume_usd(1e9, 0.75, 0.80, 20.0, 10.0)
-        self.assertGreaterEqual(v_conc, v_disp)
-
-    def test_result_non_negative(self):
-        v = _compute_estimated_liquidation_volume_usd(1e9, 0.65, 0.80, 10.0, 20.0)
-        self.assertGreaterEqual(v, 0.0)
-
-    def test_result_max_is_collateral(self):
-        v = _compute_estimated_liquidation_volume_usd(1e9, 0.79, 0.80, 50.0, 90.0)
-        self.assertLessEqual(v, 1e9)
+    def test_1_pct_drop(self):
+        r = _make(total_collateral_usd=1_000_000.0, price_drop_pct=1.0)
+        self.assertAlmostEqual(r["at_risk_collateral_usd"], 990_000.0, places=2)
 
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: _compute_market_impact_pct
-# ─────────────────────────────────────────────────────────────────
+class TestEstimatedLiquidations(unittest.TestCase):
+    def test_zero_when_safe_after_drop(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=600_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=60.0, price_drop_pct=20.0)
+        # at_risk=800K; safe_debt=0.8*800K=640K > 600K → 0
+        self.assertEqual(r["estimated_liquidations_usd"], 0.0)
 
-class TestComputeMarketImpactPct(unittest.TestCase):
+    def test_positive_when_cascade(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0, price_drop_pct=20.0)
+        self.assertAlmostEqual(r["estimated_liquidations_usd"], 60_000.0, places=2)
 
-    def test_returns_float(self):
-        m = _compute_market_impact_pct(1e8, 1e9)
-        self.assertIsInstance(m, float)
+    def test_formula_2m_debt_1_4m_drop_30(self):
+        r = _make(total_collateral_usd=2_000_000.0, total_debt_usd=1_400_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0, price_drop_pct=30.0)
+        self.assertAlmostEqual(r["estimated_liquidations_usd"], 280_000.0, places=2)
 
-    def test_zero_liquidation_zero_impact(self):
-        m = _compute_market_impact_pct(0.0, 1e9)
-        self.assertEqual(m, 0.0)
+    def test_never_negative(self):
+        r = _make(total_debt_usd=100.0, price_drop_pct=50.0)
+        self.assertGreaterEqual(r["estimated_liquidations_usd"], 0.0)
 
-    def test_impact_range_0_100(self):
-        m = _compute_market_impact_pct(1e12, 1.0)
-        self.assertLessEqual(m, 100.0)
-        self.assertGreaterEqual(m, 0.0)
+    def test_zero_debt(self):
+        r = _make(total_debt_usd=0.0, price_drop_pct=50.0)
+        self.assertEqual(r["estimated_liquidations_usd"], 0.0)
 
-    def test_larger_liquidation_higher_impact(self):
-        m_big = _compute_market_impact_pct(1e9, 1e9)
-        m_small = _compute_market_impact_pct(1e7, 1e9)
-        self.assertGreater(m_big, m_small)
+    def test_zero_threshold(self):
+        r = _make(liquidation_threshold_pct=0.0)
+        self.assertEqual(r["estimated_liquidations_usd"], 0.0)
 
-    def test_larger_volume_lower_impact(self):
-        m_thin = _compute_market_impact_pct(1e8, 1e8)
-        m_deep = _compute_market_impact_pct(1e8, 1e10)
-        self.assertGreater(m_thin, m_deep)
+    def test_large_drop_large_liq(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=950_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=95.0, price_drop_pct=80.0)
+        self.assertAlmostEqual(r["estimated_liquidations_usd"], 790_000.0, places=2)
 
-    def test_rounded_to_4_places(self):
-        m = _compute_market_impact_pct(5e8, 2e9)
-        self.assertEqual(m, round(m, 4))
-
-    def test_square_root_model_used(self):
-        # ratio = 0.25, so sqrt(0.25) = 0.5; impact = coeff * 0.5 * 100
-        m = _compute_market_impact_pct(2.5e8, 1e9)
-        expected = round(_MARKET_IMPACT_COEFF * (0.25 ** 0.5) * 100.0, 4)
-        self.assertAlmostEqual(m, expected, places=4)
-
-
-# ─────────────────────────────────────────────────────────────────
-# Tests: _compute_recovery_time_days
-# ─────────────────────────────────────────────────────────────────
-
-class TestComputeRecoveryTimeDays(unittest.TestCase):
-
-    def test_returns_int(self):
-        d = _compute_recovery_time_days(50.0, 5.0, 1e9, 1e9)
-        self.assertIsInstance(d, int)
-
-    def test_zero_score_zero_days(self):
-        d = _compute_recovery_time_days(0.0, 0.0, 1e9, 0.0)
-        self.assertEqual(d, 0)
-
-    def test_higher_score_longer_recovery(self):
-        d_high = _compute_recovery_time_days(80.0, 5.0, 1e9, 1e9)
-        d_low = _compute_recovery_time_days(20.0, 5.0, 1e9, 1e9)
-        self.assertGreater(d_high, d_low)
-
-    def test_higher_impact_longer_recovery(self):
-        d_high = _compute_recovery_time_days(50.0, 30.0, 1e9, 1e9)
-        d_low = _compute_recovery_time_days(50.0, 2.0, 1e9, 1e9)
-        self.assertGreater(d_high, d_low)
-
-    def test_non_negative(self):
-        d = _compute_recovery_time_days(0.0, 0.0, 0.0, 0.0)
-        self.assertGreaterEqual(d, 0)
-
-    def test_large_liquidity_ratio_longer_recovery(self):
-        d_illiq = _compute_recovery_time_days(50.0, 5.0, 1.0, 1e12)
-        d_liq = _compute_recovery_time_days(50.0, 5.0, 1e9, 1e9)
-        self.assertGreaterEqual(d_illiq, d_liq)
+    def test_no_drop_no_liquidation(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=600_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=60.0, price_drop_pct=0.0)
+        self.assertEqual(r["estimated_liquidations_usd"], 0.0)
 
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: _cascade_label
-# ─────────────────────────────────────────────────────────────────
+class TestMarketImpact(unittest.TestCase):
+    def test_zero_when_no_liquidations(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=400_000.0,
+                  current_ltv_pct=40.0, price_drop_pct=5.0)
+        self.assertEqual(r["market_impact_pct"], 0.0)
+
+    def test_formula_60k_500k(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0, price_drop_pct=20.0,
+                  daily_volume_usd=500_000.0)
+        self.assertAlmostEqual(r["market_impact_pct"], 12.0, places=4)
+
+    def test_100_when_zero_volume_with_liq(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0, price_drop_pct=20.0,
+                  daily_volume_usd=0.0)
+        self.assertEqual(r["market_impact_pct"], 100.0)
+
+    def test_zero_when_zero_volume_no_liq(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=400_000.0,
+                  current_ltv_pct=40.0, price_drop_pct=5.0, daily_volume_usd=0.0)
+        self.assertEqual(r["market_impact_pct"], 0.0)
+
+    def test_above_100_when_large_liq(self):
+        r = _make(total_collateral_usd=10_000_000.0, total_debt_usd=9_000_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=90.0, price_drop_pct=50.0,
+                  daily_volume_usd=100_000.0)
+        self.assertGreater(r["market_impact_pct"], 100.0)
+
+    def test_small_impact(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0, price_drop_pct=20.0,
+                  daily_volume_usd=10_000_000.0)
+        self.assertAlmostEqual(r["market_impact_pct"], 0.6, places=4)
+
+    def test_impact_60pct(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0, price_drop_pct=20.0,
+                  daily_volume_usd=100_000.0)
+        self.assertAlmostEqual(r["market_impact_pct"], 60.0, places=4)
+
 
 class TestCascadeLabel(unittest.TestCase):
+    def test_safe_margins(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=400_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=40.0,
+                  price_drop_pct=1.0, daily_volume_usd=10_000_000.0)
+        self.assertEqual(r["cascade_label"], "SAFE_MARGINS")
 
-    def test_death_spiral_at_85(self):
-        self.assertEqual(_cascade_label(85.0), "DEATH_SPIRAL")
+    def test_safe_margins_high_buffer_zero_impact(self):
+        r = _make(current_ltv_pct=40.0, price_drop_pct=0.0,
+                  daily_volume_usd=100_000_000.0)
+        self.assertEqual(r["cascade_label"], "SAFE_MARGINS")
 
-    def test_death_spiral_at_100(self):
-        self.assertEqual(_cascade_label(100.0), "DEATH_SPIRAL")
+    def test_watchlist_buffer_15(self):
+        r = _make(current_ltv_pct=68.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=10_000_000.0)
+        self.assertEqual(r["cascade_label"], "WATCHLIST")
 
-    def test_high_cascade_at_65(self):
-        self.assertEqual(_cascade_label(65.0), "HIGH_CASCADE")
+    def test_watchlist_buffer_exactly_20(self):
+        r = _make(current_ltv_pct=64.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=50_000_000.0)
+        self.assertEqual(r["cascade_label"], "WATCHLIST")
 
-    def test_high_cascade_at_84(self):
-        self.assertEqual(_cascade_label(84.9), "HIGH_CASCADE")
+    def test_watchlist_impact_8pct(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0,
+                  price_drop_pct=20.0, daily_volume_usd=750_000.0)
+        self.assertAlmostEqual(r["market_impact_pct"], 8.0, places=4)
+        self.assertEqual(r["cascade_label"], "WATCHLIST")
 
-    def test_moderate_cascade_at_45(self):
-        self.assertEqual(_cascade_label(45.0), "MODERATE_CASCADE")
+    def test_cascade_risk_buffer_7(self):
+        r = _make(current_ltv_pct=74.4, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=50_000_000.0)
+        self.assertEqual(r["cascade_label"], "CASCADE_RISK")
 
-    def test_moderate_cascade_at_64(self):
-        self.assertEqual(_cascade_label(64.9), "MODERATE_CASCADE")
+    def test_cascade_risk_impact_20pct(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0,
+                  price_drop_pct=20.0, daily_volume_usd=300_000.0)
+        self.assertAlmostEqual(r["market_impact_pct"], 20.0, places=4)
+        self.assertEqual(r["cascade_label"], "CASCADE_RISK")
 
-    def test_low_cascade_at_25(self):
-        self.assertEqual(_cascade_label(25.0), "LOW_CASCADE")
+    def test_high_cascade_buffer_2_5(self):
+        r = _make(current_ltv_pct=78.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=50_000_000.0)
+        self.assertEqual(r["cascade_label"], "HIGH_CASCADE")
 
-    def test_low_cascade_at_44(self):
-        self.assertEqual(_cascade_label(44.9), "LOW_CASCADE")
+    def test_high_cascade_impact_60pct(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0,
+                  price_drop_pct=20.0, daily_volume_usd=100_000.0)
+        self.assertAlmostEqual(r["market_impact_pct"], 60.0, places=4)
+        self.assertEqual(r["cascade_label"], "HIGH_CASCADE")
 
-    def test_stable_at_0(self):
-        self.assertEqual(_cascade_label(0.0), "STABLE")
+    def test_systemic_cascade_impact_61(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=70.0,
+                  price_drop_pct=20.0, daily_volume_usd=90_000.0)
+        self.assertGreater(r["market_impact_pct"], 60.0)
+        self.assertEqual(r["cascade_label"], "SYSTEMIC_CASCADE")
 
-    def test_stable_at_24(self):
-        self.assertEqual(_cascade_label(24.9), "STABLE")
+    def test_systemic_cascade_ltv_exceeds_threshold(self):
+        r = _make(current_ltv_pct=85.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=10_000_000.0)
+        self.assertEqual(r["cascade_label"], "SYSTEMIC_CASCADE")
 
-    def test_boundary_85_exactly(self):
-        self.assertEqual(_cascade_label(85.0), "DEATH_SPIRAL")
+    def test_not_systemic_ltv_equals_threshold(self):
+        r = _make(current_ltv_pct=80.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=50_000_000.0)
+        # buffer=0 < 5 → HIGH_CASCADE
+        self.assertEqual(r["cascade_label"], "HIGH_CASCADE")
 
-    def test_boundary_just_below_85(self):
-        self.assertEqual(_cascade_label(84.999), "HIGH_CASCADE")
+    def test_systemic_priority_over_others(self):
+        # LTV > threshold triggers systemic even with low impact
+        r = _make(current_ltv_pct=85.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=100_000_000.0)
+        self.assertEqual(r["cascade_label"], "SYSTEMIC_CASCADE")
 
+    def test_cascade_boundary_buffer_exactly_5(self):
+        r = _make(current_ltv_pct=76.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=50_000_000.0)
+        # buffer=5 → not < 5 → cascade_risk (buffer < 10)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 5.0, places=4)
+        self.assertEqual(r["cascade_label"], "CASCADE_RISK")
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: _compute_flags
-# ─────────────────────────────────────────────────────────────────
+    def test_watchlist_boundary_buffer_10(self):
+        # ltv=71, threshold=80 → buffer=11.25% which is clearly in (10,20] → WATCHLIST
+        r = _make(current_ltv_pct=71.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=50_000_000.0)
+        self.assertAlmostEqual(r["buffer_to_liquidation_pct"], 11.25, places=4)
+        self.assertEqual(r["cascade_label"], "WATCHLIST")
 
-class TestComputeFlags(unittest.TestCase):
-
-    def test_no_flags_safe_scenario(self):
-        flags = _compute_flags(0.50, 0.80, 10.0, 20.0, 1e9, 5e9)
-        self.assertEqual(flags, [])
-
-    def test_near_liquidation_flag(self):
-        # buffer = (0.80 - 0.78) / 0.80 = 2.5% < 10%
-        flags = _compute_flags(0.78, 0.80, 10.0, 20.0, 1e9, 5e9)
-        self.assertIn("NEAR_LIQUIDATION_THRESHOLD", flags)
-
-    def test_severe_price_drop_flag(self):
-        flags = _compute_flags(0.50, 0.80, 35.0, 20.0, 1e9, 5e9)
-        self.assertIn("SEVERE_PRICE_DROP_SCENARIO", flags)
-
-    def test_highly_concentrated_flag(self):
-        flags = _compute_flags(0.50, 0.80, 10.0, 65.0, 1e9, 5e9)
-        self.assertIn("HIGHLY_CONCENTRATED_POSITIONS", flags)
-
-    def test_illiquid_market_flag(self):
-        # collateral 3x daily vol → illiquid
-        flags = _compute_flags(0.50, 0.80, 10.0, 20.0, 3e9, 1e9)
-        self.assertIn("ILLIQUID_MARKET", flags)
-
-    def test_high_portfolio_ltv_flag(self):
-        flags = _compute_flags(0.76, 0.80, 10.0, 20.0, 1e9, 5e9)
-        self.assertIn("HIGH_PORTFOLIO_LTV", flags)
-
-    def test_critical_ltv_buffer_flag(self):
-        # ltv/threshold = 0.76/0.80 = 0.95 → critical
-        flags = _compute_flags(0.76, 0.80, 10.0, 20.0, 1e9, 5e9)
-        self.assertIn("CRITICAL_LTV_BUFFER", flags)
-
-    def test_returns_list(self):
-        flags = _compute_flags(0.65, 0.80, 15.0, 25.0, 1e9, 5e9)
-        self.assertIsInstance(flags, list)
-
-    def test_multiple_flags_possible(self):
-        flags = _compute_flags(0.79, 0.80, 50.0, 70.0, 20e9, 1e9)
-        self.assertGreater(len(flags), 2)
+    def test_safe_requires_both_conditions(self):
+        # buffer=25>20 but impact=6%>=5 → WATCHLIST
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=700_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=60.0,
+                  price_drop_pct=20.0, daily_volume_usd=1_000_000.0)
+        self.assertEqual(r["cascade_label"], "WATCHLIST")
 
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: ProtocolDeFiLiquidationCascadeRiskAnalyzer.analyze()
-# ─────────────────────────────────────────────────────────────────
+class TestCascadeRiskScore(unittest.TestCase):
+    def test_type_is_int(self): self.assertIsInstance(_make()["cascade_risk_score"], int)
+    def test_min_0(self): self.assertGreaterEqual(_make()["cascade_risk_score"], 0)
+    def test_max_100(self): self.assertLessEqual(_make()["cascade_risk_score"], 100)
 
-class TestProtocolDeFiLiquidationCascadeRiskAnalyzer(unittest.TestCase):
+    def test_zero_minimum_risk(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=25, impact=0, ltv<threshold → 0
+        self.assertEqual(a._compute_cascade_risk_score(25.0, 0.0, 60.0, 80.0), 0)
 
+    def test_buffer_score_zero_at_25(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        self.assertEqual(a._compute_cascade_risk_score(25.0, 0.0, 60.0, 80.0), 0)
+
+    def test_buffer_score_50_at_zero(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=0 → buffer_score=50; impact=0; no ltv_bonus → 50
+        self.assertEqual(a._compute_cascade_risk_score(0.0, 0.0, 60.0, 80.0), 50)
+
+    def test_buffer_score_25_at_12_5(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=12.5 → (25-12.5)/25*50=25; impact=0; no bonus → 25
+        self.assertEqual(a._compute_cascade_risk_score(12.5, 0.0, 60.0, 80.0), 25)
+
+    def test_impact_score_40_at_60pct(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=25; impact=60→40; no ltv_bonus → 40
+        self.assertEqual(a._compute_cascade_risk_score(25.0, 60.0, 60.0, 80.0), 40)
+
+    def test_impact_score_20_at_30pct(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        self.assertEqual(a._compute_cascade_risk_score(25.0, 30.0, 60.0, 80.0), 20)
+
+    def test_ltv_bonus_when_ltv_equals_threshold(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=0→50; impact=0; ltv_bonus=10 → 60
+        self.assertEqual(a._compute_cascade_risk_score(0.0, 0.0, 80.0, 80.0), 60)
+
+    def test_ltv_bonus_when_ltv_above_threshold(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=-5→50 (capped); impact=0; ltv_bonus=10 → 60
+        self.assertEqual(a._compute_cascade_risk_score(-5.0, 0.0, 85.0, 80.0), 60)
+
+    def test_no_ltv_bonus_below_threshold(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        self.assertEqual(a._compute_cascade_risk_score(25.0, 0.0, 60.0, 80.0), 0)
+
+    def test_max_score_100(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        # buffer=0→50; impact=60→40; ltv_bonus=10 → 100
+        self.assertEqual(a._compute_cascade_risk_score(0.0, 60.0, 80.0, 80.0), 100)
+
+    def test_score_clamped_below_100(self):
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer.__new__(
+            ProtocolDeFiLiquidationCascadeRiskAnalyzer)
+        score = a._compute_cascade_risk_score(-100.0, 200.0, 90.0, 80.0)
+        self.assertLessEqual(score, 100)
+
+    def test_score_low_for_safe_scenario(self):
+        r = _make(total_collateral_usd=1_000_000.0, total_debt_usd=400_000.0,
+                  liquidation_threshold_pct=80.0, current_ltv_pct=40.0,
+                  price_drop_pct=0.0, daily_volume_usd=50_000_000.0)
+        self.assertLess(r["cascade_risk_score"], 10)
+
+    def test_score_high_for_systemic_scenario(self):
+        r = _make(current_ltv_pct=85.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=50.0, daily_volume_usd=50_000.0)
+        self.assertGreater(r["cascade_risk_score"], 60)
+
+
+class TestLogEntryStructure(unittest.TestCase):
+    REQUIRED = {
+        "protocol_name", "total_collateral_usd", "total_debt_usd",
+        "liquidation_threshold_pct", "current_ltv_pct", "price_drop_pct",
+        "liquidation_penalty_pct", "protocol_tvl_usd", "daily_volume_usd",
+        "buffer_to_liquidation_pct", "at_risk_collateral_usd",
+        "estimated_liquidations_usd", "market_impact_pct",
+        "cascade_risk_score", "cascade_label", "analyzed_at",
+    }
+
+    def _e(self): return _make()["log_entry"]
+
+    def test_all_keys(self):
+        e = self._e()
+        for k in self.REQUIRED:
+            self.assertIn(k, e, msg=f"Missing key: {k}")
+
+    def test_protocol_name(self):
+        r = _make(protocol_name="Morpho")
+        self.assertEqual(r["log_entry"]["protocol_name"], "Morpho")
+
+    def test_buffer_matches_result(self):
+        r = _make()
+        self.assertAlmostEqual(r["log_entry"]["buffer_to_liquidation_pct"], r["buffer_to_liquidation_pct"])
+
+    def test_at_risk_matches_result(self):
+        r = _make()
+        self.assertAlmostEqual(r["log_entry"]["at_risk_collateral_usd"], r["at_risk_collateral_usd"])
+
+    def test_liquidations_matches_result(self):
+        r = _make()
+        self.assertAlmostEqual(r["log_entry"]["estimated_liquidations_usd"], r["estimated_liquidations_usd"])
+
+    def test_market_impact_matches_result(self):
+        r = _make()
+        self.assertAlmostEqual(r["log_entry"]["market_impact_pct"], r["market_impact_pct"])
+
+    def test_score_matches_result(self):
+        r = _make()
+        self.assertEqual(r["log_entry"]["cascade_risk_score"], r["cascade_risk_score"])
+
+    def test_label_matches_result(self):
+        r = _make()
+        self.assertEqual(r["log_entry"]["cascade_label"], r["cascade_label"])
+
+    def test_analyzed_at_float(self):
+        self.assertIsInstance(self._e()["analyzed_at"], float)
+
+    def test_analyzed_at_positive(self):
+        self.assertGreater(self._e()["analyzed_at"], 0.0)
+
+    def test_penalty_in_entry(self):
+        r = _make(liquidation_penalty_pct=7.5)
+        self.assertAlmostEqual(r["log_entry"]["liquidation_penalty_pct"], 7.5)
+
+    def test_tvl_in_entry(self):
+        r = _make(protocol_tvl_usd=1e11)
+        self.assertAlmostEqual(r["log_entry"]["protocol_tvl_usd"], 1e11)
+
+    def test_daily_volume_in_entry(self):
+        r = _make(daily_volume_usd=2_000_000.0)
+        self.assertAlmostEqual(r["log_entry"]["daily_volume_usd"], 2_000_000.0)
+
+
+class TestLogFilePersistence(unittest.TestCase):
     def setUp(self):
-        self.tmpdir = tempfile.mkdtemp()
-        self.analyzer = ProtocolDeFiLiquidationCascadeRiskAnalyzer()
+        self.tmp_dir = tempfile.mkdtemp()
+        self.a = ProtocolDeFiLiquidationCascadeRiskAnalyzer(data_dir=self.tmp_dir)
+        self.log_path = os.path.join(self.tmp_dir, "liquidation_cascade_risk_log.json")
 
-    def _analyze(self, **kw):
-        defaults = _eth_scenario()
-        defaults.update(kw)
-        defaults["data_dir"] = self.tmpdir
-        return self.analyzer.analyze(**defaults)
-
-    def test_returns_dict(self):
-        r = self._analyze()
-        self.assertIsInstance(r, dict)
-
-    def test_all_keys_present(self):
-        r = self._analyze()
-        expected = [
-            "collateral_asset", "ltv_ratio", "liquidation_threshold",
-            "total_collateral_usd", "daily_volume_usd",
-            "concentrated_positions_pct", "price_drop_trigger_pct",
-            "cascade_risk_score", "estimated_liquidation_volume_usd",
-            "market_impact_pct", "recovery_time_days",
-            "label", "flags", "timestamp",
-        ]
-        for k in expected:
-            self.assertIn(k, r, msg=f"Missing key: {k}")
-
-    def test_cascade_score_in_range(self):
-        r = self._analyze()
-        self.assertGreaterEqual(r["cascade_risk_score"], 0.0)
-        self.assertLessEqual(r["cascade_risk_score"], 100.0)
-
-    def test_liquidation_volume_non_negative(self):
-        r = self._analyze()
-        self.assertGreaterEqual(r["estimated_liquidation_volume_usd"], 0.0)
-
-    def test_market_impact_in_range(self):
-        r = self._analyze()
-        self.assertGreaterEqual(r["market_impact_pct"], 0.0)
-        self.assertLessEqual(r["market_impact_pct"], 100.0)
-
-    def test_recovery_time_non_negative(self):
-        r = self._analyze()
-        self.assertGreaterEqual(r["recovery_time_days"], 0)
-
-    def test_recovery_time_is_int(self):
-        r = self._analyze()
-        self.assertIsInstance(r["recovery_time_days"], int)
-
-    def test_label_is_valid(self):
-        r = self._analyze()
-        valid = {"STABLE", "LOW_CASCADE", "MODERATE_CASCADE",
-                 "HIGH_CASCADE", "DEATH_SPIRAL"}
-        self.assertIn(r["label"], valid)
-
-    def test_flags_is_list(self):
-        r = self._analyze()
-        self.assertIsInstance(r["flags"], list)
-
-    def test_timestamp_is_float(self):
-        r = self._analyze()
-        self.assertIsInstance(r["timestamp"], float)
-
-    def test_collateral_asset_preserved(self):
-        r = self._analyze(collateral_asset="wBTC")
-        self.assertEqual(r["collateral_asset"], "wBTC")
-
-    def test_ltv_clamped_to_0_1(self):
-        r = self._analyze(ltv_ratio=1.5)
-        self.assertLessEqual(r["ltv_ratio"], 1.0)
-
-    def test_ltv_threshold_gte_ltv(self):
-        # If user passes threshold < ltv, it should be clamped to ltv
-        r = self._analyze(ltv_ratio=0.85, liquidation_threshold=0.75)
-        self.assertGreaterEqual(r["liquidation_threshold"], r["ltv_ratio"])
-
-    def test_pdrop_clamped_to_100(self):
-        r = self._analyze(price_drop_trigger_pct=150.0)
-        self.assertEqual(r["price_drop_trigger_pct"], 100.0)
-
-    def test_concentration_clamped_to_100(self):
-        r = self._analyze(concentrated_positions_pct=120.0)
-        self.assertEqual(r["concentrated_positions_pct"], 100.0)
-
-    def test_zero_collateral_zero_liquidation(self):
-        r = self._analyze(total_collateral_usd=0.0)
-        self.assertEqual(r["estimated_liquidation_volume_usd"], 0.0)
-
-    def test_zero_pdrop_no_liquidation(self):
-        r = self._analyze(price_drop_trigger_pct=0.0)
-        self.assertEqual(r["estimated_liquidation_volume_usd"], 0.0)
-
-    def test_death_spiral_scenario(self):
-        r = self.analyzer.analyze(
-            **{**_risky_scenario(), "data_dir": self.tmpdir}
+    def _run(self, name="P"):
+        return self.a.analyze(
+            total_collateral_usd=1_000_000.0, total_debt_usd=600_000.0,
+            liquidation_threshold_pct=80.0, current_ltv_pct=60.0, price_drop_pct=10.0,
+            liquidation_penalty_pct=5.0, protocol_tvl_usd=5_000_000.0,
+            daily_volume_usd=500_000.0, protocol_name=name,
         )
-        self.assertIn(r["label"], {"DEATH_SPIRAL", "HIGH_CASCADE"})
 
-    def test_stable_safe_scenario(self):
-        r = self._analyze(
-            ltv_ratio=0.30,
-            liquidation_threshold=0.80,
-            price_drop_trigger_pct=2.0,
-            concentrated_positions_pct=5.0,
-            total_collateral_usd=1e8,
-            daily_volume_usd=1e10,
-        )
-        self.assertIn(r["label"], {"STABLE", "LOW_CASCADE"})
+    def test_analyze_alone_no_file(self):
+        self._run()
+        self.assertFalse(os.path.exists(self.log_path))
 
-    def test_log_file_created(self):
-        self._analyze()
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        self.assertTrue(log_path.exists())
+    def test_log_result_creates_file(self):
+        r = self._run()
+        self.a.log_result(r["log_entry"])
+        self.assertTrue(os.path.exists(self.log_path))
 
-    def test_log_file_valid_json_list(self):
-        self._analyze()
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_log_is_valid_json(self):
+        r = self._run()
+        self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
         self.assertIsInstance(data, list)
 
-    def test_log_contains_entry(self):
-        self._analyze()
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_one_entry(self):
+        r = self._run()
+        self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
         self.assertEqual(len(data), 1)
 
-    def test_log_accumulates(self):
-        for _ in range(5):
-            self._analyze()
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_appends(self):
+        for _ in range(3):
+            r = self._run()
+            self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
-        self.assertEqual(len(data), 5)
+        self.assertEqual(len(data), 3)
 
-    def test_ring_buffer_cap(self):
-        for _ in range(MAX_ENTRIES + 15):
-            self._analyze()
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_cap_100(self):
+        for i in range(105):
+            r = self._run(name=f"P{i}")
+            self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
-        self.assertLessEqual(len(data), MAX_ENTRIES)
+        self.assertEqual(len(data), 100)
 
-    def test_negative_collateral_clamped(self):
-        r = self._analyze(total_collateral_usd=-1000.0)
-        self.assertEqual(r["total_collateral_usd"], 0.0)
-
-    def test_negative_ltv_clamped(self):
-        r = self._analyze(ltv_ratio=-0.5)
-        self.assertEqual(r["ltv_ratio"], 0.0)
-
-    def test_score_rounded_to_4_places(self):
-        r = self._analyze()
-        s = r["cascade_risk_score"]
-        self.assertEqual(s, round(s, 4))
-
-    def test_market_impact_rounded_to_4_places(self):
-        r = self._analyze()
-        m = r["market_impact_pct"]
-        self.assertEqual(m, round(m, 4))
-
-
-# ─────────────────────────────────────────────────────────────────
-# Tests: _append_log
-# ─────────────────────────────────────────────────────────────────
-
-class TestAppendLog(unittest.TestCase):
-
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp()
-
-    def test_creates_file_if_absent(self):
-        _append_log({"test": 1}, data_dir=self.tmpdir)
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        self.assertTrue(log_path.exists())
-
-    def test_file_contains_single_entry(self):
-        _append_log({"x": 99}, data_dir=self.tmpdir)
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_cap_keeps_recent(self):
+        for i in range(105):
+            r = self._run(name=f"P{i}")
+            self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]["x"], 99)
+        self.assertEqual(data[0]["protocol_name"], "P5")
+        self.assertEqual(data[-1]["protocol_name"], "P104")
 
-    def test_appends_multiple_entries(self):
-        for i in range(7):
-            _append_log({"i": i}, data_dir=self.tmpdir)
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_exactly_100_no_trim(self):
+        for i in range(100):
+            r = self._run(name=f"P{i}")
+            self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
-        self.assertEqual(len(data), 7)
+        self.assertEqual(len(data), 100)
 
-    def test_ring_buffer_at_max(self):
-        for i in range(MAX_ENTRIES + 25):
-            _append_log({"i": i}, data_dir=self.tmpdir)
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
+    def test_200_entries_trimmed(self):
+        for i in range(200):
+            r = self._run(name=f"P{i}")
+            self.a.log_result(r["log_entry"])
+        with open(self.log_path) as f:
             data = json.load(f)
-        self.assertEqual(len(data), MAX_ENTRIES)
+        self.assertEqual(len(data), 100)
 
-    def test_ring_buffer_keeps_latest(self):
-        for i in range(MAX_ENTRIES + 5):
-            _append_log({"i": i}, data_dir=self.tmpdir)
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        with open(log_path) as f:
-            data = json.load(f)
-        self.assertEqual(data[-1]["i"], MAX_ENTRIES + 4)
+    def test_no_tmp_left(self):
+        r = self._run()
+        self.a.log_result(r["log_entry"])
+        self.assertFalse(os.path.exists(self.log_path + ".tmp"))
 
-    def test_corrupt_file_resets(self):
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        log_path.write_text("CORRUPT", encoding="utf-8")
-        _append_log({"new": True}, data_dir=self.tmpdir)
-        with open(log_path) as f:
-            data = json.load(f)
-        self.assertEqual(len(data), 1)
-        self.assertTrue(data[0]["new"])
+    def test_read_empty_no_file(self):
+        self.assertEqual(self.a._read_log(), [])
 
-    def test_tmp_file_not_left_behind(self):
-        _append_log({"t": 1}, data_dir=self.tmpdir)
-        tmp_files = list(Path(self.tmpdir).glob("*.tmp"))
-        self.assertEqual(len(tmp_files), 0)
+    def test_read_returns_list(self):
+        r = self._run()
+        self.a.log_result(r["log_entry"])
+        self.assertIsInstance(self.a._read_log(), list)
 
-    def test_non_list_file_resets(self):
-        log_path = Path(self.tmpdir) / "liquidation_cascade_risk_log.json"
-        log_path.write_text('{"key": "value"}', encoding="utf-8")
-        _append_log({"new": True}, data_dir=self.tmpdir)
-        with open(log_path) as f:
-            data = json.load(f)
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 1)
+    def test_read_corrupted_returns_empty(self):
+        with open(self.log_path, "w") as f:
+            f.write("not json {{{")
+        self.assertEqual(self.a._read_log(), [])
+
+    def test_read_wrong_type_returns_empty(self):
+        with open(self.log_path, "w") as f:
+            json.dump({"k": "v"}, f)
+        self.assertEqual(self.a._read_log(), [])
+
+    def test_data_dir_created(self):
+        nested = os.path.join(self.tmp_dir, "x", "y")
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer(data_dir=nested)
+        r = a.analyze(
+            total_collateral_usd=1_000_000.0, total_debt_usd=600_000.0,
+            liquidation_threshold_pct=80.0, current_ltv_pct=60.0, price_drop_pct=10.0,
+            liquidation_penalty_pct=5.0, protocol_tvl_usd=5_000_000.0,
+            daily_volume_usd=500_000.0, protocol_name="P",
+        )
+        a.log_result(r["log_entry"])
+        self.assertTrue(os.path.isdir(nested))
 
 
-# ─────────────────────────────────────────────────────────────────
-# Tests: constants & module structure
-# ─────────────────────────────────────────────────────────────────
+class TestIntegrationEdgeCases(unittest.TestCase):
+    def test_multiple_independent(self):
+        r1 = _make(current_ltv_pct=40.0, price_drop_pct=0.0, daily_volume_usd=1e7)
+        r2 = _make(current_ltv_pct=85.0, liquidation_threshold_pct=80.0,
+                   price_drop_pct=50.0, daily_volume_usd=50_000.0)
+        self.assertEqual(r1["cascade_label"], "SAFE_MARGINS")
+        self.assertEqual(r2["cascade_label"], "SYSTEMIC_CASCADE")
 
-class TestConstants(unittest.TestCase):
+    def test_label_constants(self):
+        self.assertEqual(ProtocolDeFiLiquidationCascadeRiskAnalyzer.SAFE_MARGINS, "SAFE_MARGINS")
+        self.assertEqual(ProtocolDeFiLiquidationCascadeRiskAnalyzer.WATCHLIST, "WATCHLIST")
+        self.assertEqual(ProtocolDeFiLiquidationCascadeRiskAnalyzer.CASCADE_RISK, "CASCADE_RISK")
+        self.assertEqual(ProtocolDeFiLiquidationCascadeRiskAnalyzer.HIGH_CASCADE, "HIGH_CASCADE")
+        self.assertEqual(ProtocolDeFiLiquidationCascadeRiskAnalyzer.SYSTEMIC_CASCADE, "SYSTEMIC_CASCADE")
 
-    def test_max_entries_is_100(self):
-        self.assertEqual(MAX_ENTRIES, 100)
+    def test_all_labels_valid(self):
+        valid = {"SAFE_MARGINS", "WATCHLIST", "CASCADE_RISK", "HIGH_CASCADE", "SYSTEMIC_CASCADE"}
+        for params in [
+            dict(current_ltv_pct=40.0, price_drop_pct=5.0, daily_volume_usd=10_000_000.0),
+            dict(current_ltv_pct=65.0, price_drop_pct=5.0, daily_volume_usd=10_000_000.0),
+            dict(current_ltv_pct=74.0, price_drop_pct=10.0, daily_volume_usd=500_000.0),
+            dict(current_ltv_pct=79.0, price_drop_pct=20.0, daily_volume_usd=200_000.0),
+            dict(current_ltv_pct=85.0, liquidation_threshold_pct=80.0,
+                 price_drop_pct=50.0, daily_volume_usd=50_000.0),
+        ]:
+            r = _make(**params)
+            self.assertIn(r["cascade_label"], valid)
 
-    def test_data_file_is_path(self):
-        self.assertIsInstance(DATA_FILE, Path)
+    def test_liquidations_never_negative(self):
+        for drop in [0, 10, 50, 90, 100, 150]:
+            r = _make(price_drop_pct=float(drop))
+            self.assertGreaterEqual(r["estimated_liquidations_usd"], 0.0)
 
-    def test_label_thresholds_descending(self):
-        thresholds = [t for t, _ in _LABEL_THRESHOLDS]
-        self.assertEqual(thresholds, sorted(thresholds, reverse=True))
+    def test_at_risk_never_negative(self):
+        for drop in [0, 50, 100, 200]:
+            r = _make(price_drop_pct=float(drop))
+            self.assertGreaterEqual(r["at_risk_collateral_usd"], 0.0)
 
-    def test_all_five_labels_present(self):
-        labels = {lbl for _, lbl in _LABEL_THRESHOLDS}
-        expected = {"DEATH_SPIRAL", "HIGH_CASCADE", "MODERATE_CASCADE",
-                    "LOW_CASCADE", "STABLE"}
-        self.assertEqual(labels, expected)
+    def test_negative_buffer_systemic(self):
+        r = _make(current_ltv_pct=85.0, liquidation_threshold_pct=80.0,
+                  price_drop_pct=1.0, daily_volume_usd=100_000_000.0)
+        self.assertLess(r["buffer_to_liquidation_pct"], 0.0)
+        self.assertEqual(r["cascade_label"], "SYSTEMIC_CASCADE")
 
-    def test_market_impact_coeff_positive(self):
-        self.assertGreater(_MARKET_IMPACT_COEFF, 0.0)
+    def test_zero_collateral(self):
+        r = _make(total_collateral_usd=0.0, total_debt_usd=0.0, price_drop_pct=50.0)
+        self.assertEqual(r["at_risk_collateral_usd"], 0.0)
+        self.assertEqual(r["estimated_liquidations_usd"], 0.0)
+
+    def test_log_roundtrip(self):
+        tmp = tempfile.mkdtemp()
+        a = ProtocolDeFiLiquidationCascadeRiskAnalyzer(data_dir=tmp)
+        for name in ["Aave", "Compound", "Morpho"]:
+            r = a.analyze(
+                total_collateral_usd=1_000_000.0, total_debt_usd=600_000.0,
+                liquidation_threshold_pct=80.0, current_ltv_pct=60.0, price_drop_pct=10.0,
+                liquidation_penalty_pct=5.0, protocol_tvl_usd=5_000_000.0,
+                daily_volume_usd=500_000.0, protocol_name=name,
+            )
+            a.log_result(r["log_entry"])
+        entries = a._read_log()
+        self.assertEqual(len(entries), 3)
+        self.assertEqual([e["protocol_name"] for e in entries], ["Aave", "Compound", "Morpho"])
+
+    def test_score_increases_with_worse_params(self):
+        safe = _make(current_ltv_pct=40.0, price_drop_pct=0.0, daily_volume_usd=10_000_000.0)
+        risky = _make(current_ltv_pct=75.0, price_drop_pct=20.0, daily_volume_usd=500_000.0)
+        self.assertGreater(risky["cascade_risk_score"], safe["cascade_risk_score"])
+
+    def test_compound_safe_scenario(self):
+        r = _make(total_collateral_usd=2_000_000_000.0, total_debt_usd=600_000_000.0,
+                  liquidation_threshold_pct=83.0, current_ltv_pct=30.0,
+                  price_drop_pct=5.0, protocol_name="Compound_V3",
+                  daily_volume_usd=5_000_000_000.0)
+        self.assertEqual(r["cascade_label"], "SAFE_MARGINS")
+
+    def test_large_tvl_stored(self):
+        r = _make(protocol_tvl_usd=5e10)
+        self.assertAlmostEqual(r["log_entry"]["protocol_tvl_usd"], 5e10)
+
+    def test_buffer_formula_multiple_ltvs(self):
+        for ltv, thr, exp in [(50, 80, 37.5), (75, 80, 6.25), (60, 75, 20.0)]:
+            r = _make(current_ltv_pct=float(ltv), liquidation_threshold_pct=float(thr))
+            self.assertAlmostEqual(r["buffer_to_liquidation_pct"], exp, places=4,
+                                   msg=f"ltv={ltv}, thr={thr}")
 
 
 if __name__ == "__main__":
