@@ -1111,5 +1111,201 @@
     "action": "restart_triggered",
     "hour_key": "2026-06-14T17",
     "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T17:33:23.923404+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T17:33:23.924419+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T17:33:23.925418+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T17:33:23.926376+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T17:33:23.927405+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T17:33:23.928335+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T17:33:23.929282+00:00",
+    "adapter": "pendle",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T17",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:03:38.455784+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:38.457010+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:38.458001+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:38.458997+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:38.460003+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:38.460981+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:38.461919+00:00",
+    "adapter": "pendle",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 1
+  },
+  {
+    "ts": "2026-06-14T18:03:50.674879+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:03:50.678927+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:03:50.682145+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:03:50.684936+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:03:50.687302+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:03:50.689603+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:03:50.691834+00:00",
+    "adapter": "pendle",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 2
+  },
+  {
+    "ts": "2026-06-14T18:33:54.020819+00:00",
+    "adapter": "aave_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:33:54.022022+00:00",
+    "adapter": "compound_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:33:54.023041+00:00",
+    "adapter": "morpho_blue",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:33:54.024013+00:00",
+    "adapter": "yearn_v3",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:33:54.024957+00:00",
+    "adapter": "euler_v2",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:33:54.025991+00:00",
+    "adapter": "maple",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
+  },
+  {
+    "ts": "2026-06-14T18:33:54.027268+00:00",
+    "adapter": "pendle",
+    "action": "restart_triggered",
+    "hour_key": "2026-06-14T18",
+    "restart_count_this_hour": 3
   }
 ]
