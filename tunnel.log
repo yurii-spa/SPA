@@ -350,3 +350,12 @@
 {"level":"info","event":0,"ip":"198.41.200.23","connIndex":0,"time":"2026-06-12T20:15:04Z","message":"Retrying connection in up to 1m4s"}
 {"level":"info","event":0,"ip":"198.41.192.227","connIndex":0,"time":"2026-06-12T20:15:33Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256]"}
 {"level":"info","event":0,"connection":"90609ef2-47cf-4d5d-aff4-f1354f4c4bd4","connIndex":0,"location":"mad01","ip":"198.41.192.227","protocol":"quic","time":"2026-06-12T20:15:33Z","message":"Registered tunnel connection"}
+{"level":"info","time":"2026-06-14T12:42:43Z","message":"Initiating graceful shutdown due to signal terminated ..."}
+{"level":"error","event":0,"ip":"198.41.192.227","connIndex":0,"error":"context canceled","time":"2026-06-14T12:42:43Z","message":"failed to run the datagram handler"}
+{"level":"error","event":0,"ip":"198.41.192.227","connIndex":0,"error":"accept stream listener encountered a failure while serving","time":"2026-06-14T12:42:43Z","message":"failed to serve tunnel connection"}
+{"level":"error","event":0,"ip":"198.41.192.227","connIndex":0,"error":"accept stream listener encountered a failure while serving","time":"2026-06-14T12:42:43Z","message":"Serve tunnel error"}
+{"level":"info","event":0,"ip":"198.41.192.227","connIndex":0,"time":"2026-06-14T12:42:43Z","message":"Retrying connection in up to 1s"}
+{"level":"error","connIndex":0,"time":"2026-06-14T12:42:43Z","message":"Connection terminated"}
+{"level":"error","time":"2026-06-14T12:42:43Z","message":"no more connections active and exiting"}
+{"level":"info","time":"2026-06-14T12:42:43Z","message":"Tunnel server stopped"}
+{"level":"info","time":"2026-06-14T12:42:43Z","message":"Metrics server stopped"}
