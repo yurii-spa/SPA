@@ -1,6 +1,6 @@
 {
   "all_ok": false,
-  "ts": 1781457406.139713,
+  "ts": 1781462809.788451,
   "checks": {
     "launchd_httpserver": {
       "running": true,
@@ -25,7 +25,7 @@
     },
     "launchd_uptime_monitor": {
       "running": true,
-      "pid": 48768,
+      "pid": 51575,
       "last_exit": 256,
       "error": null,
       "method": "launchctl_pid"
@@ -34,7 +34,7 @@
       "running": false,
       "method": "output_file_age",
       "file": "data/cycle_health.json",
-      "age_seconds": 159902,
+      "age_seconds": 165305,
       "max_age": 1800,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -54,7 +54,7 @@
       "running": true,
       "method": "output_file_age",
       "file": "data/monitor_snapshots.json",
-      "age_seconds": 3,
+      "age_seconds": 4,
       "max_age": 1800,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -74,7 +74,7 @@
       "running": true,
       "method": "output_file_age",
       "file": "data/red_flags.json",
-      "age_seconds": 299,
+      "age_seconds": 81,
       "max_age": 1800,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -84,7 +84,7 @@
       "running": true,
       "method": "output_file_age",
       "file": "data/governance_proposals.json",
-      "age_seconds": 568,
+      "age_seconds": 559,
       "max_age": 2700,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -92,16 +92,19 @@
     },
     "launchd_autopush": {
       "running": true,
-      "pid": 47787,
-      "last_exit": 0,
-      "error": null,
-      "method": "launchctl_pid"
+      "method": "output_file_age",
+      "file": "logs/auto_push.log",
+      "age_seconds": 5291,
+      "max_age": 14400,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_daily_cycle": {
       "running": true,
       "method": "output_file_age",
       "file": "data/paper_trading_status.json",
-      "age_seconds": 816,
+      "age_seconds": 776,
       "max_age": 5400,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -111,7 +114,7 @@
       "running": true,
       "method": "output_file_age",
       "file": "data/base_gas_history.json",
-      "age_seconds": 816,
+      "age_seconds": 776,
       "max_age": 108000,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -121,7 +124,7 @@
       "running": false,
       "method": "output_file_age",
       "file": "data/sky_status.json",
-      "age_seconds": 375650,
+      "age_seconds": 381053,
       "max_age": 108000,
       "launchctl_pid": null,
       "launchctl_last_exit": 0,
@@ -131,7 +134,7 @@
       "running": true,
       "method": "output_file_age",
       "file": "data/paper_trading_status.json",
-      "age_seconds": 816,
+      "age_seconds": 776,
       "max_age": 108000,
       "launchctl_pid": null,
       "launchctl_last_exit": null,
@@ -174,13 +177,13 @@
     "http_server": {
       "ok": true,
       "status_code": 200,
-      "latency_ms": 14.19,
+      "latency_ms": 14.07,
       "error": null
     },
     "cycle_freshness": {
       "ok": true,
-      "last_run_ts": 1781456587.199798,
-      "stale_hours": 0.228,
+      "last_run_ts": 1781462031.460432,
+      "stale_hours": 0.216,
       "error": null
     },
     "git_push": {
