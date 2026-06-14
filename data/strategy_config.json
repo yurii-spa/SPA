@@ -1,0 +1,7 @@
+{
+  "strategy_loop_mode": "shadow",
+  "activated_at": "2026-06-14",
+  "reason": "ADR-033: tournament S0-S19 runs in shadow mode (evaluated + logged each cycle, advisory-only) until a shadow strategy reaches medium confidence (>=15 days with a valid Sortino). Real allocation is unchanged.",
+  "adr": "ADR-033",
+  "valid_modes": ["off", "shadow", "active"]
+}
