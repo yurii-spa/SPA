@@ -1,0 +1,65 @@
+[
+  {
+    "ts": "2026-06-14T04:15:21Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 52.73,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Decentralized",
+    "riskiest_protocol": "Critical"
+  },
+  {
+    "ts": "2026-06-14T04:15:21Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 2,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "P2"
+  },
+  {
+    "ts": "2026-06-14T04:15:21Z",
+    "protocol_count": 1,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 1,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "Proto"
+  },
+  {
+    "ts": "2026-06-14T04:15:32Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 55.3,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Aave",
+    "riskiest_protocol": "RiskyFork"
+  },
+  {
+    "ts": "2026-06-14T04:17:14Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 52.73,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Decentralized",
+    "riskiest_protocol": "Critical"
+  },
+  {
+    "ts": "2026-06-14T04:17:14Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 2,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "P2"
+  },
+  {
+    "ts": "2026-06-14T04:17:14Z",
+    "protocol_count": 1,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 1,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "Proto"
+  }
+]
