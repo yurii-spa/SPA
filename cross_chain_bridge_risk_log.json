@@ -1,0 +1,21 @@
+[
+  {
+    "protocol_name": "init",
+    "bridge_name": "native_rollup",
+    "bridge_tvl_usd": 0.0,
+    "bridge_audit_count": 0,
+    "bridge_age_days": 0,
+    "prior_hack_usd": 0.0,
+    "position_bridge_exposure_usd": 0.0,
+    "is_canonical_bridge": false,
+    "bridge_base_risk_score": 0,
+    "hack_history_penalty": 0,
+    "maturity_bonus": 0,
+    "audit_bonus": 0,
+    "canonical_bonus": 0,
+    "bridge_risk_score": 0,
+    "expected_loss_usd": 0.0,
+    "bridge_label": "BATTLE_TESTED_BRIDGE",
+    "timestamp": 1781431847
+  }
+]
