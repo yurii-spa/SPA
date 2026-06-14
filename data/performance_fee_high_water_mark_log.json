@@ -1,0 +1,94 @@
+[
+  {
+    "ts": "2026-06-14T18:23:03.900566+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_fee_efficient_vault": "Underwater-Vault",
+      "least_fee_efficient_vault": "Expensive-4/30",
+      "avg_fee_efficiency_score": 57.43,
+      "high_fee_drag_count": 2,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "StableYield-2/20",
+        "classification": "HIGH_FEE_DRAG",
+        "fee_efficiency_score": 56.75,
+        "recommendation": "NEGOTIATE_TERMS",
+        "flags": [
+          "NO_HWM_PROTECTION",
+          "AT_HIGH_WATER_MARK"
+        ]
+      },
+      {
+        "token": "Underwater-Vault",
+        "classification": "MODERATE_FEE_DRAG",
+        "fee_efficiency_score": 70.49,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "UNDERWATER",
+          "HWM_PROTECTION_ACTIVE"
+        ]
+      },
+      {
+        "token": "Expensive-4/30",
+        "classification": "HIGH_FEE_DRAG",
+        "fee_efficiency_score": 45.06,
+        "recommendation": "NEGOTIATE_TERMS",
+        "flags": [
+          "NO_HWM_PROTECTION",
+          "AT_HIGH_WATER_MARK",
+          "HIGH_MGMT_FEE",
+          "HIGH_PERF_FEE",
+          "HURDLE_APPLIED"
+        ]
+      }
+    ]
+  },
+  {
+    "ts": "2026-06-14T18:24:56.573205+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_fee_efficient_vault": "Underwater-Vault",
+      "least_fee_efficient_vault": "Expensive-4/30",
+      "avg_fee_efficiency_score": 57.43,
+      "high_fee_drag_count": 2,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "StableYield-2/20",
+        "classification": "HIGH_FEE_DRAG",
+        "fee_efficiency_score": 56.75,
+        "recommendation": "NEGOTIATE_TERMS",
+        "flags": [
+          "NO_HWM_PROTECTION",
+          "AT_HIGH_WATER_MARK"
+        ]
+      },
+      {
+        "token": "Underwater-Vault",
+        "classification": "MODERATE_FEE_DRAG",
+        "fee_efficiency_score": 70.49,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "UNDERWATER",
+          "HWM_PROTECTION_ACTIVE"
+        ]
+      },
+      {
+        "token": "Expensive-4/30",
+        "classification": "HIGH_FEE_DRAG",
+        "fee_efficiency_score": 45.06,
+        "recommendation": "NEGOTIATE_TERMS",
+        "flags": [
+          "NO_HWM_PROTECTION",
+          "AT_HIGH_WATER_MARK",
+          "HIGH_MGMT_FEE",
+          "HIGH_PERF_FEE",
+          "HURDLE_APPLIED"
+        ]
+      }
+    ]
+  }
+]
