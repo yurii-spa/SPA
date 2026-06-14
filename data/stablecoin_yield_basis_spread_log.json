@@ -1,0 +1,419 @@
+[
+  {
+    "name": "USDC-vault (thin spread)",
+    "headline_apy_pct": 6.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 4.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 1.0,
+    "basis_to_risk_ratio": 0.25,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": 0.6,
+    "risk_compensation_score": 51.875,
+    "classification": "THIN_SPREAD",
+    "grade": "C",
+    "flags": [
+      "THIN_COMPENSATION"
+    ],
+    "recommendations": [
+      "Thin spread: only ~1.00% of excess basis is paid for the full protocol/depeg risk (basis-to-risk ratio ~0.25). The compensation is slim relative to the risk taken.",
+      "Thin compensation: consider a venue with a larger spread or a lower protocol-risk profile to improve the basis-to-risk ratio."
+    ],
+    "timestamp": 1781439552.7875438
+  },
+  {
+    "name": "USDC-vault (thin spread)",
+    "headline_apy_pct": 6.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 4.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 1.0,
+    "basis_to_risk_ratio": 0.25,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": 0.6,
+    "risk_compensation_score": 51.875,
+    "classification": "THIN_SPREAD",
+    "grade": "C",
+    "flags": [
+      "THIN_COMPENSATION"
+    ],
+    "recommendations": [
+      "Thin spread: only ~1.00% of excess basis is paid for the full protocol/depeg risk (basis-to-risk ratio ~0.25). The compensation is slim relative to the risk taken.",
+      "Thin compensation: consider a venue with a larger spread or a lower protocol-risk profile to improve the basis-to-risk ratio."
+    ],
+    "timestamp": 1781439552.7896633
+  },
+  {
+    "name": "Algo-stable farm (generous)",
+    "headline_apy_pct": 18.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 5.0,
+    "depeg_probability": 0.05,
+    "depeg_severity_pct": 30.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 13.0,
+    "basis_to_risk_ratio": 2.6,
+    "depeg_expected_cost_pct": 1.5,
+    "real_excess_after_depeg_haircut_pct": 11.5,
+    "risk_compensation_score": 100.0,
+    "classification": "EXCEPTIONAL",
+    "grade": "A",
+    "flags": [
+      "GENEROUS_CARRY"
+    ],
+    "recommendations": [
+      "Exceptional carry: ~13.00% excess basis is a large multiple of the protocol-risk proxy (ratio ~2.60). Verify the yield source is sustainable before sizing up.",
+      "Generous carry: the spread is large relative to the risk proxy \u2014 confirm the risk proxy is not understated before treating this as free money."
+    ],
+    "timestamp": 1781439552.7910812
+  },
+  {
+    "name": "USDC-vault (thin spread)",
+    "headline_apy_pct": 6.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 4.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 1.0,
+    "basis_to_risk_ratio": 0.25,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": 0.6,
+    "risk_compensation_score": 51.875,
+    "classification": "THIN_SPREAD",
+    "grade": "C",
+    "flags": [
+      "THIN_COMPENSATION"
+    ],
+    "recommendations": [
+      "Thin spread: only ~1.00% of excess basis is paid for the full protocol/depeg risk (basis-to-risk ratio ~0.25). The compensation is slim relative to the risk taken.",
+      "Thin compensation: consider a venue with a larger spread or a lower protocol-risk profile to improve the basis-to-risk ratio."
+    ],
+    "timestamp": 1781439557.944773
+  },
+  {
+    "name": "USDC-vault (thin spread)",
+    "headline_apy_pct": 6.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 4.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 1.0,
+    "basis_to_risk_ratio": 0.25,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": 0.6,
+    "risk_compensation_score": 51.875,
+    "classification": "THIN_SPREAD",
+    "grade": "C",
+    "flags": [
+      "THIN_COMPENSATION"
+    ],
+    "recommendations": [
+      "Thin spread: only ~1.00% of excess basis is paid for the full protocol/depeg risk (basis-to-risk ratio ~0.25). The compensation is slim relative to the risk taken.",
+      "Thin compensation: consider a venue with a larger spread or a lower protocol-risk profile to improve the basis-to-risk ratio."
+    ],
+    "timestamp": 1781439557.946659
+  },
+  {
+    "name": "Algo-stable farm (generous)",
+    "headline_apy_pct": 18.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 5.0,
+    "depeg_probability": 0.05,
+    "depeg_severity_pct": 30.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 13.0,
+    "basis_to_risk_ratio": 2.6,
+    "depeg_expected_cost_pct": 1.5,
+    "real_excess_after_depeg_haircut_pct": 11.5,
+    "risk_compensation_score": 100.0,
+    "classification": "EXCEPTIONAL",
+    "grade": "A",
+    "flags": [
+      "GENEROUS_CARRY"
+    ],
+    "recommendations": [
+      "Exceptional carry: ~13.00% excess basis is a large multiple of the protocol-risk proxy (ratio ~2.60). Verify the yield source is sustainable before sizing up.",
+      "Generous carry: the spread is large relative to the risk proxy \u2014 confirm the risk proxy is not understated before treating this as free money."
+    ],
+    "timestamp": 1781439557.9483998
+  },
+  {
+    "name": "USDC-vault (thin spread)",
+    "headline_apy_pct": 6.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 4.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 1.0,
+    "basis_to_risk_ratio": 0.25,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": 0.6,
+    "risk_compensation_score": 51.875,
+    "classification": "THIN_SPREAD",
+    "grade": "C",
+    "flags": [
+      "THIN_COMPENSATION"
+    ],
+    "recommendations": [
+      "Thin spread: only ~1.00% of excess basis is paid for the full protocol/depeg risk (basis-to-risk ratio ~0.25). The compensation is slim relative to the risk taken.",
+      "Thin compensation: consider a venue with a larger spread or a lower protocol-risk profile to improve the basis-to-risk ratio."
+    ],
+    "timestamp": 1781439597.5696838
+  },
+  {
+    "name": "USDC-vault (thin spread)",
+    "headline_apy_pct": 6.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 4.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 1.0,
+    "basis_to_risk_ratio": 0.25,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": 0.6,
+    "risk_compensation_score": 51.875,
+    "classification": "THIN_SPREAD",
+    "grade": "C",
+    "flags": [
+      "THIN_COMPENSATION"
+    ],
+    "recommendations": [
+      "Thin spread: only ~1.00% of excess basis is paid for the full protocol/depeg risk (basis-to-risk ratio ~0.25). The compensation is slim relative to the risk taken.",
+      "Thin compensation: consider a venue with a larger spread or a lower protocol-risk profile to improve the basis-to-risk ratio."
+    ],
+    "timestamp": 1781439597.5723038
+  },
+  {
+    "name": "Algo-stable farm (generous)",
+    "headline_apy_pct": 18.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 5.0,
+    "depeg_probability": 0.05,
+    "depeg_severity_pct": 30.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": 13.0,
+    "basis_to_risk_ratio": 2.6,
+    "depeg_expected_cost_pct": 1.5,
+    "real_excess_after_depeg_haircut_pct": 11.5,
+    "risk_compensation_score": 100.0,
+    "classification": "EXCEPTIONAL",
+    "grade": "A",
+    "flags": [
+      "GENEROUS_CARRY"
+    ],
+    "recommendations": [
+      "Exceptional carry: ~13.00% excess basis is a large multiple of the protocol-risk proxy (ratio ~2.60). Verify the yield source is sustainable before sizing up.",
+      "Generous carry: the spread is large relative to the risk proxy \u2014 confirm the risk proxy is not understated before treating this as free money."
+    ],
+    "timestamp": 1781439597.5739667
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449326.514838
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449326.854267
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449326.890802
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449326.926411
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449326.962223
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449326.998229
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449327.035331
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1781449327.0709481
+  }
+]
