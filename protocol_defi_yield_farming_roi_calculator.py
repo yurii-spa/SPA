@@ -1,17 +1,46 @@
 """
-MP-1047 ProtocolDeFiYieldFarmingROICalculator
----------------------------------------------
-Calculates the true ROI of yield farming including all material costs:
-  - Base protocol yield
-  - Reward token APY (adjusted for token price change)
-  - Gas / transaction costs
-  - Impermanent loss estimate
-  - Opportunity cost of capital
+MP-1097 ProtocolDeFiYieldFarmingROICalculator
+----------------------------------------------
+Full ROI calculator for yield farming positions accounting for:
+  - Gross yield from stated APY over holding period
+  - Impermanent loss risk (applied to principal)
+  - Reward token price decay (applied to gross yield)
+  - Protocol fee drag (applied to gross yield)
+  - Gas / transaction entry and exit costs
 
-Produces gross/net/token-adjusted APY percentages, ROI vs hodl, and an
-advisory label.
+Produces gross_yield_usd, il_loss_usd, reward_decay_loss_usd, net_yield_usd,
+net_roi_pct, annualized_net_roi_pct, and an advisory roi_label.
 
-Advisory / read-only.  Pure stdlib.  Atomic ring-buffer JSON log (100 entries).
+Inputs (via calculate(params)):
+    initial_investment_usd  float  principal deployed
+    gross_apy_pct           float  advertised gross APY %
+    il_risk_pct             float  estimated impermanent loss % of principal
+    reward_token_decay_pct  float  expected reward token price drop % (decay)
+    entry_cost_usd          float  gas + swap fees to enter position
+    exit_cost_usd           float  gas + swap fees to exit position
+    holding_days            int    number of days holding the position
+    protocol_fee_pct        float  ongoing protocol fee % (annualized, on gross yield)
+    protocol_name           str    human-readable label
+
+Outputs (returned dict):
+    gross_yield_usd         float  initial_investment * gross_apy * holding_days/365
+    il_loss_usd             float  initial_investment * il_risk_pct/100
+    reward_decay_loss_usd   float  gross_yield * reward_token_decay_pct/100
+    net_yield_usd           float  gross - il - decay - fees - entry - exit
+    net_roi_pct             float  net_yield / initial_investment * 100
+    annualized_net_roi_pct  float  net_roi * 365 / holding_days  (0 if holding_days<=0)
+    roi_label               str    EXCELLENT_ROI / GOOD_ROI / BREAKEVEN /
+                                   MARGINAL_LOSS / SIGNIFICANT_LOSS
+
+Label logic (by net_roi_pct for holding period):
+    > 5%          => EXCELLENT_ROI
+    1% to 5%      => GOOD_ROI
+    -1% to 1%     => BREAKEVEN
+    -5% to -1%    => MARGINAL_LOSS
+    < -5%         => SIGNIFICANT_LOSS
+
+Advisory / read-only.  Pure stdlib.  Atomic ring-buffer JSON log (cap=100).
+Log file: data/yield_farming_roi_log.json
 """
 
 from __future__ import annotations
@@ -26,53 +55,154 @@ from typing import Any
 # Constants
 # ---------------------------------------------------------------------------
 
+_LOG_FILENAME = "yield_farming_roi_log.json"
 _LOG_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "yield_farming_roi_log.json"
+    os.path.dirname(__file__), "..", "..", "data", _LOG_FILENAME
 )
 _LOG_CAP = 100
 
-_WEEKS_PER_YEAR: float = 52.0
-
-# Default reference position used for converting absolute gas costs to a %
-# when no position_usd is supplied.
-_DEFAULT_POSITION_USD: float = 10_000.0
-
-# Label thresholds on roi_vs_hodl_pct (annualized)
-_LABEL_THRESHOLDS = [
-    (15.0, "EXCEPTIONAL_ROI"),
-    (5.0, "GOOD_ROI"),
-    (0.0, "MARGINAL"),
-    (-10.0, "UNDERPERFORMING"),
-]
-_LABEL_BOTTOM = "YIELD_FARMING_TRAP"
+_DAYS_PER_YEAR: float = 365.0
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _atomic_log(log_path: str, entry: dict) -> None:
-    """Append *entry* to ring-buffer JSON array (cap=100), atomic write."""
+def _gross_yield_usd(
+    initial_investment_usd: float,
+    gross_apy_pct: float,
+    holding_days: int,
+) -> float:
+    """
+    Gross yield = principal × (gross_apy / 100) × (holding_days / 365).
+    Negative APY or negative principal → 0.
+    """
+    if holding_days <= 0 or initial_investment_usd <= 0 or gross_apy_pct <= 0:
+        return 0.0
+    return initial_investment_usd * (gross_apy_pct / 100.0) * (holding_days / _DAYS_PER_YEAR)
+
+
+def _il_loss_usd(
+    initial_investment_usd: float,
+    il_risk_pct: float,
+) -> float:
+    """
+    Impermanent-loss dollar amount = principal × (il_risk_pct / 100).
+    Negative risk → 0.
+    """
+    if initial_investment_usd <= 0 or il_risk_pct <= 0:
+        return 0.0
+    return initial_investment_usd * (il_risk_pct / 100.0)
+
+
+def _reward_decay_loss_usd(
+    gross_yield: float,
+    reward_token_decay_pct: float,
+) -> float:
+    """
+    Reward token decay erodes the gross yield:
+    decay_loss = gross_yield × (reward_token_decay_pct / 100).
+    Capped at gross_yield (can't lose more than gross yield through token decay).
+    Negative decay → 0 (price appreciation is not counted here).
+    """
+    if gross_yield <= 0 or reward_token_decay_pct <= 0:
+        return 0.0
+    return gross_yield * min(1.0, reward_token_decay_pct / 100.0)
+
+
+def _protocol_fee_usd(
+    gross_yield: float,
+    protocol_fee_pct: float,
+) -> float:
+    """
+    Protocol fee drag on the yield = gross_yield × (protocol_fee_pct / 100).
+    Negative fee → 0.
+    """
+    if gross_yield <= 0 or protocol_fee_pct <= 0:
+        return 0.0
+    return gross_yield * (protocol_fee_pct / 100.0)
+
+
+def _net_yield_usd(
+    gross_yield: float,
+    il_loss: float,
+    reward_decay_loss: float,
+    protocol_fee: float,
+    entry_cost_usd: float,
+    exit_cost_usd: float,
+) -> float:
+    """
+    Net yield = gross − IL − decay − protocol_fee − entry_cost − exit_cost.
+    Can be negative (loss scenario).
+    """
+    entry = max(0.0, entry_cost_usd)
+    exit_ = max(0.0, exit_cost_usd)
+    return gross_yield - il_loss - reward_decay_loss - protocol_fee - entry - exit_
+
+
+def _net_roi_pct(net_yield: float, initial_investment_usd: float) -> float:
+    """
+    Net ROI % = (net_yield / initial_investment) × 100.
+    Returns 0 when investment is 0 or negative.
+    """
+    if initial_investment_usd <= 0:
+        return 0.0
+    return (net_yield / initial_investment_usd) * 100.0
+
+
+def _annualized_net_roi_pct(net_roi: float, holding_days: int) -> float:
+    """
+    Annualise the holding-period ROI: net_roi × 365 / holding_days.
+    Returns 0 when holding_days <= 0.
+    """
+    if holding_days <= 0:
+        return 0.0
+    return net_roi * (_DAYS_PER_YEAR / holding_days)
+
+
+def _roi_label(net_roi: float) -> str:
+    """Map net_roi_pct to an advisory label.
+
+    Thresholds (inclusive lower bound of each range):
+        > 5%       -> EXCELLENT_ROI
+        1% to 5%   -> GOOD_ROI   (includes exactly 1%)
+        -1% to 1%  -> BREAKEVEN  (includes exactly -1%, excludes 1%)
+        -5% to -1% -> MARGINAL_LOSS (includes -5%, excludes -1%)
+        < -5%      -> SIGNIFICANT_LOSS
+    """
+    if net_roi > 5.0:
+        return "EXCELLENT_ROI"
+    if net_roi >= 1.0:
+        return "GOOD_ROI"
+    if net_roi >= -1.0:
+        return "BREAKEVEN"
+    if net_roi >= -5.0:
+        return "MARGINAL_LOSS"
+    return "SIGNIFICANT_LOSS"
+
+
+def _atomic_log(log_path: str, entry: dict, log_cap: int = _LOG_CAP) -> None:
+    """Append *entry* to ring-buffer JSON array (capped at log_cap), atomic write."""
     abs_path = os.path.abspath(log_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
     try:
-        with open(abs_path, "r", encoding="utf-8") as f:
-            data: list = json.load(f)
+        with open(abs_path, "r", encoding="utf-8") as fh:
+            data: list = json.load(fh)
         if not isinstance(data, list):
             data = []
     except (FileNotFoundError, json.JSONDecodeError):
         data = []
 
     data.append(entry)
-    if len(data) > _LOG_CAP:
-        data = data[-_LOG_CAP:]
+    if len(data) > log_cap:
+        data = data[-log_cap:]
 
     dir_name = os.path.dirname(abs_path)
     fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
         os.replace(tmp_path, abs_path)
     except Exception:
         try:
@@ -82,192 +212,26 @@ def _atomic_log(log_path: str, entry: dict) -> None:
         raise
 
 
-def _gross_apy_pct(base_yield_apy_pct: float, reward_token_apy_pct: float) -> float:
-    """
-    Gross APY before any price adjustment, IL, or cost deductions.
-    Simply the sum of base yield and nominal reward token APY.
-    """
-    return max(0.0, base_yield_apy_pct) + max(0.0, reward_token_apy_pct)
-
-
-def _token_price_ratio(
-    reward_token_price_usd: float,
-    reward_token_entry_price_usd: float,
-) -> float:
-    """
-    Ratio of current reward token price to entry price.
-    Returns 1.0 (no change) when entry price is zero or negative.
-    """
-    if reward_token_entry_price_usd <= 0:
-        return 1.0
-    return max(0.0, reward_token_price_usd) / reward_token_entry_price_usd
-
-
-def _token_adjusted_apy_pct(
-    base_yield_apy_pct: float,
-    reward_token_apy_pct: float,
-    reward_token_price_usd: float,
-    reward_token_entry_price_usd: float,
-) -> float:
-    """
-    APY after adjusting the reward token component for price movement.
-
-    Only the reward token component is affected by price change;
-    the base yield (denominated in stablecoin/principal) is unaffected.
-    """
-    ratio = _token_price_ratio(reward_token_price_usd, reward_token_entry_price_usd)
-    adjusted_reward_apy = max(0.0, reward_token_apy_pct) * ratio
-    return max(0.0, base_yield_apy_pct) + adjusted_reward_apy
-
-
-def _gas_cost_annual_pct(
-    gas_cost_usd_per_week: float,
-    position_usd: float,
-) -> float:
-    """
-    Annualised gas cost as a percentage of position size.
-    Returns 0 when position_usd <= 0.
-    """
-    if position_usd <= 0:
-        return 0.0
-    annual_gas_usd = max(0.0, gas_cost_usd_per_week) * _WEEKS_PER_YEAR
-    return annual_gas_usd / position_usd * 100.0
-
-
-def _net_apy_pct(
-    token_adjusted_apy: float,
-    il_estimate_pct: float,
-    gas_cost_pct: float,
-) -> float:
-    """
-    Net APY after subtracting impermanent loss and gas costs.
-    """
-    return token_adjusted_apy - max(0.0, il_estimate_pct) - max(0.0, gas_cost_pct)
-
-
-def _roi_vs_hodl_pct(net_apy: float, opportunity_cost_apy_pct: float) -> float:
-    """
-    Annualised return advantage of farming vs. the opportunity-cost alternative.
-    Positive means farming outperforms; negative means it underperforms.
-    """
-    return net_apy - max(0.0, opportunity_cost_apy_pct)
-
-
-def _label(roi_vs_hodl: float) -> str:
-    """Map roi_vs_hodl_pct → advisory label."""
-    if roi_vs_hodl >= 15.0:
-        return "EXCEPTIONAL_ROI"
-    if roi_vs_hodl >= 5.0:
-        return "GOOD_ROI"
-    if roi_vs_hodl >= 0.0:
-        return "MARGINAL"
-    if roi_vs_hodl >= -10.0:
-        return "UNDERPERFORMING"
-    return "YIELD_FARMING_TRAP"
-
-
-def _effective_weeks_farmed(weeks_farmed: float) -> float:
-    """Clamp weeks_farmed to a positive value."""
-    return max(0.0, weeks_farmed)
-
-
-def _period_return_pct(apy_pct: float, weeks: float) -> float:
-    """Convert APY % to actual return % over the given number of weeks."""
-    if weeks <= 0:
-        return 0.0
-    return apy_pct * weeks / _WEEKS_PER_YEAR
-
-
-def _build_recommendations(
-    label: str,
-    net_apy: float,
-    opportunity_cost_apy_pct: float,
-    gas_cost_pct: float,
-    il_estimate_pct: float,
-    token_price_ratio: float,
-    management_overhead_hrs_per_week: float,
-) -> list[str]:
-    """Return advisory recommendations based on the farming result."""
-    recs: list[str] = []
-
-    if label == "EXCEPTIONAL_ROI":
-        recs.append(
-            f"Exceptional farming ROI: net APY {net_apy:.1f}% vs "
-            f"opportunity cost {opportunity_cost_apy_pct:.1f}%. "
-            f"Continue and consider scaling within risk limits."
-        )
-    elif label == "GOOD_ROI":
-        recs.append(
-            f"Good ROI: net APY {net_apy:.1f}% clears opportunity cost "
-            f"({opportunity_cost_apy_pct:.1f}%). Strategy is working."
-        )
-    elif label == "MARGINAL":
-        recs.append(
-            f"Marginal advantage over opportunity cost "
-            f"({opportunity_cost_apy_pct:.1f}%). "
-            f"Evaluate whether gas/IL drag can be reduced."
-        )
-    elif label == "UNDERPERFORMING":
-        recs.append(
-            f"Farming underperforms the alternative yield "
-            f"({opportunity_cost_apy_pct:.1f}%). "
-            f"Consider reallocating to the opportunity-cost strategy."
-        )
-    else:  # YIELD_FARMING_TRAP
-        recs.append(
-            f"Yield farming trap: net APY {net_apy:.1f}% severely lags "
-            f"the opportunity cost ({opportunity_cost_apy_pct:.1f}%). "
-            f"Exit and redeploy to safer yield."
-        )
-
-    if token_price_ratio < 0.7:
-        recs.append(
-            f"Reward token has lost {(1 - token_price_ratio) * 100:.0f}% "
-            f"of its entry value — heavily eroding farming returns."
-        )
-    elif token_price_ratio > 1.5:
-        recs.append(
-            f"Reward token is up {(token_price_ratio - 1) * 100:.0f}% "
-            f"vs entry — significant boost to actual returns."
-        )
-
-    if gas_cost_pct > 5.0:
-        recs.append(
-            f"Gas costs annualise to {gas_cost_pct:.1f}% of position — "
-            f"consider batching claims or moving to a lower-fee chain."
-        )
-
-    if il_estimate_pct > 10.0:
-        recs.append(
-            f"High IL estimate ({il_estimate_pct:.1f}% p.a.) is a major "
-            f"drag; favour single-sided or stable-pair pools."
-        )
-
-    if management_overhead_hrs_per_week > 5.0:
-        recs.append(
-            f"Management overhead {management_overhead_hrs_per_week:.1f} hrs/week "
-            f"is significant; factor in your own time cost."
-        )
-
-    return recs
-
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 class ProtocolDeFiYieldFarmingROICalculator:
     """
-    Calculates true ROI of yield farming including all material costs and
-    token price risk.
+    Full ROI calculator for DeFi yield farming positions, accounting for
+    entry/exit costs, IL risk, reward token price decay, and protocol fees.
 
     Usage
     -----
     calc = ProtocolDeFiYieldFarmingROICalculator()
-    result = calc.calculate(farming_params)
+    result = calc.calculate(params)
     """
 
-    def __init__(self, log_path: str = _LOG_PATH, log_cap: int = _LOG_CAP) -> None:
+    def __init__(
+        self,
+        log_path: str = _LOG_PATH,
+        log_cap: int = _LOG_CAP,
+    ) -> None:
         self._log_path = log_path
         self._log_cap = log_cap
 
@@ -282,98 +246,81 @@ class ProtocolDeFiYieldFarmingROICalculator:
         Parameters
         ----------
         params : dict
-            - protocol: str                         (informational, optional)
-            - base_yield_apy_pct: float             (stable base yield, e.g. lending)
-            - reward_token_apy_pct: float           (reward APY at entry token price)
-            - reward_token_price_usd: float         (current reward token price)
-            - reward_token_entry_price_usd: float   (token price when you entered)
-            - gas_cost_usd_per_week: float          ($ cost of claiming/compounding)
-            - il_estimate_pct: float                (annualised IL estimate %)
-            - management_overhead_hrs_per_week: float
-            - opportunity_cost_apy_pct: float       (safe alternative APY %)
-            - weeks_farmed: float                   (farming duration)
-            - position_usd: float                   (optional; default 10 000)
+            initial_investment_usd  : float  (principal, USD)
+            gross_apy_pct           : float  (gross APY %)
+            il_risk_pct             : float  (estimated IL % of principal)
+            reward_token_decay_pct  : float  (expected reward token drop %)
+            entry_cost_usd          : float  (gas + swap fees on entry)
+            exit_cost_usd           : float  (gas + swap fees on exit)
+            holding_days            : int    (days in position)
+            protocol_fee_pct        : float  (protocol fee on gross yield %)
+            protocol_name           : str
+
         config : dict, optional
-            - log_path: str  (override default log path)
-            - skip_log: bool (default False)
+            log_path : str   override log path
+            skip_log : bool  skip writing to log (default False)
 
         Returns
         -------
-        dict
-            Full ROI analysis with all intermediate metrics and advisory label.
+        dict with keys:
+            protocol_name, initial_investment_usd, gross_apy_pct,
+            il_risk_pct, reward_token_decay_pct, entry_cost_usd,
+            exit_cost_usd, holding_days, protocol_fee_pct,
+            gross_yield_usd, il_loss_usd, reward_decay_loss_usd,
+            protocol_fee_usd, net_yield_usd, net_roi_pct,
+            annualized_net_roi_pct, roi_label, timestamp
         """
         cfg = config or {}
         log_path = cfg.get("log_path", self._log_path)
         skip_log = bool(cfg.get("skip_log", False))
 
-        protocol = str(params.get("protocol", "UNKNOWN"))
-        base_yield_apy = max(0.0, float(params.get("base_yield_apy_pct", 0.0)))
-        reward_token_apy = max(0.0, float(params.get("reward_token_apy_pct", 0.0)))
-        reward_price = max(0.0, float(params.get("reward_token_price_usd", 0.0)))
-        reward_entry_price = max(0.0, float(params.get("reward_token_entry_price_usd", 0.0)))
-        gas_per_week = max(0.0, float(params.get("gas_cost_usd_per_week", 0.0)))
-        il_pct = max(0.0, float(params.get("il_estimate_pct", 0.0)))
-        overhead_hrs = max(0.0, float(params.get("management_overhead_hrs_per_week", 0.0)))
-        opp_cost_apy = max(0.0, float(params.get("opportunity_cost_apy_pct", 0.0)))
-        weeks = max(0.0, float(params.get("weeks_farmed", 0.0)))
-        position_usd = max(0.0, float(params.get("position_usd", _DEFAULT_POSITION_USD)))
-        if position_usd <= 0:
-            position_usd = _DEFAULT_POSITION_USD
+        # -- Parse inputs -----------------------------------------------
+        protocol_name = str(params.get("protocol_name", "UNKNOWN"))
+        initial_investment = max(0.0, float(params.get("initial_investment_usd", 0.0)))
+        gross_apy = max(0.0, float(params.get("gross_apy_pct", 0.0)))
+        il_risk = max(0.0, float(params.get("il_risk_pct", 0.0)))
+        reward_decay = max(0.0, float(params.get("reward_token_decay_pct", 0.0)))
+        entry_cost = max(0.0, float(params.get("entry_cost_usd", 0.0)))
+        exit_cost = max(0.0, float(params.get("exit_cost_usd", 0.0)))
+        holding_days = max(0, int(float(params.get("holding_days", 0))))
+        protocol_fee = max(0.0, float(params.get("protocol_fee_pct", 0.0)))
 
-        # Core calculations
-        gross_apy = _gross_apy_pct(base_yield_apy, reward_token_apy)
-        tok_ratio = _token_price_ratio(reward_price, reward_entry_price)
-        tok_adj_apy = _token_adjusted_apy_pct(
-            base_yield_apy, reward_token_apy, reward_price, reward_entry_price
-        )
-        gas_pct = _gas_cost_annual_pct(gas_per_week, position_usd)
-        net_apy = _net_apy_pct(tok_adj_apy, il_pct, gas_pct)
-        roi_vs_hodl = _roi_vs_hodl_pct(net_apy, opp_cost_apy)
-        lbl = _label(roi_vs_hodl)
-
-        # Period (realised) returns over weeks_farmed
-        period_net_return_pct = _period_return_pct(net_apy, weeks)
-        period_opp_return_pct = _period_return_pct(opp_cost_apy, weeks)
-        period_advantage_pct = period_net_return_pct - period_opp_return_pct
-
-        recommendations = _build_recommendations(
-            lbl,
-            net_apy,
-            opp_cost_apy,
-            gas_pct,
-            il_pct,
-            tok_ratio,
-            overhead_hrs,
-        )
+        # -- Core calculations ------------------------------------------
+        gross = _gross_yield_usd(initial_investment, gross_apy, holding_days)
+        il_loss = _il_loss_usd(initial_investment, il_risk)
+        decay_loss = _reward_decay_loss_usd(gross, reward_decay)
+        fee = _protocol_fee_usd(gross, protocol_fee)
+        net_yield = _net_yield_usd(gross, il_loss, decay_loss, fee, entry_cost, exit_cost)
+        roi_pct = _net_roi_pct(net_yield, initial_investment)
+        ann_roi_pct = _annualized_net_roi_pct(roi_pct, holding_days)
+        label = _roi_label(roi_pct)
 
         result: dict[str, Any] = {
-            "protocol": protocol,
-            "position_usd": position_usd,
-            "weeks_farmed": weeks,
-            # APY metrics
+            "protocol_name": protocol_name,
+            # echoed inputs
+            "initial_investment_usd": initial_investment,
             "gross_apy_pct": gross_apy,
-            "token_adjusted_apy_pct": tok_adj_apy,
-            "gas_cost_annual_pct": gas_pct,
-            "net_apy_pct": net_apy,
-            "opportunity_cost_apy_pct": opp_cost_apy,
-            "roi_vs_hodl_pct": roi_vs_hodl,
-            # Breakdown factors
-            "reward_token_price_ratio": tok_ratio,
-            "il_estimate_pct": il_pct,
-            "management_overhead_hrs_per_week": overhead_hrs,
-            # Period returns
-            "period_net_return_pct": period_net_return_pct,
-            "period_opp_return_pct": period_opp_return_pct,
-            "period_advantage_pct": period_advantage_pct,
-            # Advisory
-            "label": lbl,
-            "recommendations": recommendations,
+            "il_risk_pct": il_risk,
+            "reward_token_decay_pct": reward_decay,
+            "entry_cost_usd": entry_cost,
+            "exit_cost_usd": exit_cost,
+            "holding_days": holding_days,
+            "protocol_fee_pct": protocol_fee,
+            # computed outputs
+            "gross_yield_usd": round(gross, 6),
+            "il_loss_usd": round(il_loss, 6),
+            "reward_decay_loss_usd": round(decay_loss, 6),
+            "protocol_fee_usd": round(fee, 6),
+            "net_yield_usd": round(net_yield, 6),
+            "net_roi_pct": round(roi_pct, 6),
+            "annualized_net_roi_pct": round(ann_roi_pct, 6),
+            "roi_label": label,
             "timestamp": time.time(),
         }
 
         if not skip_log:
             try:
-                _atomic_log(log_path, result)
+                _atomic_log(log_path, result, self._log_cap)
             except Exception:
                 pass  # advisory: never crash caller
 
@@ -397,17 +344,15 @@ if __name__ == "__main__":
     import sys
 
     _demo = {
-        "protocol": "Uniswap V3 USDC/ETH",
-        "base_yield_apy_pct": 8.0,
-        "reward_token_apy_pct": 12.0,
-        "reward_token_price_usd": 1.50,
-        "reward_token_entry_price_usd": 2.00,
-        "gas_cost_usd_per_week": 25.0,
-        "il_estimate_pct": 5.0,
-        "management_overhead_hrs_per_week": 2.0,
-        "opportunity_cost_apy_pct": 5.0,
-        "weeks_farmed": 12.0,
-        "position_usd": 10_000.0,
+        "protocol_name": "Uniswap V3 USDC/ETH",
+        "initial_investment_usd": 50_000.0,
+        "gross_apy_pct": 18.0,
+        "il_risk_pct": 8.0,
+        "reward_token_decay_pct": 30.0,
+        "entry_cost_usd": 40.0,
+        "exit_cost_usd": 35.0,
+        "holding_days": 90,
+        "protocol_fee_pct": 0.3,
     }
 
     r = calculate(_demo, config={"skip_log": True})
