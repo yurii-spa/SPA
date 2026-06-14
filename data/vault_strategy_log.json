@@ -1,0 +1,1766 @@
+[
+  {
+    "strategies": [
+      {
+        "name": "Risky",
+        "strategy_type": "LEVERAGED",
+        "net_apy_pct": 50.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 48,
+        "strategy_grade": "C",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 3.0x",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "LEVERAGED": "Risky"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.363736
+  },
+  {
+    "strategies": [
+      {
+        "name": "A",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "B",
+        "strategy_type": "LP_PROVISION",
+        "net_apy_pct": 10.0,
+        "risk_adjusted_apy_pct": 10.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 10.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 85,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "B",
+    "best_by_type": {
+      "SINGLE_ASSET": "A",
+      "LP_PROVISION": "B"
+    },
+    "suitable_count": 2,
+    "comparison_summary": "Analyzed 2 strategies, 2 suitable. Best: B (10.00 net-net APY%)",
+    "timestamp": 1781385545.3651478
+  },
+  {
+    "strategies": [
+      {
+        "name": "Low",
+        "strategy_type": "DELTA_NEUTRAL",
+        "net_apy_pct": 2.0,
+        "risk_adjusted_apy_pct": 2.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 2.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 70,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "High",
+        "strategy_type": "DELTA_NEUTRAL",
+        "net_apy_pct": 20.0,
+        "risk_adjusted_apy_pct": 20.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 20.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 95,
+        "strategy_grade": "S",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "High",
+    "best_by_type": {
+      "DELTA_NEUTRAL": "High"
+    },
+    "suitable_count": 2,
+    "comparison_summary": "Analyzed 2 strategies, 2 suitable. Best: High (20.00 net-net APY%)",
+    "timestamp": 1781385545.3663764
+  },
+  {
+    "strategies": [
+      {
+        "name": "X",
+        "strategy_type": "RESTAKING",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "X",
+    "best_by_type": {
+      "RESTAKING": "X"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: X (5.00 net-net APY%)",
+    "timestamp": 1781385545.3674603
+  },
+  {
+    "strategies": [
+      {
+        "name": "Risky",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 100.0,
+        "risk_adjusted_apy_pct": 10.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 10.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 55,
+        "strategy_grade": "C",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 3.0x",
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "Safe",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "Safe",
+    "best_by_type": {
+      "SINGLE_ASSET": "Safe"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 2 strategies, 1 suitable. Best: Safe (5.00 net-net APY%)",
+    "timestamp": 1781385545.3685324
+  },
+  {
+    "strategies": [
+      {
+        "name": "LowScore",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 1.0,
+        "risk_adjusted_apy_pct": 1.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 1.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 65,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "HighScore",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 30.0,
+        "risk_adjusted_apy_pct": 30.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 30.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 100,
+        "strategy_grade": "S",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "HighScore",
+    "best_by_type": {
+      "SINGLE_ASSET": "HighScore"
+    },
+    "suitable_count": 2,
+    "comparison_summary": "Analyzed 2 strategies, 2 suitable. Best: HighScore (30.00 net-net APY%)",
+    "timestamp": 1781385545.3697348
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 1.0x",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.3716874
+  },
+  {
+    "strategies": [
+      {
+        "name": "Only",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "Only",
+    "best_by_type": {
+      "SINGLE_ASSET": "Only"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: Only (5.00 net-net APY%)",
+    "timestamp": 1781385545.3730323
+  },
+  {
+    "strategies": [
+      {
+        "name": "BestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "BestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "BestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: BestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.3741944
+  },
+  {
+    "strategies": [
+      {
+        "name": "0",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "1",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "2",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "0",
+    "best_by_type": {
+      "SINGLE_ASSET": "0"
+    },
+    "suitable_count": 3,
+    "comparison_summary": "Analyzed 3 strategies, 3 suitable. Best: 0 (5.00 net-net APY%)",
+    "timestamp": 1781385545.375451
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 10.0,
+        "risk_adjusted_apy_pct": 10.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 10.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 85,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (10.00 net-net APY%)",
+    "timestamp": 1781385545.3768415
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 1.0x",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.378744
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 1.0,
+        "net_net_apy_pct": -7.0,
+        "annualized_gas_drag_pct": 12.0,
+        "strategy_score": 60,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (-7.00 net-net APY%)",
+    "timestamp": 1781385545.4569223
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 1.0,
+        "net_net_apy_pct": -7.0,
+        "annualized_gas_drag_pct": 12.0,
+        "strategy_score": 60,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (-7.00 net-net APY%)",
+    "timestamp": 1781385545.4586315
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 10.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 1.0,
+        "net_net_apy_pct": -7.0,
+        "annualized_gas_drag_pct": 12.0,
+        "strategy_score": 48,
+        "strategy_grade": "C",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (-7.00 net-net APY%)",
+    "timestamp": 1781385545.4602082
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 6.0,
+        "risk_adjusted_apy_pct": 6.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 6.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (6.00 net-net APY%)",
+    "timestamp": 1781385545.4622233
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 10.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 66,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4638271
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 8.0,
+        "risk_adjusted_apy_pct": 8.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 8.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (8.00 net-net APY%)",
+    "timestamp": 1781385545.4653049
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4667492
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 10.0,
+        "risk_adjusted_apy_pct": 0.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 65,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (0.00 net-net APY%)",
+    "timestamp": 1781385545.4683578
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4707475
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": false,
+        "suitability_reason": "Maximum capital 9999 USD exceeded",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.4725962
+  },
+  {
+    "strategies": [
+      {
+        "name": "S0",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S1",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S2",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S3",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S4",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S5",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S6",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S7",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S8",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S9",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "S0",
+    "best_by_type": {
+      "SINGLE_ASSET": "S0"
+    },
+    "suitable_count": 10,
+    "comparison_summary": "Analyzed 10 strategies, 10 suitable. Best: S0 (5.00 net-net APY%)",
+    "timestamp": 1781385545.4744897
+  },
+  {
+    "strategies": [
+      {
+        "name": "MyUniqueStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "MyUniqueStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "MyUniqueStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: MyUniqueStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4764977
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": -5.0,
+        "risk_adjusted_apy_pct": -5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": -5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 60,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (-5.00 net-net APY%)",
+    "timestamp": 1781385545.4783971
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.48081
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 1000.0,
+        "risk_adjusted_apy_pct": 10000.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 10000.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 100,
+        "strategy_grade": "S",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (10000.00 net-net APY%)",
+    "timestamp": 1781385545.4829795
+  },
+  {
+    "strategies": [
+      {
+        "name": "S0",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 3.0x",
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S1",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S2",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S3",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "S4",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "S1",
+    "best_by_type": {
+      "SINGLE_ASSET": "S1"
+    },
+    "suitable_count": 4,
+    "comparison_summary": "Analyzed 5 strategies, 4 suitable. Best: S1 (5.00 net-net APY%)",
+    "timestamp": 1781385545.4850235
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 100.0,
+        "risk_adjusted_apy_pct": 100.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 100.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 100,
+        "strategy_grade": "S",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (100.00 net-net APY%)",
+    "timestamp": 1781385545.4875476
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4901543
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4924896
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.4949985
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.497998
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.500404
+  },
+  {
+    "strategies": [
+      {
+        "name": "SINGLE_ASSET",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "LP_PROVISION",
+        "strategy_type": "LP_PROVISION",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "LEVERAGED",
+        "strategy_type": "LEVERAGED",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "DELTA_NEUTRAL",
+        "strategy_type": "DELTA_NEUTRAL",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "RESTAKING",
+        "strategy_type": "RESTAKING",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "SINGLE_ASSET",
+    "best_by_type": {
+      "SINGLE_ASSET": "SINGLE_ASSET",
+      "LP_PROVISION": "LP_PROVISION",
+      "LEVERAGED": "LEVERAGED",
+      "DELTA_NEUTRAL": "DELTA_NEUTRAL",
+      "RESTAKING": "RESTAKING"
+    },
+    "suitable_count": 5,
+    "comparison_summary": "Analyzed 5 strategies, 5 suitable. Best: SINGLE_ASSET (5.00 net-net APY%)",
+    "timestamp": 1781385545.5032883
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "UNKNOWN_TYPE",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "UNKNOWN_TYPE": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.506207
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": false,
+        "suitability_reason": "Maximum capital 5000 USD exceeded",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.508701
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": false,
+        "suitability_reason": "Requires minimum 50000 USD (you have 10000)",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.5112245
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.5144022
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.5171647
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.5200112
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.5233016
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": false,
+        "suitability_reason": "Requires passive management",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.525915
+  },
+  {
+    "strategies": [
+      {
+        "name": "A",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "B",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "A",
+    "best_by_type": {
+      "SINGLE_ASSET": "A"
+    },
+    "suitable_count": 2,
+    "comparison_summary": "Analyzed 2 strategies, 2 suitable. Best: A (5.00 net-net APY%)",
+    "timestamp": 1781385545.529044
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.5321672
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": false,
+        "suitability_reason": "Requires active management",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.5350482
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (5.00 net-net APY%)",
+    "timestamp": 1781385545.538936
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 1.25,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 1.25,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 4.0x exceeds maximum 3.0x",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 1 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.542099
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 3.333333,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 3.333333,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 65,
+        "strategy_grade": "B",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (3.33 net-net APY%)",
+    "timestamp": 1781385545.545447
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 1.666667,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 1.666667,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 41,
+        "strategy_grade": "D",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "TestStrat",
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 1 strategies, 1 suitable. Best: TestStrat (1.67 net-net APY%)",
+    "timestamp": 1781385545.549334
+  },
+  {
+    "strategies": [
+      {
+        "name": "0",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "1",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "2",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "3",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "4",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "0",
+    "best_by_type": {
+      "SINGLE_ASSET": "0"
+    },
+    "suitable_count": 5,
+    "comparison_summary": "Analyzed 5 strategies, 5 suitable. Best: 0 (5.00 net-net APY%)",
+    "timestamp": 1781385545.552423
+  },
+  {
+    "strategies": [
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 1.0x",
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 1.0x",
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "TestStrat",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 1.0x",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": null,
+    "best_by_type": {
+      "SINGLE_ASSET": "TestStrat"
+    },
+    "suitable_count": 0,
+    "comparison_summary": "Analyzed 3 strategies, 0 suitable. Best: none (0.00 net-net APY%)",
+    "timestamp": 1781385545.5562596
+  },
+  {
+    "strategies": [
+      {
+        "name": "ok",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 5.0,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 5.0,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 78,
+        "strategy_grade": "A",
+        "is_suitable": true,
+        "suitability_reason": null,
+        "rebalance_burden": "LOW"
+      },
+      {
+        "name": "bad",
+        "strategy_type": "SINGLE_ASSET",
+        "net_apy_pct": 5.0,
+        "risk_adjusted_apy_pct": 0.5,
+        "monthly_gas_drag_pct": 0.0,
+        "net_net_apy_pct": 0.5,
+        "annualized_gas_drag_pct": 0.0,
+        "strategy_score": 35,
+        "strategy_grade": "D",
+        "is_suitable": false,
+        "suitability_reason": "Risk multiplier 10.0x exceeds maximum 3.0x",
+        "rebalance_burden": "LOW"
+      }
+    ],
+    "best_strategy": "ok",
+    "best_by_type": {
+      "SINGLE_ASSET": "ok"
+    },
+    "suitable_count": 1,
+    "comparison_summary": "Analyzed 2 strategies, 1 suitable. Best: ok (5.00 net-net APY%)",
+    "timestamp": 1781385545.5600708
+  }
+]
