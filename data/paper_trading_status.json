@@ -3,30 +3,30 @@
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "paper_start_date": "2026-05-20",
-  "last_cycle_ts": "2026-06-13T06:00:01.571560+00:00",
+  "last_cycle_ts": "2026-06-14T15:02:06.349336+00:00",
   "last_cycle_status": "ok",
-  "days_running": 25,
-  "current_equity": 100036.91,
-  "total_return_pct": 0.0369,
-  "daily_return_pct": 0.010842,
-  "apy_today_pct": 3.9575,
-  "daily_yield_usd": 10.8453,
+  "days_running": 26,
+  "current_equity": 100047.74,
+  "total_return_pct": 0.0477,
+  "daily_return_pct": 0.010823,
+  "apy_today_pct": 3.9505,
+  "daily_yield_usd": 10.8272,
   "num_adapters_live": 14,
   "current_positions": {
     "aave_v3": 23750.0,
     "compound_v3": 38000.0,
-    "yearn_v3": 11371.73,
-    "euler_v2": 9518.9,
-    "maple": 12359.35
+    "yearn_v3": 11312.02,
+    "euler_v2": 9562.23,
+    "maple": 12375.74
   },
   "last_allocation_model": "risk_adjusted",
   "strategy_loop_active": false,
-  "last_trade_id": "T004",
+  "last_trade_id": "T006",
   "notes": [
-    "daily_limits_check_error: AttributeError: 'list' object has no attribute 'items'",
+    "daily_limits_warn: DL-04 APY Sanity Low: aave_v3 APY 0.00% below sanity floor 0.5% (stale data?)",
     "emergency_breakers: status=CLEAR triggered=[]",
     "risk_policy: target trimmed to respect the min-cash buffer (deployed capped at $95,000).",
-    "rebalance T004: |Δ|=$18,075 > $1,000 threshold."
+    "rebalance T006: |Δ|=$95,000 > $1,000 threshold."
   ],
   "risk_policy_checked": true,
   "risk_policy_approved": true,
@@ -38,5 +38,5 @@
   "kill_switch_active": false,
   "kill_switch_reason": "all triggers clear",
   "market_regime": "STABLE",
-  "regime_t1_avg_apy": 4.5942
+  "regime_t1_avg_apy": 4.5165
 }
