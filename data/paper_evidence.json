@@ -12,14 +12,22 @@
       "equity_value": 100036.91,
       "day_return_pct": 0.03691,
       "notes": "auto-recorded by cycle_runner v4.73"
+    },
+    {
+      "date": "2026-06-14",
+      "strategy_id": "S7",
+      "apy_pct": 3.9507,
+      "equity_value": 100047.74,
+      "day_return_pct": 0.010826,
+      "notes": "auto-recorded by cycle_runner v4.73"
     }
   ],
   "strategies": {
     "S7": {
-      "day_count": 1,
-      "total_apy": 3.9575,
+      "day_count": 2,
+      "total_apy": 7.9082,
       "first_date": "2026-06-13",
-      "last_date": "2026-06-13"
+      "last_date": "2026-06-14"
     }
   }
 }
