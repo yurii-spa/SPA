@@ -1,0 +1,3218 @@
+[
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.7179341
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.7214022
+  },
+  {
+    "total_scanned": 10,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op7",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op8",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op9",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op0",
+      "op1",
+      "op2",
+      "op3",
+      "op4"
+    ],
+    "best_apy": "op0",
+    "safest": "op0",
+    "timestamp": 1781407566.7246425
+  },
+  {
+    "total_scanned": 10,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op7",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op8",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op9",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op0",
+      "op1",
+      "op2"
+    ],
+    "best_apy": "op0",
+    "safest": "op0",
+    "timestamp": 1781407566.7285783
+  },
+  {
+    "total_scanned": 10,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op7",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op8",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op9",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op0",
+      "op1",
+      "op2",
+      "op3",
+      "op4"
+    ],
+    "best_apy": "op0",
+    "safest": "op0",
+    "timestamp": 1781407566.7319748
+  },
+  {
+    "total_scanned": 5,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 4.0,
+        "score": 54.76,
+        "apy_score": 6.4,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 10952.0
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 10632.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 2.0,
+        "score": 51.56,
+        "apy_score": 3.2,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 10312.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 9992.0
+      },
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 9672.0
+      }
+    ],
+    "top_picks": [
+      "op4",
+      "op3",
+      "op2",
+      "op1",
+      "op0"
+    ],
+    "best_apy": "op4",
+    "safest": "op4",
+    "timestamp": 1781407566.7360542
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "only",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "only"
+    ],
+    "best_apy": "only",
+    "safest": "only",
+    "timestamp": 1781407566.7395396
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.7435708
+  },
+  {
+    "total_scanned": 6,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 4.0,
+        "score": 54.76,
+        "apy_score": 6.4,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18253.33
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 17720.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 2.0,
+        "score": 51.56,
+        "apy_score": 3.2,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op5",
+      "op4",
+      "op3"
+    ],
+    "best_apy": "op5",
+    "safest": "op5",
+    "timestamp": 1781407566.7470605
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 10.0,
+        "score": 76.0,
+        "apy_score": 16.0,
+        "safety_score": 30.0,
+        "liquidity_score": 20.0,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 38000.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.751067
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.755111
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 112720.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.758419
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.762724
+  },
+  {
+    "total_scanned": 6,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 6.0,
+        "score": 57.96,
+        "apy_score": 9.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 19320.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 4.0,
+        "score": 54.76,
+        "apy_score": 6.4,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18253.33
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 2.0,
+        "score": 51.56,
+        "apy_score": 3.2,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op6",
+      "op5",
+      "op4"
+    ],
+    "best_apy": "op6",
+    "safest": "op6",
+    "timestamp": 1781407566.7663743
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.7707279
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "hi",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 15.0,
+        "score": 72.36,
+        "apy_score": 24.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 36180.0
+      },
+      {
+        "id": "lo",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 26580.0
+      }
+    ],
+    "top_picks": [
+      "hi",
+      "lo"
+    ],
+    "best_apy": "hi",
+    "safest": "hi",
+    "timestamp": 1781407566.7744691
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.7786436
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "only",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 8.0,
+        "score": 61.16,
+        "apy_score": 12.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 61160.0
+      }
+    ],
+    "top_picks": [
+      "only"
+    ],
+    "best_apy": "only",
+    "safest": "only",
+    "timestamp": 1781407566.782538
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "safe",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 61.36,
+        "apy_score": 8.0,
+        "safety_score": 30.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 30680.0
+      },
+      {
+        "id": "risky",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 32.59,
+        "apy_score": 8.0,
+        "safety_score": 1.23,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 16295.0
+      }
+    ],
+    "top_picks": [
+      "safe",
+      "risky"
+    ],
+    "best_apy": "safe",
+    "safest": "safe",
+    "timestamp": 1781407566.7868166
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.7905333
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "only",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "only"
+    ],
+    "best_apy": "only",
+    "safest": "only",
+    "timestamp": 1781407566.794851
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.7984786
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 7.5,
+        "score": 60.36,
+        "apy_score": 12.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 60360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407566.8028903
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407566.806508
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "Aave",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407566.8107705
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "TestProto",
+        "type": "vault",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407566.8145335
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.818696
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.8224056
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.826749
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.8305314
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.8348126
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 2,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.838945
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "z",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 48360.0
+      }
+    ],
+    "top_picks": [
+      "z"
+    ],
+    "best_apy": "z",
+    "safest": "z",
+    "timestamp": 1781407566.8425896
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.846765
+  },
+  {
+    "total_scanned": 3,
+    "filtered_out": 1,
+    "scored": [
+      {
+        "id": "eth",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 28180.0
+      },
+      {
+        "id": "base",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "base",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 28180.0
+      }
+    ],
+    "top_picks": [
+      "eth",
+      "base"
+    ],
+    "best_apy": "eth",
+    "safest": "eth",
+    "timestamp": 1781407566.8504503
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "minimal",
+        "protocol": "",
+        "type": "",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 14.8,
+        "apy_score": 4.8,
+        "safety_score": 0.0,
+        "liquidity_score": 0.0,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 14800.0
+      }
+    ],
+    "top_picks": [
+      "minimal"
+    ],
+    "best_apy": "minimal",
+    "safest": "minimal",
+    "timestamp": 1781407566.8547258
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 1,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407566.8585763
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "solo",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "solo"
+    ],
+    "best_apy": "solo",
+    "safest": "solo",
+    "timestamp": 1781407566.8629456
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407566.8665833
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 1,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.5443416
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 49960.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.5492728
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 1,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.5540042
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 53.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 7.0,
+        "recommended_allocation_usd": 53360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.558196
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 1,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.5625546
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.5662434
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 1,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.5707407
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 2,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.5743597
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 1,
+    "scored": [
+      {
+        "id": "o2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "o2"
+    ],
+    "best_apy": "o2",
+    "safest": "o2",
+    "timestamp": 1781407613.578589
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 1,
+    "scored": [
+      {
+        "id": "p",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "p"
+    ],
+    "best_apy": "p",
+    "safest": "p",
+    "timestamp": 1781407613.582645
+  },
+  {
+    "total_scanned": 5,
+    "filtered_out": 5,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.5869293
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.590556
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 48360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.5949724
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 49960.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.5983095
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.602136
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 10.0,
+        "score": 64.36,
+        "apy_score": 16.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 64360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6055372
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 25.0,
+        "score": 88.36,
+        "apy_score": 40.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 88360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6088917
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 50.0,
+        "score": 88.36,
+        "apy_score": 40.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 88360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6126325
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 100.0,
+        "score": 100.0,
+        "apy_score": 40.0,
+        "safety_score": 30.0,
+        "liquidity_score": 20.0,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 100000.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6165535
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.620528
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "hi",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 20.0,
+        "score": 80.36,
+        "apy_score": 32.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 40180.0
+      },
+      {
+        "id": "lo",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 28180.0
+      }
+    ],
+    "top_picks": [
+      "hi",
+      "lo"
+    ],
+    "best_apy": "hi",
+    "safest": "hi",
+    "timestamp": 1781407613.6241074
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6282918
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6321018
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6362786
+  },
+  {
+    "total_scanned": 10,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op7",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op8",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op9",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op0",
+      "op1",
+      "op2",
+      "op3",
+      "op4"
+    ],
+    "best_apy": "op0",
+    "safest": "op0",
+    "timestamp": 1781407613.640079
+  },
+  {
+    "total_scanned": 10,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op7",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op8",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op9",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op0",
+      "op1",
+      "op2"
+    ],
+    "best_apy": "op0",
+    "safest": "op0",
+    "timestamp": 1781407613.644379
+  },
+  {
+    "total_scanned": 10,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 11272.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op7",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op8",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op9",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op0",
+      "op1",
+      "op2",
+      "op3",
+      "op4"
+    ],
+    "best_apy": "op0",
+    "safest": "op0",
+    "timestamp": 1781407613.6488392
+  },
+  {
+    "total_scanned": 5,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 4.0,
+        "score": 54.76,
+        "apy_score": 6.4,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 10952.0
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 10632.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 2.0,
+        "score": 51.56,
+        "apy_score": 3.2,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 10312.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 9992.0
+      },
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 9672.0
+      }
+    ],
+    "top_picks": [
+      "op4",
+      "op3",
+      "op2",
+      "op1",
+      "op0"
+    ],
+    "best_apy": "op4",
+    "safest": "op4",
+    "timestamp": 1781407613.6534758
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "only",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "only"
+    ],
+    "best_apy": "only",
+    "safest": "only",
+    "timestamp": 1781407613.6574907
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6620643
+  },
+  {
+    "total_scanned": 6,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 4.0,
+        "score": 54.76,
+        "apy_score": 6.4,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18253.33
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 17720.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 2.0,
+        "score": 51.56,
+        "apy_score": 3.2,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op0",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op5",
+      "op4",
+      "op3"
+    ],
+    "best_apy": "op5",
+    "safest": "op5",
+    "timestamp": 1781407613.666039
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 10.0,
+        "score": 76.0,
+        "apy_score": 16.0,
+        "safety_score": 30.0,
+        "liquidity_score": 20.0,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 38000.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6708963
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6754267
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 112720.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6792226
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.6830163
+  },
+  {
+    "total_scanned": 6,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op6",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 6.0,
+        "score": 57.96,
+        "apy_score": 9.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 19320.0
+      },
+      {
+        "id": "op5",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18786.67
+      },
+      {
+        "id": "op4",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 4.0,
+        "score": 54.76,
+        "apy_score": 6.4,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 18253.33
+      },
+      {
+        "id": "op3",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op2",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 2.0,
+        "score": 51.56,
+        "apy_score": 3.2,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      },
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 1.0,
+        "score": 49.96,
+        "apy_score": 1.6,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op6",
+      "op5",
+      "op4"
+    ],
+    "best_apy": "op6",
+    "safest": "op6",
+    "timestamp": 1781407613.6874583
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.6912718
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "hi",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 15.0,
+        "score": 72.36,
+        "apy_score": 24.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 36180.0
+      },
+      {
+        "id": "lo",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 53.16,
+        "apy_score": 4.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 26580.0
+      }
+    ],
+    "top_picks": [
+      "hi",
+      "lo"
+    ],
+    "best_apy": "hi",
+    "safest": "hi",
+    "timestamp": 1781407613.695638
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.6993475
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "only",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 8.0,
+        "score": 61.16,
+        "apy_score": 12.8,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 61160.0
+      }
+    ],
+    "top_picks": [
+      "only"
+    ],
+    "best_apy": "only",
+    "safest": "only",
+    "timestamp": 1781407613.7033687
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "safe",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 61.36,
+        "apy_score": 8.0,
+        "safety_score": 30.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 30680.0
+      },
+      {
+        "id": "risky",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 32.59,
+        "apy_score": 8.0,
+        "safety_score": 1.23,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 16295.0
+      }
+    ],
+    "top_picks": [
+      "safe",
+      "risky"
+    ],
+    "best_apy": "safe",
+    "safest": "safe",
+    "timestamp": 1781407613.7071207
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7115366
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "only",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "only"
+    ],
+    "best_apy": "only",
+    "safest": "only",
+    "timestamp": 1781407613.7154686
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7197266
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 7.5,
+        "score": 60.36,
+        "apy_score": 12.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 60360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407613.7236154
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407613.7281814
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "Aave",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407613.7320466
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "x",
+        "protocol": "TestProto",
+        "type": "vault",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "x"
+    ],
+    "best_apy": "x",
+    "safest": "x",
+    "timestamp": 1781407613.7363348
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7401307
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7446318
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.74869
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7531154
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7569194
+  },
+  {
+    "total_scanned": 2,
+    "filtered_out": 2,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7612178
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "z",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 0.0,
+        "score": 48.36,
+        "apy_score": 0.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 48360.0
+      }
+    ],
+    "top_picks": [
+      "z"
+    ],
+    "best_apy": "z",
+    "safest": "z",
+    "timestamp": 1781407613.7649128
+  },
+  {
+    "total_scanned": 0,
+    "filtered_out": 0,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7694602
+  },
+  {
+    "total_scanned": 3,
+    "filtered_out": 1,
+    "scored": [
+      {
+        "id": "eth",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 28180.0
+      },
+      {
+        "id": "base",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "base",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 28180.0
+      }
+    ],
+    "top_picks": [
+      "eth",
+      "base"
+    ],
+    "best_apy": "eth",
+    "safest": "eth",
+    "timestamp": 1781407613.7731795
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "minimal",
+        "protocol": "",
+        "type": "",
+        "chain": "ethereum",
+        "apy": 3.0,
+        "score": 14.8,
+        "apy_score": 4.8,
+        "safety_score": 0.0,
+        "liquidity_score": 0.0,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 14800.0
+      }
+    ],
+    "top_picks": [
+      "minimal"
+    ],
+    "best_apy": "minimal",
+    "safest": "minimal",
+    "timestamp": 1781407613.7774806
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 1,
+    "scored": [],
+    "top_picks": [],
+    "best_apy": null,
+    "safest": null,
+    "timestamp": 1781407613.7813597
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "solo",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 56360.0
+      }
+    ],
+    "top_picks": [
+      "solo"
+    ],
+    "best_apy": "solo",
+    "safest": "solo",
+    "timestamp": 1781407613.7854896
+  },
+  {
+    "total_scanned": 1,
+    "filtered_out": 0,
+    "scored": [
+      {
+        "id": "op1",
+        "protocol": "TestProto",
+        "type": "lending",
+        "chain": "ethereum",
+        "apy": 5.0,
+        "score": 56.36,
+        "apy_score": 8.0,
+        "safety_score": 25.0,
+        "liquidity_score": 13.36,
+        "fit_score": 10.0,
+        "recommended_allocation_usd": 0.0
+      }
+    ],
+    "top_picks": [
+      "op1"
+    ],
+    "best_apy": "op1",
+    "safest": "op1",
+    "timestamp": 1781407613.789129
+  }
+]
