@@ -21,6 +21,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from spa_core.alerts import governance_watcher as _gw
 from spa_core.alerts.governance_watcher import (
     GovernanceProposal,
     GovernanceWatcher,
@@ -33,7 +34,12 @@ from spa_core.alerts.governance_watcher import (
     RISK_TRIGGER_CATEGORIES,
     _ts,
     _ts_str,
+    _http_post_retry,
 )
+
+
+# Patch out backoff sleeps for the whole module so retry-path tests run fast.
+_gw._sleep = lambda *_a, **_k: None
 
 
 # ---------------------------------------------------------------------------
@@ -522,6 +528,158 @@ class TestNeverRaises(unittest.TestCase):
             watcher.has_active_risk_proposals("any-protocol", offline=True)
         except Exception as e:
             self.fail(f"has_active_risk_proposals raised: {e}")
+
+
+# ---------------------------------------------------------------------------
+# 14. Fallback / health-check behaviour (fix verification)
+# ---------------------------------------------------------------------------
+
+def _snapshot_ok_response(active=True):
+    """A successful Snapshot GraphQL response with one active proposal."""
+    return {
+        "data": {
+            "proposals": [{
+                "id": "0xlive",
+                "title": "Risk Parameter Update: USDC LTV to 88%",
+                "body": "Update LTV",
+                "state": "active" if active else "closed",
+                "start": 1_716_000_000,
+                "end":   1_716_600_000,
+                "scores": [1_000_000, 50_000],
+                "scores_total": 1_050_000,
+                "quorum": 500_000,
+                "link": "https://snapshot.org/#/example/proposal/0xlive",
+            }]
+        }
+    }
+
+
+def _snapshot_empty_response():
+    """A successful Snapshot call that simply has NO active proposals."""
+    return {"data": {"proposals": []}}
+
+
+class TestFallbackUsedWhenApiUnavailable(unittest.TestCase):
+    """fallback_used must be True ONLY when no live source responds."""
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_fallback_used_when_api_unavailable(self, mock_post):
+        # Every HTTP call fails → genuine network outage → fallback
+        mock_post.side_effect = Exception("Network unreachable")
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=False)
+        self.assertTrue(result["fallback_used"])
+        self.assertEqual(result["fetch_method"], "fallback")
+        self.assertFalse(result["snapshot_ok"])
+        self.assertFalse(result["tally_ok"])
+        self.assertIn("bootstrap", result["sources"])
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_no_fallback_when_snapshot_ok_but_empty(self, mock_post):
+        # Snapshot responds successfully for every space but with ZERO active
+        # proposals. This must NOT be treated as a fallback condition (the bug).
+        mock_post.return_value = _snapshot_empty_response()
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=False)
+        self.assertFalse(result["fallback_used"],
+                         "empty-but-healthy live scan wrongly flagged as fallback")
+        self.assertEqual(result["fetch_method"], "live")
+        self.assertTrue(result["snapshot_ok"])
+        self.assertEqual(result["summary"]["total_proposals"], 0)
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_no_fallback_when_snapshot_has_live_data(self, mock_post):
+        mock_post.return_value = _snapshot_ok_response(active=True)
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=False)
+        self.assertFalse(result["fallback_used"])
+        self.assertEqual(result["fetch_method"], "live")
+        self.assertIn("snapshot", result["sources"])
+        self.assertGreater(result["summary"]["total_proposals"], 0)
+
+    def test_offline_sets_fallback_used(self):
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=True)
+        self.assertTrue(result["fallback_used"])
+        self.assertEqual(result["fetch_method"], "fallback")
+
+
+class TestLiveDataFormatValid(unittest.TestCase):
+    """The output dict must always carry the health-check schema."""
+
+    HEALTH_KEYS = [
+        "fetch_method", "snapshot_ok", "tally_ok",
+        "snapshot_spaces_ok", "snapshot_spaces_failed",
+        "last_live_fetch", "last_error", "sources", "fallback_used",
+    ]
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_live_data_format_valid(self, mock_post):
+        mock_post.return_value = _snapshot_ok_response(active=True)
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=False)
+        for key in self.HEALTH_KEYS:
+            self.assertIn(key, result, f"missing health field {key}")
+        self.assertIsInstance(result["snapshot_ok"], bool)
+        self.assertIsInstance(result["tally_ok"], bool)
+        self.assertIn(result["fetch_method"], ("live", "fallback"))
+        # last_live_fetch populated on a successful live scan
+        self.assertIsNotNone(result["last_live_fetch"])
+
+    def test_health_keys_present_offline(self):
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=True)
+        for key in self.HEALTH_KEYS:
+            self.assertIn(key, result)
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_spaces_failed_counter_partial_outage(self, mock_post):
+        # First space ok, rest fail → snapshot_ok True but failures counted
+        calls = {"n": 0}
+        def side_effect(url, payload, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return _snapshot_ok_response(active=True)
+            raise Exception("Simulated outage")
+        mock_post.side_effect = side_effect
+        watcher = GovernanceWatcher()
+        result = watcher.export(dry_run=True, offline=False)
+        self.assertTrue(result["snapshot_ok"])
+        self.assertEqual(result["snapshot_spaces_ok"], 1)
+        self.assertGreater(result["snapshot_spaces_failed"], 0)
+        self.assertFalse(result["fallback_used"])
+
+
+class TestRetryLogic(unittest.TestCase):
+    """_http_post_retry retries with backoff and surfaces the final error."""
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_retry_succeeds_on_second_attempt(self, mock_post):
+        calls = {"n": 0}
+        def side_effect(url, payload, **kwargs):
+            calls["n"] += 1
+            if calls["n"] < 2:
+                raise Exception("transient")
+            return {"data": {"ok": True}}
+        mock_post.side_effect = side_effect
+        out = _http_post_retry("https://x", {"q": 1}, retries=3)
+        self.assertEqual(out, {"data": {"ok": True}})
+        self.assertEqual(calls["n"], 2)
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_retry_exhausts_and_raises(self, mock_post):
+        mock_post.side_effect = Exception("permanent failure")
+        with self.assertRaises(Exception) as ctx:
+            _http_post_retry("https://x", {"q": 1}, retries=3)
+        self.assertIn("permanent failure", str(ctx.exception))
+        self.assertEqual(mock_post.call_count, 3)
+
+    @patch("spa_core.alerts.governance_watcher._http_post")
+    def test_retry_respects_retries_arg(self, mock_post):
+        mock_post.side_effect = Exception("fail")
+        with self.assertRaises(Exception):
+            _http_post_retry("https://x", {"q": 1}, retries=1)
+        self.assertEqual(mock_post.call_count, 1)
 
 
 # ---------------------------------------------------------------------------
