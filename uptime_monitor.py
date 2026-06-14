@@ -105,7 +105,7 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     "com.spa.daily-paper-report":  ("data/paper_trading_status.json", 108000),
     "com.spa.checkpoint-7day":     ("logs/checkpoint_7day.log", 691200),  # weekly → 8 d
     "com.spa.weekly_backup":       (None, 0),   # backup target outside repo
-    "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 108000),
+    "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 129600),  # daily 05:00 → 86400*1.5 = 36h window
     "com.spa.bot_commands":        (None, 0),  # KeepAlive long-poll → judged via launchctl
 }
 
@@ -685,7 +685,7 @@ LAUNCHD_SERVICES = [
     "com.spa.daily-paper-report",
     "com.spa.checkpoint-7day",
     "com.spa.weekly_backup",
-    "com.spa.analytics_tier_c",  # daily 05:00 → data/analytics_report_full.json (~30h window)
+    "com.spa.analytics_tier_c",  # daily 05:00 → data/analytics_report_full.json (36h window)
     "com.spa.bot_commands",      # KeepAlive long-poll daemon (no output file; launchctl liveness)
 ]
 
