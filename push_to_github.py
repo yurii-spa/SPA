@@ -157,6 +157,7 @@ def main():
     parser.add_argument("--message", "-m", required=True, help="Commit message")
     parser.add_argument("--repo", default=REPO, help=f"Репо (default: {REPO})")
     parser.add_argument("--dry-run", action="store_true", help="Проверить без пуша")
+    parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
     args = parser.parse_args()
 
     files = []
@@ -168,11 +169,15 @@ def main():
     if not files:
         parser.error("Укажи --file или --files")
 
-    try:
-        pat = get_pat()
-    except RuntimeError as e:
-        print(str(e))
-        sys.exit(2)
+    # --pat аргумент имеет приоритет над авто-обнаружением
+    if args.pat:
+        pat = args.pat.strip()
+    else:
+        try:
+            pat = get_pat()
+        except RuntimeError as e:
+            print(str(e))
+            sys.exit(2)
 
     if args.dry_run:
         print(f"🔍 DRY RUN — репо: {args.repo}, файлов: {len(files)}")
