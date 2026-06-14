@@ -1205,6 +1205,34 @@
     display: none !important;
   }
 
+  /* P1-1 FIX-C: hide duplicate equity canvases on public view */
+  body.is-public #equityChart { display: none !important; }
+  body.is-public #equity-compare-chart { display: none !important; }
+  body.is-public #bt-equity-chart { display: none !important; }
+  body.is-public #equity-curve-card { display: none !important; }
+  /* P1-1 FIX-D: hide Decisions block embedded in Ops tab on public view */
+  body.is-public .decisions-in-ops { display: none !important; }
+
+  /* P2-3: Skeleton loading animation */
+  .spa-skeleton {
+    background: linear-gradient(90deg, #2a2a3e 25%, #3a3a5e 50%, #2a2a3e 75%);
+    background-size: 200% 100%;
+    animation: spa-shimmer 1.5s infinite;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 60px;
+    height: 1em;
+  }
+  @keyframes spa-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .spa-metric-pending {
+    font-size: 11px;
+    color: #888;
+    font-style: italic;
+  }
+
 </style>
 </head>
 <body>
@@ -1323,7 +1351,7 @@
 
   <!-- SECTION 1: Hero Metrics Grid (6 cards) -->
   <div id="perf-hero-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px">
-    <div class="db-metric"><div class="db-metric-label">Loading...</div><div class="db-metric-value" style="font-size:16px">—</div></div>
+    <div class="db-metric"><div class="db-metric-label"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div><div class="db-metric-value" style="font-size:16px">—</div></div>
   </div>
 
   <!-- SECTION 1b: Performance Tear Sheet (B5 — tear_sheet.json) -->
@@ -1633,6 +1661,8 @@
   </div>
 
   <!-- Decisions Queue (re-uses tab-decisions render containers) -->
+  <!-- P1-1 FIX-D: wrapped for is-public hiding -->
+  <div class="decisions-in-ops">
   <div class="db-full" style="margin-bottom:18px">
     <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
       <span>✍️ Decisions — Owner Review Queue</span>
@@ -1649,6 +1679,7 @@
       <div style="text-align:center;padding:24px;color:#aaa;font-size:13px">Click ↻ Decisions to load...</div>
     </div>
   </div>
+  </div><!-- /decisions-in-ops -->
 
   <!-- Live Kanban Board (re-uses loadBacklog render) -->
   <div class="db-full" style="margin-bottom:18px">
@@ -1749,7 +1780,7 @@
         </div>
       </div>
       <div id="positions-body">
-        <div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
+        <div style="padding:20px;text-align:center;color:#aaa;font-size:13px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
     </div>
 
@@ -1822,7 +1853,7 @@
   <div class="db-full">
     <div class="db-section">концентрация по протоколам</div>
     <div id="conc-body">
-      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
     </div>
   </div>
 
@@ -1833,7 +1864,7 @@
       <span id="alerts-badge" style="font-size:11px;color:#888"></span>
     </div>
     <div id="alerts-body">
-      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
     </div>
   </div>
 
@@ -1844,7 +1875,7 @@
       <span id="trades-badge" style="font-size:11px;color:#888"></span>
     </div>
     <div id="trades-body">
-      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px">Loading...</div>
+      <div style="padding:10px;text-align:center;color:#aaa;font-size:13px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
     </div>
   </div>
 
@@ -2271,7 +2302,7 @@
           </tr>
         </thead>
         <tbody id="chain-perf-tbody">
-          <tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px">Loading...</td></tr>
+          <tr><td colspan="5" style="text-align:center;color:#aaa;padding:16px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -2337,12 +2368,12 @@
     <!-- B3: Correlation matrix -->
     <div class="an-card">
       <div class="an-title">Protocol APY Correlation <span style="font-weight:400;font-size:9px;color:#bbb">(Pearson · 90 days)</span></div>
-      <div id="corr-matrix-wrap" style="overflow-x:auto"><div style="color:#bbb;font-size:12px">Загрузка...</div></div>
+      <div id="corr-matrix-wrap" style="overflow-x:auto"><div style="color:#bbb;font-size:12px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div></div>
     </div>
     <!-- B4: Backtest summary -->
     <div class="an-card">
       <div class="an-title">Backtest <span class="spa-tip" data-tip="Backtest">?</span> Summary</div>
-      <div id="bt-summary-wrap"><div style="color:#bbb;font-size:12px">Загрузка...</div></div>
+      <div id="bt-summary-wrap"><div style="color:#bbb;font-size:12px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div></div>
     </div>
   </div>
 
@@ -2378,7 +2409,7 @@
             <th>Протокол</th><th>Tier</th><th>Сумма ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Дней</th>
           </tr></thead>
           <tbody id="strat-v1-tbody">
-            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Загрузка...</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -2398,7 +2429,7 @@
             <th>Протокол</th><th>Tier</th><th>Сумма ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Дней</th>
           </tr></thead>
           <tbody id="strat-v2-tbody">
-            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Загрузка...</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -2415,7 +2446,7 @@
           </tr>
         </thead>
         <tbody id="compare-tbody">
-          <tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Загрузка...</td></tr>
+          <tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>
         </tbody>
       </table>
       <div style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">Кривая капитала</div>
@@ -3019,7 +3050,7 @@
     <div class="sys-card">
       <div class="sys-section">⚡ Pipeline Health</div>
       <div id="sys-pipeline-body">
-        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+        <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
     </div>
 
@@ -3027,7 +3058,7 @@
     <div class="sys-card">
       <div class="sys-section">🗂 Data Freshness</div>
       <div id="sys-freshness-body">
-        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+        <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
     </div>
 
@@ -3035,7 +3066,7 @@
     <div class="sys-card">
       <div class="sys-section">⏱ Paper Trading <span class="spa-tip" data-tip="Paper Trading">?</span> Clock</div>
       <div id="sys-clock-body">
-        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+        <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
     </div>
 
@@ -3043,7 +3074,7 @@
     <div class="sys-card">
       <div class="sys-section">🎯 Go-Live Countdown</div>
       <div id="sys-golive-body">
-        <div style="color:#aaa;font-size:13px;padding:8px 0">Loading...</div>
+        <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
     </div>
   </div>
@@ -3952,6 +3983,28 @@ async function loadTearSheet() {
       ? 'ⓘ ' + notes.join(' · ') + ' of data. Track started ' + (ts.track_start || '—') + '.'
       : '';
   }
+  // P2-3: mark pending metrics with days-needed hint
+  updatePendingMetrics(ts);
+}
+
+// ─── P2-3: updatePendingMetrics — fills [data-metric] elements when value is unavailable ──
+function updatePendingMetrics(data) {
+  if (!data) return;
+  const pending = [
+    { key: 'sharpe_need_days', label: 'Sharpe' },
+    { key: 'sortino_need_days', label: 'Sortino' },
+    { key: 'calmar_need_days', label: 'Calmar' },
+    { key: 'max_dd_need_days', label: 'Max DD' },
+  ];
+  pending.forEach(({ key, label }) => {
+    const days = data[key];
+    if (!days) return;
+    document.querySelectorAll('[data-metric="' + label.toLowerCase() + '"]').forEach(el => {
+      if (el.textContent === '—' || el.textContent === 'null' || el.textContent === 'Loading...') {
+        el.innerHTML = '<span class="spa-metric-pending">через ' + days + ' дн</span>';
+      }
+    });
+  });
 }
 
 // ─── MP-542: Equity History Chart (equity_history.json) ──────────────────────
