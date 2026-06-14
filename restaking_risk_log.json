@@ -1,0 +1,132 @@
+[
+  {
+    "protocol": "EtherFi",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1781385295.0276573
+  },
+  {
+    "protocol": "EtherFi",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1781385302.6619198
+  },
+  {
+    "protocol": "EtherFi",
+    "slashing_exposure_pct": 60.0,
+    "avs_count": 8,
+    "operator_concentration_pct": 65.0,
+    "withdrawal_delay_days": 21.0,
+    "lrt_depeg_pct": -1.8,
+    "components": {
+      "slashing": 60.0,
+      "avs": 73.64028618842732,
+      "operator": 65.0,
+      "delay": 70.0,
+      "depeg": 36.0
+    },
+    "restaking_risk_score": 59.928057237685465,
+    "label": "ELEVATED",
+    "recommendations": [
+      "Operator concentration 65% > 50%. Diversify across more operators.",
+      "Delegated to 8 AVS (> 5). Reduce AVS exposure to shrink slashing surface.",
+      "Slashing exposure 60% of capital is high. Lower the share of restaked capital.",
+      "LRT depeg -1.80%. Consider exiting or hedging the LRT token vs base asset.",
+      "Withdrawal delay 21d is long. Keep liquidity buffer outside the position."
+    ],
+    "timestamp": 1781385302.7650099
+  },
+  {
+    "protocol": "EtherFi",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1781385324.1099102
+  },
+  {
+    "protocol": "EtherFi",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1781407558.7583096
+  },
+  {
+    "protocol": "EtherFi",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1781407605.7053616
+  }
+]
