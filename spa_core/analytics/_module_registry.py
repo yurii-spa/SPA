@@ -436,6 +436,10 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_vault_idle_cash_drag_analyzer', "class": 'DeFiProtocolVaultIdleCashDragAnalyzer', "tier": 'B', "category": 'capital_efficiency', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_pending_harvest_premium_analyzer', "class": 'DeFiProtocolVaultPendingHarvestPremiumAnalyzer', "tier": 'B', "category": 'vault_timing', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_round_trip_cost_analyzer', "class": 'DeFiProtocolVaultRoundTripCostAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_strategy_migration_risk_analyzer', "class": 'DeFiProtocolVaultStrategyMigrationRiskAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_withdrawal_fee_decay_analyzer', "class": 'DeFiProtocolVaultWithdrawalFeeDecayAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_management_fee_accrual_analyzer', "class": 'DeFiProtocolVaultManagementFeeAccrualAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_loss_socialization_exposure_analyzer', "class": 'DeFiProtocolVaultLossSocializationExposureAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
