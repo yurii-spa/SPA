@@ -35,8 +35,8 @@
       "threshold": 15.0,
       "status": "PASS",
       "verdict": "CLEAR",
-      "prev_eq": 100017.3,
-      "curr_eq": 100026.06,
+      "prev_eq": 100036.91,
+      "curr_eq": 100036.91,
       "drop_pct": 0.0,
       "message": "equity drop 0.00% within threshold"
     },
@@ -45,8 +45,8 @@
       "name": "Data Corruption",
       "status": "PASS",
       "verdict": "CLEAR",
-      "message": "no data corruption detected in 3 bars"
+      "message": "no data corruption detected in 5 bars"
     }
   },
-  "checked_at": "2026-06-13T06:00:03.063265+00:00"
+  "checked_at": "2026-06-14T15:02:08.553672+00:00"
 }
