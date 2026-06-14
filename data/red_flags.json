@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T15:06:53.496499Z",
+  "generated_at": "2026-06-14T17:16:56.080499Z",
   "monitor_version": "1.0",
   "sources": [
     "defillama",
@@ -15,7 +15,7 @@
       "severity": "CRITICAL",
       "message": "Risk-sensitive proposal [emergency]: Elect DAO facilitators with a realistically reduced pay rate",
       "source": "snapshot",
-      "detected_at": "2026-06-14T15:06:51.980335Z",
+      "detected_at": "2026-06-14T17:16:54.604369Z",
       "evidence": {
         "deadline": "2026-06-19T01:49:00Z",
         "grade": "B",
