@@ -1,7 +1,7 @@
 {
-  "last_updated": "2026-06-14T06:19:17Z",
-  "updated_by": "sprint-agent-v7.60",
-  "sprint_current": "v7.65",
+  "last_updated": "2026-06-14",
+  "updated_by": "Claude-Cowork v7.95",
+  "sprint_current": "v7.94",
   "sprint_naming_convention": "Sprint v{MAJOR}.{MINOR} — MP-{NNN}+{NNN}",
   "notes": "v7.51: MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107 tests, passage_probability logistic, tvl_impact_ratio, urgency_score 0-100, risk_category_score per type, overall_impact_score, CRITICAL_PROPOSAL/HIGH_IMPACT/MODERATE_IMPACT/LOW_IMPACT/ROUTINE labels, EMERGENCY_GOVERNANCE/TEAM_PROPOSAL/LIKELY_TO_PASS/AFFECTS_LARGE_TVL/NO_TIMELOCK_RISK/COMMUNITY_DRIVEN flags, ring-buffer log cap 100, atomic write) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109 tests, burn_multiple/diversification_score/market_cycle_resilience/sustainability_score 0-100, HIGHLY_SUSTAINABLE/SUSTAINABLE/BREAK_EVEN/SUBSIDIZED/UNSUSTAINABLE/ZOMBIE labels, PROFITABLE/EMISSION_SUBSIDIZED/LOW_REVENUE_DIVERSIFICATION/MARKET_DEPENDENT/REVENUE_GROWING/RUNWAY_CRITICAL flags, ring-buffer log cap 100, atomic write) — 216 tests GREEN, done_count 690->692, sprint_current v7.50->v7.51\nv7.38: MP-1000 DeFiProtocolFeeTierOptimizer (124 tests, optimal fee tier 5/30/100/500bps, 5 labels, 5 flags, ring-buffer log, atomic write) + MP-1001 ProtocolDeFiTokenBuybackImpactAnalyzer (120 tests, buyback yield/supply reduction/sustainability 0-100, 5 labels, 6 flags, ring-buffer log, atomic write) — 244 tests GREEN, done_count 656->658, sprint_current v7.37->v7.38\nv7.37: MP-998 DeFiProtocolVolumeToTVLEfficiencyAnalyzer (115 tests, velocity=Vol/TVL, capital_efficiency_score/revenue_quality_score/lp_net_apy, 5 labels, 6 flags, ring-buffer log, atomic write) + MP-999 ProtocolDeFiWhaleConcentrationMonitor (115 tests, whale_dominance/retail_health/exit_risk/decentralization 0-100, 5 concentration labels, 6 flags, ring-buffer log, atomic write) — 230 tests GREEN, done_count 654->656, sprint_current v7.35->v7.37\nv7.36: MP-996 DeFiProtocolAirdropFarmingDetector (89 tests, farming_intensity_score/organic_user_pct/sybil_risk_score/capital_stickiness_prediction 0-100, ORGANIC_GROWTH/MIXED_ORGANIC/AIRDROP_INFLATED/FARMING_DOMINANT/SYBIL_FARM labels, ANNOUNCED_AIRDROP_CATALYST/POINTS_FARMING_ACTIVE/HIGH_SYBIL_RISK/CAPITAL_FLIGHT_RISK/DUST_WALLET_CONCENTRATION/ORGANIC_RETENTION_SIGNAL flags, ring-buffer log cap 100, atomic write) + MP-997 ProtocolDeFiPointsSystemValuationAnalyzer (83 tests, implied_point_value_usd/apy_from_points_pct/dilution_risk_score 0-100/uncertainty_discount_factor 0-1/risk_adjusted_implied_value_usd, HIGH_VALUE_CONFIRMED/LIKELY_VALUABLE/SPECULATIVE_VALUE/LOW_VALUE/DILUTION_RISK labels, POINTS_MARKET_EXISTS/SNAPSHOT_IMMINENT/CONVERSION_ANNOUNCED/TRANSFERABLE_POINTS/HIGH_DILUTION_RISK/NO_FDV_SIGNAL flags, ring-buffer log cap 100, atomic write) — 172 tests GREEN, done_count 654->656, sprint_current v7.35->v7.36\nv7.34-mp992-993: MP-992 DeFiProtocolRegulatoryRiskScorer (102 tests, kyc_aml_score/jurisdiction_risk_score/securities_risk_score/operational_opacity_score/composite_regulatory_score 0-100, COMPLIANT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_RISK labels, SECURITIES_RISK/NO_AML_KYC/ANONYMOUS_TEAM/US_NEXUS_RISK/REGULATOR_ACTION_HISTORY/STABLECOIN_SYSTEMIC flags, ring-buffer log cap 100, atomic write) + MP-993 ProtocolDeFiStablecoinHealthMonitor (102 tests, peg_deviation_pct/peg_volatility_30d/max_depeg_30d/redemption_pressure_ratio/net_flow_7d metrics, ROCK_SOLID/STABLE/CAUTIOUS/AT_RISK/DEPEGGING/COLLAPSED labels, ACTIVE_DEPEG/ALGO_CONCENTRATION/UNAUDITED_RESERVES/REDEMPTION_PRESSURE/REDEMPTION_SUSPENDED/NET_OUTFLOW_ACCELERATING flags, ring-buffer log cap 100, atomic write) — 204 tests GREEN, done_count 652->654, sprint_current v7.33->v7.34\nv7.32: MP-988 DeFiYieldAggregationEfficiencyAnalyzer (97 tests, value_add_pct/fee_efficiency_ratio/compound_boost_pct/harvest_cost_ratio/capital_utilization_score 0-100, HIGHLY_EFFICIENT/EFFICIENT/NEUTRAL/INEFFICIENT/VALUE_DESTROYING labels, VALUE_DESTROYING/HIGH_FEE_DRAG/COMPOUND_HEAVY/GAS_INTENSIVE/UNDER_UTILIZED flags, ring-buffer log cap 100, atomic write) + MP-989 ProtocolCrossChainBridgeRiskMonitor (102 tests, centralization_score/incident_risk_score/coverage_ratio/composite_risk_score 0-100, FORTRESS/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL labels, MULTISIG_RISK/RECENT_INCIDENT/UNINSURED/ASSET_CONCENTRATED/CANONICAL_SAFE flags, ring-buffer log cap 100, atomic write) — 199 tests GREEN, done_count 648->650, sprint_current v7.31->v7.32\nv7.31: MP-986 DeFiLiquidityConcentrationRiskScorer (84 tests, top3_concentration_pct/lp_hhi/withdrawal_scenario_10pct_impact/sticky_ratio_pct/concentration_risk_score 0-100, WELL_DISTRIBUTED/LOW_CONCENTRATION/MODERATE_RISK/HIGH_CONCENTRATION/SINGLE_LP_RISK labels, SINGLE_LP_DOMINANT/INCENTIVE_DEPENDENT/PROTOCOL_OWNED_MAJORITY/STICKY_MAJORITY/CL_RANGE_RISK flags, ring-buffer log cap 100, atomic write) + MP-987 ProtocolYieldFarmingLifecycleAnalyzer (84 tests, apy_decay_rate_pct/tvl_retention_rate_pct/farmer_retention_rate_pct/lifecycle_stage_days/value_extraction_ratio, LAUNCH_PHASE/GROWTH_PHASE/MATURITY/DECLINE/SUNSET/ZOMBIE labels, APY_CRASHED/MERCENARY_CAPITAL/EMISSIONS_ENDING_SOON/HIGH_VALUE_EXTRACTION/STICKY_FARMERS flags, ring-buffer log cap 100, atomic write) — 168 tests GREEN, done_count 646->648, sprint_current v7.30->v7.31\nv7.30: MP-984 DeFiYieldSourceDiversificationScorer (100 tests, per-type allocation/yield_contribution HHI, source/protocol/chain diversity, diversification_score 0-100 = 40%*source+35%*protocol+25%*chain HHI invert, HIGHLY_DIVERSIFIED..SINGLE_SOURCE labels, SINGLE_CHAIN/PROTOCOL_CONCENTRATED/REAL_YIELD_HEAVY/POINTS_HEAVY/BEAR_MARKET_EXPOSED flags, ring-buffer log cap 100, atomic write) + MP-985 ProtocolNetworkEffectStrengthAnalyzer (98 tests, metcalfe_value=users²×avg_tx, user_growth/tvl_growth_pct_3m, integration_density=integrations/sqrt(n_cat), network_strength_score 0-100 = growth×0.30+switching×0.25+integration×0.25+metcalfe×0.20, DOMINANT_NETWORK/STRONG_NETWORK/EMERGING_NETWORK/WEAK_NETWORK/NO_MOAT labels, METCALFE_SCALING/HIGH_SWITCHING_COST/INTEGRATION_HUB/USER_GROWTH_STALLING/LOSING_INTEGRATIONS flags, ring-buffer log cap 100, atomic write) — 198 tests green, done_count 644->646, sprint_current v7.29->v7.30",
   "notes_v667": "v6.67: MP-857 ProtocolUpgradeRiskMonitor (102 tests, timelock/governance/audit/track-record safety scoring, LOW..CRITICAL risk levels, key_risk_factors, pending_high_risk_count) + MP-858 YieldAggregatorFeeAnalyzer (82 tests, management/performance/withdrawal fee drag, net-APY, EXCELLENT..AVOID competitiveness, fee_efficiency_score 0-100, vs_benchmark) — 184 tests green, ring-buffer logs, atomic writes, stdlib only",
@@ -7415,10 +7415,50 @@
         "type": "code",
         "status": "done",
         "added": "2026-06-14"
+      },
+      {
+        "id": "MP-1074",
+        "title": "DeFiProtocolGaugeEmissionDecayForecaster",
+        "description": "Forecasts gauge incentive-emission decay over time and the resulting incentive-APR cliff for incentive-dependent LPs: half-life, weeks-until-incentive-below-base, dependence, cliff-severity score",
+        "sprint": "v7.75",
+        "tests": 190,
+        "type": "code",
+        "status": "done",
+        "added": "2026-06-14"
+      },
+      {
+        "id": "MP-1075",
+        "title": "ProtocolDeFiMercenaryCapitalRiskAnalyzer",
+        "description": "Estimates mercenary (incentive-chasing) share of protocol TVL, sticky vs mercenary split, churn, incentive-cost coverage, projected retention if incentives removed, mercenary risk score",
+        "sprint": "v7.75",
+        "tests": 190,
+        "type": "code",
+        "status": "done",
+        "added": "2026-06-14"
+      },
+      {
+        "id": "MP-1090",
+        "title": "DeFiProtocolRebaseTokenYieldNormalizer",
+        "description": "Normalizes advertised rebase-token APY (stETH/aToken/OHM-style) into true economic yield; separates real backing growth from cosmetic supply inflation: dilution drag, cosmetic ratio, purchasing-power yield, normalization gap, rebase-quality score",
+        "sprint": "v7.83",
+        "tests": 192,
+        "type": "code",
+        "status": "done",
+        "added": "2026-06-14"
+      },
+      {
+        "id": "MP-1091",
+        "title": "ProtocolDeFiValidatorSlashingExposureAnalyzer",
+        "description": "Quantifies holder slashing-loss exposure for staked/LST/restaking positions: expected annual slashing loss (%/USD), worst-case haircut scaled by operator concentration, correlated-tail contribution, restaking amplification, insurance offset, slashing-risk score",
+        "sprint": "v7.83",
+        "tests": 200,
+        "type": "code",
+        "status": "done",
+        "added": "2026-06-14"
       }
     ]
   },
-  "sprint_completed": "v7.60",
+  "sprint_completed": "v7.83",
   "_v544_dispatch_note": "SPA-V544 (MP-620): ChainExposureReport — advisory/read-only агрегация экспозиции портфеля по БЛОКЧЕЙНАМ (ethereum/arbitrum/base/optimism/polygon/UNKNOWN). HHI chain-концентрация, policy chain-concentration cap (ethereum<=70% AUM, MP-387), chain-weighted APY, флаг L2-экспозиции, Telegram-сводка. Третий срез того же источника data/yield_attribution_tracker.json (после stablecoin_exposure_report и tier_exposure_report). Pure stdlib, atomic writes (tmp+os.replace), ring-buffer 30, fail-safe загрузка, CLI --check/--run/--data-dir, всегда exit(0). 183 tests green. Текущий снапшот: ethereum 100% > 70% cap → policy BREACH, HHI=1.000 CONCENTRATED (корректный флаг chain-концентрации).",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
@@ -7450,6 +7490,53 @@
   "_v478_mp443_dispatch_note": "MP-443 done: fund_api_server.py + launchd plist + 9 tests",
   "_v479_dispatch_note": "MP-509 done: Ethena sUSDe ERC-4626 T3 adapter (susde_adapter.py). 100 tests PASS, regression 282 green. Registered in ADAPTER_REGISTRY (susde, T3).",
   "done": [
+    {
+      "id": "MP-1104",
+      "title": "DeFiProtocolTotalValueAtRiskAggregator — parametric VaR, correlation matrix, LOW_RISK..EXTREME_RISK; 132 tests green",
+      "type": "code",
+      "status": "done",
+      "sprint": "v7.90",
+      "completed": "2026-06-14",
+      "completed_by": "claude (SPA-V790)",
+      "tags": [
+        "analytics",
+        "advisory",
+        "var",
+        "risk",
+        "correlation",
+        "stdlib-only",
+        "SPA-BL-011"
+      ],
+      "files": [
+        "spa_core/analytics/defi_protocol_total_value_at_risk_aggregator.py",
+        "spa_core/tests/test_defi_protocol_total_value_at_risk_aggregator.py",
+        "data/total_value_at_risk_log.json"
+      ],
+      "tests": "132 tests green"
+    },
+    {
+      "id": "MP-1105",
+      "title": "ProtocolDeFiExitLiquidityDepthAnalyzer — exit liquidity depth, days_to_exit_cleanly, INSTANT..TRAPPED labels; 138 tests green",
+      "type": "code",
+      "status": "done",
+      "sprint": "v7.90",
+      "completed": "2026-06-14",
+      "completed_by": "claude (SPA-V790)",
+      "tags": [
+        "analytics",
+        "advisory",
+        "exit-liquidity",
+        "slippage",
+        "stdlib-only",
+        "SPA-BL-011"
+      ],
+      "files": [
+        "spa_core/analytics/protocol_defi_exit_liquidity_depth_analyzer.py",
+        "spa_core/tests/test_protocol_defi_exit_liquidity_depth_analyzer.py",
+        "data/exit_liquidity_depth_log.json"
+      ],
+      "tests": "138 tests green"
+    },
     {
       "id": "MP-633-v3.6",
       "type": "code",
@@ -8015,7 +8102,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 744,
+  "done_count": 806,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -8507,7 +8594,7 @@
   "_v655_reconcile_note": "RACE: parallel run claimed v6.55/MP-835 (CorrelationRiskAnalyzer) + MP-836 (GovernanceHealthScorer), wrote push_v655.sh at 19:11 but had not committed KANBAN/sprint_log. This orchestrator re-tagged its own work to v6.56/MP-837/MP-838 (unique filenames sortino_ratio_calculator.py + lending_pool_utilization_analyzer.py — no rename needed) and reconciled both sets into done.",
   "_v656_reconcile_note": "RACE (parallel run B): claimed MP-837 DeFiGasOptimizationAdvisor + MP-838 ProtocolSecurityAuditTracker, wrote push_v656.sh ~19:19. This orchestrator inadvertently overwrote push_v656.sh and has restored it (206 tests green); both modules+tests verified on disk and reconciled into done.",
   "_v657_dispatch_note": "v6.57: MP-839 SortinoRatioCalculator (119 tests, downside semi-deviation, annualized Sortino vs Sharpe, NO_DOWNSIDE/NEGATIVE_RETURN/HIGH_DOWNSIDE_VOL flags, A-F) + MP-840 LendingPoolUtilizationAnalyzer (118 tests, kinked borrow/supply rate model, UNDERUTILIZED..CRITICAL regime, ILLIQUID/OVER_KINK/RATE_SPIKE_RISK flags). 237 tests green. Re-tagged from v6.55->v6.56->v6.57 / MP-835->837->839 due to 3-way race with parallel runs A(v655) and B(v656). Push: bash scripts/push_v657.sh",
-  "updated_at": "2026-06-14T06:25:45Z",
+  "updated_at": "2026-06-14T00:00:00Z",
   "_v664_dispatch_note": "SPA-V664: two advisory analytics modules — MP-851 APYPersistenceScorer (APY temporal stickiness/durability scoring) + MP-852 YieldCurveSteepnessAnalyzer (lock-up term-structure / term-premium analysis). Pure stdlib, read-only/advisory, atomic writes, ring-buffer 100. 250 unittest tests green (132 + 118).",
   "notes_v674": "v6.74: MP-871 YieldSourceConcentrationRisk (109 tests, HHI protocol/chain/asset_type/yield_type, WELL_DIVERSIFIED..HIGHLY_CONCENTRATED, diversification-recs, ring-buffer log) + MP-872 ProtocolExitLiquidityAnalyzer (115 tests, lock-up/queue/daily-limit/depth, INSTANT..LOCKED bottleneck scoring 0-100, ring-buffer log) — 224 tests green, atomic writes, stdlib only",
   "notes_v675": "v6.75: MP-873 RestakingRiskAnalyzer (88 tests, slashing/AVS/operator-concentration/withdrawal-delay/LRT-depeg weighted score 0-100, LOW..CRITICAL, diversification recs, ring-buffer log) + MP-874 AirdropFarmingValueEstimator (81 tests, expected-airdrop-USD, annualized airdrop yield, opportunity cost vs base APY, net EV, AVOID..HIGHLY_ATTRACTIVE) — 169 tests green, atomic writes, stdlib only",
@@ -8557,5 +8644,14 @@
   "_v750_dispatch_note": "SPA-V750: MP-1024 DeFiProtocolSequencerDowntimeRiskAnalyzer (94 tests, downtime_frequency_score/liquidation_exposure_score/escape_hatch_score/centralization_score -> net_downtime_risk_score 0-100, RESILIENT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_EXPOSURE labels, SINGLE_SEQUENCER/NO_GRACE_PERIOD/NEAR_LIQUIDATION/NO_ESCAPE_HATCH/FREQUENT_DOWNTIME/LONG_MAX_OUTAGE/UPTIME_FEED_PROTECTED/FORCE_INCLUSION_AVAILABLE/DECENTRALIZATION_PLANNED/INSUFFICIENT_DATA flags, ring-buffer log cap 100, atomic write) + MP-1025 ProtocolDeFiYieldDurationMismatchAnalyzer (90 tests, duration_gap_days/liquidity_coverage_ratio/redemption_stress_shortfall_pct/net_interest_margin_pct/duration_mismatch_score 0-100, MATCHED/MINOR_MISMATCH/MODERATE_MISMATCH/SEVERE_MISMATCH/RUN_RISK labels, 11 flags, ring-buffer log cap 100, atomic write) — 184 tests GREEN, done_count 690->692, sprint_completed v7.49->v7.50. Self-authored код-спринт (backlog: только USER ACTION P0-P2 + P3 features/ideas, готовых type=code/status=ready нет). Gap-check grep'ом по 455 analytics-модулям: sequencer/downtime/censorship=0, duration_mismatch/asset_liability=0. Architect review (v7.50 кратен 5): spa_core.dev_agents.architect/anthropic недоступен в sandbox -> ручной backlog-review. Push: scripts/push_v750.sh (ручной запуск на Mac, PAT fallback Keychain->GITHUB_PAT_SPA->SPA_GITHUB_PAT->~/.github_pat, без hardcoded секретов).",
   "_v751_dispatch_note": "SPA-V751: MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107 tests) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109 tests) — 216 tests GREEN, done_count 690->692, sprint_current v7.50->v7.51",
   "_v752_dispatch_note": "SPA-V752: MP-1028 DeFiProtocolSystemicRiskContagionModeler (99 tests, contagion_amplification_factor, systemic_importance/cascade_risk/resilience/net_systemic_risk 0-100, 5 labels SYSTEMIC_CORNERSTONE..ISOLATED, 6 flags COLLATERAL_CONTAGION_RISK/ORACLE_SINGLE_SOURCE/HISTORICALLY_CONTAGIOUS/INSURANCE_BUFFERED/LIQUIDITY_CLIFF/TOO_BIG_TO_FAIL, ring-buffer log cap 100, atomic write) + MP-1029 ProtocolDeFiPositionSizeOptimizer (93 tests, Kelly Criterion adaptation f*=(p*b-q)/b, half_kelly_pct/impact_adjusted_pct/optimal_position_pct/optimal_position_usd, 5 labels FULL_KELLY..DO_NOT_ENTER, 6 flags HIGH_CONFIDENCE_OPPORTUNITY/KELLY_POSITIVE/LARGE_POOL_IMPACT/ILLIQUID_EXIT/CONCENTRATED_RISK/DIVERSIFICATION_REQUIRED, ring-buffer log cap 100, atomic write) — 192 tests GREEN, done_count 692->694, sprint_current v7.50->v7.52",
-  "_v762_dispatch_note": "Sprint v7.62: MP-1048 DeFiProtocolBorrowingPowerUtilizationAnalyzer + MP-1049 ProtocolDeFiLiquidityMiningDilutionAnalyzer. 99+106=205 tests, all pass. done_count 738->740."
+  "_v762_dispatch_note": "Sprint v7.62: MP-1048 DeFiProtocolBorrowingPowerUtilizationAnalyzer + MP-1049 ProtocolDeFiLiquidityMiningDilutionAnalyzer. 99+106=205 tests, all pass. done_count 738->740.",
+  "_v768_dispatch_note": "SPA-V768: MP-1060 DeFiProtocolFlashLoanAttackSurfaceAnalyzer (102 tests, attack_profitability_score/oracle_vulnerability_score/flash_loan_risk_score 0-100, FLASH_LOAN_RESISTANT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_EXPOSURE labels, ring-buffer log cap 100, atomic write) + MP-1061 ProtocolDeFiYieldAggregatorStrategyRiskAnalyzer (96 tests, weighted_protocol_risk_score/concentration_risk_score/complexity_risk_score 0-100, net_apy_after_fees_pct, OPTIMAL_AGGREGATION/SOUND_STRATEGY/MODERATE_COMPLEXITY/HIGH_DEPENDENCY_RISK/AVOID_COMPLEXITY labels, ring-buffer log cap 100, atomic write) — 198 tests GREEN, done_count 748->750, sprint_current v7.67->v7.68",
+  "_v770_dispatch_note": "SPA-V770: MP-1064 DeFiProtocolRealYieldVsIncentiveYieldAnalyzer (107 tests) + MP-1065 ProtocolDeFiFeeRevenueSustainabilityAnalyzer (108 tests) — 215 tests GREEN, done_count 754->756, sprint_current v7.69->v7.70",
+  "_v778_dispatch_note": "SPA-V778: MP-1080 DeFiProtocolTreasuryDiversificationAnalyzer (113 tests) + MP-1081 ProtocolDeFiPositionHealthMonitor (127 tests) — 240 tests GREEN, done_count 766->768, sprint_current v7.76->v7.78",
+  "_v779_dispatch_note": "SPA-V779: MP-1082 DeFiProtocolCdpStabilityFeeAnalyzer (126 tests) + MP-1083 ProtocolDeFiOptionsVaultRiskAnalyzer (121 tests) — 247 tests GREEN, done_count 770->772, sprint_current v7.78->v7.79",
+  "_v781_dispatch_note": "SPA-V781: MP-1086 DeFiProtocolOraclePriceFreshnessAnalyzer (132 tests, staleness_ratio/price_deviation_pct/oracle_risk_score 0-100, FRESH_ORACLE/AGING_ORACLE/STALE_ORACLE/CRITICAL_STALE/MANIPULATED_PRICE labels, ring-buffer log cap 100, atomic write) + MP-1087 ProtocolDeFiLiquidationCascadeRiskAnalyzer (120 tests, buffer_to_liquidation_pct/at_risk_collateral/estimated_liquidations/market_impact_pct, cascade_risk_score 0-100, SAFE_MARGINS/WATCHLIST/CASCADE_RISK/HIGH_CASCADE/SYSTEMIC_CASCADE labels, ring-buffer log cap 100, atomic write) — 252 tests GREEN, done_count 776->778, sprint_current v7.82->v7.81",
+  "_v783_dispatch_note": "v7.83 self-authored: MP-1090 RebaseTokenYieldNormalizer (192t) + MP-1091 ValidatorSlashingExposureAnalyzer (200t); 392 tests green; gap-check: rebase-yield-normalization=0, slashing-loss-exposure=0. push: scripts/push_v783.sh (manual on Mac).",
+  "_v787_dispatch_note": "v7.87: MP-1098 DeFiProtocolLiquidityBootstrappingPoolAnalyzer + MP-1099 ProtocolDeFiVeTokenLockOptimizer (143+139=282 tests)",
+  "_v791_dispatch_note": "feat(SPA-V791): MP-1106 DeFiProtocolRewardDilutionVelocityTracker + MP-1107 ProtocolDeFiCollateralHealthFactorSimulator — 153+158=311 tests all green",
+  "_v793_dispatch_note": "feat(SPA-V793): MP-1110 DeFiProtocolNetInterestMarginAnalyzer (159 tests) + MP-1111 ProtocolDeFiYieldSmoothingAnalyzer (168 tests); gross_spread/NIM/nim_efficiency_score/nim_label; mean_yield/yield_cv/smoothness_score/smoothing_label/missed_compounding_drag"
 }
