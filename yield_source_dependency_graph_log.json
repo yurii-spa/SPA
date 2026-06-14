@@ -1,0 +1,122 @@
+[
+  {
+    "yield_source_name": "TestYield",
+    "dependency_chain": [
+      {
+        "name": "Proto",
+        "type": "protocol",
+        "failure_probability_pct": 5.0,
+        "tvl_usd": 100000000.0,
+        "is_centralized": false
+      }
+    ],
+    "max_chain_depth": 0,
+    "effective_depth": 1,
+    "total_failure_probability_pct": 5.000000000000004,
+    "weakest_link": {
+      "name": "Proto",
+      "type": "protocol",
+      "failure_probability_pct": 5.0,
+      "tvl_usd": 100000000.0,
+      "is_centralized": false
+    },
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0526315789473684,
+    "label": "SIMPLE_DEPENDENCY",
+    "recommendations": [
+      "Single dependency, low failure probability (5.0%). Well within acceptable risk tolerance for most strategies.",
+      "Weakest link: 'Proto' with 5.0% individual failure probability. Prioritise monitoring this dependency."
+    ],
+    "timestamp": 1781416901.3840759
+  },
+  {
+    "yield_source_name": "TestYield",
+    "dependency_chain": [
+      {
+        "name": "Proto",
+        "type": "protocol",
+        "failure_probability_pct": 5.0,
+        "tvl_usd": 100000000.0,
+        "is_centralized": false
+      }
+    ],
+    "max_chain_depth": 0,
+    "effective_depth": 1,
+    "total_failure_probability_pct": 5.000000000000004,
+    "weakest_link": {
+      "name": "Proto",
+      "type": "protocol",
+      "failure_probability_pct": 5.0,
+      "tvl_usd": 100000000.0,
+      "is_centralized": false
+    },
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0526315789473684,
+    "label": "SIMPLE_DEPENDENCY",
+    "recommendations": [
+      "Single dependency, low failure probability (5.0%). Well within acceptable risk tolerance for most strategies.",
+      "Weakest link: 'Proto' with 5.0% individual failure probability. Prioritise monitoring this dependency."
+    ],
+    "timestamp": 1781416908.9074447
+  },
+  {
+    "yield_source_name": "TestYield",
+    "dependency_chain": [
+      {
+        "name": "Proto",
+        "type": "protocol",
+        "failure_probability_pct": 5.0,
+        "tvl_usd": 100000000.0,
+        "is_centralized": false
+      }
+    ],
+    "max_chain_depth": 0,
+    "effective_depth": 1,
+    "total_failure_probability_pct": 5.000000000000004,
+    "weakest_link": {
+      "name": "Proto",
+      "type": "protocol",
+      "failure_probability_pct": 5.0,
+      "tvl_usd": 100000000.0,
+      "is_centralized": false
+    },
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0526315789473684,
+    "label": "SIMPLE_DEPENDENCY",
+    "recommendations": [
+      "Single dependency, low failure probability (5.0%). Well within acceptable risk tolerance for most strategies.",
+      "Weakest link: 'Proto' with 5.0% individual failure probability. Prioritise monitoring this dependency."
+    ],
+    "timestamp": 1781416938.9113228
+  },
+  {
+    "yield_source_name": "TestYield",
+    "dependency_chain": [
+      {
+        "name": "Proto",
+        "type": "protocol",
+        "failure_probability_pct": 5.0,
+        "tvl_usd": 100000000.0,
+        "is_centralized": false
+      }
+    ],
+    "max_chain_depth": 0,
+    "effective_depth": 1,
+    "total_failure_probability_pct": 5.000000000000004,
+    "weakest_link": {
+      "name": "Proto",
+      "type": "protocol",
+      "failure_probability_pct": 5.0,
+      "tvl_usd": 100000000.0,
+      "is_centralized": false
+    },
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0526315789473684,
+    "label": "SIMPLE_DEPENDENCY",
+    "recommendations": [
+      "Single dependency, low failure probability (5.0%). Well within acceptable risk tolerance for most strategies.",
+      "Weakest link: 'Proto' with 5.0% individual failure probability. Prioritise monitoring this dependency."
+    ],
+    "timestamp": 1781417430.2609465
+  }
+]
