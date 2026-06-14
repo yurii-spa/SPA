@@ -1,0 +1,709 @@
+[
+  {
+    "name": "USDC loop (past kink, volatile)",
+    "current_borrow_apr_pct": 46.0,
+    "current_utilization_pct": 94.0,
+    "utilization_volatility_pct": 8.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 50.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 3.0,
+    "forecast_borrow_apr_vol_pct": 24.0,
+    "borrow_apr_p95_pct": 85.48,
+    "borrow_apr_p05_pct": 6.519999999999996,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": -35.480000000000004,
+    "carry_wipeout_probability_pct": 43.381616738909635,
+    "rate_stability_score": 26.154595815272593,
+    "classification": "HIGHLY_VOLATILE",
+    "grade": "F",
+    "flags": [
+      "HIGH_RATE_VOLATILITY",
+      "CARRY_WIPEOUT_RISK",
+      "HIGH_UTILIZATION_SENSITIVITY",
+      "NEGATIVE_CARRY_AT_P95"
+    ],
+    "recommendations": [
+      "Highly volatile borrow cost: forecast 1-sigma dispersion is ~24.00 points of APR. Borrow APR could spike to ~85.48% (p95) from ~46.00% today; size leverage conservatively.",
+      "Carry-wipeout risk: ~43.4% modelled probability the borrow rate climbs above the farm APR and erases the carry over the horizon. Keep a deleveraging trigger ready.",
+      "Negative carry at p95: under a stress borrow rate of ~85.48% the position bleeds ~35.48 points per year. The loop is not robust to a rate spike.",
+      "High utilization sensitivity: the market is near/past the kink, so the steep second slope amplifies small utilization moves into large borrow-rate swings."
+    ],
+    "timestamp": 1781428675.295975
+  },
+  {
+    "name": "USDC loop (past kink, volatile)",
+    "current_borrow_apr_pct": 46.0,
+    "current_utilization_pct": 94.0,
+    "utilization_volatility_pct": 8.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 50.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 3.0,
+    "forecast_borrow_apr_vol_pct": 24.0,
+    "borrow_apr_p95_pct": 85.48,
+    "borrow_apr_p05_pct": 6.519999999999996,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": -35.480000000000004,
+    "carry_wipeout_probability_pct": 43.381616738909635,
+    "rate_stability_score": 26.154595815272593,
+    "classification": "HIGHLY_VOLATILE",
+    "grade": "F",
+    "flags": [
+      "HIGH_RATE_VOLATILITY",
+      "CARRY_WIPEOUT_RISK",
+      "HIGH_UTILIZATION_SENSITIVITY",
+      "NEGATIVE_CARRY_AT_P95"
+    ],
+    "recommendations": [
+      "Highly volatile borrow cost: forecast 1-sigma dispersion is ~24.00 points of APR. Borrow APR could spike to ~85.48% (p95) from ~46.00% today; size leverage conservatively.",
+      "Carry-wipeout risk: ~43.4% modelled probability the borrow rate climbs above the farm APR and erases the carry over the horizon. Keep a deleveraging trigger ready.",
+      "Negative carry at p95: under a stress borrow rate of ~85.48% the position bleeds ~35.48 points per year. The loop is not robust to a rate spike.",
+      "High utilization sensitivity: the market is near/past the kink, so the steep second slope amplifies small utilization moves into large borrow-rate swings."
+    ],
+    "timestamp": 1781428675.2976382
+  },
+  {
+    "name": "ETH loop (below kink, stable)",
+    "current_borrow_apr_pct": 1.8,
+    "current_utilization_pct": 35.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 6.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 2.6225,
+    "borrow_apr_p05_pct": 0.9775,
+    "net_carry_now_pct": 4.2,
+    "net_carry_at_p95_borrow_pct": 3.3775,
+    "carry_wipeout_probability_pct": 2.2323931972880553e-15,
+    "rate_stability_score": 80.725,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.20%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781428675.2988338
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429053.5874796
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429053.9261959
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429066.9539196
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429067.290001
+  },
+  {
+    "name": "USDC loop (past kink, volatile)",
+    "current_borrow_apr_pct": 46.0,
+    "current_utilization_pct": 94.0,
+    "utilization_volatility_pct": 8.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 50.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 3.0,
+    "forecast_borrow_apr_vol_pct": 24.0,
+    "borrow_apr_p95_pct": 85.48,
+    "borrow_apr_p05_pct": 6.519999999999996,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": -35.480000000000004,
+    "carry_wipeout_probability_pct": 43.381616738909635,
+    "rate_stability_score": 26.154595815272593,
+    "classification": "HIGHLY_VOLATILE",
+    "grade": "F",
+    "flags": [
+      "HIGH_RATE_VOLATILITY",
+      "CARRY_WIPEOUT_RISK",
+      "HIGH_UTILIZATION_SENSITIVITY",
+      "NEGATIVE_CARRY_AT_P95"
+    ],
+    "recommendations": [
+      "Highly volatile borrow cost: forecast 1-sigma dispersion is ~24.00 points of APR. Borrow APR could spike to ~85.48% (p95) from ~46.00% today; size leverage conservatively.",
+      "Carry-wipeout risk: ~43.4% modelled probability the borrow rate climbs above the farm APR and erases the carry over the horizon. Keep a deleveraging trigger ready.",
+      "Negative carry at p95: under a stress borrow rate of ~85.48% the position bleeds ~35.48 points per year. The loop is not robust to a rate spike.",
+      "High utilization sensitivity: the market is near/past the kink, so the steep second slope amplifies small utilization moves into large borrow-rate swings."
+    ],
+    "timestamp": 1781429067.4095407
+  },
+  {
+    "name": "USDC loop (past kink, volatile)",
+    "current_borrow_apr_pct": 46.0,
+    "current_utilization_pct": 94.0,
+    "utilization_volatility_pct": 8.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 50.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 3.0,
+    "forecast_borrow_apr_vol_pct": 24.0,
+    "borrow_apr_p95_pct": 85.48,
+    "borrow_apr_p05_pct": 6.519999999999996,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": -35.480000000000004,
+    "carry_wipeout_probability_pct": 43.381616738909635,
+    "rate_stability_score": 26.154595815272593,
+    "classification": "HIGHLY_VOLATILE",
+    "grade": "F",
+    "flags": [
+      "HIGH_RATE_VOLATILITY",
+      "CARRY_WIPEOUT_RISK",
+      "HIGH_UTILIZATION_SENSITIVITY",
+      "NEGATIVE_CARRY_AT_P95"
+    ],
+    "recommendations": [
+      "Highly volatile borrow cost: forecast 1-sigma dispersion is ~24.00 points of APR. Borrow APR could spike to ~85.48% (p95) from ~46.00% today; size leverage conservatively.",
+      "Carry-wipeout risk: ~43.4% modelled probability the borrow rate climbs above the farm APR and erases the carry over the horizon. Keep a deleveraging trigger ready.",
+      "Negative carry at p95: under a stress borrow rate of ~85.48% the position bleeds ~35.48 points per year. The loop is not robust to a rate spike.",
+      "High utilization sensitivity: the market is near/past the kink, so the steep second slope amplifies small utilization moves into large borrow-rate swings."
+    ],
+    "timestamp": 1781429067.4116673
+  },
+  {
+    "name": "ETH loop (below kink, stable)",
+    "current_borrow_apr_pct": 1.8,
+    "current_utilization_pct": 35.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 6.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 2.6225,
+    "borrow_apr_p05_pct": 0.9775,
+    "net_carry_now_pct": 4.2,
+    "net_carry_at_p95_borrow_pct": 3.3775,
+    "carry_wipeout_probability_pct": 2.2323931972880553e-15,
+    "rate_stability_score": 80.725,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.20%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429067.4134545
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429095.9040492
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429096.243686
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429181.4554641
+  },
+  {
+    "name": "TestMarket",
+    "current_borrow_apr_pct": 4.0,
+    "current_utilization_pct": 50.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 8.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 4.8225,
+    "borrow_apr_p05_pct": 3.1775,
+    "net_carry_now_pct": 4.0,
+    "net_carry_at_p95_borrow_pct": 3.1775,
+    "carry_wipeout_probability_pct": 6.220960574271819e-14,
+    "rate_stability_score": 80.12499999999999,
+    "classification": "VERY_STABLE",
+    "grade": "B",
+    "flags": [
+      "STABLE_BORROW_COST"
+    ],
+    "recommendations": [
+      "Very stable borrow cost: forecast dispersion is only ~0.50 points of APR. Borrow cost is highly predictable; carry ~4.00%.",
+      "Stable borrow cost: forecast dispersion is minimal, so the carry is unlikely to be disrupted by rate moves over the horizon."
+    ],
+    "timestamp": 1781429181.7942653
+  },
+  {
+    "name": "USDC",
+    "current_borrow_apr_pct": 12.0,
+    "current_utilization_pct": 92.0,
+    "utilization_volatility_pct": 12.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 15.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 3.0,
+    "forecast_borrow_apr_vol_pct": 36.0,
+    "borrow_apr_p95_pct": 71.22,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 3.0,
+    "net_carry_at_p95_borrow_pct": -56.22,
+    "carry_wipeout_probability_pct": 46.67932481473777,
+    "rate_stability_score": 22.330168796315558,
+    "classification": "HIGHLY_VOLATILE",
+    "grade": "F",
+    "flags": [
+      "HIGH_RATE_VOLATILITY",
+      "CARRY_WIPEOUT_RISK",
+      "HIGH_UTILIZATION_SENSITIVITY",
+      "NEGATIVE_CARRY_AT_P95"
+    ],
+    "recommendations": [
+      "Highly volatile borrow cost: forecast 1-sigma dispersion is ~36.00 points of APR. Borrow APR could spike to ~71.22% (p95) from ~12.00% today; size leverage conservatively.",
+      "Carry-wipeout risk: ~46.7% modelled probability the borrow rate climbs above the farm APR and erases the carry over the horizon. Keep a deleveraging trigger ready.",
+      "Negative carry at p95: under a stress borrow rate of ~71.22% the position bleeds ~56.22 points per year. The loop is not robust to a rate spike.",
+      "High utilization sensitivity: the market is near/past the kink, so the steep second slope amplifies small utilization moves into large borrow-rate swings."
+    ],
+    "timestamp": 1781429181.9009202
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449326.474853
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449326.849112
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449326.884953
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449326.9208362
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449326.9570491
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449326.993537
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449327.0290391
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1781449327.065871
+  }
+]
