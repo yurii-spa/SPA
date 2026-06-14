@@ -2740,6 +2740,66 @@
   </div>
   <!-- ══ / Yield Forecast Panel ══ -->
 
+  <!-- ══ MP-628 Dashboard v3.5: Gas Cost Impact ══ -->
+  <div class="an-card" style="margin-top:16px" id="gas-cost-panel-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">⛽ Gas Cost Impact</div>
+      <button class="refresh-btn" onclick="loadGasCostPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="gas-cost-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Gas Cost Impact ══ -->
+
+  <!-- ══ MP-628 Dashboard v3.5: Protocol Risk Profile ══ -->
+  <div class="an-card" style="margin-top:16px" id="protocol-risk-panel-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">🛡️ Protocol Risk Profile</div>
+      <button class="refresh-btn" onclick="loadProtocolRiskPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="protocol-risk-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Protocol Risk Profile ══ -->
+
+  <!-- ══ MP-628 Dashboard v3.5: Strategy Leaderboard ══ -->
+  <div class="an-card" style="margin-top:16px" id="strategy-leaderboard-panel-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">🏆 Strategy Leaderboard</div>
+      <button class="refresh-btn" onclick="loadStrategyLeaderboard(true)">↻ Refresh</button>
+    </div>
+    <div id="strategy-leaderboard-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Strategy Leaderboard ══ -->
+
+  <!-- ══ MP-633 Dashboard v3.6: Slippage Impact ══ -->
+  <div class="an-card" style="margin-top:16px" id="slippage-impact-panel-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">⚡ Slippage Impact</div>
+      <button class="refresh-btn" onclick="loadSlippageImpactPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="slippage-impact-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Slippage Impact ══ -->
+
+  <!-- ══ MP-633 Dashboard v3.6: Liquidity Exit Risk ══ -->
+  <div class="an-card" style="margin-top:16px" id="liquidity-exit-panel-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">🔒 Liquidity Exit Risk</div>
+      <button class="refresh-btn" onclick="loadLiquidityExitPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="liquidity-exit-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Liquidity Exit Risk ══ -->
+
+  <!-- ══ MP-633 Dashboard v3.6: Cycle Health ══ -->
+  <div class="an-card" style="margin-top:16px" id="cycle-health-panel-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="an-title" style="margin-bottom:0">💓 Cycle Health</div>
+      <button class="refresh-btn" onclick="loadCycleHealthPanel(true)">↻ Refresh</button>
+    </div>
+    <div id="cycle-health-panel"><div style="color:#6b7280;font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+  </div>
+  <!-- ══ / Cycle Health ══ -->
+
 </div><!-- /tab-analytics -->
 
 
@@ -5155,6 +5215,12 @@ async function loadAnalytics() {
     _defer(() => { loadWeeklyPanel(); });    // MP-613
     _defer(() => { loadCapitalEfficiencyPanel(); }); // MP-618
     _defer(() => { loadForecastPanel(); });           // MP-618
+    _defer(() => { loadGasCostPanel(); });            // MP-628 v3.5
+    _defer(() => { loadProtocolRiskPanel(); });       // MP-628 v3.5
+    _defer(() => { loadStrategyLeaderboard(); });     // MP-628 v3.5
+    _defer(() => { loadSlippageImpactPanel(); });     // MP-633 v3.6
+    _defer(() => { loadLiquidityExitPanel(); });      // MP-633 v3.6
+    _defer(() => { loadCycleHealthPanel(); });        // MP-633 v3.6
   } catch(e) {
     console.error('Analytics load error:', e);
   }
@@ -5637,6 +5703,405 @@ async function loadForecastPanel(force) {
     el.innerHTML = html;
   } catch(e) {
     el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Forecast data unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ══ MP-628 Dashboard v3.5 — Gas Cost Impact ══════════════════════════════════
+async function loadGasCostPanel(force) {
+  const el = document.getElementById('gas-cost-panel');
+  if (!el) return;
+  try {
+    const url = 'data/gas_cost_log.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+
+    const entries = raw.entries || (Array.isArray(raw) ? raw : []);
+    const CAPITAL = 100_000;
+    const WINDOW  = 30;
+
+    if (!entries.length) {
+      el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No gas data yet.</div>';
+      return;
+    }
+
+    // Last 30 entries
+    const recent = entries.slice(-WINDOW);
+    const costUsd = recent.reduce((s, e) => s + (e.cost_usd || 0), 0);
+    const gross30 = recent.reduce((s, e) => s + (e.gross_apy || 0), 0) / recent.length || 0;
+    const dragBps = (costUsd / CAPITAL) * 10_000 * 365 / Math.max(recent.length, 1);
+    const netApy  = gross30 - dragBps / 10_000 * 100;
+
+    const gradeMap = [
+      [5,  'A', '#16a34a', '#dcfce7'],
+      [15, 'B', '#ca8a04', '#fef9c3'],
+      [30, 'C', '#ea580c', '#ffedd5'],
+      [Infinity, 'D', '#dc2626', '#fee2e2'],
+    ];
+    const [, grade, color, bg] = gradeMap.find(([th]) => dragBps < th);
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:600;color:#1a1a1a">${netApy.toFixed(2)}%</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Net APY (after gas)</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:600;color:#1a1a1a">${dragBps.toFixed(1)}</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Gas Drag (bps)</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:600;color:#1a1a1a">$${costUsd.toFixed(2)}</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Total Gas (30 entries)</div>
+        </div>
+        <div style="text-align:center">
+          <div style="display:inline-block;font-size:18px;font-weight:700;color:${color};background:${bg};
+               border-radius:8px;padding:2px 14px">${grade}</div>
+          <div style="font-size:10px;color:#888;margin-top:4px">Grade</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;text-align:center">
+        A&lt;5bps · B&lt;15bps · C&lt;30bps · D≥30bps · Advisory only
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Gas data unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ══ MP-628 Dashboard v3.5 — Protocol Risk Profile ════════════════════════════
+async function loadProtocolRiskPanel(force) {
+  const el = document.getElementById('protocol-risk-panel');
+  if (!el) return;
+  try {
+    const url = 'data/protocol_risk_scores.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+
+    const allScores = raw.all_scores || [];
+    if (!allScores.length) {
+      el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No protocol risk data yet.</div>';
+      return;
+    }
+
+    const suspended  = allScores.filter(p => p.suspended).length;
+    const gradeColor = { A:'#16a34a', B:'#65a30d', C:'#ca8a04', D:'#ea580c', F:'#dc2626' };
+    const gradeBg    = { A:'#dcfce7', B:'#ecfccb', C:'#fef9c3', D:'#ffedd5', F:'#fee2e2' };
+
+    // Top 5 safest = lowest total_score
+    const top5 = [...allScores].sort((a, b) => a.total_score - b.total_score).slice(0, 5);
+    let rows = top5.map(p => {
+      const g = p.grade || 'A';
+      const c = gradeColor[g] || '#888';
+      const b = gradeBg[g]    || '#f5f5f5';
+      return `<tr>
+        <td style="padding:6px 8px;font-size:12.5px">${p.protocol_name || p.adapter_id}</td>
+        <td style="padding:6px 8px;font-size:11px;color:#888">${p.chain || '—'}</td>
+        <td style="padding:6px 8px;font-size:12px">${p.total_score}</td>
+        <td style="padding:6px 8px">
+          <span style="font-size:11px;font-weight:700;color:${c};background:${b};
+                border-radius:6px;padding:1px 8px">${g}</span>
+        </td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead>
+            <tr style="border-bottom:1px solid #eee">
+              <th style="text-align:left;padding:4px 8px;color:#999;font-weight:500">Protocol</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-weight:500">Chain</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-weight:500">Risk Score</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-weight:500">Grade</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${suspended > 0
+        ? `<div style="margin-top:10px;font-size:11px;color:#dc2626;font-weight:500">
+             ⛔ ${suspended} adapter${suspended > 1 ? 's' : ''} suspended</div>`
+        : '<div style="margin-top:10px;font-size:11px;color:#16a34a">✅ No suspended adapters</div>'
+      }
+      <div style="font-size:10px;color:#9ca3af;margin-top:6px">Lower score = safer · Advisory only</div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Risk data unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ══ MP-628 Dashboard v3.5 — Strategy Leaderboard ════════════════════════════
+async function loadStrategyLeaderboard(force) {
+  const el = document.getElementById('strategy-leaderboard-panel');
+  if (!el) return;
+  try {
+    const url = 'data/strategy_tournament.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+
+    const ranked = raw.ranked_strategies || [];
+    const winner = raw.winner;
+    if (!ranked.length) {
+      el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No leaderboard data yet.</div>';
+      return;
+    }
+
+    const top5 = ranked.slice(0, 5);
+    let rows = top5.map(s => {
+      const isWinner = winner && s.strategy_id === winner.strategy_id;
+      const bg = isWinner ? 'background:#fef9c3;' : '';
+      const medal = s.medal || '';
+      return `<tr style="${bg}">
+        <td style="padding:7px 8px;font-size:14px">${medal}</td>
+        <td style="padding:7px 8px;font-size:12.5px;font-weight:${isWinner ? '600' : '400'}">${s.name}</td>
+        <td style="padding:7px 8px;font-size:11px;color:#888;font-family:monospace">${s.strategy_id}</td>
+        <td style="padding:7px 8px;font-size:13px;font-weight:600;color:#185FA5">${(s.paper_apy || 0).toFixed(2)}%</td>
+        <td style="padding:7px 8px;font-size:11px;color:#888">${(s.sharpe || 0).toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+
+    const totalCount = raw.total_strategies || ranked.length;
+    el.innerHTML = `
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:1px solid #eee">
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500;width:30px"></th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Strategy</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">ID</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Paper APY</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Sharpe</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:#9ca3af">
+        ${totalCount} strategies ranked · metric: ${raw.metric || 'paper_apy'} · Advisory only
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Leaderboard unavailable: ' + e.message + '</div>';
+  }
+}
+
+// ══ MP-633 Dashboard v3.6 — Slippage Impact ══════════════════════════════════
+async function loadSlippageImpactPanel(force) {
+  const el = document.getElementById('slippage-impact-panel');
+  if (!el) return;
+  try {
+    const url = 'data/exit_simulation_log.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+
+    const entries = Array.isArray(raw) ? raw : [];
+    if (!entries.length) {
+      el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No data yet. Run: python3 -m spa_core.analytics.liquidity_exit_simulator --run</div>';
+      return;
+    }
+
+    const last = entries[entries.length - 1];
+    const wc   = last.worst_case || {};
+    const score = typeof last.exit_risk_score === 'number' ? last.exit_risk_score : 0;
+    const feasibility = wc.exit_feasibility || '—';
+    const blocks      = wc.estimated_exit_blocks ?? '—';
+    const mins        = typeof wc.estimated_exit_time_minutes === 'number'
+                        ? wc.estimated_exit_time_minutes.toFixed(2) : '—';
+
+    const badgeMap = {
+      INSTANT:  { color:'#16a34a', bg:'#dcfce7' },
+      FAST:     { color:'#16a34a', bg:'#dcfce7' },
+      MODERATE: { color:'#ca8a04', bg:'#fef9c3' },
+      SLOW:     { color:'#ea580c', bg:'#ffedd5' },
+      RISKY:    { color:'#dc2626', bg:'#fee2e2' },
+    };
+    const badge = badgeMap[feasibility] || { color:'#6b7280', bg:'#f3f4f6' };
+
+    const scoreColor = score < 20 ? '#16a34a' : score < 50 ? '#ca8a04' : score < 80 ? '#ea580c' : '#dc2626';
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">
+        <div style="text-align:center">
+          <div style="display:inline-block;font-size:13px;font-weight:700;
+               color:${badge.color};background:${badge.bg};border-radius:8px;padding:3px 12px">
+            ${feasibility}
+          </div>
+          <div style="font-size:10px;color:#888;margin-top:4px">Worst-Case Feasibility</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:600;color:#1a1a1a">${blocks}</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Blocks Needed</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:600;color:#1a1a1a">${mins} min</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Exit Time</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:600;color:${scoreColor}">${score.toFixed(1)}</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Exit Risk Score</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;text-align:center">
+        Worst-case exit across all positions · Advisory only · ${last.total_positions || 0} positions in last sim
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No data yet.</div>';
+  }
+}
+
+// ══ MP-633 Dashboard v3.6 — Liquidity Exit Risk ═══════════════════════════════
+async function loadLiquidityExitPanel(force) {
+  const el = document.getElementById('liquidity-exit-panel');
+  if (!el) return;
+  try {
+    const url = 'data/exit_simulation_log.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+
+    const entries = Array.isArray(raw) ? raw : [];
+    if (!entries.length) {
+      el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No data yet. Run: python3 -m spa_core.analytics.liquidity_exit_simulator --run</div>';
+      return;
+    }
+
+    const last = entries[entries.length - 1];
+    const scenarios = Array.isArray(last.scenarios) ? last.scenarios : [];
+
+    // Sort by exit_time_minutes desc → top 3 slowest
+    const sorted = [...scenarios].sort(
+      (a, b) => (b.estimated_exit_time_minutes || 0) - (a.estimated_exit_time_minutes || 0)
+    );
+    const top3 = sorted.slice(0, 3);
+
+    const oneBlockCount = scenarios.filter(s => s.can_exit_in_one_block).length;
+    const total = scenarios.length;
+
+    const fBadge = (f) => {
+      const m = { INSTANT:'#16a34a,#dcfce7', FAST:'#16a34a,#dcfce7',
+                  MODERATE:'#ca8a04,#fef9c3', SLOW:'#ea580c,#ffedd5', RISKY:'#dc2626,#fee2e2' };
+      const [c, bg] = (m[f] || '#6b7280,#f3f4f6').split(',');
+      return `<span style="font-size:11px;font-weight:600;color:${c};background:${bg};border-radius:6px;padding:1px 8px">${f || '—'}</span>`;
+    };
+
+    let rows = top3.map(s => `
+      <tr style="border-bottom:1px solid #f3f4f6">
+        <td style="padding:6px 8px;font-size:12.5px">${s.adapter_id || '—'}</td>
+        <td style="padding:6px 8px;font-size:12px;color:#6b7280">
+          ${typeof s.estimated_exit_time_minutes === 'number' ? s.estimated_exit_time_minutes.toFixed(2) + ' min' : '—'}
+        </td>
+        <td style="padding:6px 8px">${fBadge(s.exit_feasibility)}</td>
+      </tr>`).join('');
+
+    if (!rows) rows = '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:12px;font-size:12px">No positions in last simulation</td></tr>';
+
+    el.innerHTML = `
+      <div style="overflow-x:auto;margin-bottom:10px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:1px solid #eee">
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Adapter</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Exit Time</th>
+              <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Feasibility</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:#4b5563;margin-top:4px">
+        ✅ <strong>${oneBlockCount}</strong> / ${total} positions can exit in one block
+      </div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px">Top 3 slowest exits · Advisory only</div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No data yet.</div>';
+  }
+}
+
+// ══ MP-633 Dashboard v3.6 — Cycle Health ═════════════════════════════════════
+async function loadCycleHealthPanel(force) {
+  const el = document.getElementById('cycle-health-panel');
+  if (!el) return;
+  try {
+    const url = 'data/cycle_health_log.json' + (force ? '?t=' + Date.now() : '');
+    const r = await fetch(url, { cache: force ? 'no-store' : 'default' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+
+    const entries = Array.isArray(raw) ? raw : [];
+    if (!entries.length) {
+      el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No data yet. Run: python3 -m spa_core.analytics.cycle_health_monitor --run</div>';
+      return;
+    }
+
+    // Health score: last 10 cycles, -10 per DEGRADED, -30 per FAILED
+    const window10 = entries.slice(-10);
+    let health = 100;
+    for (const e of window10) {
+      if (e.status === 'FAILED')   health -= 30;
+      else if (e.status === 'DEGRADED') health -= 10;
+    }
+    health = Math.max(0, health);
+    const isHealthy = health >= 70;
+
+    const last3 = entries.slice(-3).reverse();
+    const lastStatus = (entries[entries.length - 1] || {}).status || '—';
+
+    const statusColor = { OK:'#16a34a', DEGRADED:'#ca8a04', FAILED:'#dc2626' };
+    const statusBg    = { OK:'#dcfce7', DEGRADED:'#fef9c3', FAILED:'#fee2e2' };
+    const barColor    = health >= 70 ? '#16a34a' : health >= 40 ? '#ca8a04' : '#dc2626';
+
+    const statusBadge = (s) => {
+      const c = statusColor[s] || '#6b7280';
+      const b = statusBg[s]    || '#f3f4f6';
+      return `<span style="font-size:11px;font-weight:600;color:${c};background:${b};border-radius:6px;padding:1px 8px">${s || '—'}</span>`;
+    };
+
+    let histRows = last3.map(e => {
+      const ts = e.timestamp ? e.timestamp.slice(0, 16).replace('T', ' ') : '—';
+      return `<tr style="border-bottom:1px solid #f3f4f6">
+        <td style="padding:5px 8px;font-size:11.5px;font-family:monospace;color:#6b7280">${ts}</td>
+        <td style="padding:5px 8px">${statusBadge(e.status)}</td>
+        <td style="padding:5px 8px;font-size:12px;text-align:center">${e.strategies_run ?? '—'}</td>
+      </tr>`;
+    }).join('');
+    if (!histRows) histRows = '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:8px;font-size:12px">—</td></tr>';
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:11px;color:#6b7280">Health Score</span>
+            <span style="font-size:13px;font-weight:700;color:${barColor}">${health}/100</span>
+          </div>
+          <div style="background:#f3f4f6;border-radius:6px;height:10px;overflow:hidden">
+            <div style="background:${barColor};width:${health}%;height:100%;border-radius:6px;transition:width .3s"></div>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px">${isHealthy ? '✅' : '⚠️'}</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">${isHealthy ? 'Healthy' : 'Degraded'}</div>
+        </div>
+        <div style="text-align:center">
+          ${statusBadge(lastStatus)}
+          <div style="font-size:10px;color:#888;margin-top:4px">Last Cycle</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:1px solid #eee">
+            <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Time (UTC)</th>
+            <th style="text-align:left;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Status</th>
+            <th style="text-align:center;padding:4px 8px;color:#999;font-size:10px;font-weight:500">Strategies</th>
+          </tr>
+        </thead>
+        <tbody>${histRows}</tbody>
+      </table>
+      <div style="font-size:10px;color:#9ca3af;margin-top:8px">
+        Score over last ${window10.length} cycles · Advisory only
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px">No data yet.</div>';
   }
 }
 
