@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    L2 — Peg Stability Monitor (каждые 5 минут)
+    Module: spa_core/monitoring/peg_monitor.py
+    Функция: мониторит отклонение стейблкоинов от пега ($1.00) по всем
+             адаптерам из adapter_status.json.
+             Levels: STABLE / CAUTION / WARNING / CRITICAL
+             CRITICAL → Telegram-алерт через AlertDispatcher.
+    Пишет:   data/peg_report.json + data/peg_history.json
+             (ring-buffer 96 = 4 дня при hourly, atomic)
+    CLI:     python3 -m spa_core.monitoring.peg_monitor - -run
+    Зависит от: adapter_status.json (execution-домен, read-only здесь)
+    Установка:
+      cp scripts/com.spa.peg_monitor.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.peg_monitor.plist
+    -->
+
+    <key>Label</key>
+    <string>com.spa.peg_monitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.monitoring.peg_monitor</string>
+        <string>--run</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_peg_monitor.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_peg_monitor_err.log</string>
+</dict>
+</plist>
