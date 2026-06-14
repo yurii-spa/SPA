@@ -352,5 +352,317 @@
         "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
       }
     }
+  },
+  {
+    "timestamp": 1781416855.828162,
+    "run_at": "2026-06-14T06:00:55.828154+00:00",
+    "elapsed_sec": 0.029308,
+    "portfolio_summary": {
+      "total_capital_usd": 100047.74,
+      "current_apy": 0.039507,
+      "current_apy_pct": 3.9507,
+      "positions_count": 5,
+      "positions": {
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11371.73,
+        "euler_v2": 9518.9,
+        "maple": 12359.35
+      }
+    },
+    "modules_run": 9,
+    "modules_failed": 3,
+    "results": {
+      "volatility_regime": {
+        "timestamp": 1781416855.802688,
+        "strategy_id": "portfolio",
+        "current_vol": 0.0043,
+        "regime": "CALM",
+        "regime_label": "Calm \u2014 very stable yields",
+        "days_in_regime": 1,
+        "regime_changed": false,
+        "prev_regime": null,
+        "advisory": "\ud83d\udca4 Low volatility. Good time for entries. Watch for regime change."
+      },
+      "liquidity_stress": {
+        "scenario": "MODERATE",
+        "scenario_label": "Moderate stress \u2014 25% liquidity haircut",
+        "total_deployed": 94999.98,
+        "liquid_capital": 94999.98,
+        "locked_capital": 0,
+        "withdrawable_stress": 71249.99,
+        "coverage_ratio": 0.75,
+        "at_risk_adapters": [],
+        "verdict": "SAFE"
+      },
+      "collateral_health": {
+        "error": "cannot import name 'CollateralHealthMonitor' from 'spa_core.analytics.collateral_health_monitor' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/collateral_health_monitor.py)",
+        "module": "collateral_health"
+      },
+      "protocol_risk_scores": [
+        {
+          "protocol_id": "aave_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "compound_v3",
+          "tvl_score": 100.0,
+          "audit_score": 100.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 94.0,
+          "grade": "A",
+          "tier_recommendation": "T1",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "yearn_v3",
+          "tvl_score": 100.0,
+          "audit_score": 75.0,
+          "age_score": 100.0,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "euler_v2",
+          "tvl_score": 95.0,
+          "audit_score": 75.0,
+          "age_score": 67.57,
+          "incident_score": 50.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 70.0135,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "PRIOR_INCIDENT",
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        },
+        {
+          "protocol_id": "maple",
+          "tvl_score": 85.0,
+          "audit_score": 50.0,
+          "age_score": 100.0,
+          "incident_score": 100.0,
+          "upgradeability_score": 40.0,
+          "composite_score": 77.75,
+          "grade": "B",
+          "tier_recommendation": "T2",
+          "risk_flags": [
+            "UPGRADEABLE_CONTRACTS"
+          ]
+        }
+      ],
+      "apy_momentum": {
+        "error": "cannot import name 'APYMomentumTracker' from 'spa_core.analytics.apy_momentum_tracker' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/apy_momentum_tracker.py)",
+        "module": "apy_momentum"
+      },
+      "yield_benchmarks": {
+        "error": "cannot import name 'YieldBenchmarkComparator' from 'spa_core.analytics.yield_benchmark_comparator' (/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/analytics/yield_benchmark_comparator.py)",
+        "module": "yield_benchmarks"
+      },
+      "drawdown_episodes": [
+        {
+          "strategy_id": "portfolio",
+          "peak_apy": 0.039575,
+          "trough_apy": 0.039507,
+          "drawdown_pct": 0.001718,
+          "start_day": 3,
+          "trough_day": 4,
+          "recovery_day": null,
+          "days_to_trough": 1,
+          "days_to_recover": null,
+          "status": "RECOVERING",
+          "severity": "MINOR"
+        }
+      ],
+      "apy_forecast": [
+        {
+          "horizon_days": 1,
+          "predicted_apy": 0.037871609291666664,
+          "lower_bound": 0.033291569259104745,
+          "upper_bound": 0.04245164932422858,
+          "confidence": "HIGH",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 7,
+          "predicted_apy": 0.044805380441666647,
+          "lower_bound": 0.03143120767335039,
+          "upper_bound": 0.0581795532099829,
+          "confidence": "MEDIUM",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 30,
+          "predicted_apy": 0.0713848365166666,
+          "lower_bound": 0.024090314189770923,
+          "upper_bound": 0.11867935884356229,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        },
+        {
+          "horizon_days": 90,
+          "predicted_apy": 0.14072254801666648,
+          "lower_bound": 0.004887719308058175,
+          "upper_bound": 0.2765573767252748,
+          "confidence": "LOW",
+          "model_used": "EXPONENTIAL_SMOOTHING"
+        }
+      ],
+      "rebalance_trigger": {
+        "timestamp": 1781416855.8223438,
+        "triggered": true,
+        "reason": "ALLOCATION_DRIFT",
+        "drifted_slots": [
+          "compound_v3",
+          "yearn_v3",
+          "euler_v2",
+          "maple"
+        ],
+        "apy_changed_slots": [],
+        "max_drift": 0.179819,
+        "total_drift": 0.484864,
+        "urgency": "IMMEDIATE",
+        "actions": [
+          "Rebalance 4 slot(s): compound_v3, yearn_v3, euler_v2, maple",
+          "Execute rebalance within 24h"
+        ]
+      },
+      "slippage_estimates": [
+        {
+          "adapter_id": "aave_v3",
+          "protocol": "aave_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 15000000000.0,
+          "trade_pct_of_tvl": 1e-06,
+          "estimated_slippage_bps": 0.0163,
+          "slippage_cost_usd": 0.0163,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "compound_v3",
+          "protocol": "compound_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 3000000000.0,
+          "trade_pct_of_tvl": 3e-06,
+          "estimated_slippage_bps": 0.0365,
+          "slippage_cost_usd": 0.0365,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "yearn_v3",
+          "protocol": "yearn_v3",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 500000000.0,
+          "trade_pct_of_tvl": 2e-05,
+          "estimated_slippage_bps": 0.0895,
+          "slippage_cost_usd": 0.0895,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "euler_v2",
+          "protocol": "euler_v2",
+          "trade_size_usd": 9518.9,
+          "tvl_usd": 400000000.0,
+          "trade_pct_of_tvl": 2.4e-05,
+          "estimated_slippage_bps": 0.0976,
+          "slippage_cost_usd": 0.0929,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        },
+        {
+          "adapter_id": "maple",
+          "protocol": "maple",
+          "trade_size_usd": 10004.77,
+          "tvl_usd": 200000000.0,
+          "trade_pct_of_tvl": 5e-05,
+          "estimated_slippage_bps": 0.1415,
+          "slippage_cost_usd": 0.1415,
+          "grade": "A",
+          "recommendation": "PROCEED",
+          "split_tranches": null
+        }
+      ],
+      "gas_cost_estimate": {
+        "operation": "AAVE_DEPOSIT",
+        "gas_units": 200000,
+        "gas_price_gwei": 30.0,
+        "eth_price_usd": 3000.0,
+        "gas_cost_eth": 0.006,
+        "gas_cost_usd": 18.0,
+        "capital_usd": 100047.74,
+        "expected_yield_usd": 3952.5861,
+        "gas_as_pct_of_capital": 0.018,
+        "gas_as_pct_of_yield": 0.4554,
+        "break_even_days": 1.66,
+        "verdict": "EFFICIENT"
+      },
+      "chain_fee_comparison": {
+        "snapshots": [
+          {
+            "chain": "ethereum",
+            "base_gas_price_gwei": 30.0,
+            "l1_gas_overhead_gwei": 0.0,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 18.0,
+            "cost_ratio_vs_eth": 1.0,
+            "fee_tier": "HIGH",
+            "recommended": false
+          },
+          {
+            "chain": "arbitrum",
+            "base_gas_price_gwei": 0.1,
+            "l1_gas_overhead_gwei": 0.05,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.09,
+            "cost_ratio_vs_eth": 0.05,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          },
+          {
+            "chain": "base",
+            "base_gas_price_gwei": 0.05,
+            "l1_gas_overhead_gwei": 0.04,
+            "eth_price_usd": 3000.0,
+            "standard_tx_cost_usd": 0.054,
+            "cost_ratio_vs_eth": 0.04,
+            "fee_tier": "ULTRA_LOW",
+            "recommended": true
+          }
+        ],
+        "cheapest_chain": "base",
+        "most_expensive_chain": "ethereum",
+        "l2_savings_vs_eth_usd": 17.946,
+        "recommendation": "Use base \u2014 saves $17.95/tx vs Ethereum"
+      }
+    }
   }
 ]
