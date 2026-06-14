@@ -326,3 +326,37 @@
 **Total sprint tests:** 184 (all green) | **Push:** `bash scripts/push_v750.sh`
 **Note:** Self-authored код-спринт — backlog содержал только USER ACTION (P0–P2) + P3 features/ideas, готовых задач type=code/status=ready не было. Оба модуля закрывают реальные пробелы (gap-check grep'ом по 455 analytics-модулям). Architect review: v7.50 кратен 5 → review положен, но `spa_core.dev_agents.architect`/`anthropic` недоступны в sandbox (api.github.com + Keychain недоступны) → выполнен ручной backlog-review. Также выполнен reconcile v7.46–v7.49 (см. выше): sprint_completed v7.47→v7.50, done MP-1018..1021 добавлены. push_to_github.py НЕ запускался (sandbox); создан только `scripts/push_v750.sh` для ручного запуска на Mac (PAT fallback: Keychain→GITHUB_PAT_SPA→SPA_GITHUB_PAT→~/.github_pat, без hardcoded секретов).
 **Примечание о параллелизме:** во время прогона активен второй экземпляр оркестратора (создал `scripts/push_v751.sh`, поднял done_count). Возможные расхождения KANBAN будут устранены штатным reconcile в следующем прогоне.
+
+## v7.51–v7.59 — 2026-06-14 (reconcile backfill)
+
+Эти спринты были отгружены на диск параллельными экземплярами оркестратора (модули + тесты + `scripts/push_v751.sh`..`push_v759.sh`), но done-колонка KANBAN отставала на v7.50 (MP-1025) и `sprint_completed` стоял на v7.50. Этот прогон восстановил записи MP-1026..MP-1043 в done-колонке (тест-счётчики подсчитаны по `def test_` в каждом тест-файле):
+
+- **v7.51** — MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109)
+- **v7.52** — MP-1028 DeFiProtocolSystemicRiskContagionModeler (99) + MP-1029 ProtocolDeFiPositionSizeOptimizer (93)
+- **v7.53** — MP-1030 DeFiProtocolOracleManipulationRiskAnalyzer (113) + MP-1031 ProtocolDeFiYieldCompoundingEfficiencyAnalyzer (100)
+- **v7.54** — MP-1032 DeFiProtocolDepegContagionRiskAnalyzer (111) + MP-1033 ProtocolDeFiLiquidationCascadeRiskAnalyzer (99)
+- **v7.55** — MP-1034 DeFiProtocolInterestRateModelAnalyzer (116) + MP-1035 ProtocolDeFiIsolatedMarginRiskAnalyzer (112)
+- **v7.56** — MP-1036 DeFiProtocolYieldTokenizationRiskAnalyzer (94) + MP-1037 ProtocolDeFiConcentratedLiquidityRangeOptimizer (100)
+- **v7.57** — MP-1038 DeFiProtocolVaultStrategyDiversificationScorer (118) + MP-1039 ProtocolDeFiProtocolUpgradeRiskAnalyzer (127)
+- **v7.58** — MP-1040 DeFiProtocolStakingYieldSustainabilityAnalyzer (93) + MP-1041 ProtocolDeFiCrossProtocolYieldArbitrageDetector (82)
+- **v7.59** — MP-1042 DeFiProtocolPointsToTokenConversionRiskAnalyzer (95) + MP-1043 ProtocolDeFiYieldSourceDependencyGraphAnalyzer (103)
+
+## v7.60 — 2026-06-14
+
+### MP-1044: ProtocolDeFiWrappedAssetBackingVerifier (`spa_core/analytics/protocol_defi_wrapped_asset_backing_verifier.py`)
+- Проверяет, действительно ли обёрнутый/мостовой токен (wBTC, мостовой USDC.e, мостовой weETH и т.п.) обеспечен резервами 1:1. Угол «is the wrapped supply actually collateralised, and how concentrated/fresh is the proof?». Gap подтверждён grep'ом: выделенного модуля backing-верификации не было (RWA-bridge и stablecoin-reserve модули — про другое).
+- Метрики: `backing_ratio_pct` (= reserve_balance/wrapped_supply×100), `collateral_shortfall_pct` (= max(0, 100−backing)), `custodian_concentration_score` 0–100 (largest_custodian_share + штраф за малое число кастодианов), `attestation_freshness_score` 0–100 (свежее → выше), `backing_risk_score` 0–100 (выше = рискованнее).
+- classification FULLY_BACKED/WELL_BACKED/PARTIALLY_BACKED/UNDERBACKED/CRITICAL_SHORTFALL; grade A–F; флаги UNDERBACKED, OVERCOLLATERALIZED, SINGLE_CUSTODIAN, HIGH_CUSTODIAN_CONCENTRATION, STALE_ATTESTATION, NO_REDEMPTION, REDEMPTION_FEE, UNAUDITED, FULLY_BACKED, INSUFFICIENT_DATA.
+- `analyze` (single) + `analyze_portfolio` (safest/riskiest_asset, avg_backing_risk_score, underbacked_count) + класс-обёртка. Чистый stdlib, read-only/advisory, защищённые деления, atomic tempfile+os.replace, ring-buffer 100 (`data/wrapped_asset_backing_log.json`).
+- **157 tests green**
+
+### MP-1045: DeFiProtocolReserveFactorEconomicsAnalyzer (`spa_core/analytics/defi_protocol_reserve_factor_economics_analyzer.py`)
+- Квантифицирует экономику reserve factor lending-рынка: сколько доходности reserve factor забирает у поставщиков, сколько дохода генерирует протоколу и достаточен ли накопленный резерв как буфер против bad debt. Gap подтверждён (существующие lending-модули — про utilization и rate spreads, не про reserve-экономику/адекватность).
+- Метрики: `reserve_income_annual_usd`, `supplier_apy_drag_pct` (= borrow_apr×util×reserve_factor), `reserve_to_borrows_pct`, `bad_debt_coverage_ratio` (с sentinel 999.0 при bad_debt==0 + флаг NO_BAD_DEBT), `reserve_adequacy_score` 0–100.
+- classification UNDERFUNDED/THIN/ADEQUATE/WELL_CAPITALIZED/OVERCAPITALIZED; grade A–F; флаги NO_RESERVE_FACTOR, EXCESSIVE_RESERVE_FACTOR (>30%), HIGH_SUPPLIER_DRAG, THIN_RESERVES, UNCOVERED_BAD_DEBT, NO_BAD_DEBT, STRONG_BUFFER, OVERCAPITALIZED, INSUFFICIENT_DATA.
+- `analyze` (single) + `analyze_portfolio` (safest/riskiest_market, avg_reserve_adequacy_score, underfunded_count) + класс-обёртка. Чистый stdlib, read-only/advisory, защищённые деления (без ZeroDivisionError), atomic tempfile+os.replace, ring-buffer 100 (`data/reserve_factor_economics_log.json`).
+- **152 tests green**
+
+**Total sprint tests:** 309 (all green) | **Push:** `bash scripts/push_v760.sh`
+**Note:** Self-authored код-спринт — готовых задач type=code/status=ready в backlog не было. Оба модуля закрывают реальные пробелы (gap-check grep'ом по analytics-модулям: wrapped-asset backing = 0, reserve-factor economics = 0). Architect review: v7.60 кратен 5 (по minor) → положен, но `spa_core.dev_agents.architect`/`anthropic` недоступны в sandbox (api.github.com + Keychain недоступны) → выполнен ручной backlog/gap-review. Также выполнен reconcile v7.51–v7.59 (см. выше): sprint_completed v7.50→v7.60, done MP-1026..1043 добавлены, done_count→736. push_to_github.py НЕ запускался (sandbox); создан только `scripts/push_v760.sh` для ручного запуска на Mac (PAT fallback: Keychain→GITHUB_PAT_SPA→SPA_GITHUB_PAT→~/.github_pat, без hardcoded секретов).
+**Примечание о параллелизме:** во время прогона sprint_current уже стоял на v7.60 (двигали параллельные раны). Возможные дальнейшие расхождения KANBAN будут устранены штатным reconcile в следующем прогоне.
