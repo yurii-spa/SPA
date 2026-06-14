@@ -1,0 +1,326 @@
+[
+  {
+    "name": "OHM-style (cosmetic)",
+    "advertised_apy_pct": 1000.0,
+    "rebase_frequency_per_day": 3.0,
+    "backing_value_growth_pct": 50.0,
+    "supply_growth_pct": 900.0,
+    "token_price_change_pct": -40.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 2104811.957606658,
+    "real_economic_yield_pct": -850.0,
+    "dilution_drag_pct": 1850.0,
+    "cosmetic_rebase_ratio": 0.9473684210526315,
+    "purchasing_power_yield_pct": -890.0,
+    "normalization_gap_pct": 1890.0,
+    "rebase_quality_score": 1.315789473684212,
+    "classification": "FULLY_DILUTIVE",
+    "grade": "F",
+    "flags": [
+      "HIGH_DILUTION_DRAG",
+      "COSMETIC_REBASE",
+      "NEGATIVE_REAL_YIELD",
+      "PRICE_BELOW_NAV",
+      "HEADLINE_OVERSTATES_YIELD"
+    ],
+    "recommendations": [
+      "Fully dilutive: ~95% of the 1000.00% headline is pure supply inflation. The real economic yield is only ~-850.00%; treat the advertised APY as cosmetic.",
+      "High dilution drag: a large slice of the headline APY is lost to supply inflation and does not reach the holder's real yield.",
+      "Negative real economic yield: supply is inflating faster than backing value grows, so holders lose purchasing power despite a rising token balance.",
+      "Token trades below peg/NAV: realising the position would crystallise a discount that further erodes the purchasing-power yield.",
+      "Headline overstates yield: the advertised APY exceeds the purchasing-power yield by ~1890.00 points. Underwrite against ~-890.00% instead."
+    ],
+    "timestamp": 1781424828.22249
+  },
+  {
+    "name": "OHM-style (cosmetic)",
+    "advertised_apy_pct": 1000.0,
+    "rebase_frequency_per_day": 3.0,
+    "backing_value_growth_pct": 50.0,
+    "supply_growth_pct": 900.0,
+    "token_price_change_pct": -40.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 2104811.957606658,
+    "real_economic_yield_pct": -850.0,
+    "dilution_drag_pct": 1850.0,
+    "cosmetic_rebase_ratio": 0.9473684210526315,
+    "purchasing_power_yield_pct": -890.0,
+    "normalization_gap_pct": 1890.0,
+    "rebase_quality_score": 1.315789473684212,
+    "classification": "FULLY_DILUTIVE",
+    "grade": "F",
+    "flags": [
+      "HIGH_DILUTION_DRAG",
+      "COSMETIC_REBASE",
+      "NEGATIVE_REAL_YIELD",
+      "PRICE_BELOW_NAV",
+      "HEADLINE_OVERSTATES_YIELD"
+    ],
+    "recommendations": [
+      "Fully dilutive: ~95% of the 1000.00% headline is pure supply inflation. The real economic yield is only ~-850.00%; treat the advertised APY as cosmetic.",
+      "High dilution drag: a large slice of the headline APY is lost to supply inflation and does not reach the holder's real yield.",
+      "Negative real economic yield: supply is inflating faster than backing value grows, so holders lose purchasing power despite a rising token balance.",
+      "Token trades below peg/NAV: realising the position would crystallise a discount that further erodes the purchasing-power yield.",
+      "Headline overstates yield: the advertised APY exceeds the purchasing-power yield by ~1890.00 points. Underwrite against ~-890.00% instead."
+    ],
+    "timestamp": 1781424828.2245913
+  },
+  {
+    "name": "stETH-style (real)",
+    "advertised_apy_pct": 4.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 4.0,
+    "supply_growth_pct": 0.2,
+    "token_price_change_pct": 0.1,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 4.080849313241641,
+    "real_economic_yield_pct": 3.8,
+    "dilution_drag_pct": 0.20000000000000018,
+    "cosmetic_rebase_ratio": 0.047619047619047616,
+    "purchasing_power_yield_pct": 3.9,
+    "normalization_gap_pct": 0.10000000000000009,
+    "rebase_quality_score": 95.55952380952381,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 4.00% headline is backed by genuine backing growth (real economic yield ~3.80%). Minimal dilution.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781424828.2262504
+  },
+  {
+    "name": "TestToken",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.126749646744733,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425259.3331432
+  },
+  {
+    "name": "TestToken",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.126749646744733,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425259.6163526
+  },
+  {
+    "name": "X",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.0,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425266.2293203
+  },
+  {
+    "name": "TestToken",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.126749646744733,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425272.7966673
+  },
+  {
+    "name": "TestToken",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.126749646744733,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425273.0686934
+  },
+  {
+    "name": "TestToken",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.126749646744733,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425299.9645648
+  },
+  {
+    "name": "TestToken",
+    "advertised_apy_pct": 5.0,
+    "rebase_frequency_per_day": 1.0,
+    "backing_value_growth_pct": 5.0,
+    "supply_growth_pct": 0.5,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 5.126749646744733,
+    "real_economic_yield_pct": 4.5,
+    "dilution_drag_pct": 0.5,
+    "cosmetic_rebase_ratio": 0.09090909090909091,
+    "purchasing_power_yield_pct": 4.5,
+    "normalization_gap_pct": 0.5,
+    "rebase_quality_score": 90.22727272727272,
+    "classification": "REAL_YIELD",
+    "grade": "A",
+    "flags": [
+      "STRONG_REAL_YIELD",
+      "BACKING_OUTPACES_SUPPLY"
+    ],
+    "recommendations": [
+      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
+      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
+      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
+    ],
+    "timestamp": 1781425300.2267535
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1781425300.6532488
+  }
+]
