@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-13T07:57:08.636010+00:00",
+  "metric": "paper_apy",
+  "total_strategies": 6,
+  "ranked_strategies": [
+    {
+      "strategy_id": "S0",
+      "name": "Conservative Yield",
+      "paper_apy": 4.8058,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 1,
+      "medal": "🥇"
+    },
+    {
+      "strategy_id": "S1",
+      "name": "Balanced Diversified",
+      "paper_apy": 3.6135,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 2,
+      "medal": "🥈"
+    },
+    {
+      "strategy_id": "S2",
+      "name": "Yield Maximiser",
+      "paper_apy": 3.5892,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 3,
+      "medal": "🥉"
+    },
+    {
+      "strategy_id": "S3",
+      "name": "TVL-Weighted Alpha",
+      "paper_apy": 3.1877,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 4,
+      "medal": ""
+    },
+    {
+      "strategy_id": "S5",
+      "name": "Momentum Rotator",
+      "paper_apy": 3.1755,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 5,
+      "medal": ""
+    },
+    {
+      "strategy_id": "S4",
+      "name": "Tier-1 Only Safe",
+      "paper_apy": 2.5428,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 6,
+      "medal": ""
+    }
+  ],
+  "top_3": [
+    {
+      "strategy_id": "S0",
+      "name": "Conservative Yield",
+      "paper_apy": 4.8058,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 1,
+      "medal": "🥇"
+    },
+    {
+      "strategy_id": "S1",
+      "name": "Balanced Diversified",
+      "paper_apy": 3.6135,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 2,
+      "medal": "🥈"
+    },
+    {
+      "strategy_id": "S2",
+      "name": "Yield Maximiser",
+      "paper_apy": 3.5892,
+      "sharpe": 0.0,
+      "max_drawdown": 0.0,
+      "days_active": 3,
+      "rank": 3,
+      "medal": "🥉"
+    }
+  ],
+  "winner": {
+    "strategy_id": "S0",
+    "name": "Conservative Yield",
+    "paper_apy": 4.8058,
+    "sharpe": 0.0,
+    "max_drawdown": 0.0,
+    "days_active": 3,
+    "rank": 1,
+    "medal": "🥇"
+  },
+  "advisory": "For informational purposes only."
+}
