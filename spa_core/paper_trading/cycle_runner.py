@@ -248,6 +248,39 @@ def _live_apy_map(adapters: list[dict]) -> dict[str, float]:
     return out
 
 
+def _sanity_apy_map(adapters: list[dict]) -> dict[str, float]:
+    """adapter_id → live APY% for the DL-04/DL-05 sanity gate.
+
+    Only adapters that actually returned a usable live yield are included.
+    Records whose live feed was unavailable (``status`` not in {ok, partial},
+    or no numeric ``apy_pct`` / ``apy``) are **excluded** rather than coerced to
+    0.0 — feeding a None-as-0.0 into DL-04 fires a spurious "APY 0.00% below
+    sanity floor (stale data?)" warning every time the upstream feed blips.
+
+    Prefers the percentage field ``apy_pct`` and falls back to ``apy`` (also a
+    percentage in adapter records). Returns ``{}`` when no adapter has live data.
+    """
+    out: dict[str, float] = {}
+    for a in adapters:
+        if not isinstance(a, dict):
+            continue
+        key = a.get("id") or a.get("protocol")
+        if not key:
+            continue
+        # Honour the adapter's own liveness signal when present. Records with no
+        # explicit status (legacy fixtures) are accepted if they carry a number.
+        status = a.get("status")
+        if status is not None and status not in ("ok", "partial"):
+            continue
+        apy = a.get("apy_pct")
+        if not isinstance(apy, (int, float)):
+            apy = a.get("apy")
+        if not isinstance(apy, (int, float)):
+            continue
+        out[str(key)] = float(apy)
+    return out
+
+
 def _allocation_diff_usd(current: dict[str, float], target: dict[str, float]) -> float:
     """L1 distance (sum of absolute per-pool USD deltas) between two allocations."""
     keys = set(current) | set(target)
@@ -656,10 +689,27 @@ def _default_orchestrator(data_dir: Path):
 
 
 def _default_allocator(data_dir: Path):
-    """Construct the real StrategyAllocator bound to this data dir's snapshot."""
+    """Construct the real StrategyAllocator bound to this data dir's snapshot.
+
+    ADR-033: the shadow→allocator feedback loop only steers the real allocation
+    in ``"active"`` mode. In ``"off"``/``"shadow"`` modes the allocator is built
+    with ``strategy_loop_enabled=False`` so the real target is never altered —
+    the tournament still runs/logs separately as advisory-only. Reading the
+    config is fail-safe: any error degrades to the ADR-033 default (shadow ⇒
+    loop disabled in the allocator)."""
     from spa_core.allocator.allocator import StrategyAllocator
 
-    return StrategyAllocator(status_path=str(data_dir / ORCH_STATUS_FILENAME))
+    loop_enabled = False
+    try:
+        from spa_core.strategies.strategy_config import loop_enabled_for_allocator
+        loop_enabled = loop_enabled_for_allocator(data_dir=str(data_dir))
+    except Exception as exc:  # never crash allocator construction on config read
+        log.warning("ADR-033 allocator config read failed (%s) — loop disabled", exc)
+
+    return StrategyAllocator(
+        status_path=str(data_dir / ORCH_STATUS_FILENAME),
+        strategy_loop_enabled=loop_enabled,
+    )
 
 
 def _default_risk_scorer(data_dir: Path) -> None:
@@ -985,6 +1035,36 @@ def run_cycle(
     model_used = getattr(alloc, "model_used", None)
     strategy_loop_active = bool(getattr(alloc, "strategy_loop_active", False))
 
+    # ── ADR-033: strategy-loop activation mode (advisory, fail-safe) ──────────
+    # Reads data/strategy_config.json and records the configured mode in the
+    # cycle. In "shadow" mode (ADR-033 default) the tournament is evaluated and
+    # logged but NEVER alters the real allocation. Only "active" mode lets a
+    # confident shadow strategy steer it. Any error → degrade to "shadow"
+    # without touching allocation; the cycle never fails on this.
+    try:
+        from spa_core.strategies.strategy_config import load_strategy_config
+        _sl_cfg = load_strategy_config(data_dir=str(ddir))
+        _sl_mode = _sl_cfg.get("strategy_loop_mode", "shadow")
+        log.info(
+            "ADR-033 strategy_loop_mode=%s (source=%s) | allocator strategy_loop_active=%s",
+            _sl_mode, _sl_cfg.get("source"), strategy_loop_active,
+        )
+        notes.append(
+            f"ADR-033 strategy_loop_mode={_sl_mode}"
+            + (f" (active={strategy_loop_active})" if _sl_mode == "active" else " (advisory-only)")
+        )
+        # Safety invariant: in off/shadow the loop must NOT drive real allocation.
+        if _sl_mode != "active" and strategy_loop_active:
+            log.warning(
+                "ADR-033: strategy_loop_active=True but mode=%s — forcing advisory-only",
+                _sl_mode,
+            )
+            strategy_loop_active = False
+            notes.append("ADR-033: shadow/off mode overrode active loop → advisory-only")
+    except Exception as _sl_exc:  # never crash the cycle on config read
+        log.warning("ADR-033 strategy_config read failed (%s) — advisory-only", _sl_exc)
+        notes.append(f"ADR-033 strategy_config_error: {type(_sl_exc).__name__}")
+
     # MP-310: record allocation_proposal event (fail-safe)
     _audit_proposal_id: str | None = None
     try:
@@ -1012,11 +1092,16 @@ def run_cycle(
         _dl_eq_history = (
             list(equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
         )
-        _dl_apy_map = {
-            str(a.get("id", a.get("protocol", ""))): float(a.get("apy", 0))
-            for a in (adapters if isinstance(adapters, list) else [])
-            if isinstance(a, dict) and (a.get("id") or a.get("protocol"))
-        }
+        # MP-AAVE-FIX: build the sanity map from adapters that returned a
+        # *usable* live APY only. An adapter whose live feed is unavailable
+        # reports status="error"/apy=None; coercing that to 0.0 and feeding it
+        # to DL-04 produced a false "aave_v3 APY 0.00% below sanity floor
+        # (stale data?)" warning every time the DeFiLlama feed blipped. A yield
+        # we don't have cannot be sanity-checked, so such adapters are EXCLUDED
+        # from the map (not zeroed). DL-04 still fires on a genuine live ~0% APY.
+        _dl_apy_map = _sanity_apy_map(
+            adapters if isinstance(adapters, list) else []
+        )
         _dl_result = _dl_checker.check(_dl_eq_history, target_usd, _dl_apy_map)
         _dl_checker.save_result(_dl_result, ddir)
         if _dl_result["gate"] == "HALT":
