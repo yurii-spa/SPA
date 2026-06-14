@@ -2,44 +2,27 @@
 __pycache__/
 *.py[cod]
 *.pyo
-*.pyd
-*.egg
-*.egg-info/
-dist/
-build/
-.eggs/
-.venv/
-venv/
-env/
-
-# Database
-*.db
-*.sqlite3
-
-# Cache
-data/.cache/
-
-# macOS
-.DS_Store
-
-# IDE
-.idea/
-.vscode/
-*.swp
-
-# Logs
-*.log
-
-# Environment
-.env
-.env.*
-!.env.example
-
-# Test coverage
-.coverage
-htmlcov/
 .pytest_cache/
+*.egg-info/
 
-# Wallet approval flag — must NOT be committed (Sprint v3.24 / SPA-V324-003)
-# This file tracks live-mode go-live approvals and must stay local only.
-data/wallet_ready_approved.json
+# Data files (runtime, не в git)
+data/*.json
+logs/*.log
+/tmp/
+
+# Backup files
+*.bak
+*.bak_*
+
+# Push script archives
+scripts/archive/
+
+# OS
+.DS_Store
+.env
+
+# Venv
+venv/
+.venv/
+.github_pat
+.github_config
