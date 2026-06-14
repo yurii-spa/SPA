@@ -1,8 +1,13 @@
 {
-  "last_updated": "2026-06-13T06:00:03Z",
+  "last_updated": "2026-06-14T15:02:08Z",
   "recent_readings": [
     {
       "date": "2026-06-13",
+      "gwei": 0.005,
+      "above_threshold": false
+    },
+    {
+      "date": "2026-06-14",
       "gwei": 0.005,
       "above_threshold": false
     }
