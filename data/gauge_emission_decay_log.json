@@ -381,5 +381,725 @@
       "High incentive dependence (98% of total APR): yield relies on emissions and is exposed to their decay."
     ],
     "timestamp": 1781421883.920375
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449326.488191
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449326.851119
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449326.886475
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449326.9226098
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449326.9585972
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449326.99397
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449327.030569
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781449327.0673769
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452956.864888
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452956.9923048
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452957.033918
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452957.075839
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452957.11501
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452957.155566
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452957.196498
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781452957.236404
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.2857962
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.427844
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.47124
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.51375
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.5560892
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.59979
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.643447
+  },
+  {
+    "name": "UNKNOWN",
+    "current_emission_tokens_per_week": 0.0,
+    "emission_decay_pct_per_week": 0.0,
+    "reward_token_price_usd": 0.0,
+    "lp_tvl_usd": 0.0,
+    "base_yield_apr_pct": 0.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 0.0,
+    "current_incentive_apr_pct": 0.0,
+    "projected_incentive_apr_at_horizon_pct": 0.0,
+    "incentive_apr_half_life_weeks": 9999.0,
+    "total_apr_now_pct": 0.0,
+    "total_apr_at_horizon_pct": 0.0,
+    "incentive_dependence_pct": 0.0,
+    "weeks_until_incentive_below_base": 0.0,
+    "incentive_apr_drop_pct": 0.0,
+    "apr_cliff_severity_score": 0.0,
+    "classification": "STABLE",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
+    ],
+    "timestamp": 1781456587.690172
   }
 ]
