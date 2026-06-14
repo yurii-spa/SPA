@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-13T06:00:26.445485Z",
+  "generated_at": "2026-06-14T15:06:53.496499Z",
   "monitor_version": "1.0",
   "sources": [
     "defillama",
@@ -15,7 +15,7 @@
       "severity": "CRITICAL",
       "message": "Risk-sensitive proposal [emergency]: Elect DAO facilitators with a realistically reduced pay rate",
       "source": "snapshot",
-      "detected_at": "2026-06-13T06:00:24.986863Z",
+      "detected_at": "2026-06-14T15:06:51.980335Z",
       "evidence": {
         "deadline": "2026-06-19T01:49:00Z",
         "grade": "B",
@@ -23,55 +23,23 @@
         "space": "aavegotchi.eth",
         "tag": "emergency"
       }
-    },
-    {
-      "protocol": "ethena-susde",
-      "category": "token_unlock",
-      "severity": "CRITICAL",
-      "message": "Token unlock 6.40% of supply (ENA) at 2026-06-03T00:00:00Z",
-      "source": "defillama",
-      "detected_at": "2026-06-13T06:00:26.445374Z",
-      "evidence": {
-        "grade": "?",
-        "pct_supply": 6.4,
-        "symbol": "ENA",
-        "tokens": 420000000.0,
-        "unlock_at": "2026-06-03T00:00:00Z"
-      }
-    },
-    {
-      "protocol": "pendle-pt",
-      "category": "token_unlock",
-      "severity": "WARN",
-      "message": "Token unlock 1.80% of supply (PENDLE) at 2026-06-01T00:00:00Z",
-      "source": "defillama",
-      "detected_at": "2026-06-13T06:00:26.445315Z",
-      "evidence": {
-        "grade": "?",
-        "pct_supply": 1.8,
-        "symbol": "PENDLE",
-        "tokens": 5400000.0,
-        "unlock_at": "2026-06-01T00:00:00Z"
-      }
     }
   ],
   "summary": {
-    "total_flags": 3,
+    "total_flags": 1,
     "by_category": {
       "apy_spike": 0,
       "governance_proposal": 1,
-      "token_unlock": 2,
+      "token_unlock": 0,
       "tvl_drop": 0
     },
     "by_severity": {
-      "CRITICAL": 2,
-      "WARN": 1
+      "CRITICAL": 1,
+      "WARN": 0
     },
     "by_protocol": {
-      "aave-v3": 1,
-      "ethena-susde": 1,
-      "pendle-pt": 1
+      "aave-v3": 1
     },
-    "protocols_clean": 7
+    "protocols_clean": 9
   }
 }
