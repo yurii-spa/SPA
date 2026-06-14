@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-06-13T06:00:01.571560+00:00",
+  "generated_at": "2026-06-14T06:00:01.972966+00:00",
   "history": [
     {
       "ts": "2026-06-12T06:00:04.769251+00:00",
@@ -35,6 +35,23 @@
         "paused": 1
       },
       "cycle_number": 25
+    },
+    {
+      "ts": "2026-06-14T06:00:01.972966+00:00",
+      "equity": 100047.74,
+      "daily_pnl": 10.8277,
+      "positions": {
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11371.73,
+        "euler_v2": 9518.9,
+        "maple": 12359.35
+      },
+      "adapter_counts": {
+        "active": 6,
+        "paused": 1
+      },
+      "cycle_number": 26
     }
   ]
 }
