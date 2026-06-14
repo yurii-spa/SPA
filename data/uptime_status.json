@@ -1,119 +1,186 @@
 {
   "all_ok": false,
-  "ts": 1781449600.6945522,
+  "ts": 1781457406.139713,
   "checks": {
     "launchd_httpserver": {
       "running": true,
       "pid": 40756,
       "last_exit": 0,
-      "error": null
+      "error": null,
+      "method": "launchctl_pid"
     },
     "launchd_cloudflared": {
       "running": false,
       "pid": null,
       "last_exit": 19968,
-      "error": null
+      "error": null,
+      "method": "launchctl_no_pid"
     },
     "launchd_fund-api": {
       "running": false,
       "pid": null,
       "last_exit": null,
-      "error": "launchctl exit 113: Could not find service \"com.spa.fund-api\" in domain for port"
+      "error": "launchctl exit 113: Could not find service \"com.spa.fund-api\" in domain for port",
+      "method": "no_output_file"
     },
     "launchd_uptime_monitor": {
       "running": true,
-      "pid": 44969,
+      "pid": 48768,
       "last_exit": 256,
-      "error": null
+      "error": null,
+      "method": "launchctl_pid"
     },
     "launchd_cycle_health": {
       "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "method": "output_file_age",
+      "file": "data/cycle_health.json",
+      "age_seconds": 159902,
+      "max_age": 1800,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_cycle_gap_monitor": {
       "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "method": "output_file_missing",
+      "file": "data/cycle_gap_state.json",
+      "age_seconds": null,
+      "max_age": 1800,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_portfolio_monitor": {
-      "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/monitor_snapshots.json",
+      "age_seconds": 3,
+      "max_age": 1800,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_peg_monitor": {
-      "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/peg_report.json",
+      "age_seconds": 2,
+      "max_age": 1800,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_red_flag_monitor": {
-      "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/red_flags.json",
+      "age_seconds": 299,
+      "max_age": 1800,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_governance_watcher": {
-      "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/governance_proposals.json",
+      "age_seconds": 568,
+      "max_age": 2700,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_autopush": {
       "running": true,
-      "pid": 43626,
+      "pid": 47787,
       "last_exit": 0,
-      "error": null
+      "error": null,
+      "method": "launchctl_pid"
     },
     "launchd_daily_cycle": {
-      "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/paper_trading_status.json",
+      "age_seconds": 816,
+      "max_age": 5400,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_base_gas_monitor": {
-      "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/base_gas_history.json",
+      "age_seconds": 816,
+      "max_age": 108000,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_sky_monitor": {
       "running": false,
-      "pid": null,
-      "last_exit": 0,
-      "error": null
+      "method": "output_file_age",
+      "file": "data/sky_status.json",
+      "age_seconds": 375650,
+      "max_age": 108000,
+      "launchctl_pid": null,
+      "launchctl_last_exit": 0,
+      "launchctl_error": null
     },
     "launchd_daily-paper-report": {
-      "running": false,
-      "pid": null,
-      "last_exit": null,
-      "error": "launchctl exit 113: Could not find service \"com.spa.daily-paper-report\" in domain for port"
+      "running": true,
+      "method": "output_file_age",
+      "file": "data/paper_trading_status.json",
+      "age_seconds": 816,
+      "max_age": 108000,
+      "launchctl_pid": null,
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl exit 113: Could not find service \"com.spa.daily-paper-report\" in domain for port"
     },
     "launchd_checkpoint-7day": {
       "running": false,
-      "pid": null,
-      "last_exit": null,
-      "error": "launchctl exit 113: Could not find service \"com.spa.checkpoint-7day\" in domain for port"
+      "method": "output_file_missing",
+      "file": "logs/checkpoint_7day.log",
+      "age_seconds": null,
+      "max_age": 691200,
+      "launchctl_pid": null,
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl exit 113: Could not find service \"com.spa.checkpoint-7day\" in domain for port"
     },
     "launchd_weekly_backup": {
       "running": false,
       "pid": null,
       "last_exit": null,
-      "error": "launchctl exit 113: Could not find service \"com.spa.weekly_backup\" in domain for port"
+      "error": "launchctl exit 113: Could not find service \"com.spa.weekly_backup\" in domain for port",
+      "method": "no_output_file"
+    },
+    "launchd_analytics_tier_c": {
+      "running": false,
+      "method": "output_file_missing",
+      "file": "data/analytics_report_full.json",
+      "age_seconds": null,
+      "max_age": 108000,
+      "launchctl_pid": null,
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl exit 113: Could not find service \"com.spa.analytics_tier_c\" in domain for port"
+    },
+    "launchd_bot_commands": {
+      "running": false,
+      "pid": null,
+      "last_exit": 256,
+      "error": null,
+      "method": "launchctl_no_pid"
     },
     "http_server": {
       "ok": true,
       "status_code": 200,
-      "latency_ms": 18.57,
+      "latency_ms": 14.19,
       "error": null
     },
     "cycle_freshness": {
       "ok": true,
-      "last_run_ts": 1781449326.349336,
-      "stale_hours": 0.076,
+      "last_run_ts": 1781456587.199798,
+      "stale_hours": 0.228,
       "error": null
     },
     "git_push": {
