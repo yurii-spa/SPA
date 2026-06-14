@@ -418,6 +418,16 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'yield_timing_optimizer', "class": 'YieldTimingOptimizer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_volatility_surface', "class": 'YieldObservation', "tier": 'B', "category": 'market_conditions', "weight": 0.55, "protocols": ['all']},
     {"module": 'yield_volatility_surface_analyzer', "class": None, "tier": 'B', "category": 'market_conditions', "weight": 0.55, "protocols": ['all']},
+    {"module": 'defi_protocol_mev_protection_effectiveness_analyzer', "class": 'DeFiProtocolMEVProtectionEffectivenessAnalyzer', "tier": 'B', "category": 'execution_risk', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_borrower_concentration_risk_analyzer', "class": 'DeFiProtocolBorrowerConcentrationRiskAnalyzer', "tier": 'B', "category": 'protocol_health', "weight": 0.55, "protocols": ['all']},
+    {"module": 'defi_protocol_insurance_fund_adequacy_analyzer', "class": 'DeFiProtocolInsuranceFundAdequacyAnalyzer', "tier": 'B', "category": 'protocol_health', "weight": 0.55, "protocols": ['all']},
+    {"module": 'defi_protocol_yield_harvesting_frequency_optimizer', "class": 'DeFiProtocolYieldHarvestingFrequencyOptimizer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'defi_protocol_lending_utilization_elasticity_analyzer', "class": 'DeFiProtocolLendingUtilizationElasticityAnalyzer', "tier": 'B', "category": 'market_conditions', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_cross_chain_yield_basis_risk_analyzer', "class": 'DeFiProtocolCrossChainYieldBasisRiskAnalyzer', "tier": 'B', "category": 'market_conditions', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_stablecoin_par_redemption_capacity_analyzer', "class": 'DeFiProtocolStablecoinParRedemptionCapacityAnalyzer', "tier": 'B', "category": 'exit_liquidity', "weight": 0.55, "protocols": ['all']},
+    {"module": 'defi_protocol_emergency_withdrawal_pause_risk_analyzer', "class": 'DeFiProtocolEmergencyWithdrawalPauseRiskAnalyzer', "tier": 'B', "category": 'exit_liquidity', "weight": 0.55, "protocols": ['all']},
+    {"module": 'defi_protocol_minimum_profitable_position_size_analyzer', "class": 'DeFiProtocolMinimumProfitablePositionSizeAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_autocompound_keeper_reliability_analyzer', "class": 'DeFiProtocolAutoCompoundKeeperReliabilityAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
