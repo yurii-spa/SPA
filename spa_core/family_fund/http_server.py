@@ -6,6 +6,7 @@ SPA Family Fund — stdlib HTTP сервер (Phase 0 / MP-359)
 Эндпоинты:
   GET  /health                      — healthcheck, 200 всегда
   GET  /api/public/fund/summary     — сводка фонда (открытый, CORS: *)
+  GET  /api/agents                  — статус всех агентов из uptime_status.json
   GET  /api/private/investors       — список инвесторов (требует X-Fund-Token)
   POST /api/private/investor        — добавить инвестора (требует X-Fund-Token)
 
@@ -132,6 +133,88 @@ def build_summary(data_dir: Path, registry: InvestorRegistry) -> dict:
         "paper_days": paper_days,
         "status": "paper_trading",
         "last_cycle": last_cycle,
+    }
+
+
+# Если uptime_status.json старше этого порога — помечаем ответ как stale.
+_AGENTS_STALE_SECONDS: int = 600  # 10 минут
+
+
+def _load_uptime_status(data_dir: Path) -> dict:
+    """
+    Загружает uptime_status.json из data_dir.
+    При отсутствии/повреждении файла — возвращает пустой dict (graceful fallback).
+    """
+    path = data_dir / "uptime_status.json"
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def build_agents_response(data_dir: Path) -> dict:
+    """
+    Строит ответ для GET /api/agents.
+
+    Читает data/uptime_status.json (формат run_all_checks из
+    spa_core.monitoring.uptime_monitor) и нормализует его в плоский словарь
+    статусов агентов с launchd-метками (com.spa.*).
+
+    Если файл устарел (последняя проверка > 10 мин назад) — добавляет
+    "stale": true. Если файл отсутствует — возвращает пустой набор агентов
+    с stale=true.
+
+    Формат:
+        {
+          "timestamp": "2026-06-14T15:00:00Z",
+          "all_ok": false,
+          "stale": false,
+          "agents": {
+            "com.spa.daily_cycle": {"running": true, "method": "...", "age_seconds": 420},
+            ...
+          }
+        }
+    """
+    status: dict = _load_uptime_status(data_dir)
+
+    # Метка времени последней проверки (ts — unix epoch секунд).
+    raw_ts = status.get("ts")
+    if isinstance(raw_ts, (int, float)) and raw_ts > 0:
+        check_dt = datetime.fromtimestamp(float(raw_ts), tz=timezone.utc)
+        timestamp = check_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        age_seconds = (datetime.now(tz=timezone.utc) - check_dt).total_seconds()
+        stale = age_seconds > _AGENTS_STALE_SECONDS
+    else:
+        # Файл отсутствует или без ts — считаем данные устаревшими.
+        timestamp = _now_iso()
+        stale = True
+
+    # Нормализуем checks: ключи launchd_<name> → метки com.spa.<name>.
+    # Остальные проверки (http_server, cycle_freshness, git_push) пропускаем —
+    # они не являются launchd-агентами.
+    agents: dict = {}
+    checks = status.get("checks", {})
+    if isinstance(checks, dict):
+        for key, chk in checks.items():
+            if not key.startswith("launchd_") or not isinstance(chk, dict):
+                continue
+            label = "com.spa." + key[len("launchd_"):]
+            entry: dict = {"running": bool(chk.get("running", False))}
+            # Прокидываем диагностические поля, если они есть.
+            for field in ("method", "age_seconds", "pid", "port", "file",
+                          "max_age", "error"):
+                if chk.get(field) is not None:
+                    entry[field] = chk[field]
+            agents[label] = entry
+
+    return {
+        "timestamp": timestamp,
+        "all_ok": bool(status.get("all_ok", False)),
+        "stale": stale,
+        "agents": agents,
     }
 
 
@@ -272,6 +355,8 @@ class FundHTTPHandler(http.server.BaseHTTPRequestHandler):
             self._handle_health()
         elif path == "/api/public/fund/summary":
             self._handle_public_summary()
+        elif path == "/api/agents":
+            self._handle_agents()
         elif path == "/api/private/investors":
             self._handle_private_investors()
         else:
@@ -298,6 +383,18 @@ class FundHTTPHandler(http.server.BaseHTTPRequestHandler):
             registry = self._get_registry()
             summary = build_summary(self.data_dir, registry)
             self._send_json(200, summary, cors_public=True)
+        except Exception as exc:
+            self._send_error_json(500, str(exc))
+
+    def _handle_agents(self) -> None:
+        """
+        GET /api/agents — открытый эндпоинт со статусом launchd-агентов.
+        Читает data/uptime_status.json. CORS: * (как и /health).
+        Если данные устарели (>10 мин) — поле "stale": true.
+        """
+        try:
+            agents = build_agents_response(self.data_dir)
+            self._send_json(200, agents, cors_public=True)
         except Exception as exc:
             self._send_error_json(500, str(exc))
 
