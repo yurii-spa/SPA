@@ -1,0 +1,126 @@
+{
+  "all_ok": false,
+  "ts": 1781449600.6945522,
+  "checks": {
+    "launchd_httpserver": {
+      "running": true,
+      "pid": 40756,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_cloudflared": {
+      "running": false,
+      "pid": null,
+      "last_exit": 19968,
+      "error": null
+    },
+    "launchd_fund-api": {
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl exit 113: Could not find service \"com.spa.fund-api\" in domain for port"
+    },
+    "launchd_uptime_monitor": {
+      "running": true,
+      "pid": 44969,
+      "last_exit": 256,
+      "error": null
+    },
+    "launchd_cycle_health": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_cycle_gap_monitor": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_portfolio_monitor": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_peg_monitor": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_red_flag_monitor": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_governance_watcher": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_autopush": {
+      "running": true,
+      "pid": 43626,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_daily_cycle": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_base_gas_monitor": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_sky_monitor": {
+      "running": false,
+      "pid": null,
+      "last_exit": 0,
+      "error": null
+    },
+    "launchd_daily-paper-report": {
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl exit 113: Could not find service \"com.spa.daily-paper-report\" in domain for port"
+    },
+    "launchd_checkpoint-7day": {
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl exit 113: Could not find service \"com.spa.checkpoint-7day\" in domain for port"
+    },
+    "launchd_weekly_backup": {
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl exit 113: Could not find service \"com.spa.weekly_backup\" in domain for port"
+    },
+    "http_server": {
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 18.57,
+      "error": null
+    },
+    "cycle_freshness": {
+      "ok": true,
+      "last_run_ts": 1781449326.349336,
+      "stale_hours": 0.076,
+      "error": null
+    },
+    "git_push": {
+      "ok": false,
+      "last_push_ts": null,
+      "stale_hours": null,
+      "error": "git log exit 128: fatal: your current branch 'main' does not have any commits yet"
+    }
+  }
+}
