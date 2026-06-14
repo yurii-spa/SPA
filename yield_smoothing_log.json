@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "protocol_name": "TestProtocol",
+    "observation_count": 30,
+    "payout_frequency_days": 1,
+    "auto_compounds": true,
+    "compounding_frequency_days": 1,
+    "position_size_usd": 100000.0,
+    "mean_yield_pct": 0.013840000000000007,
+    "yield_std_pct": 6.938893903907228e-18,
+    "yield_cv": 5.01365166467285e-16,
+    "smoothness_score": 90,
+    "missed_compounding_drag_pct": 0.0,
+    "smoothing_label": "SMOOTH_DAILY",
+    "timestamp": 1781428230.5505955
+  },
+  {
+    "protocol_name": "TestProtocol",
+    "observation_count": 30,
+    "payout_frequency_days": 1,
+    "auto_compounds": true,
+    "compounding_frequency_days": 1,
+    "position_size_usd": 100000.0,
+    "mean_yield_pct": 0.013840000000000007,
+    "yield_std_pct": 6.938893903907228e-18,
+    "yield_cv": 5.01365166467285e-16,
+    "smoothness_score": 90,
+    "missed_compounding_drag_pct": 0.0,
+    "smoothing_label": "SMOOTH_DAILY",
+    "timestamp": 1781428234.402126
+  }
+]
