@@ -1,0 +1,92 @@
+[
+  {
+    "ts": "2026-06-14T18:23:03.918565+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_frequency_efficient_vault": "Annual-Friendly",
+      "least_frequency_efficient_vault": "Predatory-NoHWM",
+      "avg_frequency_efficiency_score": 60.2,
+      "unfriendly_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "Annual-Friendly",
+        "classification": "INVESTOR_FRIENDLY",
+        "frequency_efficiency_score": 100.0,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "HAS_HWM"
+        ]
+      },
+      {
+        "token": "Daily-Skim",
+        "classification": "NEUTRAL",
+        "frequency_efficiency_score": 65.6,
+        "recommendation": "PREFER_LESS_FREQUENT",
+        "flags": [
+          "CONTINUOUS_CRYSTALLIZATION",
+          "HAS_HWM"
+        ]
+      },
+      {
+        "token": "Predatory-NoHWM",
+        "classification": "PREDATORY",
+        "frequency_efficiency_score": 15.0,
+        "recommendation": "AVOID",
+        "flags": [
+          "CONTINUOUS_CRYSTALLIZATION",
+          "NO_HWM",
+          "HIGH_COMPOUNDING_LOSS",
+          "PAY_FOR_VOLATILITY_RISK",
+          "HIGH_PERF_FEE"
+        ]
+      }
+    ]
+  },
+  {
+    "ts": "2026-06-14T18:24:56.589286+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_frequency_efficient_vault": "Annual-Friendly",
+      "least_frequency_efficient_vault": "Predatory-NoHWM",
+      "avg_frequency_efficiency_score": 60.2,
+      "unfriendly_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "Annual-Friendly",
+        "classification": "INVESTOR_FRIENDLY",
+        "frequency_efficiency_score": 100.0,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "HAS_HWM"
+        ]
+      },
+      {
+        "token": "Daily-Skim",
+        "classification": "NEUTRAL",
+        "frequency_efficiency_score": 65.6,
+        "recommendation": "PREFER_LESS_FREQUENT",
+        "flags": [
+          "CONTINUOUS_CRYSTALLIZATION",
+          "HAS_HWM"
+        ]
+      },
+      {
+        "token": "Predatory-NoHWM",
+        "classification": "PREDATORY",
+        "frequency_efficiency_score": 15.0,
+        "recommendation": "AVOID",
+        "flags": [
+          "CONTINUOUS_CRYSTALLIZATION",
+          "NO_HWM",
+          "HIGH_COMPOUNDING_LOSS",
+          "PAY_FOR_VOLATILITY_RISK",
+          "HIGH_PERF_FEE"
+        ]
+      }
+    ]
+  }
+]
