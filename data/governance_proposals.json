@@ -1,147 +1,25 @@
 {
-  "generated_at": "2026-06-14T15:06:59Z",
-  "watcher_version": "1.0",
+  "generated_at": "2026-06-14T17:07:17Z",
+  "watcher_version": "1.1",
   "sources": [
-    "bootstrap"
+    "snapshot"
   ],
-  "fallback_used": true,
-  "proposals": [
-    {
-      "id": "snapshot:bootstrap-005",
-      "protocol": "aave-v3",
-      "title": "Aave V3 Upgrade: New risk model for volatile collateral",
-      "category": "upgrade",
-      "severity": "HIGH",
-      "state": "active",
-      "source": "bootstrap",
-      "start_at": "2026-05-27T00:00:00Z",
-      "end_at": "2026-06-02T00:00:00Z",
-      "url": "https://snapshot.org/#/aave.eth/proposal/bootstrap-005",
-      "votes_for": 780000,
-      "votes_against": 95000,
-      "quorum_met": false,
-      "detected_at": "2026-06-14T15:06:57Z"
-    },
-    {
-      "id": "snapshot:bootstrap-003",
-      "protocol": "curve",
-      "title": "Curve Fee Switch: Increase admin fee to 50%",
-      "category": "treasury",
-      "severity": "MEDIUM",
-      "state": "active",
-      "source": "bootstrap",
-      "start_at": "2026-05-26T00:00:00Z",
-      "end_at": "2026-05-30T00:00:00Z",
-      "url": "https://snapshot.org/#/curve.eth/proposal/bootstrap-003",
-      "votes_for": 3100000,
-      "votes_against": 220000,
-      "quorum_met": true,
-      "detected_at": "2026-06-14T15:06:57Z"
-    },
-    {
-      "id": "snapshot:bootstrap-004",
-      "protocol": "lido",
-      "title": "Emergency: Pause stETH withdrawals pending security review",
-      "category": "emergency",
-      "severity": "HIGH",
-      "state": "closed",
-      "source": "bootstrap",
-      "start_at": "2026-05-15T00:00:00Z",
-      "end_at": "2026-05-15T12:00:00Z",
-      "url": "https://snapshot.org/#/lido-snapshot.eth/proposal/bootstrap-004",
-      "votes_for": 5500000,
-      "votes_against": 0,
-      "quorum_met": true,
-      "detected_at": "2026-06-14T15:06:57Z"
-    },
-    {
-      "id": "snapshot:bootstrap-001",
-      "protocol": "aave-v3",
-      "title": "[ARFC] Risk Parameter Updates for Aave V3 \u2014 USDC LTV Increase",
-      "category": "risk_param",
-      "severity": "HIGH",
-      "state": "closed",
-      "source": "bootstrap",
-      "start_at": "2026-05-20T00:00:00Z",
-      "end_at": "2026-05-23T00:00:00Z",
-      "url": "https://snapshot.org/#/aave.eth/proposal/bootstrap-001",
-      "votes_for": 1250000,
-      "votes_against": 45000,
-      "quorum_met": true,
-      "detected_at": "2026-06-14T15:06:57Z"
-    },
-    {
-      "id": "snapshot:bootstrap-006",
-      "protocol": "uniswap-v3",
-      "title": "Deploy Uniswap V3 on zkSync Era",
-      "category": "upgrade",
-      "severity": "MEDIUM",
-      "state": "closed",
-      "source": "bootstrap",
-      "start_at": "2026-05-10T00:00:00Z",
-      "end_at": "2026-05-14T00:00:00Z",
-      "url": "https://snapshot.org/#/uniswap/proposal/bootstrap-006",
-      "votes_for": 42000000,
-      "votes_against": 1200000,
-      "quorum_met": true,
-      "detected_at": "2026-06-14T15:06:57Z"
-    },
-    {
-      "id": "snapshot:bootstrap-002",
-      "protocol": "compound-v3",
-      "title": "Add LINK as collateral in cUSDCv3",
-      "category": "parameter_change",
-      "severity": "MEDIUM",
-      "state": "closed",
-      "source": "bootstrap",
-      "start_at": "2026-05-18T00:00:00Z",
-      "end_at": "2026-05-21T00:00:00Z",
-      "url": "https://snapshot.org/#/comp-vote.eth/proposal/bootstrap-002",
-      "votes_for": 890000,
-      "votes_against": 12000,
-      "quorum_met": true,
-      "detected_at": "2026-06-14T15:06:57Z"
-    }
-  ],
+  "fallback_used": false,
+  "fetch_method": "live",
+  "snapshot_ok": true,
+  "tally_ok": false,
+  "snapshot_spaces_ok": 8,
+  "snapshot_spaces_failed": 0,
+  "last_live_fetch": "2026-06-14T17:07:17Z",
+  "last_error": null,
+  "proposals": [],
   "summary": {
-    "total_proposals": 6,
-    "active_count": 2,
-    "by_category": {
-      "upgrade": 2,
-      "treasury": 1,
-      "emergency": 1,
-      "risk_param": 1,
-      "parameter_change": 1
-    },
-    "by_severity": {
-      "HIGH": 3,
-      "MEDIUM": 3
-    },
-    "by_protocol": {
-      "aave-v3": 2,
-      "curve": 1,
-      "lido": 1,
-      "uniswap-v3": 1,
-      "compound-v3": 1
-    },
-    "high_severity_count": 3,
-    "risk_triggers": [
-      {
-        "id": "snapshot:bootstrap-005",
-        "protocol": "aave-v3",
-        "title": "Aave V3 Upgrade: New risk model for volatile collateral",
-        "category": "upgrade",
-        "severity": "HIGH",
-        "state": "active",
-        "source": "bootstrap",
-        "start_at": "2026-05-27T00:00:00Z",
-        "end_at": "2026-06-02T00:00:00Z",
-        "url": "https://snapshot.org/#/aave.eth/proposal/bootstrap-005",
-        "votes_for": 780000,
-        "votes_against": 95000,
-        "quorum_met": false,
-        "detected_at": "2026-06-14T15:06:57Z"
-      }
-    ]
+    "total_proposals": 0,
+    "active_count": 0,
+    "by_category": {},
+    "by_severity": {},
+    "by_protocol": {},
+    "high_severity_count": 0,
+    "risk_triggers": []
   }
 }
