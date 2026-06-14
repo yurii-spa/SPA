@@ -1,0 +1,34 @@
+[
+  {
+    "protocol_name": "TestProtocol",
+    "supply_apy_pct": 3.5,
+    "borrow_apy_pct": 5.8,
+    "utilization_rate_pct": 80.0,
+    "reserve_factor_pct": 10.0,
+    "total_supplied_usd": 1000000000.0,
+    "total_borrowed_usd": 800000000.0,
+    "gross_spread_pct": 2.3,
+    "net_interest_margin_pct": 1.84,
+    "protocol_revenue_usd_annual": 4640000.0,
+    "supplier_effective_yield_pct": 2.8,
+    "nim_efficiency_score": 39,
+    "nim_label": "ADEQUATE_SPREAD",
+    "timestamp": 1781428230.454456
+  },
+  {
+    "protocol_name": "TestProtocol",
+    "supply_apy_pct": 3.5,
+    "borrow_apy_pct": 5.8,
+    "utilization_rate_pct": 80.0,
+    "reserve_factor_pct": 10.0,
+    "total_supplied_usd": 1000000000.0,
+    "total_borrowed_usd": 800000000.0,
+    "gross_spread_pct": 2.3,
+    "net_interest_margin_pct": 1.84,
+    "protocol_revenue_usd_annual": 4640000.0,
+    "supplier_effective_yield_pct": 2.8,
+    "nim_efficiency_score": 39,
+    "nim_label": "ADEQUATE_SPREAD",
+    "timestamp": 1781428234.316237
+  }
+]
