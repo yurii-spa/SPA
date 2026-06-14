@@ -8,7 +8,12 @@
     Функция: проверяет launchd-сервисы, HTTP-сервер (port 8765),
              свежесть цикла (<2h), последний git-push (<3h).
     Пишет:   data/uptime_status.json  (atomic)
-    Exit:    0 = all_ok, 1 = degraded
+    Exit:    0 = монитор отработал (даже если система DEGRADED),
+             1 = внутренний сбой самого монитора.
+             DEGRADED сообщается через uptime_status.json + Telegram,
+             НЕ через код выхода (иначе launchd писал LastExitStatus=256
+             на каждый прогон и монитор выглядел «сломанным» — это и был P0-1).
+             Флаг --strict возвращает старое поведение (1 при DEGRADED).
     CLI:     python3 -m spa_core.monitoring.uptime_monitor
     Установка:
       cp scripts/com.spa.uptime_monitor.plist ~/Library/LaunchAgents/
