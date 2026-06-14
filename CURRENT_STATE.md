@@ -1,6 +1,8 @@
 # CURRENT_STATE
-> Последнее обновление: 2026-06-12 sprint **v4.88** (обновляй вручную в конце каждого спринта)
+> Последнее обновление: **2026-06-13** | Спринт **v6.80** | Done: **553** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
+> ⚠️ Источник истины по done_count и sprint — всегда KANBAN.json, не этот файл.
+> Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 
 ## Инфраструктура (launchd)
 
@@ -26,20 +28,24 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 
 ## Спринты
 
-- Последний завершённый: **v4.87** (2026-06-12)
-- Sprint log синхронизирован: ❌ (пропущены v4.31-v4.47, задача SYS-009)
-- Задач в done: 252
+- Текущий спринт: **v6.80** (KANBAN.json — source of truth)
+- Последний известный: **v4.88** (из CURRENT_STATE.md историческая)
+- Sprint log синхронизирован: ❌ (sprint_log содержит 5 записей, SYS-009 в backlog)
+- Задач в done: **553** (KANBAN.json done_count, 2026-06-13)
+- Модулей analytics: **313** файлов в spa_core/analytics/
+- Тест-файлов: **548** файлов в spa_core/tests/
+- Push-скриптов: **200+** (push_v468.sh → push_v680.sh)
 
 ## Paper Trading Track
 
-- Старт: 2026-06-12 (День 0)
-- Дней трека: 0 (Day 0)
-- Evidence window: 30 дней минимум (ready: 2026-07-12)
+- Старт реального трека: **2026-06-10** (всё до — демо/недействительно)
+- Дней трека: ~3 (цель 30 дней к 2026-07-10)
+- Evidence window: 30 дней минимум (ready: ~2026-07-10)
 - Equity: $100,026.06 (из paper_trading_status.json)
-- APY сегодня: 10.115% (S7 Pendle YT+PT)
+- APY: 10.115% (S7 Pendle YT+PT — лидер tournament)
 - Стратегии в tournament: S0–S13 (14 стратегий)
-- Best APY achieved: 10.115% (S7 Pendle YT+PT) 🏆
-- Go-live решение: 2026-08-01 (ADR-002; 50 дней; перенос если трек прерывается)
+- GoLiveChecker: **16/26** pass (NOT READY — цель 26/26 к go-live)
+- Go-live target: **2026-08-01** (ADR-002: READY 7+ дней + 30d трек + manual review)
 
 ## Алерты
 
@@ -52,10 +58,23 @@ push_command: python3 push_to_github.py --files <files> --message "<msg>"
 
 | Блокер | Задача | Действие | Критичность |
 |--------|--------|----------|-------------|
-| Запустить autopush fix | MP-313 | `bash mp009_fix_launchd.command` | P0 — без этого код не пушится автоматически |
+| **GitHub stale** | — | `bash ~/Documents/SPA_Claude/scripts/run_all_pushes.sh` | **P0** — синхронизировать НЕМЕДЛЕННО |
+| Autopush fix | MP-313 | `bash mp009_fix_launchd.command` | P0 — без этого автопуш не работает |
 | RPC ключи Alchemy/Infura | MP-017 | Добавить в Keychain | P1 — нужно для Pendle PT (+2-3% APY) |
 | GitHub Pages | UA-004 | Settings → Pages → main/root | P1 — публичный дашборд |
 | Workflow token | UA-006 | PAT с workflow scope | P2 |
+
+## Governance (NEW 2026-06-13)
+
+Созданы governance-документы в `docs/governance/`:
+- `DEVELOPMENT_RULES.md` — Pre/Post-Work Checklists, DoD
+- `AI_ASSISTANT_RULES.md` — Абсолютные запреты, поведение агентов
+- `GIT_WORKFLOW.md` — PAT chain, push-скрипты, Conventional Commits
+- `ARCHITECTURE.md` — Паттерн модуля, схема KANBAN, push-система
+- `ANTI_PATTERNS.md` — 18 anti-patterns с примерами кода
+- `KNOWN_ISSUES.md` — 11 известных проблем с фиксами
+- `PROJECT_STATE.md` — Шаблон оперативного статуса
+- `AUDIT_REPORT.md` — Root cause analysis, рекомендации
 
 ---
 
