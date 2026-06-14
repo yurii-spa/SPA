@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.bot_commands — continuous long-polling bot (instant responses).
+  Uses KeepAlive instead of StartInterval: process stays alive, launchd restarts on crash.
+  Python path is patched at install time by _restart_bot_daemon.command.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.bot_commands</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON_PATH__</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/alerts/bot_commands.py</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_bot_commands.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_bot_commands.err</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/opt/miniconda3/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
