@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T17:03:09.821725+00:00",
+  "generated_at": "2026-06-14T18:33:54.002762+00:00",
   "source": "honest_metrics",
   "schema_version": 1,
   "advisory_only": true,
@@ -25,15 +25,15 @@
     "S1": {
       "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 149.15211226990385,
+      "sharpe": 149.44935832517882,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.04307564074515834,
+      "total_return_pct": 0.04306564175706117,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 129.3047772022446,
-        "upper": 2165.9485479551554,
+        "lower": 129.53849631985085,
+        "upper": 2045.2318974986308,
         "n_valid": 987
       },
       "sortino_ci_95": null,
@@ -42,15 +42,15 @@
     "S2": {
       "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 213.14555207100162,
+      "sharpe": 213.72603074148216,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.04142585327209503,
+      "total_return_pct": 0.041415854272985525,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 177.0294477486486,
-        "upper": 1915.7679269848588,
+        "lower": 177.47862843782852,
+        "upper": 1814.338783336043,
         "n_valid": 987
       },
       "sortino_ci_95": null,
