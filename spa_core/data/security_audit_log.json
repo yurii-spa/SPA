@@ -1,0 +1,39 @@
+[
+  {
+    "protocols": [
+      {
+        "name": "Aave V3",
+        "audit_count": 3,
+        "security_score": 53,
+        "security_grade": "C",
+        "audit_freshness": "STALE",
+        "open_critical_count": 0,
+        "open_high_count": 0,
+        "risk_label": "CAUTION",
+        "flags": [
+          "Audit is stale \u2014 code may have changed significantly"
+        ]
+      },
+      {
+        "name": "NewProtocol",
+        "audit_count": 0,
+        "security_score": 0,
+        "security_grade": "F",
+        "audit_freshness": "UNAUDITED",
+        "open_critical_count": 0,
+        "open_high_count": 0,
+        "risk_label": "AVOID",
+        "flags": [
+          "No security audits",
+          "No bug bounty program"
+        ]
+      }
+    ],
+    "best_security": "Aave V3",
+    "riskiest_protocol": "NewProtocol",
+    "unaudited_count": 1,
+    "avoid_count": 1,
+    "average_security_score": 26.5,
+    "timestamp": 1781378499.2514048
+  }
+]
