@@ -1,0 +1,43 @@
+[
+  {
+    "protocol_name": "TestAave",
+    "collateral_usd": 100000.0,
+    "collateral_liquidation_threshold_pct": 85.0,
+    "total_debt_usd": 60000.0,
+    "debt_interest_rate_annual_pct": 5.0,
+    "days_to_simulate": 90,
+    "current_health_factor": 1.4166666666666667,
+    "current_ltv_pct": 60.0,
+    "debt_with_interest_usd": 60739.72602739726,
+    "scenario_results": [
+      {
+        "price_drop_pct": 10.0,
+        "adj_collateral": 90000.0,
+        "new_hf": 1.275,
+        "is_liquidated": false
+      },
+      {
+        "price_drop_pct": 20.0,
+        "adj_collateral": 80000.0,
+        "new_hf": 1.1333333333333333,
+        "is_liquidated": false
+      },
+      {
+        "price_drop_pct": 30.0,
+        "adj_collateral": 70000.0,
+        "new_hf": 0.9916666666666667,
+        "is_liquidated": true
+      },
+      {
+        "price_drop_pct": 50.0,
+        "adj_collateral": 50000.0,
+        "new_hf": 0.7083333333333334,
+        "is_liquidated": true
+      }
+    ],
+    "safe_price_drop_pct": 29.411764705882348,
+    "days_to_liquidation_at_flat_rate": 3041.6666666666674,
+    "health_factor_label": "CAUTION",
+    "timestamp": 1781427594.0352886
+  }
+]
