@@ -990,9 +990,9 @@ def run_cycle(
             list(equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
         )
         _dl_apy_map = {
-            str(k): float(v.get("apy", 0) if isinstance(v, dict) else v)
-            for k, v in (adapters or {}).items()
-            if v is not None
+            str(a.get("id", a.get("protocol", ""))): float(a.get("apy", 0))
+            for a in (adapters if isinstance(adapters, list) else [])
+            if isinstance(a, dict) and (a.get("id") or a.get("protocol"))
         }
         _dl_result = _dl_checker.check(_dl_eq_history, target_usd, _dl_apy_map)
         _dl_checker.save_result(_dl_result, ddir)
