@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-14T19:18:26.701361+00:00",
-  "updated_by": "spa-dev-continue (v8.18 orchestrator)",
+  "last_updated": "2026-06-14T20:20:04.088113+00:00",
+  "updated_by": "spa-dev-continue (v8.19 orchestrator)",
   "sprint_current": "v8.15",
   "sprint_naming_convention": "Sprint v{MAJOR}.{MINOR} — MP-{NNN}+{NNN}",
   "notes": "v8.05: MP-1134 DeFiProtocolYieldCompoundingOptimizer (129 tests, effective_apy=((1+base/freq)^freq-1)*100, optimal_frequency/label DAILY/WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/ANNUALLY, gas_drag_at_optimal_pct, net_annual_yield_usd, ring-buffer log cap 100, atomic write) + MP-1135 ProtocolDeFiTvlMomentumAnalyzer (124 tests, tvl_change_7d/30d/90d_pct, momentum_score 0-100 int weighted 7d×50+30d×30+90d×20, yield_dilution_risk LOW/MEDIUM/HIGH/CRITICAL, tvl_label RAPID_GROWTH/HEALTHY_GROWTH/STABLE/DECLINING/RAPID_DECLINE, ring-buffer log cap 100, atomic write) — 253 tests GREEN, done_count 828->830, sprint_current v8.06->v8.05\nv7.51: MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107 tests, passage_probability logistic, tvl_impact_ratio, urgency_score 0-100, risk_category_score per type, overall_impact_score, CRITICAL_PROPOSAL/HIGH_IMPACT/MODERATE_IMPACT/LOW_IMPACT/ROUTINE labels, EMERGENCY_GOVERNANCE/TEAM_PROPOSAL/LIKELY_TO_PASS/AFFECTS_LARGE_TVL/NO_TIMELOCK_RISK/COMMUNITY_DRIVEN flags, ring-buffer log cap 100, atomic write) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109 tests, burn_multiple/diversification_score/market_cycle_resilience/sustainability_score 0-100, HIGHLY_SUSTAINABLE/SUSTAINABLE/BREAK_EVEN/SUBSIDIZED/UNSUSTAINABLE/ZOMBIE labels, PROFITABLE/EMISSION_SUBSIDIZED/LOW_REVENUE_DIVERSIFICATION/MARKET_DEPENDENT/REVENUE_GROWING/RUNWAY_CRITICAL flags, ring-buffer log cap 100, atomic write) — 216 tests GREEN, done_count 690->692, sprint_current v7.50->v7.51\nv7.38: MP-1000 DeFiProtocolFeeTierOptimizer (124 tests, optimal fee tier 5/30/100/500bps, 5 labels, 5 flags, ring-buffer log, atomic write) + MP-1001 ProtocolDeFiTokenBuybackImpactAnalyzer (120 tests, buyback yield/supply reduction/sustainability 0-100, 5 labels, 6 flags, ring-buffer log, atomic write) — 244 tests GREEN, done_count 656->658, sprint_current v7.37->v7.38\nv7.37: MP-998 DeFiProtocolVolumeToTVLEfficiencyAnalyzer (115 tests, velocity=Vol/TVL, capital_efficiency_score/revenue_quality_score/lp_net_apy, 5 labels, 6 flags, ring-buffer log, atomic write) + MP-999 ProtocolDeFiWhaleConcentrationMonitor (115 tests, whale_dominance/retail_health/exit_risk/decentralization 0-100, 5 concentration labels, 6 flags, ring-buffer log, atomic write) — 230 tests GREEN, done_count 654->656, sprint_current v7.35->v7.37\nv7.36: MP-996 DeFiProtocolAirdropFarmingDetector (89 tests, farming_intensity_score/organic_user_pct/sybil_risk_score/capital_stickiness_prediction 0-100, ORGANIC_GROWTH/MIXED_ORGANIC/AIRDROP_INFLATED/FARMING_DOMINANT/SYBIL_FARM labels, ANNOUNCED_AIRDROP_CATALYST/POINTS_FARMING_ACTIVE/HIGH_SYBIL_RISK/CAPITAL_FLIGHT_RISK/DUST_WALLET_CONCENTRATION/ORGANIC_RETENTION_SIGNAL flags, ring-buffer log cap 100, atomic write) + MP-997 ProtocolDeFiPointsSystemValuationAnalyzer (83 tests, implied_point_value_usd/apy_from_points_pct/dilution_risk_score 0-100/uncertainty_discount_factor 0-1/risk_adjusted_implied_value_usd, HIGH_VALUE_CONFIRMED/LIKELY_VALUABLE/SPECULATIVE_VALUE/LOW_VALUE/DILUTION_RISK labels, POINTS_MARKET_EXISTS/SNAPSHOT_IMMINENT/CONVERSION_ANNOUNCED/TRANSFERABLE_POINTS/HIGH_DILUTION_RISK/NO_FDV_SIGNAL flags, ring-buffer log cap 100, atomic write) — 172 tests GREEN, done_count 654->656, sprint_current v7.35->v7.36\nv7.34-mp992-993: MP-992 DeFiProtocolRegulatoryRiskScorer (102 tests, kyc_aml_score/jurisdiction_risk_score/securities_risk_score/operational_opacity_score/composite_regulatory_score 0-100, COMPLIANT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_RISK labels, SECURITIES_RISK/NO_AML_KYC/ANONYMOUS_TEAM/US_NEXUS_RISK/REGULATOR_ACTION_HISTORY/STABLECOIN_SYSTEMIC flags, ring-buffer log cap 100, atomic write) + MP-993 ProtocolDeFiStablecoinHealthMonitor (102 tests, peg_deviation_pct/peg_volatility_30d/max_depeg_30d/redemption_pressure_ratio/net_flow_7d metrics, ROCK_SOLID/STABLE/CAUTIOUS/AT_RISK/DEPEGGING/COLLAPSED labels, ACTIVE_DEPEG/ALGO_CONCENTRATION/UNAUDITED_RESERVES/REDEMPTION_PRESSURE/REDEMPTION_SUSPENDED/NET_OUTFLOW_ACCELERATING flags, ring-buffer log cap 100, atomic write) — 204 tests GREEN, done_count 652->654, sprint_current v7.33->v7.34\nv7.32: MP-988 DeFiYieldAggregationEfficiencyAnalyzer (97 tests, value_add_pct/fee_efficiency_ratio/compound_boost_pct/harvest_cost_ratio/capital_utilization_score 0-100, HIGHLY_EFFICIENT/EFFICIENT/NEUTRAL/INEFFICIENT/VALUE_DESTROYING labels, VALUE_DESTROYING/HIGH_FEE_DRAG/COMPOUND_HEAVY/GAS_INTENSIVE/UNDER_UTILIZED flags, ring-buffer log cap 100, atomic write) + MP-989 ProtocolCrossChainBridgeRiskMonitor (102 tests, centralization_score/incident_risk_score/coverage_ratio/composite_risk_score 0-100, FORTRESS/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL labels, MULTISIG_RISK/RECENT_INCIDENT/UNINSURED/ASSET_CONCENTRATED/CANONICAL_SAFE flags, ring-buffer log cap 100, atomic write) — 199 tests GREEN, done_count 648->650, sprint_current v7.31->v7.32\nv7.31: MP-986 DeFiLiquidityConcentrationRiskScorer (84 tests, top3_concentration_pct/lp_hhi/withdrawal_scenario_10pct_impact/sticky_ratio_pct/concentration_risk_score 0-100, WELL_DISTRIBUTED/LOW_CONCENTRATION/MODERATE_RISK/HIGH_CONCENTRATION/SINGLE_LP_RISK labels, SINGLE_LP_DOMINANT/INCENTIVE_DEPENDENT/PROTOCOL_OWNED_MAJORITY/STICKY_MAJORITY/CL_RANGE_RISK flags, ring-buffer log cap 100, atomic write) + MP-987 ProtocolYieldFarmingLifecycleAnalyzer (84 tests, apy_decay_rate_pct/tvl_retention_rate_pct/farmer_retention_rate_pct/lifecycle_stage_days/value_extraction_ratio, LAUNCH_PHASE/GROWTH_PHASE/MATURITY/DECLINE/SUNSET/ZOMBIE labels, APY_CRASHED/MERCENARY_CAPITAL/EMISSIONS_ENDING_SOON/HIGH_VALUE_EXTRACTION/STICKY_FARMERS flags, ring-buffer log cap 100, atomic write) — 168 tests GREEN, done_count 646->648, sprint_current v7.30->v7.31\nv7.30: MP-984 DeFiYieldSourceDiversificationScorer (100 tests, per-type allocation/yield_contribution HHI, source/protocol/chain diversity, diversification_score 0-100 = 40%*source+35%*protocol+25%*chain HHI invert, HIGHLY_DIVERSIFIED..SINGLE_SOURCE labels, SINGLE_CHAIN/PROTOCOL_CONCENTRATED/REAL_YIELD_HEAVY/POINTS_HEAVY/BEAR_MARKET_EXPOSED flags, ring-buffer log cap 100, atomic write) + MP-985 ProtocolNetworkEffectStrengthAnalyzer (98 tests, metcalfe_value=users²×avg_tx, user_growth/tvl_growth_pct_3m, integration_density=integrations/sqrt(n_cat), network_strength_score 0-100 = growth×0.30+switching×0.25+integration×0.25+metcalfe×0.20, DOMINANT_NETWORK/STRONG_NETWORK/EMERGING_NETWORK/WEAK_NETWORK/NO_MOAT labels, METCALFE_SCALING/HIGH_SWITCHING_COST/INTEGRATION_HUB/USER_GROWTH_STALLING/LOSING_INTEGRATIONS flags, ring-buffer log cap 100, atomic write) — 198 tests green, done_count 644->646, sprint_current v7.29->v7.30",
@@ -379,6 +379,88 @@
         "description": "4 устаревших plist в корне + 2 в launchd/ с неверными python путями/модулями. Удалить или переместить в archive/. Канонические только в scripts/.",
         "acceptance_criteria": "plist существуют только в scripts/; корень и launchd/ чисты",
         "added_by": "AGENT_AUDIT_V2 2026-06-14"
+      },
+      {
+        "id": "P0-FIX-001",
+        "title": "FIX cycle_health plist: analytics → monitoring module",
+        "description": "plist запускает spa_core.analytics.cycle_health_monitor (→cycle_health_log.json), а uptime ждёт cycle_health.json от monitoring модуля. Однострочный sed-фикс в plist + reload.",
+        "priority": "P0",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3",
+        "fix_cmd": "sed -i '' 's/spa_core.analytics.cycle_health_monitor/spa_core.monitoring.cycle_health_monitor/' scripts/com.spa.cycle_health.plist"
+      },
+      {
+        "id": "P0-FIX-002",
+        "title": "FIX cycle_gap_monitor plist: --check → --run",
+        "description": "plist передаёт --check (read-only), uptime ждёт data/cycle_gap_state.json который пишется только при --run. Файл всегда MISSING → uptime всегда FAIL.",
+        "priority": "P0",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3",
+        "fix_cmd": "sed -i '' 's/<string>--check<\\/string>/<string>--run<\\/string>/' scripts/com.spa.cycle_gap_monitor.plist"
+      },
+      {
+        "id": "P0-FIX-003",
+        "title": "FIX cloudflared: установить бинарник",
+        "description": "run_cloudflared.sh ищет cloudflared в 4 путях (opt/homebrew, usr/local, local, usr) — ни одного нет. exit=256 → публичный HTTPS мёртв, инвесторский портал недоступен. brew install cloudflared + настройка туннеля.",
+        "priority": "P0",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P0-FIX-004",
+        "title": "FIX sky_monitor: sky_status.json не обновлялся 107ч",
+        "description": "sky_status.json стаж 107ч при max_age=30ч. RunAtLoad=false — не запускается при старте. Загрузить plist или добавить RunAtLoad=true.",
+        "priority": "P0",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P1-FIX-001",
+        "title": "FIX bot_commands: добавить TELEGRAM_BOT_TOKEN_SPA в Keychain",
+        "description": "bot_commands pid=54026 (процесс жив), но старт падает: 'Keychain read failed for TELEGRAM_BOT_TOKEN_SPA'. Интерактивные команды /now /week /status не работают.",
+        "priority": "P1",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P1-FIX-002",
+        "title": "FIX cycle_health_monitor: читать paper_trading_status вместо equity_history",
+        "description": "cycle_health_monitor читает equity_history.json (последняя запись 2026-06-12) для определения gap. Реальный цикл работает (paper_trading_status.json свежий). Нужно либо переключить источник, либо восстановить запись equity_history.json.",
+        "priority": "P1",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P1-FIX-003",
+        "title": "FIX analytics_tier_c: первый запуск для создания analytics_report_full.json",
+        "description": "analytics_report_full.json отсутствует → uptime FAIL. Агент работает (exit=0 вручную). Запустить один раз: python3 -m spa_core.analytics.signal_aggregator --run --tier C",
+        "priority": "P1",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P1-FIX-004",
+        "title": "Уточнить golive_checker: 6 чеков в коде vs 26 в CLAUDE.md",
+        "description": "spa_core.paper_trading.golive_checker реализует 6 чеков (6/6 PASS, ready=true). CLAUDE.md говорит 26 чеков и 16/26 pass. Либо CLAUDE.md устарел, либо нужна реализация расширенного checker.",
+        "priority": "P1",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P2-FIX-001",
+        "title": "Tier B analytics: вынести из inline-цикла в hourly plist",
+        "description": "386 модулей Tier B исполняются в каждом 30-мин цикле. При timeout 3с на модуль теоретический худший случай > 18 мин. Вынести в отдельный com.spa.analytics_tier_b hourly plist.",
+        "priority": "P2",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
+      },
+      {
+        "id": "P2-FIX-002",
+        "title": "Обновить CURRENT_STATE.md: autopush=installed, 19 агентов, cloudflared=down",
+        "description": "CURRENT_STATE.md всё ещё говорит autopush=not_installed и ссылается на mp009_fix_launchd.command. autopush работает 6+ циклов в день. Нужна актуализация.",
+        "priority": "P2",
+        "created_at": "2026-06-14T20:20:45.466368Z",
+        "source": "AGENT_AUDIT_V3"
       }
     ],
     "in_progress": [],
@@ -7861,10 +7943,30 @@
         "file": "spa_core/analytics/defi_protocol_depositor_concentration_analyzer.py",
         "tests": 117,
         "desc": "Advisory/read-only: концентрация депозиторов (доминирование китов) → bank-run/exit риск. top1/top5_share, effective_depositor_count, whale_exit_tvl_drop, HHI, concentration_score (выше=безопаснее); WELL_DISTRIBUTED/MODERATELY/HIGHLY_CONCENTRATED/WHALE_DOMINATED. Закрывает gap depositor_concentration=0. Tier-B vault_capacity."
+      },
+      {
+        "id": "MP-1156",
+        "sprint": "v8.19",
+        "type": "code",
+        "status": "done",
+        "title": "DeFiProtocolVaultShareInflationAttackExposureAnalyzer",
+        "file": "spa_core/analytics/defi_protocol_vault_share_inflation_attack_exposure_analyzer.py",
+        "tests": 137,
+        "desc": "Advisory/read-only: подверженность ERC-4626 волта атаке share-inflation / first-depositor donation (крошечный share supply + нет virtual-shares/decimals-offset/dead-shares → депозиты округляются в 0 шар). Метрики: share_price_usd, effective_protection, donation_to_inflate_usd, rounding_loss_shares_pct, vulnerability_score (выше=безопаснее); WELL_PROTECTED/LOW/MODERATE/HIGH_RISK. Новая категория vault_safety. Tier-B."
+      },
+      {
+        "id": "MP-1157",
+        "sprint": "v8.19",
+        "type": "code",
+        "status": "done",
+        "title": "DeFiProtocolVaultIdleCashDragAnalyzer",
+        "file": "spa_core/analytics/defi_protocol_vault_idle_cash_drag_analyzer.py",
+        "tests": 129,
+        "desc": "Advisory/read-only: доля idle/незадействованного капитала волта и APY-drag от него (idle не приносит дохода → realized APY < strategy APY). Метрики: idle_pct/deployed_pct, effective_apr_pct, apr_drag_pct, excess_idle_pct, recoverable_apr_pct, efficiency_score (выше=лучше); FULLY_DEPLOYED/LEAN/HEAVY_BUFFER/MOSTLY_IDLE. Новая категория capital_efficiency. Tier-B."
       }
     ]
   },
-  "sprint_completed": "v8.18",
+  "sprint_completed": "v8.19",
   "_v544_dispatch_note": "SPA-V544 (MP-620): ChainExposureReport — advisory/read-only агрегация экспозиции портфеля по БЛОКЧЕЙНАМ (ethereum/arbitrum/base/optimism/polygon/UNKNOWN). HHI chain-концентрация, policy chain-concentration cap (ethereum<=70% AUM, MP-387), chain-weighted APY, флаг L2-экспозиции, Telegram-сводка. Третий срез того же источника data/yield_attribution_tracker.json (после stablecoin_exposure_report и tier_exposure_report). Pure stdlib, atomic writes (tmp+os.replace), ring-buffer 30, fail-safe загрузка, CLI --check/--run/--data-dir, всегда exit(0). 183 tests green. Текущий снапшот: ethereum 100% > 70% cap → policy BREACH, HHI=1.000 CONCENTRATED (корректный флаг chain-концентрации).",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
@@ -9156,5 +9258,6 @@
     "agents_failing": 4,
     "agents_not_installed": 5
   },
-  "_v818_dispatch_note": "v8.18 self-authored code sprint: MP-1154 DepositCapHeadroom + MP-1155 DepositorConcentration (123+117=240 tests). Backlog had no type=code/status=ready tasks (only USER ACTION P0-P2 + P3 features + LOW ideas). Closes gaps deposit_cap=0, depositor_concentration=0. Registry Tier-B +2 (new category vault_capacity). Last completed v8.17 not multiple of 5 -> no architect review. push_v818.sh created for manual run on Mac."
+  "_v818_dispatch_note": "v8.18 self-authored code sprint: MP-1154 DepositCapHeadroom + MP-1155 DepositorConcentration (123+117=240 tests). Backlog had no type=code/status=ready tasks (only USER ACTION P0-P2 + P3 features + LOW ideas). Closes gaps deposit_cap=0, depositor_concentration=0. Registry Tier-B +2 (new category vault_capacity). Last completed v8.17 not multiple of 5 -> no architect review. push_v818.sh created for manual run on Mac.",
+  "_v819_dispatch_note": "v8.19 self-authored код-спринт (нет ready type=code в backlog; в backlog только USER ACTION P0-P2 MP-017/UA-004/UA-006/MP-313/MP-379 и AGENT-P0/P1-* type=agent_infra, требующие git/launchd/keychain на Mac — недоступно из sandbox). Созданы 2 advisory/read-only анализатора: MP-1156 ShareInflationAttackExposure (cat vault_safety) и MP-1157 VaultIdleCashDrag (cat capital_efficiency). 137+129=266 тестов зелёные. Push: scripts/push_v819.sh (ручной запуск на Mac)."
 }
