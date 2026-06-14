@@ -19,7 +19,18 @@ Rules:
 
 CLI:
   python3 -m spa_core.monitoring.uptime_monitor
-  exit 0 if all_ok, exit 1 otherwise
+  exit 0 on a successful run (even when the monitored system is DEGRADED);
+  exit 1 only if the monitor itself failed to run.
+  Pass --strict to restore the legacy "exit 1 on DEGRADED" behaviour.
+
+Exit-code policy (why exit 0 on DEGRADED):
+  A health monitor must report problems via its OUTPUT (uptime_status.json +
+  Telegram alerts), NOT via a non-zero process exit. Under launchd a non-zero
+  exit is recorded as LastExitStatus (e.g. exit 1 → 256) and treated as the
+  *monitor* having crashed — which made the monitor look broken on every run
+  where any agent was degraded, leaving the operator effectively blind. So a
+  normal run that successfully writes its status file is exit 0; a real internal
+  failure (could not run the checks at all) is exit 1.
 """
 
 from __future__ import annotations
@@ -94,7 +105,7 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     "com.spa.daily-paper-report":  ("data/paper_trading_status.json", 108000),
     "com.spa.checkpoint-7day":     ("logs/checkpoint_7day.log", 691200),  # weekly → 8 d
     "com.spa.weekly_backup":       (None, 0),   # backup target outside repo
-    "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 108000),
+    "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 129600),  # daily 05:00 → 86400*1.5 = 36h window
     "com.spa.bot_commands":        (None, 0),  # KeepAlive long-poll → judged via launchctl
 }
 
@@ -674,7 +685,7 @@ LAUNCHD_SERVICES = [
     "com.spa.daily-paper-report",
     "com.spa.checkpoint-7day",
     "com.spa.weekly_backup",
-    "com.spa.analytics_tier_c",  # daily 05:00 → data/analytics_report_full.json (~30h window)
+    "com.spa.analytics_tier_c",  # daily 05:00 → data/analytics_report_full.json (36h window)
     "com.spa.bot_commands",      # KeepAlive long-poll daemon (no output file; launchctl liveness)
 ]
 
@@ -810,14 +821,31 @@ def _format_check(name: str, chk: dict[str, Any]) -> str:
     return f"  [{status:4s}] {name:<30s} {detail}"
 
 
-def main() -> None:
-    """CLI: run all checks, print results, exit 0/1."""
+def main(argv: list[str] | None = None) -> int:
+    """
+    CLI: run all checks, print results, return an exit code.
+
+    Exit-code policy (see module docstring):
+      * Default: a run that completes and writes its status file → 0, EVEN when
+        the monitored system is DEGRADED. A genuine internal failure (the checks
+        could not be run at all) → 1.
+      * --strict: legacy behaviour — return 1 whenever the system is DEGRADED.
+
+    Returns the integer exit code (does not call sys.exit so it is testable).
+    """
+    args = sys.argv[1:] if argv is None else argv
+    strict = "--strict" in args
+
     # Determine paths relative to this file's location
     here = Path(__file__).resolve()
     repo_dir = here.parent.parent.parent  # spa_core/monitoring/uptime_monitor.py → repo root
     data_dir = repo_dir / "data"
 
-    result = run_all_checks(data_dir=data_dir, repo_dir=repo_dir)
+    try:
+        result = run_all_checks(data_dir=data_dir, repo_dir=repo_dir)
+    except Exception as exc:  # noqa: BLE001 — only a real internal failure reaches here
+        print(f"[uptime_monitor] FATAL: run_all_checks failed: {exc}", file=sys.stderr)
+        return 1
 
     ts_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(result["ts"]))
     overall = "ALL OK ✓" if result["all_ok"] else "DEGRADED ✗"
@@ -827,8 +855,12 @@ def main() -> None:
         print(_format_check(name, chk))
     print()
 
-    sys.exit(0 if result["all_ok"] else 1)
+    if strict:
+        return 0 if result["all_ok"] else 1
+    # Default: the monitor ran successfully. DEGRADED is reported via the status
+    # file + alerts, NOT via the process exit code.
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
