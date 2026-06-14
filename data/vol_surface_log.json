@@ -1,0 +1,59 @@
+[
+  {
+    "timestamp": 1781392598.6873214,
+    "option_count": 1,
+    "aggregates": {
+      "highest_iv_option": {
+        "protocol": "Lyra",
+        "underlying": "ETH",
+        "iv_pct": 80.0
+      },
+      "lowest_iv_option": {
+        "protocol": "Lyra",
+        "underlying": "ETH",
+        "iv_pct": 80.0
+      },
+      "total_open_interest_usd": 500000.0,
+      "average_iv": 80.0,
+      "put_call_ratio": 0.0
+    }
+  },
+  {
+    "timestamp": 1781407550.0506122,
+    "option_count": 1,
+    "aggregates": {
+      "highest_iv_option": {
+        "protocol": "Lyra",
+        "underlying": "ETH",
+        "iv_pct": 80.0
+      },
+      "lowest_iv_option": {
+        "protocol": "Lyra",
+        "underlying": "ETH",
+        "iv_pct": 80.0
+      },
+      "total_open_interest_usd": 500000.0,
+      "average_iv": 80.0,
+      "put_call_ratio": 0.0
+    }
+  },
+  {
+    "timestamp": 1781407596.9041948,
+    "option_count": 1,
+    "aggregates": {
+      "highest_iv_option": {
+        "protocol": "Lyra",
+        "underlying": "ETH",
+        "iv_pct": 80.0
+      },
+      "lowest_iv_option": {
+        "protocol": "Lyra",
+        "underlying": "ETH",
+        "iv_pct": 80.0
+      },
+      "total_open_interest_usd": 500000.0,
+      "average_iv": 80.0,
+      "put_call_ratio": 0.0
+    }
+  }
+]
