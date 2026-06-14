@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T17:03:08.041802Z",
+  "generated_at": "2026-06-14T18:33:51.966804Z",
   "engine_version": "1.0",
   "weights": {
     "tvl_magnitude": 0.054054,
@@ -46,7 +46,7 @@
       "explanation": "Aave V3 graded B (numeric 0.769). Lowest subscores: hack_history=0.00, audit_count=0.33, chain_maturity=0.40.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041329Z"
+      "generated_at": "2026-06-14T18:33:51.966150Z"
     },
     {
       "protocol": "Compound V3",
@@ -74,7 +74,7 @@
       "explanation": "Compound V3 graded B (numeric 0.747). Lowest subscores: timelock_duration=0.29, audit_count=0.33, chain_maturity=0.40.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041405Z"
+      "generated_at": "2026-06-14T18:33:51.966304Z"
     },
     {
       "protocol": "Morpho",
@@ -102,7 +102,7 @@
       "explanation": "Morpho graded B (numeric 0.785). Lowest subscores: hack_history=0.00, analytics_composite=0.51, timelock_duration=0.57.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041463Z"
+      "generated_at": "2026-06-14T18:33:51.966403Z"
     },
     {
       "protocol": "Yearn V3",
@@ -130,7 +130,7 @@
       "explanation": "Yearn V3 graded B (numeric 0.777). Lowest subscores: cross_protocol_deps=0.20, timelock_duration=0.29, tvl_trend=0.48.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041515Z"
+      "generated_at": "2026-06-14T18:33:51.966492Z"
     },
     {
       "protocol": "Sky (sUSDS)",
@@ -158,7 +158,7 @@
       "explanation": "Sky (sUSDS) graded B (numeric 0.757). Lowest subscores: timelock_duration=0.29, protocol_age=0.43, regulatory_surface=0.50.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041566Z"
+      "generated_at": "2026-06-14T18:33:51.966552Z"
     },
     {
       "protocol": "MakerDAO",
@@ -186,7 +186,7 @@
       "explanation": "MakerDAO graded B (numeric 0.816). Lowest subscores: timelock_duration=0.29, regulatory_surface=0.50, analytics_composite=0.50.",
       "allocation_cap_pct": null,
       "fallback_used": true,
-      "generated_at": "2026-06-14T17:03:08.041614Z"
+      "generated_at": "2026-06-14T18:33:51.966608Z"
     },
     {
       "protocol": "Curve Finance",
@@ -214,7 +214,7 @@
       "explanation": "Curve Finance graded B (numeric 0.759). Lowest subscores: hack_history=0.00, cross_protocol_deps=0.40, timelock_duration=0.43.",
       "allocation_cap_pct": null,
       "fallback_used": true,
-      "generated_at": "2026-06-14T17:03:08.041661Z"
+      "generated_at": "2026-06-14T18:33:51.966657Z"
     },
     {
       "protocol": "Uniswap V3",
@@ -242,7 +242,7 @@
       "explanation": "Uniswap V3 graded B (numeric 0.750). Lowest subscores: timelock_duration=0.29, audit_count=0.33, chain_maturity=0.40.",
       "allocation_cap_pct": null,
       "fallback_used": true,
-      "generated_at": "2026-06-14T17:03:08.041708Z"
+      "generated_at": "2026-06-14T18:33:51.966706Z"
     },
     {
       "protocol": "Pendle",
@@ -270,7 +270,7 @@
       "explanation": "Pendle graded B (numeric 0.710). Lowest subscores: cross_protocol_deps=0.20, timelock_duration=0.29, audit_count=0.33.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041754Z"
+      "generated_at": "2026-06-14T18:33:51.966751Z"
     },
     {
       "protocol": "Euler V2",
@@ -278,7 +278,7 @@
       "grade": "B",
       "score_numeric": 0.7334,
       "subscores": {
-        "tvl_magnitude": 0.5813,
+        "tvl_magnitude": 0.5815,
         "tvl_trend": 0.5,
         "protocol_age": 0.4286,
         "hack_history": 1.0,
@@ -298,7 +298,7 @@
       "explanation": "Euler V2 graded B (numeric 0.733). Lowest subscores: audit_count=0.33, chain_maturity=0.40, protocol_age=0.43.",
       "allocation_cap_pct": null,
       "fallback_used": false,
-      "generated_at": "2026-06-14T17:03:08.041799Z"
+      "generated_at": "2026-06-14T18:33:51.966801Z"
     }
   ],
   "summary_by_grade": {
