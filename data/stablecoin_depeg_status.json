@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-13T08:13:12.766348+00:00",
+  "threshold_bps": 50.0,
+  "all_scores": [
+    {
+      "symbol": "GHO",
+      "name": "Aave GHO",
+      "price_usd": 0.9978,
+      "target_usd": 1.0,
+      "deviation_bps": 22.0,
+      "direction": "below",
+      "grade": "B",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 200000000.0
+    },
+    {
+      "symbol": "FRAX",
+      "name": "Frax",
+      "price_usd": 0.9985,
+      "target_usd": 1.0,
+      "deviation_bps": 15.0,
+      "direction": "below",
+      "grade": "B",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 650000000.0
+    },
+    {
+      "symbol": "crvUSD",
+      "name": "Curve USD",
+      "price_usd": 0.9992,
+      "target_usd": 1.0,
+      "deviation_bps": 8.0,
+      "direction": "below",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 120000000.0
+    },
+    {
+      "symbol": "USDe",
+      "name": "Ethena USDe",
+      "price_usd": 0.9994,
+      "target_usd": 1.0,
+      "deviation_bps": 6.0,
+      "direction": "below",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 3000000000.0
+    },
+    {
+      "symbol": "wUSDM",
+      "name": "Mountain wUSDM",
+      "price_usd": 1.0004,
+      "target_usd": 1.0,
+      "deviation_bps": 4.0,
+      "direction": "above",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "fiat",
+      "market_cap_usd": 50000000.0
+    },
+    {
+      "symbol": "USDA",
+      "name": "Angle USDA",
+      "price_usd": 1.0003,
+      "target_usd": 1.0,
+      "deviation_bps": 3.0,
+      "direction": "above",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 80000000.0
+    },
+    {
+      "symbol": "USDT",
+      "name": "Tether USD",
+      "price_usd": 0.9998,
+      "target_usd": 1.0,
+      "deviation_bps": 2.0,
+      "direction": "below",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "fiat",
+      "market_cap_usd": 120000000000.0
+    },
+    {
+      "symbol": "DAI",
+      "name": "Dai",
+      "price_usd": 1.0002,
+      "target_usd": 1.0,
+      "deviation_bps": 2.0,
+      "direction": "above",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 5000000000.0
+    },
+    {
+      "symbol": "USDC",
+      "name": "USD Coin",
+      "price_usd": 1.0001,
+      "target_usd": 1.0,
+      "deviation_bps": 1.0,
+      "direction": "above",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "fiat",
+      "market_cap_usd": 45000000000.0
+    },
+    {
+      "symbol": "USDS",
+      "name": "Sky USD (USDS)",
+      "price_usd": 0.9999,
+      "target_usd": 1.0,
+      "deviation_bps": 1.0,
+      "direction": "below",
+      "grade": "A",
+      "depegged": false,
+      "mechanism": "crypto",
+      "market_cap_usd": 3500000000.0
+    }
+  ],
+  "depegged": [],
+  "grade_distribution": {
+    "A": 8,
+    "B": 2,
+    "C": 0,
+    "D": 0,
+    "F": 0
+  },
+  "summary": {
+    "total_stablecoins": 10,
+    "depegged_count": 0,
+    "max_deviation_bps": 22.0,
+    "worst_symbol": "GHO",
+    "safest_symbol": "USDS"
+  },
+  "advisory": "For informational purposes only."
+}
