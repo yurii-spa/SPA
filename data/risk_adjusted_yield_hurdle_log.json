@@ -1,0 +1,1267 @@
+[
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 12.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": 8.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 1000000000.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 100.0,
+    "classification": "GENEROUS_PREMIUM",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT",
+      "GENEROUS_PREMIUM"
+    ],
+    "recommendations": [
+      "Generous premium: the offered ~12.00% clears the ~4.00% risk-adjusted hurdle by ~8.00pp. The yield is well compensated for the priced tail-loss risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450558.3129451
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 100.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 100.0,
+    "risk_adjusted_apr_pct": -88.0,
+    "required_hurdle_apr_pct": 104.0,
+    "excess_over_hurdle_pct": -92.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 0.08,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.8,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~12.00% falls far short of the ~104.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~100.00pp the yield is ~-88.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450558.3142805
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": -5.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": -5.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -9.0,
+    "risk_premium_earned_pct": -9.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~-5.00% falls far short of the ~4.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~0.00pp the yield is ~-5.00% \u2014 expected loss exceeds the offered APR.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450558.3152473
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.001,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.001,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -3.999,
+    "risk_premium_earned_pct": -3.999,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 20.0,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~0.00% falls ~4.00pp short of the ~4.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450558.3165474
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450558.3742118
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450558.376758
+  },
+  {
+    "name": "Exotic farm (risky)",
+    "offered_apr_pct": 14.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 15.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 15.0,
+    "risk_adjusted_apr_pct": -1.0,
+    "required_hurdle_apr_pct": 19.0,
+    "excess_over_hurdle_pct": -5.0,
+    "risk_premium_earned_pct": 10.0,
+    "risk_premium_coverage_ratio": 0.6666666666666666,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 6.666666666666666,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~14.00% falls ~5.00pp short of the ~19.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~15.00pp the yield is ~-1.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450558.3782704
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 12.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": 8.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 1000000000.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 100.0,
+    "classification": "GENEROUS_PREMIUM",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT",
+      "GENEROUS_PREMIUM"
+    ],
+    "recommendations": [
+      "Generous premium: the offered ~12.00% clears the ~4.00% risk-adjusted hurdle by ~8.00pp. The yield is well compensated for the priced tail-loss risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450563.0618653
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 100.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 100.0,
+    "risk_adjusted_apr_pct": -88.0,
+    "required_hurdle_apr_pct": 104.0,
+    "excess_over_hurdle_pct": -92.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 0.08,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.8,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~12.00% falls far short of the ~104.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~100.00pp the yield is ~-88.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450563.0639994
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": -5.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": -5.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -9.0,
+    "risk_premium_earned_pct": -9.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~-5.00% falls far short of the ~4.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~0.00pp the yield is ~-5.00% \u2014 expected loss exceeds the offered APR.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450563.065925
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.001,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.001,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -3.999,
+    "risk_premium_earned_pct": -3.999,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 20.0,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~0.00% falls ~4.00pp short of the ~4.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450563.0678942
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450563.1336665
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450563.135964
+  },
+  {
+    "name": "Exotic farm (risky)",
+    "offered_apr_pct": 14.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 15.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 15.0,
+    "risk_adjusted_apr_pct": -1.0,
+    "required_hurdle_apr_pct": 19.0,
+    "excess_over_hurdle_pct": -5.0,
+    "risk_premium_earned_pct": 10.0,
+    "risk_premium_coverage_ratio": 0.6666666666666666,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 6.666666666666666,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~14.00% falls ~5.00pp short of the ~19.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~15.00pp the yield is ~-1.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450563.137746
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450564.1501186
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450564.1525416
+  },
+  {
+    "name": "Exotic farm (risky)",
+    "offered_apr_pct": 14.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 15.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 15.0,
+    "risk_adjusted_apr_pct": -1.0,
+    "required_hurdle_apr_pct": 19.0,
+    "excess_over_hurdle_pct": -5.0,
+    "risk_premium_earned_pct": 10.0,
+    "risk_premium_coverage_ratio": 0.6666666666666666,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 6.666666666666666,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~14.00% falls ~5.00pp short of the ~19.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~15.00pp the yield is ~-1.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450564.1548264
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 12.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": 8.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 1000000000.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 100.0,
+    "classification": "GENEROUS_PREMIUM",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT",
+      "GENEROUS_PREMIUM"
+    ],
+    "recommendations": [
+      "Generous premium: the offered ~12.00% clears the ~4.00% risk-adjusted hurdle by ~8.00pp. The yield is well compensated for the priced tail-loss risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450729.0266197
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 100.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 100.0,
+    "risk_adjusted_apr_pct": -88.0,
+    "required_hurdle_apr_pct": 104.0,
+    "excess_over_hurdle_pct": -92.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 0.08,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.8,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~12.00% falls far short of the ~104.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~100.00pp the yield is ~-88.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450729.0300252
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": -5.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": -5.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -9.0,
+    "risk_premium_earned_pct": -9.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~-5.00% falls far short of the ~4.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~0.00pp the yield is ~-5.00% \u2014 expected loss exceeds the offered APR.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450729.0323925
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.001,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.001,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -3.999,
+    "risk_premium_earned_pct": -3.999,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 20.0,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~0.00% falls ~4.00pp short of the ~4.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450729.0346763
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450729.0901568
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450729.093601
+  },
+  {
+    "name": "Exotic farm (risky)",
+    "offered_apr_pct": 14.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 15.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 15.0,
+    "risk_adjusted_apr_pct": -1.0,
+    "required_hurdle_apr_pct": 19.0,
+    "excess_over_hurdle_pct": -5.0,
+    "risk_premium_earned_pct": 10.0,
+    "risk_premium_coverage_ratio": 0.6666666666666666,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 6.666666666666666,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~14.00% falls ~5.00pp short of the ~19.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~15.00pp the yield is ~-1.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450729.096136
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 12.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": 8.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 1000000000.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 100.0,
+    "classification": "GENEROUS_PREMIUM",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT",
+      "GENEROUS_PREMIUM"
+    ],
+    "recommendations": [
+      "Generous premium: the offered ~12.00% clears the ~4.00% risk-adjusted hurdle by ~8.00pp. The yield is well compensated for the priced tail-loss risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450777.3953032
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 12.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 100.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 100.0,
+    "risk_adjusted_apr_pct": -88.0,
+    "required_hurdle_apr_pct": 104.0,
+    "excess_over_hurdle_pct": -92.0,
+    "risk_premium_earned_pct": 8.0,
+    "risk_premium_coverage_ratio": 0.08,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.8,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~12.00% falls far short of the ~104.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~100.00pp the yield is ~-88.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450777.398301
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": -5.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": -5.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -9.0,
+    "risk_premium_earned_pct": -9.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Negative premium: the offered ~-5.00% falls far short of the ~4.00% hurdle. The yield does not compensate for the tail-loss risk; consider avoiding.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~0.00pp the yield is ~-5.00% \u2014 expected loss exceeds the offered APR.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450777.4008417
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.001,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.001,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -3.999,
+    "risk_premium_earned_pct": -3.999,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 20.0,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~0.00% falls ~4.00pp short of the ~4.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450777.4029412
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450777.455034
+  },
+  {
+    "name": "Blue-chip stable lending (safe)",
+    "offered_apr_pct": 9.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 1.0,
+    "loss_given_event_pct": 50.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.5,
+    "risk_adjusted_apr_pct": 8.5,
+    "required_hurdle_apr_pct": 4.5,
+    "excess_over_hurdle_pct": 4.5,
+    "risk_premium_earned_pct": 5.0,
+    "risk_premium_coverage_ratio": 10.0,
+    "clears_hurdle": true,
+    "hurdle_clearance_score": 95.0,
+    "classification": "ADEQUATE",
+    "grade": "A",
+    "flags": [
+      "CLEARS_HURDLE"
+    ],
+    "recommendations": [
+      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
+    ],
+    "timestamp": 1781450777.4580648
+  },
+  {
+    "name": "Exotic farm (risky)",
+    "offered_apr_pct": 14.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 15.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 15.0,
+    "risk_adjusted_apr_pct": -1.0,
+    "required_hurdle_apr_pct": 19.0,
+    "excess_over_hurdle_pct": -5.0,
+    "risk_premium_earned_pct": 10.0,
+    "risk_premium_coverage_ratio": 0.6666666666666666,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 6.666666666666666,
+    "classification": "INADEQUATE",
+    "grade": "F",
+    "flags": [
+      "BELOW_HURDLE",
+      "NEGATIVE_RISK_ADJUSTED_YIELD",
+      "HIGH_LOSS_PROBABILITY",
+      "TOTAL_LOSS_GIVEN_EVENT"
+    ],
+    "recommendations": [
+      "Inadequate premium: the offered ~14.00% falls ~5.00pp short of the ~19.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
+      "Negative risk-adjusted yield: after the expected annual loss of ~15.00pp the yield is ~-1.00% \u2014 expected loss exceeds the offered APR.",
+      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
+      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
+    ],
+    "timestamp": 1781450777.4607725
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452956.8754601
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452956.996991
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452957.038711
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452957.079604
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452957.119124
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452957.159777
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452957.200397
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781452957.2402
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.293482
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.432529
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.474803
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.518441
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.561242
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.604039
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.648263
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1781456587.693354
+  }
+]
