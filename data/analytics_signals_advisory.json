@@ -1,0 +1,301 @@
+{
+  "_meta": {
+    "timestamp": "2026-06-14T17:03:07.724506Z",
+    "tier": "B",
+    "ttl_s": 3600,
+    "module_count": 396
+  },
+  "generated_at": "2026-06-14T17:03:07.724507Z",
+  "protocols": {
+    "aave_v3": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "compound_v3": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "morpho_blue": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "yearn_v3": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "euler_v2": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "maple": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "pendle": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "spark_susds": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    }
+  },
+  "signals": {
+    "aave_v3": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "compound_v3": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "morpho_blue": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "yearn_v3": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "euler_v2": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "maple": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "pendle": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    },
+    "spark_susds": {
+      "composite_risk_0_100": 49.29,
+      "risk_multiplier": 1.0071,
+      "confidence": 0.0051,
+      "modules_ok": 2,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        }
+      ]
+    }
+  }
+}
