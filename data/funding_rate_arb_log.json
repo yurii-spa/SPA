@@ -1,0 +1,2222 @@
+[
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Morpho + short perp on Hyperliquid. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.1894815
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -149.905,
+    "timestamp": 1781384852.1943352
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 15.0,
+        "gross_spread_pct": 6.9,
+        "net_spread_pct": 3.25,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 267.123288,
+        "annualized_return_pct": 3.25,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 3.2% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 3.25,
+    "timestamp": 1781384852.1992307
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2032983
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2072313
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2119887
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2171605
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2213037
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2260077
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2302396
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2363877
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2415547
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2459023
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2508717
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": -20.0,
+        "gross_spread_pct": 9.05,
+        "net_spread_pct": 9.05,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 743.835616,
+        "annualized_return_pct": 9.05,
+        "is_opportunity": true,
+        "opportunity_type": "SPOT_YIELD_DOMINANT",
+        "risk_note": "Negative funding (-10.9% annual) + spot yield creates short-bias arb."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 9.05,
+    "timestamp": 1781384852.2551632
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": -20.0,
+        "gross_spread_pct": 9.05,
+        "net_spread_pct": 9.05,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 743.835616,
+        "annualized_return_pct": 9.05,
+        "is_opportunity": true,
+        "opportunity_type": "SPOT_YIELD_DOMINANT",
+        "risk_note": "Negative funding (-10.9% annual) + spot yield creates short-bias arb."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 9.05,
+    "timestamp": 1781384852.2609048
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": -20.0,
+        "gross_spread_pct": 9.05,
+        "net_spread_pct": 9.05,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 743.835616,
+        "annualized_return_pct": 9.05,
+        "is_opportunity": true,
+        "opportunity_type": "SPOT_YIELD_DOMINANT",
+        "risk_note": "Negative funding (-10.9% annual) + spot yield creates short-bias arb."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 9.05,
+    "timestamp": 1781384852.2654521
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "LOW",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "MID",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 16.9,
+        "net_spread_pct": 15.683333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 1289.041096,
+        "annualized_return_pct": 15.683333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 15.7% annual."
+      },
+      {
+        "asset": "HIGH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      }
+    ],
+    "best_opportunity": "HIGH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": -28.062778,
+    "timestamp": 1781384852.269988
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "LOW",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "MID",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 16.9,
+        "net_spread_pct": 15.683333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 1289.041096,
+        "annualized_return_pct": 15.683333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 15.7% annual."
+      },
+      {
+        "asset": "HIGH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      }
+    ],
+    "best_opportunity": "HIGH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": -28.062778,
+    "timestamp": 1781384852.2755282
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "LOW",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "MID",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 16.9,
+        "net_spread_pct": 15.683333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 1289.041096,
+        "annualized_return_pct": 15.683333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 15.7% annual."
+      },
+      {
+        "asset": "HIGH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      }
+    ],
+    "best_opportunity": "HIGH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": -28.062778,
+    "timestamp": 1781384852.2802591
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781384852.2855325
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.2896056
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 51.25,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 51.25,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 51.3% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 51.25,
+    "timestamp": 1781384852.2945805
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 51.25,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 51.25,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 51.3% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 51.25,
+    "timestamp": 1781384852.2996194
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.331942
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.337918
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.3430455
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781384852.3474615
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.3610811
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      },
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 65.7,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 62.2,
+        "net_spread_pct": 58.55,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 4812.328767,
+        "annualized_return_pct": 58.55,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 58.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": 53.075,
+    "timestamp": 1781384852.3754833
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.3891003
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 0.0,
+        "spot_lending_apy_pct": 0.0,
+        "gross_spread_pct": 0.0,
+        "net_spread_pct": 0.0,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 0.0,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 0.0% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781384852.4047637
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781384852.4180596
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 10950.0,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 10946.5,
+        "net_spread_pct": 10942.85,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 899412.328767,
+        "annualized_return_pct": 10942.85,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 10942.9% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 10942.85,
+    "timestamp": 1781384852.4309962
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 0.0,
+        "spot_lending_apy_pct": 0.0,
+        "gross_spread_pct": 0.0,
+        "net_spread_pct": 0.0,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 0.0,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 0.0% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781384852.4470758
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "SOL",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "SOL",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.607084
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 15.0,
+        "gross_spread_pct": 6.9,
+        "net_spread_pct": 3.25,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 267.123288,
+        "annualized_return_pct": 3.25,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 3.2% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 3.25,
+    "timestamp": 1781385035.612927
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 15.0,
+        "gross_spread_pct": 6.9,
+        "net_spread_pct": 3.25,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 267.123288,
+        "annualized_return_pct": 3.25,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 3.2% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 3.25,
+    "timestamp": 1781385035.6185308
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.622856
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.6279414
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.632886
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.6370466
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.6421497
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.6464858
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 10.95,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 5.95,
+        "net_spread_pct": 5.95,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 489.041096,
+        "annualized_return_pct": 5.95,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 5.9% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 5.95,
+    "timestamp": 1781385035.651565
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 10.95,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 5.95,
+        "net_spread_pct": 5.95,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 489.041096,
+        "annualized_return_pct": 5.95,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 5.9% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 5.95,
+    "timestamp": 1781385035.6562681
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      },
+      {
+        "asset": "BTC",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 4.8,
+        "gross_spread_pct": -3.705,
+        "net_spread_pct": -149.705,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2050.753425,
+        "annualized_return_pct": -149.705,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": -49.835834,
+    "timestamp": 1781385035.660633
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      },
+      {
+        "asset": "BTC",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 4.8,
+        "gross_spread_pct": -3.705,
+        "net_spread_pct": -149.705,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2050.753425,
+        "annualized_return_pct": -149.705,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": -49.835834,
+    "timestamp": 1781385035.6655655
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      },
+      {
+        "asset": "BTC",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 4.8,
+        "gross_spread_pct": -3.705,
+        "net_spread_pct": -149.705,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2050.753425,
+        "annualized_return_pct": -149.705,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": -49.835834,
+    "timestamp": 1781385035.669722
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      },
+      {
+        "asset": "BTC",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 4.8,
+        "gross_spread_pct": -3.705,
+        "net_spread_pct": -149.705,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2050.753425,
+        "annualized_return_pct": -149.705,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": -49.835834,
+    "timestamp": 1781385035.6746702
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": -58.25,
+        "net_spread_pct": -61.9,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": -5087.671233,
+        "annualized_return_pct": -61.9,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -61.9,
+    "timestamp": 1781385035.6788058
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": -58.25,
+        "net_spread_pct": -61.9,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": -5087.671233,
+        "annualized_return_pct": -61.9,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -61.9,
+    "timestamp": 1781385035.6837792
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -149.905,
+    "timestamp": 1781385035.687987
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -149.905,
+    "timestamp": 1781385035.6930425
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -149.905,
+    "timestamp": 1781385035.6976857
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -149.905,
+    "timestamp": 1781385035.7027647
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 15.0,
+        "gross_spread_pct": 6.9,
+        "net_spread_pct": 3.25,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 267.123288,
+        "annualized_return_pct": 3.25,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 3.2% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 3.25,
+    "timestamp": 1781385035.7074602
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 15.0,
+        "gross_spread_pct": 6.9,
+        "net_spread_pct": 3.25,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 267.123288,
+        "annualized_return_pct": 3.25,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 3.2% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 3.25,
+    "timestamp": 1781385035.7113662
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "A",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -113.405,
+        "execution_cost_annualized_pct": 109.5,
+        "estimated_profit_usd": -3106.986301,
+        "annualized_return_pct": -113.405,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "B",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -15.95,
+        "net_spread_pct": -34.2,
+        "execution_cost_annualized_pct": 18.25,
+        "estimated_profit_usd": -936.986301,
+        "annualized_return_pct": -34.2,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -73.8025,
+    "timestamp": 1781385035.7163022
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "A",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -113.405,
+        "execution_cost_annualized_pct": 109.5,
+        "estimated_profit_usd": -3106.986301,
+        "annualized_return_pct": -113.405,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "B",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -15.95,
+        "net_spread_pct": -34.2,
+        "execution_cost_annualized_pct": 18.25,
+        "estimated_profit_usd": -936.986301,
+        "annualized_return_pct": -34.2,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -73.8025,
+    "timestamp": 1781385035.72026
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7251706
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7293243
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 109.5,
+        "spot_lending_apy_pct": 3.0,
+        "gross_spread_pct": 106.5,
+        "net_spread_pct": 106.5,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 106500.0,
+        "annualized_return_pct": 106.5,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 106.5% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 106.5,
+    "timestamp": 1781385035.7343268
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 109.5,
+        "spot_lending_apy_pct": 3.0,
+        "gross_spread_pct": 106.5,
+        "net_spread_pct": 106.5,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 106500.0,
+        "annualized_return_pct": 106.5,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 106.5% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 106.5,
+    "timestamp": 1781385035.7384474
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 109.5,
+        "spot_lending_apy_pct": 3.0,
+        "gross_spread_pct": 106.5,
+        "net_spread_pct": 106.5,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 106500.0,
+        "annualized_return_pct": 106.5,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 106.5% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 106.5,
+    "timestamp": 1781385035.7432787
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Morpho + short perp on Hyperliquid. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7474482
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": -149.905,
+    "timestamp": 1781385035.7523472
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 15.0,
+        "gross_spread_pct": 6.9,
+        "net_spread_pct": 3.25,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 267.123288,
+        "annualized_return_pct": 3.25,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 3.2% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 3.25,
+    "timestamp": 1781385035.7570364
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.760951
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.765208
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7697759
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.774696
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.778717
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7837112
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7877424
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7924767
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.7965546
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.8010767
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.8051856
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": -20.0,
+        "gross_spread_pct": 9.05,
+        "net_spread_pct": 9.05,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 743.835616,
+        "annualized_return_pct": 9.05,
+        "is_opportunity": true,
+        "opportunity_type": "SPOT_YIELD_DOMINANT",
+        "risk_note": "Negative funding (-10.9% annual) + spot yield creates short-bias arb."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 9.05,
+    "timestamp": 1781385035.8102643
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": -20.0,
+        "gross_spread_pct": 9.05,
+        "net_spread_pct": 9.05,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 743.835616,
+        "annualized_return_pct": 9.05,
+        "is_opportunity": true,
+        "opportunity_type": "SPOT_YIELD_DOMINANT",
+        "risk_note": "Negative funding (-10.9% annual) + spot yield creates short-bias arb."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 9.05,
+    "timestamp": 1781385035.8152468
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": -10.95,
+        "spot_lending_apy_pct": -20.0,
+        "gross_spread_pct": 9.05,
+        "net_spread_pct": 9.05,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 743.835616,
+        "annualized_return_pct": 9.05,
+        "is_opportunity": true,
+        "opportunity_type": "SPOT_YIELD_DOMINANT",
+        "risk_note": "Negative funding (-10.9% annual) + spot yield creates short-bias arb."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 9.05,
+    "timestamp": 1781385035.819628
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "LOW",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "MID",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 16.9,
+        "net_spread_pct": 15.683333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 1289.041096,
+        "annualized_return_pct": 15.683333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 15.7% annual."
+      },
+      {
+        "asset": "HIGH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      }
+    ],
+    "best_opportunity": "HIGH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": -28.062778,
+    "timestamp": 1781385035.8246832
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "LOW",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "MID",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 16.9,
+        "net_spread_pct": 15.683333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 1289.041096,
+        "annualized_return_pct": 15.683333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 15.7% annual."
+      },
+      {
+        "asset": "HIGH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      }
+    ],
+    "best_opportunity": "HIGH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": -28.062778,
+    "timestamp": 1781385035.8289099
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "LOW",
+        "perp_funding_annualized_pct": 1.095,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": -3.905,
+        "net_spread_pct": -149.905,
+        "execution_cost_annualized_pct": 146.0,
+        "estimated_profit_usd": -2053.493151,
+        "annualized_return_pct": -149.905,
+        "is_opportunity": false,
+        "opportunity_type": "NEGATIVE",
+        "risk_note": "Spread is negative. Not profitable at current rates."
+      },
+      {
+        "asset": "MID",
+        "perp_funding_annualized_pct": 21.9,
+        "spot_lending_apy_pct": 5.0,
+        "gross_spread_pct": 16.9,
+        "net_spread_pct": 15.683333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 1289.041096,
+        "annualized_return_pct": 15.683333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 15.7% annual."
+      },
+      {
+        "asset": "HIGH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 50.033333,
+        "execution_cost_annualized_pct": 1.216667,
+        "estimated_profit_usd": 4112.328767,
+        "annualized_return_pct": 50.033333,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 50.0% annual."
+      }
+    ],
+    "best_opportunity": "HIGH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": -28.062778,
+    "timestamp": 1781385035.8337562
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.8381748
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.8432279
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 51.25,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 51.25,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 51.3% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 51.25,
+    "timestamp": 1781385035.8482034
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 51.25,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 51.25,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 51.3% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 51.25,
+    "timestamp": 1781385035.8523788
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.8853374
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.8899186
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.8951774
+  },
+  {
+    "opportunities": [],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.9000914
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.9042196
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      },
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 65.7,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 62.2,
+        "net_spread_pct": 58.55,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 4812.328767,
+        "annualized_return_pct": 58.55,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 58.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 2,
+    "average_net_spread_pct": 53.075,
+    "timestamp": 1781385035.9091256
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.9132276
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 0.0,
+        "spot_lending_apy_pct": 0.0,
+        "gross_spread_pct": 0.0,
+        "net_spread_pct": 0.0,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 0.0,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 0.0% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.918216
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 54.75,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 51.25,
+        "net_spread_pct": 47.6,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 3912.328767,
+        "annualized_return_pct": 47.6,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 47.6% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 47.6,
+    "timestamp": 1781385035.9231527
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 10950.0,
+        "spot_lending_apy_pct": 3.5,
+        "gross_spread_pct": 10946.5,
+        "net_spread_pct": 10942.85,
+        "execution_cost_annualized_pct": 3.65,
+        "estimated_profit_usd": 899412.328767,
+        "annualized_return_pct": 10942.85,
+        "is_opportunity": true,
+        "opportunity_type": "FUNDING_RATE_ARB",
+        "risk_note": "Delta-neutral: long spot on Aave + short perp on dYdX. Net 10942.9% annual."
+      }
+    ],
+    "best_opportunity": "ETH",
+    "total_viable_opportunities": 1,
+    "average_net_spread_pct": 10942.85,
+    "timestamp": 1781385035.927384
+  },
+  {
+    "opportunities": [
+      {
+        "asset": "ETH",
+        "perp_funding_annualized_pct": 0.0,
+        "spot_lending_apy_pct": 0.0,
+        "gross_spread_pct": 0.0,
+        "net_spread_pct": 0.0,
+        "execution_cost_annualized_pct": 0.0,
+        "estimated_profit_usd": 0.0,
+        "annualized_return_pct": 0.0,
+        "is_opportunity": false,
+        "opportunity_type": "NEUTRAL",
+        "risk_note": "Spread 0.0% below 5.0% minimum threshold."
+      }
+    ],
+    "best_opportunity": null,
+    "total_viable_opportunities": 0,
+    "average_net_spread_pct": 0.0,
+    "timestamp": 1781385035.931474
+  }
+]
