@@ -210,8 +210,14 @@ ok "Агенты обновлены"
 echo ""
 echo "── Статус агентов ─────────────────────────────────────"
 launchctl list 2>/dev/null | grep "com.spa" | awk '{
-  status = ($1 == "-") ? "⏸ IDLE" : ($1 == "0" ? "✅ OK" : "❌ ERR("$1")")
-  printf "  %-40s %s\n", $3, status
+  if ($1 != "-") {
+    status = "✅ RUNNING (pid=" $1 ")"
+  } else if ($2 == "0") {
+    status = "⏸ IDLE"
+  } else {
+    status = "❌ CRASHED (exit=" $2 ")"
+  }
+  printf "  %-44s %s\n", $3, status
 }' | sort
 
 echo ""
