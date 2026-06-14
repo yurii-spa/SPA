@@ -6,8 +6,8 @@
     "euler_v2": 0.070401,
     "maple": 0.21614
   },
-  "expected_apy": 4.1931,
-  "expected_sharpe": 1.2444,
+  "expected_apy": 4.193,
+  "expected_sharpe": 1.244,
   "backtest_return": 0.3452,
   "backtest_days": 30,
   "improvements": [
@@ -26,7 +26,7 @@
       "id": "aave_v3",
       "weight": 0.2365,
       "weight_pct": 23.65,
-      "apy": 3.1268,
+      "apy": 3.1262,
       "tier": "T1"
     },
     {
@@ -51,8 +51,8 @@
       "tier": "T2"
     }
   ],
-  "objective_score": 4.058309,
-  "timestamp": "2026-06-14T17:03:21.453244+00:00",
-  "generated_at": "2026-06-14T17:03:21.453424+00:00",
+  "objective_score": 4.058167,
+  "timestamp": "2026-06-14T18:34:05.309137+00:00",
+  "generated_at": "2026-06-14T18:34:05.309300+00:00",
   "note": "Предложение тюнера — только для информации. Применяется вручную после review (MP-207)."
 }
