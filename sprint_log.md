@@ -649,3 +649,24 @@
 
 **Total sprint tests:** 240 (all green) | **Push:** `bash scripts/push_v818.sh`
 **Note:** Self-authored vault-capacity код-спринт — готовых задач type=code/status=ready в backlog не было (только USER ACTION P0–P2: MP-017/UA-004/UA-006/MP-313/MP-379 + P3 features + LOW ideas). Оба модуля закрывают реальные пробелы (gap-check грепом: deposit_cap=0, depositor_concentration=0) и дополняют capacity/exit-risk-сторону стека: один — лимит депозитов и дилюция при входе, другой — концентрация депозиторов и риск массового выхода. Architect review: последний завершённый спринт v8.17 не кратен 5 по minor → отдельный architect review не требуется; `spa_core.dev_agents.architect` в любом случае недоступен в sandbox (anthropic/api.github.com/Keychain недоступны) → выполнен ручной gap/backlog-review. Оба модуля зарегистрированы в `_module_registry.py` Tier-B (новая category=vault_capacity, weight=0.5; B=400→402). KANBAN: sprint_completed v8.17→v8.18, done MP-1154/MP-1155 добавлены, done_count 852→854. push_to_github.py НЕ запускался (sandbox); создан только `scripts/push_v818.sh` для ручного запуска на Mac (PAT fallback: Keychain→GITHUB_PAT_SPA→SPA_GITHUB_PAT→~/.github_pat, без hardcoded секретов).
+
+## v8.19 — 2026-06-14
+
+### MP-1156: DeFiProtocolVaultShareInflationAttackExposureAnalyzer (`spa_core/analytics/defi_protocol_vault_share_inflation_attack_exposure_analyzer.py`)
+- Advisory/read-only: подверженность ERC-4626 волта классической атаке share-inflation / first-depositor donation. Угол: «крошечный share supply + нет защиты → мой депозит округлится в 0 шар и будет фактически украден».
+- Вход: `vault`/`token`, `total_shares`, `total_assets_usd`, `has_virtual_shares` (default False), `dead_shares_burned` (default 0), `decimals_offset` (default 0), `intended_deposit_usd` (default 0).
+- Метрики: `share_price_usd` (sentinel при нулевом supply), `effective_protection` (virtual-shares ИЛИ decimals_offset>=3 ИЛИ dead_shares>=1000), `donation_to_inflate_usd`, `rounding_loss_shares_pct`, `vulnerability_score` (выше=безопаснее).
+- classification WELL_PROTECTED/LOW_RISK/MODERATE_RISK/HIGH_RISK (+ INSUFFICIENT_DATA); recommendation DEPLOY/DEPLOY_CAUTIOUSLY/AVOID; grade A–F; флаги WELL_PROTECTED, HAS_VIRTUAL_SHARES, DEAD_SHARES_BUFFER, DECIMALS_OFFSET_PROTECTION, TINY_SHARE_SUPPLY, NO_INFLATION_PROTECTION, HIGH_ROUNDING_LOSS_RISK.
+- `analyze` + `analyze_portfolio` (most/least_vulnerable_vault, avg_vulnerability_score, high_risk_count, position_count) + класс-обёртка. Чистый stdlib, read-only/advisory, атомарный ring-buffer лог, без inf/NaN. Новая категория vault_safety.
+- **137 tests green**
+
+### MP-1157: DeFiProtocolVaultIdleCashDragAnalyzer (`spa_core/analytics/defi_protocol_vault_idle_cash_drag_analyzer.py`)
+- Advisory/read-only: какая доля TVL волта лежит idle (незадействованный буфер) и какой APY-drag это создаёт. Угол: «idle капитал не приносит дохода → realized APY ниже strategy APY, насколько буфер избыточен?».
+- Вход: `vault`/`token`, `total_tvl_usd`, `idle_cash_usd` (default 0), `deployed_usd` (default 0; idle=tvl-deployed если idle не задан), `strategy_apr_pct` (default 0), `target_buffer_pct` (default 5.0).
+- Метрики: `idle_pct`/`deployed_pct`, `effective_apr_pct` (только на deployed), `apr_drag_pct`, `excess_idle_pct` (idle сверх target buffer), `recoverable_apr_pct`, `efficiency_score` (выше=лучше).
+- classification FULLY_DEPLOYED/LEAN_BUFFER/HEAVY_BUFFER/MOSTLY_IDLE (+ INSUFFICIENT_DATA); recommendation DEPLOY/DEPLOY_CAUTIOUSLY/AVOID; grade A–F; флаги FULLY_DEPLOYED, CAPITAL_EFFICIENT, EXCESS_IDLE_CASH, HEAVY_BUFFER, MOSTLY_IDLE, ZERO_STRATEGY_YIELD.
+- `analyze` + `analyze_portfolio` (most/least_idle_vault, avg_efficiency_score, mostly_idle_count, position_count) + класс-обёртка. Чистый stdlib, read-only/advisory, атомарный ring-buffer лог, без inf/NaN. Новая категория capital_efficiency.
+- **129 tests green**
+
+**Total sprint tests:** 266 (all green) | **Push:** `bash scripts/push_v819.sh`
+**Note:** Self-authored vault-safety/capital-efficiency код-спринт — готовых задач type=code/status=ready в backlog не было (только USER ACTION P0–P2: MP-017/UA-004/UA-006/MP-313/MP-379 и AGENT-P0/P1-* type=agent_infra, требующие git/launchd/keychain на Mac — недоступно из sandbox).
