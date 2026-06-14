@@ -1,0 +1,48 @@
+[
+  {
+    "ts": "2026-06-14T17:18:57.317324+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_efficient_position": "USDC-Aave",
+      "least_efficient_position": "DustFarm",
+      "avg_capital_efficiency_score": 44.54,
+      "dust_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Aave",
+        "classification": "HIGHLY_PROFITABLE",
+        "capital_efficiency_score": 99.12,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "CLEARS_HURDLE",
+          "FAST_BREAKEVEN"
+        ]
+      },
+      {
+        "token": "DustFarm",
+        "classification": "DUST",
+        "capital_efficiency_score": 10.0,
+        "recommendation": "DEPLOY_LARGER",
+        "flags": [
+          "BELOW_MIN_SIZE",
+          "DUST_POSITION",
+          "HIGH_GAS_DRAG",
+          "LONG_BREAKEVEN",
+          "UNPROFITABLE_AT_HORIZON"
+        ]
+      },
+      {
+        "token": "BelowHurdle",
+        "classification": "UNPROFITABLE",
+        "capital_efficiency_score": 24.5,
+        "recommendation": "SKIP",
+        "flags": [
+          "NEGATIVE_SPREAD",
+          "UNPROFITABLE_AT_HORIZON"
+        ]
+      }
+    ]
+  }
+]
