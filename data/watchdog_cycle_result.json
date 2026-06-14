@@ -1,6 +1,6 @@
 {
   "status": "ok",
-  "ts": "2026-06-14T17:03:20.927401+00:00",
+  "ts": "2026-06-14T18:34:04.768834+00:00",
   "adapters_checked": 7,
   "adapters_unhealthy": 7,
   "unhealthy_adapters": [
@@ -13,43 +13,43 @@
     "pendle"
   ],
   "restarts_attempted": 7,
-  "restarts_succeeded": 7,
-  "restarts_rate_limited": 0,
+  "restarts_succeeded": 0,
+  "restarts_rate_limited": 7,
   "restart_details": [
     {
       "adapter": "aave_v3",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     },
     {
       "adapter": "compound_v3",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     },
     {
       "adapter": "morpho_blue",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     },
     {
       "adapter": "yearn_v3",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     },
     {
       "adapter": "euler_v2",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     },
     {
       "adapter": "maple",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     },
     {
       "adapter": "pendle",
-      "restarted": true,
-      "reason": "restart_triggered: count 2/3"
+      "restarted": false,
+      "reason": "rate_limited: 3/3 restarts in hour 2026-06-14T18"
     }
   ]
 }
