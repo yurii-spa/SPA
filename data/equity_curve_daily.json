@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T17:03:07.199798+00:00",
+  "generated_at": "2026-06-14T18:33:51.460432+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
@@ -116,12 +116,12 @@
       "high_equity": 100047.72,
       "low_equity": 100036.91,
       "snapshots": 1,
-      "daily_return_pct": 0.010811,
-      "cumulative_return_pct": 0.047725,
+      "daily_return_pct": 0.01081,
+      "cumulative_return_pct": 0.047724,
       "drawdown_pct": 0.0,
       "equity": 100047.72,
-      "apy_today": 3.9455,
-      "daily_yield_usd": 10.8148,
+      "apy_today": 3.9454,
+      "daily_yield_usd": 10.8144,
       "positions": {
         "aave_v3": 23750.0,
         "compound_v3": 38000.0,
