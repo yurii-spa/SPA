@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    L2 — Uptime Monitor (каждые 5 минут)
+    Module: spa_core/monitoring/uptime_monitor.py
+    Функция: проверяет launchd-сервисы, HTTP-сервер (port 8765),
+             свежесть цикла (<2h), последний git-push (<3h).
+    Пишет:   data/uptime_status.json  (atomic)
+    Exit:    0 = all_ok, 1 = degraded
+    CLI:     python3 -m spa_core.monitoring.uptime_monitor
+    Установка:
+      cp scripts/com.spa.uptime_monitor.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.uptime_monitor.plist
+    -->
+
+    <key>Label</key>
+    <string>com.spa.uptime_monitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.monitoring.uptime_monitor</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Не запускать повторно если предыдущий ещё не завершился -->
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_uptime_monitor.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_uptime_monitor_err.log</string>
+</dict>
+</plist>
