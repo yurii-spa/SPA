@@ -1,16 +1,16 @@
 {
   "_meta": {
-    "timestamp": "2026-06-14T17:03:07.724506Z",
+    "timestamp": "2026-06-14T18:03:36.274364Z",
     "tier": "B",
     "ttl_s": 3600,
-    "module_count": 396
+    "module_count": 398
   },
-  "generated_at": "2026-06-14T17:03:07.724507Z",
+  "generated_at": "2026-06-14T18:03:36.274366Z",
   "protocols": {
     "aave_v3": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -28,7 +28,7 @@
     "compound_v3": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -46,7 +46,7 @@
     "morpho_blue": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -64,7 +64,7 @@
     "yearn_v3": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -82,7 +82,7 @@
     "euler_v2": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -100,7 +100,7 @@
     "maple": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -118,7 +118,7 @@
     "pendle": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -136,7 +136,7 @@
     "spark_susds": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -156,7 +156,7 @@
     "aave_v3": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -174,7 +174,7 @@
     "compound_v3": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -192,7 +192,7 @@
     "morpho_blue": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -210,7 +210,7 @@
     "yearn_v3": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -228,7 +228,7 @@
     "euler_v2": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -246,7 +246,7 @@
     "maple": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -264,7 +264,7 @@
     "pendle": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
@@ -282,7 +282,7 @@
     "spark_susds": {
       "composite_risk_0_100": 49.29,
       "risk_multiplier": 1.0071,
-      "confidence": 0.0051,
+      "confidence": 0.005,
       "modules_ok": 2,
       "top_contributors": [
         {
