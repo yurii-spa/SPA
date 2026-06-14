@@ -1,0 +1,54 @@
+[
+  {
+    "ts": "2026-06-14T17:18:57.334134+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_reliable_vault": "yvUSDC",
+      "least_reliable_vault": "StalledVault",
+      "avg_reliability_score": 62.08,
+      "stalled_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "yvUSDC",
+        "classification": "HIGHLY_RELIABLE",
+        "reliability_score": 98.69,
+        "is_stale": false,
+        "flags": [
+          "FRESH_HARVEST",
+          "HIGH_COMPLETION",
+          "DECENTRALIZED_KEEPER"
+        ]
+      },
+      {
+        "token": "StalledVault",
+        "classification": "STALLED",
+        "reliability_score": 18.33,
+        "is_stale": true,
+        "flags": [
+          "SEVERELY_STALE",
+          "STALE_HARVEST",
+          "MISSED_HARVESTS",
+          "SIGNIFICANT_APY_DRAG",
+          "CENTRALIZED_KEEPER",
+          "NO_HARVEST_INCENTIVE",
+          "STALLED"
+        ]
+      },
+      {
+        "token": "ManualVault",
+        "classification": "DEGRADED",
+        "reliability_score": 69.23,
+        "is_stale": true,
+        "flags": [
+          "STALE_HARVEST",
+          "MISSED_HARVESTS",
+          "SIGNIFICANT_APY_DRAG",
+          "CENTRALIZED_KEEPER",
+          "NO_HARVEST_INCENTIVE"
+        ]
+      }
+    ]
+  }
+]
