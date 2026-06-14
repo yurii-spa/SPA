@@ -2,24 +2,46 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!--
+    L1 PERSISTENT DAEMON — HTTP/API Dashboard Server (port 8765)
+    Module: spa_core/family_fund/http_server.py
+    Функция: локальный HTTP-сервер дашборда для инвесторского портала.
+             pure stdlib TCP, read-only по капиталу.
+    Установка:
+      cp scripts/com.spa.httpserver.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.httpserver.plist
+    Проверка:
+      launchctl list | grep com.spa.httpserver
+      curl -s http://localhost:8765/api/status | python3 -m json.tool
+    -->
+
     <key>Label</key>
     <string>com.spa.httpserver</string>
+
     <key>ProgramArguments</key>
     <array>
         <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>-m</string>
-        <string>http.server</string>
-        <string>8765</string>
-        <string>--directory</string>
-        <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+        <string>spa_core.family_fund.http_server</string>
     </array>
-    <key>RunAtLoad</key>
-    <true/>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- L1: перезапуск при аварийном завершении -->
     <key>KeepAlive</key>
     <true/>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Не рестартовать чаще раза в 30 сек (защита от crash loop) -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
     <key>StandardOutPath</key>
-    <string>/tmp/spa_http.log</string>
+    <string>/tmp/spa_httpserver.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/spa_http.err</string>
+    <string>/tmp/spa_httpserver_err.log</string>
 </dict>
 </plist>
