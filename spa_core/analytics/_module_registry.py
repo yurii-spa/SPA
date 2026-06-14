@@ -428,6 +428,8 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_emergency_withdrawal_pause_risk_analyzer', "class": 'DeFiProtocolEmergencyWithdrawalPauseRiskAnalyzer', "tier": 'B', "category": 'exit_liquidity', "weight": 0.55, "protocols": ['all']},
     {"module": 'defi_protocol_minimum_profitable_position_size_analyzer', "class": 'DeFiProtocolMinimumProfitablePositionSizeAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_autocompound_keeper_reliability_analyzer', "class": 'DeFiProtocolAutoCompoundKeeperReliabilityAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_performance_fee_high_water_mark_analyzer', "class": 'DeFiProtocolPerformanceFeeHighWaterMarkAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_performance_fee_crystallization_frequency_analyzer', "class": 'DeFiProtocolPerformanceFeeCrystallizationFrequencyAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
