@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    L2 — Red Flag Monitor (каждые 5 минут)
+    Module: spa_core/alerts/red_flag_monitor.py
+    Функция: 4 категории ранних предупреждений из внешних источников:
+             1. tvl_drop    — TVL падение >15% за 24h / >30% за 7d (DeFiLlama)
+             2. apy_spike   — текущий APY > 1.5× 7-дневного baseline
+             3. governance  — активные Snapshot-предложения (risk-теги)
+             4. token_unlock — разблокировка токенов в течение 7 дней
+             Severity: CRITICAL (grade C/D протокол) / WARN (grade A/B).
+    Пишет:   data/red_flags.json  (atomic)
+    CLI:     python3 -m spa_core.alerts.red_flag_monitor
+    Внешние API: DeFiLlama, Snapshot (offline-tolerant, никогда не падает)
+    ВАЖНО: красный флаг не блокирует цикл — только advisory Telegram-алерт.
+           Ограничение: 5 мин может быть часто для внешних API.
+           При rate-limit переключить на com.spa.red_flag_monitor_15m (900s).
+    Установка:
+      cp scripts/com.spa.red_flag_monitor.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.red_flag_monitor.plist
+    -->
+
+    <key>Label</key>
+    <string>com.spa.red_flag_monitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.alerts.red_flag_monitor</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Внешние API → throttle 120s чтобы не триггерить rate-limit -->
+    <key>ThrottleInterval</key>
+    <integer>120</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_red_flag_monitor.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_red_flag_monitor_err.log</string>
+</dict>
+</plist>
