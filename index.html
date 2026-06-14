@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPA — Stable Portfolio Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
   // Disable Chart.js animations globally — prevents scroll freeze in Statistics tab
@@ -1233,11 +1236,331 @@
     font-style: italic;
   }
 
+/* ═══════════════════════════════════════════════════
+   SPA DESIGN SYSTEM v1.0 — Nansen/Stripe fund style
+   ═══════════════════════════════════════════════════ */
+:root {
+  --spa-bg:         #0b0c10;
+  --spa-surface:    #13151c;
+  --spa-surface-2:  #1b1e28;
+  --spa-surface-3:  #242838;
+  --spa-border:     rgba(255,255,255,0.07);
+  --spa-border-2:   rgba(255,255,255,0.13);
+  --spa-text:       #e2e4ec;
+  --spa-text-2:     #9ca3af;
+  --spa-text-3:     #5c6370;
+  --spa-accent:     #1ed8a0;
+  --spa-accent-dim: rgba(30,216,160,0.10);
+  --spa-pos:        #1ed8a0;
+  --spa-neg:        #f16060;
+  --spa-warn:       #f59e0b;
+  --spa-mono:       'JetBrains Mono', 'Courier New', monospace;
+  --spa-sans:       'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --spa-r:          10px;
+  --spa-r-sm:       6px;
+  --spa-shadow:     0 1px 4px rgba(0,0,0,0.5), 0 6px 20px rgba(0,0,0,0.25);
+}
+
+/* ── Base ── */
+html, body {
+  background: var(--spa-bg) !important;
+  color: var(--spa-text) !important;
+  font-family: var(--spa-sans) !important;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header (div acting as header) ── */
+.spa-header-wrap {
+  background: var(--spa-surface) !important;
+  border-bottom: 1px solid var(--spa-border-2) !important;
+  padding: 0 28px !important;
+  height: 52px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  box-shadow: 0 1px 0 var(--spa-border-2) !important;
+}
+.spa-header-wrap h1 {
+  font-family: var(--spa-sans) !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  letter-spacing: -0.2px !important;
+  color: var(--spa-text) !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* ── PAPER badge in header ── */
+.spa-paper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.30);
+  border-radius: 100px;
+  padding: 3px 10px 3px 8px;
+  font-family: var(--spa-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--spa-warn);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.spa-paper-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--spa-warn);
+  animation: spa-pulse 2s infinite;
+}
+@keyframes spa-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Tab navigation ── */
+.tabs {
+  background: var(--spa-surface) !important;
+  border-bottom: 1px solid var(--spa-border-2) !important;
+  padding: 0 24px !important;
+  display: flex !important;
+  gap: 2px !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+}
+.tabs::-webkit-scrollbar { display: none !important; }
+
+.tab-btn, button[data-tab] {
+  font-family: var(--spa-sans) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--spa-text-2) !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  padding: 14px 16px 12px !important;
+  cursor: pointer !important;
+  transition: color .15s, border-color .15s !important;
+  white-space: nowrap !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+.tab-btn:hover, button[data-tab]:hover {
+  color: var(--spa-text) !important;
+  background: transparent !important;
+}
+.tab-btn.active, button[data-tab].active,
+.tab-btn[aria-selected="true"] {
+  color: var(--spa-text) !important;
+  border-bottom-color: var(--spa-accent) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Cards / surfaces ── */
+.card, .db-card, .metric-card, .panel, .widget,
+[class*="-card"]:not(.spa-paper-badge),
+[class*="-panel"]:not(.spa-paper-badge) {
+  background: var(--spa-surface) !important;
+  border: 1px solid var(--spa-border) !important;
+  border-radius: var(--spa-r) !important;
+  box-shadow: var(--spa-shadow) !important;
+}
+
+/* ── Hero metrics (dominate first screen) ── */
+.spa-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 1px;
+  background: var(--spa-border-2);
+  border: 1px solid var(--spa-border-2);
+  border-radius: var(--spa-r);
+  overflow: hidden;
+  margin: 20px 24px 0;
+}
+.spa-hero-cell {
+  background: var(--spa-surface);
+  padding: 24px 28px;
+}
+.spa-hero-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+  margin-bottom: 8px;
+}
+.spa-hero-value {
+  font-family: var(--spa-mono);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--spa-text);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.spa-hero-value.accent { color: var(--spa-accent); }
+.spa-hero-delta {
+  font-family: var(--spa-mono);
+  font-size: 12px;
+  margin-top: 6px;
+  color: var(--spa-text-3);
+}
+.spa-hero-delta.pos { color: var(--spa-pos); }
+.spa-hero-delta.neg { color: var(--spa-neg); }
+.spa-status-cell {
+  background: var(--spa-surface);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+}
+.spa-go-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--spa-mono);
+  font-size: 20px;
+  font-weight: 600;
+}
+.spa-go-badge.go   { color: var(--spa-pos); }
+.spa-go-badge.nogo { color: var(--spa-neg); }
+.spa-go-badge::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── Numbers: always monospace ── */
+.db-metric-value, .kpi-value, .metric-value,
+td.num, [class*="-value"]:not([class*="label"]):not(button):not(.spa-go-badge):not(.spa-paper-badge),
+.tearsheet-val, .ts-val, .perf-val {
+  font-family: var(--spa-mono) !important;
+  font-variant-numeric: tabular-nums !important;
+  letter-spacing: -0.3px !important;
+}
+
+/* ── Tables ── */
+table { border-collapse: collapse !important; width: 100% !important; }
+thead th {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.6px !important;
+  text-transform: uppercase !important;
+  color: var(--spa-text-3) !important;
+  border-bottom: 1px solid var(--spa-border-2) !important;
+  padding: 8px 12px !important;
+}
+tbody td {
+  font-family: var(--spa-mono) !important;
+  font-size: 13px !important;
+  color: var(--spa-text) !important;
+  border-bottom: 1px solid var(--spa-border) !important;
+  padding: 10px 12px !important;
+  vertical-align: middle !important;
+}
+tbody tr:last-child td { border-bottom: none !important; }
+tbody tr:hover td { background: rgba(255,255,255,0.025) !important; }
+
+/* ── Delta badges ── */
+.delta-pos, .pos, .green, [class*="up"] { color: var(--spa-pos) !important; }
+.delta-neg, .neg, .red,  [class*="dn"] { color: var(--spa-neg) !important; }
+
+/* ── Skeleton loading ── */
+.spa-skeleton {
+  background: linear-gradient(90deg,
+    var(--spa-surface-2) 25%,
+    var(--spa-surface-3) 50%,
+    var(--spa-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: spa-shimmer 1.6s infinite;
+  border-radius: 4px;
+  display: inline-block;
+}
+@keyframes spa-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--spa-border-2); border-radius: 10px; }
+
+/* ── Content area ── */
+.tab-pane, .tab-content { padding: 24px !important; }
+main, .main-content { padding: 0 !important; }
+
+/* ── Buttons ── */
+button:not(.tab-btn):not([data-tab]) {
+  font-family: var(--spa-sans) !important;
+  border-radius: var(--spa-r-sm) !important;
+}
+
+/* ── Inputs ── */
+input, select, textarea {
+  background: var(--spa-surface-2) !important;
+  border: 1px solid var(--spa-border-2) !important;
+  color: var(--spa-text) !important;
+  border-radius: var(--spa-r-sm) !important;
+  font-family: var(--spa-sans) !important;
+  padding: 8px 12px !important;
+}
+
+/* ── Subtitle / misc text ── */
+.subtitle, p.subtitle { color: var(--spa-text-2) !important; font-size: 13px !important; }
+
+/* ── Old hero-strip: hide it (replaced by spa-hero) ── */
+#hero-strip { display: none !important; }
+
+/* ── Data badges in header ── */
+#data-mode-badge, #data-freshness-badge, #live-indicator {
+  font-size: 11px !important;
+  background: var(--spa-surface-2) !important;
+  border: 1px solid var(--spa-border-2) !important;
+  border-radius: 100px !important;
+  color: var(--spa-text-2) !important;
+}
+
+/* ── Lang button ── */
+#lang-btn {
+  background: var(--spa-surface-2) !important;
+  border: 1px solid var(--spa-border-2) !important;
+  color: var(--spa-text-2) !important;
+}
+
+/* ── Footer ── */
+body > div[style*="text-align:center"] {
+  border-top: 1px solid var(--spa-border) !important;
+  color: var(--spa-text-3) !important;
+}
+body > div[style*="text-align:center"] a {
+  color: var(--spa-accent) !important;
+}
+
+/* ── Hero responsive ── */
+@media (max-width: 768px) {
+  .spa-hero {
+    grid-template-columns: 1fr 1fr;
+    margin: 12px 12px 0;
+  }
+  .spa-hero-value { font-size: 24px; }
+  .spa-hero-cell { padding: 16px 18px; }
+}
+
 </style>
 </head>
 <body>
 
-<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+<div class="spa-header-wrap" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
   <h1>Stable Portfolio Agent — SPA</h1>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <div id="data-mode-badge" title="Источник: data/paper_trading_status.json">⏳ mode…</div>
@@ -1245,6 +1568,7 @@
     <div id="live-indicator" style="font-size:11px;color:#9ca3af;padding:4px 10px;background:#f5f4f0;border:1px solid #eee;border-radius:20px;cursor:default" title="Using static JSON files">
       <span style="color:#9ca3af">●</span> Static
     </div>
+    <span class="spa-paper-badge" id="spa-paper-badge">PAPER · VIRTUAL CAPITAL</span>
   </div>
 </div>
 <p class="subtitle" id="ts-subtitle">Project · Loading data... · Strategy v1.0</p>
@@ -1253,8 +1577,33 @@
      (фолбэк: golive_combined_verdict.json). Автообновление каждые 5 минут. -->
 <div id="golive-status-bar"></div>
 
+<!-- SPA HERO v1.0 — fund-style dominant hero -->
+<div class="spa-hero" id="spa-hero-v1">
+  <div class="spa-hero-cell">
+    <div class="spa-hero-label">Equity</div>
+    <div class="spa-hero-value" id="spa-equity">$<span id="spa-equity-num">—</span></div>
+    <div class="spa-hero-delta" id="spa-equity-delta">—</div>
+  </div>
+  <div class="spa-hero-cell">
+    <div class="spa-hero-label">Live APY</div>
+    <div class="spa-hero-value accent" id="spa-apy">—<span style="font-size:20px;font-weight:400">%</span></div>
+    <div class="spa-hero-delta" id="spa-apy-delta">—</div>
+  </div>
+  <div class="spa-hero-cell">
+    <div class="spa-hero-label">Paper Track</div>
+    <div class="spa-hero-value" id="spa-day" style="font-size:28px">Day <span id="spa-day-num">—</span><span style="font-size:16px;color:var(--spa-text-3)">/30</span></div>
+    <div class="spa-hero-delta" id="spa-day-label">накапливается</div>
+  </div>
+  <div class="spa-status-cell">
+    <div class="spa-hero-label">Status</div>
+    <div class="spa-go-badge nogo" id="spa-status">NO_GO</div>
+    <div style="font-size:11px;color:var(--spa-text-3);margin-top:4px;font-family:var(--spa-mono)" id="spa-status-sub">paper trading</div>
+  </div>
+</div>
+<!-- end SPA HERO -->
+
 <!-- TABS v3.0 (Dashboard v3.0 Sprint A) -->
-<!-- FIX-7 P2-2: Hero strip — PAPER badge + live stats -->
+<!-- FIX-7 P2-2: Hero strip — PAPER badge + live stats (hidden by CSS, replaced by spa-hero) -->
 <div id="hero-strip" style="background:#1a1a2e;color:#fff;padding:8px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;border-bottom:1px solid #333;margin-bottom:12px;border-radius:8px">
   <span style="background:#e74c3c;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px">PAPER TRADING · VIRTUAL CAPITAL</span>
   <span>Equity: <b id="hero-equity">$—</b></span>
@@ -1266,12 +1615,12 @@
 <div class="tabs">
   <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
-  <button class="tab-btn"         data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"         data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
-  <button class="tab-btn"         data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
-  <button class="tab-btn"         data-tab="tournament"  onclick="showTab('tournament', this)">🏆 Tournament</button>
+  <button class="tab-btn" style="display:none" data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
+  <button class="tab-btn" style="display:none" data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
+  <button class="tab-btn" style="display:none" data-tab="tournament"  onclick="showTab('tournament', this)">🏆 Tournament</button>
   <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
   <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
   <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
@@ -10723,7 +11072,72 @@ document.addEventListener('DOMContentLoaded', () => {
   initTooltips();
   loadPerformance(); // default tab is Performance Hero
   setLang(IS_PUBLIC ? 'en' : currentLang); // P1-2: always EN on public, else restore from localStorage
+  initSpaHero(); // SPA Hero v1.0
 });
+
+// SPA Hero v1.0 initializer
+async function initSpaHero() {
+  try {
+    const BASE = (typeof STATIC_BASE !== 'undefined') ? STATIC_BASE : './data';
+    // Equity from portfolio_summary
+    const ps = await fetchJSON(BASE + '/portfolio_summary.json').catch(() => null);
+    if (ps) {
+      const eq = ps.total_equity ?? ps.equity ?? ps.total_value ?? null;
+      if (eq != null) {
+        document.getElementById('spa-equity-num').textContent = Number(eq).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+        const prev = ps.prev_equity ?? null;
+        if (prev) {
+          const d = ((eq - prev) / prev * 100).toFixed(2);
+          const el = document.getElementById('spa-equity-delta');
+          el.textContent = (d >= 0 ? '+' : '') + d + '% vs prev';
+          el.className = 'spa-hero-delta ' + (d >= 0 ? 'pos' : 'neg');
+        }
+      }
+    }
+    // APY from tear_sheet
+    const ts = await fetchJSON(BASE + '/tear_sheet.json').catch(() => null);
+    if (ts) {
+      const apy = ts.live_apy ?? ts.current_apy ?? ts.apy ?? null;
+      if (apy != null) {
+        document.getElementById('spa-apy').innerHTML = Number(apy).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
+      }
+    }
+    // Paper trading status for equity fallback
+    const ptStatus = await fetchJSON(BASE + '/paper_trading_status.json').catch(() => null);
+    if (ptStatus && document.getElementById('spa-equity-num').textContent === '—') {
+      const eq2 = ptStatus.portfolio_value ?? ptStatus.total_equity ?? ptStatus.equity ?? null;
+      if (eq2 != null) {
+        document.getElementById('spa-equity-num').textContent = Number(eq2).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+      }
+    }
+    // Day counter from meta.json
+    const meta = await fetchJSON('./data/meta.json').catch(() => null);
+    if (meta && meta.paper_cycle_start) {
+      const start = new Date(meta.paper_cycle_start);
+      const track = meta.track_window_days ?? 30;
+      const dayN = Math.max(1, Math.floor((Date.now() - start.getTime()) / 86400000) + 1);
+      document.getElementById('spa-day-num').textContent = Math.min(dayN, track);
+      const daySpans = document.querySelectorAll('#spa-day span');
+      if (daySpans.length > 1) daySpans[daySpans.length-1].textContent = '/' + track;
+      document.getElementById('spa-day-label').textContent = dayN >= track ? 'track complete' : 'накапливается, день ' + Math.min(dayN,track) + '/' + track;
+    }
+    // GO/NO_GO from golive_status.json
+    const gl = await fetchJSON(BASE + '/golive_status.json').catch(
+      () => fetchJSON(BASE + '/golive_checklist.json').catch(() => null)
+    );
+    if (gl) {
+      const passed = gl.overall_pass ?? gl.go ?? gl.ready ?? false;
+      const passCount = gl.pass_count ?? gl.passed ?? null;
+      const totalCount = gl.total_count ?? gl.total ?? null;
+      const badge = document.getElementById('spa-status');
+      badge.textContent = passed ? 'GO' : 'NO_GO';
+      badge.className = 'spa-go-badge ' + (passed ? 'go' : 'nogo');
+      if (passCount != null && totalCount != null) {
+        document.getElementById('spa-status-sub').textContent = passCount + '/' + totalCount + ' checks';
+      }
+    }
+  } catch(e) { console.warn('SpaHero init error:', e); }
+}
 </script>
 
 <div style="text-align:center;font-size:11px;color:#bbb;margin-top:40px;padding-top:16px;border-top:1px solid #eee">
