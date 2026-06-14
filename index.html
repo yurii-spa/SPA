@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPA — Smart Passive Aggregator</title>
+<title>SPA — Stable Portfolio Agent</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
   // Disable Chart.js animations globally — prevents scroll freeze in Statistics tab
@@ -935,6 +935,7 @@
     z-index: 9999; white-space: normal; text-align: left; font-weight: normal;
   }
   .spa-tip:hover::after { opacity: 1; }
+  .spa-tip.tip-open::after { opacity: 1; visibility: visible; }
 
   /* MP-007: go-live status bar (live from data/golive_status.json) */
   #golive-status-bar { display:none; border-radius:10px; padding:10px 14px; margin:10px 0 14px;
@@ -1195,7 +1196,7 @@
 <body>
 
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-  <h1>Smart Passive Aggregator — SPA</h1>
+  <h1>Stable Portfolio Agent — SPA</h1>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <div id="data-mode-badge" title="Источник: data/paper_trading_status.json">⏳ mode…</div>
     <div id="data-freshness-badge" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default;color:#888" title="Checking data freshness…">⏳ Checking…</div>
@@ -1292,7 +1293,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:600">Performance Dashboard</div>
-      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · Smart Passive Aggregator · Paper Track</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · Stable Portfolio Agent · Paper Track</div>
     </div>
     <button class="refresh-btn" data-i18n="refresh" onclick="loadPerformance()">↻ Refresh</button>
   </div>
@@ -1417,7 +1418,7 @@
   <div class="db-full" style="margin-bottom:18px;border-left:4px solid #185FA5">
     <div class="db-section">🏛 About SPA</div>
     <p style="font-size:13px;color:#444;line-height:1.7;margin-bottom:8px">
-      <strong>SPA (Smart Passive Aggregator)</strong> is an automated DeFi yield optimizer running a verified paper track since 2026-06-10.
+      <strong>SPA (Stable Portfolio Agent)</strong> is an automated DeFi yield optimizer running a verified paper track since 2026-06-10.
       The system allocates $100,000 virtual USDC across audited Ethereum DeFi protocols using a deterministic, LLM-free risk policy (RiskPolicy v1.0).
       All decisions are logged and auditable.
     </p>
@@ -1828,7 +1829,7 @@
   <div class="db-full" id="strategy-race-card">
     <div class="db-section" id="strategy-race-title">🏁 Strategy Race</div>
     <div id="strategy-race-body">
-      <div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Дані збираються…</div>
+      <div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Данные собираются…</div>
     </div>
   </div>
 
@@ -2325,7 +2326,7 @@
   <!-- B5: Strategy Comparison (v0.10) -->
   <div class="an-card" style="margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div class="an-title" style="margin-bottom:0">Стратегії — Порівняння</div>
+      <div class="an-title" style="margin-bottom:0">Стратегии — Сравнение</div>
       <div style="display:flex;gap:6px;align-items:center">
         <span class="compare-badge-v1">v1 Conservative</span>
         <span style="font-size:11px;color:#aaa">vs</span>
@@ -2337,24 +2338,24 @@
     <div class="strat-tabs">
       <button class="strat-tab-btn active" onclick="switchStratTab('v1',this)">v1 Conservative</button>
       <button class="strat-tab-btn" onclick="switchStratTab('v2',this)">v2 Aggressive</button>
-      <button class="strat-tab-btn" onclick="switchStratTab('compare',this)">📊 Порівняти</button>
+      <button class="strat-tab-btn" onclick="switchStratTab('compare',this)">📊 Сравнить</button>
     </div>
 
     <!-- v1 panel -->
     <div id="strat-panel-v1" class="strat-panel">
       <div class="strat-kpi-grid" id="strat-v1-kpis">
-        <div class="strat-kpi"><div class="strat-kpi-label">Доходність</div><div class="strat-kpi-value" id="v1-kpi-ret">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Доходность</div><div class="strat-kpi-value" id="v1-kpi-ret">—</div></div>
         <div class="strat-kpi"><div class="strat-kpi-label">Поточний APY</div><div class="strat-kpi-value" id="v1-kpi-apy">—</div></div>
-        <div class="strat-kpi"><div class="strat-kpi-label">Позицій</div><div class="strat-kpi-value" id="v1-kpi-pos">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Позиций</div><div class="strat-kpi-value" id="v1-kpi-pos">—</div></div>
         <div class="strat-kpi"><div class="strat-kpi-label">Кеш</div><div class="strat-kpi-value" id="v1-kpi-cash">—</div></div>
       </div>
       <div style="overflow-x:auto;margin-top:12px">
         <table class="proto-table">
           <thead><tr>
-            <th>Протокол</th><th>Tier</th><th>Сума ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Днів</th>
+            <th>Протокол</th><th>Tier</th><th>Сумма ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Дней</th>
           </tr></thead>
           <tbody id="strat-v1-tbody">
-            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Завантаження...</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Загрузка...</td></tr>
           </tbody>
         </table>
       </div>
@@ -2363,18 +2364,18 @@
     <!-- v2 panel -->
     <div id="strat-panel-v2" class="strat-panel" style="display:none">
       <div class="strat-kpi-grid" id="strat-v2-kpis">
-        <div class="strat-kpi"><div class="strat-kpi-label">Доходність</div><div class="strat-kpi-value" id="v2-kpi-ret">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Доходность</div><div class="strat-kpi-value" id="v2-kpi-ret">—</div></div>
         <div class="strat-kpi"><div class="strat-kpi-label">Поточний APY</div><div class="strat-kpi-value" id="v2-kpi-apy">—</div></div>
-        <div class="strat-kpi"><div class="strat-kpi-label">Позицій</div><div class="strat-kpi-value" id="v2-kpi-pos">—</div></div>
+        <div class="strat-kpi"><div class="strat-kpi-label">Позиций</div><div class="strat-kpi-value" id="v2-kpi-pos">—</div></div>
         <div class="strat-kpi"><div class="strat-kpi-label">Кеш</div><div class="strat-kpi-value" id="v2-kpi-cash">—</div></div>
       </div>
       <div style="overflow-x:auto;margin-top:12px">
         <table class="proto-table">
           <thead><tr>
-            <th>Протокол</th><th>Tier</th><th>Сума ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Днів</th>
+            <th>Протокол</th><th>Tier</th><th>Сумма ($)</th><th>APY % <span class="spa-tip" data-tip="APY">?</span></th><th>PnL ($) <span class="spa-tip" data-tip="PnL">?</span></th><th>Дней</th>
           </tr></thead>
           <tbody id="strat-v2-tbody">
-            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Завантаження...</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Загрузка...</td></tr>
           </tbody>
         </table>
       </div>
@@ -2391,10 +2392,10 @@
           </tr>
         </thead>
         <tbody id="compare-tbody">
-          <tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Завантаження...</td></tr>
+          <tr><td colspan="3" style="text-align:center;color:#aaa;padding:16px">Загрузка...</td></tr>
         </tbody>
       </table>
-      <div style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">Крива капіталу</div>
+      <div style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">Кривая капитала</div>
       <div style="position:relative;height:200px">
         <canvas id="equity-compare-chart"></canvas>
       </div>
@@ -2809,7 +2810,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:500">Go-Live Readiness Dashboard</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Checklist · Progress · Timeline · 2026-07-15</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Checklist · Progress · Timeline · 2026-08-01</div>
     </div>
     <button class="refresh-btn" onclick="loadGoLive()">↻ Refresh</button>
   </div>
@@ -2846,9 +2847,9 @@
           <div class="day-progress-bar-fill" id="golive-day-fill" style="width:0%"></div>
         </div>
         <div class="day-progress-label">
-          <span>2026-05-20</span>
+          <span>2026-05-20 (paper start)</span>
           <span id="golive-day-today"></span>
-          <span>2026-07-15</span>
+          <span>2026-08-01 (go-live)</span>
         </div>
       </div>
       <div id="golive-rec" style="margin-top:14px;padding:12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#555;border-left:3px solid #ddd;display:none"></div>
@@ -2907,7 +2908,7 @@
       <div style="display:flex;justify-content:space-between;padding:0 60px;position:relative;z-index:1">
         <div style="text-align:center">
           <div style="width:22px;height:22px;border-radius:50%;background:#16a34a;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700">✓</div>
-          <div style="font-size:11px;font-weight:600;color:#16a34a">Start</div>
+          <div style="font-size:11px;font-weight:600;color:#16a34a">Paper Start</div>
           <div style="font-size:10px;color:#aaa">2026-05-20</div>
         </div>
         <div style="text-align:center">
@@ -2918,7 +2919,7 @@
         <div style="text-align:center">
           <div style="width:22px;height:22px;border-radius:50%;background:#BA7517;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:white">🎯</div>
           <div style="font-size:11px;font-weight:600;color:#BA7517">Go-Live</div>
-          <div style="font-size:10px;color:#aaa">2026-07-15</div>
+          <div style="font-size:10px;color:#aaa">2026-08-01</div>
         </div>
       </div>
     </div>
@@ -3080,19 +3081,35 @@ function initTooltips() {
     const key = el.getAttribute('data-tip');
     if (TOOLTIPS[key]) el.setAttribute('data-tip-text', TOOLTIPS[key]);
   });
+  // P2-1: touch/click support for mobile
+  document.querySelectorAll('.spa-tip').forEach(el => {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const wasOpen = this.classList.contains('tip-open');
+      document.querySelectorAll('.spa-tip.tip-open').forEach(t => t.classList.remove('tip-open'));
+      if (!wasOpen) this.classList.add('tip-open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.spa-tip.tip-open').forEach(t => t.classList.remove('tip-open'));
+  });
 }
 
 // ─── Конфиг ───────────────────────────────────────────────────────────────────
 let BASE = location.hostname === 'localhost' && location.port !== '8765'
   ? 'http://localhost:8000'
   : (location.pathname.startsWith('/SPA') ? '/SPA/data' : './data');
+const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
 
 // FastAPI Live Mode
 let LIVE_MODE = false;
 const LIVE_BASE = 'http://localhost:8765/api';
+// P0-2: on GitHub Pages there is no local server — skip all localhost probes
+const IS_PUBLIC = location.hostname.endsWith('github.io') || location.hostname.endsWith('github.com');
 let _liveWs = null;
 
 async function detectLiveMode() {
+  if (IS_PUBLIC) { updateLiveIndicator(false); return; }  // P0-2: no server on GitHub Pages
   try {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 500);
@@ -3117,10 +3134,29 @@ function updateLiveIndicator(live) {
   dot.title = live ? 'Connected to FastAPI server at localhost:8765' : 'Using static JSON files';
 }
 
-// ─── Data freshness badge (meta.json updated within 5h = GitHub Actions running) ─
-function updateDataFreshnessBadge(meta) {
+// ─── Data freshness badge (P0-3: primary = paper_trading_status last_cycle_ts) ──
+// paperStatus (optional) is passed from loadDashboard() so badge reflects the
+// actual last cycle run time — a single canonical freshness source.
+function updateDataFreshnessBadge(meta, paperStatus) {
   const el = document.getElementById('data-freshness-badge');
   if (!el) return;
+
+  // P0-3: prefer last_cycle_ts from paper_trading_status.json (single source of truth)
+  const cycleTs = paperStatus && (paperStatus.last_cycle_ts || paperStatus.generated_at);
+  if (cycleTs) {
+    const lastTs   = new Date(cycleTs);
+    const ageHours = (Date.now() - lastTs.getTime()) / 3600000;
+    const dateStr  = lastTs.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    el.textContent  = 'Данные: ' + dateStr;
+    el.style.background   = ageHours > 48 ? '#8B0000' : '#1a3a1a';
+    el.style.borderColor  = ageHours > 48 ? '#cc0000' : '#2a5a2a';
+    el.style.color        = ageHours > 48 ? '#ff6b6b' : '#4ade80';
+    el.title = 'Последний цикл: ' + lastTs.toISOString().slice(0,16).replace('T',' ') + ' UTC'
+             + (ageHours > 48 ? ' · STALE (>48h)' : '');
+    return;
+  }
+
+  // Fallback: use meta.updated_at (GitHub Actions freshness)
   if (!meta || !meta.updated_at) {
     el.textContent = '📴 Offline';
     el.style.background = '#fee2e2';
@@ -3246,7 +3282,7 @@ async function renderPendlePositions() {
 }
 
 function connectLiveWs() {
-  if (_liveWs) return;
+  if (_liveWs || IS_PUBLIC) return;  // P0-2: no WebSocket on GitHub Pages
   try {
     _liveWs = new WebSocket('ws://localhost:8765/ws/agents');
     _liveWs.onmessage = e => {
@@ -3323,7 +3359,7 @@ function _appendStreamLog(agId, message, evtType) {
 }
 
 function connectSSE() {
-  if (_sseConn) return;
+  if (_sseConn || IS_PUBLIC) return;  // P0-2: no EventSource on GitHub Pages
   try {
     _sseConn = new EventSource('http://localhost:8765/api/events');
     _sseConn.onopen = () => { updateLiveIndicator(true); };
@@ -3690,7 +3726,6 @@ function _perfTimeAgo(ts) {
 async function loadPerformance() {
   const ts = Date.now();
   let status = null, equity = null, golive = null, strategies = null;
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   try { status     = await fetch(dataBase + '/paper_trading_status.json?_='          + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
   try { equity     = await fetch(dataBase + '/equity_curve_daily.json?_='            + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
   try { golive     = await fetch(dataBase + '/golive_status.json?_='                 + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
@@ -3785,7 +3820,6 @@ async function loadPerformance() {
 
 // ─── B5: Performance Tear Sheet loader ────────────────────────────────────────
 async function loadTearSheet() {
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   let ts = null;
   try { ts = await fetch(dataBase + '/tear_sheet.json?_=' + Date.now()).then(r => r.ok ? r.json() : null); } catch(e) {}
 
@@ -3895,7 +3929,6 @@ async function loadTearSheet() {
 
 // ─── MP-542: Equity History Chart (equity_history.json) ──────────────────────
 async function loadEquityChart() {
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   const canvas = document.getElementById('equityChart');
   const placeholder = document.getElementById('equity-chart-placeholder');
   if (!canvas) return;
@@ -4029,7 +4062,6 @@ async function loadApyConsensus() {
   const tbody = document.getElementById('apy-consensus-body');
   if (!tbody) return;
 
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   let adapterStatus = null;
   try {
     const resp = await fetch(dataBase + '/adapter_status.json?_=' + Date.now());
@@ -4085,7 +4117,6 @@ async function loadApyConsensus() {
 async function loadStrategies() {
   const ts = Date.now();
   let strategies = null, status = null;
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   try { strategies = await fetch(dataBase + '/strategy_shadow_comparison.json?_=' + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
   try { status     = await fetch(dataBase + '/paper_trading_status.json?_='       + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
 
@@ -4159,7 +4190,6 @@ async function loadStrategies() {
 async function loadOps() {
   // Decisions: delegate to existing loadDecisions but also mirror into ops panel
   const ts = Date.now();
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   const opsDecEl = document.getElementById('ops-dec-list-body');
 
   // Render decisions in the ops panel
@@ -4209,7 +4239,6 @@ async function loadOps() {
 // ─── System Health ────────────────────────────────────────────────────────────
 async function loadHealthStatus() {
   const ts = Date.now();
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
 
   const badgeEl   = document.getElementById('health-overall-badge');
   const gridEl    = document.getElementById('health-checks-grid');
@@ -4316,7 +4345,6 @@ async function loadAgentFeed() {
   const el = document.getElementById('agent-feed-body');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;font-size:13px">Загрузка...</div>';
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   let entries = null;
   try {
     const r = await fetch(dataBase + '/agent_summaries.json?_=' + Date.now());
@@ -4598,6 +4626,11 @@ async function loadDashboard() {
       fetch(BASE + '/equity_curve_daily.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     _loadedOnce = true;
+    // P0-1: refresh canonical date vars from meta.json (single source of truth)
+    if (meta && meta.paper_cycle_start)    META_PAPER_START = meta.paper_cycle_start;
+    if (meta && meta.verified_track_start) META_TRACK_START = meta.verified_track_start;
+    if (meta && meta.golive_target)        META_GOLIVE      = meta.golive_target;
+    if (meta && meta.track_window_days)    META_TRACK_DAYS  = meta.track_window_days;
     const status = buildLiveStatus(orch, posData, paperStatus, equityCurve);
     const protocols = mapOrchToProtocols(orch);
     renderStalenessBanner(orch, paperStatus);     // MP-007: staleness >24h
@@ -4607,7 +4640,7 @@ async function loadDashboard() {
     buildPortfolioChart(equityCurve);             // MP-007: реальная equity-кривая, без демо-точек
     renderAlerts(alertsData);
     renderTrades(tradesData);
-    updateDataFreshnessBadge(meta);
+    updateDataFreshnessBadge(meta, paperStatus);  // P0-3: pass paperStatus for cycle freshness
     renderApyGapTracker(status, null);            // weighted APY считается из живых позиций
     renderApyTrends();
     loadStrategyRace();
@@ -4656,7 +4689,7 @@ async function loadStrategyRace() {
 
     const strategies = data && Array.isArray(data.strategies) ? data.strategies.slice() : [];
     if (!strategies.length) {
-      body.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Дані збираються…</div>';
+      body.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Данные собираются…</div>';
       if (titleEl) titleEl.textContent = '🏁 Strategy Race';
       return;
     }
@@ -4711,7 +4744,7 @@ async function loadStrategyRace() {
     }
   } catch (e) {
     console.error('Strategy Race load error:', e);
-    body.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Дані збираються…</div>';
+    body.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">Данные собираются…</div>';
   }
 }
 
@@ -6681,7 +6714,7 @@ function renderCorrMatrix(data) {
     html += '</tr>';
   }
   html += '</tbody></table>';
-  html += '<div style="font-size:9px;color:#bbb;margin-top:6px">🟢 >0.7 висока · 🟡 0.3-0.7 середня · ⬜ <0.3 низька кореляція</div>';
+  html += '<div style="font-size:9px;color:#bbb;margin-top:6px">🟢 >0.7 высокая · 🟡 0.3-0.7 средняя · ⬜ <0.3 низкая корреляция</div>';
   wrap.innerHTML = html;
 }
 
@@ -6738,7 +6771,7 @@ function renderBtSummary(data) {
   `;
 }
 
-// ─── Инициализація ────────────────────────────────────────────────────────────
+// ─── Инициализация ────────────────────────────────────────────────────────────
 // ─── Strategy Comparison (v0.10) ──────────────────────────────────────────────
 let _equityCompareChart = null;
 let _activeStratTab = 'v1';
@@ -6777,7 +6810,7 @@ function renderStratPositions(positions, tbodyId) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   if (!positions || !positions.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Немає відкритих позицій</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Нет открытых позиций</td></tr>';
     return;
   }
   tbody.innerHTML = positions.map(p => {
@@ -6805,9 +6838,9 @@ function renderCompareTable(comp) {
   const v2 = comp.strategies.v2_aggressive || {};
 
   const rows = [
-    { label: 'Загальна доходність', v1val: v1.total_return_pct, v2val: v2.total_return_pct, fmt: v => (v != null ? (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
+    { label: 'Общая доходность', v1val: v1.total_return_pct, v2val: v2.total_return_pct, fmt: v => (v != null ? (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
     { label: 'Поточний APY',        v1val: v1.current_apy,      v2val: v2.current_apy,      fmt: v => (v != null ? Number(v).toFixed(2) + '%' : '—'), higherIsBetter: true },
-    { label: 'Кількість позицій',   v1val: v1.positions_count,  v2val: v2.positions_count,  fmt: v => (v != null ? v : '—'), higherIsBetter: null },
+    { label: 'Количество позиций',   v1val: v1.positions_count,  v2val: v2.positions_count,  fmt: v => (v != null ? v : '—'), higherIsBetter: null },
     { label: 'Кеш-буфер',           v1val: v1.cash_pct,         v2val: v2.cash_pct,         fmt: v => (v != null ? (Number(v)*100).toFixed(1) + '%' : '—'), higherIsBetter: null },
     { label: 'PnL ($)',             v1val: v1.total_pnl_usd,    v2val: v2.total_pnl_usd,    fmt: v => (v != null ? (v >= 0 ? '+' : '') + '$' + Math.abs(Number(v)).toFixed(2) : '—'), higherIsBetter: true },
   ];
@@ -6846,7 +6879,7 @@ function renderEquityCompareChart(pnlHistory, comp) {
     : [];
 
   if (!v1Points.length && !v2Points.length) {
-    ctx.parentElement.innerHTML = '<div style="color:#bbb;font-size:12px;padding:20px;text-align:center">Немає даних про капітал</div>';
+    ctx.parentElement.innerHTML = '<div style="color:#bbb;font-size:12px;padding:20px;text-align:center">Нет данных о капитале</div>';
     return;
   }
 
@@ -7687,7 +7720,7 @@ async function loadBacklog() {
   }
 }
 
-// ─── Ініціалізація ─────────────────────────────────────────────────────────────
+// ─── Инициализация ─────────────────────────────────────────────────────────────
 const nowStr = new Date().toISOString().replace('T',' ').slice(0,16) + ' UTC';
 document.getElementById('ts-subtitle').textContent = 'Проект · ' + nowStr + ' · Стратегия v1.0';
 const _todEl = document.getElementById('today-date');
@@ -7703,6 +7736,13 @@ loadOverview();  // v2.0: load Dashboard on startup (it's the default tab)
 const RAW_DATA_BASE = 'https://raw.githubusercontent.com/yurii-spa/SPA/main/data';
 const REAL_TRACK_START = '2026-06-10';  // старт реального трека (KANBAN real_track_start)
 const PHASE0_TRACK_DAYS = 56;
+
+// ─── Canonical date constants — single source of truth (P0-1) ────────────────
+// Defaults match CLAUDE.md; overridden at runtime by meta.json in loadDashboard()
+let META_PAPER_START = '2026-05-20';   // paper_cycle_start
+let META_TRACK_START = '2026-06-10';   // verified_track_start
+let META_GOLIVE      = '2026-08-01';   // golive_target (ADR-002)
+let META_TRACK_DAYS  = 30;             // track_window_days
 const STALE_DATA_MS = 24 * 3600 * 1000; // staleness-порог 24h
 
 const _mpEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
@@ -7951,7 +7991,7 @@ async function handleAgentChat(e) {
   renderActivityLog();
 
   // ── Live Mode: POST to /api/chat for real LLM reasoning ──────────────────
-  if (window._liveMode === true) {
+  if (window._liveMode === true && !IS_PUBLIC) {  // P0-2: chat unavailable on GitHub Pages
     try {
       const res = await fetch('http://localhost:8765/api/chat', {
         method: 'POST',
@@ -8828,9 +8868,9 @@ function renderGoLiveVerdict(data) {
   const icon = isReady ? '🟢' : isAlmost ? '🟡' : isBlocked ? '🔵' : '🔴';
   verdictEl.innerHTML = `<span class="verdict-badge ${cls}">${icon} ${data.verdict || 'UNKNOWN'}</span>`;
 
-  const goLiveDate = new Date(data.target_date || '2026-07-15');
+  const goLiveDate = new Date(data.target_date || META_GOLIVE);
   const daysLeft = Math.ceil((goLiveDate - Date.now()) / 86400000);
-  if (countdownEl) countdownEl.textContent = daysLeft > 0 ? `${daysLeft} days until ${data.target_date || '2026-07-15'}` : 'Go-live date reached';
+  if (countdownEl) countdownEl.textContent = daysLeft > 0 ? `${daysLeft} days until ${data.target_date || META_GOLIVE}` : 'Go-live date reached';
 
   if (recEl && data.recommendation) {
     recEl.style.display = 'block';
@@ -9210,9 +9250,9 @@ function renderGoLiveTimeline() {
   const todayDate = document.getElementById('today-date');
   const fill = document.getElementById('timeline-fill');
   const today = new Date();
-  const start = new Date('2026-05-20');
-  const end   = new Date('2026-07-15');
-  const totalDays = Math.round((end - start) / 86400000);           // 56
+  const start = new Date(META_PAPER_START);   // P0-1: paper_cycle_start from meta.json
+  const end   = new Date(META_GOLIVE);        // P0-1: golive_target from meta.json
+  const totalDays = Math.round((end - start) / 86400000);
   const dayNum    = Math.min(totalDays, Math.max(0, Math.round((today - start) / 86400000)));
   const pct = Math.min(100, Math.max(0, (today - start) / (end - start) * 100));
   if (todayDate) todayDate.textContent = today.toISOString().slice(0,10);
@@ -9961,7 +10001,7 @@ function initOffice() {
     data:     ['Fetching Aave APY…','DeFiLlama ✓ 7 pools','APY scan complete','Checking TVL…','Compound: 4.02%','Maple: 4.80%','15 protos active','Data pipeline OK'],
     strategy: ['Reviewing allocations…','Aave 40K @ 4.23%','Maple position stable','No rebalance needed','T2 budget: 35%','Cash buffer: 5%','Scoring protocols…','v1_passive running'],
     monitor:  ['Portfolio health OK','Drawdown: 0.0%','Concentration check ✓','VaR within limits','All positions safe','Kill switch: armed','No alerts active','Risk policy v0.4.5'],
-    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','4h cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-07-15','paper-v1 on track','Approving trades…'],
+    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','4h cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-08-01','paper-v1 on track','Approving trades…'],
   };
   // Stagger so agents don't all talk at once (frames at 60fps)
   const BUBBLE_STAGGER = {data:20,strategy:120,monitor:220,ceo:320};
@@ -10406,7 +10446,6 @@ function renderPipelineHealth(h) {
 async function renderDataFreshness() {
   const el = document.getElementById('sys-freshness-body');
   if (!el) return;
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
 
   const files = [
     { name: 'status.json',           label: 'status.json',           key: 'updated_at', type: 'timestamp' },
@@ -10510,8 +10549,8 @@ async function renderGoLiveCard() {
   const el = document.getElementById('sys-golive-body');
   if (!el) return;
 
-  const GO_LIVE_DATE = new Date('2026-07-15');
-  const START_DATE   = new Date('2026-05-20');
+  const GO_LIVE_DATE = new Date(META_GOLIVE);      // P0-1: golive_target from meta.json
+  const START_DATE   = new Date(META_PAPER_START); // P0-1: paper_cycle_start from meta.json
   const now          = new Date();
   const totalDays    = Math.round((GO_LIVE_DATE - START_DATE) / 86400000);
   const elapsed      = Math.max(0, Math.round((now - START_DATE) / 86400000));
@@ -10520,7 +10559,6 @@ async function renderGoLiveCard() {
 
   // Try to load golive readiness
   let readiness = null;
-  const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
   try { readiness = await fetchJSON(dataBase + '/golive_readiness.json'); } catch(e) {}
 
   let criteriaHTML = '';
@@ -10543,7 +10581,7 @@ async function renderGoLiveCard() {
       <span>Days remaining</span>
       <span style="font-size:20px;font-weight:600;color:#185FA5">${remaining}</span>
     </div>
-    <div style="font-size:11px;color:#aaa;margin-bottom:8px">Target: 2026-07-15</div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:8px">Target: ${META_GOLIVE}</div>
     <div style="background:#eee;border-radius:4px;height:7px;margin-bottom:4px;overflow:hidden">
       <div style="background:linear-gradient(90deg,#16a34a,#185FA5);height:100%;width:${pct}%;transition:width .5s"></div>
     </div>
