@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    L3b — Autopush: push изменённых data-файлов в GitHub (каждые 90 минут)
+    Script: auto_push.py
+    Функция: сканирует SPA_DIR на новые/изменённые файлы (по mtime vs
+             ~/.spa_push_state.json), игнорирует push_v*, .bak, __pycache__,
+             .git, .DS_Store. ALWAYS_INCLUDE: index.html, decisions.json,
+             dashboard_metrics_history.json, adapter_status.json.
+             PAT читает из macOS Keychain (security find-generic-password
+             -s GITHUB_PAT_SPA -w). Лог: ~/.spa_push.log
+    Пишет:   ~/.spa_push_state.json  (state файл, не в data/)
+    CLI:     python3 auto_push.py
+    ⚠️  СТАТУС: НЕ УСТАНОВЛЕН. Нужен fix PYTHON_PATH.
+        Быстрый фикс: bash mp009_fix_launchd.command
+        Или: launchctl load ~/Library/LaunchAgents/com.spa.autopush.plist
+             (после копирования этого plist с правильным python path)
+    SECRETS: PAT — ТОЛЬКО в Keychain, никогда в файлах.
+    Установка:
+      cp scripts/com.spa.autopush.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.autopush.plist
+    Проверка:
+      launchctl list | grep com.spa.autopush
+      tail -20 ~/.spa_push.log
+    -->
+
+    <key>Label</key>
+    <string>com.spa.autopush</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/auto_push.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- 90 минут между автоматическими пушами -->
+    <key>StartInterval</key>
+    <integer>5400</integer>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_autopush.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_autopush_err.log</string>
+</dict>
+</plist>
