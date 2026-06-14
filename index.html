@@ -1556,6 +1556,72 @@ body > div[style*="text-align:center"] a {
   .spa-hero-cell { padding: 16px 18px; }
 }
 
+/* ══════════════════════════════════════════════════════
+   DARK OVERRIDE v2 — catch remaining hardcoded whites
+   ══════════════════════════════════════════════════════ */
+body { background: var(--spa-bg) !important; color: var(--spa-text) !important; }
+
+/* All card/panel classes in old CSS */
+.db-card, .db-full, .db-metric, .db-section,
+.perf-card, .perf-tile, .kpi-box, .kpi-card,
+.bk-card, .kb-card, .strategy-card,
+.tearsheet-card, .ts-card, .golive-card,
+.risk-card, .alert-card, .agent-card,
+.tab-pane > div, .stat-box {
+  background: var(--spa-surface) !important;
+  border-color: var(--spa-border) !important;
+  color: var(--spa-text) !important;
+}
+
+/* Section headers / labels */
+.db-label, .db-section, .section-title,
+.metric-label, .kpi-label, .ts-label,
+.card-title, .panel-title {
+  color: var(--spa-text-2) !important;
+}
+
+/* Old page-level background */
+body > .main-wrap, #app, .app-container,
+#root, .container, .page-wrap {
+  background: var(--spa-bg) !important;
+}
+
+/* Inline style overrides for common patterns */
+[style*="background:#fff"], [style*="background: #fff"],
+[style*="background:#f5f4f0"], [style*="background:#f8fafc"],
+[style*="background:#f3f4f6"], [style*="background:#fafafa"] {
+  background: var(--spa-surface) !important;
+}
+[style*="background:#f5f4f0"] {
+  background: var(--spa-bg) !important;
+}
+
+/* Text overrides for inline gray text */
+[style*="color:#888"], [style*="color: #888"],
+[style*="color:#999"], [style*="color:#aaa"],
+[style*="color:#777"], [style*="color:#666"] {
+  color: var(--spa-text-3) !important;
+}
+[style*="color:#333"], [style*="color:#444"],
+[style*="color:#555"], [style*="color:#222"] {
+  color: var(--spa-text) !important;
+}
+
+/* Border overrides */
+[style*="border:1px solid #ddd"], [style*="border: 1px solid #ddd"],
+[style*="border:0.5px solid #ddd"] {
+  border-color: var(--spa-border-2) !important;
+}
+
+/* Perf hero grid override (old section) */
+#perf-hero-grid .db-metric {
+  background: var(--spa-surface-2) !important;
+  border: 1px solid var(--spa-border) !important;
+  border-radius: 8px !important;
+}
+#perf-hero-grid .db-metric-label { color: var(--spa-text-3) !important; font-size: 11px !important; }
+#perf-hero-grid .db-metric-value { font-family: var(--spa-mono) !important; color: var(--spa-text) !important; }
+
 </style>
 </head>
 <body>
@@ -11079,35 +11145,40 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initSpaHero() {
   try {
     const BASE = (typeof STATIC_BASE !== 'undefined') ? STATIC_BASE : './data';
-    // Equity from portfolio_summary
-    const ps = await fetchJSON(BASE + '/portfolio_summary.json').catch(() => null);
-    if (ps) {
-      const eq = ps.total_equity ?? ps.equity ?? ps.total_value ?? null;
+    // Primary source: paper_trading_status.json
+    const ptStatus = await fetchJSON(BASE + '/paper_trading_status.json').catch(() => null);
+    if (ptStatus) {
+      // Equity
+      const eq = ptStatus.current_equity ?? ptStatus.total_equity ?? ptStatus.equity ?? ptStatus.portfolio_value ?? null;
       if (eq != null) {
         document.getElementById('spa-equity-num').textContent = Number(eq).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
-        const prev = ps.prev_equity ?? null;
-        if (prev) {
-          const d = ((eq - prev) / prev * 100).toFixed(2);
+        const ret = ptStatus.total_return_pct ?? null;
+        if (ret != null) {
           const el = document.getElementById('spa-equity-delta');
-          el.textContent = (d >= 0 ? '+' : '') + d + '% vs prev';
-          el.className = 'spa-hero-delta ' + (d >= 0 ? 'pos' : 'neg');
+          const sign = ret >= 0 ? '+' : '';
+          el.textContent = sign + Number(ret).toFixed(4) + '% total return';
+          el.className = 'spa-hero-delta ' + (ret >= 0 ? 'pos' : 'neg');
+        }
+      }
+      // APY from paper_trading_status
+      const apy = ptStatus.apy_today_pct ?? ptStatus.apy ?? null;
+      if (apy != null) {
+        document.getElementById('spa-apy').innerHTML = Number(apy).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
+        const apyDelta = document.getElementById('spa-apy-delta');
+        if (apyDelta && ptStatus.daily_yield_usd != null) {
+          apyDelta.textContent = '+$' + Number(ptStatus.daily_yield_usd).toFixed(2) + '/day';
+          apyDelta.className = 'spa-hero-delta pos';
         }
       }
     }
-    // APY from tear_sheet
-    const ts = await fetchJSON(BASE + '/tear_sheet.json').catch(() => null);
-    if (ts) {
-      const apy = ts.live_apy ?? ts.current_apy ?? ts.apy ?? null;
-      if (apy != null) {
-        document.getElementById('spa-apy').innerHTML = Number(apy).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
-      }
-    }
-    // Paper trading status for equity fallback
-    const ptStatus = await fetchJSON(BASE + '/paper_trading_status.json').catch(() => null);
-    if (ptStatus && document.getElementById('spa-equity-num').textContent === '—') {
-      const eq2 = ptStatus.portfolio_value ?? ptStatus.total_equity ?? ptStatus.equity ?? null;
-      if (eq2 != null) {
-        document.getElementById('spa-equity-num').textContent = Number(eq2).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+    // APY fallback: tear_sheet.json
+    if (!ptStatus || document.getElementById('spa-apy').textContent.trim() === '—%') {
+      const ts = await fetchJSON(BASE + '/tear_sheet.json').catch(() => null);
+      if (ts) {
+        const apy2 = ts.annualized_apy_pct ?? ts.live_apy ?? ts.current_apy ?? ts.apy ?? null;
+        if (apy2 != null) {
+          document.getElementById('spa-apy').innerHTML = Number(apy2).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
+        }
       }
     }
     // Day counter from meta.json
