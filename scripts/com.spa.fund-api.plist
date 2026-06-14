@@ -9,9 +9,9 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/python3</string>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/fund_api_server.py</string>
-        <string>8765</string>
+        <string>8766</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -30,9 +30,10 @@
     <key>StandardErrorPath</key>
     <string>/tmp/spa_fund_api_err.log</string>
 
-    <!-- Перезапускать при аварийном завершении -->
+    <!-- Запускается по требованию, НЕ как постоянный демон.
+         Порт 8766 (8765 занят com.spa.httpserver). -->
     <key>KeepAlive</key>
-    <true/>
+    <false/>
 
     <!-- Не запускать автоматически при load; запускать вручную через launchctl start -->
     <key>RunAtLoad</key>
