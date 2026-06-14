@@ -1,0 +1,138 @@
+[
+  {
+    "name": "Wrapped BTC",
+    "symbol": "wBTC",
+    "wrapped_supply": 1000.0,
+    "reserve_balance": 1000.0,
+    "custodian_count": 3,
+    "largest_custodian_share_pct": 40.0,
+    "attestation_age_days": 5.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": true,
+    "backing_ratio_pct": 100.0,
+    "collateral_shortfall_pct": 0.0,
+    "custodian_concentration_score": 37.333333333333336,
+    "attestation_freshness_score": 94.44444444444444,
+    "backing_risk_score": 8.3,
+    "classification": "FULLY_BACKED",
+    "grade": "A",
+    "flags": [
+      "FULLY_BACKED"
+    ],
+    "recommendations": [
+      "Fully backed: backing ratio 100.0% covers circulating wrapped supply. Backing risk is minimal."
+    ],
+    "timestamp": 1781417861.7812414
+  },
+  {
+    "name": "Wrapped BTC",
+    "symbol": "wBTC",
+    "wrapped_supply": 130000.0,
+    "reserve_balance": 129500.0,
+    "custodian_count": 1,
+    "largest_custodian_share_pct": 100.0,
+    "attestation_age_days": 45.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": true,
+    "backing_ratio_pct": 99.61538461538461,
+    "collateral_shortfall_pct": 0.3846153846153868,
+    "custodian_concentration_score": 100.0,
+    "attestation_freshness_score": 50.0,
+    "backing_risk_score": 27.884615384615387,
+    "classification": "WELL_BACKED",
+    "grade": "C",
+    "flags": [
+      "UNDERBACKED",
+      "SINGLE_CUSTODIAN",
+      "HIGH_CUSTODIAN_CONCENTRATION"
+    ],
+    "recommendations": [
+      "Well backed: backing ratio 99.6%, essentially 1:1. Backing risk is low subject to custody and attestation quality.",
+      "Single custodian holds all reserves \u2014 a single point of failure. Prefer wrapped assets with diversified, multi-custodian backing."
+    ],
+    "timestamp": 1781417865.173838
+  },
+  {
+    "name": "Wrapped BTC",
+    "symbol": "wBTC",
+    "wrapped_supply": 1000.0,
+    "reserve_balance": 1000.0,
+    "custodian_count": 3,
+    "largest_custodian_share_pct": 40.0,
+    "attestation_age_days": 5.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": true,
+    "backing_ratio_pct": 100.0,
+    "collateral_shortfall_pct": 0.0,
+    "custodian_concentration_score": 37.333333333333336,
+    "attestation_freshness_score": 94.44444444444444,
+    "backing_risk_score": 8.3,
+    "classification": "FULLY_BACKED",
+    "grade": "A",
+    "flags": [
+      "FULLY_BACKED"
+    ],
+    "recommendations": [
+      "Fully backed: backing ratio 100.0% covers circulating wrapped supply. Backing risk is minimal."
+    ],
+    "timestamp": 1781417882.718084
+  },
+  {
+    "name": "Wrapped BTC",
+    "symbol": "wBTC",
+    "wrapped_supply": 130000.0,
+    "reserve_balance": 129500.0,
+    "custodian_count": 1,
+    "largest_custodian_share_pct": 100.0,
+    "attestation_age_days": 45.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": true,
+    "backing_ratio_pct": 99.61538461538461,
+    "collateral_shortfall_pct": 0.3846153846153868,
+    "custodian_concentration_score": 100.0,
+    "attestation_freshness_score": 50.0,
+    "backing_risk_score": 27.884615384615387,
+    "classification": "WELL_BACKED",
+    "grade": "C",
+    "flags": [
+      "UNDERBACKED",
+      "SINGLE_CUSTODIAN",
+      "HIGH_CUSTODIAN_CONCENTRATION"
+    ],
+    "recommendations": [
+      "Well backed: backing ratio 99.6%, essentially 1:1. Backing risk is low subject to custody and attestation quality.",
+      "Single custodian holds all reserves \u2014 a single point of failure. Prefer wrapped assets with diversified, multi-custodian backing."
+    ],
+    "timestamp": 1781417976.8351104
+  },
+  {
+    "name": "Wrapped BTC",
+    "symbol": "wBTC",
+    "wrapped_supply": 1000.0,
+    "reserve_balance": 1000.0,
+    "custodian_count": 3,
+    "largest_custodian_share_pct": 40.0,
+    "attestation_age_days": 5.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": true,
+    "backing_ratio_pct": 100.0,
+    "collateral_shortfall_pct": 0.0,
+    "custodian_concentration_score": 37.333333333333336,
+    "attestation_freshness_score": 94.44444444444444,
+    "backing_risk_score": 8.3,
+    "classification": "FULLY_BACKED",
+    "grade": "A",
+    "flags": [
+      "FULLY_BACKED"
+    ],
+    "recommendations": [
+      "Fully backed: backing ratio 100.0% covers circulating wrapped supply. Backing risk is minimal."
+    ],
+    "timestamp": 1781418038.0085478
+  }
+]
