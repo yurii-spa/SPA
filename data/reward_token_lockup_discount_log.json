@@ -1,0 +1,436 @@
+[
+  {
+    "name": "veCRV farm (locked, penalised)",
+    "total_apr_pct": 40.0,
+    "liquid_apr_pct": 8.0,
+    "reward_apr_pct": 32.0,
+    "lockup_days": 730.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 90.0,
+    "early_exit_penalty_pct": 50.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 80.0,
+    "lockup_discount_factor": 0.1663468541592692,
+    "realisable_reward_apr_pct": 5.323099333096614,
+    "lockup_adjusted_apr_pct": 13.323099333096614,
+    "headline_vs_realisable_gap_pct": 26.676900666903386,
+    "paper_yield_share_pct": 66.69225166725846,
+    "reward_realisability_score": 22.30966720778592,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "LONG_LOCKUP",
+      "HIGH_EARLY_EXIT_PENALTY",
+      "REWARD_DOMINATED_APR",
+      "LARGE_PAPER_YIELD",
+      "HIGH_PRICE_RISK",
+      "DEEP_DISCOUNT"
+    ],
+    "recommendations": [
+      "Deeply locked: the realisable APR is only ~13.32% versus a ~40.00% headline. Most of the advertised yield is paper; treat this as a long-horizon, high-conviction bet on the reward token.",
+      "Long lockup: rewards are escrowed for ~730 days. Time-value and price risk over that horizon materially discount the reward token.",
+      "High early-exit penalty (~50%): if you may need liquidity before unlock, the effective value of locked rewards is well below their spot mark.",
+      "Reward-dominated APR: most of the headline yield is paid in the illiquid reward token, so the lockup discount drives the real return.",
+      "Large paper yield: ~26.68 points of the headline APR are lost to the lockup discount and may never be realised at the marked value.",
+      "High reward-token volatility: the locked rewards carry large price risk before they unlock; hedge or discount further."
+    ],
+    "timestamp": 1781435829.157304
+  },
+  {
+    "name": "veCRV farm (locked, penalised)",
+    "total_apr_pct": 40.0,
+    "liquid_apr_pct": 8.0,
+    "reward_apr_pct": 32.0,
+    "lockup_days": 730.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 90.0,
+    "early_exit_penalty_pct": 50.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 80.0,
+    "lockup_discount_factor": 0.1663468541592692,
+    "realisable_reward_apr_pct": 5.323099333096614,
+    "lockup_adjusted_apr_pct": 13.323099333096614,
+    "headline_vs_realisable_gap_pct": 26.676900666903386,
+    "paper_yield_share_pct": 66.69225166725846,
+    "reward_realisability_score": 22.30966720778592,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "LONG_LOCKUP",
+      "HIGH_EARLY_EXIT_PENALTY",
+      "REWARD_DOMINATED_APR",
+      "LARGE_PAPER_YIELD",
+      "HIGH_PRICE_RISK",
+      "DEEP_DISCOUNT"
+    ],
+    "recommendations": [
+      "Deeply locked: the realisable APR is only ~13.32% versus a ~40.00% headline. Most of the advertised yield is paper; treat this as a long-horizon, high-conviction bet on the reward token.",
+      "Long lockup: rewards are escrowed for ~730 days. Time-value and price risk over that horizon materially discount the reward token.",
+      "High early-exit penalty (~50%): if you may need liquidity before unlock, the effective value of locked rewards is well below their spot mark.",
+      "Reward-dominated APR: most of the headline yield is paid in the illiquid reward token, so the lockup discount drives the real return.",
+      "Large paper yield: ~26.68 points of the headline APR are lost to the lockup discount and may never be realised at the marked value.",
+      "High reward-token volatility: the locked rewards carry large price risk before they unlock; hedge or discount further."
+    ],
+    "timestamp": 1781435829.1594105
+  },
+  {
+    "name": "stable LP (mostly liquid)",
+    "total_apr_pct": 8.0,
+    "liquid_apr_pct": 6.0,
+    "reward_apr_pct": 2.0,
+    "lockup_days": 7.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 20.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.5,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 25.0,
+    "lockup_discount_factor": 0.9852224109288406,
+    "realisable_reward_apr_pct": 1.970444821857681,
+    "lockup_adjusted_apr_pct": 7.970444821857681,
+    "headline_vs_realisable_gap_pct": 0.029555178142318894,
+    "paper_yield_share_pct": 0.3694397267789862,
+    "reward_realisability_score": 94.15028862840833,
+    "classification": "FULLY_LIQUID",
+    "grade": "A",
+    "flags": [
+      "MOSTLY_LIQUID"
+    ],
+    "recommendations": [
+      "Effectively liquid rewards: realisable APR ~7.97% tracks the ~8.00% headline closely.",
+      "Rewards are largely liquid on receipt: the headline APR is a fair approximation of the realisable return."
+    ],
+    "timestamp": 1781435829.161243
+  },
+  {
+    "name": "veCRV farm (locked, penalised)",
+    "total_apr_pct": 40.0,
+    "liquid_apr_pct": 8.0,
+    "reward_apr_pct": 32.0,
+    "lockup_days": 730.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 90.0,
+    "early_exit_penalty_pct": 50.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 80.0,
+    "lockup_discount_factor": 0.1663468541592692,
+    "realisable_reward_apr_pct": 5.323099333096614,
+    "lockup_adjusted_apr_pct": 13.323099333096614,
+    "headline_vs_realisable_gap_pct": 26.676900666903386,
+    "paper_yield_share_pct": 66.69225166725846,
+    "reward_realisability_score": 22.30966720778592,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "LONG_LOCKUP",
+      "HIGH_EARLY_EXIT_PENALTY",
+      "REWARD_DOMINATED_APR",
+      "LARGE_PAPER_YIELD",
+      "HIGH_PRICE_RISK",
+      "DEEP_DISCOUNT"
+    ],
+    "recommendations": [
+      "Deeply locked: the realisable APR is only ~13.32% versus a ~40.00% headline. Most of the advertised yield is paper; treat this as a long-horizon, high-conviction bet on the reward token.",
+      "Long lockup: rewards are escrowed for ~730 days. Time-value and price risk over that horizon materially discount the reward token.",
+      "High early-exit penalty (~50%): if you may need liquidity before unlock, the effective value of locked rewards is well below their spot mark.",
+      "Reward-dominated APR: most of the headline yield is paid in the illiquid reward token, so the lockup discount drives the real return.",
+      "Large paper yield: ~26.68 points of the headline APR are lost to the lockup discount and may never be realised at the marked value.",
+      "High reward-token volatility: the locked rewards carry large price risk before they unlock; hedge or discount further."
+    ],
+    "timestamp": 1781435836.3520284
+  },
+  {
+    "name": "veCRV farm (locked, penalised)",
+    "total_apr_pct": 40.0,
+    "liquid_apr_pct": 8.0,
+    "reward_apr_pct": 32.0,
+    "lockup_days": 730.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 90.0,
+    "early_exit_penalty_pct": 50.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 80.0,
+    "lockup_discount_factor": 0.1663468541592692,
+    "realisable_reward_apr_pct": 5.323099333096614,
+    "lockup_adjusted_apr_pct": 13.323099333096614,
+    "headline_vs_realisable_gap_pct": 26.676900666903386,
+    "paper_yield_share_pct": 66.69225166725846,
+    "reward_realisability_score": 22.30966720778592,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "LONG_LOCKUP",
+      "HIGH_EARLY_EXIT_PENALTY",
+      "REWARD_DOMINATED_APR",
+      "LARGE_PAPER_YIELD",
+      "HIGH_PRICE_RISK",
+      "DEEP_DISCOUNT"
+    ],
+    "recommendations": [
+      "Deeply locked: the realisable APR is only ~13.32% versus a ~40.00% headline. Most of the advertised yield is paper; treat this as a long-horizon, high-conviction bet on the reward token.",
+      "Long lockup: rewards are escrowed for ~730 days. Time-value and price risk over that horizon materially discount the reward token.",
+      "High early-exit penalty (~50%): if you may need liquidity before unlock, the effective value of locked rewards is well below their spot mark.",
+      "Reward-dominated APR: most of the headline yield is paid in the illiquid reward token, so the lockup discount drives the real return.",
+      "Large paper yield: ~26.68 points of the headline APR are lost to the lockup discount and may never be realised at the marked value.",
+      "High reward-token volatility: the locked rewards carry large price risk before they unlock; hedge or discount further."
+    ],
+    "timestamp": 1781435836.354028
+  },
+  {
+    "name": "stable LP (mostly liquid)",
+    "total_apr_pct": 8.0,
+    "liquid_apr_pct": 6.0,
+    "reward_apr_pct": 2.0,
+    "lockup_days": 7.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 20.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.5,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 25.0,
+    "lockup_discount_factor": 0.9852224109288406,
+    "realisable_reward_apr_pct": 1.970444821857681,
+    "lockup_adjusted_apr_pct": 7.970444821857681,
+    "headline_vs_realisable_gap_pct": 0.029555178142318894,
+    "paper_yield_share_pct": 0.3694397267789862,
+    "reward_realisability_score": 94.15028862840833,
+    "classification": "FULLY_LIQUID",
+    "grade": "A",
+    "flags": [
+      "MOSTLY_LIQUID"
+    ],
+    "recommendations": [
+      "Effectively liquid rewards: realisable APR ~7.97% tracks the ~8.00% headline closely.",
+      "Rewards are largely liquid on receipt: the headline APR is a fair approximation of the realisable return."
+    ],
+    "timestamp": 1781435836.355961
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449326.674865
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449326.868202
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449326.9048178
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449326.9394271
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449326.975889
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449327.011978
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449327.048425
+  },
+  {
+    "name": "UNKNOWN",
+    "total_apr_pct": 0.0,
+    "liquid_apr_pct": 0.0,
+    "reward_apr_pct": 0.0,
+    "lockup_days": 0.0,
+    "discount_rate_pct": 15.0,
+    "annual_vol_pct": 0.0,
+    "early_exit_penalty_pct": 0.0,
+    "liquid_unlock_fraction": 0.0,
+    "data_quality_ok": true,
+    "reward_share_of_apr_pct": 0.0,
+    "lockup_discount_factor": 1.0,
+    "realisable_reward_apr_pct": 0.0,
+    "lockup_adjusted_apr_pct": 0.0,
+    "headline_vs_realisable_gap_pct": 0.0,
+    "paper_yield_share_pct": 0.0,
+    "reward_realisability_score": 0.0,
+    "classification": "DEEPLY_LOCKED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no APR/lockup signal or data marked unreliable. Cannot assess reward-lockup discount for this position."
+    ],
+    "timestamp": 1781449327.085184
+  }
+]
