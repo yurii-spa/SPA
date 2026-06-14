@@ -1,0 +1,62 @@
+{
+  "agents": {
+    "com.spa.httpserver": {
+      "running": true
+    },
+    "com.spa.cloudflared": {
+      "running": false
+    },
+    "com.spa.fund-api": {
+      "running": false
+    },
+    "com.spa.uptime_monitor": {
+      "running": true
+    },
+    "com.spa.cycle_health": {
+      "running": false
+    },
+    "com.spa.cycle_gap_monitor": {
+      "running": false
+    },
+    "com.spa.portfolio_monitor": {
+      "running": true
+    },
+    "com.spa.peg_monitor": {
+      "running": true
+    },
+    "com.spa.red_flag_monitor": {
+      "running": true
+    },
+    "com.spa.governance_watcher": {
+      "running": true
+    },
+    "com.spa.autopush": {
+      "running": true
+    },
+    "com.spa.daily_cycle": {
+      "running": true
+    },
+    "com.spa.base_gas_monitor": {
+      "running": true
+    },
+    "com.spa.sky_monitor": {
+      "running": false
+    },
+    "com.spa.daily-paper-report": {
+      "running": true
+    },
+    "com.spa.checkpoint-7day": {
+      "running": false
+    },
+    "com.spa.weekly_backup": {
+      "running": false
+    },
+    "com.spa.analytics_tier_c": {
+      "running": false
+    },
+    "com.spa.bot_commands": {
+      "running": false
+    }
+  },
+  "alerts": {}
+}
