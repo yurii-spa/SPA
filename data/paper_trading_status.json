@@ -3,14 +3,14 @@
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "paper_start_date": "2026-05-20",
-  "last_cycle_ts": "2026-06-14T18:33:51.460432+00:00",
+  "last_cycle_ts": "2026-06-14T20:49:15.784752+00:00",
   "last_cycle_status": "ok",
   "days_running": 26,
   "current_equity": 100047.72,
   "total_return_pct": 0.0477,
-  "daily_return_pct": 0.01081,
-  "apy_today_pct": 3.9454,
-  "daily_yield_usd": 10.8144,
+  "daily_return_pct": 0.010806,
+  "apy_today_pct": 3.9439,
+  "daily_yield_usd": 10.8105,
   "num_adapters_live": 14,
   "current_positions": {
     "aave_v3": 23750.0,
@@ -23,10 +23,10 @@
   "strategy_loop_active": false,
   "last_trade_id": null,
   "notes": [
-    "daily_limits_warn: DL-04 APY Sanity Low: aave_v3 APY 0.00% below sanity floor 0.5% (stale data?)",
+    "ADR-033 strategy_loop_mode=shadow (advisory-only)",
     "emergency_breakers: status=CLEAR triggered=[]",
     "risk_policy: target trimmed to respect the min-cash buffer (deployed capped at $95,000).",
-    "no rebalance: |Δ|=$21 ≤ $1,000 threshold."
+    "no rebalance: |Δ|=$28 ≤ $1,000 threshold."
   ],
   "risk_policy_checked": true,
   "risk_policy_approved": true,
@@ -38,5 +38,5 @@
   "kill_switch_active": false,
   "kill_switch_reason": "all triggers clear",
   "market_regime": "STABLE",
-  "regime_t1_avg_apy": 4.5153
+  "regime_t1_avg_apy": 4.5149
 }
