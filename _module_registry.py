@@ -432,6 +432,8 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_performance_fee_crystallization_frequency_analyzer', "class": 'DeFiProtocolPerformanceFeeCrystallizationFrequencyAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_deposit_cap_headroom_analyzer', "class": 'DeFiProtocolDepositCapHeadroomAnalyzer', "tier": 'B', "category": 'vault_capacity', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_depositor_concentration_analyzer', "class": 'DeFiProtocolDepositorConcentrationAnalyzer', "tier": 'B', "category": 'vault_capacity', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_share_inflation_attack_exposure_analyzer', "class": 'DeFiProtocolVaultShareInflationAttackExposureAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_idle_cash_drag_analyzer', "class": 'DeFiProtocolVaultIdleCashDragAnalyzer', "tier": 'B', "category": 'capital_efficiency', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
