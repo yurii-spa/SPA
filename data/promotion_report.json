@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-13T06:00:03.412509+00:00",
+  "generated_at": "2026-06-14T15:02:08.792453+00:00",
   "source": "promotion_engine",
   "is_demo": false,
   "num_decisions": 11,
@@ -14,134 +14,134 @@
     {
       "strategy_id": "S0",
       "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 1
+        "days_active": 9
       },
-      "ts": "2026-06-13T06:00:03.412433+00:00"
-    },
-    {
-      "strategy_id": "S1",
-      "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 1
-      },
-      "ts": "2026-06-13T06:00:03.412443+00:00"
-    },
-    {
-      "strategy_id": "S2",
-      "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 1
-      },
-      "ts": "2026-06-13T06:00:03.412447+00:00"
-    },
-    {
-      "strategy_id": "S3",
-      "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 1
-      },
-      "ts": "2026-06-13T06:00:03.412451+00:00"
-    },
-    {
-      "strategy_id": "S4",
-      "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 1
-      },
-      "ts": "2026-06-13T06:00:03.412453+00:00"
-    },
-    {
-      "strategy_id": "S5",
-      "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 1
-      },
-      "ts": "2026-06-13T06:00:03.412456+00:00"
-    },
-    {
-      "strategy_id": "S6",
-      "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
-      "metrics": {
-        "sharpe_30d": null,
-        "calmar_30d": null,
-        "max_drawdown_pct": -0.0,
-        "days_active": 1
-      },
-      "ts": "2026-06-13T06:00:03.412459+00:00"
+      "ts": "2026-06-14T15:02:08.792321+00:00"
     },
     {
       "strategy_id": "S7",
       "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 1
+        "days_active": 9
       },
-      "ts": "2026-06-13T06:00:03.412461+00:00"
+      "ts": "2026-06-14T15:02:08.792337+00:00"
     },
     {
-      "strategy_id": "S8",
+      "strategy_id": "S2",
       "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 1
+        "days_active": 9
       },
-      "ts": "2026-06-13T06:00:03.412463+00:00"
+      "ts": "2026-06-14T15:02:08.792343+00:00"
+    },
+    {
+      "strategy_id": "S1",
+      "action": "hold",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 9
+      },
+      "ts": "2026-06-14T15:02:08.792347+00:00"
+    },
+    {
+      "strategy_id": "S4",
+      "action": "hold",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 9
+      },
+      "ts": "2026-06-14T15:02:08.792351+00:00"
     },
     {
       "strategy_id": "S9",
       "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 1
+        "days_active": 9
       },
-      "ts": "2026-06-13T06:00:03.412466+00:00"
+      "ts": "2026-06-14T15:02:08.792354+00:00"
+    },
+    {
+      "strategy_id": "S6",
+      "action": "hold",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 9
+      },
+      "ts": "2026-06-14T15:02:08.792357+00:00"
+    },
+    {
+      "strategy_id": "S5",
+      "action": "hold",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 9
+      },
+      "ts": "2026-06-14T15:02:08.792360+00:00"
+    },
+    {
+      "strategy_id": "S3",
+      "action": "hold",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 9
+      },
+      "ts": "2026-06-14T15:02:08.792364+00:00"
+    },
+    {
+      "strategy_id": "S8",
+      "action": "hold",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 9
+      },
+      "ts": "2026-06-14T15:02:08.792367+00:00"
     },
     {
       "strategy_id": "S10",
       "action": "hold",
-      "reason": "Недостаточно данных: 1 дн. < MIN_DAYS=14. Решение отложено.",
+      "reason": "Недостаточно данных: 9 дн. < MIN_DAYS=14. Решение отложено.",
       "metrics": {
         "sharpe_30d": null,
         "calmar_30d": null,
         "max_drawdown_pct": -0.0,
-        "days_active": 1
+        "days_active": 9
       },
-      "ts": "2026-06-13T06:00:03.412468+00:00"
+      "ts": "2026-06-14T15:02:08.792370+00:00"
     }
   ]
 }
