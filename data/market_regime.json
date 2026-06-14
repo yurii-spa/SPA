@@ -1,7 +1,7 @@
 {
   "regime": "STABLE",
-  "t1_avg_apy": 4.5942,
-  "apy_std_dev": 1.5129,
+  "t1_avg_apy": 4.5165,
+  "apy_std_dev": 1.5214,
   "t1_adapters": [
     "aave_v3",
     "compound_v3",
@@ -26,5 +26,5 @@
     "aave_v3_polygon"
   ],
   "recommendation": "hold",
-  "detected_at": "2026-06-13T06:00:03.058034+00:00"
+  "detected_at": "2026-06-14T15:02:08.549163+00:00"
 }
