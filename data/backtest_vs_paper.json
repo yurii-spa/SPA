@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-13T06:00:04.116004+00:00",
-  "paper_days": 4,
+  "generated_at": "2026-06-14T15:02:09.223258+00:00",
+  "paper_days": 5,
   "confidence": "INSUFFICIENT — too few paper days",
   "rank_correlation": {
     "rho": null,
@@ -13,7 +13,7 @@
       "backtest_rank": 1,
       "paper_rank": 1,
       "backtest_sharpe": 48.482113886761006,
-      "paper_pnl_pct": 0.0538,
+      "paper_pnl_pct": 0.068,
       "rank_delta": 0,
       "note": "On track"
     },
@@ -22,7 +22,7 @@
       "backtest_rank": 3,
       "paper_rank": 2,
       "backtest_sharpe": 48.36203734987014,
-      "paper_pnl_pct": 0.0416,
+      "paper_pnl_pct": 0.0532,
       "rank_delta": -1,
       "note": "Outperforming vs backtest by 1 rank(s)"
     },
@@ -31,7 +31,7 @@
       "backtest_rank": 6,
       "paper_rank": 3,
       "backtest_sharpe": 1.971365971633346,
-      "paper_pnl_pct": 0.0406,
+      "paper_pnl_pct": 0.0514,
       "rank_delta": -3,
       "note": "Outperforming vs backtest by 3 rank(s)"
     },
@@ -40,7 +40,7 @@
       "backtest_rank": 4,
       "paper_rank": 4,
       "backtest_sharpe": 20.912351447673124,
-      "paper_pnl_pct": 0.0376,
+      "paper_pnl_pct": 0.049,
       "rank_delta": 0,
       "note": "On track"
     },
@@ -49,7 +49,7 @@
       "backtest_rank": 2,
       "paper_rank": 6,
       "backtest_sharpe": 48.48210270561135,
-      "paper_pnl_pct": 0.0301,
+      "paper_pnl_pct": 0.0392,
       "rank_delta": 4,
       "note": "Underperforming vs backtest by 4 rank(s)"
     },
@@ -58,11 +58,11 @@
       "backtest_rank": 5,
       "paper_rank": 5,
       "backtest_sharpe": 6.06905467561207,
-      "paper_pnl_pct": 0.0369,
+      "paper_pnl_pct": 0.0477,
       "rank_delta": 0,
       "note": "On track"
     }
   ],
-  "summary": "4 paper days (need ≥14 for meaningful correlation). Ranking: S0=1 vs backtest=1 (+0), S1=2 vs backtest=3 (-1), S2=3 vs backtest=6 (-3), S3=4 vs backtest=4 (+0), S4=6 vs backtest=2 (+4), S5=5 vs backtest=5 (+0)",
+  "summary": "5 paper days (need ≥14 for meaningful correlation). Ranking: S0=1 vs backtest=1 (+0), S1=2 vs backtest=3 (-1), S2=3 vs backtest=6 (-3), S3=4 vs backtest=4 (+0), S4=6 vs backtest=2 (+4), S5=5 vs backtest=5 (+0)",
   "advisory": "Wait for 14+ paper days before trusting rank correlation. Current data directional only."
 }
