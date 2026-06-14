@@ -1,0 +1,72 @@
+[
+  {
+    "timestamp": 1781392580.4553473,
+    "gauge_count": 1,
+    "aggregates": {
+      "most_efficient_gauge": "GaugeA",
+      "best_voter_apr_gauge": "GaugeA",
+      "average_briber_efficiency": 2.0,
+      "total_bribe_usd": 500.0,
+      "total_emissions_usd": 1000.0,
+      "overall_efficiency_ratio": 2.0,
+      "overbribed_count": 0,
+      "efficient_count": 1
+    }
+  },
+  {
+    "timestamp": 1781392636.5673518,
+    "gauge_count": 1,
+    "aggregates": {
+      "most_efficient_gauge": "demo",
+      "best_voter_apr_gauge": "demo",
+      "average_briber_efficiency": 2.5,
+      "total_bribe_usd": 400.0,
+      "total_emissions_usd": 1000.0,
+      "overall_efficiency_ratio": 2.5,
+      "overbribed_count": 0,
+      "efficient_count": 1
+    }
+  },
+  {
+    "timestamp": 1781392673.3598108,
+    "gauge_count": 1,
+    "aggregates": {
+      "most_efficient_gauge": "GaugeA",
+      "best_voter_apr_gauge": "GaugeA",
+      "average_briber_efficiency": 2.0,
+      "total_bribe_usd": 500.0,
+      "total_emissions_usd": 1000.0,
+      "overall_efficiency_ratio": 2.0,
+      "overbribed_count": 0,
+      "efficient_count": 1
+    }
+  },
+  {
+    "timestamp": 1781407557.7227056,
+    "gauge_count": 1,
+    "aggregates": {
+      "most_efficient_gauge": "GaugeA",
+      "best_voter_apr_gauge": "GaugeA",
+      "average_briber_efficiency": 2.0,
+      "total_bribe_usd": 500.0,
+      "total_emissions_usd": 1000.0,
+      "overall_efficiency_ratio": 2.0,
+      "overbribed_count": 0,
+      "efficient_count": 1
+    }
+  },
+  {
+    "timestamp": 1781407604.7536228,
+    "gauge_count": 1,
+    "aggregates": {
+      "most_efficient_gauge": "GaugeA",
+      "best_voter_apr_gauge": "GaugeA",
+      "average_briber_efficiency": 2.0,
+      "total_bribe_usd": 500.0,
+      "total_emissions_usd": 1000.0,
+      "overall_efficiency_ratio": 2.0,
+      "overbribed_count": 0,
+      "efficient_count": 1
+    }
+  }
+]
