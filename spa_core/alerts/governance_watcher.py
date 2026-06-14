@@ -81,6 +81,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -95,7 +96,13 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_OUTPUT_PATH = Path(__file__).resolve().parents[2] / "data" / "governance_proposals.json"
-_REQUEST_TIMEOUT = 8  # seconds
+_REQUEST_TIMEOUT = 15  # seconds (was 8 — Snapshot can be slow under load)
+_MAX_RETRIES = 3       # retry attempts per HTTP call
+_BACKOFF_BASE = 2      # exponential backoff base (sleep = base ** attempt)
+
+# Tally moved to an authenticated API (Api-Key header required).  Without a
+# key Tally is skipped gracefully and only Snapshot is used.  Set via env.
+TALLY_API_KEY = os.environ.get("TALLY_API_KEY", "").strip()
 
 # Snapshot space slugs for whitelisted protocols
 SNAPSHOT_SPACES: dict[str, str] = {
@@ -334,24 +341,63 @@ def _http_get(url: str, *, headers: dict | None = None, timeout: int = _REQUEST_
         return json.loads(resp.read().decode())
 
 
-def _http_post(url: str, payload: dict, *, timeout: int = _REQUEST_TIMEOUT) -> dict:
+def _http_post(
+    url: str,
+    payload: dict,
+    *,
+    timeout: int = _REQUEST_TIMEOUT,
+    extra_headers: dict | None = None,
+) -> dict:
     """
-    Perform a POST request with a JSON payload and return the JSON response.
-    Raises on failure.
+    Perform a single POST request with a JSON payload and return the JSON
+    response.  Raises on failure (use :func:`_http_post_retry` for resilience).
     """
     data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "SPA-GovernanceWatcher/1.0",
-        },
-        method="POST",
-    )
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "SPA-GovernanceWatcher/1.0",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
+
+
+def _sleep(seconds: float) -> None:
+    """Indirection over :func:`time.sleep` so tests can patch out backoff delays."""
+    time.sleep(seconds)
+
+
+def _http_post_retry(
+    url: str,
+    payload: dict,
+    *,
+    timeout: int = _REQUEST_TIMEOUT,
+    retries: int = _MAX_RETRIES,
+    extra_headers: dict | None = None,
+) -> dict:
+    """
+    POST with retry + exponential backoff.
+
+    Retries on any exception (timeout, transient 5xx, connection reset).
+    Sleeps ``_BACKOFF_BASE ** attempt`` seconds between attempts
+    (1s, 2s, 4s, ...).  Raises the last exception if all attempts fail.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            return _http_post(url, payload, timeout=timeout, extra_headers=extra_headers)
+        except Exception as exc:  # noqa: BLE001 — deliberately broad, we retry all
+            last_exc = exc
+            if attempt < retries - 1:
+                sleep_s = _BACKOFF_BASE ** attempt
+                log.debug("HTTP POST %s failed (attempt %d/%d): %s — retry in %ds",
+                          url, attempt + 1, retries, exc, sleep_s)
+                _sleep(sleep_s)
+    # All attempts exhausted
+    raise last_exc if last_exc else RuntimeError("HTTP POST failed with no exception")
 
 
 # ---------------------------------------------------------------------------
@@ -389,13 +435,22 @@ def _fetch_snapshot_proposals(
     space: str,
     *,
     state: str = "active",
-) -> list[GovernanceProposal]:
+) -> Tuple[bool, list[GovernanceProposal]]:
     """
     Fetch governance proposals from Snapshot GraphQL API for *space*.
-    Returns empty list on any failure.
+
+    Returns a ``(ok, proposals)`` tuple:
+
+    * ``ok``        — True if the API call succeeded (even with zero results),
+                      False if the network/HTTP call failed.
+    * ``proposals`` — list of parsed proposals (possibly empty).
+
+    This distinction is critical: a space with **no active proposals** is a
+    successful call that returns ``(True, [])`` — it must NOT be treated as a
+    fallback condition.  Only a genuine network failure yields ``(False, [])``.
     """
     try:
-        resp = _http_post(SNAPSHOT_GQL_URL, {
+        resp = _http_post_retry(SNAPSHOT_GQL_URL, {
             "query": _SNAPSHOT_QUERY,
             "variables": {"space": space, "state": state},
         })
@@ -429,10 +484,10 @@ def _fetch_snapshot_proposals(
                 votes_against=votes_against,
                 quorum_met=quorum_met,
             ))
-        return results
+        return True, results
     except Exception as exc:
         log.debug("Snapshot fetch failed for %s/%s: %s", protocol_key, space, exc)
-        return []
+        return False, []
 
 
 # ---------------------------------------------------------------------------
@@ -469,16 +524,25 @@ query Proposals($governorId: ID!, $afterId: ID) {
 """
 
 
-def _fetch_tally_proposals(protocol_key: str, governor_id: str) -> list[GovernanceProposal]:
+def _fetch_tally_proposals(protocol_key: str, governor_id: str) -> Tuple[bool, list[GovernanceProposal]]:
     """
     Fetch proposals from Tally API for an on-chain governor.
-    Returns empty list on any failure (Tally may require API key for production).
+
+    Tally now requires an ``Api-Key`` header.  If ``TALLY_API_KEY`` env var is
+    not set, the call is skipped and ``(False, [])`` is returned — Snapshot then
+    covers these protocols (comp-vote.eth / uniswap spaces exist on Snapshot).
+
+    Returns a ``(ok, proposals)`` tuple, mirroring the Snapshot fetcher.
     """
+    if not TALLY_API_KEY:
+        log.debug("Tally skipped for %s — TALLY_API_KEY not set", protocol_key)
+        return False, []
     try:
-        resp = _http_post(TALLY_API_URL, {
-            "query": _TALLY_QUERY,
-            "variables": {"governorId": governor_id},
-        })
+        resp = _http_post_retry(
+            TALLY_API_URL,
+            {"query": _TALLY_QUERY, "variables": {"governorId": governor_id}},
+            extra_headers={"Api-Key": TALLY_API_KEY},
+        )
         proposals_raw = resp.get("data", {}).get("proposals", [])
         results: list[GovernanceProposal] = []
         for p in proposals_raw:
@@ -520,10 +584,10 @@ def _fetch_tally_proposals(protocol_key: str, governor_id: str) -> list[Governan
                 votes_against=votes_against,
                 quorum_met=quorum_met,
             ))
-        return results
+        return True, results
     except Exception as exc:
         log.debug("Tally fetch failed for %s/%s: %s", protocol_key, governor_id, exc)
-        return []
+        return False, []
 
 
 # ---------------------------------------------------------------------------
@@ -574,6 +638,13 @@ class GovernanceWatcher:
         self.output_file = Path(output_file)
         self._risk_scores_file = Path(risk_scores_file) if risk_scores_file else None
         self._fallback_used: bool = False
+        # ── health-check state (populated by scan_all) ──
+        self._snapshot_ok: bool = False
+        self._tally_ok: bool = False
+        self._snapshot_spaces_ok: int = 0
+        self._snapshot_spaces_failed: int = 0
+        self._last_live_fetch: Optional[str] = None
+        self._last_error: Optional[str] = None
 
     # ------------------------------------------------------------------ #
     # Public API                                                           #
@@ -586,10 +657,17 @@ class GovernanceWatcher:
         """
         try:
             proposals: list[GovernanceProposal] = []
-            fallback = False
+            # Reset health-check state for this scan
+            self._fallback_used = False
+            self._snapshot_ok = False
+            self._tally_ok = False
+            self._snapshot_spaces_ok = 0
+            self._snapshot_spaces_failed = 0
+            self._last_error = None
 
             if offline:
                 log.info("Offline mode — returning bootstrap proposals")
+                self._fallback_used = True
                 proposals = list(BOOTSTRAP_PROPOSALS)
                 # Apply same sort as live path
                 sev_order_local = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
@@ -601,35 +679,57 @@ class GovernanceWatcher:
                 ))
                 return proposals
 
-            # Snapshot
+            # ── Snapshot ──
+            # IMPORTANT: a space that returns zero ACTIVE proposals is a SUCCESS,
+            # not a failure.  We only count genuine network/HTTP errors toward
+            # the failure tally that triggers fallback.
             for protocol_key, space in SNAPSHOT_SPACES.items():
                 try:
-                    active = _fetch_snapshot_proposals(protocol_key, space, state="active")
-                    if active:
+                    ok, active = _fetch_snapshot_proposals(protocol_key, space, state="active")
+                    if ok:
+                        self._snapshot_spaces_ok += 1
                         proposals.extend(active)
-                        log.debug("Snapshot %s: %d active proposals", protocol_key, len(active))
+                        log.debug("Snapshot %s: ok, %d active proposals",
+                                  protocol_key, len(active))
                     else:
-                        fallback = True
+                        self._snapshot_spaces_failed += 1
                 except Exception as exc:
+                    self._snapshot_spaces_failed += 1
+                    self._last_error = f"snapshot:{protocol_key}: {exc}"
                     log.warning("Snapshot scan error %s: %s", protocol_key, exc)
-                    fallback = True
 
-            # Tally (optional, may fail without API key)
+            # Snapshot is considered healthy if AT LEAST ONE space responded.
+            self._snapshot_ok = self._snapshot_spaces_ok > 0
+
+            # ── Tally (optional; skipped gracefully without API key) ──
             for protocol_key, gov_id in TALLY_GOVERNORS.items():
                 try:
-                    tally_props = _fetch_tally_proposals(protocol_key, gov_id)
-                    proposals.extend(tally_props)
-                    log.debug("Tally %s: %d proposals", protocol_key, len(tally_props))
+                    ok, tally_props = _fetch_tally_proposals(protocol_key, gov_id)
+                    if ok:
+                        self._tally_ok = True
+                        proposals.extend(tally_props)
+                        log.debug("Tally %s: ok, %d proposals", protocol_key, len(tally_props))
                 except Exception as exc:
                     log.debug("Tally error %s: %s", protocol_key, exc)
 
-            # If no live data fetched → use bootstrap
-            if not proposals or fallback:
-                log.info("Using bootstrap proposals (live=%d, fallback=%s)",
-                         len(proposals), fallback)
-                if not proposals:
-                    proposals = list(BOOTSTRAP_PROPOSALS)
-                    self._fallback_used = True
+            # ── Fallback decision ──
+            # Fall back to bootstrap ONLY when no live source responded at all
+            # (Snapshot down AND Tally unavailable).  An empty-but-healthy live
+            # scan (no active proposals anywhere) is a valid, NON-fallback result.
+            live_ok = self._snapshot_ok or self._tally_ok
+            if not live_ok:
+                log.info("No live governance source responded — using bootstrap "
+                         "(snapshot_ok=%s, tally_ok=%s)", self._snapshot_ok, self._tally_ok)
+                proposals = list(BOOTSTRAP_PROPOSALS)
+                self._fallback_used = True
+            else:
+                self._last_live_fetch = datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
+                log.debug("Live governance scan ok: %d proposals "
+                          "(snapshot_ok=%s, tally_ok=%s, spaces_ok=%d, spaces_failed=%d)",
+                          len(proposals), self._snapshot_ok, self._tally_ok,
+                          self._snapshot_spaces_ok, self._snapshot_spaces_failed)
 
             # De-duplicate by id
             seen: set[str] = set()
@@ -671,11 +771,31 @@ class GovernanceWatcher:
                 by_severity[p.severity] = by_severity.get(p.severity, 0) + 1
                 by_protocol[p.protocol] = by_protocol.get(p.protocol, 0) + 1
 
+            # Build the source list from what actually responded
+            if self._fallback_used:
+                sources = ["bootstrap"]
+            else:
+                sources = []
+                if self._snapshot_ok:
+                    sources.append("snapshot")
+                if self._tally_ok:
+                    sources.append("tally")
+                if not sources:  # offline path or edge case
+                    sources = ["bootstrap"]
+
             result = {
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "watcher_version": "1.0",
-                "sources": ["snapshot", "tally"] if not self._fallback_used else ["bootstrap"],
+                "watcher_version": "1.1",
+                "sources": sources,
                 "fallback_used": self._fallback_used,
+                # ── health-check fields ──
+                "fetch_method": "fallback" if self._fallback_used else "live",
+                "snapshot_ok": self._snapshot_ok,
+                "tally_ok": self._tally_ok,
+                "snapshot_spaces_ok": self._snapshot_spaces_ok,
+                "snapshot_spaces_failed": self._snapshot_spaces_failed,
+                "last_live_fetch": self._last_live_fetch,
+                "last_error": self._last_error,
                 "proposals": [p.to_dict() for p in proposals],
                 "summary": {
                     "total_proposals": len(proposals),
@@ -777,7 +897,14 @@ if __name__ == "__main__":
     print(f"Active:           {summary.get('active_count', 0)}")
     print(f"HIGH severity:    {summary.get('high_severity_count', 0)}")
     print(f"Risk triggers:    {len(summary.get('risk_triggers', []))}")
+    print(f"Fetch method:     {result.get('fetch_method', '?')}")
+    print(f"Snapshot OK:      {result.get('snapshot_ok', False)} "
+          f"({result.get('snapshot_spaces_ok', 0)} ok / "
+          f"{result.get('snapshot_spaces_failed', 0)} failed)")
+    print(f"Tally OK:         {result.get('tally_ok', False)}")
     print(f"Fallback used:    {result.get('fallback_used', False)}")
+    if result.get("last_error"):
+        print(f"Last error:       {result.get('last_error')}")
     print()
     print(f"{'Sev':<7} {'State':<8} {'Protocol':<16} {'Category':<18} Title")
     print("-" * 100)
