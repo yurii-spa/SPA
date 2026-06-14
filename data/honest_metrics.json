@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T15:02:09.222444+00:00",
+  "generated_at": "2026-06-14T17:03:09.821725+00:00",
   "source": "honest_metrics",
   "schema_version": 1,
   "advisory_only": true,
@@ -25,15 +25,15 @@
     "S1": {
       "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 149.44935832517882,
+      "sharpe": 149.15211226990385,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.04306564175706117,
+      "total_return_pct": 0.04307564074515834,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 129.53849631985085,
-        "upper": 2045.2318974986308,
+        "lower": 129.3047772022446,
+        "upper": 2165.9485479551554,
         "n_valid": 987
       },
       "sortino_ci_95": null,
@@ -59,15 +59,15 @@
     "S3": {
       "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 103.51265257057874,
+      "sharpe": 104.01133179324694,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.040406508877636464,
+      "total_return_pct": 0.0403765114694137,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 102.24475947275185,
-        "upper": 32119.947486335044,
+        "lower": 102.7311772937856,
+        "upper": 8777.007405479455,
         "n_valid": 987
       },
       "sortino_ci_95": null,
@@ -76,15 +76,15 @@
     "S4": {
       "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 103.65310516422352,
+      "sharpe": 104.06955256959593,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.03232776615136069,
+      "total_return_pct": 0.032307767533261124,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 102.58978471400081,
-        "upper": 26809.920740820882,
+        "lower": 102.99764231215869,
+        "upper": 9407.387223636086,
         "n_valid": 987
       },
       "sortino_ci_95": null,
@@ -93,15 +93,15 @@
     "S5": {
       "n_days": 4,
       "confidence": "INSUFFICIENT",
-      "sharpe": 127.5162056960065,
+      "sharpe": 128.05187368785684,
       "sortino": null,
       "calmar": null,
       "max_drawdown_pct": 0.0,
-      "total_return_pct": 0.03911663205797515,
+      "total_return_pct": 0.039096633779837374,
       "annualized_return_pct": null,
       "sharpe_ci_95": {
-        "lower": 125.26749109289861,
-        "upper": 30777.470787049322,
+        "lower": 125.78442919900232,
+        "upper": 11017.066815002214,
         "n_valid": 987
       },
       "sortino_ci_95": null,
