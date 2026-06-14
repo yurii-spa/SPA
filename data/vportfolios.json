@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-13T06:00:03.408271+00:00",
+  "generated_at": "2026-06-14T15:02:08.787510+00:00",
   "source": "vportfolio_manager",
   "is_demo": false,
   "num_portfolios": 11,
@@ -22,8 +22,8 @@
       "strategy_id": "S0",
       "capital_usd": 100000.0,
       "positions": {
-        "aave_v3": 50004.32863013699,
-        "morpho_blue": 30004.118876712328
+        "aave_v3": 50038.82215754963,
+        "morpho_blue": 30034.567907664714
       },
       "cash_usd": 20000.0,
       "equity_history": [
@@ -33,29 +33,93 @@
           "apy_today": 3.0833,
           "daily_yield_usd": 8.447507,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100016.584022,
+          "apy_today": 2.9696,
+          "daily_yield_usd": 8.136515,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100024.695828,
+          "apy_today": 2.9603,
+          "daily_yield_usd": 8.111806,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100032.808487,
+          "apy_today": 2.9604,
+          "daily_yield_usd": 8.112659,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100040.921999,
+          "apy_today": 2.9605,
+          "daily_yield_usd": 8.113512,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100049.028798,
+          "apy_today": 2.9578,
+          "daily_yield_usd": 8.106798,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100057.136447,
+          "apy_today": 2.9578,
+          "daily_yield_usd": 8.10765,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100065.262828,
+          "apy_today": 2.9644,
+          "daily_yield_usd": 8.126381,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100073.390065,
+          "apy_today": 2.9645,
+          "daily_yield_usd": 8.127237,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        8.447506849319325e-05
+        8.447506849319325e-05,
+        8.135828158400565e-05,
+        8.110461051795634e-05,
+        8.110655927277377e-05,
+        8.110850794931835e-05,
+        8.103482315704968e-05,
+        8.103676514325652e-05,
+        8.12174043496341e-05,
+        8.121936489682538e-05
       ],
       "created_at": "2026-06-12T17:14:04.424891+00:00",
-      "last_updated": "2026-06-13T06:00:03.408037+00:00",
-      "total_yield_usd": 8.447507,
-      "days_simulated": 1,
-      "peak_equity": 100008.447507,
+      "last_updated": "2026-06-14T15:02:08.787091+00:00",
+      "total_yield_usd": 73.390065,
+      "days_simulated": 9,
+      "peak_equity": 100073.390065,
       "status": "active",
-      "current_equity": 100008.447507,
+      "current_equity": 100073.390065,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0084
+      "total_return_pct": 0.0734
     },
     "S1": {
       "strategy_id": "S1",
       "capital_usd": 100000.0,
       "positions": {
-        "aave_v3": 30002.597178082193,
-        "morpho_blue": 20002.74591780822,
-        "yearn_v3": 25002.28095890411,
-        "euler_v2": 20001.527452054794
+        "aave_v3": 30023.293294529776,
+        "morpho_blue": 20023.04527177647,
+        "yearn_v3": 25020.37463649567,
+        "euler_v2": 20013.751268839216
       },
       "cash_usd": 5000.0,
       "equity_history": [
@@ -65,27 +129,91 @@
           "apy_today": 3.3403,
           "daily_yield_usd": 9.151507,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100018.083254,
+          "apy_today": 3.2598,
+          "daily_yield_usd": 8.931747,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100026.992195,
+          "apy_today": 3.2512,
+          "daily_yield_usd": 8.908941,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100035.902,
+          "apy_today": 3.2512,
+          "daily_yield_usd": 8.909805,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100044.81267,
+          "apy_today": 3.2512,
+          "daily_yield_usd": 8.91067,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100053.719189,
+          "apy_today": 3.2494,
+          "daily_yield_usd": 8.906518,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100062.626571,
+          "apy_today": 3.2494,
+          "daily_yield_usd": 8.907382,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100071.545088,
+          "apy_today": 3.2532,
+          "daily_yield_usd": 8.918517,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100080.464472,
+          "apy_today": 3.2532,
+          "daily_yield_usd": 8.919384,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        9.15150684931723e-05
+        9.15150684931723e-05,
+        8.930929942753047e-05,
+        8.907329769563403e-05,
+        8.907401062008282e-05,
+        8.90747235193824e-05,
+        8.902529006236253e-05,
+        8.902599935881293e-05,
+        8.912934941661886e-05,
+        8.913006918681976e-05
       ],
       "created_at": "2026-06-12T17:14:04.424906+00:00",
-      "last_updated": "2026-06-13T06:00:03.408063+00:00",
-      "total_yield_usd": 9.151507,
-      "days_simulated": 1,
-      "peak_equity": 100009.151507,
+      "last_updated": "2026-06-14T15:02:08.787127+00:00",
+      "total_yield_usd": 80.464471,
+      "days_simulated": 9,
+      "peak_equity": 100080.464472,
       "status": "active",
-      "current_equity": 100009.151507,
+      "current_equity": 100080.464472,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0092
+      "total_return_pct": 0.0805
     },
     "S2": {
       "strategy_id": "S2",
       "capital_usd": 100000.0,
       "positions": {
-        "morpho_blue": 60008.237753424655,
-        "aave_v3": 20001.731452054795
+        "morpho_blue": 60069.13581532943,
+        "aave_v3": 20015.52886301985
       },
       "cash_usd": 20000.0,
       "equity_history": [
@@ -95,27 +223,91 @@
           "apy_today": 3.6388,
           "daily_yield_usd": 9.969205,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100019.365367,
+          "apy_today": 3.4293,
+          "daily_yield_usd": 9.396162,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100028.687186,
+          "apy_today": 3.4018,
+          "daily_yield_usd": 9.321819,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100038.010115,
+          "apy_today": 3.4019,
+          "daily_yield_usd": 9.322929,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100047.334155,
+          "apy_today": 3.402,
+          "daily_yield_usd": 9.32404,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100056.64483,
+          "apy_today": 3.3968,
+          "daily_yield_usd": 9.310675,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100065.956612,
+          "apy_today": 3.3969,
+          "daily_yield_usd": 9.311782,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100075.310086,
+          "apy_today": 3.4118,
+          "daily_yield_usd": 9.353474,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100084.664678,
+          "apy_today": 3.4119,
+          "daily_yield_usd": 9.354592,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        9.969205479457741e-05
+        9.969205479457741e-05,
+        9.395224967270457e-05,
+        9.320014005324064e-05,
+        9.320255466552349e-05,
+        9.320496913798858e-05,
+        9.306270145182092e-05,
+        9.306510613732506e-05,
+        9.347309027735663e-05,
+        9.3475522759019e-05
       ],
       "created_at": "2026-06-12T17:14:04.424909+00:00",
-      "last_updated": "2026-06-13T06:00:03.408073+00:00",
-      "total_yield_usd": 9.969205,
-      "days_simulated": 1,
-      "peak_equity": 100009.969205,
+      "last_updated": "2026-06-14T15:02:08.787136+00:00",
+      "total_yield_usd": 84.664678,
+      "days_simulated": 9,
+      "peak_equity": 100084.664678,
       "status": "active",
-      "current_equity": 100009.969205,
+      "current_equity": 100084.664678,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.01
+      "total_return_pct": 0.0847
     },
     "S3": {
       "strategy_id": "S3",
       "capital_usd": 100000.0,
       "positions": {
-        "morpho_blue": 30004.118876712328,
-        "aave_v3": 25002.164315068494
+        "morpho_blue": 30034.567907664714,
+        "aave_v3": 25019.411078774814
       },
       "cash_usd": 45000.0,
       "equity_history": [
@@ -125,28 +317,92 @@
           "apy_today": 2.2934,
           "daily_yield_usd": 6.283192,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100012.270686,
+          "apy_today": 2.1853,
+          "daily_yield_usd": 5.987494,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100018.225681,
+          "apy_today": 2.1733,
+          "daily_yield_usd": 5.954996,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100024.181344,
+          "apy_today": 2.1734,
+          "daily_yield_usd": 5.955662,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100030.137673,
+          "apy_today": 2.1735,
+          "daily_yield_usd": 5.956329,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100036.087308,
+          "apy_today": 2.171,
+          "daily_yield_usd": 5.949635,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100042.037609,
+          "apy_today": 2.1711,
+          "daily_yield_usd": 5.950301,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100048.007963,
+          "apy_today": 2.1783,
+          "daily_yield_usd": 5.970354,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100053.978986,
+          "apy_today": 2.1784,
+          "daily_yield_usd": 5.971024,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        6.283191780821653e-05
+        6.283191780821653e-05,
+        5.987117604239338e-05,
+        5.954265049362887e-05,
+        5.954577203568288e-05,
+        5.954889357825666e-05,
+        5.947842863789084e-05,
+        5.948154049489305e-05,
+        5.967844787866412e-05,
+        5.968158696033121e-05
       ],
       "created_at": "2026-06-12T17:14:04.424920+00:00",
-      "last_updated": "2026-06-13T06:00:03.408080+00:00",
-      "total_yield_usd": 6.283192,
-      "days_simulated": 1,
-      "peak_equity": 100006.283192,
+      "last_updated": "2026-06-14T15:02:08.787145+00:00",
+      "total_yield_usd": 53.978987,
+      "days_simulated": 9,
+      "peak_equity": 100053.978986,
       "status": "active",
-      "current_equity": 100006.283192,
+      "current_equity": 100053.978986,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0063
+      "total_return_pct": 0.054
     },
     "S4": {
       "strategy_id": "S4",
       "capital_usd": 100000.0,
       "positions": {
-        "yearn_v3": 35003.193342465755,
-        "euler_v2": 35002.67304109589,
-        "morpho_blue": 25003.432397260272
+        "yearn_v3": 35028.52449109395,
+        "euler_v2": 35024.06472046863,
+        "morpho_blue": 25028.806589720592
       },
       "cash_usd": 5000.0,
       "equity_history": [
@@ -156,27 +412,91 @@
           "apy_today": 3.3941,
           "daily_yield_usd": 9.298781,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100018.343672,
+          "apy_today": 3.3011,
+          "daily_yield_usd": 9.044892,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100027.347619,
+          "apy_today": 3.2858,
+          "daily_yield_usd": 9.003947,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100036.352457,
+          "apy_today": 3.2859,
+          "daily_yield_usd": 9.004838,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100045.358185,
+          "apy_today": 3.2859,
+          "daily_yield_usd": 9.005729,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100054.358842,
+          "apy_today": 3.2838,
+          "daily_yield_usd": 9.000657,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100063.360389,
+          "apy_today": 3.2838,
+          "daily_yield_usd": 9.001547,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100072.377648,
+          "apy_today": 3.2892,
+          "daily_yield_usd": 9.017259,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100081.395801,
+          "apy_today": 3.2892,
+          "daily_yield_usd": 9.018153,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        9.298780821918626e-05
+        9.298780821918626e-05,
+        9.044050642077426e-05,
+        9.002295214184783e-05,
+        9.002375646813689e-05,
+        9.0024560769323e-05,
+        8.996576459658487e-05,
+        8.996656450195035e-05,
+        9.011549252079626e-05,
+        9.011630510924514e-05
       ],
       "created_at": "2026-06-12T17:14:04.424923+00:00",
-      "last_updated": "2026-06-13T06:00:03.408088+00:00",
-      "total_yield_usd": 9.298781,
-      "days_simulated": 1,
-      "peak_equity": 100009.298781,
+      "last_updated": "2026-06-14T15:02:08.787154+00:00",
+      "total_yield_usd": 81.395803,
+      "days_simulated": 9,
+      "peak_equity": 100081.395801,
       "status": "active",
-      "current_equity": 100009.298781,
+      "current_equity": 100081.395801,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0093
+      "total_return_pct": 0.0814
     },
     "S5": {
       "strategy_id": "S5",
       "capital_usd": 100000.0,
       "positions": {
-        "morpho_blue": 30004.118876712328,
-        "aave_v3": 15001.298589041096
+        "morpho_blue": 30034.567907664714,
+        "aave_v3": 15011.646647264888
       },
       "cash_usd": 55000.0,
       "equity_history": [
@@ -186,28 +506,92 @@
           "apy_today": 1.9774,
           "daily_yield_usd": 5.417466,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100010.545351,
+          "apy_today": 1.8716,
+          "daily_yield_usd": 5.127885,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100015.637622,
+          "apy_today": 1.8585,
+          "daily_yield_usd": 5.092272,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100020.730486,
+          "apy_today": 1.8586,
+          "daily_yield_usd": 5.092864,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100025.823943,
+          "apy_today": 1.8587,
+          "daily_yield_usd": 5.093456,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100030.910713,
+          "apy_today": 1.8562,
+          "daily_yield_usd": 5.08677,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100035.998074,
+          "apy_today": 1.8563,
+          "daily_yield_usd": 5.087361,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100041.106016,
+          "apy_today": 1.8637,
+          "daily_yield_usd": 5.107943,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100046.214555,
+          "apy_today": 1.8639,
+          "daily_yield_usd": 5.108539,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        5.417465753416764e-05
+        5.417465753416764e-05,
+        5.127607341257587e-05,
+        5.0917345716361924e-05,
+        5.092067605504411e-05,
+        5.092400645747804e-05,
+        5.08545693275576e-05,
+        5.085788896078191e-05,
+        5.106104475169902e-05,
+        5.106439550466193e-05
       ],
       "created_at": "2026-06-12T17:14:04.424925+00:00",
-      "last_updated": "2026-06-13T06:00:03.408096+00:00",
-      "total_yield_usd": 5.417466,
-      "days_simulated": 1,
-      "peak_equity": 100005.417466,
+      "last_updated": "2026-06-14T15:02:08.787161+00:00",
+      "total_yield_usd": 46.214556,
+      "days_simulated": 9,
+      "peak_equity": 100046.214555,
       "status": "active",
-      "current_equity": 100005.417466,
+      "current_equity": 100046.214555,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0054
+      "total_return_pct": 0.0462
     },
     "S6": {
       "strategy_id": "S6",
       "capital_usd": 100000.0,
       "positions": {
-        "yearn_v3": 40003.64953424658,
-        "euler_v2": 30002.291178082192,
-        "morpho_blue": 25003.432397260272
+        "yearn_v3": 40032.59941839308,
+        "euler_v2": 30020.62690325883,
+        "morpho_blue": 25028.806589720592
       },
       "cash_usd": 5000.0,
       "equity_history": [
@@ -217,31 +601,95 @@
           "apy_today": 3.4212,
           "daily_yield_usd": 9.37311,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100018.489383,
+          "apy_today": 3.3271,
+          "daily_yield_usd": 9.116274,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100027.5636,
+          "apy_today": 3.3115,
+          "daily_yield_usd": 9.074217,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100036.63872,
+          "apy_today": 3.3115,
+          "daily_yield_usd": 9.07512,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100045.714743,
+          "apy_today": 3.3115,
+          "daily_yield_usd": 9.076023,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100054.785705,
+          "apy_today": 3.3094,
+          "daily_yield_usd": 9.070963,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100063.85757,
+          "apy_today": 3.3094,
+          "daily_yield_usd": 9.071864,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100072.944788,
+          "apy_today": 3.3147,
+          "daily_yield_usd": 9.087218,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100082.032911,
+          "apy_today": 3.3147,
+          "daily_yield_usd": 9.088124,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        9.373109589039813e-05
+        9.373109589039813e-05,
+        9.115419281648175e-05,
+        9.072539590154033e-05,
+        9.072619042515749e-05,
+        9.072698492212675e-05,
+        9.066817915603798e-05,
+        9.066896933797604e-05,
+        9.08141882820542e-05,
+        9.081499093867861e-05
       ],
       "created_at": "2026-06-12T17:14:04.424928+00:00",
-      "last_updated": "2026-06-13T06:00:03.408102+00:00",
-      "total_yield_usd": 9.37311,
-      "days_simulated": 1,
-      "peak_equity": 100009.37311,
+      "last_updated": "2026-06-14T15:02:08.787169+00:00",
+      "total_yield_usd": 82.032913,
+      "days_simulated": 9,
+      "peak_equity": 100082.032911,
       "status": "active",
-      "current_equity": 100009.37311,
+      "current_equity": 100082.032911,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0094
+      "total_return_pct": 0.082
     },
     "S7": {
       "strategy_id": "S7",
       "capital_usd": 100000.0,
       "positions": {
-        "aave_v3": 16701.44576246575,
-        "compound_v3": 16702.379178082192,
-        "morpho_blue": 16702.292841369865,
-        "yearn_v3": 16701.523680547944,
-        "euler_v2": 16701.275422465755,
-        "maple": 11701.52503890411
+        "aave_v3": 16712.966600621567,
+        "compound_v3": 16721.424809047196,
+        "morpho_blue": 16719.242801933357,
+        "yearn_v3": 16713.610257179116,
+        "euler_v2": 16711.482309480747,
+        "maple": 11713.743578893704
       },
       "cash_usd": 4800.0,
       "equity_history": [
@@ -251,20 +699,84 @@
           "apy_today": 3.8113,
           "daily_yield_usd": 10.441924,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100020.712085,
+          "apy_today": 3.7482,
+          "daily_yield_usd": 10.270161,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100030.959447,
+          "apy_today": 3.7395,
+          "daily_yield_usd": 10.247362,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100041.207972,
+          "apy_today": 3.7396,
+          "daily_yield_usd": 10.248526,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100051.457662,
+          "apy_today": 3.7396,
+          "daily_yield_usd": 10.24969,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100061.704396,
+          "apy_today": 3.7381,
+          "daily_yield_usd": 10.246734,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100071.952293,
+          "apy_today": 3.7382,
+          "daily_yield_usd": 10.247897,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100082.210742,
+          "apy_today": 3.7416,
+          "daily_yield_usd": 10.258449,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100092.470357,
+          "apy_today": 3.7417,
+          "daily_yield_usd": 10.259615,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        0.000104419238356204
+        0.000104419238356204,
+        0.00010269088900428972,
+        0.00010245239553782893,
+        0.00010245353688176365,
+        0.00010245467818584166,
+        0.00010241463628874753,
+        0.00010241577564517996,
+        0.00010251073242025324,
+        0.00010251187795163797
       ],
       "created_at": "2026-06-12T17:14:04.424930+00:00",
-      "last_updated": "2026-06-13T06:00:03.408110+00:00",
-      "total_yield_usd": 10.441924,
-      "days_simulated": 1,
-      "peak_equity": 100010.441924,
+      "last_updated": "2026-06-14T15:02:08.787178+00:00",
+      "total_yield_usd": 92.470358,
+      "days_simulated": 9,
+      "peak_equity": 100092.470357,
       "status": "active",
-      "current_equity": 100010.441924,
+      "current_equity": 100092.470357,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0104
+      "total_return_pct": 0.0925
     },
     "S8": {
       "strategy_id": "S8",
@@ -281,15 +793,79 @@
           "apy_today": 0.0,
           "daily_yield_usd": 0.0,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
         0.0
       ],
       "created_at": "2026-06-12T17:14:04.424933+00:00",
-      "last_updated": "2026-06-13T06:00:03.408122+00:00",
+      "last_updated": "2026-06-14T15:02:08.787192+00:00",
       "total_yield_usd": 0.0,
-      "days_simulated": 1,
+      "days_simulated": 9,
       "peak_equity": 100000.0,
       "status": "active",
       "current_equity": 100000.0,
@@ -300,8 +876,8 @@
       "strategy_id": "S9",
       "capital_usd": 100000.0,
       "positions": {
-        "aave_v3": 50004.32863013699,
-        "morpho_blue": 30004.118876712328
+        "aave_v3": 50038.82215754963,
+        "morpho_blue": 30034.567907664714
       },
       "cash_usd": 20000.0,
       "equity_history": [
@@ -311,20 +887,84 @@
           "apy_today": 3.0833,
           "daily_yield_usd": 8.447507,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100016.584022,
+          "apy_today": 2.9696,
+          "daily_yield_usd": 8.136515,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100024.695828,
+          "apy_today": 2.9603,
+          "daily_yield_usd": 8.111806,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100032.808487,
+          "apy_today": 2.9604,
+          "daily_yield_usd": 8.112659,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100040.921999,
+          "apy_today": 2.9605,
+          "daily_yield_usd": 8.113512,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100049.028798,
+          "apy_today": 2.9578,
+          "daily_yield_usd": 8.106798,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100057.136447,
+          "apy_today": 2.9578,
+          "daily_yield_usd": 8.10765,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100065.262828,
+          "apy_today": 2.9644,
+          "daily_yield_usd": 8.126381,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100073.390065,
+          "apy_today": 2.9645,
+          "daily_yield_usd": 8.127237,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
-        8.447506849319325e-05
+        8.447506849319325e-05,
+        8.135828158400565e-05,
+        8.110461051795634e-05,
+        8.110655927277377e-05,
+        8.110850794931835e-05,
+        8.103482315704968e-05,
+        8.103676514325652e-05,
+        8.12174043496341e-05,
+        8.121936489682538e-05
       ],
       "created_at": "2026-06-12T17:14:04.424935+00:00",
-      "last_updated": "2026-06-13T06:00:03.408129+00:00",
-      "total_yield_usd": 8.447507,
-      "days_simulated": 1,
-      "peak_equity": 100008.447507,
+      "last_updated": "2026-06-14T15:02:08.787200+00:00",
+      "total_yield_usd": 73.390065,
+      "days_simulated": 9,
+      "peak_equity": 100073.390065,
       "status": "active",
-      "current_equity": 100008.447507,
+      "current_equity": 100073.390065,
       "drawdown_pct": 0.0,
-      "total_return_pct": 0.0084
+      "total_return_pct": 0.0734
     },
     "S10": {
       "strategy_id": "S10",
@@ -340,15 +980,79 @@
           "apy_today": 0.0,
           "daily_yield_usd": 0.0,
           "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
+        },
+        {
+          "date": "2026-06-14",
+          "equity": 100000.0,
+          "apy_today": 0.0,
+          "daily_yield_usd": 0.0,
+          "drawdown_pct": 0.0
         }
       ],
       "daily_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
         0.0
       ],
       "created_at": "2026-06-12T17:14:04.424937+00:00",
-      "last_updated": "2026-06-13T06:00:03.408134+00:00",
+      "last_updated": "2026-06-14T15:02:08.787208+00:00",
       "total_yield_usd": 0.0,
-      "days_simulated": 1,
+      "days_simulated": 9,
       "peak_equity": 100000.0,
       "status": "active",
       "current_equity": 100000.0,
