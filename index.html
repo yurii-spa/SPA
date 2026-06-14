@@ -1212,6 +1212,15 @@
 <div id="golive-status-bar"></div>
 
 <!-- TABS v3.0 (Dashboard v3.0 Sprint A) -->
+<!-- FIX-7 P2-2: Hero strip — PAPER badge + live stats -->
+<div id="hero-strip" style="background:#1a1a2e;color:#fff;padding:8px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;border-bottom:1px solid #333;margin-bottom:12px;border-radius:8px">
+  <span style="background:#e74c3c;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px">PAPER TRADING · VIRTUAL CAPITAL</span>
+  <span>Equity: <b id="hero-equity">$—</b></span>
+  <span>APY: <b id="hero-apy">—%</b></span>
+  <span id="hero-track-days">День —/30</span>
+  <span>Go-Live: <b id="hero-golive">—</b></span>
+  <span id="hero-status" style="font-weight:bold">—</span>
+</div>
 <div class="tabs">
   <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
@@ -1897,7 +1906,7 @@
         </div>
         <div class="ops-card-meta">
           <div class="ops-card-name">Adapter Orchestrator</div>
-          <div class="ops-card-role">DeFiLlama API · 6 протоколов · read-only</div>
+          <div class="ops-card-role">DeFiLlama API · 14 адаптеров · read-only</div>
         </div>
       </div>
       <div class="ops-status-row">
@@ -2039,7 +2048,7 @@
           <div style="font-weight:600;color:#fcd34d;margin-bottom:6px">python3 -m spa_core.paper_trading.cycle_runner</div>
           <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline">
             <span style="color:#3B82F6;font-size:11px">①</span>
-            <span><span style="color:#60A5FA;font-weight:600">Adapter Orchestrator</span> → DeFiLlama yields API <span style="color:#6b7280;font-size:10px">(кэш TTL 300с)</span> → 6 протоколов (read-only)</span>
+            <span><span style="color:#60A5FA;font-weight:600">Adapter Orchestrator</span> → DeFiLlama yields API <span style="color:#6b7280;font-size:10px">(кэш TTL 300с)</span> → 14 адаптеров (read-only)</span>
             <span style="color:#10B981;font-size:11px">②</span>
             <span><span style="color:#34d399;font-weight:600">StrategyAllocator</span> → целевая аллокация USD по пулам с cap'ами T1/T2</span>
             <span style="color:#10B981;font-size:11px">②b</span>
@@ -2091,7 +2100,7 @@
       <div class="stack-row"><span class="stack-label">Оркестрация</span><span class="stack-value">launchd (daily 08:00 UTC)</span></div>
       <div class="stack-row"><span class="stack-label">Язык</span><span class="stack-value">Python 3 · только stdlib</span></div>
       <div class="stack-row"><span class="stack-label">Хранилище</span><span class="stack-value">data/*.json (атомарные записи)</span></div>
-      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama yields API · 6 протоколов</span></div>
+      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama yields API · 14 адаптеров</span></div>
       <div class="stack-row"><span class="stack-label">Автопуш</span><span class="stack-value">launchd autopush (каждые 90 мин)</span></div>
       <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · HTML/JS</span></div>
       <div class="stack-row"><span class="stack-label">Туннель</span><span class="stack-value">cloudflared · локальный httpserver</span></div>
@@ -2100,8 +2109,8 @@
       <div class="flow-title">дорожная карта</div>
       <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Rebuild: реальный трек, cycle_runner, launchd</span></div>
       <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Dashboard v2 · Kanban · 121+ тест</span></div>
-      <div class="stack-row"><span class="stack-label">~2026-07-10 ●</span><span class="stack-value">30 честных дней трека (ADR-002)</span></div>
-      <div class="stack-row"><span class="stack-label">~2026-07-10</span><span class="stack-value">GoLiveChecker: 7 дней READY подряд</span></div>
+      <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-1">~</span> ●</span><span class="stack-value">30 честных дней трека (ADR-002)</span></div>
+      <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-2">~</span></span><span class="stack-value">GoLiveChecker: 7 дней READY подряд</span></div>
       <div class="stack-row"><span class="stack-label">Go-Live</span><span class="stack-value">~2026-08-01 · Реальный капитал (ADR-002)</span></div>
       <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный AUM</span></div>
     </div>
@@ -3832,9 +3841,12 @@ async function loadTearSheet() {
   // Track line
   if (trackEl) {
     const end = ts.track_end || 'present';
-    trackEl.textContent = 'Real Track: ' + (ts.track_start || '—') + ' → ' + end
+    const _trackDays   = ts.track_days || 0;
+    const _trackWindow = META_TRACK_DAYS || 30;
+    trackEl.innerHTML = 'Real Track: ' + (ts.track_start || META_TRACK_START || '—') + ' → ' + end
       + ' · ' + (ts.track_days || '—') + ' days'
-      + ' · ' + (ts.n_observations || '—') + ' observations';
+      + ' · ' + (ts.n_observations || '—') + ' observations'
+      + '<br><small style="color:#888;font-size:10px">Paper cycle: с ' + META_PAPER_START + ' · Verified track: день ' + _trackDays + '/' + _trackWindow + '</small>';
   }
 
   // Helper: fill one metric cell
@@ -4631,6 +4643,10 @@ async function loadDashboard() {
     if (meta && meta.verified_track_start) META_TRACK_START = meta.verified_track_start;
     if (meta && meta.golive_target)        META_GOLIVE      = meta.golive_target;
     if (meta && meta.track_window_days)    META_TRACK_DAYS  = meta.track_window_days;
+    // FIX-1a: fill roadmap dates from live meta
+    { const _rd = addDaysToDate(META_TRACK_START, META_TRACK_DAYS || 30);
+      const el1 = document.getElementById('roadmap-track-ready-1'); if(el1) el1.textContent = '~' + _rd;
+      const el2 = document.getElementById('roadmap-track-ready-2'); if(el2) el2.textContent = '~' + _rd; }
     const status = buildLiveStatus(orch, posData, paperStatus, equityCurve);
     const protocols = mapOrchToProtocols(orch);
     renderStalenessBanner(orch, paperStatus);     // MP-007: staleness >24h
@@ -4641,6 +4657,22 @@ async function loadDashboard() {
     renderAlerts(alertsData);
     renderTrades(tradesData);
     updateDataFreshnessBadge(meta, paperStatus);  // P0-3: pass paperStatus for cycle freshness
+    // FIX-7: fill hero strip
+    { const _heroEl = id => document.getElementById(id);
+      if (_heroEl('hero-equity') && paperStatus) {
+        const _eq = paperStatus.current_equity || paperStatus.equity;
+        if (_eq) _heroEl('hero-equity').textContent = '$' + Number(_eq).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+        const _apy = paperStatus.current_apy_pct || paperStatus.apy;
+        if (_apy != null) _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%';
+        if (_heroEl('hero-golive')) _heroEl('hero-golive').textContent = META_GOLIVE || '2026-08-01';
+        if (_heroEl('hero-status') && paperStatus.go_live_status) _heroEl('hero-status').textContent = paperStatus.go_live_status;
+      }
+      // hero-track-days: compute from gap_monitor / equity_curve length
+      if (_heroEl('hero-track-days')) {
+        const _ec = equityCurve && (equityCurve.curve || equityCurve);
+        const _n = Array.isArray(_ec) ? _ec.filter(p => !p.is_demo).length : 0;
+        _heroEl('hero-track-days').textContent = 'День ' + _n + '/' + (META_TRACK_DAYS || 30);
+      } }
     renderApyGapTracker(status, null);            // weighted APY считается из живых позиций
     renderApyTrends();
     loadStrategyRace();
@@ -4656,7 +4688,7 @@ async function loadDashboard() {
 // ─── APY Trends ───────────────────────────────────────────────────────────────
 async function renderApyTrends() {
   let trends = null;
-  try { trends = await fetchJSON(LIVE_BASE + '/apy/trends'); } catch(e) {}
+  if (!IS_PUBLIC) { try { trends = await fetchJSON(LIVE_BASE + '/apy/trends'); } catch(e) {} }
   if (!trends) { try { trends = await fetchJSON(BASE + '/apy_trends.json'); } catch(e) {} }
   if (!trends || !trends.trends) return;
 
@@ -7743,6 +7775,13 @@ let META_PAPER_START = '2026-05-20';   // paper_cycle_start
 let META_TRACK_START = '2026-06-10';   // verified_track_start
 let META_GOLIVE      = '2026-08-01';   // golive_target (ADR-002)
 let META_TRACK_DAYS  = 30;             // track_window_days
+
+// P0-1a: global date helper (UTC-safe), used for roadmap + pe-ready-date
+function addDaysToDate(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 const STALE_DATA_MS = 24 * 3600 * 1000; // staleness-порог 24h
 
 const _mpEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
@@ -9324,7 +9363,7 @@ async function loadPaperEvidence() {
     const ts = Date.now();
     const d = await fetch(BASE + '/paper_evidence.json?_=' + ts).then(r => r.json()).catch(() => null);
 
-    const startDate   = (d && d.paper_start_date) || '2026-06-12';
+    const startDate   = (d && d.paper_start_date) || META_TRACK_START;
     const goliveDate  = (d && d.golive_target)     || '2026-08-01';
     const minDays     = (d && d.min_days_required) || 30;
     const summary     = (d && d.summary)           || {};
@@ -9362,8 +9401,8 @@ async function loadPaperEvidence() {
     setText('pe-avg-apy',  '—');
     setText('pe-max-dd',   '—');
     setText('pe-sharpe',   '—');
-    setText('pe-start-date',  '2026-06-12');
-    setText('pe-ready-date',  '2026-07-12');
+    setText('pe-start-date',  META_TRACK_START);
+    setText('pe-ready-date',  addDaysToDate(META_TRACK_START, META_TRACK_DAYS || 30));
     setText('pe-golive-date', '2026-08-01');
   }
 }
