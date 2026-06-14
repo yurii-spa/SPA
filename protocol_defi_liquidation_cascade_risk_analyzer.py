@@ -1,454 +1,321 @@
 """
-MP-1033: ProtocolDeFiLiquidationCascadeRiskAnalyzer
+MP-1087: Protocol DeFi Liquidation Cascade Risk Analyzer
+Estimates liquidation cascade risk in DeFi lending markets.
 
-Analyzes risk of a liquidation cascade in lending protocols: an initial
-price drop triggers mass liquidations, which increase sell pressure, causing
-further price drops (reflexive feedback loop — "death spiral" risk).
+Models what happens when collateral prices drop and liquidations trigger
+more selling, amplifying the initial price move (reflexive feedback).
 
-Advisory/read-only. Pure stdlib. Atomic writes (tmp + os.replace).
-Ring-buffer capped at 100 entries in data/liquidation_cascade_risk_log.json.
+Pure Python stdlib only. No external dependencies.
+Atomic writes (tmp + os.replace). Ring-buffer log cap 100.
+
+Supersedes MP-1033 (same filename, extended interface).
 """
-
-from __future__ import annotations
 
 import json
 import os
 import time
-from pathlib import Path
+from typing import Any, Dict, List
 
-DATA_FILE = Path("data/liquidation_cascade_risk_log.json")
-MAX_ENTRIES = 100
-
-# ─────────────────────────────────────────────────────────────────
-# Constants
-# ─────────────────────────────────────────────────────────────────
-
-# Label thresholds (cascade_risk_score 0-100)
-_LABEL_THRESHOLDS = [
-    (85, "DEATH_SPIRAL"),
-    (65, "HIGH_CASCADE"),
-    (45, "MODERATE_CASCADE"),
-    (25, "LOW_CASCADE"),
-    (0,  "STABLE"),
-]
-
-# Market impact coefficient: liquidation volume relative to daily volume
-# maps to % market impact on the collateral asset price
-_MARKET_IMPACT_COEFF = 0.08   # 8% price impact per 100% of daily volume liquidated
-
-
-# ─────────────────────────────────────────────────────────────────
-# Internal computation helpers (exposed for unit tests)
-# ─────────────────────────────────────────────────────────────────
-
-def _compute_cascade_risk_score(
-    ltv_ratio: float,
-    liquidation_threshold: float,
-    price_drop_trigger_pct: float,
-    concentrated_positions_pct: float,
-    total_collateral_usd: float,
-    daily_volume_usd: float,
-) -> float:
-    """
-    Compute cascade risk score in [0.0, 100.0].
-
-    Higher LTV, lower liquidation threshold buffer, severe price drop,
-    concentration, and illiquidity all increase cascade risk.
-
-    Parameters
-    ----------
-    ltv_ratio : float
-        Current average LTV across the protocol (0-1).
-    liquidation_threshold : float
-        LTV at which liquidation is triggered (0-1), must be ≥ ltv_ratio.
-    price_drop_trigger_pct : float
-        Hypothetical price drop (%) that initiates liquidations (0-100).
-    concentrated_positions_pct : float
-        Percentage (0-100) of total collateral in top-10 concentrated positions.
-    total_collateral_usd : float
-        Total collateral value at risk, in USD.
-    daily_volume_usd : float
-        Average daily on-market trading volume for the collateral asset, in USD.
-    """
-    score = 0.0
-
-    # 1. LTV proximity to liquidation threshold — how close to breach
-    #    Buffer = (threshold - current ltv) / threshold
-    liq_thresh = max(float(liquidation_threshold), 0.001)
-    ltv = max(0.0, min(float(ltv_ratio), 1.0))
-    buffer_ratio = max(0.0, (liq_thresh - ltv) / liq_thresh)
-    # Small buffer → high risk. buffer=0 → +35, buffer=1 → 0
-    score += (1.0 - buffer_ratio) * 35.0
-
-    # 2. Price drop trigger magnitude
-    pdrop = max(0.0, min(float(price_drop_trigger_pct), 100.0))
-    if pdrop >= 50.0:
-        score += 25.0
-    elif pdrop >= 30.0:
-        score += 18.0
-    elif pdrop >= 15.0:
-        score += 12.0
-    elif pdrop >= 5.0:
-        score += 6.0
-    elif pdrop >= 1.0:
-        score += 2.0
-
-    # 3. Concentration risk
-    conc = max(0.0, min(float(concentrated_positions_pct), 100.0))
-    score += (conc / 100.0) * 20.0
-
-    # 4. Liquidity depth: ratio of collateral to daily volume
-    #    Large collateral vs. thin volume = hard to liquidate without price impact
-    vol = max(float(daily_volume_usd), 1.0)
-    collateral = max(0.0, float(total_collateral_usd))
-    liquidity_ratio = collateral / vol  # > 1 means collateral > daily volume
-    if liquidity_ratio >= 5.0:
-        score += 20.0
-    elif liquidity_ratio >= 2.0:
-        score += 12.0
-    elif liquidity_ratio >= 1.0:
-        score += 6.0
-    elif liquidity_ratio >= 0.5:
-        score += 2.0
-
-    return max(0.0, min(100.0, score))
-
-
-def _compute_estimated_liquidation_volume_usd(
-    total_collateral_usd: float,
-    ltv_ratio: float,
-    liquidation_threshold: float,
-    price_drop_trigger_pct: float,
-    concentrated_positions_pct: float,
-) -> float:
-    """
-    Estimate volume of collateral that would be liquidated after the price drop.
-
-    Methodology:
-    - Price drop moves effective LTV up by: new_ltv = ltv / (1 - pdrop/100)
-    - Positions breaching liquidation_threshold must be liquidated
-    - Concentration amplifies the at-risk fraction
-    """
-    pdrop = max(0.0, min(float(price_drop_trigger_pct), 100.0))
-    ltv = max(0.0, min(float(ltv_ratio), 1.0))
-    liq_thresh = max(0.001, float(liquidation_threshold))
-    collateral = max(0.0, float(total_collateral_usd))
-    conc = max(0.0, min(float(concentrated_positions_pct), 100.0)) / 100.0
-
-    if pdrop >= 100.0:
-        return collateral  # total wipeout
-
-    # Effective LTV after price drop
-    price_retention = 1.0 - (pdrop / 100.0)
-    if price_retention <= 0:
-        return collateral
-    effective_ltv = ltv / price_retention
-
-    if effective_ltv <= liq_thresh:
-        # Below liquidation threshold even after drop — no liquidations
-        return 0.0
-
-    # Fraction of collateral that is now underwater
-    breach_fraction = min((effective_ltv - liq_thresh) / max(effective_ltv, 0.001), 1.0)
-
-    # Concentrated positions are more likely to be fully underwater simultaneously
-    concentration_amplifier = 1.0 + conc * 0.5
-    at_risk_fraction = min(breach_fraction * concentration_amplifier, 1.0)
-
-    return round(collateral * at_risk_fraction, 2)
-
-
-def _compute_market_impact_pct(
-    estimated_liquidation_volume_usd: float,
-    daily_volume_usd: float,
-) -> float:
-    """
-    Estimate additional price impact (%) from liquidation sell pressure.
-
-    Uses a square-root market impact model common in execution research:
-    impact = coeff × sqrt(liquidation_volume / daily_volume)
-    """
-    vol = max(float(daily_volume_usd), 1.0)
-    liq_vol = max(0.0, float(estimated_liquidation_volume_usd))
-    ratio = liq_vol / vol
-    # Square root model caps extreme scenarios gracefully
-    raw_impact = _MARKET_IMPACT_COEFF * (ratio ** 0.5) * 100.0
-    return round(max(0.0, min(100.0, raw_impact)), 4)
-
-
-def _compute_recovery_time_days(
-    cascade_risk_score: float,
-    market_impact_pct: float,
-    daily_volume_usd: float,
-    total_collateral_usd: float,
-) -> int:
-    """
-    Estimate recovery time (days) for the protocol to stabilise post-cascade.
-
-    Model: higher scores + bigger market impact + larger position relative
-    to volume = longer recovery.
-    """
-    score = max(0.0, float(cascade_risk_score))
-    impact = max(0.0, float(market_impact_pct))
-    vol = max(float(daily_volume_usd), 1.0)
-    collateral = max(0.0, float(total_collateral_usd))
-
-    # Base days from cascade score
-    base_days = score / 10.0  # 100-score → 10 days base
-
-    # Market impact adds extra days
-    base_days += impact * 0.3
-
-    # Liquidity ratio: more collateral relative to volume → slower recovery
-    liquidity_ratio = min(collateral / vol, 20.0)
-    base_days += liquidity_ratio * 0.5
-
-    return max(0, int(round(base_days)))
-
-
-def _cascade_label(cascade_risk_score: float) -> str:
-    """Map cascade_risk_score to a risk label."""
-    score = float(cascade_risk_score)
-    for threshold, label in _LABEL_THRESHOLDS:
-        if score >= threshold:
-            return label
-    return "STABLE"
-
-
-def _compute_flags(
-    ltv_ratio: float,
-    liquidation_threshold: float,
-    price_drop_trigger_pct: float,
-    concentrated_positions_pct: float,
-    total_collateral_usd: float,
-    daily_volume_usd: float,
-) -> list:
-    """Return list of active risk flag strings."""
-    flags: list[str] = []
-    ltv = float(ltv_ratio)
-    thresh = float(liquidation_threshold)
-    pdrop = float(price_drop_trigger_pct)
-    conc = float(concentrated_positions_pct)
-    vol = max(float(daily_volume_usd), 1.0)
-    collateral = float(total_collateral_usd)
-
-    # Near-breach
-    if thresh > 0 and (thresh - ltv) / thresh < 0.10:
-        flags.append("NEAR_LIQUIDATION_THRESHOLD")
-
-    # Severe drop scenario
-    if pdrop >= 30.0:
-        flags.append("SEVERE_PRICE_DROP_SCENARIO")
-
-    # Concentration
-    if conc >= 60.0:
-        flags.append("HIGHLY_CONCENTRATED_POSITIONS")
-
-    # Illiquid market
-    if collateral >= vol * 2.0:
-        flags.append("ILLIQUID_MARKET")
-
-    # High LTV overall
-    if ltv >= 0.75:
-        flags.append("HIGH_PORTFOLIO_LTV")
-
-    # Thin collateral buffer
-    if thresh > 0 and ltv / thresh >= 0.95:
-        flags.append("CRITICAL_LTV_BUFFER")
-
-    return flags
-
-
-# ─────────────────────────────────────────────────────────────────
-# Main class
-# ─────────────────────────────────────────────────────────────────
 
 class ProtocolDeFiLiquidationCascadeRiskAnalyzer:
     """
-    Advisory analyzer for DeFi liquidation cascade risk.
+    Estimates liquidation cascade risk given lending market parameters.
 
-    Models how a price drop in the collateral asset can trigger a
-    self-reinforcing cycle of liquidations and further price declines,
-    estimating cascade risk score, liquidation volume, market impact,
-    and protocol recovery time.
+    Key computed outputs:
+        buffer_to_liquidation_pct  — % price drop required to breach liq. threshold
+        at_risk_collateral_usd     — collateral value after hypothetical price drop
+        estimated_liquidations_usd — debt liquidated if drop scenario materialises
+        market_impact_pct          — liquidations as % of daily volume (cascade proxy)
+        cascade_risk_score         — 0 (safe) to 100 (systemic)
+        cascade_label              — categorical severity label
 
-    Pure stdlib, read-only/advisory. Ring-buffer log to
-    data/liquidation_cascade_risk_log.json (cap 100, atomic writes).
+    Labels (evaluated in priority order, most severe first):
+        SYSTEMIC_CASCADE  — market_impact > 60% OR current_ltv > liquidation_threshold
+        HIGH_CASCADE      — buffer < 5% OR market_impact >= 30%
+        CASCADE_RISK      — buffer < 10% OR market_impact >= 15%
+        WATCHLIST         — buffer <= 20% OR market_impact >= 5%
+        SAFE_MARGINS      — buffer > 20% AND market_impact < 5%
+
+    Risk score components:
+        buffer_score  0–50:  min(50, max(0, (25 - buffer_pct) / 25 × 50))
+        impact_score  0–40:  min(40, market_impact_pct / 60 × 40)
+        ltv_bonus     0–10:  10 if current_ltv >= liquidation_threshold, else 0
     """
+
+    LOG_FILE_NAME: str = "liquidation_cascade_risk_log.json"
+    LOG_CAP: int = 100
+
+    # Label constants
+    SAFE_MARGINS: str = "SAFE_MARGINS"
+    WATCHLIST: str = "WATCHLIST"
+    CASCADE_RISK: str = "CASCADE_RISK"
+    HIGH_CASCADE: str = "HIGH_CASCADE"
+    SYSTEMIC_CASCADE: str = "SYSTEMIC_CASCADE"
+
+    def __init__(self, data_dir: str = "data") -> None:
+        self.data_dir = data_dir
+        self.log_file = os.path.join(data_dir, self.LOG_FILE_NAME)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def analyze(
         self,
-        collateral_asset: str,
-        ltv_ratio: float,
-        liquidation_threshold: float,
         total_collateral_usd: float,
+        total_debt_usd: float,
+        liquidation_threshold_pct: float,
+        current_ltv_pct: float,
+        price_drop_pct: float,
+        liquidation_penalty_pct: float,
+        protocol_tvl_usd: float,
         daily_volume_usd: float,
-        concentrated_positions_pct: float,
-        price_drop_trigger_pct: float,
-        data_dir: str | None = None,
-    ) -> dict:
+        protocol_name: str,
+    ) -> Dict[str, Any]:
         """
-        Analyze liquidation cascade risk for a lending protocol position.
+        Analyze liquidation cascade risk.
 
-        Parameters
-        ----------
-        collateral_asset : str
-            Name/ticker of the collateral asset (e.g. 'ETH', 'wBTC').
-        ltv_ratio : float
-            Current average loan-to-value across the protocol (0-1).
-        liquidation_threshold : float
-            LTV ratio at which liquidations are triggered (0-1).
-        total_collateral_usd : float
-            Total collateral value at risk, in USD.
-        daily_volume_usd : float
-            Average daily on-market trading volume of the collateral, in USD.
-        concentrated_positions_pct : float
-            Percentage (0-100) of total collateral in the largest 10 positions.
-        price_drop_trigger_pct : float
-            Hypothetical price drop (0-100%) that triggers the cascade analysis.
-        data_dir : str, optional
-            Override directory for log file (tests use temp dirs).
+        Args:
+            total_collateral_usd:      Total collateral value in USD.
+            total_debt_usd:            Total outstanding debt in USD.
+            liquidation_threshold_pct: LTV % triggering liquidations (e.g. 80.0).
+            current_ltv_pct:           Current loan-to-value percentage.
+            price_drop_pct:            Hypothetical collateral price drop (%).
+            liquidation_penalty_pct:   Bonus liquidators receive (e.g. 5.0 = 5%).
+            protocol_tvl_usd:          Protocol total value locked.
+            daily_volume_usd:          Market daily volume (liquidity proxy).
+            protocol_name:             Human-readable protocol identifier.
 
-        Returns
-        -------
-        dict
-            {
-              "collateral_asset": str,
-              "ltv_ratio": float,
-              "liquidation_threshold": float,
-              "total_collateral_usd": float,
-              "daily_volume_usd": float,
-              "concentrated_positions_pct": float,
-              "price_drop_trigger_pct": float,
-              "cascade_risk_score": float,
-              "estimated_liquidation_volume_usd": float,
-              "market_impact_pct": float,
-              "recovery_time_days": int,
-              "label": str,
-              "flags": list[str],
-              "timestamp": float,
-            }
+        Returns:
+            dict with keys:
+                buffer_to_liquidation_pct  (float)
+                at_risk_collateral_usd     (float)
+                estimated_liquidations_usd (float)
+                market_impact_pct          (float)
+                cascade_risk_score         (int, 0–100)
+                cascade_label              (str)
+                log_entry                  (dict)
         """
-        asset = str(collateral_asset)
-        ltv = max(0.0, min(1.0, float(ltv_ratio)))
-        liq_thresh = max(ltv, min(1.0, float(liquidation_threshold)))  # thresh ≥ ltv
-        collateral = max(0.0, float(total_collateral_usd))
-        daily_vol = max(0.0, float(daily_volume_usd))
-        conc = max(0.0, min(100.0, float(concentrated_positions_pct)))
-        pdrop = max(0.0, min(100.0, float(price_drop_trigger_pct)))
+        buffer_to_liquidation_pct: float = self._compute_buffer(
+            current_ltv_pct, liquidation_threshold_pct
+        )
+        at_risk_collateral_usd: float = self._compute_at_risk_collateral(
+            total_collateral_usd, price_drop_pct
+        )
+        estimated_liquidations_usd: float = self._compute_estimated_liquidations(
+            total_debt_usd, at_risk_collateral_usd, liquidation_threshold_pct
+        )
+        market_impact_pct: float = self._compute_market_impact(
+            estimated_liquidations_usd, daily_volume_usd
+        )
+        cascade_label: str = self._compute_cascade_label(
+            buffer_to_liquidation_pct,
+            market_impact_pct,
+            current_ltv_pct,
+            liquidation_threshold_pct,
+        )
+        cascade_risk_score: int = self._compute_cascade_risk_score(
+            buffer_to_liquidation_pct,
+            market_impact_pct,
+            current_ltv_pct,
+            liquidation_threshold_pct,
+        )
 
-        cascade_risk_score = _compute_cascade_risk_score(
-            ltv, liq_thresh, pdrop, conc, collateral, daily_vol
-        )
-        liq_volume = _compute_estimated_liquidation_volume_usd(
-            collateral, ltv, liq_thresh, pdrop, conc
-        )
-        market_impact = _compute_market_impact_pct(liq_volume, daily_vol)
-        recovery_days = _compute_recovery_time_days(
-            cascade_risk_score, market_impact, daily_vol, collateral
-        )
-        label = _cascade_label(cascade_risk_score)
-        flags = _compute_flags(
-            ltv, liq_thresh, pdrop, conc, collateral, daily_vol
-        )
-
-        result = {
-            "collateral_asset": asset,
-            "ltv_ratio": ltv,
-            "liquidation_threshold": liq_thresh,
-            "total_collateral_usd": collateral,
-            "daily_volume_usd": daily_vol,
-            "concentrated_positions_pct": conc,
-            "price_drop_trigger_pct": pdrop,
-            "cascade_risk_score": round(cascade_risk_score, 4),
-            "estimated_liquidation_volume_usd": liq_volume,
-            "market_impact_pct": market_impact,
-            "recovery_time_days": recovery_days,
-            "label": label,
-            "flags": flags,
-            "timestamp": time.time(),
+        log_entry: Dict[str, Any] = {
+            "protocol_name": protocol_name,
+            "total_collateral_usd": total_collateral_usd,
+            "total_debt_usd": total_debt_usd,
+            "liquidation_threshold_pct": liquidation_threshold_pct,
+            "current_ltv_pct": current_ltv_pct,
+            "price_drop_pct": price_drop_pct,
+            "liquidation_penalty_pct": liquidation_penalty_pct,
+            "protocol_tvl_usd": protocol_tvl_usd,
+            "daily_volume_usd": daily_volume_usd,
+            "buffer_to_liquidation_pct": buffer_to_liquidation_pct,
+            "at_risk_collateral_usd": at_risk_collateral_usd,
+            "estimated_liquidations_usd": estimated_liquidations_usd,
+            "market_impact_pct": market_impact_pct,
+            "cascade_risk_score": cascade_risk_score,
+            "cascade_label": cascade_label,
+            "analyzed_at": time.time(),
         }
 
-        _append_log(result, data_dir=data_dir)
-        return result
+        return {
+            "buffer_to_liquidation_pct": buffer_to_liquidation_pct,
+            "at_risk_collateral_usd": at_risk_collateral_usd,
+            "estimated_liquidations_usd": estimated_liquidations_usd,
+            "market_impact_pct": market_impact_pct,
+            "cascade_risk_score": cascade_risk_score,
+            "cascade_label": cascade_label,
+            "log_entry": log_entry,
+        }
 
+    def log_result(self, log_entry: Dict[str, Any]) -> None:
+        """
+        Append log_entry to ring-buffer log (cap=LOG_CAP, atomic write).
+        Oldest entry is dropped when the cap is exceeded.
+        """
+        entries: List[Dict[str, Any]] = self._read_log()
+        entries.append(log_entry)
+        if len(entries) > self.LOG_CAP:
+            entries = entries[-self.LOG_CAP :]
+        self._write_log(entries)
 
-# ─────────────────────────────────────────────────────────────────
-# Ring-buffer log
-# ─────────────────────────────────────────────────────────────────
+    # ------------------------------------------------------------------
+    # Static computation helpers
+    # ------------------------------------------------------------------
 
-def _append_log(entry: dict, data_dir: str | None = None) -> None:
-    """Atomically append *entry* to the log file, capped at MAX_ENTRIES."""
-    if data_dir is not None:
-        log_path = Path(data_dir) / "liquidation_cascade_risk_log.json"
-    else:
-        log_path = DATA_FILE
+    @staticmethod
+    def _compute_buffer(
+        current_ltv_pct: float,
+        liquidation_threshold_pct: float,
+    ) -> float:
+        """
+        Buffer until liquidation as a price-drop percentage.
 
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+        buffer = 100 × (1 − current_ltv / liquidation_threshold)
 
-    existing: list = []
-    if log_path.exists():
-        try:
-            with open(log_path, "r", encoding="utf-8") as f:
-                existing = json.load(f)
-            if not isinstance(existing, list):
-                existing = []
-        except (json.JSONDecodeError, OSError):
-            existing = []
+        Interpretation: this is the percentage by which collateral prices can
+        fall before the liquidation threshold is breached.
+        Negative values indicate the threshold is already breached.
+        Returns 0.0 if liquidation_threshold_pct is zero.
+        """
+        if liquidation_threshold_pct == 0.0:
+            return 0.0
+        return 100.0 * (1.0 - current_ltv_pct / liquidation_threshold_pct)
 
-    existing.append(entry)
-    if len(existing) > MAX_ENTRIES:
-        existing = existing[-MAX_ENTRIES:]
+    @staticmethod
+    def _compute_at_risk_collateral(
+        total_collateral_usd: float,
+        price_drop_pct: float,
+    ) -> float:
+        """
+        Collateral value after the hypothetical price drop.
+        Clamped to ≥ 0 (collateral cannot go negative).
+        """
+        return max(0.0, total_collateral_usd * (1.0 - price_drop_pct / 100.0))
 
-    tmp = log_path.with_suffix(".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(existing, f, indent=2)
-    os.replace(tmp, log_path)
+    @staticmethod
+    def _compute_estimated_liquidations(
+        total_debt_usd: float,
+        at_risk_collateral_usd: float,
+        liquidation_threshold_pct: float,
+    ) -> float:
+        """
+        Debt that would need to be liquidated to restore LTV to threshold.
 
+        Model: estimated_liquidations = max(0, debt − threshold_ratio × collateral_post_drop)
 
-# ─────────────────────────────────────────────────────────────────
-# CLI demo
-# ─────────────────────────────────────────────────────────────────
+        If post-drop collateral still supports the debt within the threshold, returns 0.
+        Returns 0.0 if liquidation_threshold_pct ≤ 0.
+        """
+        if liquidation_threshold_pct <= 0.0:
+            return 0.0
+        threshold_ratio: float = liquidation_threshold_pct / 100.0
+        safe_debt: float = threshold_ratio * at_risk_collateral_usd
+        return max(0.0, total_debt_usd - safe_debt)
 
-if __name__ == "__main__":
-    analyzer = ProtocolDeFiLiquidationCascadeRiskAnalyzer()
+    @staticmethod
+    def _compute_market_impact(
+        estimated_liquidations_usd: float,
+        daily_volume_usd: float,
+    ) -> float:
+        """
+        Liquidation volume as a percentage of daily market volume (cascade proxy).
 
-    scenarios = [
-        {
-            "collateral_asset": "ETH",
-            "ltv_ratio": 0.72,
-            "liquidation_threshold": 0.80,
-            "total_collateral_usd": 8_000_000_000,
-            "daily_volume_usd": 15_000_000_000,
-            "concentrated_positions_pct": 25.0,
-            "price_drop_trigger_pct": 20.0,
-        },
-        {
-            "collateral_asset": "wBTC",
-            "ltv_ratio": 0.68,
-            "liquidation_threshold": 0.75,
-            "total_collateral_usd": 3_500_000_000,
-            "daily_volume_usd": 2_000_000_000,
-            "concentrated_positions_pct": 60.0,
-            "price_drop_trigger_pct": 30.0,
-        },
-        {
-            "collateral_asset": "LUNA",
-            "ltv_ratio": 0.78,
-            "liquidation_threshold": 0.80,
-            "total_collateral_usd": 18_000_000_000,
-            "daily_volume_usd": 300_000_000,
-            "concentrated_positions_pct": 80.0,
-            "price_drop_trigger_pct": 50.0,
-        },
-    ]
+        Returns:
+            0.0   — no liquidations
+            100.0 — volume is zero but liquidations are positive (maximum impact)
+            ratio — estimated_liquidations / daily_volume × 100 otherwise
+        """
+        if estimated_liquidations_usd <= 0.0:
+            return 0.0
+        if daily_volume_usd <= 0.0:
+            return 100.0
+        return estimated_liquidations_usd / daily_volume_usd * 100.0
 
-    for scenario in scenarios:
-        result = analyzer.analyze(**scenario)
-        print(
-            f"{result['collateral_asset']}: score={result['cascade_risk_score']:.1f}  "
-            f"label={result['label']}  "
-            f"liq_vol=${result['estimated_liquidation_volume_usd']:,.0f}  "
-            f"market_impact={result['market_impact_pct']:.2f}%  "
-            f"recovery={result['recovery_time_days']}d"
+    @staticmethod
+    def _compute_cascade_label(
+        buffer_to_liquidation_pct: float,
+        market_impact_pct: float,
+        current_ltv_pct: float,
+        liquidation_threshold_pct: float,
+    ) -> str:
+        """
+        Determine cascade severity label.  Most severe condition wins (priority order).
+
+        1. market_impact > 60% OR current_ltv > threshold  → SYSTEMIC_CASCADE
+        2. buffer < 5%  OR market_impact >= 30%            → HIGH_CASCADE
+        3. buffer < 10% OR market_impact >= 15%            → CASCADE_RISK
+        4. buffer <= 20% OR market_impact >= 5%            → WATCHLIST
+        5. buffer > 20% AND market_impact < 5%             → SAFE_MARGINS
+        """
+        if market_impact_pct > 60.0 or current_ltv_pct > liquidation_threshold_pct:
+            return "SYSTEMIC_CASCADE"
+        if buffer_to_liquidation_pct < 5.0 or market_impact_pct >= 30.0:
+            return "HIGH_CASCADE"
+        if buffer_to_liquidation_pct < 10.0 or market_impact_pct >= 15.0:
+            return "CASCADE_RISK"
+        if buffer_to_liquidation_pct <= 20.0 or market_impact_pct >= 5.0:
+            return "WATCHLIST"
+        return "SAFE_MARGINS"
+
+    @staticmethod
+    def _compute_cascade_risk_score(
+        buffer_to_liquidation_pct: float,
+        market_impact_pct: float,
+        current_ltv_pct: float,
+        liquidation_threshold_pct: float,
+    ) -> int:
+        """
+        Cascade risk score in range [0, 100].
+
+        Components:
+            buffer_score  0–50:  min(50, max(0, (25 − buffer_pct) / 25 × 50))
+                                  buffer ≥ 25 → score = 0; buffer ≤ 0 → score = 50
+            impact_score  0–40:  min(40, market_impact_pct / 60 × 40)
+            ltv_bonus     0–10:  10 if current_ltv >= liquidation_threshold, else 0
+
+        Final value = sum of components, clamped to [0, 100], rounded half-up.
+        """
+        buffer_score: float = min(
+            50.0, max(0.0, (25.0 - buffer_to_liquidation_pct) / 25.0 * 50.0)
         )
+        impact_score: float = min(40.0, market_impact_pct / 60.0 * 40.0)
+        ltv_bonus: int = (
+            10 if current_ltv_pct >= liquidation_threshold_pct else 0
+        )
+
+        total: float = buffer_score + impact_score + ltv_bonus
+        return min(100, max(0, int(total + 0.5)))
+
+    # ------------------------------------------------------------------
+    # Log persistence helpers
+    # ------------------------------------------------------------------
+
+    def _read_log(self) -> List[Dict[str, Any]]:
+        """Read existing log file; return empty list on missing/corrupt file."""
+        if not os.path.exists(self.log_file):
+            return []
+        try:
+            with open(self.log_file, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, IOError, OSError, ValueError):
+            return []
+
+    def _write_log(self, entries: List[Dict[str, Any]]) -> None:
+        """Atomically write entries list to log file (tmp + os.replace)."""
+        os.makedirs(self.data_dir, exist_ok=True)
+        tmp_path: str = self.log_file + ".tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as fh:
+                json.dump(entries, fh, indent=2)
+            os.replace(tmp_path, self.log_file)
+        except OSError:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+            raise
