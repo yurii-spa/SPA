@@ -1,0 +1,50 @@
+[
+  {
+    "scenarios": [
+      {
+        "adapter_id": "aave_v3",
+        "position_size_usd": 50000.0,
+        "pool_tvl_usd": 2000000000.0,
+        "estimated_exit_blocks": 1,
+        "estimated_exit_time_minutes": 0.2,
+        "exit_slippage_bps": 5.0,
+        "exit_feasibility": "INSTANT",
+        "can_exit_in_one_block": true
+      },
+      {
+        "adapter_id": "compound_v3",
+        "position_size_usd": 30000.0,
+        "pool_tvl_usd": 500000000.0,
+        "estimated_exit_blocks": 1,
+        "estimated_exit_time_minutes": 0.2,
+        "exit_slippage_bps": 5.0,
+        "exit_feasibility": "INSTANT",
+        "can_exit_in_one_block": true
+      },
+      {
+        "adapter_id": "morpho_steakhouse",
+        "position_size_usd": 20000.0,
+        "pool_tvl_usd": 80000000.0,
+        "estimated_exit_blocks": 1,
+        "estimated_exit_time_minutes": 0.2,
+        "exit_slippage_bps": 5.0,
+        "exit_feasibility": "INSTANT",
+        "can_exit_in_one_block": true
+      }
+    ],
+    "worst_case": {
+      "adapter_id": "aave_v3",
+      "position_size_usd": 50000.0,
+      "pool_tvl_usd": 2000000000.0,
+      "estimated_exit_blocks": 1,
+      "estimated_exit_time_minutes": 0.2,
+      "exit_slippage_bps": 5.0,
+      "exit_feasibility": "INSTANT",
+      "can_exit_in_one_block": true
+    },
+    "exit_risk_score": 1.0,
+    "total_positions": 3,
+    "advisory": "Exit scenarios are estimates only.",
+    "logged_at": "2026-06-13T08:09:51.281490+00:00"
+  }
+]
