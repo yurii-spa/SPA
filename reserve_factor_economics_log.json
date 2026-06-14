@@ -1,0 +1,458 @@
+[
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 56.8,
+    "classification": "ADEQUATE",
+    "grade": "D",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserve buffer is adequate (7.00% of borrows). Maintain the current reserve factor and monitor utilisation.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417825.2859583
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 56.8,
+    "classification": "ADEQUATE",
+    "grade": "D",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserve buffer is adequate (7.00% of borrows). Maintain the current reserve factor and monitor utilisation.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417825.409955
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417851.856159
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417851.9728742
+  },
+  {
+    "name": "USDC (well capitalised)",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417856.8615646
+  },
+  {
+    "name": "USDC (well capitalised)",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417856.8634164
+  },
+  {
+    "name": "Long-tail token (underfunded)",
+    "reserve_factor_pct": 35.0,
+    "borrow_apr_pct": 25.0,
+    "utilization_pct": 90.0,
+    "total_borrows_usd": 50000000.0,
+    "current_reserves_usd": 200000.0,
+    "bad_debt_usd": 1000000.0,
+    "supply_apy_pct": 14.6,
+    "reserve_income_annual_usd": 4375000.0,
+    "supplier_apy_drag_pct": 7.875,
+    "reserve_to_borrows_pct": 0.4,
+    "bad_debt_coverage_ratio": 0.2,
+    "no_bad_debt": false,
+    "reserve_adequacy_score": 6.4,
+    "classification": "UNDERFUNDED",
+    "grade": "F",
+    "flags": [
+      "EXCESSIVE_RESERVE_FACTOR",
+      "HIGH_SUPPLIER_DRAG",
+      "THIN_RESERVES",
+      "UNCOVERED_BAD_DEBT"
+    ],
+    "recommendations": [
+      "CRITICAL: bad-debt coverage ratio 0.20 is below 1.0 \u2014 reserves do not fully cover outstanding bad debt. Prioritise replenishing reserves or socialising the loss.",
+      "Reserves are underfunded (0.40% of borrows). Consider raising the reserve factor or topping up reserves.",
+      "Reserve factor 35% exceeds 30% and meaningfully suppresses supplier APY. Verify it is justified by the risk profile.",
+      "Supplier APY drag is high (7.88%): the reserve factor removes significant yield from suppliers, hurting competitiveness.",
+      "Reserve factor generates ~$4,375,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417856.865248
+  },
+  {
+    "name": "No reserve factor market",
+    "reserve_factor_pct": 0.0,
+    "borrow_apr_pct": 5.0,
+    "utilization_pct": 60.0,
+    "total_borrows_usd": 200000000.0,
+    "current_reserves_usd": 0.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 0.0,
+    "reserve_income_annual_usd": 0.0,
+    "supplier_apy_drag_pct": 0.0,
+    "reserve_to_borrows_pct": 0.0,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 40.0,
+    "classification": "THIN",
+    "grade": "D",
+    "flags": [
+      "NO_RESERVE_FACTOR",
+      "THIN_RESERVES",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserve buffer is thin (0.00% of borrows). Build reserves toward at least a 5% buffer for resilience.",
+      "Reserve factor is 0%: the protocol earns no reserve income and builds no buffer from this market. Suppliers keep all interest."
+    ],
+    "timestamp": 1781417856.8669403
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417882.866684
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417882.9762087
+  },
+  {
+    "name": "USDC (well capitalised)",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417976.8523185
+  },
+  {
+    "name": "USDC (well capitalised)",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417976.8545907
+  },
+  {
+    "name": "Long-tail token (underfunded)",
+    "reserve_factor_pct": 35.0,
+    "borrow_apr_pct": 25.0,
+    "utilization_pct": 90.0,
+    "total_borrows_usd": 50000000.0,
+    "current_reserves_usd": 200000.0,
+    "bad_debt_usd": 1000000.0,
+    "supply_apy_pct": 14.6,
+    "reserve_income_annual_usd": 4375000.0,
+    "supplier_apy_drag_pct": 7.875,
+    "reserve_to_borrows_pct": 0.4,
+    "bad_debt_coverage_ratio": 0.2,
+    "no_bad_debt": false,
+    "reserve_adequacy_score": 6.4,
+    "classification": "UNDERFUNDED",
+    "grade": "F",
+    "flags": [
+      "EXCESSIVE_RESERVE_FACTOR",
+      "HIGH_SUPPLIER_DRAG",
+      "THIN_RESERVES",
+      "UNCOVERED_BAD_DEBT"
+    ],
+    "recommendations": [
+      "CRITICAL: bad-debt coverage ratio 0.20 is below 1.0 \u2014 reserves do not fully cover outstanding bad debt. Prioritise replenishing reserves or socialising the loss.",
+      "Reserves are underfunded (0.40% of borrows). Consider raising the reserve factor or topping up reserves.",
+      "Reserve factor 35% exceeds 30% and meaningfully suppresses supplier APY. Verify it is justified by the risk profile.",
+      "Supplier APY drag is high (7.88%): the reserve factor removes significant yield from suppliers, hurting competitiveness.",
+      "Reserve factor generates ~$4,375,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781417976.856312
+  },
+  {
+    "name": "No reserve factor market",
+    "reserve_factor_pct": 0.0,
+    "borrow_apr_pct": 5.0,
+    "utilization_pct": 60.0,
+    "total_borrows_usd": 200000000.0,
+    "current_reserves_usd": 0.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 0.0,
+    "reserve_income_annual_usd": 0.0,
+    "supplier_apy_drag_pct": 0.0,
+    "reserve_to_borrows_pct": 0.0,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 40.0,
+    "classification": "THIN",
+    "grade": "D",
+    "flags": [
+      "NO_RESERVE_FACTOR",
+      "THIN_RESERVES",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserve buffer is thin (0.00% of borrows). Build reserves toward at least a 5% buffer for resilience.",
+      "Reserve factor is 0%: the protocol earns no reserve income and builds no buffer from this market. Suppliers keep all interest."
+    ],
+    "timestamp": 1781417976.8581643
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781418038.1549463
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1781418038.2644806
+  }
+]
