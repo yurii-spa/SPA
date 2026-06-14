@@ -1,6 +1,25 @@
 # Sprint Log
 
 
+## v8.08 — 2026-06-14
+
+### MP-1140: DeFiProtocolStablecoinYieldBasisSpreadAnalyzer (`spa_core/analytics/defi_protocol_stablecoin_yield_basis_spread_analyzer.py`)
+- Декомпозирует доходность стейблкоин-позиции относительно риск-фри бенчмарка (T-bill / base rate) и выделяет **excess basis** — спред, который реально платят сверх безрисковой ставки, оценивая, компенсирует ли он протокольный/депег-риск. Угол: «8% APY при риск-фри 5% — это всего 3% excess basis за весь риск». Gap подтверждён grep'ом: basis_spread/benchmark_spread/excess_basis = 0.
+- Метрики: `headline_apy_pct`, `risk_free_rate_pct`, `excess_basis_pct` (= headline − risk_free), `basis_to_risk_ratio` (excess / protocol_risk_proxy, защищённое деление со знаковым sentinel ±1e9 при нулевом риск-прокси — сохраняет знак и не утекает inf/NaN в JSON), `depeg_expected_cost_pct`, `real_excess_after_depeg_haircut_pct`, `risk_compensation_score` 0–100.
+- classification NEGATIVE_CARRY/THIN_SPREAD/FAIR/GENEROUS/EXCEPTIONAL; grade A–F; флаги NEGATIVE_EXCESS_BASIS, THIN_COMPENSATION, GENEROUS_CARRY, HIGH_DEPEG_DRAG, BELOW_RISK_FREE, INSUFFICIENT_DATA.
+- `analyze` (single) + `analyze_portfolio` (best/worst-compensated position, avg risk_compensation_score, negative_excess_basis_count) + класс-обёртка. Чистый stdlib, read-only/advisory, защищённые деления, atomic tempfile+os.replace, ring-buffer 100 (`data/stablecoin_yield_basis_spread_log.json`).
+- **105 tests green**
+
+### MP-1141: DeFiProtocolYieldAfterTaxDragAnalyzer (`spa_core/analytics/defi_protocol_yield_after_tax_drag_analyzer.py`)
+- Считает **after-tax реализуемый APR** и **tax drag** позиции с учётом маржинальной ставки, частоты харвестов (каждый харвест = налогооблагаемое событие) и срока удержания (short-term vs long-term трактовка). Угол: «12% headline при маржинальной 37% и частых харвестах → ~7.56% after-tax». Gap подтверждён grep'ом: after_tax/tax_drag = 0; `defi_tax_lot_tracker.py` — про учёт лотов/cost basis, а не tax-drag на доходность (другой угол, отмечено в docstring). Advisory only / not tax advice.
+- Метрики: `headline_apr_pct`, `marginal_tax_rate_pct`, `long_term_rate_pct`, `long_term_income_share` (по сроку/частоте либо явно), `effective_tax_rate_pct` (блендинг ST/LT), `after_tax_apr_pct`, `tax_drag_pct`, `after_tax_efficiency_score` 0–100.
+- classification MINIMAL_DRAG/LIGHT/MODERATE/HEAVY/SEVERE; grade A–F; флаги HIGH_MARGINAL_RATE, FREQUENT_TAXABLE_EVENTS, QUALIFIES_LONG_TERM, SEVERE_TAX_DRAG, NEGATIVE_AFTER_TAX, INSUFFICIENT_DATA.
+- `analyze` (single) + `analyze_portfolio` (most/least tax-efficient position, avg after_tax_efficiency_score, severe_drag_count) + класс-обёртка. Чистый stdlib, read-only/advisory, защищённые деления, atomic tempfile+os.replace, ring-buffer 100 (`data/yield_after_tax_drag_log.json`).
+- **109 tests green**
+
+**Total sprint tests:** 214 (all green) | **Push:** `bash scripts/push_v808.sh`
+**Note:** Self-authored код-спринт — готовых задач type=code/status=ready в backlog не было (только USER ACTION P0–P2: MP-017/UA-004/UA-006/MP-313/MP-379 + P3 features MP-403/404/410/503/504/506/507 + LOW ideas IDEA-002/003/004). Оба модуля закрывают реальные пробелы (gap-check grep'ом: basis_spread/excess_basis = 0, after_tax/tax_drag = 0) и дополняют true-net-yield стек (один снимает риск-фри базу → реальный excess carry, другой снимает налог → after-tax реализуемая доходность) рядом с MP-1138 gas-cost и MP-1139 lockup-discount. Architect review: v8.08 не кратен 5 по minor → отдельный review не требуется; `spa_core.dev_agents.architect` в любом случае недоступен в sandbox (api.github.com + Keychain недоступны) → выполнен ручной gap/backlog-review. KANBAN: sprint_completed v8.07→v8.08, done MP-1140/MP-1141 добавлены, done_count 832→834. push_to_github.py НЕ запускался (sandbox); создан только `scripts/push_v808.sh` для ручного запуска на Mac (PAT fallback: Keychain→GITHUB_PAT_SPA→SPA_GITHUB_PAT→~/.github_pat, без hardcoded секретов).
+
 ## v5.56 — 2026-06-13
 
 ### MP-639: PortfolioVolatilityTracker
