@@ -32,15 +32,20 @@ if str(_pkg_root) not in sys.path:
     sys.path.insert(0, str(_pkg_root))
 
 from spa_core.monitoring.uptime_monitor import (
+    check_agent,
+    check_agent_by_output,
     check_cycle_freshness,
     check_git_push,
     check_http_server,
     check_launchd_service,
     run_all_checks,
+    AGENT_OUTPUT_FILES,
+    KEEPALIVE_SERVICES,
     STALE_CYCLE_HOURS,
     STALE_PUSH_HOURS,
     UPTIME_STATUS_FILE,
 )
+import spa_core.monitoring.uptime_monitor as uptime_mod
 
 
 # ---------------------------------------------------------------------------
@@ -569,6 +574,184 @@ class TestEdgeCases(unittest.TestCase):
             finally:
                 # Restore permissions so cleanup works
                 data_dir.chmod(stat.S_IRWXU)
+
+
+# ---------------------------------------------------------------------------
+# 7. check_agent_by_output — output-file freshness fallback (the core fix)
+# ---------------------------------------------------------------------------
+
+class TestCheckAgentByOutput(unittest.TestCase):
+    """
+    Tests for check_agent_by_output(): periodic launchd agents are judged by
+    the freshness of their output file rather than a live PID.
+
+    A test label "com.spa.peg_monitor" is mapped to data/peg_report.json in
+    AGENT_OUTPUT_FILES; we build a temporary repo root mirroring that layout.
+    """
+
+    LABEL = "com.spa.peg_monitor"  # mapped to data/peg_report.json
+
+    def setUp(self) -> None:
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        # The mapping for LABEL points at data/peg_report.json
+        rel, self.max_age = AGENT_OUTPUT_FILES[self.LABEL]
+        self.rel = rel
+        self.out_path = self.root / rel
+        self.out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _write_with_age(self, age_seconds: float) -> None:
+        """Write the output file and back-date its mtime by age_seconds."""
+        self.out_path.write_text("{}", encoding="utf-8")
+        target = time.time() - age_seconds
+        os.utime(self.out_path, (target, target))
+
+    def test_running_if_file_fresh(self) -> None:
+        """File updated 5 minutes ago → running=True."""
+        self._write_with_age(5 * 60)
+        r = check_agent_by_output(self.LABEL, base_dir=self.root)
+        self.assertTrue(r["running"], r)
+        self.assertEqual(r["method"], "output_file_age")
+        self.assertLessEqual(r["age_seconds"], self.max_age)
+
+    def test_not_running_if_file_stale(self) -> None:
+        """File updated 2 hours ago (> max_age) → running=False."""
+        self._write_with_age(2 * 3600)
+        r = check_agent_by_output(self.LABEL, base_dir=self.root)
+        self.assertFalse(r["running"], r)
+        self.assertEqual(r["method"], "output_file_age")
+        self.assertGreater(r["age_seconds"], self.max_age)
+
+    def test_not_running_if_file_missing(self) -> None:
+        """No output file at all → running=False, method=output_file_missing."""
+        # don't create the file
+        r = check_agent_by_output(self.LABEL, base_dir=self.root)
+        self.assertFalse(r["running"], r)
+        self.assertEqual(r["method"], "output_file_missing")
+
+    def test_explicit_max_age_override(self) -> None:
+        """An explicit max_age_seconds overrides the mapping default."""
+        self._write_with_age(100)  # 100 s old
+        # With a 50 s window it is stale; with a 200 s window it is fresh.
+        stale = check_agent_by_output(self.LABEL, max_age_seconds=50, base_dir=self.root)
+        fresh = check_agent_by_output(self.LABEL, max_age_seconds=200, base_dir=self.root)
+        self.assertFalse(stale["running"])
+        self.assertTrue(fresh["running"])
+
+    def test_no_output_file_mapping_returns_none(self) -> None:
+        """A KeepAlive daemon (no output file) returns running=None."""
+        r = check_agent_by_output("com.spa.httpserver", base_dir=self.root)
+        self.assertIsNone(r["running"])
+        self.assertEqual(r["method"], "no_output_file")
+
+    def test_unknown_label_returns_none(self) -> None:
+        """A label not in the mapping returns running=None, no crash."""
+        r = check_agent_by_output("com.spa.does_not_exist", base_dir=self.root)
+        self.assertIsNone(r["running"])
+        self.assertEqual(r["method"], "no_mapping")
+
+    def test_return_keys(self) -> None:
+        r = check_agent_by_output(self.LABEL, base_dir=self.root)
+        for key in ("running", "method", "file", "age_seconds", "max_age"):
+            self.assertIn(key, r)
+
+
+# ---------------------------------------------------------------------------
+# 8. check_agent — type-aware combined check (PID vs output-file)
+# ---------------------------------------------------------------------------
+
+class TestCheckAgent(unittest.TestCase):
+    """Tests for check_agent(): KeepAlive→PID/port, periodic→PID-or-output."""
+
+    def setUp(self) -> None:
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _fresh_output(self, label: str) -> None:
+        rel, _ = AGENT_OUTPUT_FILES[label]
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+
+    def test_periodic_idle_but_fresh_output_is_running(self) -> None:
+        """
+        THE BUG FIX: periodic agent loaded but with NO live PID, yet its output
+        file is fresh → check_agent must report running=True (not FAIL).
+        """
+        label = "com.spa.peg_monitor"
+        self._fresh_output(label)
+        # launchctl returns loaded-but-no-PID (running=False, no error)
+        no_pid = {"running": False, "pid": None, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=no_pid):
+            r = check_agent(label, base_dir=self.root)
+        self.assertTrue(r["running"], r)
+        self.assertEqual(r["method"], "output_file_age")
+
+    def test_periodic_idle_and_stale_output_is_not_running(self) -> None:
+        """Periodic agent, no PID, missing/stale output → running=False."""
+        label = "com.spa.peg_monitor"
+        # do NOT create the output file → missing
+        no_pid = {"running": False, "pid": None, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=no_pid):
+            r = check_agent(label, base_dir=self.root)
+        self.assertFalse(r["running"], r)
+
+    def test_periodic_with_live_pid_is_running(self) -> None:
+        """Periodic agent that happens to be mid-run (live PID) → running=True."""
+        label = "com.spa.peg_monitor"
+        live = {"running": True, "pid": 4321, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=live):
+            r = check_agent(label, base_dir=self.root)
+        self.assertTrue(r["running"])
+        self.assertEqual(r["method"], "launchctl_pid")
+
+    def test_keepalive_requires_pid(self) -> None:
+        """KeepAlive daemon with no PID and no port → running=False."""
+        label = "com.spa.cloudflared"  # KeepAlive, no port mapping
+        self.assertIn(label, KEEPALIVE_SERVICES)
+        no_pid = {"running": False, "pid": None, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=no_pid):
+            r = check_agent(label, base_dir=self.root)
+        self.assertFalse(r["running"])
+
+    def test_keepalive_pid_present_is_running(self) -> None:
+        """KeepAlive daemon with a live PID → running=True via launchctl_pid."""
+        label = "com.spa.cloudflared"
+        live = {"running": True, "pid": 999, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=live):
+            r = check_agent(label, base_dir=self.root)
+        self.assertTrue(r["running"])
+        self.assertEqual(r["method"], "launchctl_pid")
+
+    def test_keepalive_port_fallback(self) -> None:
+        """httpserver with no PID but open port → running=True via tcp_port."""
+        label = "com.spa.httpserver"  # has AGENT_PORTS[8765]
+        no_pid = {"running": False, "pid": None, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=no_pid), \
+             patch.object(uptime_mod, "check_tcp_port", return_value=True):
+            r = check_agent(label, base_dir=self.root)
+        self.assertTrue(r["running"])
+        self.assertEqual(r["method"], "tcp_port")
+
+    def test_no_output_file_periodic_defers_to_launchctl(self) -> None:
+        """
+        A periodic-style label with no output file (weekly_backup) and no PID
+        defers to launchctl's verdict rather than crashing or flapping.
+        """
+        label = "com.spa.weekly_backup"  # mapped to (None, 0)
+        no_pid = {"running": False, "pid": None, "last_exit": 0, "error": None}
+        with patch.object(uptime_mod, "check_launchd_service", return_value=no_pid):
+            r = check_agent(label, base_dir=self.root)
+        # No output file → running stays False (launchctl verdict), no exception
+        self.assertIn("running", r)
 
 
 if __name__ == "__main__":
