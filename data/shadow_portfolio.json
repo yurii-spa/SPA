@@ -1,10 +1,10 @@
 {
   "date": "2026-06-14",
-  "generated_at": "2026-06-14T15:02:06.349336+00:00",
+  "generated_at": "2026-06-14T17:03:07.199798+00:00",
   "source": "shadow_tracker",
   "advisory_only": true,
   "initial_capital": 100000.0,
-  "real_equity_usd": 100047.74,
+  "real_equity_usd": 100047.72,
   "strategies": {
     "S0": {
       "name": "MaxYield",
@@ -20,27 +20,27 @@
     },
     "S1": {
       "name": "MaxSharpe",
-      "equity": 100053.19,
-      "daily_pnl": 11.6437,
+      "equity": 100053.2,
+      "daily_pnl": 11.6499,
       "prev_equity": 100041.55,
-      "weighted_apy_pct": 4.2482,
+      "weighted_apy_pct": 4.2504,
       "total_return_pct": 0.0532,
       "weights": {
-        "aave_v3": 0.195552,
-        "compound_v3": 0.323236,
-        "euler_v2": 0.08664,
-        "maple": 0.147971,
-        "morpho_blue": 0.144107,
-        "yearn_v3": 0.102494
+        "aave_v3": 0.194416,
+        "compound_v3": 0.323322,
+        "euler_v2": 0.086663,
+        "maple": 0.14801,
+        "morpho_blue": 0.145069,
+        "yearn_v3": 0.102521
       },
       "cash_pct": 0.0
     },
     "S2": {
       "name": "EqualWeight",
       "equity": 100051.44,
-      "daily_pnl": 10.8851,
+      "daily_pnl": 10.8899,
       "prev_equity": 100040.55,
-      "weighted_apy_pct": 3.9714,
+      "weighted_apy_pct": 3.9732,
       "total_return_pct": 0.0514,
       "weights": {
         "aave_v3": 0.166667,
@@ -54,10 +54,10 @@
     },
     "S3": {
       "name": "T1Only",
-      "equity": 100049.05,
-      "daily_pnl": 11.437,
+      "equity": 100049.02,
+      "daily_pnl": 11.4109,
       "prev_equity": 100037.61,
-      "weighted_apy_pct": 4.173,
+      "weighted_apy_pct": 4.1634,
       "total_return_pct": 0.049,
       "weights": {
         "aave_v3": 0.5,
@@ -67,10 +67,10 @@
     },
     "S4": {
       "name": "Conservative",
-      "equity": 100039.24,
-      "daily_pnl": 9.1489,
+      "equity": 100039.22,
+      "daily_pnl": 9.128,
       "prev_equity": 100030.09,
-      "weighted_apy_pct": 3.3384,
+      "weighted_apy_pct": 3.3307,
       "total_return_pct": 0.0392,
       "weights": {
         "aave_v3": 0.4,
@@ -80,10 +80,10 @@
     },
     "S5": {
       "name": "CurrentSPA",
-      "equity": 100047.73,
-      "daily_pnl": 10.8261,
+      "equity": 100047.71,
+      "daily_pnl": 10.8136,
       "prev_equity": 100036.9,
-      "weighted_apy_pct": 3.9501,
+      "weighted_apy_pct": 3.9455,
       "total_return_pct": 0.0477,
       "weights": {
         "aave_v3": 0.237387,
@@ -135,11 +135,11 @@
     {
       "date": "2026-06-14",
       "S0": 100068.01,
-      "S1": 100053.19,
+      "S1": 100053.2,
       "S2": 100051.44,
-      "S3": 100049.05,
-      "S4": 100039.24,
-      "S5": 100047.73
+      "S3": 100049.02,
+      "S4": 100039.22,
+      "S5": 100047.71
     }
   ]
 }
