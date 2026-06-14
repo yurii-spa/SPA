@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-14T10:41:04.731834+00:00",
+  "generated_at": "2026-06-14T23:56:29.066007+00:00",
   "total_decisions": 5,
   "decisions": [
     {
       "id": 8,
-      "timestamp": "2026-06-14T10:41:04.729096+00:00",
+      "timestamp": "2026-06-14T23:56:29.062680+00:00",
       "agent_name": "ReportAgent",
       "decision_type": "REPORT",
       "protocol_key": null,
@@ -33,7 +33,7 @@
           "apy_gap_report.json",
           "apy_gap_report_history.json"
         ],
-        "timestamp": "2026-06-14T10:41:04.729086+00:00"
+        "timestamp": "2026-06-14T23:56:29.062667+00:00"
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v1",
@@ -42,17 +42,17 @@
     },
     {
       "id": 7,
-      "timestamp": "2026-06-14T10:41:04.587745+00:00",
+      "timestamp": "2026-06-14T23:56:28.930809+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "aave-v3-usdc-arbitrum",
       "amount_usd": null,
-      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.20% outside v2 target range [3.0\u201320.0%]",
+      "reasoning": "aave-v3-usdc-arbitrum skipped: APY 2.22% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 47158066.0,
+        "tvl_usd": 46460780.0,
         "tier": "T1",
         "chain": "arbitrum",
-        "apy": 2.201
+        "apy": 2.2201
       },
       "policy_version": "v1.0",
       "strategy_id": "paper-v2",
@@ -61,14 +61,14 @@
     },
     {
       "id": 6,
-      "timestamp": "2026-06-14T10:41:04.585130+00:00",
+      "timestamp": "2026-06-14T23:56:28.927899+00:00",
       "agent_name": "TraderAgent",
       "decision_type": "PASS",
       "protocol_key": "euler-v2-usdc-ethereum",
       "amount_usd": null,
       "reasoning": "euler-v2-usdc-ethereum skipped: APY 2.79% outside v2 target range [3.0\u201320.0%]",
       "data_snapshot": {
-        "tvl_usd": 14820270.0,
+        "tvl_usd": 14820810.0,
         "tier": "T2",
         "chain": "ethereum",
         "apy": 2.7876
