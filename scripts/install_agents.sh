@@ -35,6 +35,9 @@ declare -a AGENTS=(
     # L4 — daily (NEW)
     "com.spa.base_gas_monitor"
     "com.spa.sky_monitor"
+    "com.spa.analytics_tier_c"
+    # L1b — persistent Telegram bot (KeepAlive long-poll)
+    "com.spa.bot_commands"
     # L4 — daily reports / weekly backup
     "com.spa.daily-paper-report"
     "com.spa.weekly_backup"
