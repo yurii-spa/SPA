@@ -1,0 +1,53 @@
+{
+  "gate": "WARN",
+  "checks": [
+    {
+      "id": "DL-01",
+      "name": "Daily Loss",
+      "limit": 2.0,
+      "status": "PASS",
+      "value": 0.0,
+      "message": "daily loss 0.00% within limit"
+    },
+    {
+      "id": "DL-02",
+      "name": "Peak Drawdown",
+      "limit": 10.0,
+      "status": "PASS",
+      "value": 0.0,
+      "message": "peak drawdown 0.00% within limit"
+    },
+    {
+      "id": "DL-03",
+      "name": "Adapter Concentration",
+      "limit": 40.0,
+      "status": "PASS",
+      "value": 40.0,
+      "top_adapter": "compound_v3",
+      "message": "max adapter concentration 40.0% within limit"
+    },
+    {
+      "id": "DL-04",
+      "name": "APY Sanity Low",
+      "limit": 0.5,
+      "status": "FAIL",
+      "value": 0.0,
+      "adapter": "aave_v3",
+      "message": "aave_v3 APY 0.00% below sanity floor 0.5% (stale data?)"
+    },
+    {
+      "id": "DL-05",
+      "name": "APY Sanity High",
+      "limit": 50.0,
+      "status": "PASS",
+      "value": 0.0,
+      "adapter": "aave_v3",
+      "message": "max APY 0.00% below sanity cap"
+    }
+  ],
+  "halt_reasons": [],
+  "warn_reasons": [
+    "DL-04 APY Sanity Low: aave_v3 APY 0.00% below sanity floor 0.5% (stale data?)"
+  ],
+  "checked_at": "2026-06-14T15:02:08.553464+00:00"
+}
