@@ -312,8 +312,23 @@ def check_git_push(repo_dir: str | Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 LAUNCHD_SERVICES = [
-    "com.spa.autopush",
     "com.spa.httpserver",
+    "com.spa.cloudflared",
+    "com.spa.fund-api",
+    "com.spa.uptime_monitor",
+    "com.spa.cycle_health",
+    "com.spa.cycle_gap_monitor",
+    "com.spa.portfolio_monitor",
+    "com.spa.peg_monitor",
+    "com.spa.red_flag_monitor",
+    "com.spa.governance_watcher",
+    "com.spa.autopush",
+    "com.spa.daily_cycle",
+    "com.spa.base_gas_monitor",
+    "com.spa.sky_monitor",
+    "com.spa.daily-paper-report",
+    "com.spa.checkpoint-7day",
+    "com.spa.weekly_backup",
 ]
 
 
