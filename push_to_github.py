@@ -18,6 +18,7 @@ import argparse
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
 
 REPO = "yurii-spa/SPA"
 API_BASE = "https://api.github.com"
@@ -75,7 +76,7 @@ def get_pat() -> str:
     )
 
 
-def get_file_sha(pat: str, repo: str, repo_path: str) -> str | None:
+def get_file_sha(pat: str, repo: str, repo_path: str) -> Optional[str]:
     """Возвращает SHA файла на GitHub (нужно для обновления существующего файла)."""
     import urllib.request
     url = f"{API_BASE}/repos/{repo}/contents/{repo_path}"
