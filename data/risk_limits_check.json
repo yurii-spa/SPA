@@ -6,7 +6,7 @@
       "name": "Daily Loss",
       "limit": 2.0,
       "status": "PASS",
-      "value": 0.0,
+      "value": -0.0108,
       "message": "daily loss 0.00% within limit"
     },
     {
@@ -49,5 +49,5 @@
   "warn_reasons": [
     "DL-04 APY Sanity Low: aave_v3 APY 0.00% below sanity floor 0.5% (stale data?)"
   ],
-  "checked_at": "2026-06-14T15:02:08.553464+00:00"
+  "checked_at": "2026-06-14T17:03:09.180619+00:00"
 }
