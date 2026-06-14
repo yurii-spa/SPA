@@ -2465,9 +2465,37 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as _tuner_exc:  # noqa: BLE001 — never crash the cycle
             log.warning("MP-207 Tuner failed (%s) — cycle continues", _tuner_exc)
 
+    # MP-663: Run unified analytics pipeline after each cycle (fail-safe;
+    # purely advisory — never modifies allocator / risk / execution state).
+    if not args.dry_run:
+        _run_analytics_pipeline(data_dir=args.data_dir)
+
     if args.dry_run:
         print("(dry-run: no files written)")
     return 0 if result.status == "ok" else 1
+
+
+def _run_analytics_pipeline(data_dir=None) -> None:
+    """Run analytics pipeline post-cycle. Non-blocking — failures are logged."""
+    try:
+        from spa_core.analytics.analytics_pipeline import AnalyticsPipeline
+        from pathlib import Path as _Path
+        pipeline = AnalyticsPipeline(
+            data_dir=_Path(data_dir) if data_dir else None
+        )
+        report = pipeline.run()
+        log.info(
+            "MP-663 Analytics pipeline: %d modules OK, %d failed",
+            report["modules_run"],
+            report["modules_failed"],
+        )
+        print(
+            f"  analytics   : {report['modules_run']} modules OK,"
+            f" {report['modules_failed']} failed"
+            f" ({report['elapsed_sec']:.2f}s)"
+        )
+    except Exception as _ap_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("MP-663 Analytics pipeline failed (non-critical): %s", _ap_exc)
 
 
 if __name__ == "__main__":
