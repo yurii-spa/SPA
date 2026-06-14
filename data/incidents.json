@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-06-13T06:00:30.318126Z",
+  "updated_at": "2026-06-14T15:02:20.177016Z",
   "source": "DefiLlama hacks API (+ bootstrap fallback)",
   "fetched_from_api": true,
-  "total_incidents": 565,
-  "total_amount_lost_usd": 54908770474449.0,
+  "total_incidents": 566,
+  "total_amount_lost_usd": 54919370474449.0,
   "incidents": [
     {
       "id": "defillama-raydium-amm-1781049600",
@@ -104,6 +104,19 @@
       "amount_lost_usd": 110000000000.0,
       "type": "exploit",
       "technique": "Flashloan Accounting Logic Exploit",
+      "chain": "ethereum",
+      "source_url": "",
+      "status": "unknown",
+      "spa_protocols_affected": []
+    },
+    {
+      "id": "defillama-gpu-net-1780444800",
+      "protocol": "GPU.NET",
+      "protocol_slug": "gpu-net",
+      "date": "2026-06-03",
+      "amount_lost_usd": 10600000000.0,
+      "type": "exploit",
+      "technique": "Social Engineering",
       "chain": "ethereum",
       "source_url": "",
       "status": "unknown",
