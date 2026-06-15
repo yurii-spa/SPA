@@ -440,6 +440,8 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_vault_withdrawal_fee_decay_analyzer', "class": 'DeFiProtocolVaultWithdrawalFeeDecayAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_management_fee_accrual_analyzer', "class": 'DeFiProtocolVaultManagementFeeAccrualAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_loss_socialization_exposure_analyzer', "class": 'DeFiProtocolVaultLossSocializationExposureAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_reward_lock_discount_analyzer', "class": 'DeFiProtocolVaultRewardLockDiscountAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_instant_exit_nav_discount_analyzer', "class": 'DeFiProtocolVaultInstantExitNavDiscountAnalyzer', "tier": 'B', "category": 'exit_liquidity', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
