@@ -1,7 +1,6 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
-import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
@@ -10,7 +9,8 @@ export default defineConfig({
   integrations: [
     react(),
     tailwind(),
-    sitemap(),
+    // sitemap() removed — @astrojs/sitemap@3.2.x crashes with undefined.reduce() bug.
+    // Re-add after updating to 3.4+.
   ],
   // Cloudflare Pages: build output goes to ./dist
   // Build command: npm run build
