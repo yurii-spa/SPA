@@ -1949,3 +1949,30 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac.
 
 **Push:** `bash scripts/push_v884.sh`
+
+
+## v8.85 — 2026-06-18
+
+**Sprint:** v8.85  
+**Date:** 2026-06-18  
+**Tasks done:** MP-1239  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_mev_tax_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_mev_tax_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfMevTaxBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_mev_tax_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **MEV TAX** (стоимость, изъятая MEV-searcher'ами/builder'ами). Волт на harvest/rebalance отправляет свопы on-chain (продажа reward-токенов, ротация между пулами); попадая в публичный mempool, эти свопы подвергаются MEV — searcher'ы делают SANDWICH (front-run buy + back-run sell) и backrun, изымая стоимость, которая иначе осталась бы у волта. Эта изъятая стоимость — MEV TAX — срез value, захваченный searcher'ами/builder'ами через adversarial reordering вокруг свопа волта, НЕ комиссия пулу и НЕ собственный price impact волта. MEV tax вычитается из gross yield до того, как депозитор что-либо видит. Волт начисляет performance fee с GROSS yield ДО вычета MEV tax → депозитор платит перф-фи с того среза доходности, который MEV tax уже стёр (fee-on-mev-tax / fee-base инфляция). Порог HIGH_MEV_TAX_PCT=0.3%. 5 классификаций: CLEAN_NET_OF_MEV_TAX_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross+net_of_mev_tax+fee_pct) и override (gap+fee_charged напрямую). Score = 70*realization_ratio + 30*(1-fee_on_mev_tax_fraction), 0–100. Флаги: CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_MEV_TAX, GAP_FROM_OVERRIDE, FEE_ON_MEV_TAX, FULL_FEE_ON_MEV_TAX. Атомарный ring-buffer лог (tmp + os.replace, cap=100).
+
+**Distinctions vs other gross_of_* modules:** MEV TAX (value extracted by adversarial searchers/builders sandwiching/backrunning свопы) — vs swap_fee (LP-комиссия AMM-пула провайдерам ликвидности); vs exit_slippage (детерминированный price impact от собственного размера сделки волта вдоль кривой пула — здесь adversarial extraction третьими лицами, не собственный impact); vs rebalancing_cost (общий turnover-cost); vs cost/priority_fee/blob_fee/l1_data_fee (execution-газ / proposer-tip / blob DA / L1 data — здесь не gas-market fee); vs bundler_fee/crosschain_message_fee (ERC-4337 / cross-chain messaging); vs oracle_update_fee/harvest_bounty (oracle post / keeper bounty); vs funding_cost/borrow_cost/bridge_fee/flash_loan_fee/management_fee/deposit_fee/withdrawal_fee — каждый прайсит иной слой. Также отделён от существующих MEV-модулей: defi_mev_exposure_estimator / defi_protocol_mev_protection_effectiveness_analyzer / mev_risk_detector — те меряют MEV EXPOSURE / эффективность защиты / риск, здесь ось — fee-BASE инфляция от начисления перф-фи на gross (pre-mev-tax) yield. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0/P1 status=ready — требуют git/launchd/Keychain + USER ACTION, исключены по правилам прогона; features/ideas — не code/ready). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — mev_tax (MEV sandwich/backrun extraction, отделён от swap_fee, exit_slippage, rebalancing_cost и gas-market слоёв). Gap подтверждён: модуля performance_fee_gross_of_mev_tax не было; существующие mev_* — про exposure/protection/risk, не про perf-fee base. Реестр Tier-B yield_quality weight 0.5 (B 493→494, ALL 685→686).
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.84 (оканчивается на 4, НЕ на 0/5) → ревью НЕ требовалось.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест); `pytest …gross_of_mev_tax…` → **98 passed**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':494,'C':180}, ALL_MODULES=686, дубликатов нет, модуль present=True, класс грузится через registry; demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0), agg: cleanest=USDC-MEV-Vault-CleanMevTax, worst=BAL-MEV-Vault-SevereMevTax, avg_score=56.88, net_negative_count=1, position_count=5; KANBAN.json парсится, sprint_completed=v8.85, sprint_current=v8.86, done_count=932.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac.
+
+**Push:** `bash scripts/push_v885.sh`
