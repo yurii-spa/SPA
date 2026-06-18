@@ -1922,3 +1922,30 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
 
 **Push:** `bash scripts/push_v883.sh`
+
+
+## v8.84 — 2026-06-18
+
+**Sprint:** v8.84  
+**Date:** 2026-06-18  
+**Tasks done:** MP-1238  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_crosschain_message_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_crosschain_message_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfCrosschainMessageFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_crosschain_message_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — per-message **CROSS-CHAIN MESSAGE FEE** (комиссия кросс-чейн протокола обмена сообщениями). Волт, держащий sleeve на удалённой цепи и управляющий им с домашней цепи, на каждом harvest/rebalance удалённого sleeve отправляет CROSS-CHAIN MESSAGE — пакет-инструкцию ("harvest remote sleeve", "rebalance into pool X on chain Y") — через CROSS-CHAIN MESSAGING PROTOCOL (LayerZero / Chainlink CCIP / Hyperlane / Axelar / Wormhole relayer), и платит per-message CROSS-CHAIN MESSAGE FEE — endpoint / relayer / executor комиссию messaging-протокола плюс предоплату газа на цепи-получателе (LayerZero endpoint native fee + executor fee, Chainlink CCIP fee, Hyperlane interchain gas payment). Эта комиссия идёт messaging-протоколу/релееру за верификацию и доставку инструкции и вычитается из gross yield до того, как депозитор что-либо видит. Волт начисляет performance fee с GROSS yield ДО вычета message fee → депозитор платит перф-фи с того среза доходности, который message fee уже стёр (fee-on-message-fee / fee-base инфляция). Порог HIGH_CROSSCHAIN_MESSAGE_FEE_PCT=0.3%. 5 классификаций: CLEAN_NET_OF_CROSSCHAIN_MESSAGE_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross+net_of_crosschain_message_fee+fee_pct) и override (gap+fee_charged напрямую). Score = 70*realization_ratio + 30*(1-fee_on_crosschain_message_fee_fraction), 0–100. Флаги: CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_CROSSCHAIN_MESSAGE_FEE, GAP_FROM_OVERRIDE, FEE_ON_CROSSCHAIN_MESSAGE_FEE, FULL_FEE_ON_CROSSCHAIN_MESSAGE_FEE. Атомарный ring-buffer лог (tmp + os.replace, cap=100).
+
+**Distinctions vs other gross_of_* modules:** CROSS-CHAIN MESSAGING PROTOCOL FEE за доставку ИНСТРУКЦИИ между цепями — vs bridge_fee (перемещение самих АКТИВОВ/принципала через мост — здесь активы не двигаются, платится только за доставку сообщения); vs cost (фиксированный FLAT L2 execution-газ / base fee валидатору на локальной цепи); vs priority_fee (EIP-1559 proposer-tip за приоритет включения tx); vs blob_fee (EIP-4844 blob-gas DA-posting); vs oracle_update_fee (Pyth pull-oracle / Wormhole VAA за on-chain price update — здесь generic инструкция, не цена); vs bundler_fee (ERC-4337 bundler/paymaster premium за упаковку UserOp через EntryPoint на одной цепи — здесь messaging между цепями); vs harvest_bounty (баунти keeper-caller за вызов harvest()); vs funding_cost / borrow_cost / swap_fee / rebalancing_cost / flash_loan_fee / management_fee / deposit_fee / withdrawal_fee — каждый прайсит иной слой эрозии, ни один не является cross-chain messaging-protocol fee; vs HWM/crystallization-модули (механика watermark, не fee-base инфляция).
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0/P1 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features/ideas — не code/ready). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — crosschain_message_fee (cross-chain messaging protocol fee: LayerZero/CCIP/Hyperlane/Axelar/Wormhole relayer message delivery, отделён от bridge_fee (asset transfer), cost/base-fee, priority_fee, blob_fee, oracle_update_fee, bundler_fee, harvest_bounty). Gap подтверждён: модуля performance_fee_gross_of_crosschain_message_fee в spa_core/analytics не было (существующие cross_chain_* — про yield-сравнение/bridge-risk, не про perf-fee base). Реестр Tier-B yield_quality weight 0.5 (B 492→493, ALL 684→685).
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.83 (оканчивается на 3, НЕ на 0/5) → ревью НЕ требовалось.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест); `python3 -m pytest …gross_of_crosschain_message_fee… ` → **98 passed**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':493,'C':180}, ALL_MODULES=685, дубликатов нет, модуль present=True, класс грузится через registry; demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0), agg: cleanest=USDC-XC-Vault-CleanCrosschainMessageFee, worst=BAL-XC-Vault-SevereCrosschainMessageFee, avg_score=56.88, net_negative_count=1, position_count=5; KANBAN.json парсится, sprint_completed=v8.84, sprint_current=v8.85, done_count=931.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac.
+
+**Push:** `bash scripts/push_v884.sh`
