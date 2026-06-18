@@ -1895,3 +1895,30 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
 
 **Push:** `bash scripts/push_v882.sh`
+
+
+## v8.83 — 2026-06-18
+
+**Sprint:** v8.83  
+**Date:** 2026-06-18  
+**Tasks done:** MP-1237  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_bundler_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_bundler_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfBundlerFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_bundler_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — per-UserOp **ERC-4337 BUNDLER FEE** (account abstraction bundler/paymaster premium). Волт, исполняющий harvest/rebalance как ERC-4337 UserOperation через account abstraction, на каждой такой операции платит BUNDLER FEE — премию/наценку БАНДЛЕРА (ERC-4337 infrastructure actor, упаковывающий UserOperations в on-chain tx через EntryPoint) поверх фактического execution-газа, плюс paymaster service fee за спонсирование. Эта bundler/paymaster комиссия идёт инфраструктурному актору ERC-4337 за услугу упаковки и спонсирования UserOp и вычитается из gross yield до того, как депозитор что-либо видит. Волт начисляет performance fee с GROSS yield ДО вычета bundler fee → депозитор платит перф-фи с того среза доходности, который bundler fee уже стёр (fee-on-bundler-fee / fee-base инфляция). Порог HIGH_BUNDLER_FEE_PCT=0.3%. 5 классификаций: CLEAN_NET_OF_BUNDLER_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross+net_of_bundler_fee+fee_pct) и override (gap+fee_charged напрямую). Score = 70*realization_ratio + 30*(1-fee_on_bundler_fee_fraction), 0–100. Флаги: CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_BUNDLER_FEE, GAP_FROM_OVERRIDE, FEE_ON_BUNDLER_FEE, FULL_FEE_ON_BUNDLER_FEE. Атомарный ring-buffer лог (tmp + os.replace, cap=100).
+
+**Distinctions vs other gross_of_* modules:** ERC-4337 BUNDLER/PAYMASTER PREMIUM за упаковку+спонсирование UserOperation через EntryPoint — vs cost (фиксированный FLAT L2 execution-газ / base fee валидатору, не премия бандлеру); vs priority_fee (EIP-1559 proposer-tip / maxPriorityFeePerGas за приоритет включения tx — здесь наценка ERC-4337 bundler/paymaster, не чаевые пропоузеру); vs blob_fee (EIP-4844 blob-gas DA-posting на отдельном blob-рынке); vs oracle_update_fee (Pyth pull-oracle / Wormhole VAA комиссия оракул-протоколу за on-chain price update); vs harvest_bounty (баунти keeper-caller за вызов harvest() — здесь премия БАНДЛЕРУ за включение UserOp в EntryPoint-батч, не вознаграждение keeper-caller); vs funding_cost / borrow_cost / bridge_fee / swap_fee / rebalancing_cost / flash_loan_fee / management_fee / deposit_fee / withdrawal_fee — каждый прайсит иной слой эрозии, ни один не является ERC-4337 bundler/paymaster premium; vs HWM/crystallization-модули (механика watermark, не fee-base инфляция).
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0/P1 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны из sandbox; features/ideas — не code/ready). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — bundler_fee (ERC-4337 account abstraction bundler/paymaster premium, отделён от cost/base-fee, priority_fee, blob_fee, oracle_update_fee, harvest_bounty). Gap подтверждён: bundler/paymaster/erc-4337/account_abstraction/user_operation/relayer в spa_core/analytics отсутствовали (0 файлов). Реестр Tier-B yield_quality weight 0.5 (B 491→492, ALL 683→684).
+
+**Architect review (каждые 5 спринтов):** последний завершённый перед прогоном — v8.82 (оканчивается на 2, НЕ на 0/5) → ревью НЕ требовалось. `spa_core.dev_agents.architect` в любом случае недоступен в sandbox (api.github.com + Keychain недоступны) → выполнен ручной gap/backlog-review.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_bundler_fee_base_gap` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx) → CLEAN (stdlib only); реестр импортируется через TIER_B_MODULES/ALL_MODULES, tier_counts={'A':12,'B':492,'C':180}, ALL_MODULES=684, дубликатов нет, модуль present=True, класс грузится; demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0), agg: cleanest=USDC-AA-Vault-CleanBundlerFee, worst=BAL-AA-Vault-SevereBundlerFee, avg_score=56.88, net_negative_count=1, position_count=5; KANBAN.json парсится, sprint_completed=v8.83, sprint_current=v8.84, done_count=930.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v883.sh`
