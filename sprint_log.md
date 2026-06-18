@@ -2003,3 +2003,30 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
 
 **Push:** `bash scripts/push_v886.sh`
+
+
+## v8.87 — 2026-06-18
+
+**Sprint:** v8.87  
+**Date:** 2026-06-18  
+**Tasks done:** MP-1241  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_liquidation_penalty_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_liquidation_penalty_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfLiquidationPenaltyBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_liquidation_penalty_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **LIQUIDATION PENALTY** (стоимость, изъятая из collateral волта при частичной ликвидации его leveraged-позиции). Leveraged / looping yield-волт (leveraged liquid-staking, recursive borrow-loop, leveraged LP) держит collateral против заёмной ноги. При падении стоимости залога / росте долга позиция частично ЛИКВИДИРУЕТСЯ: ликвидатор погашает часть долга волта и забирает collateral со скидкой. Изъятая в этой seizure стоимость — LIQUIDATION PENALTY — это liquidation bonus / incentive ликвидатору (collateral сверх погашённого долга) ПЛЮС протокольная liquidation fee (Aave liquidation bonus, Compound liquidation incentive, Maker liquidation penalty ~5–15% от изъятого collateral). Penalty изымается из собственного collateral волта и вычитается из gross yield до того, как депозитор что-либо видит. Волт начисляет performance fee с GROSS yield ДО вычета liquidation penalty → депозитор платит перф-фи с того среза доходности, который liquidation penalty уже стёр (fee-on-liquidation-penalty / fee-base инфляция). Порог HIGH_LIQUIDATION_PENALTY_PCT=0.3%. 5 классификаций: CLEAN_NET_OF_LIQUIDATION_PENALTY_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross+net_of_liquidation_penalty+fee_pct) и override (gap+fee_charged напрямую). Score = 70*realization_ratio + 30*(1-fee_on_liquidation_penalty_fraction), 0–100. Флаги: CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_LIQUIDATION_PENALTY, GAP_FROM_OVERRIDE, FEE_ON_LIQUIDATION_PENALTY, FULL_FEE_ON_LIQUIDATION_PENALTY. Атомарный ring-buffer лог (tmp + os.replace, cap=100).
+
+**Distinctions vs other modules:** LIQUIDATION PENALTY (liquidator bonus + protocol liquidation fee при УСПЕШНОЙ частичной ликвидации) — vs bad_debt_socialization (residual bad debt, размазанный на депозиторов когда ликвидация ПРОВАЛИВАЕТСЯ и не покрывает долг — здесь ликвидация успешна и покрывает долг, теряется penalty ликвидатору, не uncovered residual debt); vs borrow_cost (непрерывный interest на заёмную ногу — здесь one-off penalty в момент liquidation event); vs slashing_loss (validator/restaking slashing протоколом за misbehaviour — здесь lending-market liquidation penalty за breach health-factor, платится ликвидатору); vs exit_slippage / swap_fee / rebalancing_cost / mev_tax (trade-execution drag волта — здесь penalty изъята из collateral ликвидатором, не cost исполнения сделки); vs cost/priority_fee/blob_fee/l1_data_fee/bundler_fee/crosschain_message_fee/oracle_update_fee/harvest_bounty (gas-market / AA / messaging / oracle / keeper слои); vs funding_cost/bridge_fee/flash_loan_fee/management_fee/deposit_fee/withdrawal_fee/intent_solver_fee — каждый прайсит иной слой эрозии. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0-001..P1-005 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features MP-403..507 — P3, не code/ready; ideas — LOW). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — liquidation_penalty. Gap подтверждён: модуля performance_fee_gross_of_liquidation_penalty в spa_core/analytics не было; существующие liquidation_* (cascade_risk / price / history) — про риск/цену/историю ликвидаций, не про perf-fee base. Реестр Tier-B yield_quality weight 0.5 (B 495→496, ALL 687→688).
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.86 (оканчивается на 6, НЕ на 0/5) → ревью НЕ требовалось.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_liquidation_penalty…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':496,'C':180}, ALL_MODULES=688, дубликатов нет, модуль present=True, класс грузится через registry; demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0), agg: cleanest=USDC-LIQ-Vault-CleanLiquidationPenalty, worst=BAL-LIQ-Vault-SevereLiquidationPenalty, avg_score=56.88, net_negative_count=1, position_count=5; KANBAN.json парсится, sprint_completed=v8.87, sprint_current=v8.88, done_count=934.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v887.sh`
