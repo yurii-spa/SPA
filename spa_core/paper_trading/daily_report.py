@@ -86,7 +86,9 @@ def _send_telegram(text: str) -> bool:
     """Отправляет сообщение через telegram_client (Keychain credentials). Fail-safe."""
     try:
         from spa_core.alerts import telegram_client  # noqa: PLC0415
-        ok = telegram_client.send_message(text)
+        # The report body is built with HTML tags (<b>…</b>); legacy Markdown
+        # 400s on the "_" in protocol names (aave_v3, compound_v3, …).
+        ok = telegram_client.send_message(text, parse_mode="HTML")
         if ok:
             log.info("Daily report sent to Telegram")
         else:
