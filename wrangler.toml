@@ -1,2 +1,5 @@
 name = "earn-defi"
 pages_build_output_dir = "landing/dist"
+
+[build]
+command = "cd landing && npm ci && npm run build"
