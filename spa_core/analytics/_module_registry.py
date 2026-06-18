@@ -523,6 +523,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_vault_performance_fee_gross_of_oracle_update_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfOracleUpdateFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_bundler_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBundlerFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_crosschain_message_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfCrosschainMessageFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_mev_tax_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfMevTaxBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
