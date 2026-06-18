@@ -2030,3 +2030,37 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
 
 **Push:** `bash scripts/push_v887.sh`
+
+
+## v8.88 — 2026-06-18
+
+**Sprint:** v8.88  
+**Date:** 2026-06-18  
+**Tasks done:** MP-1242  
+**Tests added:** 107  
+**Module:** `spa_core/family_fund/api/` (FastAPI backend — Investor Cabinet)  
+**Test dir:** `spa_core/tests/test_family_fund_api/` (test_auth / test_portfolio / test_yield_history / test_infra + conftest)  
+**Launch:** `python -m spa_core.family_fund.run_api` (или `python -m uvicorn spa_core.family_fund.api.app:app --port 8766`)
+
+**Summary:** Полноценный FastAPI backend для investor cabinet Family Fund на порту **8766** (рядом со stdlib `http_server.py` :8765). По research/07_fastapi_best_practices.md.
+
+**Файлы (`spa_core/family_fund/api/`):**
+- `app.py` — app factory, CORS (earn-defi.com + localhost:5173, allow_credentials), exception handlers (структурный error envelope без stacktrace), middleware (rate-limit + request-id).
+- `keychain.py` — JWT secret из macOS Keychain `FAMILY_FUND_JWT_SECRET` (subprocess), fallback на env var (dev/test); `lru_cache(maxsize=1)`; проверка ≥32 символов.
+- `auth.py` — JWT **HS256 на stdlib** (hmac+hashlib+base64+json, без PyJWT/python-jose); access 15 мин (в body), refresh 7 дней; in-memory JTI blacklist (dict + threading.Lock + cleanup); пароли через **bcrypt** с pbkdf2_hmac fallback; user store `users.json` (по username и email).
+- `models.py` — Pydantic v2 (`Decimal` для денег): LoginRequest, TokenResponse, PositionItem, PortfolioResponse, PositionsResponse, PerformanceResponse, YieldDayItem, YieldHistoryResponse, HealthResponse, ErrorResponse.
+- `dependencies.py` — `get_current_user`, `require_role(*roles)`, `require_min_role` (RBAC иерархия owner>admin>investor>readonly).
+- `rate_limiter.py` — TokenBucket + RateLimiterStore (threading.Lock, без Redis).
+- `middleware.py` — per-IP rate limit (login 5/min, API 60/min; CF-Connecting-IP aware) + request-id.
+- `file_store.py` — thread-safe async чтение `data/*.json` (asyncio.to_thread + TTL-кэш + path-traversal guard).
+- `routes/`: `health.py` (GET /health, публичный), `auth.py` (POST /auth/login|refresh|logout; refresh в httpOnly Secure SameSite=Lax cookie path=/auth, ротация), `portfolio.py` (GET /portfolio, /portfolio/positions, /portfolio/performance), `yield_history.py` (GET /yield/history, /yield/daily).
+- `manage_users.py` — CLI для users.json (bcrypt-хеши, пароль в файл не пишется); `run_api.py` — uvicorn launcher.
+- `users.json` — 4 dev-юзера (owner=yuriycooleshov@gmail.com / admin / investor / readonly). **ROTATE пароли** через `manage_users.py` перед публичным выходом.
+
+**RBAC:** owner(3) > admin(2) > investor(1) > readonly(0). Все аутентифицированные роли читают портфель фонда; health публичный.
+
+**Зависимости:** stdlib + FastAPI + Pydantic v2 + bcrypt + python-multipart + uvicorn. Без SQLAlchemy/Redis/python-jose.
+
+**Верификация:** `pytest spa_core/tests/test_family_fund_api/` → **107 passed**. Live boot uvicorn :8766 → /health 200, /auth/login (owner) выдаёт access_token, /portfolio без токена → 401. uvicorn import_from_string OK.
+
+**STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Секреты не встраивались (JWT из Keychain/env; bcrypt-хеши, не пароли).
