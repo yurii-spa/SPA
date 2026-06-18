@@ -1,6 +1,19 @@
 # Sprint Log
 
 
+## v8.89 — 2026-06-18
+
+### MP-1243: Investor Cabinet — React SPA (`cabinet/`)
+- Полноценный React SPA инвесторского кабинета, потребляет Family Fund FastAPI backend (MP-1242, port 8766). Стек из `research/11_frontend_stack.md`: **Vite 5 + React 18, Tailwind CSS, TanStack Query v5, Recharts, React Router v6**. shadcn-стиль UI-примитивы скопированы вручную (Card/Button/Badge/Spinner) — без CLI.
+- **Auth (secure-by-default):** access-token хранится **только в памяти** (`AuthContext`, никакого localStorage); refresh — через httpOnly-cookie (`POST /auth/refresh`) на mount для восстановления сессии. `api/client.js` — fetch-обёртка с `Authorization: Bearer`, прозрачным single-flight refresh-and-retry на 401, редиректом на `/login` при повторном 401. Login использует `application/x-www-form-urlencoded` (OAuth2PasswordRequestForm бэкенда — проверено E2E: JSON→422, form→401/200).
+- **LoginPage:** email+password, inline-ошибки, тёмная карточка по центру, SPA-логотип. **DashboardPage:** 5 KPI-карточек (Balance, Today's Yield, Net APY annualized, Active Protocols, System Status), Recharts AreaChart equity-кривой (`/yield/history`), таблица позиций (`/portfolio`), recent yield (`/yield/history?days=7`), System Status (health + last cycle). `ProtectedRoute` гейтит `/dashboard`.
+- **Дизайн:** тёмная DeFi-тема (bg `#0f0f0f`, card `#1a1a1a`/border `#2a2a2a`, accent teal `#00d4aa`, negative `#ff4444`), Inter, крупные tabular-nums цифры.
+- **E2E проверено:** `npm install` (изолированный кэш — обход root-owned `~/.npm`), `npm run build` green (894 модуля, gzip ~177KB JS / 3.3KB CSS), dev-сервер отдаёт все модули 200, полный login→`/portfolio`→`/portfolio/performance`→cookie-`/auth/refresh` round-trip против живого API (equity $100,010.85, 5 позиций, compound_v3 T1 40%).
+- **Deploy:** `cabinet/wrangler.toml` (Pages-проект `earn-defi-cabinet`), `public/_redirects` (SPA-fallback `/* → /index.html 200`), `cabinet/deploy.command` (build + `wrangler pages deploy dist`, без секретов в файлах). Прод-таргет `app.earn-defi.com`, `.env.production` → `https://api.earn-defi.com`. `.env.development` + vite proxy → локальный API :8766.
+- **JWT secret:** `FAMILY_FUND_JWT_SECRET` сгенерирован (`secrets.token_urlsafe(48)`) и положен в macOS Keychain; `create_app()` стартует чисто.
+
+**Push:** `push_to_github.py` (PAT из Keychain GITHUB_PAT_SPA). KANBAN: done MP-1243 добавлен в columns.done, done_count 935→936, sprint_current v8.88→v8.89. `cabinet/node_modules` и `dist/` в `cabinet/.gitignore`.
+
 ## v8.08 — 2026-06-14
 
 ### MP-1140: DeFiProtocolStablecoinYieldBasisSpreadAnalyzer (`spa_core/analytics/defi_protocol_stablecoin_yield_basis_spread_analyzer.py`)
