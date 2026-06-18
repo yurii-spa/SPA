@@ -36,8 +36,11 @@ from typing import Any
 # Constants
 # ---------------------------------------------------------------------------
 
-MAX_CYCLE_GAP_HOURS: float = 2.0        # WARNING if last cycle > 2 h ago
-CRITICAL_CYCLE_GAP_HOURS: float = 4.0  # CRITICAL if last cycle > 4 h ago
+# The daily cycle (launchd com.spa.daily_cycle) runs once per day at 08:00, so a
+# healthy gap is ~24 h. Thresholds give grace for a late/woken-from-sleep run.
+# (Were 2 h / 4 h — tuned for the old every-30-min cadence, retired 2026-06-18.)
+MAX_CYCLE_GAP_HOURS: float = 26.0       # WARNING if last cycle > 26 h ago
+CRITICAL_CYCLE_GAP_HOURS: float = 30.0  # CRITICAL if last cycle > 30 h ago
 MAX_EQUITY_DROP_PCT: float = 5.0        # WARNING if single-entry drop > 5 %
 STALE_REGIME_HOURS: float = 4.0         # STALE if market_regime.json > 4 h old
 STALE_ADAPTER_HOURS: float = 24.0       # STALE if adapter_status.json > 24 h old
@@ -325,8 +328,9 @@ class CycleHealthMonitor:
         """
         checked_at = datetime.now(tz=timezone.utc).isoformat()
 
-        # Load equity_history.json
-        equity_history: list = _load_json_list(Path(data_dir) / "equity_history.json")
+        # Load equity history — prefers equity_curve_daily.json (the file the
+        # cycle actually writes), falls back to legacy equity_history.json.
+        equity_history: list = _load_equity_history(Path(data_dir))
 
         # Run individual checks
         cycle_gap = self.check_cycle_gap(equity_history)
@@ -447,6 +451,44 @@ def _load_json_list(path: Path) -> list:
         return []
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return []
+
+
+def _load_equity_history(data_dir: Path) -> list:
+    """Return the equity history as a flat list of ``{date/timestamp, equity}``.
+
+    Source of truth is ``equity_curve_daily.json`` (written every cycle by
+    ``cycle_runner``); its ``daily`` array carries ``date`` + ``close_equity``,
+    which we normalise to the ``{date, equity}`` shape the health checks expect.
+    Falls back to the legacy flat ``equity_history.json`` when the curve file is
+    absent (older seeds / unit tests), so behaviour is unchanged when neither
+    exists (→ empty list → CRITICAL "equity_history is empty").
+    """
+    curve_path = data_dir / "equity_curve_daily.json"
+    try:
+        doc = json.loads(curve_path.read_text(encoding="utf-8"))
+        daily = doc.get("daily") if isinstance(doc, dict) else None
+        if isinstance(daily, list) and daily:
+            history: list = []
+            for bar in daily:
+                if not isinstance(bar, dict):
+                    continue
+                equity = bar.get("equity", bar.get("close_equity"))
+                if equity is None:
+                    continue
+                history.append({"date": bar.get("date"), "equity": equity})
+            if history:
+                # Daily bars carry only a date (→ midnight UTC), which would
+                # overstate the gap. Stamp the latest entry with the doc's
+                # generated_at (the real cycle write-time) for an accurate gap.
+                generated_at = doc.get("generated_at")
+                if generated_at:
+                    history[-1] = {**history[-1], "timestamp": generated_at}
+                return history
+    except (FileNotFoundError, json.JSONDecodeError, OSError, AttributeError):
+        pass
+
+    # Legacy fallback — flat list already in the expected shape.
+    return _load_json_list(data_dir / "equity_history.json")
 
 
 # ---------------------------------------------------------------------------
