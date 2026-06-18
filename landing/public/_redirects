@@ -1,0 +1,6 @@
+# Cloudflare Pages routing
+# SPA fallback — not needed for Astro static, but good for future dynamic routes
+/risk-disclosure /risk-disclosure/index.html 200
+
+# Redirect www to apex
+# (configure in Cloudflare DNS — this file handles app-level redirects only)

@@ -1,0 +1,161 @@
+---
+// HowItWorks.astro
+// 3-step methodology section: Monitor → Gate → Compound
+// Copy: research/03 §3 + §3.3 page structure from SPA_ARCHITECTURE_EVOLUTION_v2.md
+---
+
+<section id="how-it-works" class="py-24 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-16 max-w-2xl">
+      <p class="text-accent-400 text-sm font-mono uppercase tracking-widest mb-3">Strategy Methodology</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+        How the System Works
+      </h2>
+      <p class="text-white/50 leading-relaxed">
+        Fully deterministic. No human discretion in daily execution. No LLM in the risk or
+        execution path. Every decision has a documented rule.
+      </p>
+    </div>
+
+    <!-- 3-step flow -->
+    <div class="relative">
+
+      <!-- Connector line (desktop) -->
+      <div class="hidden lg:block absolute top-10 left-[calc(16.66%+2rem)] right-[calc(16.66%+2rem)] h-px bg-gradient-to-r from-accent-500/30 via-teal-500/30 to-white/10" aria-hidden="true"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Step 1: Daily APY Scan -->
+        <div class="relative">
+          <div class="flex items-start gap-4 lg:flex-col">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-accent-500/10 border border-accent-500/30 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+              </svg>
+            </div>
+            <div class="lg:mt-4">
+              <div class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Step 1 · 08:00 daily</div>
+              <h3 class="text-xl font-semibold text-white mb-3">Daily APY Scan</h3>
+              <p class="text-white/50 text-sm leading-relaxed">
+                At 08:00 UTC, the cycle runner fetches live APY and TVL data from 8+ whitelisted
+                DeFi protocols via DeFiLlama's yields API. Each protocol adapter is read-only —
+                it observes, never writes.
+              </p>
+              <ul class="mt-4 space-y-1.5 text-sm text-white/35">
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-accent-500 flex-shrink-0" aria-hidden="true"></span>
+                  Aave V3, Compound V3, Morpho Steakhouse (Tier 1)
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-accent-500/50 flex-shrink-0" aria-hidden="true"></span>
+                  Morpho Blue, Yearn V3, Euler V2, Maple (Tier 2)
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-accent-500/20 flex-shrink-0" aria-hidden="true"></span>
+                  Pendle PT (Tier 3-SPEC, advisory only)
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Risk-Gated Rebalancing -->
+        <div class="relative">
+          <div class="flex items-start gap-4 lg:flex-col">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#14b8a6" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/>
+              </svg>
+            </div>
+            <div class="lg:mt-4">
+              <div class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-2">Step 2 · Deterministic gate</div>
+              <h3 class="text-xl font-semibold text-white mb-3">Risk-Gated Rebalancing</h3>
+              <p class="text-white/50 text-sm leading-relaxed">
+                Every proposed allocation passes through RiskPolicy v1.0 — a hard-coded,
+                non-overridable gate. If any limit is breached, the rebalance is blocked
+                and logged to <code class="text-white/40 text-xs font-mono">data/risk_policy_blocks.json</code>.
+              </p>
+              <ul class="mt-4 space-y-1.5 text-sm text-white/35">
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
+                  TVL floor ≥ $5M per pool
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
+                  Per-protocol cap: 40% (T1) / 20% (T2)
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
+                  Kill switch: portfolio drawdown ≥ 5% closes all
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
+                  Min cash buffer ≥ 5% · APY range 1–30%
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Compounding Yield -->
+        <div class="relative">
+          <div class="flex items-start gap-4 lg:flex-col">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/>
+              </svg>
+            </div>
+            <div class="lg:mt-4">
+              <div class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Step 3 · Daily compounding</div>
+              <h3 class="text-xl font-semibold text-white mb-3">Compounding Yield, Logged</h3>
+              <p class="text-white/50 text-sm leading-relaxed">
+                Approved rebalances execute, daily yield accrues to positions, and the equity
+                curve updates — all written atomically to versioned JSON files.
+                Tournament of 10+ strategies selects the best allocation via Sharpe, Calmar,
+                Ulcer, and Rachev metrics.
+              </p>
+              <ul class="mt-4 space-y-1.5 text-sm text-white/35">
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" aria-hidden="true"></span>
+                  Equity curve: 365-day rolling window
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" aria-hidden="true"></span>
+                  Every trade logged to <code class="text-white/40 text-xs font-mono">data/trades.json</code>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" aria-hidden="true"></span>
+                  GoLiveChecker: 26 criteria before real capital
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Architecture note -->
+    <div class="mt-16 rounded-xl bg-white/3 border border-white/8 p-6">
+      <div class="flex flex-col sm:flex-row sm:items-start gap-6">
+        <div class="flex-shrink-0">
+          <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-mono bg-accent-500/10 text-accent-400 border border-accent-500/20">
+            LLM_FORBIDDEN
+          </span>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-1">No AI in the execution path</h4>
+          <p class="text-white/40 text-sm leading-relaxed">
+            The risk, execution, and monitoring components are strictly forbidden from LLM calls.
+            Prompt injection into capital allocation is a critical attack vector — our architecture
+            treats it as such. Every rebalance decision traces to a deterministic rule in
+            <code class="text-white/50 font-mono text-xs">spa_core/risk/policy.py</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

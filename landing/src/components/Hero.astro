@@ -1,0 +1,96 @@
+---
+// Hero.astro
+// Copy: Variant A (TradFi Bridge) from research/03_landing_page_conversion.md
+// Architecture decision: §3.2 of SPA_ARCHITECTURE_EVOLUTION_v2.md
+---
+
+<section class="relative min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-16 overflow-hidden">
+
+  <!-- Subtle background gradient — no animation to keep LCP fast -->
+  <div class="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#0d1520] to-[#0a0a0a] pointer-events-none" aria-hidden="true"></div>
+
+  <!-- Top nav -->
+  <nav class="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+      <span class="font-semibold text-white tracking-tight">SPA</span>
+      <span class="hidden sm:inline text-xs text-white/30 font-mono ml-1">earn-defi.com</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="#how-it-works" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
+      <a href="#trust" class="hover:text-white transition-colors hidden sm:inline">Trust Signals</a>
+      <a href="/risk-disclosure" class="hover:text-white transition-colors hidden sm:inline">Risk Disclosure</a>
+      <a
+        href="https://dashboard.earn-defi.com"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <!-- Hero content -->
+  <div class="relative max-w-5xl mx-auto w-full">
+
+    <!-- Status badge — paper trading transparency first -->
+    <div class="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/60">
+      <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" aria-hidden="true"></span>
+      <span>Paper Trading Mode</span>
+      <span class="text-white/30 mx-1">·</span>
+      <span>Go-live target: August 1, 2026</span>
+    </div>
+
+    <!-- H1 — from research/03 Variant A -->
+    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.1] tracking-tight mb-6">
+      Institutional-Grade DeFi Yield.<br />
+      <span class="text-accent-400">Verified Daily.</span>
+    </h1>
+
+    <!-- Subheadline -->
+    <p class="text-lg sm:text-xl text-white/60 max-w-2xl leading-relaxed mb-4">
+      A systematic strategy that monitors 8+ DeFi protocols, enforces hard risk gates —
+      and shows you everything. Built for family offices allocating <strong class="text-white/80 font-medium">$25K–$250K</strong> to
+      onchain stablecoins.
+    </p>
+
+    <!-- Paper trading positioning framing (research/03 §10) -->
+    <p class="text-sm text-white/40 max-w-xl mb-10 leading-relaxed">
+      74% of family offices conduct 2–3 months of due diligence. We built our track record
+      phase to match that timeline — every allocation is logged, every risk gate is public.
+    </p>
+
+    <!-- CTA buttons -->
+    <div class="flex flex-col sm:flex-row gap-4 mb-16">
+      <a
+        href="https://dashboard.earn-defi.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold text-sm transition-colors shadow-lg shadow-accent-500/20"
+      >
+        Access Live Dashboard
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+          <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
+          <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
+        </svg>
+      </a>
+      <a
+        href="#how-it-works"
+        class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg border border-white/15 hover:border-white/30 text-white/70 hover:text-white font-medium text-sm transition-all"
+      >
+        Review Strategy Methodology
+      </a>
+    </div>
+
+    <!-- Trust proof strip — protocol logos as "Protocols we monitor" -->
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-white/30">
+      <span class="uppercase tracking-widest text-white/20 text-[10px]">Protocols we monitor</span>
+      {['Aave V3', 'Morpho', 'Compound V3', 'Yearn V3', 'Euler V2', 'Maple', 'Pendle'].map((protocol) => (
+        <span class="px-2.5 py-1 rounded border border-white/10 bg-white/3 text-white/40 font-mono text-[11px]">
+          {protocol}
+        </span>
+      ))}
+    </div>
+
+  </div>
+</section>

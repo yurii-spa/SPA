@@ -1,0 +1,79 @@
+---
+export interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  canonical?: string;
+}
+
+const {
+  title = 'SPA — Institutional-Grade DeFi Yield. Verified Daily.',
+  description = 'A systematic yield optimizer for family offices. Deterministic risk policy, verifiable paper track record, zero discretionary decisions. Built on Aave, Morpho, Compound.',
+  ogImage = 'https://earn-defi.com/og-image.png',
+  canonical,
+} = Astro.props;
+
+const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- Primary Meta -->
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0a0a0a" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:site_name" content="SPA — earn-defi.com" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Fonts: Inter via Google Fonts (self-hostable alternative: fontsource) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Structured data: Organization -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "SPA — Smart Passive Aggregator",
+        "url": "https://earn-defi.com",
+        "description": "Autonomous DeFi yield optimizer with deterministic risk policy. Paper-trading track record since June 2026.",
+        "sameAs": []
+      }
+    </script>
+
+    <!-- Prevent flash of unstyled dark content -->
+    <style>
+      html { background-color: #0a0a0a; }
+    </style>
+  </head>
+
+  <body class="bg-[#0a0a0a] text-white antialiased">
+    <slot />
+  </body>
+</html>

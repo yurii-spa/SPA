@@ -1,0 +1,41 @@
+---
+// LiveStats.astro
+// Wrapper: the React island is loaded with client:visible so it doesn't block LCP
+// The static shell renders instantly; JS hydrates only when scrolled into view
+---
+
+<section id="live-stats" class="py-16 px-4 sm:px-6 lg:px-8 bg-[#0d1117] border-y border-white/5">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Section header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div>
+        <h2 class="text-sm font-mono text-accent-400 uppercase tracking-widest mb-1">Live Strategy Metrics</h2>
+        <p class="text-white/40 text-sm">Fetched from API every 60 seconds · Paper trading data</p>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-white/30">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+        <span>System operational</span>
+      </div>
+    </div>
+
+    <!-- React island: hydrates client-side, polls every 60s -->
+    <live-stats-widget></live-stats-widget>
+
+    <!-- Disclaimer under stats -->
+    <p class="mt-6 text-xs text-white/25 text-center leading-relaxed max-w-2xl mx-auto">
+      All data reflects simulated paper trading on a virtual $100,000 USDC portfolio.
+      Past simulation performance does not guarantee future live performance.
+    </p>
+
+  </div>
+</section>
+
+<!-- Import React island separately so Astro handles it as a client component -->
+<script>
+  // LiveStatsWidget is loaded via the React component below
+  // This script is intentionally empty — hydration is handled by the .jsx file
+</script>
+
+<!-- The actual React island component: -->
+<!-- This gets referenced by index.astro with client:visible directive -->

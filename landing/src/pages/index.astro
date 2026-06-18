@@ -1,0 +1,93 @@
+---
+// index.astro — earn-defi.com homepage
+// Astro 4 static page. LiveStatsWidget is a React island: client:visible
+// Architecture: §3 of SPA_ARCHITECTURE_EVOLUTION_v2.md
+
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import TrustSignals from '../components/TrustSignals.astro';
+import CompetitorTable from '../components/CompetitorTable.astro';
+import FeeStructure from '../components/FeeStructure.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import Footer from '../components/Footer.astro';
+import LiveStatsWidget from '../components/LiveStatsWidget.jsx';
+---
+
+<Layout
+  title="SPA — Institutional-Grade DeFi Yield. Verified Daily. | earn-defi.com"
+  description="Autonomous yield optimizer for family offices. Deterministic risk policy, 30-day verified paper track record, built on Aave, Morpho, Compound. Go-live August 2026."
+>
+
+  <!-- Above the fold: pure HTML, 0 KB JS — fastest possible LCP -->
+  <Hero />
+
+  <!-- Live stats section: shell renders instantly; React island hydrates client:visible -->
+  <section id="live-stats" class="py-16 px-4 sm:px-6 lg:px-8 bg-[#0d1117] border-y border-white/5">
+    <div class="max-w-5xl mx-auto">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <h2 class="text-sm font-mono text-accent-400 uppercase tracking-widest mb-1">Live Strategy Metrics</h2>
+          <p class="text-white/40 text-sm">Fetched from API every 60 seconds · Paper trading data</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-white/30">
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+          <span>System operational</span>
+        </div>
+      </div>
+
+      <!--
+        React island with client:visible directive.
+        - 0 KB JS cost until user scrolls this into view
+        - Polls https://api.earn-defi.com/api/health-public every 60s
+        - Falls back to static placeholder if API unreachable
+      -->
+      <LiveStatsWidget client:visible />
+
+      <p class="mt-6 text-xs text-white/25 text-center leading-relaxed max-w-2xl mx-auto">
+        All data reflects simulated paper trading on a virtual $100,000 USDC portfolio.
+        Past simulation performance does not guarantee future live performance.
+      </p>
+    </div>
+  </section>
+
+  <!-- Remaining sections: pure Astro HTML components, 0 KB JS -->
+  <HowItWorks />
+  <TrustSignals />
+  <CompetitorTable />
+  <FeeStructure />
+
+  <!-- CTA section before disclaimer -->
+  <section class="py-20 px-4 sm:px-6 lg:px-8 text-center">
+    <div class="max-w-2xl mx-auto">
+      <p class="text-xs text-white/30 uppercase tracking-widest font-mono mb-4">Current Phase: Paper Trading</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">
+        Watch Before You Commit.
+      </h2>
+      <p class="text-white/50 mb-10 leading-relaxed">
+        The dashboard is public. Every trade, every risk decision, every equity curve update
+        is there. Start your due diligence now — we'll tell you when we're ready for capital.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a
+          href="https://dashboard.earn-defi.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
+        >
+          Access Live Dashboard →
+        </a>
+        <a
+          href="/risk-disclosure"
+          class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
+        >
+          Read Full Risk Disclosure
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
