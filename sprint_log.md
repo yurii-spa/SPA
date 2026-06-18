@@ -1976,3 +1976,30 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac.
 
 **Push:** `bash scripts/push_v885.sh`
+
+
+## v8.86 — 2026-06-18
+
+**Sprint:** v8.86  
+**Date:** 2026-06-18  
+**Tasks done:** MP-1240  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_intent_solver_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_intent_solver_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfIntentSolverFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_intent_solver_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **INTENT SOLVER FEE** (маржа/спред solver-а/filler-а в intent-based торговле). Волт всё чаще направляет harvest/rebalance свопы не напрямую в публичный AMM, а через INTENT-системы (CoW Protocol / UniswapX / 1inch Fusion / Bungee / Across): подписывает INTENT ("продай X reward-токен за ≥ Y базового актива"), а конкурирующий SOLVER / FILLER / RESOLVER исполняет его off-chain и сеттлит on-chain. Solver забирает INTENT SOLVER FEE — свою маржу/спред/settlement-фи за поиск ликвидности и сеттлмент интента (разрыв между ценой, которую solver реально находит, и худшей ценой, переданной волту, плюс явная settlement/protocol-фи, идущая solver-у). Эта фи идёт инфраструктурному актору (filler-у, конкурирующему за исполнение интента) и вычитается из gross yield до того, как депозитор что-либо видит. Волт начисляет performance fee с GROSS yield ДО вычета solver-фи → fee-on-intent-solver-fee / fee-base инфляция. Порог HIGH_INTENT_SOLVER_FEE_PCT=0.3%. 5 классификаций: CLEAN_NET_OF_INTENT_SOLVER_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross+net_of_intent_solver_fee+fee_pct) и override (gap+fee_charged напрямую). Score = 70*realization_ratio + 30*(1-fee_on_intent_solver_fee_fraction), 0–100. Флаги: CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_INTENT_SOLVER_FEE, GAP_FROM_OVERRIDE, FEE_ON_INTENT_SOLVER_FEE, FULL_FEE_ON_INTENT_SOLVER_FEE. Атомарный ring-buffer лог (tmp + os.replace, cap=100).
+
+**Distinctions vs other gross_of_* modules:** INTENT SOLVER/FILLER MARGIN за исполнение intent-фила — vs mev_tax (adversarial sandwich/backrun extraction searcher-ами в публичном mempool — здесь явная маржа solver-а в приватном/конкурентном RFQ-филе, НЕ adversarial extraction); vs swap_fee (LP-комиссия AMM-пула провайдерам — здесь сделка может вообще не касаться публичного AMM напрямую, платится маржа solver-а); vs exit_slippage (детерминированный price impact от собственного размера сделки вдоль кривой пула); vs rebalancing_cost (общий turnover-cost); vs cost/priority_fee/blob_fee/l1_data_fee (gas-market слои); vs bundler_fee/crosschain_message_fee (ERC-4337 / cross-chain messaging); vs oracle_update_fee/harvest_bounty (oracle post / keeper bounty); vs funding_cost/borrow_cost/bridge_fee/flash_loan_fee/management_fee/deposit_fee/withdrawal_fee — каждый прайсит иной слой. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0-001..P1-005 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features/ideas — не code/ready). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — intent_solver_fee (intent-based solver/filler margin: CoW/UniswapX/1inch Fusion). Gap подтверждён: модуля performance_fee_gross_of_intent_solver_fee в spa_core/analytics не было; intent/solver/filler/resolver в этом контексте отсутствовали. Реестр Tier-B yield_quality weight 0.5 (B 494→495, ALL 686→687).
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.85 (оканчивается на **5**) → ревью ТРЕБОВАЛОСЬ. `python3 -m spa_core.dev_agents.architect --command review-backlog` запущен, но **недоступен в sandbox** (ModuleNotFoundError: anthropic; + api.github.com и Keychain недоступны). Выполнен ручной gap/backlog-review: ready type=code задач нет, agent_infra-задачи требуют Mac/USER ACTION.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_intent_solver_fee…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':495,'C':180}, ALL_MODULES=687, дубликатов нет, модуль present=True, класс грузится через registry; demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0), agg: cleanest=USDC-ISF-Vault-CleanIntentSolverFee, worst=BAL-ISF-Vault-SevereIntentSolverFee, avg_score=56.88, net_negative_count=1, position_count=5; KANBAN.json парсится, sprint_completed=v8.86, sprint_current=v8.87, done_count=933.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v886.sh`
