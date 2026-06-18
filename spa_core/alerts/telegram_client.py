@@ -108,13 +108,17 @@ def _post_message(payload_dict: dict) -> bool:
     return False
 
 
-def send_message(text: str) -> bool:
-    """POST the message to the Telegram Bot API (parse_mode=Markdown).
+def send_message(text: str, parse_mode: str = "Markdown") -> bool:
+    """POST the message to the Telegram Bot API.
+
+    ``parse_mode`` defaults to ``"Markdown"`` (back-compat). Pass ``"HTML"`` for
+    messages that contain HTML tags such as ``<b>`` — Telegram's legacy Markdown
+    parser 400s on the ``_`` in protocol names (e.g. ``aave_v3``) and on ``<>``.
 
     Fail-safe: missing credentials, HTTP or network errors → WARNING + False.
     One retry on network error. Never raises.
     """
-    return _post_message({"text": text})
+    return _post_message({"text": text, "parse_mode": parse_mode})
 
 
 def send_message_with_keyboard(text: str, keyboard: dict) -> bool:
