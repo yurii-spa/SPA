@@ -1,0 +1,9 @@
+# Cloudflare Pages config for the Investor Cabinet SPA.
+# Separate Pages project from the landing site (earn-defi.com).
+# Custom domain: app.earn-defi.com (configure in the CF Pages dashboard → Custom domains).
+name = "earn-defi-cabinet"
+pages_build_output_dir = "dist"
+
+# SPA fallback: all client routes (/dashboard, /login, …) serve index.html.
+# Cloudflare Pages handles this automatically for static sites when a
+# _redirects file is present (see public/_redirects).
