@@ -206,12 +206,32 @@ def run_health_check(data_dir: str = "data", send_telegram: bool = True) -> dict
         )
 
     # --- Telegram alert ------------------------------------------------------
+    # BUG FIX (TELEGRAM_AUDIT 2026-06-18): the old code sent Telegram on every
+    # non-HEALTHY check with no cooldown.  run_health_check may be called from
+    # external scripts; we apply a 1h cooldown per severity level so it fires
+    # at most once per hour for WARNING, and bypasses cooldown for CRITICAL.
     overall = report.get("overall", "UNKNOWN")
     if overall != "HEALTHY" and send_telegram:
         alert_text = _build_alert_text(report)
-        ok = _send_telegram(alert_text)
+        category = "p0" if overall == "CRITICAL" else "alert"
+        # Try TelegramManager for disk-persisted cooldown; fall back to raw send.
+        try:
+            sys.path.insert(0, str(ROOT))
+            from spa_core.alerts.telegram_manager import TelegramManager
+            mgr = TelegramManager(data_dir=ROOT / "data")
+            ok = mgr.send(
+                alert_text,
+                title=f"health_{overall.lower()}",
+                category=category,
+                parse_mode="Markdown",
+            )
+        except Exception:
+            # Fallback: direct send (always fires — legacy behaviour)
+            ok = _send_telegram(alert_text)
         if ok:
             print("  [Telegram] health alert sent.", file=sys.stderr)
+        else:
+            print("  [Telegram] health alert suppressed (cooldown active).", file=sys.stderr)
 
     return report
 

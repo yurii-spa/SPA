@@ -10,7 +10,7 @@ Tier C (BACKGROUND)  — ежедневная аналитика, не влия�
    "category": str, "weight": float 0-1, "protocols": ["all"] | [str, ...]}
 
 Сгенерировано скриптом + ручная разметка Tier-A (12 канонических модулей ADR-031).
-Счётчики: Tier-A=12, Tier-B=386, Tier-C=180 (всего 578 модулей).
+Счётчики: Tier-A=12, Tier-B=490, Tier-C=180 (всего 682 модулей).
 """
 from typing import Dict, List, Any, Optional
 
@@ -432,6 +432,94 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_performance_fee_crystallization_frequency_analyzer', "class": 'DeFiProtocolPerformanceFeeCrystallizationFrequencyAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_deposit_cap_headroom_analyzer', "class": 'DeFiProtocolDepositCapHeadroomAnalyzer', "tier": 'B', "category": 'vault_capacity', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_depositor_concentration_analyzer', "class": 'DeFiProtocolDepositorConcentrationAnalyzer', "tier": 'B', "category": 'vault_capacity', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_share_inflation_attack_exposure_analyzer', "class": 'DeFiProtocolVaultShareInflationAttackExposureAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_idle_cash_drag_analyzer', "class": 'DeFiProtocolVaultIdleCashDragAnalyzer', "tier": 'B', "category": 'capital_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_pending_harvest_premium_analyzer', "class": 'DeFiProtocolVaultPendingHarvestPremiumAnalyzer', "tier": 'B', "category": 'vault_timing', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_round_trip_cost_analyzer', "class": 'DeFiProtocolVaultRoundTripCostAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_strategy_migration_risk_analyzer', "class": 'DeFiProtocolVaultStrategyMigrationRiskAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_withdrawal_fee_decay_analyzer', "class": 'DeFiProtocolVaultWithdrawalFeeDecayAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_management_fee_accrual_analyzer', "class": 'DeFiProtocolVaultManagementFeeAccrualAnalyzer', "tier": 'B', "category": 'vault_fee_mechanics', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_loss_socialization_exposure_analyzer', "class": 'DeFiProtocolVaultLossSocializationExposureAnalyzer', "tier": 'B', "category": 'vault_safety', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_reward_lock_discount_analyzer', "class": 'DeFiProtocolVaultRewardLockDiscountAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_instant_exit_nav_discount_analyzer', "class": 'DeFiProtocolVaultInstantExitNavDiscountAnalyzer', "tier": 'B', "category": 'exit_liquidity', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_gas_breakeven_analyzer', "class": 'DeFiProtocolVaultGasBreakevenAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_depeg_recovery_analyzer', "class": 'DeFiProtocolVaultDepegRecoveryAnalyzer', "tier": 'B', "category": 'peg_stability', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_capacity_dilution_analyzer', "class": 'DeFiProtocolVaultCapacityDilutionAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_harvest_timing_analyzer', "class": 'DeFiProtocolVaultHarvestTimingAnalyzer', "tier": 'B', "category": 'cost_efficiency', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_share_price_drawdown_analyzer', "class": 'DeFiProtocolVaultSharePriceDrawdownAnalyzer', "tier": 'B', "category": 'performance', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_yield_realization_gap_analyzer', "class": 'DeFiProtocolVaultYieldRealizationGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_redemption_cooldown_exposure_analyzer', "class": 'DeFiProtocolVaultRedemptionCooldownExposureAnalyzer', "tier": 'B', "category": 'liquidity', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_relative_yield_outlier_analyzer', "class": 'DeFiProtocolVaultRelativeYieldOutlierAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_reward_token_price_exposure_analyzer', "class": 'DeFiProtocolVaultRewardTokenPriceExposureAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_maturity_track_record_analyzer', "class": 'DeFiProtocolVaultMaturityTrackRecordAnalyzer', "tier": 'B', "category": 'protocol_health', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_depositor_exit_velocity_analyzer', "class": 'DeFiProtocolVaultDepositorExitVelocityAnalyzer', "tier": 'B', "category": 'liquidity', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_harvest_cycle_entry_timing_analyzer', "class": 'DeFiProtocolVaultHarvestCycleEntryTimingAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_share_price_staleness_analyzer', "class": 'DeFiProtocolVaultSharePriceStalenessAnalyzer', "tier": 'B', "category": 'protocol_health', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_bribe_dependency_analyzer', "class": 'DeFiProtocolVaultBribeDependencyAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_deposit_activation_lag_analyzer', "class": 'DeFiProtocolVaultDepositActivationLagAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_reward_autosell_slippage_analyzer', "class": 'DeFiProtocolVaultRewardAutosellSlippageAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_reward_sell_pressure_runway_analyzer', "class": 'DeFiProtocolVaultRewardSellPressureRunwayAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_trading_fee_apr_volatility_analyzer', "class": 'DeFiProtocolVaultTradingFeeAPRVolatilityAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_apr_quote_staleness_analyzer', "class": 'DeFiProtocolVaultAPRQuoteStalenessAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_apr_source_dispersion_analyzer', "class": 'DeFiProtocolVaultAPRSourceDispersionAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_share_price_premium_analyzer', "class": 'DeFiProtocolVaultSharePricePremiumAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_unclaimed_reward_forfeiture_analyzer', "class": 'DeFiProtocolVaultUnclaimedRewardForfeitureAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_trailing_window_boost_backdating_analyzer', "class": 'DeFiProtocolVaultTrailingWindowBoostBackdatingAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_apr_annualization_basis_risk_analyzer', "class": 'DeFiProtocolVaultAPRAnnualizationBasisRiskAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_reward_emission_expiry_cliff_analyzer', "class": 'DeFiProtocolVaultRewardEmissionExpiryCliffAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_entry_fee_amortization_analyzer', "class": 'DeFiProtocolVaultEntryFeeAmortizationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_denomination_currency_yield_basis_analyzer', "class": 'DeFiProtocolVaultDenominationCurrencyYieldBasisAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_apy_compounding_basis_overstatement_analyzer', "class": 'DeFiProtocolVaultAPYCompoundingBasisOverstatementAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_apr_lookback_window_selection_bias_analyzer', "class": 'DeFiProtocolVaultAPRLookbackWindowSelectionBiasAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_utilization_peak_headline_revert_analyzer', "class": 'DeFiProtocolVaultUtilizationPeakHeadlineRevertAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_boost_tier_headline_realization_analyzer', "class": 'DeFiProtocolVaultBoostTierHeadlineRealizationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_headline_spot_snapshot_vs_twap_analyzer', "class": 'DeFiProtocolVaultHeadlineSpotSnapshotVsTWAPAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_marginal_deposit_apr_dilution_analyzer', "class": 'DeFiProtocolVaultMarginalDepositAPRDilutionAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_deployment_ramp_drag_analyzer', "class": 'DeFiProtocolVaultDeploymentRampDragAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_funding_rate_carry_persistence_analyzer', "class": 'DeFiProtocolVaultFundingRateCarryPersistenceAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_yield_variance_drag_realization_analyzer', "class": 'DeFiProtocolVaultYieldVarianceDragRealizationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_range_uptime_fee_realization_analyzer', "class": 'DeFiProtocolVaultRangeUptimeFeeRealizationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_price_return_contamination_analyzer', "class": 'DeFiProtocolVaultPriceReturnContaminationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_harvest_yield_concentration_analyzer', "class": 'DeFiProtocolVaultHarvestYieldConcentrationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_leveraged_carry_spread_compression_analyzer', "class": 'DeFiProtocolVaultLeveragedCarrySpreadCompressionAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_dollar_weighted_return_gap_analyzer', "class": 'DeFiProtocolVaultDollarWeightedReturnGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_volatility_tax_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeVolatilityTaxAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_net_of_loss_yield_realization_analyzer', "class": 'DeFiProtocolVaultNetOfLossYieldRealizationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_entry_exit_fee_amortization_analyzer', "class": 'DeFiProtocolVaultEntryExitFeeAmortizationAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_headline_yield_honesty_composite_analyzer', "class": 'DeFiProtocolVaultHeadlineYieldHonestyCompositeAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_hurdle_rate_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeHurdleRateGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_unrealized_gain_clawback_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeUnrealizedGainClawbackGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_cross_sleeve_netting_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeCrossSleeveNettingGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_management_fee_on_idle_capital_analyzer', "class": 'DeFiProtocolVaultManagementFeeOnIdleCapitalAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_subscription_timing_equalization_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeSubscriptionTimingEqualizationGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_management_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeManagementFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_catch_up_clause_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeCatchUpClauseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_cost_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfCostBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_protocol_revenue_share_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeProtocolRevenueShareBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_reserve_contribution_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfReserveContributionBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_borrow_cost_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBorrowCostBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_exit_slippage_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfExitSlippageBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_early_exit_yield_forfeiture_analyzer', "class": 'DeFiProtocolVaultEarlyExitYieldForfeitureAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_impermanent_loss_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfImpermanentLossBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_bad_debt_socialization_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBadDebtSocializationBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_rebalancing_cost_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfRebalancingCostBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_funding_cost_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfFundingCostBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_insurance_premium_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfInsurancePremiumBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_slashing_loss_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfSlashingLossBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_validator_commission_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfValidatorCommissionBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_harvest_bounty_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfHarvestBountyBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_referral_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfReferralFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_bridge_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBridgeFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_boost_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBoostFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_withdrawal_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfWithdrawalFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_swap_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfSwapFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_deposit_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfDepositFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_management_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfManagementFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_flash_loan_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfFlashLoanFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_l1_data_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfL1DataFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_failed_harvest_gas_drag_analyzer', "class": 'DeFiProtocolVaultFailedHarvestGasDragAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_priority_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfPriorityFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_blob_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBlobFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
@@ -637,3 +725,8 @@ def get_module_info(module_name: str) -> Optional[Dict[str, Any]]:
 def tier_counts() -> Dict[str, int]:
     """Счётчики модулей по тирам."""
     return {"A": len(TIER_A_MODULES), "B": len(TIER_B_MODULES), "C": len(TIER_C_MODULES)}
+
+
+def get_tier_counts() -> Dict[str, int]:
+    """Алиас для tier_counts() (внешний контракт verify-скрипта)."""
+    return tier_counts()

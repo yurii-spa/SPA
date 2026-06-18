@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SPA Telegram Bot v2.0.
+"""SPA Telegram Bot v2.1.
 
 Interactive long-polling Telegram bot for the SPA paper-trading system.
 Replaces the older callback-only ``spa_core.alerts.bot_commands`` with a
@@ -11,16 +11,18 @@ Run:
 
 Commands
 --------
-  /start      welcome + command list + inline keyboard
+  /start      welcome + main inline menu
+  /menu       interactive menu (same as /help)
+  /help       command list + inline menu
   /status     equity, APY today, daily yield, kill-switch, trading day
   /portfolio  current allocation per protocol ($ and %)
   /today      P&L today, trades, APY
   /week       7-day summary (equity move, best day, profitable days)
-  /agents     launchd agent health (✅/❌ each) from uptime_status.json
+  /agents     launchd agent health (✅/❌/⏸) + "What does each agent do?" button
   /alerts     top red_flags + peg status
+  /why        explain likely reasons for each ❌ agent
   /pause      arm the manual kill-switch
   /resume     clear the manual kill-switch
-  /help       command list
 
 Design
 ------
@@ -34,6 +36,8 @@ Design
   API error becomes a friendly message, never a crash. The polling loop
   also swallows per-update exceptions so one bad update can't kill the bot.
 * Atomic writes (tmp + os.replace) for the kill-switch and offset files.
+* On startup (run_polling), setMyCommands registers all commands in the
+  Telegram ☰ menu automatically.
 """
 from __future__ import annotations
 
@@ -48,7 +52,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger("spa.telegram.bot")
 
@@ -237,11 +241,33 @@ class TelegramBot:
     # ── Inline keyboards ──────────────────────────────────────────────────
 
     @staticmethod
+    def _main_menu_keyboard() -> Dict:
+        """Full interactive menu keyboard for /menu and /help."""
+        return {"inline_keyboard": [
+            [
+                {"text": "📊 Статус системы", "callback_data": "/status"},
+                {"text": "💼 Портфель",       "callback_data": "/portfolio"},
+            ],
+            [
+                {"text": "📈 Сегодня",        "callback_data": "/today"},
+                {"text": "🤖 Агенты",         "callback_data": "/agents"},
+            ],
+            [
+                {"text": "🔔 Алерты",         "callback_data": "/alerts"},
+                {"text": "❓ Почему ❌?",     "callback_data": "/why"},
+            ],
+            [
+                {"text": "⏸ Пауза",          "callback_data": "/pause"},
+                {"text": "▶️ Возобновить",    "callback_data": "/resume"},
+            ],
+        ]}
+
+    @staticmethod
     def _status_keyboard() -> Dict:
         return {"inline_keyboard": [[
             {"text": "📊 Portfolio", "callback_data": "/portfolio"},
-            {"text": "📈 Today", "callback_data": "/today"},
-            {"text": "🤖 Agents", "callback_data": "/agents"},
+            {"text": "📈 Today",     "callback_data": "/today"},
+            {"text": "🤖 Agents",    "callback_data": "/agents"},
         ]]}
 
     @staticmethod
@@ -250,25 +276,95 @@ class TelegramBot:
             {"text": "▶️ Resume", "callback_data": "/resume"},
         ]]}
 
+    @staticmethod
+    def _agents_info_keyboard() -> Dict:
+        """'What does each agent do?' button shown below /agents output."""
+        return {"inline_keyboard": [[
+            {"text": "📖 Что делает каждый агент?", "callback_data": "agents_detail"},
+        ]]}
+
+    # ── Agent metadata ────────────────────────────────────────────────────
+
+    # (name_without_launchd_prefix, one-line description, run interval)
+    _AGENT_DESCRIPTIONS: List[Tuple[str, str, str]] = [
+        ("daily_cycle",        "Главный торговый движок. Проверяет APY, размещает средства.", "каждые 30 мин"),
+        ("portfolio_monitor",  "Считает equity / P&L / APY по текущему портфелю.",            "каждые 5 мин"),
+        ("peg_monitor",        "Проверяет привязку USDC/DAI/USDT/sUSDS к $1.",                "каждые 5 мин"),
+        ("red_flag_monitor",   "Мониторит взломы, аномалии ликвидности.",                     "каждые 5 мин"),
+        ("governance_watcher", "DAO голосования (Snapshot / Tally).",                         "каждые 15 мин"),
+        ("sky_monitor",        "Параметры sUSDS / GSM протокола Sky.",                        "каждые 15 мин"),
+        ("cycle_gap_monitor",  "Контролирует, что торговые циклы не пропускаются.",           "каждые 5 мин"),
+        ("cycle_health",       "Диагностика health_score цикла (0–100).",                     "каждые 5 мин"),
+        ("uptime_monitor",     "Следит за всеми агентами, источник данных для /agents.",      "каждые 5 мин"),
+        ("base_gas_monitor",   "Цена газа в сети Base для Base-chain стратегий.",             "каждые 10 мин"),
+        ("bot_commands",       "Этот Telegram бот.",                                          "всегда активен"),
+        ("httpserver",         "Веб-дашборд на порту 8080.",                                  "всегда активен"),
+        ("cloudflared",        "HTTPS тоннель для доступа к дашборду извне.",                 "не настроен"),
+        ("fund-api",           "API для Family Fund инвесторов.",                             "по расписанию"),
+        ("autopush",           "Автопуш изменений в GitHub каждые 90 мин.",                  "каждые 90 мин"),
+        ("analytics_tier_c",   "180 аналитических модулей Tier-C.",                          "ежедневно 05:00"),
+        ("daily-paper-report", "Ежедневный отчёт PDF + Telegram.",                           "ежедневно 08:00"),
+        ("checkpoint-7day",    "Недельный снапшот состояния системы.",                        "раз в 7 дней"),
+        ("weekly_backup",      "Полный архив всех данных SPA.",                               "раз в неделю"),
+    ]
+
+    # Agents that run on a schedule and exit between runs.
+    # Showing ❌ when idle is misleading — use ⏸ instead.
+    _SCHEDULED_AGENTS = frozenset({
+        "launchd_checkpoint-7day",
+        "launchd_weekly_backup",
+        "launchd_fund-api",
+        "launchd_analytics_tier_c",
+        "launchd_base_gas_monitor",
+        "launchd_sky_monitor",
+        "launchd_daily-paper-report",
+    })
+
+    # Known probable causes for specific failing agents.
+    _KNOWN_WHY: Dict[str, str] = {
+        "launchd_cloudflared": (
+            "Не настроен (требует браузерная авторизация Cloudflare)"
+        ),
+        "launchd_cycle_health": (
+            "plist не загружен в LaunchAgents — запусти: bash scripts/restart_bot_now.command"
+        ),
+        "launchd_cycle_gap_monitor": (
+            "plist загружен в режиме --check (dry-run), не пишет статус в data/"
+        ),
+    }
+
     # ── Command handlers ──────────────────────────────────────────────────
 
     def cmd_start(self, chat_id: str) -> None:
         text = (
-            "👋 <b>SPA Bot v2.0</b>\n\n"
-            "Команды:\n"
-            "/status — статус системы\n"
-            "/portfolio — текущая аллокация\n"
+            "👋 <b>SPA Bot v2.1</b>\n\n"
+            "Управляй системой SPA через кнопки меню\n"
+            "или вводи команды напрямую:\n\n"
+            "/status · /portfolio · /today · /week\n"
+            "/agents · /alerts · /why\n"
+            "/pause · /resume · /menu · /help"
+        )
+        self.send_message(text, chat_id, reply_markup=self._main_menu_keyboard())
+
+    def cmd_help(self, chat_id: str) -> None:
+        text = (
+            "📋 <b>Команды SPA Bot v2.1</b>\n\n"
+            "/status — статус системы и equity\n"
+            "/portfolio — текущая аллокация по протоколам\n"
             "/today — P&amp;L за сегодня\n"
-            "/week — недельный отчёт\n"
-            "/agents — статус агентов\n"
-            "/alerts — последние алерты\n"
-            "/pause — пауза (kill-switch)\n"
+            "/week — недельный отчёт (7 дней)\n"
+            "/agents — статус агентов launchd\n"
+            "/alerts — активные алерты и peg-мониторинг\n"
+            "/why — почему агенты ❌ (диагностика)\n"
+            "/pause — kill-switch (поставить на паузу)\n"
             "/resume — снять паузу\n"
+            "/menu — интерактивное меню\n"
             "/help — этот список"
         )
-        self.send_message(text, chat_id, reply_markup=self._status_keyboard())
+        self.send_message(text, chat_id, reply_markup=self._main_menu_keyboard())
 
-    cmd_help = cmd_start
+    # /menu → same output as /help
+    cmd_menu = cmd_help
 
     def cmd_status(self, chat_id: str) -> None:
         try:
@@ -362,7 +458,6 @@ class TelegramBot:
         try:
             doc = _read_json(DATA_DIR / "equity_curve_daily.json", {})
             daily = doc.get("daily", []) if isinstance(doc, dict) else []
-            summary = doc.get("summary", {}) if isinstance(doc, dict) else {}
 
             if not daily:
                 self.send_message("📅 <b>Week</b>\n\nДанных пока недостаточно.", chat_id)
@@ -412,20 +507,90 @@ class TelegramBot:
 
             lines = ["🤖 <b>Agents</b>\n"]
             n_up = 0
+            n_scheduled = 0
             n_total = 0
             for name, info in sorted(checks.items()):
                 running = info.get("running") if isinstance(info, dict) else None
                 if running is None:
-                    continue  # synthetic/aggregate entries (http_server etc.)
+                    continue  # synthetic/aggregate entries
                 n_total += 1
                 if running:
                     n_up += 1
+                    icon = "✅"
+                elif name in self._SCHEDULED_AGENTS:
+                    icon = "⏸"   # idle between scheduled runs — expected
+                    n_scheduled += 1
+                else:
+                    icon = "❌"
                 label = name.replace("launchd_", "").replace("_", " ")
-                lines.append("{icon} {label}".format(icon="✅" if running else "❌", label=label))
-            lines.append("\n📊 Up: {up}/{tot}".format(up=n_up, tot=n_total))
-            self.send_message("\n".join(lines), chat_id)
+                lines.append("{icon} {label}".format(icon=icon, label=label))
+            lines.append(
+                "\n📊 Up: {up}/{tot}  ⏸ Scheduled: {sc}".format(
+                    up=n_up, tot=n_total, sc=n_scheduled
+                )
+            )
+            self.send_message(
+                "\n".join(lines), chat_id,
+                reply_markup=self._agents_info_keyboard(),
+            )
         except Exception as exc:  # noqa: BLE001
             self.send_message("❌ Error reading agents: {}".format(type(exc).__name__), chat_id)
+
+    def _cmd_agents_detail(self, chat_id: str) -> None:
+        """Show one-line description + interval for every known agent."""
+        lines = ["📖 <b>Агенты SPA — справочник</b>\n"]
+        for name, desc, interval in self._AGENT_DESCRIPTIONS:
+            lines.append(
+                "• <b>{name}</b>\n"
+                "  {desc}\n"
+                "  ⏱ {interval}".format(name=name, desc=desc, interval=interval)
+            )
+        self.send_message("\n\n".join(lines), chat_id)
+
+    def cmd_why(self, chat_id: str) -> None:
+        """Explain likely reasons for each ❌ agent (not scheduled ones)."""
+        try:
+            doc = _read_json(DATA_DIR / "uptime_status.json", {})
+            checks = doc.get("checks", {}) if isinstance(doc, dict) else {}
+            check_ts = float(doc.get("ts", 0.0) or 0.0)
+
+            failing = [
+                (name, info)
+                for name, info in sorted(checks.items())
+                if isinstance(info, dict)
+                and info.get("running") is False
+                and name not in self._SCHEDULED_AGENTS
+            ]
+
+            if not failing:
+                self.send_message(
+                    "✅ <b>Все агенты в норме</b>\nНет агентов со статусом ❌.",
+                    chat_id,
+                )
+                return
+
+            lines = ["🔍 <b>Диагностика ❌ агентов</b>\n"]
+            for name, info in failing:
+                known = self._KNOWN_WHY.get(name)
+                if known:
+                    reason = known
+                else:
+                    # Compute how stale the uptime snapshot is
+                    if check_ts:
+                        age_min = int((time.time() - check_ts) / 60)
+                        reason = (
+                            "Не запускался более {n} мин — "
+                            "проверь launchd: launchctl list | grep spa"
+                        ).format(n=age_min)
+                    else:
+                        reason = "Нет данных — проверь launchd: launchctl list | grep spa"
+                label = name.replace("launchd_", "")
+                lines.append("❌ <b>{label}</b>\n   → {reason}".format(
+                    label=label, reason=reason))
+
+            self.send_message("\n\n".join(lines), chat_id)
+        except Exception as exc:  # noqa: BLE001
+            self.send_message("❌ Error in /why: {}".format(type(exc).__name__), chat_id)
 
     def cmd_alerts(self, chat_id: str) -> None:
         try:
@@ -486,27 +651,109 @@ class TelegramBot:
         except Exception as exc:  # noqa: BLE001
             self.send_message("❌ Error clearing kill-switch: {}".format(type(exc).__name__), chat_id)
 
+    def _cmd_detail(self, callback_data: str, chat_id: str) -> None:
+        """Handle '📋 Подробнее' inline buttons — show full governance/risk event details.
+
+        Callback data format (from telegram_format_ru.build_detail_keyboard):
+            ``detail_{protocol}__{category}``
+        Looks up the matching alert in data/red_flags.json and formats a
+        detailed Russian-language message via format_alert_detail_ru().
+        """
+        try:
+            from spa_core.alerts.telegram_format_ru import (  # noqa: PLC0415
+                format_alert_detail_ru,
+                parse_detail_callback,
+            )
+            parsed = parse_detail_callback(callback_data)
+            if parsed is None:
+                self.send_message("❌ Неизвестная кнопка.", chat_id)
+                return
+            protocol, category = parsed
+
+            rf_doc = _read_json(DATA_DIR / "red_flags.json", {})
+            flags = rf_doc.get("red_flags", []) if isinstance(rf_doc, dict) else []
+
+            alert: Optional[Dict] = None
+            for f in flags:
+                if (isinstance(f, dict) and
+                        str(f.get("protocol", "")) == protocol and
+                        str(f.get("category", "")) == category):
+                    alert = f
+                    break
+
+            if alert is None:
+                # Alert may have been cleared; build a minimal placeholder
+                alert = {
+                    "protocol": protocol,
+                    "category": category,
+                    "severity": "INFO",
+                    "message": "(событие не найдено в актуальном списке)",
+                }
+
+            detail_text = format_alert_detail_ru(alert)
+            self.send_message(detail_text, chat_id, parse_mode="Markdown")
+        except Exception as exc:  # noqa: BLE001
+            self.send_message(
+                "❌ Ошибка загрузки деталей: {}".format(type(exc).__name__), chat_id
+            )
+
+    # ── BotFather command registration ────────────────────────────────────
+
+    def register_commands(self) -> bool:
+        """Register bot commands via setMyCommands (shown in Telegram ☰ menu)."""
+        commands = [
+            {"command": "start",     "description": "Приветствие и главное меню"},
+            {"command": "menu",      "description": "Интерактивное меню кнопок"},
+            {"command": "status",    "description": "Статус системы и equity"},
+            {"command": "portfolio", "description": "Текущая аллокация по протоколам"},
+            {"command": "today",     "description": "P&L за сегодня"},
+            {"command": "week",      "description": "Недельный отчёт (7 дней)"},
+            {"command": "agents",    "description": "Статус агентов launchd"},
+            {"command": "alerts",    "description": "Активные алерты и peg-мониторинг"},
+            {"command": "why",       "description": "Диагностика причин ❌ агентов"},
+            {"command": "pause",     "description": "Kill-switch (поставить на паузу)"},
+            {"command": "resume",    "description": "Снять паузу"},
+            {"command": "help",      "description": "Список всех команд"},
+        ]
+        result = self._api_call("setMyCommands", {"commands": commands}, timeout=10)
+        if result and result.get("ok"):
+            log.info("setMyCommands: registered %d commands", len(commands))
+            return True
+        log.warning("setMyCommands failed: %s", result)
+        return False
+
     # ── Routing ───────────────────────────────────────────────────────────
 
     _COMMANDS = (
-        "/start", "/help", "/status", "/portfolio", "/today",
-        "/week", "/agents", "/alerts", "/pause", "/resume",
+        "/start", "/help", "/menu", "/status", "/portfolio", "/today",
+        "/week", "/agents", "/alerts", "/pause", "/resume", "/why",
     )
 
     def _dispatch(self, text: str, chat_id: str) -> None:
         """Route a command string to its handler. Unknown → help."""
         cmd = text.strip().split()[0].split("@")[0].lower() if text.strip() else ""
-        handlers = {
-            "/start": self.cmd_start,
-            "/help": self.cmd_help,
-            "/status": self.cmd_status,
+        # Handle 'Подробнее' detail callbacks from governance/risk alert buttons.
+        # callback_data format: "detail_{protocol}__{category}"
+        if cmd.startswith("detail_"):
+            self._cmd_detail(text.strip(), chat_id)
+            return
+        # Handle agents description detail callback
+        if cmd == "agents_detail":
+            self._cmd_agents_detail(chat_id)
+            return
+        handlers: Dict[str, Any] = {
+            "/start":     self.cmd_start,
+            "/help":      self.cmd_help,
+            "/menu":      self.cmd_menu,
+            "/status":    self.cmd_status,
             "/portfolio": self.cmd_portfolio,
-            "/today": self.cmd_today,
-            "/week": self.cmd_week,
-            "/agents": self.cmd_agents,
-            "/alerts": self.cmd_alerts,
-            "/pause": self.cmd_pause,
-            "/resume": self.cmd_resume,
+            "/today":     self.cmd_today,
+            "/week":      self.cmd_week,
+            "/agents":    self.cmd_agents,
+            "/alerts":    self.cmd_alerts,
+            "/pause":     self.cmd_pause,
+            "/resume":    self.cmd_resume,
+            "/why":       self.cmd_why,
         }
         handler = handlers.get(cmd)
         if handler is None:
@@ -551,7 +798,9 @@ class TelegramBot:
 
     def run_polling(self) -> None:
         """Continuous long-polling loop. Fail-safe; never returns normally."""
-        log.warning("SPA Bot v2.0 started (offset=%d)", self._offset)
+        log.warning("SPA Bot v2.1 started (offset=%d)", self._offset)
+        # Register commands in Telegram ☰ menu once at startup.
+        self.register_commands()
         while True:
             try:
                 for upd in self.get_updates():

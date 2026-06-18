@@ -45,6 +45,11 @@ log = logging.getLogger("spa.alerts.dispatcher")
 # ---------------------------------------------------------------------------
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LOG_PATH = _PROJECT_ROOT / "data" / "alert_log.json"
+# BUG FIX (TELEGRAM_AUDIT 2026-06-18): persist dedup state across process
+# restarts.  Monitors (peg_monitor, etc.) run every 5 min via launchd — each
+# run is a NEW process so the old in-memory _title_last_sent dict was always
+# empty, making the 300-second cooldown completely ineffective.
+DEFAULT_DEDUP_STATE_PATH = _PROJECT_ROOT / "data" / "alert_dispatcher_dedup.json"
 RING_BUFFER_MAX = 1000  # new dispatcher uses 1000; legacy used 100
 
 # Telegram API base
@@ -243,6 +248,7 @@ class AlertDispatcher:
         log_path: Optional[str | Path] = None,
         suppress_duplicates: bool = False,
         cooldown_seconds: int = 300,
+        dedup_state_path: Optional[str | Path] = None,
     ) -> None:
         self._log_path: Path = (
             Path(log_path) if log_path else DEFAULT_LOG_PATH
@@ -250,8 +256,16 @@ class AlertDispatcher:
         self.suppress_duplicates: bool = suppress_duplicates
         self.cooldown_seconds: int = cooldown_seconds
 
+        # BUG FIX (TELEGRAM_AUDIT 2026-06-18): persist dedup state to disk so
+        # it survives process restarts (launchd starts a new process every 5 min).
+        self._dedup_state_path: Path = (
+            Path(dedup_state_path) if dedup_state_path
+            else DEFAULT_DEDUP_STATE_PATH
+        )
+
         # title → UTC POSIX timestamp of last successful dispatch
-        self._title_last_sent: Dict[str, float] = {}
+        # Loaded from disk on first use; written back after each send.
+        self._title_last_sent: Dict[str, float] = self._load_dedup_state()
 
     # ------------------------------------------------------------------
     # Factory
@@ -295,6 +309,38 @@ class AlertDispatcher:
     def _record_sent(self, alert: Alert) -> None:
         """Record this alert title as dispatched at the current time."""
         self._title_last_sent[alert.title] = _utc_timestamp()
+        # Persist to disk so the next process (5-min launchd restart) sees it.
+        self._save_dedup_state()
+
+    # ------------------------------------------------------------------
+    # Dedup state persistence (disk)
+    # ------------------------------------------------------------------
+    def _load_dedup_state(self) -> Dict[str, float]:
+        """Load title→timestamp map from disk. Returns {} on any error."""
+        try:
+            if self._dedup_state_path.exists():
+                raw = json.loads(
+                    self._dedup_state_path.read_text(encoding="utf-8")
+                )
+                if isinstance(raw, dict):
+                    return {k: float(v) for k, v in raw.items()
+                            if isinstance(v, (int, float))}
+        except Exception as exc:
+            log.warning(
+                "alert_dispatcher_dedup.json unreadable (%s) — "
+                "starting with empty dedup state", exc
+            )
+        return {}
+
+    def _save_dedup_state(self) -> None:
+        """Atomically write title→timestamp map to disk. Silent on failure."""
+        try:
+            _atomic_write_json(self._dedup_state_path, self._title_last_sent)
+        except Exception as exc:
+            log.warning(
+                "alert_dispatcher_dedup.json write failed (%s) — "
+                "dedup state not persisted", exc
+            )
 
     # ------------------------------------------------------------------
     # Channel: log

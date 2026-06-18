@@ -4,13 +4,13 @@
 <dict>
     <!--
     L2 — Cycle Health Monitor (каждые 5 минут)
-    Module: spa_core/analytics/cycle_health_monitor.py
+    Module: spa_core/monitoring/cycle_health_monitor.py
     Функция: мониторит здоровье cycle_runner — пропущенные/задержанные циклы,
              аномалии equity, свежесть data-файлов.
              Status: OK / DEGRADED / FAILED; health_score 0-100.
     Пишет:   data/cycle_health_log.json  (ring-buffer 100, atomic)
     Exit:    0 = HEALTHY/WARNING, 1 = CRITICAL
-    CLI:     python3 -m spa_core.analytics.cycle_health_monitor - -run
+    CLI:     python3 -m spa_core.monitoring.cycle_health_monitor -run
     Установка:
       cp scripts/com.spa.cycle_health.plist ~/Library/LaunchAgents/
       launchctl load ~/Library/LaunchAgents/com.spa.cycle_health.plist
@@ -23,7 +23,7 @@
     <array>
         <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>-m</string>
-        <string>spa_core.analytics.cycle_health_monitor</string>
+        <string>spa_core.monitoring.cycle_health_monitor</string>
         <string>--run</string>
     </array>
 

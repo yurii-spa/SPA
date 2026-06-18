@@ -712,8 +712,12 @@ def run_preflight(
         repo_root / "docs" / "DECISIONS.md", "docs/DECISIONS.md", "decisions_md"))
     checks.append(_check_file_exists(
         repo_root / "CURRENT_STATE.md", "CURRENT_STATE.md", "current_state_md"))
+    # Accept either sprint_log.md (current name) or legacy SPA_sprint_log.md
+    _sprint_log_path = (repo_root / "sprint_log.md"
+                        if (repo_root / "sprint_log.md").exists()
+                        else repo_root / "SPA_sprint_log.md")
     checks.append(_check_file_exists(
-        repo_root / "SPA_sprint_log.md", "SPA_sprint_log.md", "sprint_log_md"))
+        _sprint_log_path, "sprint_log.md", "sprint_log_md"))
     checks.append(_check_file_exists(
         repo_root / "docs" / "adr" / "ADR-010-gnosis-safe-key-management.md",
         "docs/adr/ADR-010 (Gnosis Safe)", "adr_010_exists"))

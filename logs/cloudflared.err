@@ -1,0 +1,319 @@
+2026-06-18T14:23:40Z INF Starting tunnel tunnelID=3d82126a-4ee8-4bc7-af2c-9bb147c274e0
+2026-06-18T14:23:40Z INF Version 2026.6.0 (Checksum c994e7d1096202a7937b485610f1c80ca69cfd822de945ce8d167e6856a2c09e)
+2026-06-18T14:23:40Z INF GOOS: darwin, GOVersion: go1.26.4, GoArch: arm64
+2026-06-18T14:23:40Z INF Settings: map[token:*****]
+2026-06-18T14:23:40Z INF cloudflared will not automatically update if installed by a package manager.
+2026-06-18T14:23:40Z INF Generated Connector ID: 5cd63da1-a009-4ae6-9a21-83ecfa8fa88f
+2026-06-18T14:23:40Z INF Initial protocol quic
+2026-06-18T14:23:40Z INF ICMP proxy will use 192.168.31.59 as source for IPv4
+2026-06-18T14:23:40Z INF ICMP proxy will use fe80::ae:3f44:9841:2205 in zone en1 as source for IPv6
+2026-06-18T14:23:40Z INF Created ICMP proxy listening on 192.168.31.59:0
+2026-06-18T14:23:41Z INF ICMP proxy will use 192.168.31.59 as source for IPv4
+2026-06-18T14:23:41Z INF ICMP proxy will use fe80::ae:3f44:9841:2205 in zone en1 as source for IPv6
+2026-06-18T14:23:41Z INF Starting metrics server on 127.0.0.1:20241/metrics
+2026-06-18T14:23:41Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.77
+2026-06-18T14:23:41Z INF Registered tunnel connection connIndex=0 connection=60123cc2-7d5c-4513-8233-3951125eb5b5 event=0 ip=198.41.192.77 location=bcn01 protocol=quic
+2026-06-18T14:23:41Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.200.13
+2026-06-18T14:23:41Z INF Updated to new configuration config="{\"ingress\":[{\"hostname\":\"dashboard.earn-defi.com\",\"originRequest\":{},\"service\":\"http://localhost:8765\"},{\"service\":\"http_status:404\"}],\"warp-routing\":{\"enabled\":false}}" version=1
+2026-06-18T14:23:41Z INF Registered tunnel connection connIndex=1 connection=740e8b56-4d2b-4145-becc-902ee908c01d event=0 ip=198.41.200.13 location=mad05 protocol=quic
+2026-06-18T14:23:42Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:42Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:42Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:42Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:42Z INF Retrying connection in up to 2s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:43Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.200.63
+2026-06-18T14:23:43Z INF Registered tunnel connection connIndex=3 connection=f257139d-7e0c-467e-8650-faf417f010c8 event=0 ip=198.41.200.63 location=mad05 protocol=quic
+2026-06-18T14:23:44Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:23:47Z INF +-------------------------------------------------------------------------------------+
+2026-06-18T14:23:47Z INF |                               CONNECTIVITY PRE-CHECKS                               |
+2026-06-18T14:23:47Z INF +-------------------------------------------------------------------------------------+
+2026-06-18T14:23:47Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
+2026-06-18T14:23:47Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-06-18T14:23:47Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-06-18T14:23:47Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-06-18T14:23:47Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-06-18T14:23:47Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-06-18T14:23:47Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-06-18T14:23:47Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
+2026-06-18T14:23:47Z INF |                                                                                     |
+2026-06-18T14:23:47Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+2026-06-18T14:23:47Z INF +-------------------------------------------------------------------------------------+
+2026-06-18T14:23:47Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=region1.v2.argotunnel.com
+2026-06-18T14:23:47Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=region2.v2.argotunnel.com
+2026-06-18T14:23:47Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=region1.v2.argotunnel.com
+2026-06-18T14:23:47Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=region2.v2.argotunnel.com
+2026-06-18T14:23:47Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=region1.v2.argotunnel.com
+2026-06-18T14:23:47Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=region2.v2.argotunnel.com
+2026-06-18T14:23:47Z INF precheck component="Cloudflare API" details="API is reachable" run_id=72429159-ea13-48e3-bec8-4d1204d2815e status=pass target=api.cloudflare.com:443
+2026-06-18T14:23:47Z INF precheck complete hard_fail=false run_id=72429159-ea13-48e3-bec8-4d1204d2815e suggested_protocol=quic
+2026-06-18T14:23:58Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:58Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:58Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:58Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:23:58Z INF Retrying connection in up to 4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:24:02Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:24:31Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:24:31Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:24:31Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:24:31Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:24:31Z INF Retrying connection in up to 8s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:24:35Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:25:22Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:25:22Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:25:22Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:25:22Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:25:22Z INF Retrying connection in up to 16s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:25:28Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:27:10Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:27:10Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:27:10Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:27:10Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:27:10Z INF Retrying connection in up to 32s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:27:18Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:31:29Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:31:29Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:31:29Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:31:29Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:31:29Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:31:57Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:32:34Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:32:34Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:32:34Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:32:34Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:32:34Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:32:41Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:33:13Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:33:14Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:33:14Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:33:14Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:33:14Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:33:32Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:36:03Z INF Updated to new configuration config="{\"ingress\":[{\"hostname\":\"dashboard.earn-defi.com\",\"originRequest\":{},\"service\":\"http://localhost:8766\"},{\"service\":\"http_status:404\"}],\"warp-routing\":{\"enabled\":false}}" version=2
+2026-06-18T14:37:05Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:37:05Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:37:05Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:37:05Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:37:05Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:37:11Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:41:24Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:41:24Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:41:24Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:41:24Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:41:24Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:41:31Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:44:09Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:44:09Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:44:09Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:44:09Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:44:09Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:44:32Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:48:12Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:12Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:12Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:12Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:12Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:21Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:48:58Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:58Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:58Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:58Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:58Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:48:58Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:52:34Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:52:34Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:52:34Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:52:34Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:52:34Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:52:39Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:53:57Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:53:58Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:53:58Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:53:58Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:53:58Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:54:26Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T14:59:02Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:59:02Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:59:02Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:59:02Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:59:02Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T14:59:03Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:03:18Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:03:18Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:03:18Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:03:18Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:03:18Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:03:45Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:07:30Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:07:30Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:07:30Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:07:30Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:07:30Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:07:44Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:12:24Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:12:24Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:12:24Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:12:24Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:12:24Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:12:54Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:14:08Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:14:08Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:14:08Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:14:08Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:14:08Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:14:38Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:17:23Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:17:23Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:17:23Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:17:23Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:17:23Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:17:52Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:20:41Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:20:41Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:20:41Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:20:41Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:20:41Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:20:57Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:24:40Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:24:40Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:24:40Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:24:40Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:24:40Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:25:04Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:29:50Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:29:50Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:29:50Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:29:50Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:29:50Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:30:17Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:33:38Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:33:38Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:33:38Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:33:38Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:33:38Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:33:46Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:34:53Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:34:53Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:34:53Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:34:53Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:34:53Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:35:03Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:35:03Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:35:03Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:35:03Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:35:03Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:35:03Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:35:20Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:37:46Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:37:46Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:37:46Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:37:46Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:37:46Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:37:55Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:38:59Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:38:59Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:38:59Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:38:59Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:38:59Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:39:08Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:39:16Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:39:16Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:39:16Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:39:16Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:39:16Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:39:25Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:40:11Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:40:11Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:40:11Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:40:11Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:40:11Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:40:36Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:45:47Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:45:47Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:45:47Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:45:47Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:45:47Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:46:14Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:49:37Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:49:37Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:49:37Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:49:37Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:49:37Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:49:58Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:52:01Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:52:01Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:52:01Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:52:01Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:52:01Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:52:23Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T15:55:39Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:55:39Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:55:39Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:55:39Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:55:39Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T15:55:39Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:00:46Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:00:46Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:00:46Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:00:46Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:00:46Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:00:48Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:01:43Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:01:43Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:01:43Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:01:43Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:01:43Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:02:05Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:05:46Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:05:46Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:05:46Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:05:46Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:05:46Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:05:57Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:06:08Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:06:08Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:06:08Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:06:08Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:06:08Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:06:26Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:08:39Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:08:39Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:08:39Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:08:39Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:08:39Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:08:59Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:12:47Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:12:47Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:12:47Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:12:47Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:12:47Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:13:18Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:15:15Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:15:15Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:15:15Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:15:15Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:15:15Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:15:28Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:18:37Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:18:37Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:18:37Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:18:37Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:18:37Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:18:59Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:20:23Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:20:23Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:20:23Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:20:23Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:20:23Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:20:47Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:25:12Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:25:12Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:25:12Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:25:12Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:25:12Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:25:31Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-06-18T16:27:19Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:27:19Z ERR failed to run the datagram handler error="context canceled" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:27:19Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:27:19Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:27:19Z INF Retrying connection in up to 1m4s connIndex=2 event=0 ip=198.41.192.47
+2026-06-18T16:27:49Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=2

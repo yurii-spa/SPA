@@ -1,0 +1,80 @@
+{
+  "positions": [
+    {
+      "token": "USDC-Vault-Safe",
+      "vault_tvl_usd": 5000000.0,
+      "position_usd": 10000.0,
+      "outstanding_bad_debt_usd": 0.0,
+      "insurance_buffer_usd": 200000.0,
+      "has_loss_backstop": true,
+      "subordinated_tranche": false,
+      "position_share_pct": 0.2,
+      "uncovered_loss_usd": 0.0,
+      "buffer_coverage_pct": 0.0,
+      "my_loss_exposure_usd": 0.0,
+      "estimated_share_price_haircut_pct": 0.0,
+      "score": 100.0,
+      "classification": "LOW",
+      "recommendation": "HOLD",
+      "grade": "A",
+      "flags": [
+        "NO_BAD_DEBT",
+        "HAS_BACKSTOP"
+      ]
+    },
+    {
+      "token": "ETH-Vault-Stressed",
+      "vault_tvl_usd": 2000000.0,
+      "position_usd": 600000.0,
+      "outstanding_bad_debt_usd": 300000.0,
+      "insurance_buffer_usd": 50000.0,
+      "has_loss_backstop": false,
+      "subordinated_tranche": true,
+      "position_share_pct": 30.0,
+      "uncovered_loss_usd": 250000.0,
+      "buffer_coverage_pct": 16.6667,
+      "my_loss_exposure_usd": 150000.0,
+      "estimated_share_price_haircut_pct": 12.5,
+      "score": 5.0,
+      "classification": "HIGH_LOSS_EXPOSURE",
+      "recommendation": "EXIT",
+      "grade": "F",
+      "flags": [
+        "PARTIALLY_COVERED",
+        "UNCOVERED_LOSS",
+        "NO_BACKSTOP",
+        "SUBORDINATED_TRANCHE",
+        "LARGE_HAIRCUT",
+        "CONCENTRATED_POSITION"
+      ]
+    },
+    {
+      "token": "DAI-Vault-Empty",
+      "vault_tvl_usd": 0.0,
+      "position_usd": 0.0,
+      "outstanding_bad_debt_usd": 0.0,
+      "insurance_buffer_usd": 0.0,
+      "has_loss_backstop": false,
+      "subordinated_tranche": false,
+      "position_share_pct": 0.0,
+      "uncovered_loss_usd": 0.0,
+      "buffer_coverage_pct": 0.0,
+      "my_loss_exposure_usd": 0.0,
+      "estimated_share_price_haircut_pct": 0.0,
+      "score": 0.0,
+      "classification": "INSUFFICIENT_DATA",
+      "recommendation": "HOLD",
+      "grade": "F",
+      "flags": [
+        "INSUFFICIENT_DATA"
+      ]
+    }
+  ],
+  "aggregate": {
+    "safest_vault": "USDC-Vault-Safe",
+    "riskiest_vault": "ETH-Vault-Stressed",
+    "avg_score": 52.5,
+    "high_exposure_count": 1,
+    "position_count": 3
+  }
+}

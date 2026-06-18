@@ -1,0 +1,141 @@
+{
+  "positions": [
+    {
+      "token": "USDC-Vault-NoEmissions",
+      "headline_apr_pct": 8.0,
+      "base_apr_pct": 8.0,
+      "reward_apr_pct": 0.0,
+      "reward_share_pct": 0.0,
+      "daily_emission_sell_usd": 0.0,
+      "reward_token_daily_volume_usd": 0.0,
+      "sell_pressure_ratio": 0.0,
+      "est_sell_pressure_pct": 0.0,
+      "absorbable": true,
+      "thin_buyside": false,
+      "high_reward_share": false,
+      "score": 100.0,
+      "classification": "NO_EMISSIONS",
+      "recommendation": "TRUST_HEADLINE",
+      "grade": "A",
+      "flags": [
+        "NO_EMISSIONS"
+      ]
+    },
+    {
+      "token": "ETH-Vault-Negligible",
+      "headline_apr_pct": 12.0,
+      "base_apr_pct": 8.0,
+      "reward_apr_pct": 4.0,
+      "reward_share_pct": 33.3333,
+      "daily_emission_sell_usd": 20000.0,
+      "reward_token_daily_volume_usd": 5000000.0,
+      "sell_pressure_ratio": 0.004,
+      "est_sell_pressure_pct": 0.4,
+      "absorbable": true,
+      "thin_buyside": false,
+      "high_reward_share": false,
+      "score": 98.83,
+      "classification": "NEGLIGIBLE_OVERHANG",
+      "recommendation": "TRUST_HEADLINE",
+      "grade": "A",
+      "flags": [
+        "NEGLIGIBLE_OVERHANG"
+      ]
+    },
+    {
+      "token": "ARB-Vault-LowOverhang",
+      "headline_apr_pct": 16.0,
+      "base_apr_pct": 10.0,
+      "reward_apr_pct": 6.0,
+      "reward_share_pct": 37.5,
+      "daily_emission_sell_usd": 80000.0,
+      "reward_token_daily_volume_usd": 2000000.0,
+      "sell_pressure_ratio": 0.04,
+      "est_sell_pressure_pct": 4.0,
+      "absorbable": false,
+      "thin_buyside": false,
+      "high_reward_share": false,
+      "score": 88.0,
+      "classification": "LOW_OVERHANG",
+      "recommendation": "MINOR_REWARD_DISCOUNT",
+      "grade": "A",
+      "flags": [
+        "LOW_OVERHANG"
+      ]
+    },
+    {
+      "token": "CRV-Vault-ModerateOverhang",
+      "headline_apr_pct": 18.0,
+      "base_apr_pct": 8.0,
+      "reward_apr_pct": 10.0,
+      "reward_share_pct": 55.5556,
+      "daily_emission_sell_usd": 200000.0,
+      "reward_token_daily_volume_usd": 2000000.0,
+      "sell_pressure_ratio": 0.1,
+      "est_sell_pressure_pct": 10.0,
+      "absorbable": false,
+      "thin_buyside": true,
+      "high_reward_share": true,
+      "score": 67.11,
+      "classification": "MODERATE_OVERHANG",
+      "recommendation": "DISCOUNT_REWARD_LAYER",
+      "grade": "C",
+      "flags": [
+        "MODERATE_OVERHANG",
+        "THIN_BUYSIDE",
+        "HIGH_REWARD_SHARE"
+      ]
+    },
+    {
+      "token": "CVX-Vault-HighOverhang-ThinBuyside",
+      "headline_apr_pct": 20.0,
+      "base_apr_pct": 6.0,
+      "reward_apr_pct": 14.0,
+      "reward_share_pct": 70.0,
+      "daily_emission_sell_usd": 400000.0,
+      "reward_token_daily_volume_usd": 2000000.0,
+      "sell_pressure_ratio": 0.2,
+      "est_sell_pressure_pct": 20.0,
+      "absorbable": false,
+      "thin_buyside": true,
+      "high_reward_share": true,
+      "score": 29.6,
+      "classification": "HIGH_OVERHANG",
+      "recommendation": "AVOID_OR_VERIFY",
+      "grade": "F",
+      "flags": [
+        "HIGH_OVERHANG",
+        "THIN_BUYSIDE",
+        "HIGH_REWARD_SHARE"
+      ]
+    },
+    {
+      "token": "Mystery-Vault-NoData",
+      "headline_apr_pct": 0.0,
+      "base_apr_pct": 0.0,
+      "reward_apr_pct": 0.0,
+      "reward_share_pct": null,
+      "daily_emission_sell_usd": 0.0,
+      "reward_token_daily_volume_usd": 0.0,
+      "sell_pressure_ratio": null,
+      "est_sell_pressure_pct": null,
+      "absorbable": false,
+      "thin_buyside": false,
+      "high_reward_share": false,
+      "score": 0.0,
+      "classification": "INSUFFICIENT_DATA",
+      "recommendation": "VERIFY_DATA",
+      "grade": "F",
+      "flags": [
+        "INSUFFICIENT_DATA"
+      ]
+    }
+  ],
+  "aggregate": {
+    "most_sustainable_vault": "USDC-Vault-NoEmissions",
+    "most_overhang_vault": "CVX-Vault-HighOverhang-ThinBuyside",
+    "avg_score": 76.71,
+    "high_overhang_count": 1,
+    "position_count": 6
+  }
+}

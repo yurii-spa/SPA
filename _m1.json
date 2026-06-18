@@ -1,0 +1,76 @@
+{
+  "positions": [
+    {
+      "token": "USDC-Vault-LowFee",
+      "management_fee_pct_annual": 0.3,
+      "position_usd": 10000.0,
+      "days_held": 90.0,
+      "gross_apr_pct": 8.0,
+      "accrual_basis_days": 365.0,
+      "accrued_fee_pct": 0.074,
+      "accrued_fee_usd": 7.3973,
+      "annual_fee_drag_pct": 0.3,
+      "net_apr_pct": 7.7,
+      "fee_as_pct_of_gross_yield": 3.75,
+      "daily_fee_usd": 0.0822,
+      "score": 90.62,
+      "classification": "LOW_FEE",
+      "recommendation": "HOLD_OK",
+      "grade": "A",
+      "flags": [
+        "LOW_MANAGEMENT_FEE"
+      ]
+    },
+    {
+      "token": "ETH-Vault-HighFee",
+      "management_fee_pct_annual": 4.5,
+      "position_usd": 25000.0,
+      "days_held": 180.0,
+      "gross_apr_pct": 6.0,
+      "accrual_basis_days": 365.0,
+      "accrued_fee_pct": 2.2192,
+      "accrued_fee_usd": 554.7945,
+      "annual_fee_drag_pct": 4.5,
+      "net_apr_pct": 1.5,
+      "fee_as_pct_of_gross_yield": 75.0,
+      "daily_fee_usd": 3.0822,
+      "score": 22.5,
+      "classification": "EXCESSIVE_FEE",
+      "recommendation": "AVOID_HIGH_FEE",
+      "grade": "F",
+      "flags": [
+        "HIGH_MANAGEMENT_FEE",
+        "EXCESSIVE_FEE",
+        "FEE_EXCEEDS_HALF_YIELD"
+      ]
+    },
+    {
+      "token": "DAI-Vault-NoFee",
+      "management_fee_pct_annual": 0.0,
+      "position_usd": 0.0,
+      "days_held": 0.0,
+      "gross_apr_pct": 0.0,
+      "accrual_basis_days": 0.0,
+      "accrued_fee_pct": 0.0,
+      "accrued_fee_usd": 0.0,
+      "annual_fee_drag_pct": 0.0,
+      "net_apr_pct": 0.0,
+      "fee_as_pct_of_gross_yield": 0.0,
+      "daily_fee_usd": 0.0,
+      "score": 0.0,
+      "classification": "INSUFFICIENT_DATA",
+      "recommendation": "HOLD_OK",
+      "grade": "F",
+      "flags": [
+        "INSUFFICIENT_DATA"
+      ]
+    }
+  ],
+  "aggregate": {
+    "cheapest_vault": "USDC-Vault-LowFee",
+    "most_expensive_vault": "ETH-Vault-HighFee",
+    "avg_score": 56.56,
+    "high_fee_count": 1,
+    "position_count": 3
+  }
+}

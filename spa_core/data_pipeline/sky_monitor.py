@@ -28,7 +28,7 @@ log = logging.getLogger("spa.sky_monitor")
 
 SKY_WATCH_CONDITION = "GSM Pause Delay >= 48h"
 SKY_CURRENT_STATUS  = "PENDING"   # change to ELIGIBLE when on-chain event fires
-SKY_LAST_CHECKED    = "2026-05-22"
+SKY_LAST_CHECKED    = "2026-06-18"  # updated; live checks use now_iso timestamp
 
 # Threshold in hours for Sky T1 eligibility
 GSM_MIN_HOURS: float = 48.0
@@ -205,7 +205,7 @@ def check_sky_status_live() -> dict:
         "status":       SKY_CURRENT_STATUS,
         "gsm_hours":    None,
         "source":       "manual",
-        "last_checked": SKY_LAST_CHECKED,
+        "last_checked": now_iso,  # always record actual check time, not hardcoded constant
     }
 
 

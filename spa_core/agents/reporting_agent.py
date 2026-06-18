@@ -126,7 +126,34 @@ def collect_pnl_data(data_dir: Optional[Path] = None) -> dict:
 
     pt_path = ddir / "portfolio_track.json"
     if not pt_path.exists():
-        data_complete = False
+        # Fallback: paper_trading_status.json + equity_curve_daily.json.
+        # portfolio_track.json is an optional ring-buffer that may not yet exist
+        # when the system is freshly started; the real-time source of truth is
+        # paper_trading_status.json (written by cycle_runner after every cycle).
+        _pts = _read_json(ddir / "paper_trading_status.json", {})
+        if isinstance(_pts, dict) and _pts.get("current_equity") is not None:
+            equity_today = _safe_float(_pts.get("current_equity"))
+            # daily_yield_usd is the accrued yield for today — use as initial P&L
+            daily_pnl_usd = _safe_float(_pts.get("daily_yield_usd"))
+        _eq_fb = _read_json(ddir / "equity_curve_daily.json", {})
+        _daily_fb = _eq_fb.get("daily", []) if isinstance(_eq_fb, dict) else []
+        if _daily_fb:
+            if equity_today is None:
+                equity_today = _safe_float(
+                    _daily_fb[-1].get("equity") or _daily_fb[-1].get("close_equity")
+                )
+            if len(_daily_fb) >= 2:
+                equity_yesterday = _safe_float(
+                    _daily_fb[-2].get("equity") or _daily_fb[-2].get("close_equity")
+                )
+                if (equity_today is not None and equity_yesterday is not None
+                        and equity_yesterday != 0):
+                    daily_pnl_usd = round(equity_today - equity_yesterday, 4)
+                    daily_pnl_pct = round(
+                        (equity_today - equity_yesterday) / equity_yesterday * 100, 6
+                    )
+        if equity_today is None:
+            data_complete = False
     else:
         pt = _read_json(pt_path, None)
         entries: list = []
@@ -167,6 +194,26 @@ def collect_pnl_data(data_dir: Optional[Path] = None) -> dict:
                 raw_apy = metrics.get("avg_apy_7d")
             avg_apy_7d = _safe_float(raw_apy)
 
+    # Fallback: compute avg_apy_7d from equity_curve_daily.json when
+    # analytics_summary.json does not carry this field yet (early track days).
+    if avg_apy_7d is None:
+        _eq_an = _read_json(ddir / "equity_curve_daily.json", {})
+        _daily_an = _eq_an.get("daily", []) if isinstance(_eq_an, dict) else []
+        if _daily_an:
+            _window = _daily_an[-7:]
+            _apys = [
+                float(b.get("apy_today") or b.get("apy_today_pct") or 0.0)
+                for b in _window
+                if b.get("apy_today") or b.get("apy_today_pct")
+            ]
+            if _apys:
+                avg_apy_7d = round(sum(_apys) / len(_apys), 2)
+        if avg_apy_7d is None:
+            # Last resort: today's APY from paper_trading_status.json
+            _pts_an = _read_json(ddir / "paper_trading_status.json", {})
+            if isinstance(_pts_an, dict):
+                avg_apy_7d = _safe_float(_pts_an.get("apy_today_pct"))
+
     # ── adapter_orchestrator_status.json ──────────────────────────────────────
     active_adapters: Optional[int] = None
     orch_path = ddir / "adapter_orchestrator_status.json"
@@ -181,15 +228,17 @@ def collect_pnl_data(data_dir: Optional[Path] = None) -> dict:
                 if isinstance(a, dict) and str(a.get("status", "")).lower() == "ok"
             )
 
-    # ── sentinel_status.json ──────────────────────────────────────────────────
+    # ── sentinel_status.json (optional — missing file → alert_class "OK") ───────
+    # sentinel_status.json is written by the sentinel monitor which may not run
+    # every cycle.  Treat its absence as "no alert" rather than an error.
     alert_class: Optional[str] = None
     sent_path = ddir / "sentinel_status.json"
-    if not sent_path.exists():
-        data_complete = False
-    else:
+    if sent_path.exists():
         sent = _read_json(sent_path, {})
         if isinstance(sent, dict):
             alert_class = sent.get("alert_class")
+    if alert_class is None:
+        alert_class = "OK"
 
     return {
         "equity_today": equity_today,

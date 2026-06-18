@@ -190,7 +190,17 @@ class PegStabilityMonitor:
             return self._dispatcher
         try:
             from spa_core.alerts.alert_dispatcher import AlertDispatcher
-            self._dispatcher = AlertDispatcher()
+            # BUG FIX (TELEGRAM_AUDIT 2026-06-18): enable suppress_duplicates
+            # with a 1h cooldown (3600 s).  The old default (cooldown_seconds=300,
+            # suppress_duplicates=False) combined with launchd restarting this
+            # process every 5 min meant the dedup window was reset on every run
+            # and CRITICAL peg alerts fired every 5 minutes.
+            # Now dedup state is persisted to alert_dispatcher_dedup.json so
+            # the 1h window survives process restarts.
+            self._dispatcher = AlertDispatcher(
+                suppress_duplicates=True,
+                cooldown_seconds=3600,
+            )
         except Exception as exc:  # noqa: BLE001
             log.debug("AlertDispatcher unavailable, log-only mode: %s", exc)
             self._dispatcher = None

@@ -1,0 +1,160 @@
+{
+  "positions": [
+    {
+      "token": "USDC-Vault-Neutral",
+      "headline_apr_pct": 9.0,
+      "window_count": 3,
+      "baseline_window_days": 90,
+      "shortest_window_days": 7,
+      "baseline_apr_pct": 9.0,
+      "shortest_window_apr_pct": 9.2,
+      "max_window_apr_pct": 9.2,
+      "min_window_apr_pct": 9.0,
+      "window_spread_pct": 0.2,
+      "headline_vs_baseline_pct": 0.0,
+      "selection_bias_ratio": 0.0,
+      "headline_matches_hottest": true,
+      "baseline_materially_lower": false,
+      "wide_window_spread": false,
+      "score": 100.0,
+      "classification": "NEUTRAL_BASIS",
+      "recommendation": "TRUST_HEADLINE",
+      "grade": "A",
+      "flags": [
+        "NEUTRAL_BASIS",
+        "HEADLINE_AT_HOTTEST"
+      ]
+    },
+    {
+      "token": "DAI-Vault-Mild",
+      "headline_apr_pct": 11.0,
+      "window_count": 3,
+      "baseline_window_days": 90,
+      "shortest_window_days": 7,
+      "baseline_apr_pct": 10.0,
+      "shortest_window_apr_pct": 11.0,
+      "max_window_apr_pct": 11.0,
+      "min_window_apr_pct": 10.0,
+      "window_spread_pct": 1.0,
+      "headline_vs_baseline_pct": 10.0,
+      "selection_bias_ratio": 1.0,
+      "headline_matches_hottest": true,
+      "baseline_materially_lower": true,
+      "wide_window_spread": false,
+      "score": 54.0,
+      "classification": "MILD_SELECTION",
+      "recommendation": "MINOR_DISCOUNT",
+      "grade": "D",
+      "flags": [
+        "MILD_SELECTION",
+        "HEADLINE_AT_HOTTEST"
+      ]
+    },
+    {
+      "token": "ETH-Vault-Moderate",
+      "headline_apr_pct": 13.0,
+      "window_count": 3,
+      "baseline_window_days": 90,
+      "shortest_window_days": 7,
+      "baseline_apr_pct": 10.0,
+      "shortest_window_apr_pct": 13.0,
+      "max_window_apr_pct": 13.0,
+      "min_window_apr_pct": 10.0,
+      "window_spread_pct": 3.0,
+      "headline_vs_baseline_pct": 30.0,
+      "selection_bias_ratio": 1.0,
+      "headline_matches_hottest": true,
+      "baseline_materially_lower": true,
+      "wide_window_spread": false,
+      "score": 42.0,
+      "classification": "MODERATE_SELECTION",
+      "recommendation": "AVOID_OR_VERIFY",
+      "grade": "D",
+      "flags": [
+        "MODERATE_SELECTION",
+        "HEADLINE_AT_HOTTEST"
+      ]
+    },
+    {
+      "token": "ARB-Vault-Strong",
+      "headline_apr_pct": 19.0,
+      "window_count": 3,
+      "baseline_window_days": 90,
+      "shortest_window_days": 7,
+      "baseline_apr_pct": 9.0,
+      "shortest_window_apr_pct": 19.0,
+      "max_window_apr_pct": 19.0,
+      "min_window_apr_pct": 9.0,
+      "window_spread_pct": 10.0,
+      "headline_vs_baseline_pct": 111.1111,
+      "selection_bias_ratio": 1.0,
+      "headline_matches_hottest": true,
+      "baseline_materially_lower": true,
+      "wide_window_spread": true,
+      "score": 0.0,
+      "classification": "STRONG_SELECTION",
+      "recommendation": "AVOID_OR_VERIFY",
+      "grade": "F",
+      "flags": [
+        "STRONG_SELECTION",
+        "HEADLINE_AT_HOTTEST",
+        "WIDE_WINDOW_SPREAD"
+      ]
+    },
+    {
+      "token": "OP-Vault-OneWindow",
+      "headline_apr_pct": 0.0,
+      "window_count": 0,
+      "baseline_window_days": null,
+      "shortest_window_days": null,
+      "baseline_apr_pct": null,
+      "shortest_window_apr_pct": null,
+      "max_window_apr_pct": null,
+      "min_window_apr_pct": null,
+      "window_spread_pct": null,
+      "headline_vs_baseline_pct": null,
+      "selection_bias_ratio": null,
+      "headline_matches_hottest": false,
+      "baseline_materially_lower": false,
+      "wide_window_spread": false,
+      "score": 0.0,
+      "classification": "INSUFFICIENT_WINDOWS",
+      "recommendation": "VERIFY_DATA",
+      "grade": "F",
+      "flags": [
+        "INSUFFICIENT_WINDOWS"
+      ]
+    },
+    {
+      "token": "Mystery-Vault-NoData",
+      "headline_apr_pct": 0.0,
+      "window_count": 0,
+      "baseline_window_days": null,
+      "shortest_window_days": null,
+      "baseline_apr_pct": null,
+      "shortest_window_apr_pct": null,
+      "max_window_apr_pct": null,
+      "min_window_apr_pct": null,
+      "window_spread_pct": null,
+      "headline_vs_baseline_pct": null,
+      "selection_bias_ratio": null,
+      "headline_matches_hottest": false,
+      "baseline_materially_lower": false,
+      "wide_window_spread": false,
+      "score": 0.0,
+      "classification": "INSUFFICIENT_DATA",
+      "recommendation": "VERIFY_DATA",
+      "grade": "F",
+      "flags": [
+        "INSUFFICIENT_DATA"
+      ]
+    }
+  ],
+  "aggregate": {
+    "least_biased_vault": "USDC-Vault-Neutral",
+    "most_biased_vault": "ARB-Vault-Strong",
+    "avg_score": 49.0,
+    "strong_selection_count": 1,
+    "position_count": 6
+  }
+}

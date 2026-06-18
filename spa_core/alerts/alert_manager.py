@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -34,6 +36,53 @@ log = logging.getLogger("spa.alerts.alert_manager")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DATA_DIR = _REPO_ROOT / "data"
+_ALERT_STATE_FILE = _DATA_DIR / "telegram_alert_state.json"
+
+
+# ─── Deduplication helpers ────────────────────────────────────────────────────
+
+def _load_alert_state() -> dict:
+    """Read the alert-state file (last-sent dates). Returns {} on any error."""
+    try:
+        if _ALERT_STATE_FILE.exists():
+            return json.loads(_ALERT_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alert_state unreadable (%s) — treating as empty", exc)
+    return {}
+
+
+def _save_alert_state(state: dict) -> None:
+    """Atomically write the alert-state file. Silent on failure."""
+    try:
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=_DATA_DIR, suffix=".tmp")
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+                json.dump(state, fh, indent=2)
+            os.replace(tmp_path, _ALERT_STATE_FILE)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alert_state write failed (%s) — dedup state not persisted", exc)
+
+
+def _already_sent_today(key: str) -> bool:
+    """Return True if ``key`` alert was already sent today (UTC date)."""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    state = _load_alert_state()
+    return state.get(key) == today
+
+
+def _mark_sent_today(key: str) -> None:
+    """Record that ``key`` alert was sent today (UTC date)."""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    state = _load_alert_state()
+    state[key] = today
+    _save_alert_state(state)
 
 # Standard SPA inline keyboard — attached to every outbound message.
 _KEYBOARD: dict = {
@@ -162,7 +211,13 @@ def send_daily_summary(report: dict) -> bool:
 
     ``report`` is the ``data/daily_report_{date}.json`` document.
     Attaches inline keyboard buttons.
+
+    Dedup: sends at most once per calendar day (UTC). If the cycle runs every
+    30 min, only the first call each day goes through — the rest are skipped.
     """
+    if _already_sent_today("daily_summary"):
+        log.debug("send_daily_summary: already sent today — skipping")
+        return False
     try:
         date = str(report.get("date", "?"))
         equity = float(report.get("equity_usd", 0.0) or 0.0)
@@ -221,11 +276,20 @@ def send_daily_summary(report: dict) -> bool:
     except Exception as exc:  # noqa: BLE001
         log.warning("send_daily_summary format failed (%s) — alert skipped", exc)
         return False
-    return _send("send_daily_summary", text)
+    result = _send("send_daily_summary", text)
+    if result:
+        _mark_sent_today("daily_summary")
+    return result
 
 
 def send_weekly_report() -> bool:
-    """Weekly summary (sent on Mondays). Includes 7-day equity bridge + keyboard."""
+    """Weekly summary (sent on Mondays). Includes 7-day equity bridge + keyboard.
+
+    Dedup: sends at most once per calendar day.
+    """
+    if _already_sent_today("weekly_report"):
+        log.debug("send_weekly_report: already sent today — skipping")
+        return False
     try:
         eq_doc = _read_json(_DATA_DIR / "equity_curve_daily.json", {})
         daily = eq_doc.get("daily", []) if isinstance(eq_doc, dict) else []
@@ -257,11 +321,20 @@ def send_weekly_report() -> bool:
     except Exception as exc:  # noqa: BLE001
         log.warning("send_weekly_report format failed (%s) — alert skipped", exc)
         return False
-    return _send("send_weekly_report", text)
+    result = _send("send_weekly_report", text)
+    if result:
+        _mark_sent_today("weekly_report")
+    return result
 
 
 def send_monthly_report() -> bool:
-    """Monthly summary (sent on the 1st of each month). Includes 30-day returns + keyboard."""
+    """Monthly summary (sent on the 1st of each month). Includes 30-day returns + keyboard.
+
+    Dedup: sends at most once per calendar day.
+    """
+    if _already_sent_today("monthly_report"):
+        log.debug("send_monthly_report: already sent today — skipping")
+        return False
     try:
         import calendar as _cal
 
@@ -295,7 +368,10 @@ def send_monthly_report() -> bool:
     except Exception as exc:  # noqa: BLE001
         log.warning("send_monthly_report format failed (%s) — alert skipped", exc)
         return False
-    return _send("send_monthly_report", text)
+    result = _send("send_monthly_report", text)
+    if result:
+        _mark_sent_today("monthly_report")
+    return result
 
 
 def send_red_flag(flags: list) -> bool:
@@ -307,7 +383,14 @@ def send_red_flag(flags: list) -> bool:
 
     Attaches an inline keyboard with "📋 Подробнее" buttons for CRITICAL/WARN
     alerts so the user can request detailed analysis per event.
+
+    Dedup: sends at most once per calendar day (UTC).
+    BUG FIX (TELEGRAM_AUDIT 2026-06-18): was missing dedup — fired every
+    cycle_runner run (every 30 min) whenever red_flags.json was non-empty.
     """
+    if _already_sent_today("red_flag"):
+        log.debug("send_red_flag: already sent today — skipping")
+        return False
     try:
         text = format_message_ru(flags)
         dict_flags = [f for f in flags if isinstance(f, dict)]
@@ -315,11 +398,23 @@ def send_red_flag(flags: list) -> bool:
     except Exception as exc:  # noqa: BLE001
         log.warning("send_red_flag failed (%s) — alert skipped", exc)
         return False
-    return _send("send_red_flag", text, keyboard=kb or False)
+    result = _send("send_red_flag", text, keyboard=kb or False)
+    if result:
+        _mark_sent_today("red_flag")
+    return result
 
 
 def send_gap_alert(hours_since_last: float) -> bool:
-    """Track-continuity alert: the last cycle ran too long ago. No keyboard."""
+    """Track-continuity alert: the last cycle ran too long ago. No keyboard.
+
+    Dedup: sends at most once per calendar day (UTC).
+    BUG FIX (TELEGRAM_AUDIT 2026-06-18): was missing dedup — fired every
+    cycle_runner run (every 30 min when StartInterval was 1800) whenever
+    gap_monitor.json had gap_detected=true.
+    """
+    if _already_sent_today("gap_alert"):
+        log.debug("send_gap_alert: already sent today — skipping")
+        return False
     try:
         text = (
             "⏰ *SPA Gap Detected*\n"
@@ -328,7 +423,10 @@ def send_gap_alert(hours_since_last: float) -> bool:
     except Exception as exc:  # noqa: BLE001
         log.warning("send_gap_alert failed (%s) — alert skipped", exc)
         return False
-    return _send("send_gap_alert", text, keyboard=False)
+    result = _send("send_gap_alert", text, keyboard=False)
+    if result:
+        _mark_sent_today("gap_alert")
+    return result
 
 
 def send_golive_change(old_status: str, new_status: str) -> bool:

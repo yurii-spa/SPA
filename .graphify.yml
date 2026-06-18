@@ -1,0 +1,13 @@
+# ВНИМАНИЕ: Graphify НЕ использует файл конфигурации.
+#
+# Этот файл (.graphify.yml) не читается Graphify и не влияет на его поведение.
+# Graphify — это Claude Code skill без конфигурационного файла.
+#
+# Папки для индексации передаются прямо в команду внутри Claude Code:
+#
+#   /graphify .                          # весь репо
+#   /graphify ./spa_core ./docs          # конкретные папки
+#   /graphify . --mode deep --update     # флаги
+#
+# Полное описание: docs/GRAPHIFY_GUIDE.md
+# Источник: https://github.com/safishamsi/graphify

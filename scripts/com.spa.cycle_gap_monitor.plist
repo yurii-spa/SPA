@@ -9,7 +9,7 @@
              Telegram-алерт не чаще 1 раза в сутки (dedup через
              data/cycle_gap_state.json). Читает paper_trading_status.json.
     Пишет:   data/cycle_gap_state.json  (dedup state, atomic)
-    CLI:     python3 -m spa_core.paper_trading.cycle_gap_monitor - -check
+    CLI:     python3 -m spa_core.paper_trading.cycle_gap_monitor -run
     Установка:
       cp scripts/com.spa.cycle_gap_monitor.plist ~/Library/LaunchAgents/
       launchctl load ~/Library/LaunchAgents/com.spa.cycle_gap_monitor.plist
@@ -23,7 +23,6 @@
         <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>-m</string>
         <string>spa_core.paper_trading.cycle_gap_monitor</string>
-        <string>--check</string>
     </array>
 
     <key>WorkingDirectory</key>

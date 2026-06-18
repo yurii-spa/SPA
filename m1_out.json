@@ -1,0 +1,103 @@
+{
+  "positions": [
+    {
+      "token": "USDC-Vault-Instant",
+      "position_usd": 100000.0,
+      "cooldown_days": 0.0,
+      "has_cooldown": false,
+      "daily_volatility_pct": 0.1,
+      "expected_adverse_move_pct": 0.0,
+      "value_at_risk_usd": 0.0,
+      "two_sigma_var_usd": 0.0,
+      "foregone_yield_usd": 0.0,
+      "cooldown_cost_pct": 0.0,
+      "earns_during_cooldown": true,
+      "trapped": false,
+      "score": 100.0,
+      "classification": "INSTANT_EXIT",
+      "recommendation": "EXIT_ANYTIME",
+      "grade": "A",
+      "flags": [
+        "INSTANT_EXIT",
+        "EARNS_DURING_COOLDOWN"
+      ]
+    },
+    {
+      "token": "ETH-Vault-LongIdle",
+      "position_usd": 50000.0,
+      "cooldown_days": 21.0,
+      "has_cooldown": true,
+      "daily_volatility_pct": 3.0,
+      "expected_adverse_move_pct": 13.7477,
+      "value_at_risk_usd": 6873.8635,
+      "two_sigma_var_usd": 13747.7271,
+      "foregone_yield_usd": 345.2055,
+      "cooldown_cost_pct": 14.4381,
+      "earns_during_cooldown": false,
+      "trapped": false,
+      "score": 20.0,
+      "classification": "HIGH_EXPOSURE",
+      "recommendation": "AVOID_IF_LIQUIDITY_NEEDED",
+      "grade": "F",
+      "flags": [
+        "HAS_COOLDOWN",
+        "IDLE_DURING_COOLDOWN",
+        "LONG_COOLDOWN",
+        "HIGH_VAR"
+      ]
+    },
+    {
+      "token": "GMX-Vault-Trapped",
+      "position_usd": 25000.0,
+      "cooldown_days": 14.0,
+      "has_cooldown": true,
+      "daily_volatility_pct": 2.0,
+      "expected_adverse_move_pct": 7.4833,
+      "value_at_risk_usd": 1870.8287,
+      "two_sigma_var_usd": 3741.6574,
+      "foregone_yield_usd": 191.7808,
+      "cooldown_cost_pct": 8.2504,
+      "earns_during_cooldown": false,
+      "trapped": true,
+      "score": 7.0,
+      "classification": "TRAPPED_RISK",
+      "recommendation": "AVOID",
+      "grade": "F",
+      "flags": [
+        "HAS_COOLDOWN",
+        "IDLE_DURING_COOLDOWN",
+        "TRAPPED",
+        "LONG_COOLDOWN",
+        "HIGH_VAR"
+      ]
+    },
+    {
+      "token": "DAI-Vault-NoData",
+      "position_usd": 0.0,
+      "cooldown_days": 0.0,
+      "has_cooldown": false,
+      "daily_volatility_pct": 0.0,
+      "expected_adverse_move_pct": 0.0,
+      "value_at_risk_usd": 0.0,
+      "two_sigma_var_usd": 0.0,
+      "foregone_yield_usd": 0.0,
+      "cooldown_cost_pct": 0.0,
+      "earns_during_cooldown": false,
+      "trapped": false,
+      "score": 0.0,
+      "classification": "INSUFFICIENT_DATA",
+      "recommendation": "HOLD",
+      "grade": "F",
+      "flags": [
+        "INSUFFICIENT_DATA"
+      ]
+    }
+  ],
+  "aggregate": {
+    "safest_vault": "USDC-Vault-Instant",
+    "riskiest_vault": "GMX-Vault-Trapped",
+    "avg_score": 42.33,
+    "trapped_count": 1,
+    "position_count": 4
+  }
+}

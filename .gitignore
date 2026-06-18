@@ -14,6 +14,9 @@ logs/*.log
 *.bak
 *.bak_*
 
+# Verification scratch output
+out_*.json
+
 # Push script archives
 scripts/archive/
 
@@ -26,3 +29,6 @@ venv/
 .venv/
 .github_pat
 .github_config
+
+# Cloudflare — содержит Tunnel Token, не пушить!
+scripts/cf_install_token.command
