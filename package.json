@@ -1,0 +1,11 @@
+{
+  "name": "spa-monorepo",
+  "private": true,
+  "description": "SPA monorepo — Python backend + Astro landing page",
+  "scripts": {
+    "build": "cd landing && npm ci && npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
