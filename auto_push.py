@@ -129,7 +129,9 @@ def main():
         save_state(current_sprint, time.time()); return
 
     log(f"Найдено {len(changed)} файлов. Пушу...")
-    message = f"feat: auto-push after {current_sprint} ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+    # [skip ci] — не триггерить CF Pages / GitHub Actions на data-коммитах.
+    # Лендинг деплоится только через git push напрямую.
+    message = f"feat: auto-push after {current_sprint} ({datetime.now().strftime('%Y-%m-%d %H:%M')}) [skip ci]"
 
     # По 5 файлов за раз
     batch_size = 5

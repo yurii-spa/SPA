@@ -159,6 +159,10 @@ def main():
     parser.add_argument("--repo", default=REPO, help=f"Репо (default: {REPO})")
     parser.add_argument("--dry-run", action="store_true", help="Проверить без пуша")
     parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
+    parser.add_argument(
+        "--trigger-deploy", action="store_true",
+        help="Разрешить CF Pages/CI билд (по умолчанию все коммиты добавляют [skip ci])"
+    )
     args = parser.parse_args()
 
     files = []
@@ -169,6 +173,12 @@ def main():
 
     if not files:
         parser.error("Укажи --file или --files")
+
+    # CF Pages / CI skip: по умолчанию все коммиты через Contents API пропускают CI.
+    # Лендинг деплоится через git push (spa_cf_fix*.command), который НЕ добавляет [skip ci].
+    message = args.message
+    if not args.trigger_deploy and "[skip ci]" not in message and "[ci skip]" not in message:
+        message = message + " [skip ci]"
 
     # --pat аргумент имеет приоритет над авто-обнаружением
     if args.pat:
@@ -187,7 +197,7 @@ def main():
 
     results = []
     for f in files:
-        r = push_file(pat, f, args.message, args.repo, dry_run=args.dry_run)
+        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run)
         results.append(r)
         if r.get("ok"):
             if r.get("dry_run"):
