@@ -1,0 +1,29 @@
+{
+  "_comment": "DEV DEFAULTS — ROTATE passwords before public exposure via: python -m spa_core.family_fund.manage_users set ...",
+  "users": [
+    {
+      "username": "owner",
+      "email": "yuriycooleshov@gmail.com",
+      "role": "owner",
+      "password_hash": "$2b$12$g2urYQzkaX0xReOO2NmUXee08S9zOIO8UT.vg1Im70vkgh0U6eYqG"
+    },
+    {
+      "username": "admin",
+      "email": "admin@earn-defi.com",
+      "role": "admin",
+      "password_hash": "$2b$12$OSYvTJ.p2sAUrq.k9xWRQ.XZxxiFMpo6VHPVyVQt/FATL7H3PzYIm"
+    },
+    {
+      "username": "investor",
+      "email": "investor@earn-defi.com",
+      "role": "investor",
+      "password_hash": "$2b$12$dE9F4PBgjG1Fg6JI9ngBeO90y3a2KL2GKnEdCGUHmce156JwNTL3m"
+    },
+    {
+      "username": "readonly",
+      "email": "readonly@earn-defi.com",
+      "role": "readonly",
+      "password_hash": "$2b$12$8Zyae2bE/w09VL608EE5n.aBGrXO6U4ej0e6Hjq7D5k5Q78snhxlC"
+    }
+  ]
+}
