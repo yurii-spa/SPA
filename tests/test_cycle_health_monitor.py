@@ -158,15 +158,15 @@ class TestCheckCycleGap(unittest.TestCase):
         self.assertIsNotNone(result["last_cycle_at"])
         self.assertGreaterEqual(result["hours_since"], 0.0)
 
-    # T03
+    # T03 — gap past the WARNING threshold (daily cadence)
     def test_cycle_gap_warning_3h(self):
-        history = [_make_entry_ts(3.0)]
+        history = [_make_entry_ts(MAX_CYCLE_GAP_HOURS + 1)]
         result = self.monitor.check_cycle_gap(history)
         self.assertEqual(result["status"], WARNING)
 
-    # T04
+    # T04 — gap past the CRITICAL threshold (daily cadence)
     def test_cycle_gap_critical_5h(self):
-        history = [_make_entry_ts(5.0)]
+        history = [_make_entry_ts(CRITICAL_CYCLE_GAP_HOURS + 1)]
         result = self.monitor.check_cycle_gap(history)
         self.assertEqual(result["status"], CRITICAL)
 
@@ -184,14 +184,14 @@ class TestCheckCycleGap(unittest.TestCase):
         self.assertEqual(result["status"], CRITICAL)
         self.assertIsNone(result["last_cycle_at"])
 
-    # T07 — exactly 2h → OK (strictly less than MAX)
+    # T07 — just under MAX → OK (strictly less than MAX)
     def test_cycle_gap_boundary_exactly_2h_ok(self):
-        # 2h minus 1 second → still OK
+        # MAX minus 1 second → still OK
         history = [_make_entry_ts(MAX_CYCLE_GAP_HOURS - (1 / 3600))]
         result = self.monitor.check_cycle_gap(history)
         self.assertEqual(result["status"], OK)
 
-    # T08 — exactly 4h → WARNING (not yet CRITICAL)
+    # T08 — just under CRITICAL → WARNING (not yet CRITICAL)
     def test_cycle_gap_boundary_exactly_4h_warning(self):
         history = [_make_entry_ts(CRITICAL_CYCLE_GAP_HOURS - (1 / 3600))]
         result = self.monitor.check_cycle_gap(history)
@@ -213,9 +213,10 @@ class TestCheckCycleGap(unittest.TestCase):
 
     # T11 — timestamp takes priority over date
     def test_cycle_gap_timestamp_priority_over_date(self):
-        # timestamp = 5h ago (CRITICAL), date = today (would be OK)
+        # timestamp = past CRITICAL, date = today (would be OK)
         today_str = _utc_now().strftime("%Y-%m-%d")
-        history = [{"timestamp": _iso_hours_ago(5.0), "date": today_str, "equity": 100_000.0}]
+        history = [{"timestamp": _iso_hours_ago(CRITICAL_CYCLE_GAP_HOURS + 1),
+                    "date": today_str, "equity": 100_000.0}]
         result = self.monitor.check_cycle_gap(history)
         self.assertEqual(result["status"], CRITICAL)
 
@@ -558,14 +559,14 @@ class TestRunAllChecks(unittest.TestCase):
 
     # T38
     def test_run_all_warning_cycle_gap(self):
-        entries = [_make_entry_ts(3.0)]
+        entries = [_make_entry_ts(MAX_CYCLE_GAP_HOURS + 1)]
         tmpdir = self._make_temp_data_dir(equity_entries=entries)
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertEqual(result["overall"], WARNING)
 
     # T39
     def test_run_all_critical_cycle_gap(self):
-        entries = [_make_entry_ts(6.0)]
+        entries = [_make_entry_ts(CRITICAL_CYCLE_GAP_HOURS + 1)]
         tmpdir = self._make_temp_data_dir(equity_entries=entries)
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertEqual(result["overall"], CRITICAL)
@@ -588,11 +589,11 @@ class TestRunAllChecks(unittest.TestCase):
 
     # T42
     def test_run_all_critical_beats_warning(self):
-        # cycle_gap CRITICAL (last entry 6h ago) AND equity_anomaly WARNING (-20% drop)
-        # Both entries are old so check_cycle_gap uses [-1] = 6h ago → CRITICAL
+        # cycle_gap CRITICAL (last entry past CRITICAL) AND equity_anomaly WARNING (-20% drop)
+        # Both entries are old so check_cycle_gap uses [-1] → CRITICAL
         entries = [
-            {"equity": 100_000.0, "timestamp": _iso_hours_ago(7.0)},
-            {"equity": 80_000.0, "timestamp": _iso_hours_ago(6.0)},  # -20% drop; 6h → CRITICAL gap
+            {"equity": 100_000.0, "timestamp": _iso_hours_ago(CRITICAL_CYCLE_GAP_HOURS + 2)},
+            {"equity": 80_000.0, "timestamp": _iso_hours_ago(CRITICAL_CYCLE_GAP_HOURS + 1)},  # -20% drop → CRITICAL gap
         ]
         tmpdir = self._make_temp_data_dir(equity_entries=entries)
         result = self.monitor.run_all_checks(data_dir=tmpdir)
@@ -602,7 +603,7 @@ class TestRunAllChecks(unittest.TestCase):
 
     # T43
     def test_run_all_recommendations_nonempty_on_warning(self):
-        entries = [_make_entry_ts(3.0)]
+        entries = [_make_entry_ts(MAX_CYCLE_GAP_HOURS + 1)]
         tmpdir = self._make_temp_data_dir(equity_entries=entries)
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertGreater(len(result["recommendations"]), 0)
@@ -611,7 +612,7 @@ class TestRunAllChecks(unittest.TestCase):
 
     # T44
     def test_run_all_recommendations_nonempty_on_critical(self):
-        entries = [_make_entry_ts(6.0)]
+        entries = [_make_entry_ts(CRITICAL_CYCLE_GAP_HOURS + 1)]
         tmpdir = self._make_temp_data_dir(equity_entries=entries)
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertGreater(len(result["recommendations"]), 0)
