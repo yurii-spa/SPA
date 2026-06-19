@@ -73,7 +73,6 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -837,19 +836,8 @@ class RebalanceCostModel:
             "history_depth": len(history),
         }
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=self._data_dir, prefix=".rebalance_cost_report_tmp_"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(doc, fh, indent=2)
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(doc, str(out_path))
 
         return str(out_path)
 
