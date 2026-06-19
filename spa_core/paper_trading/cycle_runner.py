@@ -63,11 +63,11 @@ import json
 import logging
 import math
 import os
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+from spa_core.utils.atomic import atomic_save
 
 # ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)
 try:
@@ -199,41 +199,8 @@ class CycleResult:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically: tmpfile in the same dir + os.replace (rename)."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
-def _read_json(path: Path, default: Any) -> Any:
-    """Read JSON defensively. Missing/corrupt file → ``default`` (never raises)."""
-    path = Path(path)
-    if not path.exists():
-        return default
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError) as exc:
-        log.warning("%s unreadable (%s) — using default", path.name, exc)
-        return default
-
-
-# ─── Pure helpers ────────────────────────────────────────────────────────────
-
-
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(obj, path)
 def _live_apy_map(adapters: list[dict]) -> dict[str, float]:
     """protocol → live APY% for adapters that returned usable (ok/partial) data."""
     out: dict[str, float] = {}
