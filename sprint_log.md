@@ -1,6 +1,17 @@
 # Sprint Log
 
 
+## v8.85 — 2026-06-19
+
+### MP-1239: DeFiProtocolVaultPerformanceFeeGrossOfValidatorMevTaxBaseGapAnalyzer
+- Новый gap-layer модуль: validator MEV tax (proposer PBS/MEV-boost payment) drag на DeFi vault yield. Когда block proposer участвует в PBS/MEV-boost, часть MEV tax косвенно падает на DeFi стратегии через worse execution. Performance fee считается с yield gross of этих скрытых execution costs.
+- Chain-specific: ETH mainnet ~92% MEV-boost adoption → 5–15 bps annual validator MEV tax; L2s (Arbitrum, Base, Optimism) near-zero (~1 bps).
+- Config: `CHAIN_MEV_TAX_BPS` per chain, `MEV_BOOST_ADOPTION_RATE`, `PROPOSER_PAYMENT_THRESHOLD_ETH`.
+- Standalone functions: `estimate_annual_mev_tax_bps()`, `get_mev_boost_adoption()`, `apply_gap()`.
+- Отличие от `gross_of_mev_tax`: тот модуль ценит searcher MEV (sandwich/backrun extraction); ЭТОТ модуль — validator's/proposer's cut через PBS/MEV-boost.
+- **98 тестов passed.** Зарегистрирован в `_module_registry.py` (B=491, total=683).
+- Файлы: `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_validator_mev_tax_base_gap_analyzer.py`, `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_validator_mev_tax_base_gap_analyzer.py`.
+
 ## v8.86 — 2026-06-19
 
 ### MP-1240: SequencerTipGapAnalyzer (`spa_core/analytics/gross_of/sequencer_tip.py`)
