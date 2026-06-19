@@ -132,77 +132,194 @@ const GATE_STATIC = {
     <LiveStatsWidget client:load />
 
     <!-- ═══════════════════════════════════════════════════════
-         RESEARCH STRATEGIES  (MP-1305 — RS-001/RS-002)
-         S20 Anti-Crisis Research + S21 Cashflow Research
+         RESEARCH TAB  (MP-1363 v9.79 — RS-001/RS-002)
+         CPA gate status · paper progress · strategy cards · timeline
          ═══════════════════════════════════════════════════════ -->
-    <section class="mt-10" aria-label="Research Strategies">
-      <div class="mb-4 flex items-center gap-3">
-        <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">Research Strategies</h2>
-        <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-orange-500/30 bg-orange-500/8 text-orange-400">RESEARCH ONLY</span>
-        <span class="text-[10px] text-white/25">advisory, no positions opened</span>
+    <section class="mt-10" aria-label="Research Strategies Tab">
+
+      <!-- Tab nav bar -->
+      <div class="flex gap-1 border-b border-white/10 mb-6">
+        <button
+          id="tab-btn-research"
+          class="px-4 py-2 text-sm font-medium font-mono text-white bg-white/8 border border-white/10 border-b-transparent rounded-t -mb-px focus:outline-none"
+          aria-selected="true"
+        >Research</button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <!-- Tab content: Research -->
+      <div class="tab-content" id="tab-research">
 
-        <!-- S20: Anti-Crisis Research -->
-        <div class="rounded-xl bg-white/4 border border-orange-500/20 p-5 hover:border-orange-500/35 transition-colors">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-white/30 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">S20</span>
-              <h3 class="text-base font-semibold text-white">Anti-Crisis Research</h3>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full border border-orange-500/40 bg-orange-500/10 text-orange-400">RESEARCH ONLY</span>
+        <!-- CPA Gate Status (research-specific) -->
+        <div class="rounded-xl border border-white/10 bg-white/3 overflow-hidden mb-6">
+          <div class="px-5 pt-5 pb-3 border-b border-white/5">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">CPA Gate Status</h3>
+            <p class="text-[11px] text-white/30 mt-0.5">Research strategies 4-phase progression — required before live capital</p>
           </div>
-          <p class="text-xs text-white/40 mb-4 leading-relaxed">
-            Crisis-resilient yield portfolio: capital protection mechanics, flight-to-quality allocation,
-            defensive protocol selection. RS-001 methodology. Advisory only — no automatic positions.
-          </p>
-          <div class="flex items-center gap-6 text-sm">
-            <div>
-              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Target APY</div>
-              <div class="font-mono text-white">~18.2%</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
+
+            <!-- Backtest ✅ -->
+            <div class="px-5 py-4">
+              <div class="flex items-start gap-2">
+                <span class="text-lg mt-0.5">✅</span>
+                <div class="min-w-0">
+                  <div class="text-xs font-medium text-white mb-1">Backtest</div>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">PASS</span>
+                  <p class="text-[10px] text-white/25 mt-1 leading-snug">P0/P1A/P2 strict evidence</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Risk</div>
-              <div class="text-amber-400/80 text-xs">Research Phase</div>
+
+            <!-- Pre-Paper ✅ -->
+            <div class="px-5 py-4">
+              <div class="flex items-start gap-2">
+                <span class="text-lg mt-0.5">✅</span>
+                <div class="min-w-0">
+                  <div class="text-xs font-medium text-white mb-1">Pre-Paper</div>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">PASS</span>
+                  <p class="text-[10px] text-white/25 mt-1 leading-snug">All strict blockers cleared</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Module</div>
-              <div class="font-mono text-white/40 text-xs">strategy_rs001_tracker</div>
+
+            <!-- Paper ⏳ -->
+            <div class="px-5 py-4">
+              <div class="flex items-start gap-2">
+                <span class="text-lg mt-0.5">⏳</span>
+                <div class="min-w-0">
+                  <div class="text-xs font-medium text-white mb-1">Paper</div>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400">IN PROGRESS</span>
+                  <p class="text-[10px] text-white/25 mt-1 leading-snug">Owner acceptance pending</p>
+                </div>
+              </div>
             </div>
+
+            <!-- Live 🔒 -->
+            <div class="px-5 py-4">
+              <div class="flex items-start gap-2">
+                <span class="text-lg mt-0.5">🔒</span>
+                <div class="min-w-0">
+                  <div class="text-xs font-medium text-white mb-1">Live</div>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-400">BLOCKED</span>
+                  <p class="text-[10px] text-white/25 mt-1 leading-snug">Paper track + ADR-002 required</p>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <!-- S21: Cashflow Research -->
-        <div class="rounded-xl bg-white/4 border border-orange-500/20 p-5 hover:border-orange-500/35 transition-colors">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-mono text-white/30 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">S21</span>
-              <h3 class="text-base font-semibold text-white">Cashflow Research</h3>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full border border-orange-500/40 bg-orange-500/10 text-orange-400">RESEARCH ONLY</span>
+        <!-- Paper Trading Progress -->
+        <div class="rounded-xl border border-white/10 bg-white/3 overflow-hidden mb-6">
+          <div class="px-5 pt-5 pb-3 border-b border-white/5">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Paper Trading Progress</h3>
           </div>
-          <p class="text-xs text-white/40 mb-4 leading-relaxed">
-            Sustainable cashflow yield: real-yield protocols, IL drag model, net 12–18% sideways.
-            RS-002 methodology. Gross APY 29.24% — net varies. Advisory only — no automatic positions.
-          </p>
-          <div class="flex items-center gap-6 text-sm">
-            <div>
-              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Gross APY</div>
-              <div class="font-mono text-white">~29.24%</div>
+          <div class="px-5 py-5">
+            <div class="flex items-end gap-8 flex-wrap mb-5">
+              <div>
+                <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">Day</div>
+                <div class="font-mono text-2xl text-white leading-none">0<span class="text-white/30 text-base">&thinsp;/&thinsp;30+</span></div>
+              </div>
+              <div>
+                <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">Evidence</div>
+                <div class="font-mono text-2xl text-white leading-none">0<span class="text-white/30 text-base">&thinsp;/&thinsp;30 pts</span></div>
+              </div>
+              <div>
+                <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">ETA</div>
+                <div class="font-mono text-base text-white/60">~2026-07-19</div>
+                <div class="text-[10px] text-white/20">if sources acquired now</div>
+              </div>
             </div>
-            <div>
-              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Risk</div>
-              <div class="text-amber-400/80 text-xs">Research Phase</div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+              <div class="h-full rounded-full bg-amber-500/40" style="width:0%"></div>
             </div>
-            <div>
-              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Module</div>
-              <div class="font-mono text-white/40 text-xs">strategy_rs002_tracker</div>
-            </div>
+            <p class="text-[11px] text-white/25">Paper trading not yet started — Owner acceptance required to begin 30-day track</p>
           </div>
         </div>
 
-      </div>
+        <!-- Strategy cards: RS-001 + RS-002 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+
+          <!-- RS-001 Anti-Crisis -->
+          <div class="strategy-card research-only rounded-xl bg-white/4 border border-orange-500/20 p-5 hover:border-orange-500/30 transition-colors">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-mono text-white/30 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">RS-001</span>
+                <h4 class="text-sm font-semibold text-white">Anti-Crisis</h4>
+              </div>
+              <span class="badge orange text-[10px] font-mono px-2 py-0.5 rounded-full border border-orange-500/40 bg-orange-500/10 text-orange-400">RESEARCH ONLY</span>
+            </div>
+            <p class="text-xs text-white/40 mb-4 leading-relaxed">
+              Target APY: 18.2% (neutral regime) &middot; 6 allocation slots &middot; 70% crypto exposure.
+              Crisis-resilient yield via capital-protection mechanics and flight-to-quality rotation.
+              Advisory only — no positions opened automatically.
+            </p>
+            <div class="border-t border-white/5 pt-3">
+              <div class="source-quality flex items-center justify-between">
+                <span class="text-[10px] font-mono text-white/25">Sources</span>
+                <span class="text-[10px] font-mono text-amber-400 font-semibold">1/6 CLEAN (17%)</span>
+              </div>
+              <div class="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
+                <div class="h-full rounded-full bg-amber-500/60" style="width:17%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RS-002 Cashflow LP (SUSPENDED) -->
+          <div class="strategy-card research-only suspended rounded-xl bg-white/4 border border-red-500/20 p-5 opacity-65 hover:opacity-80 transition-opacity">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-mono text-white/30 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">RS-002</span>
+                <h4 class="text-sm font-semibold text-white">Cashflow LP</h4>
+              </div>
+              <span class="badge red text-[10px] font-mono px-2 py-0.5 rounded-full border border-red-500/40 bg-red-500/10 text-red-400">SUSPENDED (bearish)</span>
+            </div>
+            <p class="text-xs text-white/40 mb-4 leading-relaxed">
+              Target APY: 29.2% gross / ~15% net &middot; BTC/USDC concentrated LP &middot; high IL risk.
+              Real-yield protocols, IL drag model, net 12–18% sideways.
+              Advisory only — suspended pending bearish regime exit.
+            </p>
+            <div class="border-t border-white/5 pt-3">
+              <div class="source-quality flex items-center justify-between">
+                <span class="text-[10px] font-mono text-white/25">Sources</span>
+                <span class="text-[10px] font-mono text-red-400 font-semibold">0/4 CLEAN (0%)</span>
+              </div>
+              <div class="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
+                <div class="h-full rounded-full bg-red-500/40" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Go-Live Timeline -->
+        <div class="rounded-xl border border-white/10 bg-white/3 overflow-hidden">
+          <div class="px-5 pt-5 pb-3 border-b border-white/5">
+            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Go-Live Timeline</h3>
+            <p class="text-[11px] text-white/30 mt-0.5">Estimated date when all research gates pass</p>
+          </div>
+          <div class="px-5 py-5">
+            <div class="flex items-end gap-8 flex-wrap mb-5">
+              <div>
+                <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">Estimated Live Date</div>
+                <div class="font-mono text-xl text-white">~2026-07-19</div>
+                <div class="text-[10px] text-white/25 mt-0.5">if data sources acquired now</div>
+              </div>
+              <div>
+                <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">Readiness Score</div>
+                <div class="font-mono text-2xl text-amber-400">35%</div>
+              </div>
+            </div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+              <div class="h-full rounded-full bg-amber-500/50" style="width:35%"></div>
+            </div>
+            <p class="text-[11px] text-white/25">
+              Blocking: paper trading not started &middot; 5/6 data sources missing for RS-001 &middot; RS-002 suspended (bearish regime)
+            </p>
+          </div>
+        </div>
+
+      </div><!-- /tab-research -->
+
     </section>
 
     <!-- ═══════════════════════════════════════════════════════
