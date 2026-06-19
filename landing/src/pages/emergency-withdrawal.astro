@@ -5,7 +5,7 @@ import Footer from '../components/Footer.astro';
 
 <Layout
   title="Emergency Withdrawal — SPA earn-defi.com"
-  description="How to access your funds if the frontend is unavailable. Step-by-step emergency procedures for the live phase."
+  description="How to withdraw your funds. Standard processing within 1 business day, up to 5 days for positions requiring unwinding. Contact procedures and safety guidelines."
   canonical="https://earn-defi.com/emergency-withdrawal"
 >
 
@@ -27,167 +27,77 @@ import Footer from '../components/Footer.astro';
       <p class="text-xs text-red-400/70 font-mono uppercase tracking-widest mb-3">Emergency</p>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Emergency Withdrawal</h1>
       <p class="text-white/50 text-lg leading-relaxed">
-        How to access your funds if the frontend is unavailable.
+        How to access your funds in urgent situations.
       </p>
     </div>
 
-    <!-- Important Notice Banner -->
-    <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-6 mb-12">
-      <div class="flex items-start gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-amber-400/70 flex-shrink-0 mt-0.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
-        </svg>
-        <div>
-          <p class="text-sm text-amber-400/80 font-semibold mb-2">Paper Trading Phase</p>
-          <p class="text-sm text-white/55 leading-relaxed">
-            No real funds are currently at risk. This page documents the emergency procedures that will
-            apply in the live phase. During paper trading, no user capital is deployed.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- When to Use This Page -->
+    <!-- Withdrawal Policy -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">When to Use This Page</h2>
-      <div class="space-y-4 text-sm text-white/55 leading-relaxed">
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
-          <p>Frontend at earn-defi.com is unavailable or compromised.</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
-          <p>You suspect a frontend attack (wrong contracts shown).</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
-          <p>You want to verify your position independently.</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
-          <p>You want to withdraw directly without using the SPA interface.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 1 -->
-    <section class="mb-14">
-      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
-        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 1</span>
-        <h2 class="text-xl font-semibold text-white">Verify Official Contract Addresses</h2>
-      </div>
-
-      <div class="rounded-xl border border-red-500/25 bg-red-500/5 p-6 mb-6">
-        <p class="text-sm text-red-400/80 font-semibold mb-2">CRITICAL</p>
-        <p class="text-sm text-white/55 leading-relaxed">
-          Always verify contract addresses before interacting. Never trust a single source.
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Withdrawal Policy</h2>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <p class="text-sm text-white/60 leading-relaxed">
+          Withdrawals are processed on request. Standard processing time is usually within
+          1 business day, but large withdrawals or withdrawals requiring position unwinding
+          may take up to 5 business days. No withdrawal fee is planned for the MVP.
         </p>
       </div>
-
-      <p class="text-sm text-white/55 mb-4">Official sources (check ALL before proceeding):</p>
-      <div class="space-y-3">
-        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Source 1</p>
-          <p class="text-sm text-white/60">This page &mdash; earn-defi.com/emergency-withdrawal</p>
-        </div>
-        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Source 2</p>
-          <p class="text-sm text-white/60">GitHub repository &mdash; github.com/yurii-spa/SPA (pinned addresses file)</p>
-        </div>
-        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Source 3</p>
-          <p class="text-sm text-white/60">Contact &mdash; <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a></p>
-        </div>
-      </div>
-      <p class="text-xs text-white/30 mt-4 italic">
-        Contract addresses will be published here before go-live. Currently in paper trading &mdash; no live contracts.
-      </p>
     </section>
 
-    <!-- Step 2 -->
+    <!-- Withdrawal Procedure -->
     <section class="mb-14">
-      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
-        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 2</span>
-        <h2 class="text-xl font-semibold text-white">Verify via Block Explorer</h2>
-      </div>
-      <div class="space-y-4 text-sm text-white/55 leading-relaxed">
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Go to <strong class="text-white/80">Etherscan.io</strong> or <strong class="text-white/80">Basescan.org</strong>.</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Enter the contract address from verified sources above.</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Check: contract is verified (green checkmark), matches expected ABI, recent transactions look normal.</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
-          <p><strong class="text-white/80">DO NOT interact</strong> if contract is unverified or ABI looks different.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 3 -->
-    <section class="mb-14">
-      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
-        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 3</span>
-        <h2 class="text-xl font-semibold text-white">Withdraw Directly</h2>
-      </div>
-      <p class="text-sm text-white/40 mb-4">For live phase (after August 1, 2026):</p>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Withdrawal Procedure</h2>
       <div class="space-y-3">
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
-          <p class="text-sm text-white/55">Go to Etherscan &rarr; Contract &rarr; Write Contract</p>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Contact us directly</p>
+            <p class="text-xs text-white/40 mt-1">Email: <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a></p>
+          </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
-          <p class="text-sm text-white/55">Connect your wallet (same wallet used for deposit)</p>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Describe your situation</p>
+            <p class="text-xs text-white/40 mt-1">We will respond within 4 hours during business hours.</p>
+          </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
-          <p class="text-sm text-white/55">Call <code class="text-green-400/70 bg-green-400/10 px-1.5 py-0.5 rounded text-xs font-mono">withdraw(amount)</code> function</p>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Funds available without unwinding</p>
+            <p class="text-xs text-white/40 mt-1">If funds are available without unwinding positions, we process as quickly as possible.</p>
+          </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
-          <p class="text-sm text-white/55">Confirm transaction in your wallet</p>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Positions need unwinding</p>
+            <p class="text-xs text-white/40 mt-1">If positions need to be unwound, processing takes up to 5 business days.</p>
+          </div>
         </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">5</span>
-          <p class="text-sm text-white/55">Allow 1&ndash;3 blocks for confirmation</p>
+        <div class="flex gap-4 items-start rounded-lg border border-red-500/15 bg-red-500/5 p-4">
+          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">!</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium">No guaranteed same-day withdrawal</p>
+            <p class="text-xs text-white/40 mt-1">Do not trust any source promising instant access to your funds.</p>
+          </div>
         </div>
       </div>
-      <p class="text-xs text-white/30 mt-4 italic">
-        Full step-by-step guide will be published before go-live.
-      </p>
     </section>
 
-    <!-- Step 4 -->
+    <!-- Direct Protocol Withdrawal -->
     <section class="mb-14">
-      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
-        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 4</span>
-        <h2 class="text-xl font-semibold text-white">Revoke Token Approvals</h2>
-      </div>
-      <p class="text-sm text-white/40 mb-4">After withdrawal:</p>
-      <div class="space-y-3">
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
-          <p class="text-sm text-white/55">Go to <strong class="text-white/70">revoke.cash</strong></p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
-          <p class="text-sm text-white/55">Connect your wallet</p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
-          <p class="text-sm text-white/55">Search for SPA contract address</p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
-          <p class="text-sm text-white/55">Revoke all approvals</p>
-        </div>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Direct Protocol Withdrawal</h2>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <p class="text-sm text-white/55 leading-relaxed mb-4">
+          Because SPA deploys to established DeFi protocols (Aave, Compound, Morpho),
+          your funds remain in audited, permissionless smart contracts. In an emergency,
+          you can interact directly with the underlying protocol to withdraw.
+        </p>
+        <p class="text-sm text-white/40 leading-relaxed">
+          Contract addresses for direct interaction will be published before go-live.
+          Currently in paper trading &mdash; no live contracts deployed.
+        </p>
       </div>
     </section>
 
