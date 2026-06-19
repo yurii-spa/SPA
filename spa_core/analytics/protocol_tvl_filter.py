@@ -23,6 +23,8 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants / defaults
 # ---------------------------------------------------------------------------
@@ -188,7 +190,7 @@ def filter_protocols(
 # ProtocolTVLFilter class
 # ---------------------------------------------------------------------------
 
-class ProtocolTVLFilter:
+class ProtocolTVLFilter(BaseAnalytics):
     """Stateful wrapper around filter_protocols with ring-buffer log persistence.
 
     Usage
@@ -200,9 +202,16 @@ class ProtocolTVLFilter:
     f.save()   # atomic write to ring-buffer log
     """
 
+    OUTPUT_PATH = "data/protocol_tvl_filter_log.json"
+
     def __init__(self, data_dir: str = "data") -> None:
+        super().__init__()
         self._data_dir = data_dir
         self._last_result: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> dict:
+        """Returns last TVL filter result as JSON-serializable dict."""
+        return dict(self._last_result) if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
