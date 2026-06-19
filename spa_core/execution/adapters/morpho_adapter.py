@@ -57,6 +57,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from spa_core.safety.safeguard import live_trading_forbidden
+
 log = logging.getLogger("spa.morpho_adapter")
 
 
@@ -385,6 +387,7 @@ class MorphoAdapter:
         result = self._rpc_first("eth_gasPrice", [])
         return int(result, 16) if isinstance(result, str) else int(result)
 
+    @live_trading_forbidden
     def _send_raw_tx(self, signed_hex: str) -> str:
         result = self._rpc_first("eth_sendRawTransaction", [signed_hex])
         if not isinstance(result, str) or not result.startswith("0x"):
@@ -463,6 +466,7 @@ class MorphoAdapter:
             )
         return acct, derived
 
+    @live_trading_forbidden
     def _sign_and_send(
         self,
         Account: Any,
