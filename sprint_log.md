@@ -2475,3 +2475,37 @@
 **Верификация:** py_compile OK; `python3 -m pytest …basis_risk_premium…` → **98/98 passed**; forbidden-import grep → CLEAN (stdlib only); реестр импортируется, B=515 total=707; done_count=957.
 
 **Push:** `bash scripts/push_v903.sh`
+
+---
+
+## Оркестратор-нота — 2026-06-19 (scheduled-прогон, БЕЗ нового спринта)
+
+Прогон `spa-dev-continue` НЕ запускал код-спринт. Причины:
+1. Диск уже на **v9.06 / MP-1261** (push_v901..906.sh, реестр ALL_MODULES≈717, B=518) — параллельные прогоны ушли вперёд; KANBAN `sprint_completed=v9.00`, `done` обрывается на MP-1248 → сильный accounting drift.
+2. Петля выродилась: **51** почти идентичный `performance_fee_gross_of_*_base_gap_analyzer` (98 тестов, Tier-B, weight 0.5 каждый) — нулевая маржинальная польза.
+3. Все `status=ready` задачи — `type=agent_infra` (git/launchd/cloudflared/Telegram/Keychain), недоступны из sandbox; требуют ручного запуска на Mac.
+
+Минтить модуль №52 в гонке с активными прогонами = риск clobber + 0 пользы → выбран отчёт. Детали и рекомендации: `ORCHESTRATOR_REPORT_2026-06-19.md`. KANBAN.json НЕ редактировался (защита от clobber). Next free slot: v9.07 / MP-1262.
+
+## v9.07 — 2026-06-19
+
+**Sprint v9.07 MP-1262 GrossOfBridgeDelayOpportunityCostAnalyzer (98 tests, yield_quality Tier-B)**
+
+**Fee type:** Time-value cost of capital locked during cross-chain bridge operations. When a vault bridges assets (Optimism bridge = 7-day challenge period, Arbitrum = 7 days, zkSync era = ~24h), capital is locked and cannot earn yield. The cost = missed yield during lockup period. The performance fee is charged on GROSS yield before this opportunity cost is netted out, inflating the fee base.
+
+**Формулы:**
+- `net_of_bridge_delay_yield = gross_yield - bridge_delay_opportunity_cost`
+- `fee_charged = fee_frac × max(0, gross_yield)`
+- `fair_fee = fee_frac × max(0, net_of_bridge_delay_yield)`
+- `bridge_delay_gap = max(0, fee_charged - fair_fee)`
+- `fee_on_bridge_delay_fraction = clamp(gap / fee_charged, 0, 1)`
+- `score = 70 × realization_ratio + 30 × (1 - fee_on_bridge_delay_fraction)` → [0, 100]
+
+**Classifications:** CLEAN_NET_OF_BRIDGE_DELAY_BASE / MILD / MODERATE / SEVERE_FEE_ON_BRIDGE_DELAY_GAP
+**Flags:** CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_BRIDGE_DELAY_COST, FEE_ON_BRIDGE_DELAY, FULL_FEE_ON_BRIDGE_DELAY, GAP_FROM_OVERRIDE, INSUFFICIENT_DATA
+
+**Distinctions vs other modules:** BRIDGE DELAY OPPORTUNITY COST (implicit time-value cost of capital locked during cross-chain bridge transit) — vs bridge_fee (explicit toll paid to bridge operator/relayer); vs crosschain_message_fee (LayerZero/Axelar/Wormhole messaging cost); vs withdrawal_delay_cost (exit from protocol's withdrawal queue, e.g. Lido unstaking); vs rebalancing_transaction_cost (AMM swap execution cost); vs base_fee/priority_fee/blob_fee/l1_data_fee/bundler_fee/swap_fee/keeper_fee/exit_slippage/borrow_cost/funding_cost/insurance_fund/reserve_contribution/avs_operator_fee/intent_solver_fee/early_withdrawal_penalty/mev_tax/flash_loan_fee/oracle_update_fee/deposit_fee/curator_fee/referral_affiliate_fee/protocol_revenue_share/management_fee/lp_amm_fee_drag/yield_aggregator_platform_fee/liquidity_mining_opportunity_cost/basis_risk_premium/impermanent_loss_premium/token_vesting_unlock_pressure/regulatory_risk_premium/governance_attack_risk_premium/counterparty_default_risk_premium/oracle_manipulation_risk_premium/smart_contract_risk_premium/lst_peg_slippage — each prices a DIFFERENT cost layer. Not HWM/crystallization.
+
+**Верификация:** py_compile OK; `python3 -m pytest …bridge_delay_opportunity_cost…` → **98/98 passed**; forbidden-import grep → CLEAN (stdlib only); реестр импортируется, B=519 total=711; done_count=961.
+
+**Push:** `bash scripts/push_v907.sh`
