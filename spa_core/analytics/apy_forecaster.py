@@ -60,7 +60,6 @@ import json
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -361,21 +360,8 @@ class ApyForecaster:
             "adapter_count": len(forecasts),
             "forecasts": forecasts,
         }
-        content = json.dumps(payload, indent=2, ensure_ascii=False)
-
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self.data_dir, prefix=".apy_forecasts_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(content)
-            os.replace(tmp_path, self._forecasts_file)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(payload, str(self._forecasts_file))
 
 
 # ---------------------------------------------------------------------------
