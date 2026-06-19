@@ -43,6 +43,8 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from spa_core.utils.errors import SourceError
+
 log = logging.getLogger("spa.price_feeds")
 
 # Output path (relative to repo root data/)
@@ -226,18 +228,18 @@ class PriceFeedFetcher:
             ) as resp:
                 raw = resp.read()
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"eth_call HTTP failure: {exc}") from exc
+            raise SourceError("chainlink_rpc", f"eth_call HTTP failure: {exc}") from exc
 
         try:
             parsed = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
-            raise RuntimeError(f"eth_call malformed JSON: {exc}") from exc
+            raise SourceError("chainlink_rpc", f"eth_call malformed JSON: {exc}") from exc
 
         if "error" in parsed:
-            raise RuntimeError(f"eth_call RPC error: {parsed['error']}")
+            raise SourceError("chainlink_rpc", f"eth_call RPC error: {parsed['error']}")
         result = parsed.get("result")
         if not isinstance(result, str) or not result.startswith("0x"):
-            raise RuntimeError(f"eth_call missing/invalid result: {parsed!r}")
+            raise SourceError("chainlink_rpc", f"eth_call missing/invalid result: {parsed!r}")
         return result
 
     @staticmethod
@@ -260,8 +262,9 @@ class PriceFeedFetcher:
         """
         body = hex_result[2:] if hex_result.startswith("0x") else hex_result
         if len(body) < 64:
-            raise RuntimeError(
-                f"latestAnswer return too short: {len(body)} hex chars"
+            raise SourceError(
+                "chainlink_rpc",
+                f"latestAnswer return too short: {len(body)} hex chars",
             )
         # Take the last 32-byte slot in case the RPC returned extra padding.
         slot = body[-64:]
@@ -329,8 +332,9 @@ class PriceFeedFetcher:
                 # number — anything else is RPC garbage we should reject so
                 # the next endpoint can try.
                 if price <= 0 or price > 1000:
-                    raise RuntimeError(
-                        f"sanity-fail decoded price {price!r} for {symbol}"
+                    raise SourceError(
+                        "chainlink_rpc",
+                        f"sanity-fail decoded price {price!r} for {symbol}",
                     )
                 return price
 
