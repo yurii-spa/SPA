@@ -2432,3 +2432,19 @@
 **Верификация:** py_compile OK; `python3 -m pytest …yield_aggregator_platform_fee…` → **98/98 passed**; forbidden-import grep → CLEAN (stdlib only); реестр импортируется, B=513 total=705; done_count=955.
 
 **Push:** `bash scripts/push_v901.sh`
+
+---
+
+## v9.03 MP-1258 GrossOfBasisRiskPremiumAnalyzer (98 tests, yield_quality Tier-B)
+
+**Модуль:** `spa_core/analytics/gross_of/defi_protocol_vault_performance_fee_gross_of_basis_risk_premium_analyzer.py`
+**Класс:** `GrossOfBasisRiskPremiumAnalyzer`
+**Тесты:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_basis_risk_premium_analyzer.py`
+
+**Что прайсит:** perf-fee gross-of-basis-risk-premium base gap — implied cost from basis risk when a vault hedges using imperfect instruments (stETH/ETH basis spread, USDC/USDT depeg spread, futures basis for delta-neutral strategies). The basis risk premium = expected loss from hedge imperfection, deducted from GROSS yield. Performance fee charged on gross yield overstates depositor benefit by ignoring hedge imperfection cost.
+
+**Distinctions vs other modules:** BASIS RISK PREMIUM (implied cost of imperfect hedge: stETH/ETH basis, stablecoin depeg spread, futures basis) — vs lst_peg_slippage (realized slippage on LST↔ETH trade execution, not ongoing hedge cost); vs counterparty_default_risk_premium (issuer/counterparty solvency risk, not basis mismatch); vs oracle_manipulation_risk_premium (price-feed manipulation risk, not hedge imperfection); vs smart_contract_risk_premium (code vulnerability risk, not basis spread); vs funding_cost (perp funding rate cost, not basis between hedge and underlying); vs exit_slippage (realized exit trade slippage, not ongoing basis cost); vs keeper_fee/swap_fee/bridge_fee/base_fee/priority_fee/blob_fee/l1_data_fee/bundler_fee/crosschain_message_fee/insurance_fund/reserve_contribution/borrow_cost/rebalancing_cost/lp_amm_fee_drag/avs_operator_fee/intent_solver_fee/early_withdrawal_penalty/mev_tax/flash_loan_fee/oracle_update_fee/deposit_fee/regulatory_risk_premium/governance_attack_risk_premium/curator_fee/referral_affiliate_fee/protocol_revenue_share/management_fee/yield_aggregator_platform_fee/withdrawal_delay_cost/liquidity_mining_opportunity_cost — each prices a DIFFERENT cost layer. Not HWM/crystallization.
+
+**Верификация:** py_compile OK; `python3 -m pytest …basis_risk_premium…` → **98/98 passed**; forbidden-import grep → CLEAN (stdlib only); реестр импортируется, B=515 total=707; done_count=957.
+
+**Push:** `bash scripts/push_v903.sh`
