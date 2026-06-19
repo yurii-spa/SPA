@@ -37,6 +37,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
+from spa_core.utils.errors import RegistryError
+
 
 # ─── Strategy types ───────────────────────────────────────────────────────────
 
@@ -119,9 +121,10 @@ class StrategyRegistry:
         if meta.id in self._store and self._store[meta.id] is not meta:
             existing = self._store[meta.id]
             if existing.to_dict() != meta.to_dict():
-                raise ValueError(
+                raise RegistryError(
                     f"Strategy '{meta.id}' is already registered with different metadata. "
-                    f"Use a unique ID or update the existing registration."
+                    f"Use a unique ID or update the existing registration.",
+                    code="STRATEGY_DUPLICATE_ID",
                 )
         self._store[meta.id] = meta
 
