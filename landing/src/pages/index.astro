@@ -75,10 +75,76 @@ import Footer from '../components/Footer.astro';
     </div>
   </section>
 
-  <!-- 9. Competitor Table -->
+  <!-- 9. FAQ -->
+  <section id="faq" class="py-24 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto">
+      <p class="text-white/30 text-sm font-mono uppercase tracking-widest mb-3">FAQ</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-10 leading-tight">
+        Common Questions
+      </h2>
+
+      <div class="space-y-6">
+
+        <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
+            How do I withdraw?
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </summary>
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+            Withdrawals are processed on request. Standard processing time is usually within
+            1 business day, but large withdrawals or withdrawals requiring position unwinding
+            may take up to 5 business days. No withdrawal fee is planned for the MVP.
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
+            What tokens do you accept?
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </summary>
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+            USDT and USDC. We support ERC-20 networks. Network details are confirmed during onboarding.
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
+            Is there a minimum deposit?
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </summary>
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+            We don't publish fixed minimums. Allocations are discussed individually during onboarding.
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
+            How are fees structured?
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </summary>
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+            Fees are discussed individually. Early participants receive preferential terms.
+            Our model is performance-aligned &mdash;
+            <a href="/fees" class="text-accent-400/70 hover:text-accent-400 underline underline-offset-2 transition-colors">learn more</a>.
+          </div>
+        </details>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. Competitor Table -->
   <CompetitorTable />
 
-  <!-- 10. Disclaimer + Footer -->
+  <!-- 11. Disclaimer + Footer -->
   <Disclaimer />
   <Footer />
 
