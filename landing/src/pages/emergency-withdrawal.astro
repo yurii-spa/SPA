@@ -1,0 +1,248 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Emergency Withdrawal — SPA earn-defi.com"
+  description="How to access your funds if the frontend is unavailable. Step-by-step emergency procedures for the live phase."
+  canonical="https://earn-defi.com/emergency-withdrawal"
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <a href="/" class="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+      </svg>
+      <span class="text-sm">Back to earn-defi.com</span>
+    </a>
+    <span class="text-xs text-white/20 font-mono">emergency-withdrawal</span>
+  </nav>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+
+    <!-- Header -->
+    <div class="mb-12">
+      <p class="text-xs text-red-400/70 font-mono uppercase tracking-widest mb-3">Emergency</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Emergency Withdrawal</h1>
+      <p class="text-white/50 text-lg leading-relaxed">
+        How to access your funds if the frontend is unavailable.
+      </p>
+    </div>
+
+    <!-- Important Notice Banner -->
+    <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-6 mb-12">
+      <div class="flex items-start gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-amber-400/70 flex-shrink-0 mt-0.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+        </svg>
+        <div>
+          <p class="text-sm text-amber-400/80 font-semibold mb-2">Paper Trading Phase</p>
+          <p class="text-sm text-white/55 leading-relaxed">
+            No real funds are currently at risk. This page documents the emergency procedures that will
+            apply in the live phase. During paper trading, no user capital is deployed.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- When to Use This Page -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">When to Use This Page</h2>
+      <div class="space-y-4 text-sm text-white/55 leading-relaxed">
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
+          <p>Frontend at earn-defi.com is unavailable or compromised.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
+          <p>You suspect a frontend attack (wrong contracts shown).</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
+          <p>You want to verify your position independently.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
+          <p>You want to withdraw directly without using the SPA interface.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 1 -->
+    <section class="mb-14">
+      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
+        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 1</span>
+        <h2 class="text-xl font-semibold text-white">Verify Official Contract Addresses</h2>
+      </div>
+
+      <div class="rounded-xl border border-red-500/25 bg-red-500/5 p-6 mb-6">
+        <p class="text-sm text-red-400/80 font-semibold mb-2">CRITICAL</p>
+        <p class="text-sm text-white/55 leading-relaxed">
+          Always verify contract addresses before interacting. Never trust a single source.
+        </p>
+      </div>
+
+      <p class="text-sm text-white/55 mb-4">Official sources (check ALL before proceeding):</p>
+      <div class="space-y-3">
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">Source 1</p>
+          <p class="text-sm text-white/60">This page &mdash; earn-defi.com/emergency-withdrawal</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">Source 2</p>
+          <p class="text-sm text-white/60">GitHub repository &mdash; github.com/yurii-spa/SPA (pinned addresses file)</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">Source 3</p>
+          <p class="text-sm text-white/60">Contact &mdash; <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a></p>
+        </div>
+      </div>
+      <p class="text-xs text-white/30 mt-4 italic">
+        Contract addresses will be published here before go-live. Currently in paper trading &mdash; no live contracts.
+      </p>
+    </section>
+
+    <!-- Step 2 -->
+    <section class="mb-14">
+      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
+        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 2</span>
+        <h2 class="text-xl font-semibold text-white">Verify via Block Explorer</h2>
+      </div>
+      <div class="space-y-4 text-sm text-white/55 leading-relaxed">
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p>Go to <strong class="text-white/80">Etherscan.io</strong> or <strong class="text-white/80">Basescan.org</strong>.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p>Enter the contract address from verified sources above.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p>Check: contract is verified (green checkmark), matches expected ABI, recent transactions look normal.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-400/60 mt-2"></span>
+          <p><strong class="text-white/80">DO NOT interact</strong> if contract is unverified or ABI looks different.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3 -->
+    <section class="mb-14">
+      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
+        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 3</span>
+        <h2 class="text-xl font-semibold text-white">Withdraw Directly</h2>
+      </div>
+      <p class="text-sm text-white/40 mb-4">For live phase (after August 1, 2026):</p>
+      <div class="space-y-3">
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
+          <p class="text-sm text-white/55">Go to Etherscan &rarr; Contract &rarr; Write Contract</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
+          <p class="text-sm text-white/55">Connect your wallet (same wallet used for deposit)</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
+          <p class="text-sm text-white/55">Call <code class="text-green-400/70 bg-green-400/10 px-1.5 py-0.5 rounded text-xs font-mono">withdraw(amount)</code> function</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
+          <p class="text-sm text-white/55">Confirm transaction in your wallet</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">5</span>
+          <p class="text-sm text-white/55">Allow 1&ndash;3 blocks for confirmation</p>
+        </div>
+      </div>
+      <p class="text-xs text-white/30 mt-4 italic">
+        Full step-by-step guide will be published before go-live.
+      </p>
+    </section>
+
+    <!-- Step 4 -->
+    <section class="mb-14">
+      <div class="flex items-center gap-3 mb-6 pb-3 border-b border-white/8">
+        <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2.5 py-1 rounded">Step 4</span>
+        <h2 class="text-xl font-semibold text-white">Revoke Token Approvals</h2>
+      </div>
+      <p class="text-sm text-white/40 mb-4">After withdrawal:</p>
+      <div class="space-y-3">
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
+          <p class="text-sm text-white/55">Go to <strong class="text-white/70">revoke.cash</strong></p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
+          <p class="text-sm text-white/55">Connect your wallet</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
+          <p class="text-sm text-white/55">Search for SPA contract address</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
+          <p class="text-sm text-white/55">Revoke all approvals</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- What to Do During a Frontend Incident -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">What to Do During a Frontend Incident</h2>
+      <div class="space-y-4">
+        <div class="flex gap-4 items-start rounded-lg border border-red-500/15 bg-red-500/5 p-4">
+          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">!</span>
+          <p class="text-sm text-white/60">Do <strong class="text-white/80">NOT</strong> click any links claiming to be &ldquo;emergency&rdquo; alternatives.</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
+          <p class="text-sm text-white/55">Verify official communication at <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a> only.</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
+          <p class="text-sm text-white/55">Check GitHub repository for official statement.</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
+          <p class="text-sm text-white/55">Do not interact with any unverified contract.</p>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
+          <p class="text-sm text-white/55">Wait for official communication before taking action.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Official Communication Channels -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Official Communication Channels</h2>
+      <div class="space-y-3">
+        <div class="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+          <p class="text-xs text-green-400/60 font-mono mb-1">Email</p>
+          <a href="mailto:yuriycooleshov@gmail.com" class="text-sm text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
+        </div>
+        <div class="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+          <p class="text-xs text-green-400/60 font-mono mb-1">GitHub</p>
+          <p class="text-sm text-white/60">github.com/yurii-spa/SPA</p>
+        </div>
+        <div class="rounded-lg border border-red-500/15 bg-red-500/5 p-4">
+          <p class="text-xs text-red-400/60 font-mono mb-1">No Telegram</p>
+          <p class="text-sm text-white/50">Any Telegram group claiming to be SPA is fake.</p>
+        </div>
+        <div class="rounded-lg border border-red-500/15 bg-red-500/5 p-4">
+          <p class="text-xs text-red-400/60 font-mono mb-1">No Discord</p>
+          <p class="text-sm text-white/50">Any Discord server claiming to be SPA is fake.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Footer />
+
+</Layout>
