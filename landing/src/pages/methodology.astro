@@ -364,6 +364,172 @@ import Footer from '../components/Footer.astro';
       </div>
     </section>
 
+    <!-- CPA: Capital Preservation Algorithm -->
+    <section id="cpa" class="py-10 border-t border-white/5">
+      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4">Capital Preservation Algorithm (CPA)</p>
+      <p class="text-sm text-white/40 mb-8 leading-relaxed">
+        CPA is a layered validation framework that governs how strategies move from research to live capital.
+        Every step requires verifiable point-in-time evidence — no retrofitted data, no hindsight.
+      </p>
+
+      <!-- CPA 1: Point-in-Time Evidence -->
+      <div id="evidence" class="mb-10">
+        <p class="text-sm text-white/60 font-medium mb-3">What is Point-in-Time Evidence?</p>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-sm text-white/50 leading-relaxed mb-3">
+            SPA uses only data that would have been available on the simulation date. A protocol
+            launched in 2023 is invisible to a 2022 backtest — no exceptions. This eliminates
+            look-ahead bias, the most common cause of inflated backtest returns in DeFi.
+          </p>
+          <p class="text-xs text-white/30 leading-relaxed">
+            Example: GMX launched Q3 2021. Any simulation dated before that launch treats GMX as
+            non-existent, even if historical APY data was later published. The whitelist is
+            date-gated per protocol. Each entry in the point-in-time whitelist carries a
+            <span class="font-mono">launch_date</span> field — the backtest engine rejects any
+            protocol whose launch date is after the simulation date.
+          </p>
+        </div>
+      </div>
+
+      <!-- CPA 2: 4-State Gate System -->
+      <div id="gate-system" class="mb-10">
+        <p class="text-sm text-white/60 font-medium mb-3">4-State Gate System</p>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          {[
+            {
+              stage: '01',
+              state: 'Backtest Gate',
+              desc: 'Point-in-time simulation over historical on-chain data. CLEAN_INCLUDED sources only. No forward-looking inputs.',
+              color: 'border-white/10',
+            },
+            {
+              stage: '02',
+              state: 'Pre-Paper Gate',
+              desc: 'Strategy tested on live market data with zero capital at risk. Formal approval before advancing.',
+              color: 'border-amber-500/30',
+            },
+            {
+              stage: '03',
+              state: 'Paper Trading',
+              desc: 'Full strategy run on virtual capital. Requires ≥ 30 clean evidence points via PaperEvidenceTracker.',
+              color: 'border-teal-500/30',
+            },
+            {
+              stage: '04',
+              state: 'Live Capital',
+              desc: 'Real AUM deployment. Requires GoLiveChecker 26/26 pass + Owner manual review (ADR-002).',
+              color: 'border-accent-500/30',
+            },
+          ].map((gate) => (
+            <div class={`rounded-xl bg-white/[0.03] border ${gate.color} p-4`}>
+              <span class="text-xs text-white/20 font-mono mb-2 block">Stage {gate.stage}</span>
+              <p class="text-xs text-white/70 font-semibold mb-2">{gate.state}</p>
+              <p class="text-xs text-white/40 leading-relaxed">{gate.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div class="flex items-center gap-2 mt-3 px-1">
+          <div class="h-px flex-1 bg-white/10"></div>
+          <span class="text-xs text-white/20 font-mono">formal approval required at each gate</span>
+          <div class="h-px flex-1 bg-white/10"></div>
+        </div>
+      </div>
+
+      <!-- CPA 3: Source Quality Framework -->
+      <div class="mb-10">
+        <p class="text-sm text-white/60 font-medium mb-3">Source Quality Framework</p>
+        <div class="overflow-x-auto rounded-xl border border-white/10">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-white/10 bg-white/[0.03]">
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">State</th>
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Meaning</th>
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Examples</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+              <tr>
+                <td class="px-5 py-3 font-mono text-xs text-green-400">CLEAN_INCLUDED</td>
+                <td class="px-5 py-3 text-sm text-white/60">Full historical data, on-chain verifiable</td>
+                <td class="px-5 py-3 text-xs text-white/40">Aave V3, Compound, Morpho</td>
+              </tr>
+              <tr>
+                <td class="px-5 py-3 font-mono text-xs text-amber-400">PENDING</td>
+                <td class="px-5 py-3 text-sm text-white/60">Data found, under audit</td>
+                <td class="px-5 py-3 text-xs text-white/40">Morpho Steakhouse</td>
+              </tr>
+              <tr>
+                <td class="px-5 py-3 font-mono text-xs text-orange-400">RESEARCH_ONLY</td>
+                <td class="px-5 py-3 text-sm text-white/60">No historical data, model-based projections</td>
+                <td class="px-5 py-3 text-xs text-white/40">GMX exposure, Concentrated LP</td>
+              </tr>
+              <tr>
+                <td class="px-5 py-3 font-mono text-xs text-red-400">SOURCE_NEEDED</td>
+                <td class="px-5 py-3 text-sm text-white/60">No data source identified yet</td>
+                <td class="px-5 py-3 text-xs text-white/40">Gold proxy, BTC pools</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CPA 4: Why 86.97% Cash Drag? -->
+      <div class="mb-10">
+        <p class="text-sm text-white/60 font-medium mb-3">Why 86.97% Cash Drag?</p>
+        <div class="rounded-xl bg-white/[0.03] border border-amber-500/20 p-5">
+          <p class="text-sm text-white/50 leading-relaxed mb-3">
+            In strict point-in-time mode across 2022–2026, most DeFi protocols had not yet launched
+            or lacked verifiable on-chain data at the simulation date. CPA does not extrapolate
+            or assume retroactive availability.
+          </p>
+          <p class="text-sm text-white/50 leading-relaxed mb-3">
+            The result is a high cash drag — capital that cannot be deployed to a
+            <span class="font-mono text-white/60">CLEAN_INCLUDED</span> protocol is held as USDC.
+            This is intentional: it is better to acknowledge limited deployment opportunity than
+            to overstate historical returns using protocols that were not yet verifiable at the
+            simulation date.
+          </p>
+          <p class="text-xs text-white/30 leading-relaxed">
+            A 13% average deployed allocation (86.97% cash) is the honest answer for the
+            2022–2026 period. As CPA sources are audited and promoted from
+            <span class="font-mono">PENDING</span> to <span class="font-mono">CLEAN_INCLUDED</span>,
+            the deployable universe grows and cash drag falls.
+          </p>
+        </div>
+      </div>
+
+      <!-- CPA 5: Research vs Production Strategies -->
+      <div>
+        <p class="text-sm text-white/60 font-medium mb-3">Research vs Production Strategies</p>
+        <div class="space-y-3">
+          <div class="rounded-xl bg-white/[0.03] border border-orange-500/20 p-5">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="px-2 py-0.5 rounded text-xs font-mono bg-orange-500/10 text-orange-400 border border-orange-500/20">RESEARCH_ONLY</span>
+              <span class="text-sm text-white/70 font-medium">RS-001 · RS-002</span>
+            </div>
+            <p class="text-xs text-white/40 leading-relaxed">
+              RS-001 and RS-002 are tagged <span class="font-mono text-orange-400">RESEARCH_ONLY</span>.
+              Their APY figures are forward projections based on model assumptions — not verified historical
+              data. They cannot be promoted to paper trading until a <span class="font-mono">CLEAN_INCLUDED</span>
+              data source is identified and audited. Evidence points from research days score 0.3 (vs 1.0 for clean days).
+            </p>
+          </div>
+          <div class="rounded-xl bg-white/[0.03] border border-green-500/20 p-5">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="px-2 py-0.5 rounded text-xs font-mono bg-green-500/10 text-green-400 border border-green-500/20">CLEAN_INCLUDED</span>
+              <span class="text-sm text-white/70 font-medium">S0–S9 (Core strategies)</span>
+            </div>
+            <p class="text-xs text-white/40 leading-relaxed">
+              Production strategies use only <span class="font-mono text-green-400">CLEAN_INCLUDED</span>
+              data sources. Each allocation target has on-chain verifiable APY history and a confirmed
+              launch date. These are the strategies eligible for paper trading evidence accumulation
+              (1.0 point per clean day, 1.5 per extreme-market day) and eventual live capital deployment.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer Links -->
     <section class="py-16 border-t border-white/5">
       <div class="text-center">
