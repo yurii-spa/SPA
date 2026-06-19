@@ -1,0 +1,328 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="How SPA Works — Methodology | earn-defi.com"
+  description="The mechanics behind systematic, risk-gated DeFi yield management. Daily APY scan, deterministic risk gates, protocol adapters, strategy tournament."
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Methodology</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">Strategies</a>
+      <a
+        href="https://dashboard.earn-defi.com"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-12">
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+        How SPA Works
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+        The mechanics behind systematic, risk-gated DeFi yield management.
+      </p>
+    </section>
+
+    <!-- 1. What SPA Does -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What SPA Does</p>
+      <p class="text-white/60 leading-relaxed">
+        SPA is an autonomous yield optimizer for onchain stablecoins. It runs daily scans of
+        whitelisted DeFi lending protocols, applies a deterministic risk gate to every proposed
+        allocation, and rebalances between protocols when drift exceeds a threshold. There is
+        no discretionary human override in the execution path. There is no LLM in the execution path.
+      </p>
+    </section>
+
+    <!-- 2. What SPA Does Not Do -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What SPA Does Not Do</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          'Does not use leverage (Core/Preserve strategies)',
+          'Does not use unaudited protocols',
+          'Does not bypass RiskPolicy gates',
+          'Does not rely on LLMs for execution decisions',
+          'Does not hold non-stablecoin assets (Core/Preserve)',
+          'Does not make discretionary overrides',
+        ].map((item) => (
+          <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
+            <span class="text-sm text-white/50">{item}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 3. Daily APY Scan -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4">Daily APY Scan</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Every day, SPA executes a full scan of supported protocols to collect current yield data.
+      </p>
+      <div class="space-y-4">
+        {[
+          { label: 'Data source', value: 'DeFiLlama Yields API — primary APY feed' },
+          { label: 'Adapters', value: 'Dedicated read-only adapter per protocol' },
+          { label: 'Sanity check', value: 'APY bounds [2%, 40%] — anything outside triggers a flag' },
+          { label: 'Schedule', value: 'Daily cycle (automated via scheduler)' },
+          { label: 'Output', value: 'Timestamped JSON log per cycle' },
+        ].map((row) => (
+          <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <span class="text-xs text-white/30 font-mono uppercase tracking-wider w-32 flex-shrink-0">{row.label}</span>
+            <span class="text-sm text-white/60">{row.value}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 4. Data Sources -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Data Sources</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Primary</p>
+          <p class="text-sm text-white/60">DeFiLlama Yields API</p>
+          <p class="text-xs text-white/30 mt-1">Aggregated APY/TVL across all supported pools</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">On-Chain</p>
+          <p class="text-sm text-white/60">Protocol adapters (read-only)</p>
+          <p class="text-xs text-white/30 mt-1">Direct contract reads for position verification</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Oracles</p>
+          <p class="text-sm text-white/60">Chainlink / Pyth price feeds</p>
+          <p class="text-xs text-white/30 mt-1">Collateral checks for Max Yield strategy</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Logging</p>
+          <p class="text-sm text-white/60">All data sources logged per cycle</p>
+          <p class="text-xs text-white/30 mt-1">Full audit trail in timestamped JSON</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Protocol Adapters -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Protocol Adapters</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Each supported protocol has a dedicated read-only adapter. Adapters normalize APY, TVL,
+        and pool metadata into a standard format for the allocation engine. No write access at scan stage.
+      </p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <p class="text-xs text-white/30 font-mono mb-4">CURRENT ADAPTER REGISTRY — 10+ adapters</p>
+        <div class="flex flex-wrap gap-2">
+          {[
+            'Aave V3 (ETH)', 'Aave V3 (Base)', 'Morpho Blue (ETH)', 'Morpho Blue (Base)',
+            'Compound V3', 'Yearn V3', 'Euler V2', 'Sky/sUSDS', 'Spark', 'sFRAX',
+            'Pendle PT', 'Maple', 'Morpho Steakhouse',
+          ].map((adapter) => (
+            <span class="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-white/50 font-mono text-xs">
+              {adapter}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. RiskPolicy v1.0 Parameters -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4">RiskPolicy v1.0 Parameters</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        A deterministic, hard-coded gate. No human, no AI, no strategy can override these parameters.
+      </p>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Value</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">TVL floor</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">$500M minimum</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">25% of portfolio</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Tier 1 minimum allocation</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">60%</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Cash buffer</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">5%</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">APY lower bound</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">2% (avoid dust yields)</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">APY upper bound</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">40% (sanity cap)</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-red-400/80 font-mono">Monthly drawdown kill switch</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold">&minus;5%</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Max single-asset concentration</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">40%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7. Risk-Gated Rebalancing -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Risk-Gated Rebalancing</p>
+      <div class="space-y-4">
+        {[
+          'Rebalance triggered when allocation drift exceeds threshold',
+          'Each rebalance proposal checked against full RiskPolicy',
+          'If any gate fires → rebalance blocked, reason logged',
+          'Blocked rebalances visible in Dashboard → Risk Blocks tab',
+          'Human cannot override blocked rebalance in paper trading phase',
+        ].map((item) => (
+          <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+            <span class="text-sm text-white/50">{item}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 8. Strategy Tournament -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4">Strategy Tournament</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Multiple strategies compete on risk-adjusted performance. The tournament ensures only
+        the best-performing approach gets capital allocation.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Participants</p>
+          <p class="text-sm text-white/60">Strategies S0–S19 run in parallel on paper</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Scoring</p>
+          <p class="text-sm text-white/60">Risk-adjusted APY (Sharpe-weighted)</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Promotion</p>
+          <p class="text-sm text-white/60">Top performers promoted to paper track record</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Current Leader</p>
+          <p class="text-sm text-white/60">Core strategy (S7) — current tournament winner</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. Compounding and Logging -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Compounding & Logging</p>
+      <div class="space-y-3">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+          <span class="text-sm text-white/50">Yields compound daily (notional in paper mode)</span>
+        </div>
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+          <span class="text-sm text-white/50">Every cycle produces a timestamped JSON log</span>
+        </div>
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+          <span class="text-sm text-white/50">Logs available in Dashboard → Trades tab</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. GoLiveChecker -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">GoLiveChecker</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm text-white/60 font-medium">Criteria Status</span>
+          <span class="text-sm font-mono text-white">20<span class="text-white/30"> / 26 pass</span></span>
+        </div>
+        <div class="w-full bg-white/10 rounded-full h-2 mb-4">
+          <div class="bg-accent-500 h-2 rounded-full" style="width: 77%"></div>
+        </div>
+        <div class="space-y-2 text-sm text-white/40">
+          <p>26 criteria must pass before live deployment.</p>
+          <p>Failing criteria visible in Dashboard → GoLiveChecker tab.</p>
+          <p>Go-live target: <span class="text-white/60 font-mono">August 1, 2026</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11. Versioning / Changelog -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Versioning & Changelog</p>
+      <div class="space-y-3">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+          <span class="text-sm text-white/50">RiskPolicy is versioned (currently v1.0)</span>
+        </div>
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+          <span class="text-sm text-white/50">Changes require a documented ADR (Architecture Decision Record)</span>
+        </div>
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
+          <span class="text-sm text-white/50">All ADRs logged in repository with full rationale</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer Links -->
+    <section class="py-16 border-t border-white/5">
+      <div class="text-center">
+        <p class="text-sm text-white/30 mb-6">Continue your due diligence</p>
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            Risk Disclosure
+          </a>
+          <a href="/fees" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            Fee Structure
+          </a>
+          <a href="/strategies" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            All Strategies
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
