@@ -32,11 +32,11 @@ from __future__ import annotations
 import json
 import os
 import re
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
@@ -133,37 +133,8 @@ class GoLiveResult:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically: tmpfile in same dir + os.replace (rename)."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
-def _read_json(path: Path) -> Any:
-    """Read JSON defensively: missing/corrupt file → None (never raises)."""
-    path = Path(path)
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return None
-
-
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(obj, path)
 def _contains_demo_true(obj: Any) -> bool:
     """Recursively detect ``"is_demo": true`` anywhere in a parsed JSON doc."""
     if isinstance(obj, dict):
