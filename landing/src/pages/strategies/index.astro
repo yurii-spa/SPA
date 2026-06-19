@@ -1,0 +1,86 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import StrategyCard from '../../components/StrategyCard.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+import strategies from '../../data/strategy_config.json';
+---
+
+<Layout
+  title="Investment Strategies — SPA | earn-defi.com"
+  description="Three risk profiles for DeFi yield: Preserve, Core, and Max Yield. Deterministic risk gates, public paper track record. Variable APY, not guaranteed."
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Strategies</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/risk-disclosure" class="hover:text-white transition-colors hidden sm:inline">Risk Disclosure</a>
+      <a
+        href="https://dashboard.earn-defi.com"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="py-24 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+
+      <div class="text-center mb-6 max-w-2xl mx-auto">
+        <p class="text-accent-400 text-sm font-mono uppercase tracking-widest mb-3">Investment Strategies</p>
+        <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6 leading-tight">
+          One Framework. Three Risk Profiles.
+        </h1>
+        <p class="text-lg text-white/50 leading-relaxed">
+          Same deterministic risk engine. Same non-overridable gates. Different allocations
+          optimised for your risk tolerance. All APY figures are variable and not guaranteed.
+        </p>
+      </div>
+
+      <!-- Risk gradient bar -->
+      <div class="max-w-xl mx-auto mb-16">
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-white/30 font-mono whitespace-nowrap">Lower Risk</span>
+          <div class="flex-1 h-1.5 rounded-full bg-gradient-to-r from-blue-500 via-accent-400 to-amber-400 opacity-40"></div>
+          <span class="text-xs text-white/30 font-mono whitespace-nowrap">Higher Risk</span>
+        </div>
+      </div>
+
+      <!-- Strategy cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {strategies.strategies.map((strategy) => (
+          <StrategyCard strategy={strategy} />
+        ))}
+      </div>
+
+      <!-- Disclaimer -->
+      <p class="text-center text-xs text-white/20 max-w-2xl mx-auto mb-12">
+        {strategies.global.apy_disclaimer}
+      </p>
+
+      <!-- Back link -->
+      <div class="text-center">
+        <a href="/" class="text-sm text-white/40 hover:text-white/70 transition-colors">
+          &larr; Back to Homepage
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
