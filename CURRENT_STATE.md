@@ -1,8 +1,99 @@
 # CURRENT_STATE
-> Последнее обновление: **2026-06-13** | Спринт **v6.80** | Done: **553** задач
+> Последнее обновление: **2026-06-19** | Спринт **v9.70** | Done: **≈1072** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда KANBAN.json, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
+
+---
+
+## v9.70 Sprint Summary (2026-06-19) — MP-1354 CURRENT_STATE v9.70 + CPA Wave Summary
+
+**CPA Integration Wave COMPLETE** — 50 спринтов (v9.21–v9.70), 24 новых файла, ~500 тестов.
+
+| Поле | Значение |
+|---|---|
+| done_count | **≈1072** (KANBAN.json — source of truth) |
+| sprint_completed | **v9.70** |
+| CPA Integration Wave | **COMPLETE** (v9.21–v9.70, 50 спринтов) |
+| GoLiveReadinessReport | **NEW** — `spa_core/analytics/golive_readiness_report.py`, 52 теста |
+| 4-State Gate | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
+| Go-live status | **NOT_READY** — 29 дней трека до готовности (~2026-07-18) |
+
+### Recent Completions
+
+#### CPA Integration Wave (v9.21-v9.70) — 2026-06-19
+- 50 спринтов CPA интеграции
+- ~500 тестов в CPA модулях
+- 24 новых файла в `spa_core/backtesting/` и `spa_core/analytics/`
+- RS-001 (Anti-Crisis 18.2%) и RS-002 (Cashflow 29.2%) как RESEARCH_ONLY
+- 4-State Gate: Backtest✅ Pre-Paper✅ Paper⏳ Live🔒
+- Методология: earn-defi.com/methodology#cpa
+- Полная сводка: `docs/CPA_WAVE_SUMMARY.md`
+
+### Завершено в v9.69–v9.70
+
+| MP | Модуль | Тесты | Статус |
+|----|--------|-------|--------|
+| MP-1353 | `spa_core/analytics/golive_readiness_report.py` | 52 | ✅ |
+| MP-1354 | CURRENT_STATE.md v9.70 + `docs/CPA_WAVE_SUMMARY.md` | — | ✅ |
+
+---
+
+## v9.38 Sprint Summary (2026-06-19) — MP-1322 Documentation Refresh
+
+**CPA Integration Status: DONE** — все модули CPA handoff созданы и интегрированы.
+
+| Поле | Значение |
+|---|---|
+| done_count | **≈1018** (KANBAN.json — source of truth) |
+| sprint_completed | **v9.38** |
+| CPA Integration | **DONE** (pit_engine, gate, gate_api, s20/s21, source_pipeline, owner_acceptance, source_promotion_engine, gmx_research, gold_proxy_research, conc_lp_il_model, rs001/rs002_live_apy_engine, pre_paper_checklist) |
+| RS-001 (S20) | **RESEARCH_ONLY** mode — 76 тестов, 18.2% APY target |
+| RS-002 (S21) | **RESEARCH_ONLY** mode — 52 тестов, 29.24% gross APY |
+| Paper trading gate | **NOT_READY** — owner acceptance pending (blockers: hardening, expanded_universe, owner_sign) |
+| Pre-paper checklist | **36 тестов** — 5 категорий (gates/data_sources/infrastructure/owner_signoff/research_docs) |
+| Docs обновлены | `docs/CPA_INTEGRATION_STATUS.md`, `docs/backtest_handoff/INTEGRATION_SUMMARY.md` |
+
+### Завершено в v9.37–v9.38
+
+| MP | Модуль | Тесты | Статус |
+|----|--------|-------|--------|
+| MP-1321 | `spa_core/backtesting/pre_paper_checklist.py` | 36 | ✅ |
+| MP-1322 | CURRENT_STATE.md + docs/CPA_INTEGRATION_STATUS.md + docs/backtest_handoff/INTEGRATION_SUMMARY.md | — | ✅ |
+
+### CPA Backtest Gate Status (2026-06-19)
+
+| Gate | Status | Блокер |
+|---|---|---|
+| Pre-paper backtest (P0/P1A/P2) | ✅ PASS | — |
+| Hardening audit | ❌ NOT_PASS | Требует complete hardening checklist |
+| Expanded universe verification | ❌ STRICT_BLOCKED | P1B sources без evidence (Ethena/Maple/BTC/ETH) |
+| Owner acceptance | ❌ NOT_SIGNED | `python3 -m spa_core.backtesting.owner_acceptance --generate-draft` → подписать |
+| **Paper trading allowed** | **❌ NOT_READY** | 3 блокера выше |
+
+**Следующий шаг:** `python3 -m spa_core.backtesting.pre_paper_checklist --markdown` — актуальный чеклист.
+
+---
+
+## v9.37 Sprint Summary (2026-06-19) — MP-1321 Pre-Paper Launch Checklist
+
+**Pre-paper checklist** — автоматизированный чеклист 5 категорий (gates/data_sources/infrastructure/owner_signoff/research_docs), 36 тестов.
+
+| Проверка | Результат |
+|---|---|
+| G001 Pre-paper backtest gate | ✅ PASS |
+| G002 Hardening audit | ❌ FAIL |
+| G003 Expanded universe | ❌ FAIL |
+| D003 GMX adapter | ✅ PASS |
+| D004 Source pipeline JSON | ✅ PASS |
+| O001 Owner acceptance signed | 🚫 BLOCKED |
+| O002 Risk statement acknowledged | 🚫 BLOCKED |
+| R001 RS-001 exclusion report | ✅ PASS |
+| R002 RS-002 IL risk docs | ✅ PASS |
+| R003 CPA integration status doc | ✅ PASS |
+| **Всего тестов** | **36/36 PASS** |
+
+---
 
 ## Инфраструктура (launchd)
 
