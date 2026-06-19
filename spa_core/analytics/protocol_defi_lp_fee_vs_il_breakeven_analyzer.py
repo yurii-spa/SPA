@@ -59,6 +59,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants & paths
 # ---------------------------------------------------------------------------
@@ -279,7 +281,7 @@ def _analyze_single(
 # ---------------------------------------------------------------------------
 
 
-class ProtocolDeFiLPFeeVsILBreakevenAnalyzer:
+class ProtocolDeFiLPFeeVsILBreakevenAnalyzer(BaseAnalytics):
     """Calculate LP fee vs impermanent loss breakeven for DeFi pools.
 
     Usage
@@ -300,14 +302,21 @@ class ProtocolDeFiLPFeeVsILBreakevenAnalyzer:
         print(result["breakeven_days"])   # → ~days required to offset IL
     """
 
+    OUTPUT_PATH = "data/lp_fee_vs_il_breakeven_log.json"
+
     def __init__(
         self,
         data_dir: Optional[Path | str] = None,
         ring_cap: int = RING_BUFFER_CAP,
     ) -> None:
+        super().__init__()
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self._ring_cap = ring_cap
         self._last_result: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> dict:
+        """Returns last LP breakeven analysis result as JSON-serializable dict."""
+        return dict(self._last_result) if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
