@@ -8,15 +8,18 @@ Storage: data/apy_milestone_log.json
   - Atomic writes (mkstemp + os.replace)
   - Pure stdlib, no external dependencies
   - Read-only/advisory — never touches allocator/risk/execution
+
+MP-1406: Migrated to BaseAnalytics (Phase 1 — inheritance + to_dict only).
 """
 from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Milestone definitions
@@ -37,7 +40,7 @@ _LOG_FILENAME = "apy_milestone_log.json"
 # Tracker class
 # ---------------------------------------------------------------------------
 
-class ApyMilestoneTracker:
+class ApyMilestoneTracker(BaseAnalytics):
     """
     Tracks daily APY against milestone thresholds and persists the log.
 
@@ -47,13 +50,20 @@ class ApyMilestoneTracker:
         Directory for the log file. Defaults to <repo-root>/data/.
     """
 
+    OUTPUT_PATH = "data/apy_milestone_log.json"
+
     def __init__(self, data_dir: Optional[str | Path] = None) -> None:
+        super().__init__()  # sets self.base_dir = "."
         if data_dir is None:
             self._data_dir = _DEFAULT_DATA_DIR
         else:
             self._data_dir = Path(data_dir)
         self._log_path = self._data_dir / _LOG_FILENAME
         self._data: dict = self._load()
+
+    def to_dict(self) -> dict:
+        """Returns current in-memory milestone log state."""
+        return self._data
 
     # ------------------------------------------------------------------
     # Public API
@@ -244,21 +254,8 @@ class ApyMilestoneTracker:
     def _save(self) -> None:
         """Atomically write the log to disk (mkstemp + os.replace)."""
         self._data_dir.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(self._data, indent=2, ensure_ascii=False)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self._data_dir, prefix=".apy_milestone_tmp_", suffix=".json"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, self._log_path)
-        except Exception:
-            # Clean up temp file if replace failed
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(self._data, str(self._log_path))
 
 
 # ---------------------------------------------------------------------------
