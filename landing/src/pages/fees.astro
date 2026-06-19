@@ -1,0 +1,236 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Fee Structure — Transparent Fees | SPA earn-defi.com"
+  description="Transparent fee model with no hidden charges. 1.0% management fee, 10% performance fee above high-water mark. No fees during paper trading period."
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Fees</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">Strategies</a>
+      <a
+        href="https://dashboard.earn-defi.com"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-12">
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+        Fee Structure
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+        Transparent fee model with no hidden charges.
+      </p>
+    </section>
+
+    <!-- 1. Current Fee Model -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Current Fee Model</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+          <div class="text-4xl font-mono font-bold text-white mb-2">1.0%</div>
+          <div class="text-sm text-white/60 font-medium mb-3">Annual Management Fee</div>
+          <p class="text-xs text-white/35 leading-relaxed">
+            Early access rate. Accrued daily (AUM &times; 1.0% / 365). Applies to assets under management.
+          </p>
+        </div>
+        <div class="rounded-xl border border-accent-500/20 bg-accent-500/5 p-6">
+          <div class="text-4xl font-mono font-bold text-accent-400 mb-2">10%</div>
+          <div class="text-sm text-white/60 font-medium mb-3">Performance Fee</div>
+          <p class="text-xs text-white/35 leading-relaxed">
+            Charged on net profits above the high-water mark. If the portfolio declines,
+            no performance fee until the previous peak is recovered.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. High-Water Mark -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">High-Water Mark</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <p class="text-white/60 leading-relaxed">
+          The high-water mark is the previous peak value of the portfolio. Performance fee is only
+          charged on profits above this mark. If the portfolio declines, no performance fee is
+          collected until the previous peak is recovered. This aligns manager incentives with
+          investor outcomes — we only earn when you earn.
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. Paper Trading Period -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Paper Trading Period</p>
+      <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 flex items-start gap-3">
+        <span class="text-amber-400 flex-shrink-0 mt-0.5">&#9888;</span>
+        <div>
+          <p class="text-sm text-white/60 leading-relaxed mb-2">
+            During the paper trading period (through August 1, 2026), <strong class="text-white/80">no fees are charged</strong>.
+            Fee structure applies from go-live date only.
+          </p>
+          <p class="text-xs text-white/35">
+            Paper trading uses virtual $100,000 USDC — no real capital, no fee accrual.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Fee Example -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4">Illustrative Fee Example</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="space-y-4">
+          <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <span class="text-sm text-white/50">Starting AUM</span>
+            <span class="text-sm font-mono text-white">$100,000</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <span class="text-sm text-white/50">Gross yield (10% assumed)</span>
+            <span class="text-sm font-mono text-white">$10,000</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <span class="text-sm text-white/50">Management fee (1.0%)</span>
+            <span class="text-sm font-mono text-red-400/70">&minus;$1,000</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <span class="text-sm text-white/50">Performance fee (10% of $9,000)</span>
+            <span class="text-sm font-mono text-red-400/70">&minus;$900</span>
+          </div>
+          <div class="flex justify-between items-center py-2">
+            <span class="text-sm text-white font-medium">Net to investor</span>
+            <span class="text-sm font-mono text-accent-400 font-bold">$8,100 (8.1% net APY)</span>
+          </div>
+        </div>
+        <p class="text-xs text-white/25 mt-4">
+          Actual APY is variable and not guaranteed. This example is illustrative only.
+        </p>
+      </div>
+    </section>
+
+    <!-- 5. Strategy-Specific Fee Policy -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Strategy-Specific Fee Policy</p>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Strategy</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Mgmt Fee</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Performance Fee</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/60">Preserve</td>
+              <td class="px-5 py-3 text-white font-mono">1.0%</td>
+              <td class="px-5 py-3 text-white font-mono">10%</td>
+              <td class="px-5 py-3 text-white/40">Target profile — fee TBD</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60">Core</td>
+              <td class="px-5 py-3 text-white font-mono">1.0%</td>
+              <td class="px-5 py-3 text-white font-mono">10%</td>
+              <td class="px-5 py-3 text-white/40">Paper tracked — fee from go-live</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60">Max Yield</td>
+              <td class="px-5 py-3 text-white/40 font-mono">TBD</td>
+              <td class="px-5 py-3 text-white/40 font-mono">TBD</td>
+              <td class="px-5 py-3 text-white/40">Coming soon — fee TBD</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 6. FAQ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Frequently Asked Questions</p>
+      <div class="space-y-6">
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">When do fees start?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            From the go-live date (August 1, 2026 target). No fees are charged during the paper
+            trading period.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">How is the management fee calculated?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Daily accrual: AUM &times; 1.0% / 365. Settled at period end.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">What's a high-water mark?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            The previous portfolio peak. Performance fee is only charged on profits above it.
+            If the portfolio drops, no performance fee until it recovers to the previous high.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Are there withdrawal fees?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            No. (TBD based on final product design.)
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Will fees change?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Fee structure for launch is 1.0% / 10%. Post-launch reviews possible with 30-day advance notice.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-16 border-t border-white/5">
+      <div class="text-center">
+        <p class="text-sm text-white/30 mb-6">Continue your due diligence</p>
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a href="/methodology" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            Methodology
+          </a>
+          <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            Risk Disclosure
+          </a>
+          <a href="/strategies" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            All Strategies
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
