@@ -25,7 +25,6 @@ stdlib only. Atomic saves (tmp + os.replace).
 
 import json
 import os
-import tempfile
 from typing import Dict, List, Optional
 
 VALID_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "FOUND", "INTEGRATED", "CLEAN"]
@@ -224,22 +223,11 @@ class SourceAcquisitionTracker:
 
     def save(self) -> None:
         """Atomic save to tracker_path (tmp + os.replace)."""
-        os.makedirs(os.path.dirname(self.tracker_path) if os.path.dirname(self.tracker_path) else ".", exist_ok=True)
         payload = {
             "sources": [e.to_dict() for e in self._sources.values()],
         }
-        dir_path = os.path.dirname(os.path.abspath(self.tracker_path)) or "."
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2)
-            os.replace(tmp_path, self.tracker_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(payload, str(self.tracker_path))
 
     # ── Mutation ─────────────────────────────────────────────────────────────
 
