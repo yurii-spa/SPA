@@ -773,9 +773,10 @@ class TestImportHygiene(unittest.TestCase):
             self.assertNotIn(pattern, source, msg=f"LLM SDK pattern: {pattern}")
 
     def test_atomic_write_pattern_present(self):
+        # MP-1413: migrated to centralized atomic_save (spa_core.utils.atomic)
         source = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("os.replace", source)
-        self.assertIn("tempfile.mkstemp", source)
+        self.assertIn("atomic_save", source)
+        self.assertIn("from spa_core.utils.atomic import atomic_save", source)
 
     def test_content_fingerprint_imported_from_tear_sheet(self):
         source = _MODULE_PATH.read_text(encoding="utf-8")
