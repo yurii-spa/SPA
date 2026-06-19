@@ -64,7 +64,7 @@ import Footer from '../components/Footer.astro';
           'Does not use unaudited protocols',
           'Does not bypass RiskPolicy gates',
           'Does not rely on LLMs for execution decisions',
-          'Does not hold non-stablecoin assets (Core/Preserve)',
+          'Does not hold non-stablecoin assets',
           'Does not make discretionary overrides',
         ].map((item) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
@@ -228,7 +228,7 @@ import Footer from '../components/Footer.astro';
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Participants</p>
-          <p class="text-sm text-white/60">Strategies S0–S19 run in parallel on paper</p>
+          <p class="text-sm text-white/60">Multiple strategies run in parallel on paper</p>
         </div>
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Scoring</p>
@@ -240,7 +240,70 @@ import Footer from '../components/Footer.astro';
         </div>
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Current Leader</p>
-          <p class="text-sm text-white/60">Core strategy (S7) — current tournament winner</p>
+          <p class="text-sm text-white/60">Core strategy — current tournament winner</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Strategy Profiles -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Strategy Profiles</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        SPA offers three strategy profiles: Preserve, Core, and Max Yield. Each has a distinct
+        risk/return target and validation status.
+      </p>
+      <div class="space-y-4">
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-800 text-xs text-green-400 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-400" aria-hidden="true"></span>
+              Paper Tracked
+            </span>
+            <span class="text-sm text-white font-semibold">Core</span>
+          </div>
+          <p class="text-xs text-white/40">Paper tracked since June 10, 2026. Verified performance data available on dashboard.</p>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+              Validation Pending
+            </span>
+            <span class="text-sm text-white font-semibold">Preserve / Max Yield</span>
+          </div>
+          <p class="text-xs text-white/40">Target profile defined. Paper tracking not yet started. No historical performance data.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Assets -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Supported Assets</p>
+      <p class="text-sm text-white/40 mb-4 leading-relaxed">
+        SPA operates exclusively with stablecoins. Minimum asset set for private MVP:
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3">USDT</p>
+          <ul class="space-y-2 text-sm text-white/50">
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              TRC-20 (Tron)
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              ERC-20 (Ethereum)
+            </li>
+          </ul>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3">USDC</p>
+          <ul class="space-y-2 text-sm text-white/50">
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              ERC-20 (Ethereum)
+            </li>
+          </ul>
         </div>
       </div>
     </section>
