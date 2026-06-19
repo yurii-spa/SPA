@@ -38,9 +38,10 @@ import json
 import math
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.base import BaseAnalytics
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ class EvidenceDay:
 
 # ─── PaperEvidenceTrackerV2 ───────────────────────────────────────────────────
 
-class PaperEvidenceTrackerV2:
+class PaperEvidenceTrackerV2(BaseAnalytics):
     """
     Accumulates EvidenceDay records and measures CPA evidence sufficiency.
 
@@ -159,13 +160,25 @@ class PaperEvidenceTrackerV2:
     Stdlib only — no external dependencies.
     """
 
+    OUTPUT_PATH = "data/paper/evidence_v2.json"
+
     SUFFICIENT_EVIDENCE_POINTS: float = 30.0
     RING_BUFFER_CAP: int = 100
 
     def __init__(self, path: str = DEFAULT_PATH) -> None:
+        super().__init__()
         self.path = path
         self._days: List[EvidenceDay] = []
         self._load()
+
+    def to_dict(self) -> dict:
+        """Returns accumulated evidence days as JSON-serializable dict."""
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "sufficient_threshold": self.SUFFICIENT_EVIDENCE_POINTS,
+            "ring_buffer_cap": self.RING_BUFFER_CAP,
+            "days": [d.to_dict() for d in self._days],
+        }
 
     # ── Record ────────────────────────────────────────────────────────────────
 
@@ -291,17 +304,8 @@ class PaperEvidenceTrackerV2:
             "days": [d.to_dict() for d in self._days],
         }
 
-        fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as fh:
-                json.dump(payload, fh, indent=2)
-            os.replace(tmp, str(path))
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(payload, str(path))
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
