@@ -1,5 +1,14 @@
 # Sprint Log
 
+## v9.02 — 2026-06-19
+
+**Sprint:** v9.02  
+**Module:** MP-1257 GrossOfLiquidityMiningOpportunityCostAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 956 total=706  
+**Description:** perf-fee gross-of-liquidity-mining-opportunity-cost base gap (opportunity cost of deploying capital into low-liquidity mining programs vs. higher-yield alternatives: when a vault participates in liquidity mining — COMP rewards on Compound, AAVE safety-module staking, CRV gauge emissions, CVX vote-incentives, LDO staking incentives — the locked capital forgoes alternative yield; this implicit opportunity cost should be deducted from GROSS yield before performance fee; distinct from lp_amm_fee AMM transaction fee drag, yield_aggregator_platform_fee aggregator management fee, withdrawal_delay_cost time-value of withdrawal queues)
+
 ## v9.00 — 2026-06-19
 
 **Sprint:** v9.00  
