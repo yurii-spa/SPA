@@ -1,8 +1,38 @@
 # CURRENT_STATE
-> Последнее обновление: **2026-06-19** | Спринт **v9.70** | Done: **≈1072** задач
+> Последнее обновление: **2026-06-19** | Спринт **v10.0** | Done: **1107** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда KANBAN.json, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
+
+---
+
+## SPA v10.0 reached — 2026-06-19
+
+> 🎉 **Milestone v10.0** — первый стабильный pre-paper-trading релиз.
+> Release Notes: [`docs/RELEASE_NOTES_v10.md`](docs/RELEASE_NOTES_v10.md)
+
+### Version: v10.0.0
+
+| Поле | Значение |
+|---|---|
+| version | **10.0.0** |
+| done_count | **1107** (KANBAN.json — source of truth) |
+| sprint_completed | **v10.0** |
+| Public API | `import spa_core` → BacktestGate, PITEngine, RS001LiveAPYEngine, … |
+| Tests (v9.99) | **29 tests green** (`tests/test_spa_public_api.py`) |
+| Gate Status | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
+| Go-live target | **2026-08-01** (~30 days from paper trading start) |
+
+### Sprint v10.0 Summary (2026-06-19) — MP-1383/MP-1384
+
+| MP | Файл | Описание |
+|----|------|----------|
+| MP-1383 | `spa_core/version.py` | VERSION = "10.0.0" |
+| MP-1383 | `spa_core/__init__.py` | Public API (BacktestGate, PITEngine, RS001/RS002, atomic_save, …) |
+| MP-1383 | `spa_core/utils/errors.py` | Typed error catalog (SPAError, GateError, SourceError) |
+| MP-1383 | `tests/test_spa_public_api.py` | 29 acceptance tests — все зелёные |
+| MP-1384 | `docs/RELEASE_NOTES_v10.md` | Release Notes v10.0 |
+| MP-1384 | `KANBAN.json` | done_count+2, sprint_completed=v10.0, version=10.0.0 |
 
 ---
 
