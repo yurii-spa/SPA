@@ -1,0 +1,486 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+import strategies from '../../data/strategy_config.json';
+
+const global = strategies.global;
+---
+
+<Layout
+  title="Research Strategies — RS-001 Anti-Crisis & RS-002 Cashflow | SPA earn-defi.com"
+  description="Research-stage strategies RS-001 (Anti-Crisis, 18.2% target) and RS-002 (Cashflow / Concentrated LP, 29.24% gross target). Not in strict evidence mode. Due diligence overview."
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors">Strategies</a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Research</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">All Strategies</a>
+      <a
+        href="/dashboard"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- 1. Hero -->
+    <section class="pt-20 pb-12">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-700/50 text-xs text-purple-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-400" aria-hidden="true"></span>
+        Research Only — Not in Strict Evidence Mode
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+        Research Strategies
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+        RS-001 and RS-002 are research projections. They require point-in-time
+        historical data before entering strict backtest mode and cannot accept
+        allocations until all validation criteria are met.
+      </p>
+    </section>
+
+    <!-- 2. Important disclaimer banner -->
+    <section class="pb-10">
+      <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5 flex items-start gap-4">
+        <span class="text-amber-400 text-xl flex-shrink-0 mt-0.5" aria-hidden="true">⚠</span>
+        <div>
+          <p class="text-sm font-semibold text-amber-300 mb-1">Research Projections — Not Historical Evidence</p>
+          <p class="text-sm text-white/50 leading-relaxed">
+            These strategies use placeholder APYs for components without point-in-time
+            historical data. Target returns are modelled projections, not verified
+            track records. Do not use for capital allocation decisions.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- RS-001: Anti-Crisis Basket -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1">RS-001</p>
+          <h2 class="text-2xl font-bold text-white">Anti-Crisis Basket</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex gap-1" aria-label="Risk level: 2 of 3">
+            <span class="inline-block w-8 h-3 rounded-sm bg-orange-400" aria-hidden="true"></span>
+            <span class="inline-block w-8 h-3 rounded-sm bg-orange-400" aria-hidden="true"></span>
+            <span class="inline-block w-8 h-3 rounded-sm bg-white/10" aria-hidden="true"></span>
+          </div>
+          <span class="text-white/60 text-sm font-medium">Moderate-High Risk</span>
+        </div>
+      </div>
+
+      <!-- Target APY -->
+      <div class="mb-6">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-4xl font-mono font-bold text-orange-400">18.2%</span>
+          <span class="text-sm text-white/30 font-mono">research projection</span>
+        </div>
+      </div>
+
+      <!-- Allocation table -->
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Allocation</p>
+      <div class="overflow-x-auto rounded-xl border border-white/10 mb-6">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Component</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Weight</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">APY Target</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Data Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">GMX BTC Exposure</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">20%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">15% APY target</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">GMX ETH Exposure</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">10%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">15% APY target</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">BTC Stable Pool</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">35%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">25% APY target</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">ETH Aggressive Pool</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">5%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">45% APY target</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">Gold Proxy</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">15%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">15% APY target</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">Stablecoin T1</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">15%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">3% APY target</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/25 text-xs text-teal-400 font-mono">LIVE DATA</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RS-001 caveats -->
+      <div class="space-y-3">
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-xs text-white/50 leading-relaxed">
+            <span class="text-orange-400 font-semibold">Strict eligible: 15%</span> (Stablecoin T1 only).
+            85% of allocation has no point-in-time historical data and cannot be backtested in strict mode.
+          </p>
+        </div>
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-xs text-white/50 leading-relaxed">
+            <span class="text-orange-400 font-semibold">Label caveat:</span> "Anti-Crisis" requires validation —
+            70% of this strategy is crypto exposure (GMX BTC/ETH, BTC pool, ETH pool).
+            Gold proxy (15%) provides partial crisis hedge; stablecoin T1 (15%) provides
+            the only guaranteed stable component. In a severe crypto crash, this strategy
+            is expected to underperform relative to its "anti-crisis" label.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- RS-002: Cashflow / Concentrated LP -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1">RS-002</p>
+          <h2 class="text-2xl font-bold text-white">Cashflow / Concentrated LP</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex gap-1" aria-label="Risk level: 3 of 3">
+            <span class="inline-block w-8 h-3 rounded-sm bg-red-500" aria-hidden="true"></span>
+            <span class="inline-block w-8 h-3 rounded-sm bg-red-500" aria-hidden="true"></span>
+            <span class="inline-block w-8 h-3 rounded-sm bg-red-500" aria-hidden="true"></span>
+          </div>
+          <span class="text-white/60 text-sm font-medium">Aggressive Risk</span>
+        </div>
+      </div>
+
+      <!-- Target APY + IL warning -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY (Gross)</p>
+          <div class="flex items-baseline gap-2">
+            <span class="text-4xl font-mono font-bold text-red-400">29.24%</span>
+            <span class="text-sm text-white/30 font-mono">gross, before IL</span>
+          </div>
+          <p class="text-xs text-white/25 mt-1">
+            Net estimate: 12–18% sideways · 3% trending · negative in crash
+          </p>
+        </div>
+        <div class="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3">
+          <span class="text-red-400 flex-shrink-0 mt-0.5 text-sm" aria-hidden="true">⚠</span>
+          <p class="text-xs text-white/50 leading-relaxed">
+            <span class="text-red-400 font-semibold">IL Warning:</span> Concentrated LP at 40% APY gross
+            loses 15–25% to impermanent loss at typical BTC volatility.
+            Net APY is significantly lower than the headline figure.
+          </p>
+        </div>
+      </div>
+
+      <!-- Allocation table -->
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Allocation</p>
+      <div class="overflow-x-auto rounded-xl border border-white/10 mb-6">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Component</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Weight</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Gross APY</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Data Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">BTC/USD Concentrated LP</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">60%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">40% gross APY</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">RWA Concentrated LP</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">10%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">18% APY</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">Trader Losses Vault</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">14%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">20% APY</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/70 font-mono">Stablecoin Deposit</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">16%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">4% APY</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/25 text-xs text-teal-400 font-mono">LIVE DATA</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RS-002 caveats -->
+      <div class="space-y-3">
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-xs text-white/50 leading-relaxed">
+            <span class="text-red-400 font-semibold">Strict eligible: 16%</span> (Stablecoin Deposit only).
+            The 60% BTC/USD Concentrated LP position has no IL-adjusted point-in-time historical series.
+          </p>
+        </div>
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-xs text-white/50 leading-relaxed">
+            <span class="text-red-400 font-semibold">Net APY scenarios:</span>
+            The 29.24% figure is gross blended APY before impermanent loss and execution costs.
+            Typical BTC volatility (40% annualized) erodes 10–15% from concentrated LP positions.
+            In trending BTC markets (crash or strong rally), concentrated LP positions
+            go out-of-range and fee income stops — the position effectively holds one asset
+            while the other moves away. Net APY can be negative in severe moves.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Scenario Matrix Summary -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Stress Scenario Matrix (MP-1313)</p>
+      <p class="text-sm text-white/40 leading-relaxed mb-6">
+        120 stress scenarios (60 per strategy) have been modelled covering BTC crashes,
+        volatility regimes, market regimes, and tail-risk events. These are
+        mathematical projections using placeholder APY assumptions — not evidence-grade results.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <p class="text-xs text-orange-400/70 uppercase tracking-wider font-mono mb-3">RS-001 Scenario Summary</p>
+          <div class="space-y-2 text-sm text-white/50">
+            <div class="flex justify-between">
+              <span>Scenarios run</span>
+              <span class="text-white font-mono">60</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Dimensions</span>
+              <span class="text-white font-mono">BTC move × regime × duration</span>
+            </div>
+            <div class="flex justify-between">
+              <span>IL drag</span>
+              <span class="text-white font-mono">0% (no LP)</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Edge cases</span>
+              <span class="text-white font-mono">6 (black swan, depeg…)</span>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <p class="text-xs text-red-400/70 uppercase tracking-wider font-mono mb-3">RS-002 Scenario Summary</p>
+          <div class="space-y-2 text-sm text-white/50">
+            <div class="flex justify-between">
+              <span>Scenarios run</span>
+              <span class="text-white font-mono">60</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Dimensions</span>
+              <span class="text-white font-mono">BTC move × vol × range</span>
+            </div>
+            <div class="flex justify-between">
+              <span>IL drag</span>
+              <span class="text-white font-mono">applied to 70% LP weight</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Edge cases</span>
+              <span class="text-white font-mono">6 (flash crash, vol spike…)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- What's needed before these strategies go live -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What's Needed Before These Strategies Go Live</p>
+      <div class="space-y-3">
+
+        <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">1</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Clean point-in-time historical data for each component</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+              Each allocation leg requires a verifiable APY/return series with source attribution.
+              DeFiLlama or equivalent point-in-time feed required — no placeholder assumptions.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">2</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium">IL-adjusted backtests for all LP components (RS-002)</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+              Concentrated LP positions must be backtested with realistic impermanent loss
+              modelling. Gross APY numbers are not sufficient for allocation decisions.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">3</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Venue and protocol identity verification</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+              All unspecified pools (BTC Stable Pool, ETH Aggressive Pool, Gold Proxy,
+              RWA Conc LP, Trader Losses Vault) must be mapped to specific on-chain venues
+              with audit records and TVL history.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">4</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Owner acceptance of each strategy's risk classification</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+              RS-001's "Anti-Crisis" label requires explicit acknowledgement that 70%
+              of the allocation is crypto-correlated. RS-002's gross/net gap must be
+              acknowledged in writing before allocation.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">5</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium">Paper trading period (minimum 30 days)</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+              Once strict data is accepted, both strategies must complete at least 30 days
+              of paper trading with live adapter data before any real capital is deployed.
+              Standard GoLiveChecker criteria (ADR-002) apply.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Compare with live strategies -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Compare with Live Strategies</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        If you're looking for strategies currently in paper tracking with verified data,
+        see the live strategy pages below.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/strategies/preserve" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-xs text-teal-400/70 font-mono uppercase tracking-wider mb-2">Preserve</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90">~6% APY</p>
+          <p class="text-xs text-white/35">Capital-preservation · T1 only · Lower risk</p>
+        </a>
+        <a href="/strategies/core" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-xs text-accent-400/70 font-mono uppercase tracking-wider mb-2">Core</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90">6–14% APY</p>
+          <p class="text-xs text-white/35">Paper tracked · T1+T2 · Medium risk</p>
+        </a>
+        <a href="/strategies/max-yield" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-xs text-orange-400/70 font-mono uppercase tracking-wider mb-2">Max Yield</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90">14–28% APY</p>
+          <p class="text-xs text-white/35">Higher yield · Tournament-optimised</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-16 border-t border-white/5">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white mb-4">Due Diligence Questions?</h2>
+        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed">
+          RS-001 and RS-002 are in research mode and not yet accepting allocations.
+          For questions about the methodology, data requirements, or timeline to
+          strict mode, reach out directly.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+          <a
+            href="/dashboard"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
+          >
+            Access Dashboard
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
+              <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
+            </svg>
+          </a>
+          <a
+            href="/strategies"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
+          >
+            ← All Strategies
+          </a>
+        </div>
+        <p class="text-sm text-white/30">
+          Contact: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
