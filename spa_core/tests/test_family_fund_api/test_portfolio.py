@@ -134,6 +134,43 @@ class TestPerformanceEndpoint:
         ).status_code == 200
 
 
+class TestAttribution:
+    def test_attribution_default(self, client: TestClient, investor_token):
+        r = client.get("/portfolio/attribution", headers=auth_header(investor_token))
+        assert r.status_code == 200
+        body = r.json()
+        assert "items" in body
+        assert "period_days" in body
+        assert body["period_days"] == 7
+        assert isinstance(body["items"], list)
+
+    def test_attribution_custom_period(self, client: TestClient, investor_token):
+        r = client.get("/portfolio/attribution?days=30", headers=auth_header(investor_token))
+        assert r.status_code == 200
+        assert r.json()["period_days"] == 30
+
+    def test_attribution_items_have_fields(self, client: TestClient, investor_token):
+        r = client.get("/portfolio/attribution", headers=auth_header(investor_token))
+        items = r.json()["items"]
+        if items:
+            item = items[0]
+            assert "protocol" in item
+            assert "yield_usd" in item
+            assert "yield_pct" in item
+            assert "apy" in item
+            assert "days_active" in item
+
+    def test_attribution_requires_auth(self, client: TestClient):
+        r = client.get("/portfolio/attribution")
+        assert r.status_code in (401, 403)
+
+    def test_attribution_sorted_by_yield_desc(self, client: TestClient, investor_token):
+        r = client.get("/portfolio/attribution?days=30", headers=auth_header(investor_token))
+        items = r.json()["items"]
+        yields = [float(it["yield_usd"]) for it in items]
+        assert yields == sorted(yields, reverse=True)
+
+
 class TestMissingData:
     def test_portfolio_handles_missing_files(self, client: TestClient, investor_token, data_dir):
         # удаляем файлы — endpoint не должен падать с 500
