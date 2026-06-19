@@ -10,6 +10,8 @@ Design constraints
 * Atomic writes: tmp-file + os.replace on every save.
 * Ring-buffer: data/protocol_risk_scores.json capped at MAX_ENTRIES=100.
 * LLM_FORBIDDEN domain: NOT imported from risk / execution / monitoring.
+
+MP-1406: Migrated to BaseAnalytics (Phase 1 — inheritance + to_dict only).
 """
 from __future__ import annotations
 
@@ -19,6 +21,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
+
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -71,11 +75,18 @@ class ProtocolRiskScore:
 # Scorer
 # ---------------------------------------------------------------------------
 
-class ProtocolRiskScorer:
+class ProtocolRiskScorer(BaseAnalytics):
     """Score one or many protocols and persist results atomically."""
 
+    OUTPUT_PATH = "data/protocol_risk_scores.json"
+
     def __init__(self, data_file: Path = DATA_FILE) -> None:
+        super().__init__()  # sets self.base_dir = "."
         self.data_file = data_file
+
+    def to_dict(self) -> dict:
+        """Returns current scoring history as JSON-serializable dict."""
+        return {"history": self.load_history()}
 
     # ------------------------------------------------------------------
     # Sub-scorers (each returns 0-100, higher = safer)
