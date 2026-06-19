@@ -23,6 +23,8 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, Tuple
 
+from spa_core.base import BaseAnalytics
+
 
 # ── Configuration dataclass ───────────────────────────────────────────────────
 
@@ -43,7 +45,7 @@ class InvestmentMemoConfig:
 
 # ── Main class ────────────────────────────────────────────────────────────────
 
-class InvestmentMemoGenerator:
+class InvestmentMemoGenerator(BaseAnalytics):
     """
     Generates a professional investment memo in Markdown format.
 
@@ -58,6 +60,8 @@ class InvestmentMemoGenerator:
         path = gen.save()
     """
 
+    OUTPUT_PATH = "docs/INVESTMENT_MEMO.md"
+
     def __init__(
         self,
         config: Optional[InvestmentMemoConfig] = None,
@@ -68,9 +72,19 @@ class InvestmentMemoGenerator:
             config:   Fee and terms configuration. Defaults to InvestmentMemoConfig().
             base_dir: Repository root (for locating the docs/ output directory).
         """
+        super().__init__(base_dir)
         self._config = config if config is not None else InvestmentMemoConfig()
         self._base_dir = Path(base_dir)
         self._doc_date = date.today().isoformat()
+
+    def to_dict(self) -> dict:
+        """Returns memo metadata as JSON-serializable dict."""
+        return {
+            "doc_date": self._doc_date,
+            "mgmt_fee_pct": self._config.mgmt_fee_pct,
+            "perf_fee_pct": self._config.perf_fee_pct,
+            "output_path": self.OUTPUT_PATH,
+        }
 
     # ── Sections ──────────────────────────────────────────────────────────────
 
