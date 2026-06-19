@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-06-19T00:00:00+00:00",
+  "sources": {
+    "aave_v2_usdc": "clean_included",
+    "compound_v2_usdc": "clean_included",
+    "aave_v3_usdc": "clean_included",
+    "compound_v3_usdc": "clean_included",
+    "aave_v3_base": "clean_included",
+    "morpho_blue": "clean_included",
+    "sky_susds": "clean_included",
+    "sfrax": "clean_included",
+    "pendle_pt_susde": "manual_proxy",
+    "ethena_usde": "manual_proxy",
+    "morpho_steakhouse": "pending",
+    "yearn_v3_yvusdc": "pending",
+    "euler_v2_usdc": "pending",
+    "maple_syrupusdc": "review",
+    "btc_yield": "source_needed",
+    "eth_staking": "source_needed",
+    "gmx_btc": "source_needed",
+    "gmx_eth": "source_needed",
+    "btc_stable_pool": "source_needed",
+    "gold_proxy": "source_needed",
+    "btc_usd_conc_liq": "source_needed",
+    "rwa_conc_liq": "source_needed",
+    "trader_losses_vault": "source_needed",
+    "delta_neutral": "research_only"
+  },
+  "audit_log": []
+}
