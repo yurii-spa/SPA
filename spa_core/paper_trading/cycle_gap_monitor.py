@@ -24,10 +24,10 @@ import json
 import logging
 import os
 import re
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.cycle_gap_monitor")
 
@@ -65,37 +65,8 @@ def _read_json(path: Path, default: Any) -> Any:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically: mkstemp in the same dir + os.replace.
-
-    On any failure the .tmp file is cleaned up and a warning is logged.
-    Never raises.
-    """
-    path = Path(path)
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_name = tempfile.mkstemp(
-            dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(obj, fh, ensure_ascii=False, indent=2)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_name, str(path))
-        except Exception:
-            try:
-                if os.path.exists(tmp_name):
-                    os.remove(tmp_name)
-            except OSError:
-                pass
-            raise
-    except Exception as exc:
-        log.warning("_atomic_write_json: failed for %s — %s", path.name, exc)
-
-
-# ─── Last-cycle timestamp resolution ─────────────────────────────────────────
-
-
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(obj, path)
 def _get_last_cycle_ts(data_dir: Path) -> str | None:
     """Resolve the last cycle timestamp from status or cycle_log.
 
