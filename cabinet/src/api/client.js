@@ -131,6 +131,8 @@ async function request(path, { method = 'GET', body, headers, raw, _retried } = 
 export const api = {
   get: (path, opts) => request(path, { ...opts, method: 'GET' }),
   post: (path, body, opts) => request(path, { ...opts, method: 'POST', body }),
+  put: (path, body, opts) => request(path, { ...opts, method: 'PUT', body }),
+  del: (path, opts) => request(path, { ...opts, method: 'DELETE' }),
 
   // OAuth2 password flow — backend expects x-www-form-urlencoded.
   async login(username, password) {
