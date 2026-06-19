@@ -1,5 +1,14 @@
 # Sprint Log
 
+## v9.04 — 2026-06-19
+
+**Sprint:** v9.04  
+**Module:** MP-1259 GrossOfImpermanentLossPremiumAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 958 total=708  
+**Description:** perf-fee gross-of-impermanent-loss-premium base gap (expected impermanent loss cost for DeFi vaults that provide liquidity to AMMs — Uniswap V3 concentrated LP, Balancer weighted pools, Curve stableswap — IL occurs when relative prices of paired assets diverge after liquidity deposit; this expected IL should be deducted from GROSS yield before performance fee; distinct from lp_amm_fee AMM transaction fee paid by traders, basis_risk_premium hedge imperfection cost, lst_peg_slippage one-time price impact on LST swaps)
+
 ## v9.02 — 2026-06-19
 
 **Sprint:** v9.02  
