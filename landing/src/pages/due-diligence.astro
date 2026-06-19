@@ -1,0 +1,297 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Due Diligence Center — SPA earn-defi.com"
+  description="Everything a serious allocator needs to evaluate SPA. Current status, live data links, protocol whitelist, audit status, and documentation."
+  canonical="https://earn-defi.com/due-diligence"
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <a href="/" class="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+      </svg>
+      <span class="text-sm">Back to earn-defi.com</span>
+    </a>
+    <span class="text-xs text-white/20 font-mono">due-diligence</span>
+  </nav>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+
+    <!-- Header -->
+    <div class="mb-12">
+      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3">Proof Layer</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Due Diligence Center</h1>
+      <p class="text-white/50 text-lg leading-relaxed">
+        Everything a serious allocator needs to evaluate SPA.
+      </p>
+    </div>
+
+    <!-- Current Status -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Current Status</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-center">
+          <p class="text-xs text-white/30 font-mono mb-1">Mode</p>
+          <p class="text-sm text-amber-400/80 font-medium">Paper Trading</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-center">
+          <p class="text-xs text-white/30 font-mono mb-1">Capital</p>
+          <p class="text-sm text-white/70 font-medium">$100k USDC</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-center">
+          <p class="text-xs text-white/30 font-mono mb-1">Start</p>
+          <p class="text-sm text-white/70 font-medium">Jun 10, 2026</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-center">
+          <p class="text-xs text-white/30 font-mono mb-1">Go-Live</p>
+          <p class="text-sm text-white/70 font-medium">Aug 1, 2026</p>
+        </div>
+      </div>
+      <div class="mt-4 rounded-lg border border-green-400/20 bg-green-400/5 p-4 flex items-center justify-between">
+        <div>
+          <p class="text-sm text-white/70">GoLiveChecker</p>
+          <p class="text-xs text-white/40">Automated readiness criteria</p>
+        </div>
+        <span class="text-sm font-mono text-green-400">20/26 passing</span>
+      </div>
+    </section>
+
+    <!-- Strategy Status -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Strategy Status</h2>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.02]">
+              <th class="text-left text-white/40 font-mono text-xs p-3">Strategy</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3">Status</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3">Paper Tracking</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3">Go-Live</th>
+            </tr>
+          </thead>
+          <tbody class="text-white/55">
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70 font-medium">Preserve</td>
+              <td class="p-3"><span class="text-xs font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded">Target profile</span></td>
+              <td class="p-3 text-white/40">Not yet active</td>
+              <td class="p-3 text-white/40">TBD post-Core</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70 font-medium">Core</td>
+              <td class="p-3"><span class="text-xs font-mono text-green-400/70 bg-green-400/10 px-2 py-0.5 rounded">Paper tracked</span></td>
+              <td class="p-3 text-white/60">Since Jun 10, 2026</td>
+              <td class="p-3 text-white/60">Aug 1, 2026 target</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-white/70 font-medium">Max Yield</td>
+              <td class="p-3"><span class="text-xs font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded">Coming soon</span></td>
+              <td class="p-3 text-white/40">Not yet active</td>
+              <td class="p-3 text-white/40">TBD</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Live Data Links -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Live Data Links</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="/#live-stats" class="rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-green-400/30 transition-colors group">
+          <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">Dashboard</p>
+          <p class="text-xs text-white/40">Live paper metrics: Track Days, APY, Sharpe, Drawdown</p>
+        </a>
+        <a href="/#live-stats" class="rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-green-400/30 transition-colors group">
+          <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">Risk Blocks</p>
+          <p class="text-xs text-white/40">All blocked rebalances logged and timestamped</p>
+        </a>
+        <a href="/#live-stats" class="rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-green-400/30 transition-colors group">
+          <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">Trade Logs</p>
+          <p class="text-xs text-white/40">Every cycle logged with reasoning</p>
+        </a>
+        <a href="/#live-stats" class="rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-green-400/30 transition-colors group">
+          <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">GoLiveChecker</p>
+          <p class="text-xs text-white/40">20/26 criteria — real-time readiness</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- Documentation -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Documentation</h2>
+      <div class="space-y-3">
+        <a href="/trust" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
+          <div>
+            <p class="text-sm text-white/80 group-hover:text-white">Trust Architecture</p>
+            <p class="text-xs text-white/40">Control model, custody, 9 key questions</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+          </svg>
+        </a>
+        <a href="/risk" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
+          <div>
+            <p class="text-sm text-white/80 group-hover:text-white">Risk</p>
+            <p class="text-xs text-white/40">Categories, matrix, stress scenarios</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+          </svg>
+        </a>
+        <a href="/risk-disclosure" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
+          <div>
+            <p class="text-sm text-white/80 group-hover:text-white">Risk Disclosure</p>
+            <p class="text-xs text-white/40">Full legal disclosure</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+          </svg>
+        </a>
+        <div class="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.01] p-4 opacity-50">
+          <div>
+            <p class="text-sm text-white/60">Security Baseline</p>
+            <p class="text-xs text-white/30">Coming soon</p>
+          </div>
+          <span class="text-xs text-white/20 font-mono">planned</span>
+        </div>
+        <div class="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.01] p-4 opacity-50">
+          <div>
+            <p class="text-sm text-white/60">Emergency Withdrawal</p>
+            <p class="text-xs text-white/30">Coming soon</p>
+          </div>
+          <span class="text-xs text-white/20 font-mono">planned</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Protocol Whitelist -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Protocol Whitelist</h2>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.02]">
+              <th class="text-left text-white/40 font-mono text-xs p-3">Protocol</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3">Tier</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3">Chain</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3">TVL</th>
+            </tr>
+          </thead>
+          <tbody class="text-white/55">
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Aave V3</td>
+              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$15B+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Compound V3</td>
+              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$3B+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Morpho Blue</td>
+              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$4B+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Spark</td>
+              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$5B+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Sky/sUSDS</td>
+              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span> <span class="text-xs text-white/30">(conditional)</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$8B+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Yearn V3</td>
+              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$500M+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Euler V2</td>
+              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3">Ethereum</td>
+              <td class="p-3">$500M+</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="p-3 text-white/70">Aave V3</td>
+              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3">Base</td>
+              <td class="p-3">$2B+</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-white/70">Morpho Blue</td>
+              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3">Base</td>
+              <td class="p-3">$500M+</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Audit & Review Status -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Audit &amp; Review Status</h2>
+      <div class="space-y-4">
+        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-white/20"></span>
+          <div>
+            <p class="text-sm text-white/70">Smart contract audits</p>
+            <p class="text-xs text-white/40">Not yet applicable (paper trading phase, no live contracts)</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-green-400/60"></span>
+          <div>
+            <p class="text-sm text-white/70">Code review</p>
+            <p class="text-xs text-white/40">Internal review complete</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-amber-400/60"></span>
+          <div>
+            <p class="text-sm text-white/70">External audit</p>
+            <p class="text-xs text-white/40">Planned before go-live</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-amber-400/60"></span>
+          <div>
+            <p class="text-sm text-white/70">Bug bounty</p>
+            <p class="text-xs text-white/40">Not yet active &mdash; planned for go-live</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Contact for Diligence Call</h2>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <p class="text-sm text-white/70 mb-3">
+          <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
+        </p>
+        <p class="text-xs text-white/40">
+          We respond to serious allocator inquiries within 48 hours.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <Footer />
+
+</Layout>
