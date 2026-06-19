@@ -18,6 +18,7 @@ STRICTLY READ-ONLY / paper trading only (SPA-BL-011): recovery лишь
 import json, os, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from spa_core.utils.atomic import atomic_save
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 EQUITY_FILE = DATA_DIR / "equity_curve_daily.json"
@@ -138,10 +139,8 @@ def _read_status() -> dict:
         return {}
 
 def _atomic_write_json(path: Path, obj) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2))
-    os.replace(tmp, path)
-
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(obj, path)
 def _load_alerts_doc() -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
     try:
