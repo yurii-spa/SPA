@@ -12,6 +12,7 @@ from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
 from .defillama_feed import DeFiLlamaFeed
+from spa_core.utils.errors import safe_call
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,14 @@ class YearnV3Adapter(BaseAdapter):
             "source": "defillama",
             "ts": time.time(),
         }
-        try:
-            apy = self.feed.get_apy(self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL)
-            tvl = self.feed.get_tvl(self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL)
-        except Exception as exc:  # noqa: BLE001 - graceful: feed errors are honest errors.
-            logger.warning("%s: live feed raised: %s", self.PROTOCOL, exc)
-            record["error"] = f"{type(exc).__name__}: {exc}"
-            return record
+        apy = safe_call(
+            self.feed.get_apy, self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL,
+            default=None, log_error=True, logger_name=f"spa.{self.PROTOCOL}",
+        )
+        tvl = safe_call(
+            self.feed.get_tvl, self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL,
+            default=None, log_error=False,
+        )
 
         record["tvl"] = float(tvl) if isinstance(tvl, (int, float)) else None
         if not isinstance(apy, (int, float)):
