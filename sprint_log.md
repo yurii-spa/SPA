@@ -1,5 +1,32 @@
 # Sprint Log
 
+## v8.99 — 2026-06-19
+
+**Sprint:** v8.99  
+**Module:** MP-1254 GrossOfCounterpartyDefaultRiskPremiumAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 953 total=703  
+**Description:** perf-fee gross-of-counterparty-default-risk-premium base gap (implicit cost of counterparty default risk when a DeFi vault holds assets dependent on counterparty solvency: USDC depeg risk from Circle insolvency, USDT from Tether reserve inadequacy, cbETH from Coinbase custodial failure, wBTC from BitGo custody loss, stETH from Lido operator set risk, FRAX algorithmic peg risk — the risk premium represents expected loss from counterparty failure deducted from GROSS yield — distinct from smart_contract_risk_premium code bugs, governance_attack_risk_premium governance exploits, oracle_manipulation_risk_premium price feeds)
+
+## v8.98 — 2026-06-19
+
+**Sprint:** v8.98  
+**Module:** MP-1253 GrossOfGovernanceAttackRiskPremiumAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 952 total=702  
+**Description:** perf-fee gross-of-governance-attack-risk-premium base gap (implicit cost of governance attack risk in token-based governance DeFi protocols: when a vault's protocol uses COMP/AAVE/UNI/MKR governance, a malicious proposal could drain treasury, alter parameters, or redirect fees — vote buying, flash loan governance attacks, timelocked vs untimelocked governance — distinct from oracle_manipulation_risk_premium price feed risk, smart_contract_risk_premium code bug risk, regulatory_risk_premium legal risk)
+
+## v8.97 — 2026-06-19
+
+**Sprint:** v8.97  
+**Module:** MP-1252 GrossOfOracleManipulationRiskPremiumAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 951 total=701  
+**Description:** perf-fee gross-of-oracle-manipulation-risk-premium base gap (implicit cost of oracle price manipulation risk: when a vault relies on a single oracle like Chainlink, Pyth, or Uniswap TWAP, depositors bear a risk premium for oracle manipulation attacks — flash-loan-driven TWAP manipulation, stale-price exploitation, multi-block MEV oracle attacks, low-liquidity reference pool manipulation — distinct from oracle_update_fee gas cost, flash_loan_fee borrowing cost, exit_slippage market impact, mev_tax searcher extraction)
+
 ## v8.96 — 2026-06-19
 
 **Sprint:** v8.96  
