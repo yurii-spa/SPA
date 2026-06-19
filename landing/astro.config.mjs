@@ -16,4 +16,5 @@ export default defineConfig({
   // Build command: npm run build
   // Build output directory: dist
   // Node version: 20
+    // CF Pages rebuild trigger: v9.20 2026-06-19
 });
