@@ -1,0 +1,63 @@
+{
+  "strategies": [
+    {
+      "id": "preserve",
+      "name": "Preserve",
+      "tagline": "Capital-preservation focused yield",
+      "target_apy": 6,
+      "risk_level": "lower",
+      "risk_level_label": "Lower Risk",
+      "risk_bars": 1,
+      "status": "target-profile",
+      "status_label": "Target Profile",
+      "who_for": "Allocators prioritising capital preservation over yield optimisation.",
+      "description": "Tier 1 protocols only. No looping, no leverage. Higher cash buffer. Stricter protocol eligibility.",
+      "yield_sources": ["Aave V3 USDC", "Compound V3 USDC", "Spark sUSDS"],
+      "does_not": ["Use leverage", "Use looping", "Chase extreme APY", "Allocate to Tier 3 protocols", "Bypass RiskPolicy"],
+      "target_apy_note": "Target profile. Not paper tracked. Variable APY, not guaranteed.",
+      "path": "/strategies/preserve"
+    },
+    {
+      "id": "core",
+      "name": "Core",
+      "tagline": "Systematic yield with verified paper track record",
+      "target_apy": 10,
+      "risk_level": "medium",
+      "risk_level_label": "Medium Risk",
+      "risk_bars": 2,
+      "status": "paper-tracked",
+      "status_label": "Paper Tracked",
+      "who_for": "Family offices allocating $25K–$250K seeking systematic, transparent DeFi yield.",
+      "description": "Tier 1 + selected Tier 2 protocols. Deterministic risk-gated rebalancing. Public paper track record since June 2026.",
+      "yield_sources": ["Aave V3 USDC", "Morpho Blue USDC", "Compound V3 USDC", "Yearn V3 USDC", "Euler V2 USDC"],
+      "does_not": ["Use leverage", "Use looping", "Bypass RiskPolicy gates", "Allocate to unaudited protocols"],
+      "target_apy_note": "Paper APY verified since June 10, 2026. Variable APY, not guaranteed.",
+      "path": "/strategies/core"
+    },
+    {
+      "id": "max-yield",
+      "name": "Max Yield",
+      "tagline": "Advanced mechanics for higher yield tolerance",
+      "target_apy": 15,
+      "risk_level": "higher",
+      "risk_level_label": "Higher Risk",
+      "risk_bars": 3,
+      "status": "coming-soon",
+      "status_label": "Coming Soon",
+      "who_for": "Experienced allocators accepting higher volatility for yield upside.",
+      "description": "Looping, leveraged lending, advanced vault mechanics. Tighter monitoring, stricter liquidation logic.",
+      "yield_sources": ["Leveraged Aave positions", "Looped Morpho vaults", "Advanced LP yield"],
+      "does_not": ["Bypass liquidation protections", "Allocate without risk gate approval"],
+      "target_apy_note": "Target profile. Not paper tracked. Variable APY, not guaranteed. Possible loss of capital.",
+      "path": "/strategies/max-yield"
+    }
+  ],
+  "global": {
+    "go_live_target": "August 1, 2026",
+    "paper_trading_start": "June 10, 2026",
+    "management_fee": "1.0%",
+    "performance_fee": "10%",
+    "apy_disclaimer": "APY figures are variable and not guaranteed. Past paper performance does not guarantee future results. Possible loss of capital.",
+    "forbidden_words": ["safe", "guaranteed", "protected", "risk-free", "capital protection"]
+  }
+}
