@@ -1,5 +1,47 @@
 # Sprint Log
 
+## v8.95 — 2026-06-19
+
+**Sprint:** v8.95  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1251  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/gross_of/defi_protocol_vault_performance_fee_gross_of_lst_peg_slippage_analyzer.py`  
+**Test file:** `spa_core/analytics/gross_of/test_defi_protocol_vault_performance_fee_gross_of_lst_peg_slippage_analyzer.py`  
+**Class:** `GrossOfLstPegSlippageAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_lst_peg_slippage_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **LST PEG SLIPPAGE**: дисконт/премия стейкинг-деривативов (stETH, rETH, cbETH, wstETH, swETH, osETH) vs их теоретической redemption peg при продаже LST во время harvest/rebalancing/unwinding. Во время кризисов ликвидности stETH торговался с дисконтом 1–6% (Celsius/3AC: ~6%, post-Shanghai: ~0.1%). За много harvest/rebalancing циклов эти peg-slippage расходы накапливаются в drag на gross yield волта. Волт начисляет perf-fee с GROSS доходности (до вычета кумулятивного LST peg slippage), поэтому депозитор платит перф-фи на ту долю yield, которую peg-slippage уже стёрли (fee-on-slippage / fee-base инфляция). Порог `HIGH_LST_PEG_SLIPPAGE_PCT=0.50%`. 5 классификаций: CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross + net_of_lst_peg_slippage + fee_pct) и override (gap + fee_charged напрямую). Score = 70*realization_ratio + 30*(1−fee_on_lst_peg_slippage_fraction), 0–100. 6 флагов (CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_LST_PEG_SLIPPAGE, GAP_FROM_OVERRIDE, FEE_ON_LST_PEG_SLIPPAGE, FULL_FEE_ON_LST_PEG_SLIPPAGE). Атомарный ring-buffer лог (tmp + os.replace, cap=100). stdlib only.
+
+**Distinctions vs other modules:** LST PEG SLIPPAGE (дисконт/премия стейкинг-деривативов vs redemption peg при продаже LST) — vs swap_fee (РАЗОВЫЙ дискретный swap fee от DEX-агрегатора/протокола); vs lp_amm_fee_drag (кумулятивные LP-fee от роутинга свопов через AMM-пулы); vs exit_slippage (общий price impact от выхода из позиции; здесь — специфически LST peg discount vs redemption value); vs keeper_fee/harvest_bounty/management_fee (автоматизация/AUM); vs priority_fee/blob_fee/l1_data_fee/bundler_fee/oracle_update_fee (газ/инфра); vs bridge_fee/crosschain_message_fee/flash_loan_fee (кросс-чейн/флеш); vs withdrawal_delay_cost (time-value unstaking queue; здесь — peg discount, не временная стоимость); vs insurance_fund_premium/reserve_contribution/borrow_cost/funding_cost/rebalancing_cost/mev_tax (другие cost-слои); vs impermanent_loss/slashing_loss/liquidation_penalty/bad_debt_socialization (value-loss слои). Не HWM/crystallization.
+
+**STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались.
+
+**Push:** `bash scripts/push_v895.sh`
+
+
+## v8.94 — 2026-06-19
+
+**Sprint:** v8.94  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1250  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/gross_of/defi_protocol_vault_performance_fee_gross_of_lp_amm_fee_drag_analyzer.py`  
+**Test file:** `spa_core/analytics/gross_of/test_defi_protocol_vault_performance_fee_gross_of_lp_amm_fee_drag_analyzer.py`  
+**Class:** `GrossOfLpAmmFeeDragAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_lp_amm_fee_drag_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **LP AMM FEE DRAG**: кумулятивные LP-fee, которые волт платит ликвидити-провайдерам AMM-пулов (Uniswap V2/V3, Curve, Balancer, SushiSwap, PancakeSwap) при роутинге harvest/rebalancing/compounding свопов через эти пулы. Обычно 0.01–1% за свап (Uni V3 fee tier), переменная на Curve/Balancer. За много циклов компаундинга эти LP-fee накапливаются в непрерывный drag на gross yield волта. Волт начисляет perf-fee с GROSS доходности (до вычета кумулятивного LP AMM fee drag), поэтому депозитор платит перф-фи на ту долю yield, которую LP-fee уже стёрли (fee-on-LP-fee / fee-base инфляция). Порог `HIGH_LP_AMM_FEE_PCT=0.25%`. 5 классификаций: CLEAN_NET_OF_LP_AMM_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross + net_of_lp_amm_fee + fee_pct) и override (gap + fee_charged напрямую). Score = 70*realization_ratio + 30*(1−fee_on_lp_amm_fee_fraction), 0–100. 6 флагов (CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_LP_AMM_FEE, GAP_FROM_OVERRIDE, FEE_ON_LP_AMM_FEE, FULL_FEE_ON_LP_AMM_FEE). Атомарный ring-buffer лог (tmp + os.replace, cap=100). stdlib only.
+
+**Distinctions vs other modules:** LP AMM FEE DRAG (кумулятивные LP-fee от роутинга свопов через AMM-пулы: Uniswap V2/V3 / Curve / Balancer) — vs swap_fee (РАЗОВЫЙ дискретный swap fee от DEX-агрегатора/протокола, одно событие; здесь — кумулятивный drag за окно измерения); vs keeper_fee (автоматизация-сеть upkeep); vs harvest_bounty (разовый bounty harvest-вызова); vs management_fee (AUM fee протокола); vs priority_fee/blob_fee/l1_data_fee/bundler_fee/oracle_update_fee (газ/инфра); vs bridge_fee/crosschain_message_fee/flash_loan_fee (кросс-чейн/флеш); vs insurance_fund_premium/reserve_contribution/borrow_cost/funding_cost/rebalancing_cost/mev_tax/exit_slippage (другие cost-слои); vs impermanent_loss/slashing_loss/liquidation_penalty/bad_debt_socialization (value-loss слои). Не HWM/crystallization.
+
+**STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались.
+
+**Push:** `bash scripts/push_v894.sh`
+
+
 ## v8.90 — 2026-06-19
 
 **Sprint:** v8.90  
