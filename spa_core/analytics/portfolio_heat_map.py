@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -168,7 +170,7 @@ class HeatMapData:
 # Generator
 # ---------------------------------------------------------------------------
 
-class PortfolioHeatMapGenerator:
+class PortfolioHeatMapGenerator(BaseAnalytics):
     """Генерирует структурированные данные для heat map визуализации.
 
     Читает ``data/adapter_status.json`` (read-only), строит HeatMapCell
@@ -182,6 +184,8 @@ class PortfolioHeatMapGenerator:
     path = gen.save()
     d    = gen.to_dict()
     """
+
+    OUTPUT_PATH = "data/heat_map.json"
 
     #: APY bucket диапазоны — (имя, нижняя включительно, верхняя не включительно)
     APY_BUCKETS: List[Tuple[str, float, float]] = [
@@ -218,6 +222,7 @@ class PortfolioHeatMapGenerator:
         data_path : str | None
             Путь к ``adapter_status.json``. По умолчанию — ``data/`` в корне репо.
         """
+        super().__init__()
         if data_path is None:
             self._data_path = _DEFAULT_DATA_DIR / "adapter_status.json"
         else:
