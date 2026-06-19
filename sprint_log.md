@@ -1,5 +1,14 @@
 # Sprint Log
 
+## v9.00 — 2026-06-19
+
+**Sprint:** v9.00  
+**Module:** MP-1255 GrossOfRegulatoryRiskPremiumAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 954 total=704  
+**Description:** perf-fee gross-of-regulatory-risk-premium base gap (implicit risk premium from regulatory uncertainty: SEC enforcement actions, MiCA compliance costs, FATF travel rule implementation, OFAC sanctions screening — depositors are compensated for bearing jurisdiction-specific regulatory risk through higher gross yield, but performance fee is charged on GROSS yield before regulatory risk premium is netted out — distinct from counterparty_default_risk_premium issuer solvency, governance_attack_risk_premium protocol governance voting attacks, smart_contract_risk_premium code bugs, oracle_manipulation_risk_premium price feeds)
+
 ## v8.99 — 2026-06-19
 
 **Sprint:** v8.99  
