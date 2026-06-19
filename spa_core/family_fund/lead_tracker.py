@@ -23,6 +23,8 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from spa_core.utils.errors import ConfigError
+
 __all__ = ["Lead", "LeadTracker", "LEAD_STATUSES"]
 
 LEAD_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "INVESTOR", "REJECTED"]
@@ -295,8 +297,9 @@ class LeadTracker:
             timeout=10,
         )
         if result.returncode != 0:
-            raise RuntimeError(
-                f"Keychain lookup failed for key={key!r}: {result.stderr.strip()}"
+            raise ConfigError(
+                key,
+                f"Keychain lookup failed: {result.stderr.strip()}",
             )
         return result.stdout.strip()
 
