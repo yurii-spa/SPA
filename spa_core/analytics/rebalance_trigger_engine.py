@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -66,8 +68,10 @@ class RebalanceTrigger:
 # Engine
 # ---------------------------------------------------------------------------
 
-class RebalanceTriggerEngine:
+class RebalanceTriggerEngine(BaseAnalytics):
     """Evaluate portfolio slots and decide whether rebalancing is needed."""
+
+    OUTPUT_PATH = "data/rebalance_triggers.json"
 
     def __init__(
         self,
@@ -76,10 +80,15 @@ class RebalanceTriggerEngine:
         apy_threshold: float = APY_CHANGE_THRESHOLD,
         min_days: int = MIN_DAYS_BETWEEN_REBALANCE,
     ) -> None:
+        super().__init__()  # sets self.base_dir = "."
         self.data_file = data_file
         self.drift_threshold = drift_threshold
         self.apy_threshold = apy_threshold
         self.min_days = min_days
+
+    def to_dict(self) -> dict:
+        """Returns rebalance trigger history as JSON-serializable dict."""
+        return {"history": self.load_history()}
 
     # ------------------------------------------------------------------
     # Internal helpers
