@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-06-19T05:17:52.069244+00:00",
-  "updated_by": "spa-dev-continue orchestrator (v8.93 MP-1249 keeper_fee, Tier-B yield_quality)",
+  "last_updated": "2026-06-19",
+  "updated_by": "claude-v9.15",
   "sprint_current": "v9.01",
   "sprint_naming_convention": "Sprint v{MAJOR}.{MINOR} — MP-{NNN}+{NNN}",
   "notes": "v8.05: MP-1134 DeFiProtocolYieldCompoundingOptimizer (129 tests, effective_apy=((1+base/freq)^freq-1)*100, optimal_frequency/label DAILY/WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/ANNUALLY, gas_drag_at_optimal_pct, net_annual_yield_usd, ring-buffer log cap 100, atomic write) + MP-1135 ProtocolDeFiTvlMomentumAnalyzer (124 tests, tvl_change_7d/30d/90d_pct, momentum_score 0-100 int weighted 7d×50+30d×30+90d×20, yield_dilution_risk LOW/MEDIUM/HIGH/CRITICAL, tvl_label RAPID_GROWTH/HEALTHY_GROWTH/STABLE/DECLINING/RAPID_DECLINE, ring-buffer log cap 100, atomic write) — 253 tests GREEN, done_count 828->830, sprint_current v8.06->v8.05\nv7.51: MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107 tests, passage_probability logistic, tvl_impact_ratio, urgency_score 0-100, risk_category_score per type, overall_impact_score, CRITICAL_PROPOSAL/HIGH_IMPACT/MODERATE_IMPACT/LOW_IMPACT/ROUTINE labels, EMERGENCY_GOVERNANCE/TEAM_PROPOSAL/LIKELY_TO_PASS/AFFECTS_LARGE_TVL/NO_TIMELOCK_RISK/COMMUNITY_DRIVEN flags, ring-buffer log cap 100, atomic write) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109 tests, burn_multiple/diversification_score/market_cycle_resilience/sustainability_score 0-100, HIGHLY_SUSTAINABLE/SUSTAINABLE/BREAK_EVEN/SUBSIDIZED/UNSUSTAINABLE/ZOMBIE labels, PROFITABLE/EMISSION_SUBSIDIZED/LOW_REVENUE_DIVERSIFICATION/MARKET_DEPENDENT/REVENUE_GROWING/RUNWAY_CRITICAL flags, ring-buffer log cap 100, atomic write) — 216 tests GREEN, done_count 690->692, sprint_current v7.50->v7.51\nv7.38: MP-1000 DeFiProtocolFeeTierOptimizer (124 tests, optimal fee tier 5/30/100/500bps, 5 labels, 5 flags, ring-buffer log, atomic write) + MP-1001 ProtocolDeFiTokenBuybackImpactAnalyzer (120 tests, buyback yield/supply reduction/sustainability 0-100, 5 labels, 6 flags, ring-buffer log, atomic write) — 244 tests GREEN, done_count 656->658, sprint_current v7.37->v7.38\nv7.37: MP-998 DeFiProtocolVolumeToTVLEfficiencyAnalyzer (115 tests, velocity=Vol/TVL, capital_efficiency_score/revenue_quality_score/lp_net_apy, 5 labels, 6 flags, ring-buffer log, atomic write) + MP-999 ProtocolDeFiWhaleConcentrationMonitor (115 tests, whale_dominance/retail_health/exit_risk/decentralization 0-100, 5 concentration labels, 6 flags, ring-buffer log, atomic write) — 230 tests GREEN, done_count 654->656, sprint_current v7.35->v7.37\nv7.36: MP-996 DeFiProtocolAirdropFarmingDetector (89 tests, farming_intensity_score/organic_user_pct/sybil_risk_score/capital_stickiness_prediction 0-100, ORGANIC_GROWTH/MIXED_ORGANIC/AIRDROP_INFLATED/FARMING_DOMINANT/SYBIL_FARM labels, ANNOUNCED_AIRDROP_CATALYST/POINTS_FARMING_ACTIVE/HIGH_SYBIL_RISK/CAPITAL_FLIGHT_RISK/DUST_WALLET_CONCENTRATION/ORGANIC_RETENTION_SIGNAL flags, ring-buffer log cap 100, atomic write) + MP-997 ProtocolDeFiPointsSystemValuationAnalyzer (83 tests, implied_point_value_usd/apy_from_points_pct/dilution_risk_score 0-100/uncertainty_discount_factor 0-1/risk_adjusted_implied_value_usd, HIGH_VALUE_CONFIRMED/LIKELY_VALUABLE/SPECULATIVE_VALUE/LOW_VALUE/DILUTION_RISK labels, POINTS_MARKET_EXISTS/SNAPSHOT_IMMINENT/CONVERSION_ANNOUNCED/TRANSFERABLE_POINTS/HIGH_DILUTION_RISK/NO_FDV_SIGNAL flags, ring-buffer log cap 100, atomic write) — 172 tests GREEN, done_count 654->656, sprint_current v7.35->v7.36\nv7.34-mp992-993: MP-992 DeFiProtocolRegulatoryRiskScorer (102 tests, kyc_aml_score/jurisdiction_risk_score/securities_risk_score/operational_opacity_score/composite_regulatory_score 0-100, COMPLIANT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_RISK labels, SECURITIES_RISK/NO_AML_KYC/ANONYMOUS_TEAM/US_NEXUS_RISK/REGULATOR_ACTION_HISTORY/STABLECOIN_SYSTEMIC flags, ring-buffer log cap 100, atomic write) + MP-993 ProtocolDeFiStablecoinHealthMonitor (102 tests, peg_deviation_pct/peg_volatility_30d/max_depeg_30d/redemption_pressure_ratio/net_flow_7d metrics, ROCK_SOLID/STABLE/CAUTIOUS/AT_RISK/DEPEGGING/COLLAPSED labels, ACTIVE_DEPEG/ALGO_CONCENTRATION/UNAUDITED_RESERVES/REDEMPTION_PRESSURE/REDEMPTION_SUSPENDED/NET_OUTFLOW_ACCELERATING flags, ring-buffer log cap 100, atomic write) — 204 tests GREEN, done_count 652->654, sprint_current v7.33->v7.34\nv7.32: MP-988 DeFiYieldAggregationEfficiencyAnalyzer (97 tests, value_add_pct/fee_efficiency_ratio/compound_boost_pct/harvest_cost_ratio/capital_utilization_score 0-100, HIGHLY_EFFICIENT/EFFICIENT/NEUTRAL/INEFFICIENT/VALUE_DESTROYING labels, VALUE_DESTROYING/HIGH_FEE_DRAG/COMPOUND_HEAVY/GAS_INTENSIVE/UNDER_UTILIZED flags, ring-buffer log cap 100, atomic write) + MP-989 ProtocolCrossChainBridgeRiskMonitor (102 tests, centralization_score/incident_risk_score/coverage_ratio/composite_risk_score 0-100, FORTRESS/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL labels, MULTISIG_RISK/RECENT_INCIDENT/UNINSURED/ASSET_CONCENTRATED/CANONICAL_SAFE flags, ring-buffer log cap 100, atomic write) — 199 tests GREEN, done_count 648->650, sprint_current v7.31->v7.32\nv7.31: MP-986 DeFiLiquidityConcentrationRiskScorer (84 tests, top3_concentration_pct/lp_hhi/withdrawal_scenario_10pct_impact/sticky_ratio_pct/concentration_risk_score 0-100, WELL_DISTRIBUTED/LOW_CONCENTRATION/MODERATE_RISK/HIGH_CONCENTRATION/SINGLE_LP_RISK labels, SINGLE_LP_DOMINANT/INCENTIVE_DEPENDENT/PROTOCOL_OWNED_MAJORITY/STICKY_MAJORITY/CL_RANGE_RISK flags, ring-buffer log cap 100, atomic write) + MP-987 ProtocolYieldFarmingLifecycleAnalyzer (84 tests, apy_decay_rate_pct/tvl_retention_rate_pct/farmer_retention_rate_pct/lifecycle_stage_days/value_extraction_ratio, LAUNCH_PHASE/GROWTH_PHASE/MATURITY/DECLINE/SUNSET/ZOMBIE labels, APY_CRASHED/MERCENARY_CAPITAL/EMISSIONS_ENDING_SOON/HIGH_VALUE_EXTRACTION/STICKY_FARMERS flags, ring-buffer log cap 100, atomic write) — 168 tests GREEN, done_count 646->648, sprint_current v7.30->v7.31\nv7.30: MP-984 DeFiYieldSourceDiversificationScorer (100 tests, per-type allocation/yield_contribution HHI, source/protocol/chain diversity, diversification_score 0-100 = 40%*source+35%*protocol+25%*chain HHI invert, HIGHLY_DIVERSIFIED..SINGLE_SOURCE labels, SINGLE_CHAIN/PROTOCOL_CONCENTRATED/REAL_YIELD_HEAVY/POINTS_HEAVY/BEAR_MARKET_EXPOSED flags, ring-buffer log cap 100, atomic write) + MP-985 ProtocolNetworkEffectStrengthAnalyzer (98 tests, metcalfe_value=users²×avg_tx, user_growth/tvl_growth_pct_3m, integration_density=integrations/sqrt(n_cat), network_strength_score 0-100 = growth×0.30+switching×0.25+integration×0.25+metcalfe×0.20, DOMINANT_NETWORK/STRONG_NETWORK/EMERGING_NETWORK/WEAK_NETWORK/NO_MOAT labels, METCALFE_SCALING/HIGH_SWITCHING_COST/INTEGRATION_HUB/USER_GROWTH_STALLING/LOSING_INTEGRATIONS flags, ring-buffer log cap 100, atomic write) — 198 tests green, done_count 644->646, sprint_current v7.29->v7.30",
@@ -419,141 +419,6 @@
         "source": "AGENT_AUDIT_V3"
       },
       {
-        "id": "SITE-001",
-        "title": "Пересобрать главную под landing-first product site",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-002",
-        "title": "Strategy selector секция после hero",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-003",
-        "title": "Карточки стратегий как выбор инвестиционного профиля",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-004",
-        "title": "Визуальный риск-градиент слева направо (Preserve→Core→Max Yield)",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-005",
-        "title": "Status badge: Paper tracked / Target profile / Coming soon / Live",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-006",
-        "title": "APY заметным, но не единственным центром карточки",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-007",
-        "title": "Risk badge: Lower / Medium / Higher",
-        "type": "design",
-        "priority": "P0",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-008",
-        "title": "Навигация: ссылки на methodology, risk, trust, dashboard",
-        "type": "design",
-        "priority": "P1",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-009",
-        "title": "Дизайн страниц /trust, /security, /emergency-withdrawal",
-        "type": "design",
-        "priority": "P1",
-        "agent": "designer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "design",
-          "agent:designer"
-        ]
-      },
-      {
         "id": "SITE-010",
         "title": "Mobile sticky CTA",
         "type": "design",
@@ -566,141 +431,6 @@
         "tags": [
           "design",
           "agent:designer"
-        ]
-      },
-      {
-        "id": "SITE-011",
-        "title": "Финальный выбор названий стратегий: Preserve / Core / Max Yield",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-012",
-        "title": "Copy для карточек стратегий (tagline + description + disclaimer)",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-013",
-        "title": "Объяснение risk-return простым языком для allocator",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-014",
-        "title": "Аудит и удаление опасных слов: safe, guaranteed, protected, risk-free",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-015",
-        "title": "Применить compliant формулировки везде на сайте",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-016",
-        "title": "Разделить verified paper performance vs target APY",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-017",
-        "title": "Homepage hero copy (headline + subline + CTA)",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-018",
-        "title": "\"How SPA Works\" — 3 шага простым языком",
-        "type": "marketing",
-        "priority": "P0",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
-        ]
-      },
-      {
-        "id": "SITE-019",
-        "title": "/trust страница — tone guide и copy",
-        "type": "marketing",
-        "priority": "P1",
-        "agent": "marketer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "marketing",
-          "agent:marketer"
         ]
       },
       {
@@ -912,381 +642,6 @@
           "product",
           "agent:product"
         ]
-      },
-      {
-        "id": "SITE-034",
-        "title": "Public contract address registry файл",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-035",
-        "title": "Frontend security checklist",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-036",
-        "title": "Domain security policy (RegistryLock, DNSSEC)",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-037",
-        "title": "Dependency pinning policy для landing",
-        "type": "engineering",
-        "priority": "P2",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-038",
-        "title": "Production deployment policy",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-039",
-        "title": "Emergency pause / kill switch documentation",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-040",
-        "title": "Direct withdrawal guide (без frontend)",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-041",
-        "title": "Token approvals revoke guide",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-042",
-        "title": "Incident response process документ",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-043",
-        "title": "Monitoring / alerting description",
-        "type": "engineering",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-044",
-        "title": "Official communication channels определить",
-        "type": "engineering",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "engineering",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-050",
-        "title": "/ — Переработать главную страницу (Astro)",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-051",
-        "title": "/strategies — Обзор трёх стратегий",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-052",
-        "title": "/strategies/preserve — Preserve strategy page",
-        "type": "page",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-053",
-        "title": "/strategies/core — Core strategy page (ТЕКУЩАЯ)",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-054",
-        "title": "/strategies/max-yield — Max Yield page (Coming soon)",
-        "type": "page",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-055",
-        "title": "/methodology — How SPA Works подробно",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-056",
-        "title": "/risk — Product risk page",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-057",
-        "title": "/trust — Trust Spec page",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-058",
-        "title": "/security — Security baseline page",
-        "type": "page",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-059",
-        "title": "/emergency-withdrawal — Emergency guide",
-        "type": "page",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-060",
-        "title": "/fees — Fee structure page",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-061",
-        "title": "/due-diligence — Due Diligence Center",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-062",
-        "title": "Dashboard — Обновить под multi-strategy",
-        "type": "page",
-        "priority": "P0",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
-      },
-      {
-        "id": "SITE-063",
-        "title": "/risk-disclosure — Обновить существующую",
-        "type": "page",
-        "priority": "P1",
-        "agent": "engineer",
-        "status": "backlog",
-        "source": "tz_v1",
-        "added": "2026-06-19",
-        "depends_on": [],
-        "tags": [
-          "page",
-          "agent:engineer"
-        ]
       }
     ],
     "in_progress": [
@@ -1311,6 +666,486 @@
     ],
     "review": [],
     "done": [
+      {
+        "id": "SITE-001",
+        "title": "Пересобрать главную под landing-first product site",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-002",
+        "title": "Strategy selector секция после hero",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-003",
+        "title": "Карточки стратегий как выбор инвестиционного профиля",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-004",
+        "title": "Визуальный риск-градиент слева направо (Preserve→Core→Max Yield)",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-005",
+        "title": "Status badge: Paper tracked / Target profile / Coming soon / Live",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-006",
+        "title": "APY заметным, но не единственным центром карточки",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-007",
+        "title": "Risk badge: Lower / Medium / Higher",
+        "type": "design",
+        "priority": "P0",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-008",
+        "title": "Навигация: ссылки на methodology, risk, trust, dashboard",
+        "type": "design",
+        "priority": "P1",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-009",
+        "title": "Дизайн страниц /trust, /security, /emergency-withdrawal",
+        "type": "design",
+        "priority": "P1",
+        "agent": "designer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "design",
+          "agent:designer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-011",
+        "title": "Финальный выбор названий стратегий: Preserve / Core / Max Yield",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-012",
+        "title": "Copy для карточек стратегий (tagline + description + disclaimer)",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-013",
+        "title": "Объяснение risk-return простым языком для allocator",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-014",
+        "title": "Аудит и удаление опасных слов: safe, guaranteed, protected, risk-free",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-015",
+        "title": "Применить compliant формулировки везде на сайте",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-016",
+        "title": "Разделить verified paper performance vs target APY",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-017",
+        "title": "Homepage hero copy (headline + subline + CTA)",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-018",
+        "title": "\"How SPA Works\" — 3 шага простым языком",
+        "type": "marketing",
+        "priority": "P0",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-019",
+        "title": "/trust страница — tone guide и copy",
+        "type": "marketing",
+        "priority": "P1",
+        "agent": "marketer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "marketing",
+          "agent:marketer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-050",
+        "title": "/ — Переработать главную страницу (Astro)",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-051",
+        "title": "/strategies — Обзор трёх стратегий",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-052",
+        "title": "/strategies/preserve — Preserve strategy page",
+        "type": "page",
+        "priority": "P1",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-053",
+        "title": "/strategies/core — Core strategy page (ТЕКУЩАЯ)",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-054",
+        "title": "/strategies/max-yield — Max Yield page (Coming soon)",
+        "type": "page",
+        "priority": "P1",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-055",
+        "title": "/methodology — How SPA Works подробно",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-056",
+        "title": "/risk — Product risk page",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-057",
+        "title": "/trust — Trust Spec page",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-058",
+        "title": "/security — Security baseline page",
+        "type": "page",
+        "priority": "P1",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-059",
+        "title": "/emergency-withdrawal — Emergency guide",
+        "type": "page",
+        "priority": "P1",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-060",
+        "title": "/fees — Fee structure page",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
+      {
+        "id": "SITE-061",
+        "title": "/due-diligence — Due Diligence Center",
+        "type": "page",
+        "priority": "P0",
+        "agent": "engineer",
+        "status": "done",
+        "source": "tz_v1",
+        "added": "2026-06-19",
+        "depends_on": [],
+        "tags": [
+          "page",
+          "agent:engineer"
+        ],
+        "completed_at": "2026-06-19"
+      },
       {
         "id": "MP-1209",
         "title": "DeFiProtocolVaultPerformanceFeeCrossSleeveNettingGapAnalyzer",
@@ -10714,6 +10549,226 @@
       "category": "yield_quality",
       "tests": 98,
       "status": "done"
+    },
+    {
+      "id": "SITE-034",
+      "title": "Public contract address registry файл",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-035",
+      "title": "Frontend security checklist",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-036",
+      "title": "Domain security policy (RegistryLock, DNSSEC)",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-037",
+      "title": "Dependency pinning policy для landing",
+      "type": "engineering",
+      "priority": "P2",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-038",
+      "title": "Production deployment policy",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-039",
+      "title": "Emergency pause / kill switch documentation",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-040",
+      "title": "Direct withdrawal guide (без frontend)",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-041",
+      "title": "Token approvals revoke guide",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-042",
+      "title": "Incident response process документ",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-043",
+      "title": "Monitoring / alerting description",
+      "type": "engineering",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-044",
+      "title": "Official communication channels определить",
+      "type": "engineering",
+      "priority": "P0",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "engineering",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-062",
+      "title": "Dashboard — Обновить под multi-strategy",
+      "type": "page",
+      "priority": "P0",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "page",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-063",
+      "title": "/dashboard page created (standalone dashboard with multi-strategy tabs)",
+      "type": "page",
+      "priority": "P1",
+      "agent": "engineer",
+      "status": "done",
+      "source": "tz_v1",
+      "added": "2026-06-19",
+      "depends_on": [],
+      "tags": [
+        "page",
+        "agent:engineer"
+      ],
+      "completed": "2026-06-19"
+    },
+    {
+      "id": "SITE-064",
+      "title": "docs/ directory created with 5 engineering docs",
+      "status": "done",
+      "completed": "2026-06-19",
+      "priority": "P1",
+      "tags": [
+        "site",
+        "docs"
+      ],
+      "added": "2026-06-19"
     }
   ],
   "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
@@ -10721,7 +10776,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 961,
+  "done_count": 1005,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -11316,7 +11371,7 @@
   "_v655_reconcile_note": "RACE: parallel run claimed v6.55/MP-835 (CorrelationRiskAnalyzer) + MP-836 (GovernanceHealthScorer), wrote push_v655.sh at 19:11 but had not committed KANBAN/sprint_log. This orchestrator re-tagged its own work to v6.56/MP-837/MP-838 (unique filenames sortino_ratio_calculator.py + lending_pool_utilization_analyzer.py — no rename needed) and reconciled both sets into done.",
   "_v656_reconcile_note": "RACE (parallel run B): claimed MP-837 DeFiGasOptimizationAdvisor + MP-838 ProtocolSecurityAuditTracker, wrote push_v656.sh ~19:19. This orchestrator inadvertently overwrote push_v656.sh and has restored it (206 tests green); both modules+tests verified on disk and reconciled into done.",
   "_v657_dispatch_note": "v6.57: MP-839 SortinoRatioCalculator (119 tests, downside semi-deviation, annualized Sortino vs Sharpe, NO_DOWNSIDE/NEGATIVE_RETURN/HIGH_DOWNSIDE_VOL flags, A-F) + MP-840 LendingPoolUtilizationAnalyzer (118 tests, kinked borrow/supply rate model, UNDERUTILIZED..CRITICAL regime, ILLIQUID/OVER_KINK/RATE_SPIKE_RISK flags). 237 tests green. Re-tagged from v6.55->v6.56->v6.57 / MP-835->837->839 due to 3-way race with parallel runs A(v655) and B(v656). Push: bash scripts/push_v657.sh",
-  "updated_at": "2026-06-19",
+  "updated_at": "2026-06-19T12:02:36",
   "_v664_dispatch_note": "SPA-V664: two advisory analytics modules — MP-851 APYPersistenceScorer (APY temporal stickiness/durability scoring) + MP-852 YieldCurveSteepnessAnalyzer (lock-up term-structure / term-premium analysis). Pure stdlib, read-only/advisory, atomic writes, ring-buffer 100. 250 unittest tests green (132 + 118).",
   "notes_v674": "v6.74: MP-871 YieldSourceConcentrationRisk (109 tests, HHI protocol/chain/asset_type/yield_type, WELL_DIVERSIFIED..HIGHLY_CONCENTRATED, diversification-recs, ring-buffer log) + MP-872 ProtocolExitLiquidityAnalyzer (115 tests, lock-up/queue/daily-limit/depth, INSTANT..LOCKED bottleneck scoring 0-100, ring-buffer log) — 224 tests green, atomic writes, stdlib only",
   "notes_v675": "v6.75: MP-873 RestakingRiskAnalyzer (88 tests, slashing/AVS/operator-concentration/withdrawal-delay/LRT-depeg weighted score 0-100, LOW..CRITICAL, diversification recs, ring-buffer log) + MP-874 AirdropFarmingValueEstimator (81 tests, expected-airdrop-USD, annualized airdrop yield, opportunity cost vs base APY, net EV, AVOID..HIGHLY_ATTRACTIVE) — 169 tests green, atomic writes, stdlib only",
