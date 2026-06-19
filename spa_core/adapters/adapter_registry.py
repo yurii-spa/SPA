@@ -35,6 +35,8 @@ import tempfile
 import time
 from typing import Any, Dict, List, Optional, Type
 
+from spa_core.utils.errors import AdapterError, safe_call
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -236,7 +238,7 @@ def refresh_all(
             instance = cls()
             apy = _extract_apy_pct(instance)
             if apy is None:
-                raise ValueError("no APY available from any interface")
+                raise AdapterError(protocol, "no APY available from any interface")
             results[protocol] = apy
             tier = _extract_tier(cls)
             ts = int(time.time())
