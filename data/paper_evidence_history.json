@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "initialized_at": "2026-06-19",
+  "description": "Paper trading evidence history — tracks daily evidence accumulation for GoLive qualification",
+  "day_count": 0,
+  "days": [],
+  "total_evidence_points": 0.0,
+  "daily_cycles_pts": 0.0,
+  "apy_tracking_pts": 0.0,
+  "risk_policy_pts": 0.0,
+  "bonus_pts": 0.0,
+  "target_pts": 30.0,
+  "status": "initialized"
+}
