@@ -43,6 +43,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from spa_core.safety.safeguard import live_trading_forbidden
+
 log = logging.getLogger("spa.maple_adapter")
 
 
@@ -471,6 +473,7 @@ class MapleAdapter:
 
     # ── live execution helpers ────────────────────────────────────────────────
 
+    @live_trading_forbidden
     def _execute_tx_pair(
         self, first: TxRequest, second: TxRequest,
         Account: Any, private_key: str, phase_tag: str,
@@ -514,6 +517,7 @@ class MapleAdapter:
             log.error("_execute_tx_pair failed: %s", exc, exc_info=True)
             return {"status": "FAILED", "reason": str(exc), "protocol": "maple"}
 
+    @live_trading_forbidden
     def _execute_single_tx(
         self, req: TxRequest, Account: Any, private_key: str, phase_tag: str,
     ) -> dict[str, Any]:
