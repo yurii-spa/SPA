@@ -63,6 +63,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -202,7 +204,7 @@ class HeatmapResult:
 # Core class
 # ---------------------------------------------------------------------------
 
-class LiquidationRiskHeatmap:
+class LiquidationRiskHeatmap(BaseAnalytics):
     """Computes liquidation risk heatmap for a list of DeFi positions.
 
     Usage::
@@ -218,10 +220,17 @@ class LiquidationRiskHeatmap:
         lrh.save(result)
     """
 
+    OUTPUT_PATH = "data/liquidation_risk_heatmap_log.json"
+
     def __init__(self, data_dir: Optional[str] = None) -> None:
+        super().__init__()
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self._log_path = self._data_dir / _LOG_FILE
         self._last_result: Optional[HeatmapResult] = None
+
+    def to_dict(self) -> dict:
+        """Returns last heatmap result as JSON-serializable dict."""
+        return self._last_result.to_dict() if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
