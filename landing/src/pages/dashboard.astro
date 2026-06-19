@@ -2,6 +2,15 @@
 import Layout from '../layouts/Layout.astro';
 import LiveStatsWidget from '../components/LiveStatsWidget.jsx';
 import Footer from '../components/Footer.astro';
+
+// Static fallback gate data (included in build from data/backtest/*.json)
+// Live data fetched client-side from /api/backtest/gate
+const GATE_STATIC = {
+  backtest:  { label: 'Backtest (2022–2026)', status: 'PASS',      detail: 'P0/P1A/P2 closed — strict evidence mode' },
+  pre_paper: { label: 'Pre-Paper Gate',        status: 'PASS',      detail: 'All strict blockers cleared' },
+  paper:     { label: 'Paper Trading',         status: 'NOT_READY', detail: 'Owner acceptance pending' },
+  live:      { label: 'Live Capital',          status: 'BLOCKED',   detail: 'Paper track + ADR-002 required' },
+};
 ---
 
 <Layout
@@ -35,7 +44,315 @@ import Footer from '../components/Footer.astro';
       </p>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM GATE STATUS  (MP-1305)
+         Data: /api/backtest/gate → fallback static build data
+         ═══════════════════════════════════════════════════════ -->
+    <section class="mb-8" aria-label="System Gate Status">
+      <div class="rounded-xl border border-white/10 bg-white/3 overflow-hidden">
+        <div class="px-5 pt-5 pb-3 flex items-center justify-between border-b border-white/5">
+          <div>
+            <h2 class="text-sm font-semibold text-white uppercase tracking-wider">System Gate Status</h2>
+            <p class="text-[11px] text-white/30 mt-0.5">CPA 4-phase gate — required before live capital deployment</p>
+          </div>
+          <!-- Live API indicator, updated by client script -->
+          <span id="gate-source-badge" class="text-[10px] font-mono text-white/20">static</span>
+        </div>
+
+        <div id="gate-panel" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
+
+          <!-- State 1: Backtest -->
+          <div id="gate-backtest" class="gate-state px-5 py-4" data-status="PASS">
+            <div class="flex items-start gap-3">
+              <span class="gate-icon text-xl mt-0.5">✅</span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-white">{GATE_STATIC.backtest.label}</span>
+                  <span class="gate-badge text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">PASS</span>
+                </div>
+                <p class="gate-detail text-[11px] text-white/35 mt-1 leading-relaxed">{GATE_STATIC.backtest.detail}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- State 2: Pre-Paper Gate -->
+          <div id="gate-pre-paper" class="gate-state px-5 py-4" data-status="PASS">
+            <div class="flex items-start gap-3">
+              <span class="gate-icon text-xl mt-0.5">✅</span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-white">{GATE_STATIC.pre_paper.label}</span>
+                  <span class="gate-badge text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">PASS</span>
+                </div>
+                <p class="gate-detail text-[11px] text-white/35 mt-1 leading-relaxed">{GATE_STATIC.pre_paper.detail}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- State 3: Paper Trading -->
+          <div id="gate-paper" class="gate-state px-5 py-4" data-status="NOT_READY">
+            <div class="flex items-start gap-3">
+              <span class="gate-icon text-xl mt-0.5">⏳</span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-white">{GATE_STATIC.paper.label}</span>
+                  <span class="gate-badge text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400">NOT READY</span>
+                </div>
+                <p class="gate-detail text-[11px] text-white/35 mt-1 leading-relaxed">{GATE_STATIC.paper.detail}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- State 4: Live Capital -->
+          <div id="gate-live" class="gate-state px-5 py-4" data-status="BLOCKED">
+            <div class="flex items-start gap-3">
+              <span class="gate-icon text-xl mt-0.5">🔒</span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-white">{GATE_STATIC.live.label}</span>
+                  <span class="gate-badge text-[10px] font-mono px-1.5 py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-400">BLOCKED</span>
+                </div>
+                <p class="gate-detail text-[11px] text-white/35 mt-1 leading-relaxed">{GATE_STATIC.live.detail}</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="gate-blockers-row" class="hidden border-t border-white/5 px-5 py-3">
+          <p class="text-[11px] text-white/30">
+            <span class="text-amber-400/70 font-mono">Blockers: </span>
+            <span id="gate-blockers-text"></span>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main widget (multi-strategy tabs) -->
     <LiveStatsWidget client:load />
+
+    <!-- ═══════════════════════════════════════════════════════
+         RESEARCH STRATEGIES  (MP-1305 — RS-001/RS-002)
+         S20 Anti-Crisis Research + S21 Cashflow Research
+         ═══════════════════════════════════════════════════════ -->
+    <section class="mt-10" aria-label="Research Strategies">
+      <div class="mb-4 flex items-center gap-3">
+        <h2 class="text-sm font-semibold text-white/60 uppercase tracking-wider">Research Strategies</h2>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-orange-500/30 bg-orange-500/8 text-orange-400">RESEARCH ONLY</span>
+        <span class="text-[10px] text-white/25">advisory, no positions opened</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        <!-- S20: Anti-Crisis Research -->
+        <div class="rounded-xl bg-white/4 border border-orange-500/20 p-5 hover:border-orange-500/35 transition-colors">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-mono text-white/30 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">S20</span>
+              <h3 class="text-base font-semibold text-white">Anti-Crisis Research</h3>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full border border-orange-500/40 bg-orange-500/10 text-orange-400">RESEARCH ONLY</span>
+          </div>
+          <p class="text-xs text-white/40 mb-4 leading-relaxed">
+            Crisis-resilient yield portfolio: capital protection mechanics, flight-to-quality allocation,
+            defensive protocol selection. RS-001 methodology. Advisory only — no automatic positions.
+          </p>
+          <div class="flex items-center gap-6 text-sm">
+            <div>
+              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Target APY</div>
+              <div class="font-mono text-white">~18.2%</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Risk</div>
+              <div class="text-amber-400/80 text-xs">Research Phase</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Module</div>
+              <div class="font-mono text-white/40 text-xs">strategy_rs001_tracker</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- S21: Cashflow Research -->
+        <div class="rounded-xl bg-white/4 border border-orange-500/20 p-5 hover:border-orange-500/35 transition-colors">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-mono text-white/30 bg-white/5 border border-white/10 rounded px-1.5 py-0.5">S21</span>
+              <h3 class="text-base font-semibold text-white">Cashflow Research</h3>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full border border-orange-500/40 bg-orange-500/10 text-orange-400">RESEARCH ONLY</span>
+          </div>
+          <p class="text-xs text-white/40 mb-4 leading-relaxed">
+            Sustainable cashflow yield: real-yield protocols, IL drag model, net 12–18% sideways.
+            RS-002 methodology. Gross APY 29.24% — net varies. Advisory only — no automatic positions.
+          </p>
+          <div class="flex items-center gap-6 text-sm">
+            <div>
+              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Gross APY</div>
+              <div class="font-mono text-white">~29.24%</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Risk</div>
+              <div class="text-amber-400/80 text-xs">Research Phase</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Module</div>
+              <div class="font-mono text-white/40 text-xs">strategy_rs002_tracker</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         DATA SOURCE QUALITY  (MP-1342)
+         Static fallback from source_pipeline.py constants.
+         ═══════════════════════════════════════════════════════ -->
+    <section class="mb-12" aria-label="Data Source Quality">
+      <div class="rounded-xl border border-white/10 bg-white/3 overflow-hidden">
+
+        <!-- Header -->
+        <div class="px-5 pt-5 pb-3 flex items-center justify-between border-b border-white/5">
+          <div>
+            <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Data Source Quality</h2>
+            <p class="text-[11px] text-white/30 mt-0.5">Evidence coverage across backtest universe — clean evidence required for CPA gate</p>
+          </div>
+          <span class="text-[10px] font-mono text-white/20">source_pipeline.json</span>
+        </div>
+
+        <!-- Progress summary -->
+        <div class="px-5 py-3 border-b border-white/5 flex items-center gap-4 flex-wrap">
+          <span class="text-xs text-white/50">Progress to full coverage:</span>
+          <div class="flex-1 min-w-[120px] max-w-xs">
+            <div class="h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div class="h-full rounded-full bg-emerald-500/70" style="width:33%"></div>
+            </div>
+          </div>
+          <span class="text-xs font-mono text-white/60">
+            <span class="text-emerald-400 font-semibold">8</span>
+            <span class="text-white/30"> of 24 sources clean </span>
+            <span class="text-white/40">(33%)</span>
+          </span>
+        </div>
+
+        <!-- Category rows -->
+        <div class="divide-y divide-white/5">
+
+          <!-- CLEAN -->
+          <div class="px-5 py-4">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 mt-0.5">
+                <span class="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 uppercase tracking-wider">
+                  ✅ CLEAN
+                </span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-1.5 flex-wrap">
+                  <!-- Bar -->
+                  <div class="flex gap-0.5">
+                    {Array.from({length: 8}).map(() => (
+                      <div class="w-2.5 h-3 rounded-sm bg-emerald-500/70"></div>
+                    ))}
+                  </div>
+                  <span class="text-xs font-mono text-emerald-400 font-semibold">8 sources</span>
+                </div>
+                <p class="text-[11px] text-white/40 leading-relaxed font-mono">
+                  aave_v2_usdc, compound_v2_usdc, aave_v3_usdc, compound_v3_usdc,
+                  aave_v3_base, morpho_blue, sky_susds, sfrax
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- PENDING -->
+          <div class="px-5 py-4">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 mt-0.5">
+                <span class="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 uppercase tracking-wider">
+                  ⏳ PENDING
+                </span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-1.5 flex-wrap">
+                  <div class="flex gap-0.5">
+                    {Array.from({length: 3}).map(() => (
+                      <div class="w-2.5 h-3 rounded-sm bg-amber-500/60"></div>
+                    ))}
+                  </div>
+                  <span class="text-xs font-mono text-amber-400 font-semibold">3 sources</span>
+                </div>
+                <p class="text-[11px] text-white/40 leading-relaxed font-mono">
+                  morpho_steakhouse, yearn_v3_yvusdc, euler_v2_usdc
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- RESEARCH ONLY -->
+          <div class="px-5 py-4">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 mt-0.5">
+                <span class="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2 py-0.5 rounded border border-orange-500/30 bg-orange-500/10 text-orange-400 uppercase tracking-wider">
+                  🔬 RESEARCH
+                </span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-1.5 flex-wrap">
+                  <div class="flex gap-0.5">
+                    {Array.from({length: 4}).map(() => (
+                      <div class="w-2.5 h-3 rounded-sm bg-orange-500/50"></div>
+                    ))}
+                  </div>
+                  <span class="text-xs font-mono text-orange-400 font-semibold">Research track</span>
+                </div>
+                <p class="text-[11px] text-white/40 leading-relaxed">
+                  RS-001, RS-002 advisory only — GMX exposure, concentrated LP,
+                  gold proxy, delta_neutral. Not counted toward clean coverage.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SOURCE NEEDED -->
+          <div class="px-5 py-4">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 mt-0.5">
+                <span class="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2 py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-400 uppercase tracking-wider">
+                  ❌ NEEDED
+                </span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-1.5 flex-wrap">
+                  <div class="flex gap-0.5">
+                    {Array.from({length: 9}).map(() => (
+                      <div class="w-2.5 h-3 rounded-sm bg-red-500/40"></div>
+                    ))}
+                  </div>
+                  <span class="text-xs font-mono text-red-400 font-semibold">Data acquisition in progress</span>
+                </div>
+                <p class="text-[11px] text-white/40 leading-relaxed font-mono">
+                  btc_usd_conc_liq, rwa_conc_liq, trader_losses_vault,
+                  btc_yield, eth_staking, gmx_btc, gmx_eth, btc_stable_pool, gold_proxy
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /divide-y -->
+
+        <!-- Footer note -->
+        <div class="px-5 py-3 border-t border-white/5 bg-white/1">
+          <p class="text-[11px] text-white/25 leading-relaxed">
+            Source status from <span class="font-mono">data/backtest/source_pipeline.json</span>.
+            A source is <span class="text-emerald-400/60">clean</span> when it passes strict evidence criteria
+            (continuous time-series, no proxies, independent cross-validation).
+            <span class="text-amber-400/60">Pending</span> sources are under data quality review.
+          </p>
+        </div>
+
+      </div>
+    </section>
 
     <!-- Bottom disclaimer -->
     <div class="mt-16 pt-8 border-t border-white/5">
@@ -45,6 +362,7 @@ import Footer from '../components/Footer.astro';
           All data shown represents paper trading with virtual capital ($100,000 USDC).
           No real funds are at risk. APY figures are variable and not guaranteed.
           Past paper performance does not predict or guarantee future results.
+          Research strategies (S20, S21) are advisory only — they do not open positions or manage real capital.
           This dashboard is for informational and due-diligence purposes only and
           does not constitute investment advice. SPA is not a licensed financial advisor.
           See <a href="/risk" class="text-accent-400/60 hover:text-accent-400">Risk Disclosure</a> for full details.
@@ -56,3 +374,95 @@ import Footer from '../components/Footer.astro';
   <Footer />
 
 </Layout>
+
+<!-- ═══════════════════════════════════════════════════════
+     Client-side gate panel updater
+     Tries /api/backtest/gate; falls back to static HTML above
+     ═══════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  const GATE_API = '/api/backtest/gate';
+
+  const ICON_MAP = {
+    PASS:      '✅',
+    NOT_READY: '⏳',
+    BLOCKED:   '🔒',
+    UNKNOWN:   '❓',
+  };
+
+  const BADGE_CLASS = {
+    PASS:      'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+    NOT_READY: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+    BLOCKED:   'border-red-500/30 bg-red-500/10 text-red-400',
+    UNKNOWN:   'border-white/20 bg-white/5 text-white/40',
+  };
+
+  const BADGE_LABEL = {
+    PASS:      'PASS',
+    NOT_READY: 'NOT READY',
+    BLOCKED:   'BLOCKED',
+    UNKNOWN:   'UNKNOWN',
+  };
+
+  function applyState(panelId, status, detail) {
+    const el = document.getElementById(panelId);
+    if (!el) return;
+    const icon = el.querySelector('.gate-icon');
+    const badge = el.querySelector('.gate-badge');
+    const detailEl = el.querySelector('.gate-detail');
+    if (icon)  icon.textContent = ICON_MAP[status] ?? '❓';
+    if (badge) {
+      badge.className = 'gate-badge text-[10px] font-mono px-1.5 py-0.5 rounded border ' + (BADGE_CLASS[status] ?? BADGE_CLASS.UNKNOWN);
+      badge.textContent = BADGE_LABEL[status] ?? status;
+    }
+    if (detailEl && detail) detailEl.textContent = detail;
+  }
+
+  async function fetchGate() {
+    try {
+      const res = await fetch(GATE_API, {
+        signal: AbortSignal.timeout(5000),
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return;
+      const d = await res.json();
+
+      const four = d.four_state_status ?? {};
+      const backtest  = (d.backtest_gate  ?? four.backtest  ?? 'UNKNOWN').toUpperCase();
+      const prePaper  = (d.pre_paper      ?? four.pre_paper ?? 'UNKNOWN').toUpperCase();
+      const paper     = (d.paper          ?? four.paper     ?? 'UNKNOWN').toUpperCase();
+      const live      = (d.live           ?? four.live      ?? 'UNKNOWN').toUpperCase();
+
+      applyState('gate-backtest',  backtest,  d.backtest_detail  ?? null);
+      applyState('gate-pre-paper', prePaper,  d.pre_paper_detail ?? null);
+      applyState('gate-paper',     paper,     d.paper_detail     ?? null);
+      applyState('gate-live',      live,      d.live_detail      ?? null);
+
+      // Show blockers if any
+      const blockers = d.blockers ?? [];
+      if (blockers.length) {
+        const row  = document.getElementById('gate-blockers-row');
+        const text = document.getElementById('gate-blockers-text');
+        if (row)  row.classList.remove('hidden');
+        if (text) text.textContent = blockers.join(' · ');
+      }
+
+      // Mark as live
+      const badge = document.getElementById('gate-source-badge');
+      if (badge) {
+        badge.textContent = 'live API';
+        badge.className = 'text-[10px] font-mono text-emerald-400/60';
+      }
+    } catch {
+      // Silently fall back to static build data — no action needed
+    }
+  }
+
+  // Run after DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fetchGate);
+  } else {
+    fetchGate();
+  }
+})();
+</script>
