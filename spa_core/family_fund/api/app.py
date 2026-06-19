@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .middleware import rate_limit_middleware, request_id_middleware
-from .routes import auth, health, portfolio, yield_history
+from .routes import admin, auth, health, portfolio, users, yield_history
 
 logger = logging.getLogger("family_fund.api")
 
@@ -97,7 +97,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=ALLOWED_ORIGINS,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
         max_age=600,
     )
@@ -113,6 +113,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(portfolio.router)
     app.include_router(yield_history.router)
+    app.include_router(users.router)
+    app.include_router(admin.router)
 
     return app
 
