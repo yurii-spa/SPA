@@ -2405,3 +2405,21 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_v893.sh создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался из sandbox).
 
 **Push:** `bash scripts/push_v893.sh`
+
+## Sprint v9.01 — 2026-06-19
+
+**Tasks:** MP-1256  
+**Tests:** 98  
+**Module:** `spa_core/analytics/gross_of/defi_protocol_vault_performance_fee_gross_of_yield_aggregator_platform_fee_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_yield_aggregator_platform_fee_analyzer.py`  
+**Class:** `GrossOfYieldAggregatorPlatformFeeAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_yield_aggregator_platform_fee_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **YIELD AGGREGATOR PLATFORM FEE**: платформенная/управленческая комиссия, которую берёт протокол-агрегатор доходности (Yearn V3 management fee 2% AUM + 20% perf, Beefy harvest/performance fee, Harvest Finance 30% profit sharing, Idle Finance best-yield fee, Pickle Finance performance fee) с GROSS доходности волта ДО начисления performance fee. Волт начисляет perf-fee с GROSS yield (до вычета платформенной комиссии агрегатора), поэтому депозитор платит перф-фи с того среза yield, который платформа-агрегатор уже забрала (fee-on-platform-fee / fee-base инфляция). Порог `HIGH_YIELD_AGGREGATOR_PLATFORM_FEE_PCT=0.25%`. 5 классификаций: CLEAN_NET_OF_YIELD_AGGREGATOR_PLATFORM_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross + net_of_platform_fee + fee_pct) и override (gap + fee_charged напрямую). Score = 70*realization_ratio + 30*(1−fee_on_platform_fee_fraction), 0–100. Атомарный ring-buffer лог (tmp + os.replace, cap=100). stdlib only.
+
+**Distinctions vs other modules:** YIELD AGGREGATOR PLATFORM FEE (комиссия агрегатора-протокола: Yearn/Beefy/Harvest/Idle/Pickle как ПЛАТФОРМЫ) — vs protocol_revenue_share (governance treasury cut — Aave DAO reserve factor, Compound governance share); vs curator_fee (vault curator/risk manager — Morpho curator allocation fee); vs referral_affiliate_fee (реферальный incentive); vs management_fee (vault-level AUM management fee самого волта, а не агрегатора-платформы); vs keeper_fee/swap_fee/bridge_fee/base_fee/priority_fee/blob_fee/l1_data_fee/bundler_fee/crosschain_message_fee/insurance_fund/reserve_contribution/borrow_cost/funding_cost/rebalancing_cost/lp_amm_fee_drag/avs_operator_fee/intent_solver_fee/early_withdrawal_penalty/exit_slippage/mev_tax/flash_loan_fee/oracle_update_fee/deposit_fee/regulatory_risk_premium/governance_attack_risk_premium/smart_contract_risk_premium/oracle_manipulation_risk_premium/counterparty_default_risk_premium/lst_peg_slippage — каждый прайсит иной слой эрозии. Не HWM/crystallization.
+
+**Верификация:** py_compile OK; `python3 -m pytest …yield_aggregator_platform_fee…` → **98/98 passed**; forbidden-import grep → CLEAN (stdlib only); реестр импортируется, B=513 total=705; done_count=955.
+
+**Push:** `bash scripts/push_v901.sh`
