@@ -25,11 +25,11 @@ import hashlib
 import json
 import logging
 import os
-import tempfile
 import time
 from typing import Optional
 
 from spa_core.utils.errors import LiveTradingForbiddenError
+from spa_core.utils.atomic import atomic_save
 
 __all__ = [
     "LiveTradingGate",
@@ -69,40 +69,28 @@ def _is_valid_sha256(key: str) -> bool:
 
 
 def _atomic_write(path: str, data: dict) -> None:
-    """Write *data* as JSON to *path* atomically (tmp + os.replace)."""
-    dir_ = os.path.dirname(path) or "."
-    os.makedirs(dir_, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_, prefix=".live_trading_gate_tmp_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(data, path)
 
+
+# ---------------------------------------------------------------------------
+# LiveTradingGate — singleton-like gate controlling access to live trading
+# ---------------------------------------------------------------------------
 
 class LiveTradingGate:
     """
-    Singleton-like gate that controls access to live trading.
+    Controls access to live trading.
 
-    The gate is LOCKED by default and can only be activated when ALL
-    prerequisites are met AND a valid activation_key (SHA256 of the owner
-    acceptance document) is provided.
+    Gate is LOCKED by default. Activation requires:
+    1. All prerequisite flags set (owner_acceptance, paper_trading_complete,
+       pre_launch_validation) — set by external modules.
+    2. Explicit activate() call with valid SHA256 activation_key.
 
     Raises LiveTradingForbiddenError if live trading is not authorised.
+    All state is persisted atomically to data/live_trading_gate.json.
 
-    Usage::
-
-        gate = LiveTradingGate()
-        gate.require_live_gate()   # raises if LOCKED
-
-        # To activate (only after all prerequisites are met):
-        gate.activate(activation_key="<sha256>", reason="Go-live 2026-08-01")
+    LLM_FORBIDDEN: no LLM calls here.
+    MP-1401 (v10.17) — stdlib only.
     """
 
     def __init__(self, base_dir: str = ".") -> None:
@@ -110,24 +98,23 @@ class LiveTradingGate:
         self._gate_path = os.path.join(base_dir, GATE_FILE)
         self._state: Optional[dict] = None
 
-    # ------------------------------------------------------------------ #
-    # Internal helpers
-    # ------------------------------------------------------------------ #
+    # ── Internal helpers ────────────────────────────────────────────────────
 
     def _load(self) -> dict:
-        """Load gate state from file.  Returns default LOCKED state if missing or corrupt."""
+        """Load gate state from file. Returns default LOCKED state if missing or corrupt."""
         if os.path.exists(self._gate_path):
             try:
                 with open(self._gate_path, "r", encoding="utf-8") as fh:
                     data = json.load(fh)
                 if isinstance(data, dict):
-                    # Merge with defaults so new fields are always present
                     state = dict(_DEFAULT_STATE)
                     state.update(data)
                     return state
             except (json.JSONDecodeError, OSError) as exc:
-                logger.warning("live_trading_gate: corrupt state file, defaulting to LOCKED: %s", exc)
-        # File missing or corrupt — start locked, persist immediately
+                logger.warning(
+                    "live_trading_gate: corrupt state file, defaulting to LOCKED: %s", exc
+                )
+        # Missing or corrupt — start locked
         state = dict(_DEFAULT_STATE)
         try:
             _atomic_write(self._gate_path, state)
@@ -147,91 +134,72 @@ class LiveTradingGate:
             return
         _atomic_write(self._gate_path, self._state)
 
-    # ------------------------------------------------------------------ #
-    # Public API
-    # ------------------------------------------------------------------ #
+    # ── Public API ──────────────────────────────────────────────────────────
 
     def is_active(self) -> bool:
-        """True only if the gate has been explicitly activated with all prerequisites met."""
+        """True only if the gate has been explicitly activated."""
         return bool(self._state_loaded().get("active", False))
 
     def require_live_gate(self) -> None:
         """
-        Call this before any live trading operation.
+        Hard gate — raises LiveTradingForbiddenError if not active.
+
+        This check cannot be bypassed by configuration or env vars.
 
         Raises:
-            LiveTradingForbiddenError: if the gate is not active.
-
-        This check is *hard*: it cannot be bypassed by configuration or
-        environment variables.
+            LiveTradingForbiddenError: if the gate is LOCKED.
         """
         if not self.is_active():
             raise LiveTradingForbiddenError("live_trading_gate")
 
     def get_prerequisites(self) -> dict:
-        """
-        Return the current prerequisite status.
-
-        Returns a dict with keys::
-
-            owner_acceptance:       bool  — owner has signed acceptance doc
-            paper_trading_complete: bool  — >= 30 evidence days logged
-            pre_launch_validation:  bool  — all 38 pre-launch checks PASS
-            manually_activated:     bool  — gate explicitly activated
-            all_met:                bool  — all four above are True
-
-        External modules (OwnerAcceptance, GoLiveChecker) write directly
-        to the gate state file to update the first three flags.
-        """
+        """Return current prerequisite status dict."""
         state = self._state_loaded()
-        owner_acceptance = bool(state.get("owner_acceptance", False))
+        owner_acceptance       = bool(state.get("owner_acceptance", False))
         paper_trading_complete = bool(state.get("paper_trading_complete", False))
-        pre_launch_validation = bool(state.get("pre_launch_validation", False))
-        manually_activated = bool(state.get("active", False))
-        all_met = owner_acceptance and paper_trading_complete and pre_launch_validation and manually_activated
+        pre_launch_validation  = bool(state.get("pre_launch_validation", False))
+        manually_activated     = bool(state.get("active", False))
+        all_met = (
+            owner_acceptance
+            and paper_trading_complete
+            and pre_launch_validation
+            and manually_activated
+        )
         return {
-            "owner_acceptance": owner_acceptance,
+            "owner_acceptance":       owner_acceptance,
             "paper_trading_complete": paper_trading_complete,
-            "pre_launch_validation": pre_launch_validation,
-            "manually_activated": manually_activated,
-            "all_met": all_met,
+            "pre_launch_validation":  pre_launch_validation,
+            "manually_activated":     manually_activated,
+            "all_met":                all_met,
         }
 
     def activate(self, activation_key: str, reason: str) -> bool:
         """
-        Activate live trading.
+        Activate live trading if all prerequisites are met.
 
-        Returns False (and keeps gate LOCKED) if:
-        - *activation_key* is not a valid SHA256 hex digest (64 hex chars)
-        - Any prerequisite flag is missing (owner_acceptance, paper_trading_complete,
-          pre_launch_validation)
-
-        Returns True and persists the ACTIVE state if all checks pass.
+        Returns False (keeps gate LOCKED) if activation_key is not a valid
+        SHA256 hex digest or if any prerequisite flag is missing.
 
         Args:
-            activation_key: SHA256 hex digest of the signed owner acceptance document.
-            reason:         Human-readable reason for activation (logged).
+            activation_key: SHA256 hex digest (64 chars) of the signed acceptance doc.
+            reason:         Human-readable reason (logged and persisted).
+
+        Returns:
+            True if activated, False otherwise.
         """
         state = self._state_loaded()
-
-        # Validate activation key format
         if not _is_valid_sha256(activation_key):
-            logger.warning(
-                "live_trading_gate.activate: invalid activation_key format (must be SHA256 hex)"
-            )
+            logger.warning("live_trading_gate.activate: invalid activation_key format")
             return False
-
-        # Check prerequisites
         if not state.get("owner_acceptance", False):
-            logger.warning("live_trading_gate.activate: owner_acceptance prerequisite not met")
+            logger.warning("live_trading_gate.activate: owner_acceptance not met")
             return False
         if not state.get("paper_trading_complete", False):
-            logger.warning("live_trading_gate.activate: paper_trading_complete prerequisite not met")
+            logger.warning("live_trading_gate.activate: paper_trading_complete not met")
             return False
         if not state.get("pre_launch_validation", False):
-            logger.warning("live_trading_gate.activate: pre_launch_validation prerequisite not met")
+            logger.warning("live_trading_gate.activate: pre_launch_validation not met")
             return False
-
         # All checks pass — activate
         state["active"] = True
         state["activation_key_hash"] = hashlib.sha256(activation_key.encode()).hexdigest()
@@ -246,14 +214,10 @@ class LiveTradingGate:
 
     def deactivate(self, reason: str) -> None:
         """
-        Emergency deactivation. The gate returns to LOCKED immediately.
-        The deactivation reason and timestamp are persisted.
-
-        This operation is idempotent — deactivating an already-LOCKED gate
-        is a no-op (no error).
+        Emergency deactivation. Idempotent — deactivating a LOCKED gate is a no-op.
 
         Args:
-            reason: Human-readable reason for deactivation (logged and persisted).
+            reason: Human-readable reason (logged and persisted).
         """
         state = self._state_loaded()
         was_active = state.get("active", False)
@@ -268,45 +232,30 @@ class LiveTradingGate:
             logger.debug("live_trading_gate: deactivate called on already-LOCKED gate (no-op)")
 
     def status_report(self) -> str:
-        """
-        Return a human-readable gate status string.
-
-        Includes BLOCKED/ACTIVE status and prerequisite summary.
-        """
+        """Return human-readable gate status string."""
         state = self._state_loaded()
         active = bool(state.get("active", False))
         prereqs = self.get_prerequisites()
-
-        status_label = "ACTIVE" if active else "BLOCKED"
-
+        label = "ACTIVE" if active else "BLOCKED"
         lines = [
-            f"LiveTradingGate status: {status_label}",
+            f"LiveTradingGate status: {label}",
             f"  owner_acceptance:       {prereqs['owner_acceptance']}",
             f"  paper_trading_complete: {prereqs['paper_trading_complete']}",
             f"  pre_launch_validation:  {prereqs['pre_launch_validation']}",
             f"  manually_activated:     {prereqs['manually_activated']}",
             f"  all_met:                {prereqs['all_met']}",
         ]
-
         if active:
-            activated_at = state.get("activated_at", "unknown")
-            activated_reason = state.get("activated_reason", "")
-            lines.append(f"  activated_at: {activated_at}")
-            lines.append(f"  activated_reason: {activated_reason}")
+            lines.append(f"  activated_at:     {state.get('activated_at', 'unknown')}")
+            lines.append(f"  activated_reason: {state.get('activated_reason', '')}")
         else:
-            deactivated_reason = state.get("deactivated_reason")
-            if deactivated_reason:
-                lines.append(f"  deactivated_reason: {deactivated_reason}")
             missing = [k for k, v in prereqs.items() if k != "all_met" and not v]
             if missing:
                 lines.append(f"  missing prerequisites: {', '.join(missing)}")
-
         return "\n".join(lines)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Module-level convenience function (singleton gate)
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Module-level singleton ──────────────────────────────────────────────────
 
 _gate: Optional[LiveTradingGate] = None
 
