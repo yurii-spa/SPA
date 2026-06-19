@@ -42,9 +42,9 @@ const global = strategies.global;
 
     <!-- 1. Hero -->
     <section class="pt-20 pb-12">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-white/40" aria-hidden="true"></span>
-        Target Profile
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+        Target Profile — Validation Pending
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
         Preserve Strategy
@@ -88,16 +88,16 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Current Status</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
           <div class="text-xs text-white/30 mb-1">Phase</div>
-          <div class="text-white font-semibold flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-white/40" aria-hidden="true"></span>
-            Target Profile
+          <div class="text-amber-400 font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
+            Validation Pending
           </div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
           <div class="text-xs text-white/30 mb-1">Paper Tracking</div>
-          <div class="text-white/50 font-semibold">Planned — not yet active</div>
+          <div class="text-white/50 font-semibold">Not yet active</div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
           <div class="text-xs text-white/30 mb-1">Go-Live Target</div>
@@ -237,14 +237,14 @@ const global = strategies.global;
     <!-- 10. Performance / Validation Status -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Validation Status</p>
-      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+      <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6">
         <div class="flex items-center gap-3 mb-4">
-          <span class="w-2 h-2 rounded-full bg-white/40" aria-hidden="true"></span>
-          <span class="text-sm text-white/60 font-medium">Target Profile — Not Yet Paper Tracked</span>
+          <span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
+          <span class="text-sm text-amber-400 font-medium">Target Profile — Validation Pending</span>
         </div>
         <p class="text-sm text-white/40 leading-relaxed">
-          This strategy is in target profile stage. Paper tracking is planned but not yet active.
-          No performance data available. All APY figures are target estimates only.
+          Paper tracking for Preserve will begin after validation. No historical performance data yet.
+          All APY figures are target estimates only.
         </p>
       </div>
     </section>
@@ -330,23 +330,15 @@ const global = strategies.global;
     <!-- 13. Fees -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Fee Structure</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-          <div class="text-3xl font-mono font-bold text-white mb-1">{global.management_fee}</div>
-          <div class="text-sm text-white/60 mb-3">Annual Management Fee</div>
-          <p class="text-xs text-white/35 leading-relaxed">
-            Charged annually on AUM. Accrued daily. 0% during paper trading.
-          </p>
-        </div>
-        <div class="rounded-xl border border-accent-500/20 bg-accent-500/5 p-6">
-          <div class="text-3xl font-mono font-bold text-accent-400 mb-1">{global.performance_fee}</div>
-          <div class="text-sm text-white/60 mb-3">Performance Fee + High-Water Mark</div>
-          <p class="text-xs text-white/35 leading-relaxed">
-            Charged on net profits above the high-water mark. Fee from go-live date only.
-          </p>
-        </div>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <p class="text-sm text-white/50 leading-relaxed mb-3">
+          Fee structure is discussed individually during onboarding. High-water mark applies —
+          no performance fee until the previous peak is recovered.
+        </p>
+        <p class="text-xs text-white/30">
+          No fees during paper trading period.
+        </p>
       </div>
-      <p class="text-xs text-white/25">Fee structure TBD for Preserve strategy. Above is target model.</p>
     </section>
 
     <!-- 14. FAQ -->
@@ -389,10 +381,25 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">What's the minimum allocation?</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">What assets are supported?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            Target range is $25K–$250K for family offices. No hard minimum has been set
-            for this strategy yet.
+            USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums or pool capacity limits.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">What about withdrawals?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            No lock-up. Standard processing T+1. Large or complex withdrawals may take
+            up to 5 business days. No withdrawal fee.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Is KYC required?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            No KYC required to view the site or dashboard. Identity verification
+            is required before first deposit.
           </p>
         </div>
 
