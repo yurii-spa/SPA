@@ -63,6 +63,8 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
+from spa_core.safety.safeguard import live_trading_forbidden
+
 log = logging.getLogger("spa.aave_v3_adapter")
 
 
@@ -711,6 +713,7 @@ class AaveV3Adapter:
             )
         return acct, derived
 
+    @live_trading_forbidden
     def _sign_and_send(
         self,
         Account,
