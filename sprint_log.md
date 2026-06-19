@@ -1,5 +1,14 @@
 # Sprint Log
 
+## v9.06 — 2026-06-19
+
+**Sprint:** v9.06  
+**Module:** MP-1261 GrossOfTokenVestingUnlockPressureAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 960 total=710  
+**Description:** perf-fee gross-of-token-vesting-unlock-pressure base gap (yield erosion from token vesting unlock events: when DeFi protocol tokens COMP, AAVE, UNI, CRV have scheduled unlocks, significant sell pressure depresses token price and thus yield for vault participants holding those tokens; this implicit cost = expected yield reduction from vesting schedule dilution; distinct from governance_attack_risk_premium governance exploit risk, regulatory_risk_premium regulatory action risk, counterparty_default_risk_premium issuer solvency risk)
+
 ## v9.05 — 2026-06-19
 
 **Sprint:** v9.05  
