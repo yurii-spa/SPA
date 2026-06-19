@@ -1,6 +1,16 @@
 # Sprint Log
 
 
+## v8.86 — 2026-06-19
+
+### MP-1240: SequencerTipGapAnalyzer (`spa_core/analytics/gross_of/sequencer_tip.py`)
+- Новый gap-layer модуль: L2 sequencer priority tip drag на DeFi vault yield. На L2 сетях (Arbitrum, Optimism, Base, Scroll, zkSync) секвенсер берёт priority tip сверх L1 data cost; performance fee считается с yield gross of этого tip cost → fee-on-tip / fee-base inflation.
+- Chain-specific: ETH mainnet = NO_SEQUENCER (validators, не sequencer, tip=0, score=100), L2 chains = sequencer tip applies.
+- `sequencer_tip_config.py`: annual_tip_bps_estimate per chain (Arbitrum 3, Base/Optimism 2, Scroll/zkSync 1), tx_per_year_typical=730.
+- Standalone functions: `is_sequencer_chain()`, `estimate_annual_tip_bps()`, `compute_tip_drag()`, `apply_gap()`.
+- Main path + override path + no-sequencer path. Ring-buffer log, atomic writes, pure stdlib.
+- 98 тестов, все green.
+
 ## v8.89 — 2026-06-18
 
 ### MP-1243: Investor Cabinet — React SPA (`cabinet/`)
@@ -2077,3 +2087,50 @@
 **Верификация:** `pytest spa_core/tests/test_family_fund_api/` → **107 passed**. Live boot uvicorn :8766 → /health 200, /auth/login (owner) выдаёт access_token, /portfolio без токена → 401. uvicorn import_from_string OK.
 
 **STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. Секреты не встраивались (JWT из Keychain/env; bcrypt-хеши, не пароли).
+
+
+## v8.89 — 2026-06-19 (RECONCILE)
+
+**Sprint:** v8.89  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1243 (+ MP-1242 bookkeeping)  
+**Type:** Reconcile (код был отгружен предыдущим прогоном, не хватало бухгалтерии)
+
+**Summary:** Investor Cabinet — **React SPA** (`cabinet/`) и FastAPI backend (`spa_core/family_fund/api/`, :8766) уже находились на диске и в колонке `done` KANBAN (MP-1243, MP-1242), но `sprint_completed` отставал на v8.87, записи `sprint_log` для v8.89 не существовало, push-скриптов `push_v888.sh`/`push_v889.sh` не было. Этот прогон закрыл бухгалтерию.
+
+**MP-1243 (React SPA, `cabinet/`):** Vite + React 18, Tailwind, TanStack Query v5, Recharts, React Router v6. In-memory access token + httpOnly-cookie refresh, `ProtectedRoute`, Login + Dashboard (5 KPI-карточек, equity AreaChart, таблицы positions/yield, system status). Тёмная DeFi-тема. Потребляет Family Fund API :8766. Прод-сборка зелёная → `cabinet/dist/` (index.html + assets/index-*.js/.css). CF Pages target `app.earn-defi.com`.
+
+**MP-1242 (FastAPI backend, v8.88):** уже залогирован отдельной записью v8.88; здесь только создан push-скрипт.
+
+**Верификация (оркестратором):** `cabinet/dist/index.html` + `cabinet/dist/assets/index-*.js`/`.css` присутствуют (сборка есть); `python3 -m py_compile spa_core/family_fund/api/app.py auth.py run_api.py` → OK; MP-1242 и MP-1243 присутствуют в колонке `done`.
+
+**STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались.
+
+**Push:** `bash scripts/push_v888.sh` (backend) и `bash scripts/push_v889.sh` (cabinet — каталог `cabinet/` + sprint_log + KANBAN).
+
+
+## v8.90 — 2026-06-19
+
+**Sprint:** v8.90  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1244  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_insurance_fund_premium_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_insurance_fund_premium_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfInsuranceFundPremiumBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_insurance_fund_premium_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **INSURANCE FUND PREMIUM**: непрерывный cover/insurance-премиум, который волт платит **ВОВНЕ** — safety-module или внешнему cover-провайдеру (Nexus Mutual / Sherlock / staked-token Safety Module) за защиту от slashing/hack — снимаемый с GROSS yield волта ДО того, как берётся performance fee. Волт начисляет perf-fee с GROSS доходности (до вычета страхового премиума), поэтому депозитор платит перф-фи с того среза yield, который insurance premium уже стёр (fee-on-insurance-premium / fee-base инфляция). Порог `HIGH_INSURANCE_FUND_PREMIUM_PCT=0.3%`. 5 классификаций: CLEAN_NET_OF_INSURANCE_FUND_PREMIUM_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross + net_of_insurance_fund_premium + fee_pct) и override (gap + fee_charged напрямую). Score = 70*realization_ratio + 30*(1−fee_on_insurance_fund_premium_fraction), 0–100. 6 флагов (CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_INSURANCE_FUND_PREMIUM, GAP_FROM_OVERRIDE, FEE_ON_INSURANCE_FUND_PREMIUM, FULL_FEE_ON_INSURANCE_FUND_PREMIUM). Атомарный ring-buffer лог (tmp + os.replace, cap=100).
+
+**Distinctions vs other modules:** INSURANCE FUND PREMIUM (премиум, выплачиваемый ВОВНЕ cover-провайдеру / safety-module стейкерам) — vs reserve_contribution (reserve factor УДЕРЖИВАЕТСЯ протоколом как его собственная выручка, не выплачивается как cover); vs bad_debt_socialization (реализованный residual убыток, размазанный на депозиторов после ПРОВАЛА ликвидации — здесь регулярный премиум за защиту, а не реализованный убыток); vs liquidation_penalty (liquidator bonus + protocol liquidation fee при успешной частичной ликвидации); vs slashing_loss (само событие slashing протоколом — здесь премиум за защиту ОТ него); vs management_fee/deposit_fee/withdrawal_fee/flash_loan_fee/borrow_cost/funding_cost и gas/AA/messaging/oracle/keeper слои (priority_fee/blob_fee/l1_data_fee/bundler_fee/crosschain_message_fee/oracle_update_fee/harvest_bounty) — каждый прайсит иной слой эрозии. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0-001..P1-005 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features MP-403..507 — P3, не code/ready; ideas — LOW). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — insurance_fund_premium. Gap подтверждён: модуля performance_fee_gross_of_insurance_fund_premium в spa_core/analytics не было. Реестр Tier-B yield_quality weight 0.5 (B 496→497, ALL 688→689). done_count 936→937.
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.89 (оканчивается на 9, НЕ на 0/5) → ревью НЕ требовалось.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_insurance_fund_premium…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/web3/anthropic/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':497,'C':180}, ALL_MODULES=689, дубликатов нет, модуль present=True, класс грузится через registry; demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] = [100.0, 67.5, 0.0 (SEVERE), 60.0 (override), 0.0 (INSUFFICIENT_DATA)], avg_score=56.88, cleanest=USDC-IFP-Vault-CleanInsuranceFundPremium, worst=BAL-IFP-Vault-SevereInsuranceFundPremium, net_negative_count=1, position_count=5; KANBAN.json парсится, sprint_completed=v8.90, sprint_current=v8.91, done_count=937.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v890.sh`
