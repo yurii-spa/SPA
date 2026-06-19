@@ -14,6 +14,7 @@ import urllib.request
 from typing import List, Optional
 
 from spa_core.family_fund.models import InvestorStatement
+from spa_core.utils.errors import ConfigError
 
 __all__ = ["TelegramBlast"]
 
@@ -78,8 +79,9 @@ class TelegramBlast:
             timeout=10,
         )
         if result.returncode != 0:
-            raise RuntimeError(
-                f"Keychain lookup failed for key={key!r}: {result.stderr.strip()}"
+            raise ConfigError(
+                key,
+                f"Keychain lookup failed: {result.stderr.strip()}",
             )
         return result.stdout.strip()
 
