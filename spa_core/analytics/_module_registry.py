@@ -508,6 +508,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_vault_performance_fee_gross_of_slashing_loss_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfSlashingLossBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_validator_commission_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfValidatorCommissionBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_harvest_bounty_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfHarvestBountyBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_keeper_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfKeeperFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_referral_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfReferralFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_bridge_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBridgeFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_boost_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBoostFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
@@ -529,8 +530,11 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_vault_performance_fee_gross_of_liquidation_penalty_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfLiquidationPenaltyBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfAvsOperatorFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_insurance_fund_premium_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfInsuranceFundPremiumBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_vote_incentive_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfVoteIncentiveFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_protocol_revenue_share_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfProtocolRevenueShareBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_curator_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfCuratorFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'gross_of.sequencer_tip', "class": 'SequencerTipGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_early_withdrawal_penalty_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfEarlyWithdrawalPenaltyBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
