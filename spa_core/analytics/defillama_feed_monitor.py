@@ -49,6 +49,8 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+from spa_core.base import BaseAnalytics
 from typing import Dict, List, Optional
 
 __all__ = ["DeFiLlamaFeedMonitor", "MONITORED_PROTOCOLS"]
@@ -123,7 +125,7 @@ _PROMOTE_MIN_APY: float = 0.1
 _HTTP_TIMEOUT: int = 10
 
 
-class DeFiLlamaFeedMonitor:
+class DeFiLlamaFeedMonitor(BaseAnalytics):
     """Monitors DeFiLlama API for protocol data availability.
 
     Used for source promotion pipeline — promotes protocols from
@@ -133,12 +135,19 @@ class DeFiLlamaFeedMonitor:
     pure / deterministic.  Graceful fallback if network is unavailable.
     """
 
+    OUTPUT_PATH = "data/research/defillama_monitor.json"
+
     API_BASE: str = "https://yields.llama.fi"
 
     def __init__(self) -> None:
+        super().__init__()
         self._cache: Dict[str, Dict] = {}
         self._cache_ttl: int = 3600  # seconds
         self._cache_ts: Dict[str, float] = {}
+
+    def to_dict(self) -> dict:
+        """Returns current cached monitoring results as JSON-serializable dict."""
+        return dict(self._cache)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
