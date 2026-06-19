@@ -19,6 +19,8 @@ import functools
 import os
 import subprocess
 
+from spa_core.utils.errors import ConfigError
+
 KEYCHAIN_SERVICE = "FAMILY_FUND_JWT_SECRET"
 ENV_FALLBACK = "FAMILY_FUND_JWT_SECRET"
 MIN_SECRET_LEN = 32
@@ -59,11 +61,12 @@ def get_jwt_secret() -> str:
         secret = os.environ.get(ENV_FALLBACK)
         source = "env"
     if not secret:
-        raise RuntimeError(
+        raise ConfigError(
+            KEYCHAIN_SERVICE,
             "JWT secret not found. Add it to the Keychain:\n"
             f"  security add-generic-password -s {KEYCHAIN_SERVICE} "
             "-a family_fund -w '<secret>'\n"
-            f"or set env var {ENV_FALLBACK} (dev/test only)."
+            f"or set env var {ENV_FALLBACK} (dev/test only).",
         )
     if len(secret) < MIN_SECRET_LEN:
         raise ValueError(
