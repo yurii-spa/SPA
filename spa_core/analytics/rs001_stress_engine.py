@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
@@ -457,17 +456,8 @@ class RS001StressEngine:
         out_dir = Path(data_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / "rs001_stress_results.json"
-        fd, tmp_path = tempfile.mkstemp(dir=str(out_dir), prefix=".rs001_stress_tmp_")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, str(out_path))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(payload, str(out_path))
         return str(out_path)
 
     # ── Internal helpers ────────────────────────────────────────────────────────
