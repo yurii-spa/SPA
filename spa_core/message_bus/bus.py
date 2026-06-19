@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.init_db import get_connection, get_db_path
 from message_bus.topics import Message, Priority, Topic
+from spa_core.utils.errors import RegistryError
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class MessageBus:
     ) -> str:
         """Опубликовать сообщение. Возвращает message_id."""
         if topic not in Topic.ALL:
-            raise ValueError(f"Unknown topic: {topic!r}. Valid: {Topic.ALL}")
+            raise RegistryError(f"Unknown topic: {topic!r}. Valid: {Topic.ALL}", code="UNKNOWN_TOPIC")
 
         msg_id = str(uuid.uuid4())
         ts     = datetime.now(timezone.utc).isoformat()
