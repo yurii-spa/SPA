@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
@@ -307,19 +306,8 @@ class RegimeAdjustedAllocator:
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / "current_allocation.json"
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(out_dir), prefix=".current_alloc_tmp_"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, str(out_path))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(payload, str(out_path))
 
         return str(out_path)
 
