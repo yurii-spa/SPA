@@ -2291,3 +2291,30 @@
 **STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались; push_v889_ewp.sh создан для ручного запуска на Mac (push_to_github.py НЕ вызывался).
 
 **Push:** `bash scripts/push_v889_ewp.sh`
+
+
+## v8.93 — 2026-06-19
+
+**Sprint:** v8.93  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1249  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_keeper_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_keeper_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfKeeperFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_keeper_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **KEEPER FEE**: периодическая automation-плата, которую волт платит **ВОВНЕ** сети автоматизации (Gelato Network / Chainlink Automation / Keep3r) за регулярное выполнение upkeep-транзакций (rebalance, harvest, checkpoint) по расписанию — подписочная / per-execution плата (часто gas + premium провайдера), снимаемая с GROSS-доходности волта ДО того, как берётся performance fee. Волт начисляет perf-fee с GROSS доходности (до вычета keeper-платы), поэтому депозитор платит перф-фи с того среза yield, который keeper fee уже стёр (fee-on-keeper-fee / fee-base инфляция). Порог `HIGH_KEEPER_FEE_PCT=0.3%`. 5 классификаций: CLEAN_NET_OF_KEEPER_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross + net_of_keeper_fee + fee_pct) и override (gap + fee_charged напрямую). Score = 70*realization_ratio + 30*(1−fee_on_keeper_fee_fraction), 0–100. 6 флагов (CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_KEEPER_FEE, GAP_FROM_OVERRIDE, FEE_ON_KEEPER_FEE, FULL_FEE_ON_KEEPER_FEE). Атомарный ring-buffer лог (tmp + os.replace, cap=100). stdlib only.
+
+**Distinctions vs other modules:** KEEPER FEE (регулярная automation-подписка/per-upkeep плата, выплачиваемая ВОВНЕ Gelato/Chainlink Automation/Keep3r за исполнение по расписанию) — vs harvest_bounty (РАЗОВЫЙ bounty/тип тому, кто вызвал harvest(), обычно % от pending rewards, привязан к размеру наград, а не к расписанию); vs базовые газ-слои priority_fee/blob_fee/l1_data_fee/bundler_fee (здесь именно premium automation-провайдера, а не базовый газ исполнения); vs management_fee (удерживается самим протоколом как его выручка — здесь плата ВОВНЕ провайдеру); vs insurance_fund_premium/reserve_contribution/deposit_fee/withdrawal_fee/referral_fee и слои cost/crosschain_message_fee/mev_tax/intent_solver_fee/swap_fee/exit_slippage/rebalancing_cost/oracle_update_fee, plus liquidation_penalty/bad_debt_socialization/borrow_cost/funding_cost/flash_loan_fee/bridge_fee/slashing_loss/avs_operator_fee/validator_commission — каждый прайсит иной слой эрозии. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0-001..P1-005 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features MP-403..507 — P3, не code/ready; ideas — LOW). Из-за параллельных прогонов слоты v8.91 (avs_operator_fee), v8.92 (vote_incentive_fee) и MP-1245..1248 уже были заняты — оркестратор выбрал СВОБОДНЫЙ непересекающийся слой keeper_fee и следующие свободные идентификаторы v8.93 / MP-1249. Gap подтверждён: модуля performance_fee_gross_of_keeper_fee в spa_core/analytics не было. Реестр Tier-B yield_quality weight 0.5.
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.90 (оканчивается на 0) → ревью требовалось, но `python3 -m spa_core.dev_agents.architect --command review-backlog` падает в sandbox (`ModuleNotFoundError: anthropic` — нет API/сети). Выполнен ручной ревью backlog: новых type=code&status=ready задач не появилось; ready-задачи в backlog только agent_infra (launchd/cloudflared/Telegram/Keychain — Mac-only, недоступны и частично USER ACTION). KANBAN не требует изменений по итогам ревью.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_keeper_fee…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/web3/anthropic/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':505,'C':180}, ALL_MODULES=697, дубликатов нет, модуль present=True, класс грузится через registry; demo portfolio (analyze_portfolio) → все float finite (no Infinity/NaN), ключи positions/aggregate; KANBAN.json парсится.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_v893.sh создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался из sandbox).
+
+**Push:** `bash scripts/push_v893.sh`
