@@ -26,6 +26,7 @@ from database.init_db import init_database, get_connection, get_db_path
 from paper_trading.engine import PaperTrader
 from message_bus.bus import MessageBus
 from agents.decision_logger import DecisionLogger
+from spa_core.utils.errors import SourceError
 
 log = logging.getLogger("spa.export")
 
@@ -604,7 +605,7 @@ def run_export(fetch: bool = False) -> None:
                 daily.sort(key=lambda x: x["date"])
                 protocols_hist[proto_key] = daily[-90:]
         else:
-            raise ValueError("DeFiLlama returned empty histories")
+            raise SourceError("defillama", "DeFiLlama returned empty histories")
 
     except Exception as hist_err:
         log.warning(f"historical_apy from API failed ({hist_err}), generating synthetic")
