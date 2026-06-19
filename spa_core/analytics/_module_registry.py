@@ -543,6 +543,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_counterparty_default_risk_premium_analyzer', "class": 'GrossOfCounterpartyDefaultRiskPremiumAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_regulatory_risk_premium_analyzer', "class": 'GrossOfRegulatoryRiskPremiumAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_yield_aggregator_platform_fee_analyzer', "class": 'GrossOfYieldAggregatorPlatformFeeAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_liquidity_mining_opportunity_cost_analyzer', "class": 'GrossOfLiquidityMiningOpportunityCostAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
