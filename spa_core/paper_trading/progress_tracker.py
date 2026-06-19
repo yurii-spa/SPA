@@ -44,10 +44,10 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -111,36 +111,8 @@ def _read_json(path: Path, default: Any) -> Any:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically: tmpfile in the same dir + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _today_str() -> str:
-    """UTC today as YYYY-MM-DD string."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(obj, path)
 def _days_between(start: str, end: str) -> int:
     """Calendar days between two YYYY-MM-DD strings (end - start, can be negative)."""
     try:
