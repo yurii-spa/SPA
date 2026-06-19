@@ -126,6 +126,20 @@ class PerformanceResponse(BaseModel):
 
 
 # ── Yield history ─────────────────────────────────────────────────────────────
+class AttributionItem(BaseModel):
+    protocol: str
+    yield_usd: Decimal
+    yield_pct: Decimal
+    apy: Decimal
+    days_active: int = Field(..., ge=0)
+
+
+class AttributionResponse(BaseModel):
+    items: list[AttributionItem] = Field(default_factory=list)
+    period_days: int = Field(..., ge=1)
+    total_yield_usd: Decimal = Field(default=Decimal("0"))
+
+
 class YieldDayItem(BaseModel):
     date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
     equity_usd: Decimal = Field(..., ge=Decimal("0"))
