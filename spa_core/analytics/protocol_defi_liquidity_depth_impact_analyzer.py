@@ -71,6 +71,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -366,7 +368,7 @@ def write_log(result: Dict[str, Any], data_dir: Optional[Path] = None) -> Path:
 # ---------------------------------------------------------------------------
 
 
-class ProtocolDeFiLiquidityDepthImpactAnalyzer:
+class ProtocolDeFiLiquidityDepthImpactAnalyzer(BaseAnalytics):
     """Advisory wrapper around :func:`analyze_liquidity_depth_impact`.
 
     Usage::
@@ -376,8 +378,15 @@ class ProtocolDeFiLiquidityDepthImpactAnalyzer:
         analyzer.save(result)          # appends to ring-buffer log
     """
 
+    OUTPUT_PATH = "data/liquidity_depth_impact_log.json"
+
     def __init__(self, data_dir: Optional[Path] = None) -> None:
+        super().__init__()
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
+
+    def to_dict(self) -> dict:
+        """Returns empty dict — stateless analyzer; results returned from analyze()."""
+        return {}
 
     def analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Run liquidity depth impact analysis. Returns result dict."""
