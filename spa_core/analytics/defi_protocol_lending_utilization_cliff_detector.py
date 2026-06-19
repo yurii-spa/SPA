@@ -51,6 +51,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants & paths
 # ---------------------------------------------------------------------------
@@ -283,7 +285,7 @@ def _analyze_single(
 # ---------------------------------------------------------------------------
 
 
-class DeFiProtocolLendingUtilizationCliffDetector:
+class DeFiProtocolLendingUtilizationCliffDetector(BaseAnalytics):
     """Detect lending protocol utilization cliff proximity.
 
     Usage
@@ -306,14 +308,21 @@ class DeFiProtocolLendingUtilizationCliffDetector:
         print(result["label"])  # → APPROACHING_CLIFF
     """
 
+    OUTPUT_PATH = "data/lending_utilization_cliff_log.json"
+
     def __init__(
         self,
         data_dir: Optional[Path | str] = None,
         ring_cap: int = RING_BUFFER_CAP,
     ) -> None:
+        super().__init__()
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self._ring_cap = ring_cap
         self._last_result: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> dict:
+        """Returns last cliff analysis result as JSON-serializable dict."""
+        return dict(self._last_result) if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
