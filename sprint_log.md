@@ -1,5 +1,68 @@
 # Sprint Log
 
+## v8.90 — 2026-06-19
+
+**Sprint:** v8.90  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1244, MP-1245  
+**Tests added:** 155 (total API test suite; 37 new: 25 admin + 6 users/me + 6 attribution)  
+
+**Backend — MP-1244 Admin API:**
+- `spa_core/family_fund/api/routes/admin.py` — Admin user management (CRUD), system status, session stats, force-refresh
+- `spa_core/family_fund/api/routes/users.py` — GET/PUT /users/me (profile view/edit)
+- `spa_core/family_fund/api/routes/portfolio.py` — GET /portfolio/attribution (yield by protocol per period)
+- `spa_core/family_fund/api/models.py` — AttributionItem, AttributionResponse models
+- `spa_core/family_fund/api/app.py` — registered admin + users routers, added PUT/DELETE CORS methods
+- Extended users.json schema: id, is_active, created_at, last_login, display_name, telegram_handle
+- RBAC: admin routes require min_role=ADMIN, force-refresh requires OWNER
+
+**Frontend — MP-1245 React Pages:**
+- `cabinet/src/pages/PortfolioPage.jsx` — full positions table with sorting, Yield Attribution BarChart (7/14/30D), CSV export
+- `cabinet/src/pages/YieldPage.jsx` — AreaChart equity curve, yield history table (all days), period selector, CSV export
+- `cabinet/src/pages/AccountPage.jsx` — profile view/edit (display_name, telegram), logout
+- `cabinet/src/pages/AdminPage.jsx` — user management table (edit/deactivate), system status cards, create user form
+- `cabinet/src/components/AppShell.jsx` — shared navigation header with Dashboard/Portfolio/Yield/Account/Admin tabs
+- `cabinet/src/App.jsx` — added routes: /portfolio, /yield, /account, /admin
+- `cabinet/src/api/client.js` — added put() and del() methods
+
+**Tests:**
+- `spa_core/tests/test_family_fund_api/test_admin.py` — 25 tests (list/create/update/deactivate users, system status, sessions, force-refresh, RBAC)
+- `spa_core/tests/test_family_fund_api/test_users_me.py` — 12 tests (profile get/update, auth, field validation)
+- `spa_core/tests/test_family_fund_api/test_portfolio.py` — 5 new attribution tests
+
+**done_count:** 944 → 946
+
+---
+
+## v8.92 — 2026-06-19
+
+**Sprint:** v8.92  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1248  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_vote_incentive_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_vote_incentive_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfVoteIncentiveFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_vote_incentive_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **VOTE INCENTIVE (MARKETPLACE) FEE**. veToken/gauge-voting yield-волт направляет своё голосующее веса (veCRV/veBAL/vlAURA) и зарабатывает vote-incentive ("bribe") доход. Этот доход маршрутизируется через bribe-МАРКЕТПЛЕЙС (Votium / Hidden Hand / Paladin Quest / Warden), который забирает свою take-rate (platform fee) с gross bribe-потока ДО того, как волт (и депозитор) что-либо видит. Волт затем начисляет performance fee с GROSS vote-incentive дохода ДО вычета marketplace take-rate → fee-on-vote-incentive-fee / fee-base инфляция. Порог HIGH_VOTE_INCENTIVE_FEE_PCT=0.3%. 5 классификаций (CLEAN_NET_OF_VOTE_INCENTIVE_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA), 2 пути (main gross+net_of+fee_pct / override gap+fee_charged). Score = 70*realization_ratio + 30*(1-fee_on_vote_incentive_fee_fraction), 0–100. Атомарный ring-buffer лог (tmp + os.replace, cap=100), pure stdlib.
+
+**Distinctions:** vote-incentive MARKETPLACE take-rate (Votium/Hidden Hand cut на gauge-vote-bribe доход) — vs referral_fee/boost_fee (third-party take-rates на referred-депозиты / veToken-boost provisioning, не cut bribe-маркетплейса); vs существующие модули protocol_vetoken_bribe_efficiency_analyzer / protocol_vetoken_bribe_market_analyzer (меряют bribe ROI / динамику bribe-рынка, НЕ perf-fee gross-vs-net base gap); vs validator_commission (cut node-оператора со staking-наград), management_fee (AUM-charge), harvest_bounty (keeper bounty), swap_fee/exit_slippage/rebalancing_cost/mev_tax (trade-execution drag волта), gas/AA/messaging/oracle-слои, и прочие gross_of_* слои (funding_cost/bridge_fee/flash_loan_fee/deposit_fee/withdrawal_fee/intent_solver_fee/liquidation_penalty/insurance_fund_premium/protocol_revenue_share/…). Не HWM/crystallization.
+
+**Note (выбор спринта):** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0-001..P1-005 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features MP-403..507 — P3; ideas — LOW). Оркестратор самостоятельно выбрал новый непересекающийся слой — vote_incentive_fee. Gap подтверждён: модуля gross_of_vote_incentive_fee не было; существующие bribe-модули — про ROI/рынок, не про perf-fee base.
+
+**Конкурентный прогон:** во время выполнения обнаружен ПАРАЛЛЕЛЬНЫЙ автономный прогон, который одновременно добавлял другие gross_of_* модули (avs_operator_fee MP-1245, protocol_revenue_share MP-1246, curator_fee/validator_mev_tax/sequencer_tip/early_withdrawal_penalty и др.) и двигал KANBAN/sprint_log. Чтобы избежать клоббера/коллизий: KANBAN обновлён АТОМАРНО (tmp+os.replace) с пере-чтением на момент записи; MP-id вычислен как max+1 НА МОМЕНТ ЗАПИСИ → присвоен **MP-1248** (MP-1247 уже занял параллельный прогон). Реестр: моя строка ровно одна, дубликатов нет.
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый перед прогоном — v8.90 (оканчивается на **0**) → ревью ТРЕБОВАЛОСЬ. `python3 -m spa_core.dev_agents.architect --command review-backlog` запущен, но **недоступен в sandbox** (ModuleNotFoundError: anthropic). Выполнен ручной gap/backlog-review (ready type=code задач нет; agent_infra — Mac/USER ACTION).
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_vote_incentive_fee…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, модуль present=True, строка ровно одна, дубликатов нет; demo portfolio → все float finite (no Infinity/NaN), scores=[100.0, 67.5, 0.0, 60.0, 0.0], agg: cleanest=CVX-VIF-Vault-CleanVoteIncentiveFee, worst=BAL-VIF-Vault-SevereVoteIncentiveFee, avg_score=56.88, net_negative_count=1, position_count=5; KANBAN.json парсится, MP-1248 present, sprint_completed=v8.92, sprint_current=v8.93, done_count=944.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались; push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v892.sh`
+
+
 
 ## v8.85 — 2026-06-19
 
@@ -2145,3 +2208,86 @@
 **STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
 
 **Push:** `bash scripts/push_v890.sh`
+
+
+## v8.90 — 2026-06-19
+
+**Sprint:** v8.90  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1245  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfAvsOperatorFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_avs_operator_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **AVS OPERATOR FEE** (комиссия оператора AVS в restaking-стеке: EigenLayer / Symbiotic / Karak). Restaking-волт делегирует свой restaked-стейк OPERATOR-у, который запускает AVS (Actively Validated Services). Оператор берёт AVS OPERATOR FEE — operator commission с reward-потока AVS ДО того, как restaker (волт) что-либо видит. Волт начисляет performance fee с GROSS reward ДО вычета operator-фи → fee-on-avs-operator-fee / fee-base инфляция. Порог HIGH_AVS_OPERATOR_FEE_PCT=0.3%. 5 классификаций: CLEAN_NET_OF_AVS_OPERATOR_FEE_BASE / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA. 2 пути: main (gross+net_of_avs_operator_fee+fee_pct) и override (gap+fee_charged напрямую). Score = 70*realization_ratio + 30*(1-fee_on_avs_operator_fee_fraction), клампится в [0,100]. Флаги: CLEAN_NET_BASE, NET_NEGATIVE_AFTER_FEE, HIGH_AVS_OPERATOR_FEE, GAP_FROM_OVERRIDE, FEE_ON_AVS_OPERATOR_FEE, FULL_FEE_ON_AVS_OPERATOR_FEE. Атомарный ring-buffer лог (tmp + os.replace, cap=100). Только stdlib.
+
+**Distinctions vs other modules:** AVS OPERATOR FEE (комиссия restaking-оператора за запуск AVS, EigenLayer/Symbiotic/Karak — второй слой комиссии поверх AVS-rewards) — vs validator_commission (комиссия L1-валидатора/node-operator с базовых consensus staking-rewards Ethereum); vs slashing_loss (изъятие капитала протоколом за misbehaviour — здесь штатная комиссия за корректную работу, не штраф); vs boost_fee (Convex/Aura boost-комиссия); vs harvest_bounty/oracle_update_fee (keeper/oracle слои); vs management_fee/deposit_fee/withdrawal_fee/referral_fee/reserve_contribution/insurance_premium (vault/протокол fee-слои); vs cost/priority_fee/blob_fee/l1_data_fee/bundler_fee/crosschain_message_fee/mev_tax/intent_solver_fee/swap_fee/exit_slippage/rebalancing_cost (gas/execution/messaging слои); vs liquidation_penalty/bad_debt_socialization/borrow_cost/funding_cost/flash_loan_fee/bridge_fee — каждый прайсит иной слой эрозии. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (backlog: agent_infra AGENT-P0-001..P1-005 status=ready, но требуют git/launchd/Keychain на Mac + USER ACTION — недоступны/исключены по правилам прогона; features MP-403..507 — P3; ideas — LOW). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* семейства — avs_operator_fee. Gap подтверждён: модуля/класса AvsOperatorFee / avs_operator / restaking_avs в spa_core/analytics не было (grep NONE-AVS). Реестр Tier-B yield_quality weight 0.5.
+
+**⚠️ Конкуренция прогонов:** во время прогона обнаружены ПАРАЛЛЕЛЬНЫЕ запуски того же scheduled task — KANBAN.json модифицировался конкурентно (sprint_completed v8.87→v8.89→v8.90 между чтениями; done_count 936→941), модули insurance_fund_premium (03:14) и curator_fee (05:05) созданы соседними прогонами. Запись MP-1245 добавлена атомарно (backup KANBAN.json.bak_v_avs_operator_fee + tmp+os.replace, минимальное окно read-modify-write). Возможна гонка/clobber с соседним прогоном — модуль+тесты+registry на диске валидны независимо.
+
+**Архитектор-ревью (каждые 5 спринтов):** последний завершённый ДО прогона — v8.89 (оканчивается на 9, НЕ на 0/5) → ревью НЕ требовалось. (Архитектор-модуль в sandbox недоступен: ModuleNotFoundError anthropic + api.github.com/Keychain недоступны.)
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_avs_operator_fee…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, tier_counts={'A':12,'B':498,'C':180}, ALL_MODULES=690, дубликатов нет (grep -c avs=1, DUPES=[]), модуль present=True; demo portfolio → все float конечны (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0); KANBAN.json парсится после записи, sprint_completed=v8.90, sprint_current=v8.91, done_count=941, MP-1245 ровно одна запись.
+
+**STRICTLY READ-ONLY (SPA-BL-011):** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались, push_* скрипт создан оркестратором для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v890.sh`
+
+
+## v8.91 — 2026-06-19
+
+**Sprint:** v8.91  
+**Date:** 2026-06-19  
+**Tasks done:** MP-1245  
+**Tests added:** 98  
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer.py`  
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer.py`  
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfAvsOperatorFeeBaseGapAnalyzer`  
+**Category:** yield_quality | Tier-B | weight=0.5  
+**LOG_PATH:** `data/vault_performance_fee_gross_of_avs_operator_fee_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **AVS OPERATOR FEE**. В рестейкинг-yield-волте (EigenLayer-style) рестейкнутый ETH/LST делегируется операторам, запускающим AVS (Actively Validated Services — DA-слои, мосты, оракулы, co-processors). За запуск AVS оператор удерживает OPERATOR FEE / commission — долю заработанных AVS-rewards до распределения рестейкерам. Комиссия изымается из GROSS rewards до того, как депозитор видит net yield. Волт начисляет performance fee с GROSS yield (до вычета AVS operator fee) → fee-on-avs-operator-fee / fee-base инфляция. Порог `HIGH_AVS_OPERATOR_FEE_PCT=0.3%`. 5 классификаций (CLEAN/MILD/MODERATE/SEVERE/INSUFFICIENT_DATA), 2 пути (main + override). Score = 70*realization_ratio + 30*(1-fee_on_avs_operator_fee_fraction), 0–100. Атомарный ring-buffer лог (cap=100), pure stdlib.
+
+**Distinctions:** AVS operator fee (voluntary restaking-layer operator commission на AVS-rewards) — vs gross_of_validator_commission (базовая PoS-комиссия валидатора на consensus-layer staking rewards — здесь доп. restaking/AVS-слой ПОВЕРХ базового стейкинга); vs gross_of_slashing_loss (penalty за misbehaviour — здесь добровольная комиссия в нормальном режиме, не штраф); vs boost_fee / management_fee — иные слои эрозии. Не HWM/crystallization.
+
+**Note:** Готовых задач type=code&status=ready в KANBAN не было (только agent_infra AGENT-P0/P1 — USER ACTION на Mac, исключены правилами прогона). Оркестратор самостоятельно выбрал новый непересекающийся слой gross_of_* — avs_operator_fee (grep avs в analytics = 0, gap подтверждён). Номер v8.91/MP-1245 выбран чтобы не пересечься с конкурентными прогонами (push_v889 cabinet React SPA / push_v890 insurance_fund_premium).
+
+**Architect-review (каждые 5 спринтов):** последний завершённый v8.90 оканчивается на 0 → ревью требовалось, но `spa_core.dev_agents.architect` импортирует `anthropic` (LLM) — недоступен в offline-sandbox → ревью пропущено с пометкой; бэклог уже размечен.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль+тест+registry); `python3 -m unittest …avs_operator_fee…` → **Ran 98 — OK**; forbidden-import (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN; реестр грузится, Tier-B 497→498, ALL 689→690, дубликатов нет, модуль present; demo → все float finite, scores в [0,100], avg=56.88, cleanest=USDC-AVS-Vault-CleanAvsOperatorFee, worst=BAL-AVS-Vault-SevereAvsOperatorFee, net_negative=1.
+
+**Гонка прогонов:** параллельный run уже записал MP-1245 (avs_operator_fee) в колонку done KANBAN → во избежание потери конкурентных правок KANBAN.json НЕ перезаписывался этим прогоном (reconcile-проход выровняет markers/done_count). Этот прогон добавил недостающее: push_v891.sh + запись в sprint_log.md.
+
+**STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались; push_to_github.py НЕ вызывался.
+
+**Push:** `bash scripts/push_v891.sh`
+
+
+## v8.92-ewp (reconciled) — 2026-06-19
+
+**Sprint:** v8.92-ewp (reconcile-branch; исходный план v8.89/MP-1243 был занят параллельными прогонами)
+**Date:** 2026-06-19
+**Tasks done:** MP-1247
+**Tests added:** 98
+**Module:** `spa_core/analytics/defi_protocol_vault_performance_fee_gross_of_early_withdrawal_penalty_base_gap_analyzer.py`
+**Test file:** `spa_core/tests/test_defi_protocol_vault_performance_fee_gross_of_early_withdrawal_penalty_base_gap_analyzer.py`
+**Class:** `DeFiProtocolVaultPerformanceFeeGrossOfEarlyWithdrawalPenaltyBaseGapAnalyzer`
+**Category:** yield_quality | Tier-B | weight=0.5
+**LOG_PATH:** `data/vault_performance_fee_gross_of_early_withdrawal_penalty_base_gap_log.json`
+
+**Summary:** Новый gross_of_* erosion-слой — **EARLY_WITHDRAWAL_PENALTY** (штраф, изымаемый из стоимости позиции, когда волт ДОСРОЧНО разрывает заблокированную/вестинговую позицию, чтобы исполнить редемпшн депозитора ДО истечения lock/vesting срока). Примеры: veCRV/vote-escrow ранний выход (forfeiture до ~50%), Pendle ранний redeem PT/YT до maturity, locked-staking/cooldown forfeiture, bonding/warmup сжигание. Penalty изымается из gross yield ДО того, как депозитор что-либо видит; волт начисляет performance fee с GROSS yield ДО вычета early-withdrawal penalty → fee-on-early-withdrawal-penalty / fee-base инфляция. Пороги: CLEAN 0.05 / MILD 0.20 / MODERATE 0.50; HIGH_EARLY_WITHDRAWAL_PENALTY_PCT=0.3. 5 классификаций (CLEAN_NET / MILD / MODERATE / SEVERE / INSUFFICIENT_DATA), 2 пути (main + override), score = 70*realization_ratio + 30*(1-fraction), атомарный ring-buffer лог (tmp+os.replace, cap=100), pure stdlib.
+
+**Distinctions:** vs withdrawal_fee (ФЛЭТ % на ЛЮБОЙ вывод — здесь TIME-dependent штраф ТОЛЬКО при выходе до созревания lock/vesting); vs liquidation_penalty (penalty ликвидатору при breach health-factor — здесь добровольный/вынужденный разрыв time-lock, не ликвидация залога); vs funding_cost/borrow_cost (непрерывные издержки — здесь one-off штраф в момент досрочного выхода); vs exit_slippage/swap_fee/rebalancing_cost/mev_tax (drag исполнения сделки — здесь протокольный lock-break penalty, изъятый из позиции); vs прочие gross_of_* слои (deposit_fee/management_fee/slashing_loss/bad_debt_socialization/bridge_fee/flash_loan_fee/intent_solver_fee/insurance_fund_premium/curator_fee/protocol_revenue_share — иные слои эрозии); не HWM/crystallization. Отдельно отличён от НЕ-perf-fee `defi_lockup_opportunity_cost_analyzer` и `defi_protocol_vault_redemption_cooldown_exposure_analyzer` (те меряют foregone-yield/exposure ОЖИДАНИЯ разблокировки — здесь РЕАЛЬНЫЙ изъятый penalty как base-инфляция perf-fee).
+
+**RACE/RECONCILE:** Прогон стартовал на устаревшем состоянии (sprint_completed=v8.87/v8.88). К моменту записи параллельные scheduled-прогоны уже завершили v8.89 (MP-1243 curator_fee/cabinet), v8.90 (MP-1244/1245 insurance_fund_premium/avs), v8.91 (MP-1246 protocol_revenue_share); sprint_current=v8.92. Модуль early_withdrawal_penalty — НЕ дубликат (в реестре ровно 1 раз, unique_all=True). Чтобы не клоберить нумерацию параллельных прогонов, зафиксирован как MP-1247 / sprint v8.92-ewp; глобальные sprint_completed/current/next НЕ изменялись, done_count +1.
+
+**Верификация (независимо оркестратором):** py_compile OK (модуль + тест + _module_registry.py); `python3 -m unittest …gross_of_early_withdrawal_penalty…` → **Ran 98 — OK**; forbidden-import grep (requests/urllib/anthropic/web3/aiohttp/httpx/numpy/pandas) → CLEAN (stdlib only); реестр импортируется, get_module_info OK, dup_count=1, unique_all=True (на момент проверки tier_counts={'A':12,'B':504,'C':180}, ALL=696 — числа «плавают» из-за параллельных прогонов, вклад строго +1 Tier-B); demo portfolio → все float finite (no Infinity/NaN), scores в [0,100] (CLEAN 100.0 / MODERATE 67.5 / SEVERE 0.0 / override 60.0 / INSUFFICIENT_DATA 0.0), agg: cleanest=USDC-EWP-Vault-CleanEarlyWithdrawalPenalty, worst=PENDLE-EWP-Vault-SevereEarlyWithdrawalPenalty, avg_score=56.88, net_negative_count=1, position_count=5.
+
+**STRICTLY READ-ONLY:** risk/, execution/, monitoring/, allocator/, cycle_runner.py, golive_checker.py — НЕ тронуты. PAT/секреты не встраивались; push_v889_ewp.sh создан для ручного запуска на Mac (push_to_github.py НЕ вызывался).
+
+**Push:** `bash scripts/push_v889_ewp.sh`
