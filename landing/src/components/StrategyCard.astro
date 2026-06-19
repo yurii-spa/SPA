@@ -1,0 +1,118 @@
+---
+interface Strategy {
+  id: string;
+  name: string;
+  tagline: string;
+  target_apy: number;
+  risk_level: string;
+  risk_level_label: string;
+  risk_bars: number;
+  status: string;
+  status_label: string;
+  who_for: string;
+  description: string;
+  yield_sources: string[];
+  does_not: string[];
+  target_apy_note: string;
+  path: string;
+}
+
+interface Props {
+  strategy: Strategy;
+}
+
+const { strategy } = Astro.props;
+
+const statusStyles: Record<string, string> = {
+  'paper-tracked': 'bg-green-500/10 text-green-400 border border-green-800',
+  'target-profile': 'bg-blue-600/10 text-blue-400 border border-blue-800',
+  'coming-soon': 'bg-white/5 text-white/40 border border-white/10',
+  'live': 'bg-emerald-500/15 text-emerald-400 border border-emerald-600',
+};
+
+const isDisabled = strategy.status === 'coming-soon';
+---
+
+<div class="rounded-2xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 flex flex-col h-full hover:border-white/20 transition-colors">
+
+  <!-- Status badge -->
+  <div class="mb-5">
+    <span class={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${statusStyles[strategy.status] || statusStyles['coming-soon']}`}>
+      {strategy.status === 'live' && (
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+      )}
+      {strategy.status_label}
+    </span>
+  </div>
+
+  <!-- Name + tagline -->
+  <h3 class="text-xl font-bold text-white mb-1">{strategy.name}</h3>
+  <p class="text-sm text-white/50 mb-6">{strategy.tagline}</p>
+
+  <!-- APY -->
+  <div class="mb-6">
+    <div class="flex items-baseline gap-1">
+      <span class="text-4xl font-mono font-bold text-white">{strategy.target_apy}%</span>
+      <span class="text-sm text-white/30 font-mono">APY</span>
+    </div>
+    <p class="text-[11px] text-white/25 mt-1 leading-relaxed">{strategy.target_apy_note}</p>
+  </div>
+
+  <!-- Risk bars -->
+  <div class="mb-6">
+    <div class="flex items-center gap-2 mb-1">
+      <div class="flex gap-1" aria-label={`Risk level: ${strategy.risk_bars} of 3`}>
+        {[1, 2, 3].map((bar) => (
+          <span
+            class={`inline-block w-6 h-2.5 rounded-sm ${
+              bar <= strategy.risk_bars
+                ? strategy.risk_bars === 1
+                  ? 'bg-blue-500'
+                  : strategy.risk_bars === 2
+                    ? 'bg-accent-400'
+                    : 'bg-amber-400'
+                : 'bg-white/10'
+            }`}
+            aria-hidden="true"
+          ></span>
+        ))}
+      </div>
+      <span class="text-xs text-white/40">{strategy.risk_level_label}</span>
+    </div>
+  </div>
+
+  <!-- Description -->
+  <p class="text-sm text-white/40 leading-relaxed mb-6 flex-grow">{strategy.description}</p>
+
+  <!-- Who it's for -->
+  <div class="mb-6">
+    <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2">Who it's for</p>
+    <p class="text-sm text-white/50">{strategy.who_for}</p>
+  </div>
+
+  <!-- Yield sources -->
+  <div class="mb-8">
+    <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2">Yield sources</p>
+    <div class="flex flex-wrap gap-1.5">
+      {strategy.yield_sources.map((source: string) => (
+        <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-white/5 text-white/40 border border-white/8">
+          {source}
+        </span>
+      ))}
+    </div>
+  </div>
+
+  <!-- CTA -->
+  {isDisabled ? (
+    <span class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-white/10 text-white/25 text-sm font-medium cursor-not-allowed mt-auto">
+      Coming Soon
+    </span>
+  ) : (
+    <a
+      href={strategy.path}
+      class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors shadow-lg shadow-accent-500/20 mt-auto"
+    >
+      View Strategy Details
+    </a>
+  )}
+</div>
