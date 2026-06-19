@@ -58,6 +58,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.base import BaseAnalytics
+
 # ─── Source state constants ───────────────────────────────────────────────────
 
 # Local fallback (avoids hard import dependency for standalone runs)
@@ -376,7 +378,7 @@ _EFFORT_DAYS: Dict[str, int] = {"LOW": 7, "MEDIUM": 14, "HIGH": 21}
 # ProtocolDataAudit
 # ══════════════════════════════════════════════════════════════════════════════
 
-class ProtocolDataAudit:
+class ProtocolDataAudit(BaseAnalytics):
     """
     Audits protocol data availability across all SPA strategies.
 
@@ -387,9 +389,16 @@ class ProtocolDataAudit:
         print(audit.to_markdown())
     """
 
+    OUTPUT_PATH = "data/research/protocol_data_audit.json"
+
     def __init__(self, base_dir: str = ".") -> None:
+        super().__init__(base_dir)
         self._base_dir = base_dir
         self._audit_result: Optional[dict] = None
+
+    def to_dict(self) -> dict:
+        """Returns last audit result as JSON-serializable dict."""
+        return dict(self._audit_result) if self._audit_result else {}
 
     # ── Priority computation ──────────────────────────────────────────────────
 
