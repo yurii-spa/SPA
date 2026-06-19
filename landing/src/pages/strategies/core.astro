@@ -10,7 +10,7 @@ const global = strategies.global;
 
 <Layout
   title="Core Strategy — Systematic DeFi Yield | SPA earn-defi.com"
-  description="Systematic DeFi yield with verified paper track record. Tier 1 + Tier 2 protocols, deterministic risk gates, 6–14% variable APY. Paper tracked since June 2026."
+  description="Systematic DeFi yield with verified paper track record. Tier 1 + Tier 2 protocols, deterministic risk gates, 6–14% variable APY. Paper tracked since June 10, 2026. USDT and USDC."
 >
 
   <!-- Nav -->
@@ -52,6 +52,7 @@ const global = strategies.global;
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
         Systematic DeFi yield with a verified paper track record. Deterministic
         risk-gated rebalancing across Tier 1 and selected Tier 2 protocols.
+        Paper tracked since June 10, 2026.
       </p>
     </section>
 
@@ -111,7 +112,7 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Who It's For</p>
       <p class="text-white/60 leading-relaxed">
-        {core.who_for}
+        Family offices and individual allocators seeking systematic, transparent DeFi yield.
       </p>
       <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
         <p class="text-sm text-white/50 leading-relaxed">
@@ -260,7 +261,7 @@ const global = strategies.global;
       <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 mb-6 flex items-start gap-3">
         <span class="text-amber-400 flex-shrink-0 mt-0.5">&#9888;</span>
         <p class="text-sm text-white/50">
-          All performance data reflects paper trading on a virtual $100,000 USDC portfolio.
+          All performance data reflects paper trading on a virtual $100,000 USDT/USDC portfolio.
           Not indicative of future results.
         </p>
       </div>
@@ -348,22 +349,14 @@ const global = strategies.global;
     <!-- 13. Fees -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Fee Structure</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-          <div class="text-3xl font-mono font-bold text-white mb-1">{global.management_fee}</div>
-          <div class="text-sm text-white/60 mb-3">Annual Management Fee</div>
-          <p class="text-xs text-white/35 leading-relaxed">
-            Charged annually on AUM. Accrued daily, settled at period end. 0% during paper trading.
-          </p>
-        </div>
-        <div class="rounded-xl border border-accent-500/20 bg-accent-500/5 p-6">
-          <div class="text-3xl font-mono font-bold text-accent-400 mb-1">{global.performance_fee}</div>
-          <div class="text-sm text-white/60 mb-3">Performance Fee + High-Water Mark</div>
-          <p class="text-xs text-white/35 leading-relaxed">
-            Charged on net profits above the high-water mark. If the portfolio declines,
-            no performance fee until the previous peak is recovered.
-          </p>
-        </div>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <p class="text-sm text-white/50 leading-relaxed mb-3">
+          Fee structure is discussed individually during onboarding. High-water mark applies —
+          no performance fee until the previous peak is recovered.
+        </p>
+        <p class="text-xs text-white/30">
+          No fees during paper trading period.
+        </p>
       </div>
     </section>
 
@@ -400,10 +393,32 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">What's the minimum allocation?</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">What assets are supported?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            The target range is $25K–$250K for family offices. There is no hard minimum
-            during paper trading — the dashboard is public and free to monitor.
+            USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums or pool capacity limits.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">What about withdrawals?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            No lock-up. Standard processing T+1. Large or complex withdrawals may take
+            up to 5 business days. No withdrawal fee.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Is KYC required?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            No KYC required to view the site or dashboard. Identity verification
+            is required before first deposit.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Can I switch strategies?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Yes. Strategy switch is allowed, T+1 standard processing. Manual/semi-automated in MVP.
           </p>
         </div>
 
