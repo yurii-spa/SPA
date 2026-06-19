@@ -10,7 +10,7 @@ const global = strategies.global;
 
 <Layout
   title="Max Yield Strategy — Advanced DeFi Mechanics | SPA earn-defi.com"
-  description="Advanced mechanics for higher yield tolerance. Looping, leveraged lending, advanced vault mechanics. ~15% target APY (variable, not guaranteed). Coming Soon."
+  description="Advanced mechanics for higher yield tolerance. No open liquidation risk by default in v1.0. ~15% target APY (variable, not guaranteed). Coming Soon."
 >
 
   <!-- Nav -->
@@ -44,10 +44,10 @@ const global = strategies.global;
     <div class="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 flex items-start gap-3">
       <span class="text-amber-400 flex-shrink-0 text-lg mt-0.5">&#9888;</span>
       <div>
-        <p class="text-sm text-white/70 font-medium mb-1">COMING SOON</p>
+        <p class="text-sm text-white/70 font-medium mb-1">TARGET PROFILE — VALIDATION PENDING / COMING SOON</p>
         <p class="text-sm text-white/50 leading-relaxed">
-          This strategy is in design phase. No paper tracking active. Target APY is illustrative only.
-          Do not make allocation decisions based on these projections.
+          This strategy is in validation phase. No paper tracking active. Target APY is illustrative only.
+          No open liquidation risk by default in v1.0. More complex strategies may be added after separate paper validation.
         </p>
       </div>
     </div>
@@ -62,8 +62,8 @@ const global = strategies.global;
         Max Yield Strategy
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        {maxYield.tagline}. Leveraged positions, looping strategies, and advanced vault
-        mechanics for experienced allocators.
+        {maxYield.tagline}. Advanced vault mechanics and optimised lending strategies
+        for experienced allocators. No open liquidation risk by default in v1.0.
       </p>
     </section>
 
@@ -93,7 +93,7 @@ const global = strategies.global;
         <span class="text-white/60 text-sm font-medium">Higher Risk</span>
       </div>
       <p class="text-xs text-white/30 mt-2">
-        Leverage, looping, and advanced vault mechanics. Amplified drawdown potential.
+        Advanced vault mechanics. Higher yield tolerance with managed risk parameters.
       </p>
     </section>
 
@@ -136,8 +136,8 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">What's Inside</p>
       <p class="text-white/50 text-sm leading-relaxed mb-4">
-        Max Yield deploys advanced DeFi mechanics to amplify returns. Higher complexity,
-        higher monitoring requirements, higher risk.
+        Max Yield uses advanced DeFi vault mechanics to target higher returns. No open liquidation
+        risk by default in v1.0. More complex strategies may be added after separate paper validation.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -145,29 +145,25 @@ const global = strategies.global;
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              Leveraged lending positions
-            </li>
-            <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              Looping (recursive borrow/supply)
-            </li>
-            <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
               Advanced vault mechanics
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              Optimised lending positions
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
               Selected higher-yield pools
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              No open liquidation risk (v1.0 default)
             </li>
           </ul>
         </div>
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
           <p class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-3">Monitoring</p>
           <ul class="space-y-2 text-sm text-white/50">
-            <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
-              Real-time liquidation proximity checks
-            </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
               Oracle price deviation alerts
@@ -178,7 +174,11 @@ const global = strategies.global;
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
-              Automated deleverage triggers
+              Position health checks
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              Automated risk triggers
             </li>
           </ul>
         </div>
@@ -205,7 +205,7 @@ const global = strategies.global;
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          'Bypass liquidation protections',
+          'Expose to open liquidation risk by default (v1.0)',
           'Allocate without risk gate approval',
           'Bypass RiskPolicy deterministic gate',
           'Override kill switch in any scenario',
@@ -223,7 +223,7 @@ const global = strategies.global;
       <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4">Risk Controls — RiskPolicy v1.0</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed">
         Max Yield operates under the same deterministic risk gate as all strategies.
-        Additional leverage-specific controls apply on top.
+        No open liquidation risk by default in v1.0.
       </p>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
@@ -246,19 +246,14 @@ const global = strategies.global;
               <td class="px-5 py-3 text-white/40">Max allocation to single protocol</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Leverage limit</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">TBD</td>
-              <td class="px-5 py-3 text-white/40">Max leverage ratio (design phase)</td>
-            </tr>
-            <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Liquidation buffer</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">TBD</td>
-              <td class="px-5 py-3 text-white/40">Min distance from liquidation threshold</td>
+              <td class="px-5 py-3 text-white/60 font-mono">Liquidation risk</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">None (v1.0)</td>
+              <td class="px-5 py-3 text-white/40">No open liquidation risk by default</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-red-400/80 font-mono">Kill switch</td>
               <td class="px-5 py-3 text-red-400 font-mono font-semibold">&ge; 5% drawdown</td>
-              <td class="px-5 py-3 text-white/40">Immediate deleverage + close all</td>
+              <td class="px-5 py-3 text-white/40">Close all positions immediately</td>
             </tr>
           </tbody>
         </table>
@@ -284,50 +279,50 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-red-400/60 uppercase tracking-wider font-mono mb-4">Strategy-Specific Risks</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed">
-        Max Yield carries ALL risks of the Core strategy PLUS additional risks from leverage
-        and advanced mechanics. Material risk of capital loss.
+        Max Yield carries all risks of the Core strategy plus additional risks from advanced
+        vault mechanics. No open liquidation risk by default in v1.0, but material risk of capital loss remains.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Liquidation Risk</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Smart Contract Risk</h4>
           <p class="text-xs text-white/40 leading-relaxed">
-            Leveraged positions can be liquidated if collateral value drops below
-            the liquidation threshold. Partial or total loss of position possible.
+            Advanced vault mechanics interact with more protocol layers, increasing
+            the surface area for potential vulnerabilities.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Leverage Risk</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Stablecoin Depeg Risk</h4>
           <p class="text-xs text-white/40 leading-relaxed">
-            Leverage amplifies both gains and losses. A 10% decline on 3x leverage
-            results in a 30% portfolio drawdown.
+            USDT or USDC may temporarily or permanently lose their peg.
+            The kill switch triggers at 5% drawdown regardless of cause.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Looping Unwind Risk</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Oracle Risk</h4>
           <p class="text-xs text-white/40 leading-relaxed">
-            Recursive borrow/supply positions may be difficult to unwind quickly in
-            volatile markets, especially with high utilisation rates.
+            Price feeds from oracles may be delayed or manipulated.
+            Strategy relies on aggregated feeds for APY data.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Oracle Manipulation Risk</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Complexity Risk</h4>
           <p class="text-xs text-white/40 leading-relaxed">
-            Leveraged positions are more sensitive to oracle price manipulation.
-            A temporary price deviation can trigger liquidation.
+            Advanced strategies have more moving parts. Higher monitoring requirements
+            and wider range of potential failure modes.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Amplified Drawdown</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Liquidity Risk</h4>
           <p class="text-xs text-white/40 leading-relaxed">
-            All Core strategy risks are amplified by leverage. Smart contract exploits,
-            stablecoin depegs, and liquidity events hit harder.
+            In extreme market conditions, withdrawals from pools may be temporarily
+            delayed if utilisation rates approach 100%.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Liquidity Exit Risk</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Unvalidated Strategy Risk</h4>
           <p class="text-xs text-white/40 leading-relaxed">
-            During market stress, exiting leveraged positions requires available
-            liquidity. Positions may be locked or liquidated before exit.
+            This strategy has no paper track record yet. All parameters and APY
+            targets are preliminary and subject to change.
           </p>
         </div>
       </div>
@@ -344,14 +339,12 @@ const global = strategies.global;
             </svg>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-white mb-2">Immediate Deleverage Protocol → Kill Switch</h4>
+            <h4 class="text-sm font-semibold text-white mb-2">Kill Switch: -5% Monthly Drawdown</h4>
             <p class="text-sm text-white/50 leading-relaxed mb-3">
-              On drawdown trigger: (1) immediate deleverage — unwind all looped/leveraged positions,
-              (2) kill switch — close all remaining positions and move to 100% cash buffer.
-              Non-overridable, fully automated.
+              If portfolio equity drops 5% or more from the monthly peak, all positions are
+              closed and capital moves to 100% cash buffer. Non-overridable, fully automated.
             </p>
             <p class="text-xs text-white/30">
-              In volatile markets, deleverage execution may incur additional slippage.
               The kill switch limits further exposure but does not prevent losses already incurred.
             </p>
           </div>
@@ -362,11 +355,13 @@ const global = strategies.global;
     <!-- 13. Fees -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Fee Structure</p>
-      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-center">
-        <p class="text-2xl font-mono font-bold text-white/40 mb-2">TBD</p>
-        <p class="text-sm text-white/40">
-          Fee structure for Max Yield has not been finalised. It will be announced
-          before paper tracking begins.
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <p class="text-sm text-white/50 leading-relaxed mb-3">
+          Fee structure is discussed individually during onboarding. High-water mark applies —
+          no performance fee until the previous peak is recovered.
+        </p>
+        <p class="text-xs text-white/30">
+          No fees during paper trading period.
         </p>
       </div>
     </section>
@@ -385,20 +380,26 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">How much can I lose?</h4>
+          <h4 class="text-sm font-semibold text-white mb-2">Is there liquidation risk?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            With leveraged positions, losses can exceed the initial deposit in extreme scenarios
-            (e.g., cascading liquidations). The kill switch limits exposure but cannot
-            prevent losses from instantaneous market events.
+            No open liquidation risk by default in v1.0. More complex strategies with different
+            risk profiles may be added after separate paper validation.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">What assets are supported?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums
+            or pool capacity limits.
           </p>
         </div>
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2">Is this suitable for my first DeFi allocation?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            No. Max Yield is designed for experienced allocators who understand leverage,
-            liquidation mechanics, and accept higher volatility. Consider Core or Preserve
-            for a lower-risk entry point.
+            Max Yield targets higher returns with advanced mechanics. Consider Core or Preserve
+            for a lower-risk entry point if you're new to DeFi.
           </p>
         </div>
 
