@@ -3,18 +3,29 @@ APY History Tracker
 
 Appends each run's protocol APY data to a rolling JSON store.
 Keeps 90 days of history. Used for trend analysis and go-live confidence.
+
+MP-1406: Migrated to BaseAnalytics (Phase 1 — inheritance + to_dict only).
 """
 import json, os, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+from spa_core.base import BaseAnalytics
+
 APY_HISTORY_FILE = "data/apy_history.json"
 MAX_HISTORY_DAYS = 90
 
-class APYTracker:
+class APYTracker(BaseAnalytics):
+    OUTPUT_PATH = "data/apy_history.json"
+
     def __init__(self, history_file: str = APY_HISTORY_FILE):
+        super().__init__()  # sets self.base_dir = "."
         self.history_file = Path(history_file)
         self._data = self._load()
+
+    def to_dict(self) -> dict:
+        """Returns current in-memory APY history state."""
+        return self._data
 
     def _load(self) -> dict:
         if self.history_file.exists():
