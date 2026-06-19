@@ -1,0 +1,458 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+import strategies from '../../data/strategy_config.json';
+
+const maxYield = strategies.strategies.find(s => s.id === 'max-yield')!;
+const global = strategies.global;
+---
+
+<Layout
+  title="Max Yield Strategy — Advanced DeFi Mechanics | SPA earn-defi.com"
+  description="Advanced mechanics for higher yield tolerance. Looping, leveraged lending, advanced vault mechanics. ~15% target APY (variable, not guaranteed). Coming Soon."
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors">Strategies</a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Max Yield</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">All Strategies</a>
+      <a
+        href="https://dashboard.earn-defi.com"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Coming Soon Banner -->
+    <div class="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 flex items-start gap-3">
+      <span class="text-amber-400 flex-shrink-0 text-lg mt-0.5">&#9888;</span>
+      <div>
+        <p class="text-sm text-white/70 font-medium mb-1">COMING SOON</p>
+        <p class="text-sm text-white/50 leading-relaxed">
+          This strategy is in design phase. No paper tracking active. Target APY is illustrative only.
+          Do not make allocation decisions based on these projections.
+        </p>
+      </div>
+    </div>
+
+    <!-- 1. Hero -->
+    <section class="pt-12 pb-12">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+        Coming Soon
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+        Max Yield Strategy
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+        {maxYield.tagline}. Leveraged positions, looping strategies, and advanced vault
+        mechanics for experienced allocators.
+      </p>
+    </section>
+
+    <!-- 2. Target APY -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <div>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY</p>
+          <div class="flex items-baseline gap-2">
+            <span class="text-5xl font-mono font-bold text-accent-400">~15%</span>
+            <span class="text-sm text-white/30 font-mono">APY</span>
+          </div>
+          <p class="text-xs text-white/25 mt-2">{maxYield.target_apy_note}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Risk Level -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Risk Level</p>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-1" aria-label="Risk level: 3 of 3">
+          <span class="inline-block w-8 h-3 rounded-sm bg-red-400" aria-hidden="true"></span>
+          <span class="inline-block w-8 h-3 rounded-sm bg-red-400" aria-hidden="true"></span>
+          <span class="inline-block w-8 h-3 rounded-sm bg-red-400" aria-hidden="true"></span>
+        </div>
+        <span class="text-white/60 text-sm font-medium">Higher Risk</span>
+      </div>
+      <p class="text-xs text-white/30 mt-2">
+        Leverage, looping, and advanced vault mechanics. Amplified drawdown potential.
+      </p>
+    </section>
+
+    <!-- 4. Current Status -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Current Status</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+          <div class="text-xs text-white/30 mb-1">Phase</div>
+          <div class="text-amber-400 font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
+            Design Phase
+          </div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/30 mb-1">Paper Tracking</div>
+          <div class="text-white/50 font-semibold">Not active</div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/30 mb-1">Launch</div>
+          <div class="text-white/50 font-semibold">TBD</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Who It's For -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Who It's For</p>
+      <p class="text-white/60 leading-relaxed">
+        Experienced allocators accepting higher volatility and drawdown for yield upside.
+      </p>
+      <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
+        <p class="text-sm text-white/50 leading-relaxed">
+          {maxYield.description}
+        </p>
+      </div>
+    </section>
+
+    <!-- 6. What's Inside -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">What's Inside</p>
+      <p class="text-white/50 text-sm leading-relaxed mb-4">
+        Max Yield deploys advanced DeFi mechanics to amplify returns. Higher complexity,
+        higher monitoring requirements, higher risk.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3">Mechanics</p>
+          <ul class="space-y-2 text-sm text-white/50">
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              Leveraged lending positions
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              Looping (recursive borrow/supply)
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              Advanced vault mechanics
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              Selected higher-yield pools
+            </li>
+          </ul>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-3">Monitoring</p>
+          <ul class="space-y-2 text-sm text-white/50">
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              Real-time liquidation proximity checks
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              Oracle price deviation alerts
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              Utilisation rate monitoring
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              Automated deleverage triggers
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Yield Sources -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Yield Sources</p>
+      <div class="flex flex-wrap gap-2">
+        {maxYield.yield_sources.map((source: string) => (
+          <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10">
+            {source}
+          </span>
+        ))}
+      </div>
+      <p class="text-xs text-white/25 mt-3">
+        Yield amplified through leverage. Higher returns come with proportionally higher risk of loss.
+      </p>
+    </section>
+
+    <!-- 8. What This Strategy Does NOT Do -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What This Strategy Does NOT Do</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          'Bypass liquidation protections',
+          'Allocate without risk gate approval',
+          'Bypass RiskPolicy deterministic gate',
+          'Override kill switch in any scenario',
+        ].map((item) => (
+          <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
+            <span class="text-sm text-white/50">{item}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 9. Risk Controls -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4">Risk Controls — RiskPolicy v1.0</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Max Yield operates under the same deterministic risk gate as all strategies.
+        Additional leverage-specific controls apply on top.
+      </p>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Value</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Effect</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">TVL floor</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $500M</td>
+              <td class="px-5 py-3 text-white/40">Pools below this threshold excluded</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">25%</td>
+              <td class="px-5 py-3 text-white/40">Max allocation to single protocol</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Leverage limit</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">TBD</td>
+              <td class="px-5 py-3 text-white/40">Max leverage ratio (design phase)</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Liquidation buffer</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">TBD</td>
+              <td class="px-5 py-3 text-white/40">Min distance from liquidation threshold</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-red-400/80 font-mono">Kill switch</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold">&ge; 5% drawdown</td>
+              <td class="px-5 py-3 text-white/40">Immediate deleverage + close all</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 10. Performance / Validation Status -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Validation Status</p>
+      <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
+          <span class="text-sm text-amber-400 font-medium">Design Phase — No Data Available</span>
+        </div>
+        <p class="text-sm text-white/40 leading-relaxed">
+          This strategy is in design phase. No paper tracking, no performance data, no validation.
+          All parameters and APY figures are preliminary targets subject to change.
+        </p>
+      </div>
+    </section>
+
+    <!-- 11. Strategy-Specific Risks -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-red-400/60 uppercase tracking-wider font-mono mb-4">Strategy-Specific Risks</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Max Yield carries ALL risks of the Core strategy PLUS additional risks from leverage
+        and advanced mechanics. Material risk of capital loss.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Liquidation Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Leveraged positions can be liquidated if collateral value drops below
+            the liquidation threshold. Partial or total loss of position possible.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Leverage Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Leverage amplifies both gains and losses. A 10% decline on 3x leverage
+            results in a 30% portfolio drawdown.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Looping Unwind Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Recursive borrow/supply positions may be difficult to unwind quickly in
+            volatile markets, especially with high utilisation rates.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Oracle Manipulation Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Leveraged positions are more sensitive to oracle price manipulation.
+            A temporary price deviation can trigger liquidation.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Amplified Drawdown</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            All Core strategy risks are amplified by leverage. Smart contract exploits,
+            stablecoin depegs, and liquidity events hit harder.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Liquidity Exit Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            During market stress, exiting leveraged positions requires available
+            liquidity. Positions may be locked or liquidated before exit.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. Emergency Behavior -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Emergency Behavior</p>
+      <div class="rounded-xl border border-red-500/15 bg-red-500/5 p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-white mb-2">Immediate Deleverage Protocol → Kill Switch</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3">
+              On drawdown trigger: (1) immediate deleverage — unwind all looped/leveraged positions,
+              (2) kill switch — close all remaining positions and move to 100% cash buffer.
+              Non-overridable, fully automated.
+            </p>
+            <p class="text-xs text-white/30">
+              In volatile markets, deleverage execution may incur additional slippage.
+              The kill switch limits further exposure but does not prevent losses already incurred.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. Fees -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Fee Structure</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-center">
+        <p class="text-2xl font-mono font-bold text-white/40 mb-2">TBD</p>
+        <p class="text-sm text-white/40">
+          Fee structure for Max Yield has not been finalised. It will be announced
+          before paper tracking begins.
+        </p>
+      </div>
+    </section>
+
+    <!-- 14. FAQ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Frequently Asked Questions</p>
+      <div class="space-y-6">
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">When will Max Yield be available?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Max Yield is in design phase. No launch date has been set. Paper tracking will
+            begin only after Core strategy validates the base infrastructure.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">How much can I lose?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            With leveraged positions, losses can exceed the initial deposit in extreme scenarios
+            (e.g., cascading liquidations). The kill switch limits exposure but cannot
+            prevent losses from instantaneous market events.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Is this suitable for my first DeFi allocation?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            No. Max Yield is designed for experienced allocators who understand leverage,
+            liquidation mechanics, and accept higher volatility. Consider Core or Preserve
+            for a lower-risk entry point.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Does the same risk policy apply?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Yes. RiskPolicy v1.0 applies to all strategies. Max Yield has additional
+            leverage-specific constraints on top of the base policy. The kill switch
+            is the same non-overridable 5% drawdown trigger.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Will there be a paper trading period?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Yes. Like all strategies, Max Yield will undergo a paper trading validation period
+            before any real capital is deployed. GoLiveChecker criteria will apply.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 15. CTA -->
+    <section class="py-16 border-t border-white/5">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white mb-4">Explore Other Strategies</h2>
+        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed">
+          Max Yield is in design phase. In the meantime, explore our Core strategy
+          with an active paper trading track record, or Preserve for lower risk.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+          <a
+            href="/strategies/core"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
+          >
+            View Core Strategy
+          </a>
+          <a
+            href="/strategies/preserve"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
+          >
+            View Preserve Strategy
+          </a>
+        </div>
+        <p class="text-sm text-white/30">
+          Contact: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
