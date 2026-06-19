@@ -1,0 +1,441 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+import strategies from '../../data/strategy_config.json';
+
+const preserve = strategies.strategies.find(s => s.id === 'preserve')!;
+const global = strategies.global;
+---
+
+<Layout
+  title="Preserve Strategy — Capital-Preservation DeFi Yield | SPA earn-defi.com"
+  description="Capital-preservation focused yield. Tier 1 protocols only, no leverage, no looping. ~6% target APY (variable, not guaranteed). Target profile — not yet paper tracked."
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors">Strategies</a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Preserve</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">All Strategies</a>
+      <a
+        href="https://dashboard.earn-defi.com"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- 1. Hero -->
+    <section class="pt-20 pb-12">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-white/40" aria-hidden="true"></span>
+        Target Profile
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+        Preserve Strategy
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+        {preserve.tagline}. Tier 1 protocols only — maximum stability, minimum complexity.
+      </p>
+    </section>
+
+    <!-- 2. Target APY -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <div>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY</p>
+          <div class="flex items-baseline gap-2">
+            <span class="text-5xl font-mono font-bold text-accent-400">~6%</span>
+            <span class="text-sm text-white/30 font-mono">APY</span>
+          </div>
+          <p class="text-xs text-white/25 mt-2">{preserve.target_apy_note}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Risk Level -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Risk Level</p>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-1" aria-label="Risk level: 1 of 3">
+          <span class="inline-block w-8 h-3 rounded-sm bg-accent-400" aria-hidden="true"></span>
+          <span class="inline-block w-8 h-3 rounded-sm bg-white/10" aria-hidden="true"></span>
+          <span class="inline-block w-8 h-3 rounded-sm bg-white/10" aria-hidden="true"></span>
+        </div>
+        <span class="text-white/60 text-sm font-medium">Lower Risk</span>
+      </div>
+      <p class="text-xs text-white/30 mt-2">
+        Tier 1 protocols only. No leverage, no looping, no Tier 2+ allocation.
+      </p>
+    </section>
+
+    <!-- 4. Current Status -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Current Status</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/30 mb-1">Phase</div>
+          <div class="text-white font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-white/40" aria-hidden="true"></span>
+            Target Profile
+          </div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/30 mb-1">Paper Tracking</div>
+          <div class="text-white/50 font-semibold">Planned — not yet active</div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/30 mb-1">Go-Live Target</div>
+          <div class="text-white font-semibold">{global.go_live_target}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Who It's For -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Who It's For</p>
+      <p class="text-white/60 leading-relaxed">
+        Allocators prioritising stability and capital preservation over yield optimisation.
+      </p>
+      <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
+        <p class="text-sm text-white/50 leading-relaxed">
+          {preserve.description}
+        </p>
+      </div>
+    </section>
+
+    <!-- 6. What's Inside -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">What's Inside</p>
+      <p class="text-white/50 text-sm leading-relaxed mb-4">
+        The Preserve strategy allocates exclusively to Tier 1 lending protocols — the highest TVL,
+        most audited, longest-running DeFi lending markets. Higher cash buffer than Core.
+      </p>
+      <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <p class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-3">Tier 1 Only — Primary Allocation</p>
+        <ul class="space-y-2 text-sm text-white/50">
+          <li class="flex items-center gap-2">
+            <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+            Aave V3 (Ethereum) — ~3.5% APY
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+            Compound V3 (Comet USDC) — ~4.8% APY
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+            Spark sUSDS — ~5% APY
+          </li>
+        </ul>
+        <p class="text-xs text-white/25 mt-3">No Tier 2 or Tier 3 protocols. APY variable, not guaranteed.</p>
+      </div>
+    </section>
+
+    <!-- 7. Yield Sources -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Yield Sources</p>
+      <div class="flex flex-wrap gap-2">
+        {preserve.yield_sources.map((source: string) => (
+          <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10">
+            {source}
+          </span>
+        ))}
+      </div>
+      <p class="text-xs text-white/25 mt-3">
+        All yield comes from lending market interest rates. No governance token farming,
+        no liquidity provision, no leverage.
+      </p>
+    </section>
+
+    <!-- 8. What This Strategy Does NOT Do -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What This Strategy Does NOT Do</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          'Use leverage',
+          'Use looping',
+          'Allocate to Tier 2+ protocols',
+          'Chase extreme APY',
+          'Bypass RiskPolicy gates',
+          'Make discretionary overrides',
+        ].map((item) => (
+          <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
+            <span class="text-sm text-white/50">{item}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 9. Risk Controls -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4">Risk Controls — RiskPolicy v1.0</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Every proposed allocation passes through a deterministic, hard-coded risk gate.
+        Preserve strategy applies stricter constraints on top of the base policy.
+      </p>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Value</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Effect</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">TVL floor</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $500M</td>
+              <td class="px-5 py-3 text-white/40">Pools below this threshold excluded</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Tier restriction</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">T1 only</td>
+              <td class="px-5 py-3 text-white/40">No Tier 2 or Tier 3 protocols</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">25%</td>
+              <td class="px-5 py-3 text-white/40">Max allocation to any single protocol</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Cash buffer</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; 5%</td>
+              <td class="px-5 py-3 text-white/40">Always held in reserve</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">APY range</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">2% – 40%</td>
+              <td class="px-5 py-3 text-white/40">Positions outside range rejected</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-red-400/80 font-mono">Kill switch</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold">&ge; 5% drawdown</td>
+              <td class="px-5 py-3 text-white/40">Close all positions immediately</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 10. Performance / Validation Status -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Validation Status</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="w-2 h-2 rounded-full bg-white/40" aria-hidden="true"></span>
+          <span class="text-sm text-white/60 font-medium">Target Profile — Not Yet Paper Tracked</span>
+        </div>
+        <p class="text-sm text-white/40 leading-relaxed">
+          This strategy is in target profile stage. Paper tracking is planned but not yet active.
+          No performance data available. All APY figures are target estimates only.
+        </p>
+      </div>
+    </section>
+
+    <!-- 11. Strategy-Specific Risks -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-red-400/60 uppercase tracking-wider font-mono mb-4">Strategy-Specific Risks</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+        Even with Tier 1 only allocation, material risks remain. This strategy manages exposure
+        within defined parameters but does not eliminate risk.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Smart Contract Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Protocol code may contain undiscovered vulnerabilities. Tier 1 protocols have
+            multiple audits and years of operation, but audits do not eliminate risk.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Stablecoin Depeg Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            USDC or other stablecoins may temporarily or permanently lose their peg.
+            The kill switch triggers at 5% drawdown regardless of cause.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Protocol Insolvency</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            If a lending protocol becomes insolvent, depositors may lose funds.
+            Per-protocol cap limits single-protocol exposure.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Oracle Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Price feeds may be delayed or manipulated. Strategy relies on
+            DeFiLlama aggregated feeds for APY data.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">APY Compression</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            Lending rates can drop significantly during low-demand periods.
+            Target APY is not guaranteed and may materially underperform.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2">Liquidity Constraints</h4>
+          <p class="text-xs text-white/40 leading-relaxed">
+            In extreme market conditions, withdrawals from lending pools may be
+            temporarily delayed if utilisation rates approach 100%.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. Emergency Behavior -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Emergency Behavior</p>
+      <div class="rounded-xl border border-red-500/15 bg-red-500/5 p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-white mb-2">Kill Switch: -5% Monthly Drawdown</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3">
+              If portfolio equity drops 5% or more from the monthly peak, all positions are
+              closed and capital moves to 100% cash buffer. This is non-overridable.
+            </p>
+            <p class="text-xs text-white/30">
+              The kill switch limits further exposure after a drawdown event. It does not
+              eliminate losses — it caps them.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. Fees -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Fee Structure</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+          <div class="text-3xl font-mono font-bold text-white mb-1">{global.management_fee}</div>
+          <div class="text-sm text-white/60 mb-3">Annual Management Fee</div>
+          <p class="text-xs text-white/35 leading-relaxed">
+            Charged annually on AUM. Accrued daily. 0% during paper trading.
+          </p>
+        </div>
+        <div class="rounded-xl border border-accent-500/20 bg-accent-500/5 p-6">
+          <div class="text-3xl font-mono font-bold text-accent-400 mb-1">{global.performance_fee}</div>
+          <div class="text-sm text-white/60 mb-3">Performance Fee + High-Water Mark</div>
+          <p class="text-xs text-white/35 leading-relaxed">
+            Charged on net profits above the high-water mark. Fee from go-live date only.
+          </p>
+        </div>
+      </div>
+      <p class="text-xs text-white/25">Fee structure TBD for Preserve strategy. Above is target model.</p>
+    </section>
+
+    <!-- 14. FAQ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Frequently Asked Questions</p>
+      <div class="space-y-6">
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Why Tier 1 only?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Tier 1 protocols (Aave, Compound, Spark) have the highest TVL, longest operating history,
+            and most comprehensive audit coverage. Restricting to T1 sacrifices some yield
+            for lower smart contract risk.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">How does this differ from Core?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Core allocates to both Tier 1 and selected Tier 2 protocols for higher yield.
+            Preserve is T1-only, with stricter eligibility and a higher effective cash buffer.
+            Lower expected APY, lower risk profile.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">When will paper tracking start?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Paper tracking for Preserve is planned but no active date has been set.
+            The Core strategy is the current priority for paper track record validation.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">Can I lose capital with this strategy?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Yes. All DeFi strategies carry material risk of capital loss. This strategy manages
+            exposure within defined parameters but does not eliminate risk. See the risk section above.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2">What's the minimum allocation?</h4>
+          <p class="text-sm text-white/40 leading-relaxed">
+            Target range is $25K–$250K for family offices. No hard minimum has been set
+            for this strategy yet.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 15. CTA -->
+    <section class="py-16 border-t border-white/5">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white mb-4">Start Your Due Diligence</h2>
+        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed">
+          Compare strategies, review risk parameters, and monitor the paper trading
+          track record — all public and verifiable.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+          <a
+            href="https://dashboard.earn-defi.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
+          >
+            Access Dashboard
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
+              <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
+            </svg>
+          </a>
+          <a
+            href="/strategies/core"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
+          >
+            Compare with Core Strategy
+          </a>
+        </div>
+        <p class="text-sm text-white/30">
+          Contact: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
