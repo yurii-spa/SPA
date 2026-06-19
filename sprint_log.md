@@ -1,5 +1,14 @@
 # Sprint Log
 
+## v8.96 — 2026-06-19
+
+**Sprint:** v8.96  
+**Module:** MP-1251 GrossOfReferralAffiliateFeeAnalyzer  
+**Tests:** 99 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 950 total=685  
+**Description:** perf-fee gross-of-referral-affiliate-fee base gap (referral/affiliate program fee paid to third-party integrators or front-end operators for routing deposits/trades to the protocol: Morpho referral kickback, Aave V3 integrator referral code, 1inch affiliate fee, Curve gauge-routing affiliate kickback — distinct from protocol-level referral_fee, curator_fee, vote_incentive_fee, management_fee)
+
 ## v8.95 — 2026-06-19
 
 **Sprint:** v8.95  
