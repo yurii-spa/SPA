@@ -48,6 +48,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from spa_core.safety.safeguard import live_trading_forbidden
+
 log = logging.getLogger("spa.yearn_v3_adapter")
 
 
@@ -570,6 +572,7 @@ class YearnV3Adapter:
 
     # ── Live execution helpers ────────────────────────────────────────────────
 
+    @live_trading_forbidden
     def _execute_tx_pair(
         self,
         first: TxRequest,
@@ -628,6 +631,7 @@ class YearnV3Adapter:
             log.error("_execute_tx_pair failed: %s", exc, exc_info=True)
             return {"status": "FAILED", "reason": str(exc), "protocol": "yearn-v3"}
 
+    @live_trading_forbidden
     def _execute_single_tx(
         self,
         req: TxRequest,
