@@ -54,6 +54,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -180,7 +182,7 @@ def _parse_timestamp(ts_str: str) -> Optional[datetime]:
 # DailyOperationsReport
 # ---------------------------------------------------------------------------
 
-class DailyOperationsReport:
+class DailyOperationsReport(BaseAnalytics):
     """
     Aggregate all SPA analytics modules into a daily operations report.
 
@@ -191,7 +193,10 @@ class DailyOperationsReport:
         next to the project root (resolved relative to this file).
     """
 
+    OUTPUT_PATH = "data/daily_ops_report.json"
+
     def __init__(self, data_path: Optional[str] = None) -> None:
+        super().__init__()
         if data_path is None:
             data_path = str(Path(__file__).parent.parent.parent / "data")
         self.data_path = Path(data_path)
