@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -85,11 +87,18 @@ class StressResult:
 # Simulator
 # ---------------------------------------------------------------------------
 
-class LiquidityStressSimulator:
+class LiquidityStressSimulator(BaseAnalytics):
     """Simulate portfolio liquidity under four crisis scenarios."""
 
+    OUTPUT_PATH = "data/liquidity_stress_log.json"
+
     def __init__(self, data_file: Path = DATA_FILE) -> None:
+        super().__init__()  # sets self.base_dir = "."
         self.data_file = data_file
+
+    def to_dict(self) -> dict:
+        """Returns liquidity stress log history as JSON-serializable dict."""
+        return {"history": self.load_history()}
 
     # ------------------------------------------------------------------
     # Private helpers
