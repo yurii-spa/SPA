@@ -28,9 +28,10 @@ Design constraints
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
+
+from spa_core.base import BaseAnalytics
 
 __all__ = ["PaperBacktestDriftV2"]
 
@@ -84,7 +85,7 @@ def _expected_nav(initial_nav: float, backtest_apy: float, days: int) -> float:
 # Main class
 # ─────────────────────────────────────────────────────────────────────────────
 
-class PaperBacktestDriftV2:
+class PaperBacktestDriftV2(BaseAnalytics):
     """
     CPA paper-vs-backtest drift tracker.
 
@@ -103,6 +104,8 @@ class PaperBacktestDriftV2:
         Used for source_drift.
     """
 
+    OUTPUT_PATH = "data/paper/drift_v2.json"
+
     def __init__(
         self,
         backtest_apy: float = 0.0,
@@ -110,6 +113,7 @@ class PaperBacktestDriftV2:
         backtest_expected_allocations: Optional[Dict[str, float]] = None,
         backtest_sources: Optional[List[str]] = None,
     ) -> None:
+        super().__init__()
         self.backtest_apy = float(backtest_apy)
         self.initial_nav = float(initial_nav)
         self.backtest_expected_allocations: Dict[str, float] = (
@@ -338,6 +342,17 @@ class PaperBacktestDriftV2:
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    def to_dict(self) -> dict:
+        """Returns current drift tracker state as JSON-serializable dict."""
+        return {
+            "backtest_apy": self.backtest_apy,
+            "initial_nav": self.initial_nav,
+            "backtest_expected_allocations": self.backtest_expected_allocations,
+            "backtest_sources": self.backtest_sources,
+            "total_days_tracked": len(self._records),
+            "records": self._records,
+        }
+
     # ─────────────────────────────────────────────────────────────────────────
     # Persistence
     # ─────────────────────────────────────────────────────────────────────────
@@ -363,18 +378,8 @@ class PaperBacktestDriftV2:
             "records": self._records,
         }
 
-        dir_name = os.path.dirname(os.path.abspath(path))
-        fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2)
-            os.replace(tmp_path, path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(payload, str(path))
 
     @classmethod
     def load(cls, path: str = "data/paper/drift_v2.json") -> "PaperBacktestDriftV2":
