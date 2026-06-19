@@ -10,7 +10,7 @@ Tier C (BACKGROUND)  — ежедневная аналитика, не влия�
    "category": str, "weight": float 0-1, "protocols": ["all"] | [str, ...]}
 
 Сгенерировано скриптом + ручная разметка Tier-A (12 канонических модулей ADR-031).
-Счётчики: Tier-A=12, Tier-B=490, Tier-C=180 (всего 682 модулей).
+Счётчики: Tier-A=12, Tier-B=491, Tier-C=180 (всего 683 модулей).
 """
 from typing import Dict, List, Any, Optional
 
@@ -524,8 +524,13 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'defi_protocol_vault_performance_fee_gross_of_bundler_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfBundlerFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_crosschain_message_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfCrosschainMessageFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_mev_tax_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfMevTaxBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_validator_mev_tax_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfValidatorMevTaxBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_intent_solver_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfIntentSolverFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'defi_protocol_vault_performance_fee_gross_of_liquidation_penalty_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfLiquidationPenaltyBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfAvsOperatorFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_insurance_fund_premium_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfInsuranceFundPremiumBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'defi_protocol_vault_performance_fee_gross_of_curator_fee_base_gap_analyzer', "class": 'DeFiProtocolVaultPerformanceFeeGrossOfCuratorFeeBaseGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    {"module": 'gross_of.sequencer_tip', "class": 'SequencerTipGapAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [
