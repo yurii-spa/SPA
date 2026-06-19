@@ -28,6 +28,7 @@ from contextlib import contextmanager
 from typing import Iterator, Optional
 
 from .db_url import get_db_url, get_sqlite_path, is_postgres, is_sqlite
+from spa_core.utils.errors import ConfigError
 
 
 class DriverNotInstalled(RuntimeError):
@@ -55,7 +56,7 @@ def get_connection(url: Optional[str] = None) -> Iterator[object]:
     if is_sqlite(resolved):
         path = get_sqlite_path(resolved)
         if path is None:
-            raise ValueError(f"Could not extract sqlite path from URL: {resolved!r}")
+            raise ConfigError("DATABASE_URL", f"Could not extract sqlite path from URL: {resolved!r}")
         # Ensure parent dir exists for on-disk DBs; skip for :memory:.
         if str(path) != ":memory:":
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,9 +90,10 @@ def get_connection(url: Optional[str] = None) -> Iterator[object]:
             conn.close()
         return
 
-    raise ValueError(
+    raise ConfigError(
+        "DATABASE_URL",
         f"Unrecognised database URL scheme: {resolved!r}. "
-        "Expected sqlite:/// or postgresql:// (or postgres://)."
+        "Expected sqlite:/// or postgresql:// (or postgres://).",
     )
 
 
