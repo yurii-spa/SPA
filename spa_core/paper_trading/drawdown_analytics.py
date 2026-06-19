@@ -58,7 +58,6 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -69,6 +68,7 @@ from spa_core.reporting.tear_sheet import (
     max_drawdown_from_returns,
     compound_return_pct,
 )
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.drawdown_analytics")
 
@@ -102,36 +102,8 @@ def _read_json(path: Path) -> Any:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Atomic JSON write: tmp file in the same dir + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
-def _num(value: Any) -> Optional[float]:
-    """Finite float or None (bool is not a number; NaN/inf are not data)."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    if not math.isfinite(float(value)):
-        return None
-    return float(value)
-
-
+    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
+    atomic_save(obj, path)
 def _valid_date(value: Any) -> bool:
     """True iff ``value`` is an ISO ``YYYY-MM-DD`` (prefix) date string."""
     if not isinstance(value, str) or len(value) < 10:
