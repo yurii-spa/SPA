@@ -1,9 +1,9 @@
 {
-  "last_updated": "2026-06-19T15:30:00Z",
-  "updated_by": "dispatch_cpa_integration",
-  "sprint_current": "v9.16",
+  "last_updated": "2026-06-19",
+  "updated_by": "Claude MP-1345/MP-1346 v9.61-v9.62",
+  "sprint_current": "v9.26",
   "sprint_naming_convention": "Sprint v{MAJOR}.{MINOR} — MP-{NNN}+{NNN}",
-  "notes": "v8.05: MP-1134 DeFiProtocolYieldCompoundingOptimizer (129 tests, effective_apy=((1+base/freq)^freq-1)*100, optimal_frequency/label DAILY/WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/ANNUALLY, gas_drag_at_optimal_pct, net_annual_yield_usd, ring-buffer log cap 100, atomic write) + MP-1135 ProtocolDeFiTvlMomentumAnalyzer (124 tests, tvl_change_7d/30d/90d_pct, momentum_score 0-100 int weighted 7d×50+30d×30+90d×20, yield_dilution_risk LOW/MEDIUM/HIGH/CRITICAL, tvl_label RAPID_GROWTH/HEALTHY_GROWTH/STABLE/DECLINING/RAPID_DECLINE, ring-buffer log cap 100, atomic write) — 253 tests GREEN, done_count 828->830, sprint_current v8.06->v8.05\nv7.51: MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107 tests, passage_probability logistic, tvl_impact_ratio, urgency_score 0-100, risk_category_score per type, overall_impact_score, CRITICAL_PROPOSAL/HIGH_IMPACT/MODERATE_IMPACT/LOW_IMPACT/ROUTINE labels, EMERGENCY_GOVERNANCE/TEAM_PROPOSAL/LIKELY_TO_PASS/AFFECTS_LARGE_TVL/NO_TIMELOCK_RISK/COMMUNITY_DRIVEN flags, ring-buffer log cap 100, atomic write) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109 tests, burn_multiple/diversification_score/market_cycle_resilience/sustainability_score 0-100, HIGHLY_SUSTAINABLE/SUSTAINABLE/BREAK_EVEN/SUBSIDIZED/UNSUSTAINABLE/ZOMBIE labels, PROFITABLE/EMISSION_SUBSIDIZED/LOW_REVENUE_DIVERSIFICATION/MARKET_DEPENDENT/REVENUE_GROWING/RUNWAY_CRITICAL flags, ring-buffer log cap 100, atomic write) — 216 tests GREEN, done_count 690->692, sprint_current v7.50->v7.51\nv7.38: MP-1000 DeFiProtocolFeeTierOptimizer (124 tests, optimal fee tier 5/30/100/500bps, 5 labels, 5 flags, ring-buffer log, atomic write) + MP-1001 ProtocolDeFiTokenBuybackImpactAnalyzer (120 tests, buyback yield/supply reduction/sustainability 0-100, 5 labels, 6 flags, ring-buffer log, atomic write) — 244 tests GREEN, done_count 656->658, sprint_current v7.37->v7.38\nv7.37: MP-998 DeFiProtocolVolumeToTVLEfficiencyAnalyzer (115 tests, velocity=Vol/TVL, capital_efficiency_score/revenue_quality_score/lp_net_apy, 5 labels, 6 flags, ring-buffer log, atomic write) + MP-999 ProtocolDeFiWhaleConcentrationMonitor (115 tests, whale_dominance/retail_health/exit_risk/decentralization 0-100, 5 concentration labels, 6 flags, ring-buffer log, atomic write) — 230 tests GREEN, done_count 654->656, sprint_current v7.35->v7.37\nv7.36: MP-996 DeFiProtocolAirdropFarmingDetector (89 tests, farming_intensity_score/organic_user_pct/sybil_risk_score/capital_stickiness_prediction 0-100, ORGANIC_GROWTH/MIXED_ORGANIC/AIRDROP_INFLATED/FARMING_DOMINANT/SYBIL_FARM labels, ANNOUNCED_AIRDROP_CATALYST/POINTS_FARMING_ACTIVE/HIGH_SYBIL_RISK/CAPITAL_FLIGHT_RISK/DUST_WALLET_CONCENTRATION/ORGANIC_RETENTION_SIGNAL flags, ring-buffer log cap 100, atomic write) + MP-997 ProtocolDeFiPointsSystemValuationAnalyzer (83 tests, implied_point_value_usd/apy_from_points_pct/dilution_risk_score 0-100/uncertainty_discount_factor 0-1/risk_adjusted_implied_value_usd, HIGH_VALUE_CONFIRMED/LIKELY_VALUABLE/SPECULATIVE_VALUE/LOW_VALUE/DILUTION_RISK labels, POINTS_MARKET_EXISTS/SNAPSHOT_IMMINENT/CONVERSION_ANNOUNCED/TRANSFERABLE_POINTS/HIGH_DILUTION_RISK/NO_FDV_SIGNAL flags, ring-buffer log cap 100, atomic write) — 172 tests GREEN, done_count 654->656, sprint_current v7.35->v7.36\nv7.34-mp992-993: MP-992 DeFiProtocolRegulatoryRiskScorer (102 tests, kyc_aml_score/jurisdiction_risk_score/securities_risk_score/operational_opacity_score/composite_regulatory_score 0-100, COMPLIANT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_RISK labels, SECURITIES_RISK/NO_AML_KYC/ANONYMOUS_TEAM/US_NEXUS_RISK/REGULATOR_ACTION_HISTORY/STABLECOIN_SYSTEMIC flags, ring-buffer log cap 100, atomic write) + MP-993 ProtocolDeFiStablecoinHealthMonitor (102 tests, peg_deviation_pct/peg_volatility_30d/max_depeg_30d/redemption_pressure_ratio/net_flow_7d metrics, ROCK_SOLID/STABLE/CAUTIOUS/AT_RISK/DEPEGGING/COLLAPSED labels, ACTIVE_DEPEG/ALGO_CONCENTRATION/UNAUDITED_RESERVES/REDEMPTION_PRESSURE/REDEMPTION_SUSPENDED/NET_OUTFLOW_ACCELERATING flags, ring-buffer log cap 100, atomic write) — 204 tests GREEN, done_count 652->654, sprint_current v7.33->v7.34\nv7.32: MP-988 DeFiYieldAggregationEfficiencyAnalyzer (97 tests, value_add_pct/fee_efficiency_ratio/compound_boost_pct/harvest_cost_ratio/capital_utilization_score 0-100, HIGHLY_EFFICIENT/EFFICIENT/NEUTRAL/INEFFICIENT/VALUE_DESTROYING labels, VALUE_DESTROYING/HIGH_FEE_DRAG/COMPOUND_HEAVY/GAS_INTENSIVE/UNDER_UTILIZED flags, ring-buffer log cap 100, atomic write) + MP-989 ProtocolCrossChainBridgeRiskMonitor (102 tests, centralization_score/incident_risk_score/coverage_ratio/composite_risk_score 0-100, FORTRESS/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL labels, MULTISIG_RISK/RECENT_INCIDENT/UNINSURED/ASSET_CONCENTRATED/CANONICAL_SAFE flags, ring-buffer log cap 100, atomic write) — 199 tests GREEN, done_count 648->650, sprint_current v7.31->v7.32\nv7.31: MP-986 DeFiLiquidityConcentrationRiskScorer (84 tests, top3_concentration_pct/lp_hhi/withdrawal_scenario_10pct_impact/sticky_ratio_pct/concentration_risk_score 0-100, WELL_DISTRIBUTED/LOW_CONCENTRATION/MODERATE_RISK/HIGH_CONCENTRATION/SINGLE_LP_RISK labels, SINGLE_LP_DOMINANT/INCENTIVE_DEPENDENT/PROTOCOL_OWNED_MAJORITY/STICKY_MAJORITY/CL_RANGE_RISK flags, ring-buffer log cap 100, atomic write) + MP-987 ProtocolYieldFarmingLifecycleAnalyzer (84 tests, apy_decay_rate_pct/tvl_retention_rate_pct/farmer_retention_rate_pct/lifecycle_stage_days/value_extraction_ratio, LAUNCH_PHASE/GROWTH_PHASE/MATURITY/DECLINE/SUNSET/ZOMBIE labels, APY_CRASHED/MERCENARY_CAPITAL/EMISSIONS_ENDING_SOON/HIGH_VALUE_EXTRACTION/STICKY_FARMERS flags, ring-buffer log cap 100, atomic write) — 168 tests GREEN, done_count 646->648, sprint_current v7.30->v7.31\nv7.30: MP-984 DeFiYieldSourceDiversificationScorer (100 tests, per-type allocation/yield_contribution HHI, source/protocol/chain diversity, diversification_score 0-100 = 40%*source+35%*protocol+25%*chain HHI invert, HIGHLY_DIVERSIFIED..SINGLE_SOURCE labels, SINGLE_CHAIN/PROTOCOL_CONCENTRATED/REAL_YIELD_HEAVY/POINTS_HEAVY/BEAR_MARKET_EXPOSED flags, ring-buffer log cap 100, atomic write) + MP-985 ProtocolNetworkEffectStrengthAnalyzer (98 tests, metcalfe_value=users²×avg_tx, user_growth/tvl_growth_pct_3m, integration_density=integrations/sqrt(n_cat), network_strength_score 0-100 = growth×0.30+switching×0.25+integration×0.25+metcalfe×0.20, DOMINANT_NETWORK/STRONG_NETWORK/EMERGING_NETWORK/WEAK_NETWORK/NO_MOAT labels, METCALFE_SCALING/HIGH_SWITCHING_COST/INTEGRATION_HUB/USER_GROWTH_STALLING/LOSING_INTEGRATIONS flags, ring-buffer log cap 100, atomic write) — 198 tests green, done_count 644->646, sprint_current v7.29->v7.30",
+  "notes": "v9.47+v9.48: MP-1331 ProtocolDataAudit (40 протоколов, 35 тестов GREEN) + MP-1332 ADR-029/ADR-030 (docs/decisions/) — done_count 1066->1068, sprint_completed=v9.56 (уже >= v9.48, не меняем)\nv9.47: MP-1331 ProtocolDataAudit (spa_core/analytics/protocol_data_audit.py — protocol registry 40 entries, priority formula base*boost+penalty, acquisition_roadmap, to_markdown, atomic save, 35 tests GREEN) + v9.48: MP-1332 ADR-029-research-strategies-framework + ADR-030-pit-backtest-standard (docs/decisions/) — done_count 1020->1022, sprint_completed v9.42->v9.48\nv9.33: MP-1317 PITvsNaiveComparison (spa_core/backtesting/pit_vs_naive_comparison.py — PIT vs Naive backtest comparison, look-ahead bias quantification, bear/bull market simulation, 42 tests GREEN) + v9.34: MP-1318 TelegramResearchAlerts (spa_core/alerts/telegram_research_alerts.py — source_promoted/cash_drag/owner_acceptance/research_exclusion/weekly_digest alerts, Keychain credentials, mock-safe, 35 tests GREEN) — 77 tests total GREEN, done_count 1022->1024, sprint_completed v9.33/v9.34 (current sprint_completed v9.44 retained)\nv9.24: MP-1307 GMXResearchAdapter (spa_core/adapters/gmx_research.py — DeFiLlama APY feed, stdlib urllib, timeout=5s, fallback=15.0%, RESEARCH_ONLY=True, 35 tests GREEN) + MP-1308 ConcLPILModel (spa_core/analytics/conc_lp_il_model.py — Uniswap V3 concentrated LP IL math, il_pct/net_apy/scenario_analysis/for_btc_usd/rs002_net_apy, 45 tests GREEN) — 80 tests total GREEN, done_count 1012->1014, sprint_completed v4.46->v9.24\nv8.05: MP-1134 DeFiProtocolYieldCompoundingOptimizer (129 tests, effective_apy=((1+base/freq)^freq-1)*100, optimal_frequency/label DAILY/WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/ANNUALLY, gas_drag_at_optimal_pct, net_annual_yield_usd, ring-buffer log cap 100, atomic write) + MP-1135 ProtocolDeFiTvlMomentumAnalyzer (124 tests, tvl_change_7d/30d/90d_pct, momentum_score 0-100 int weighted 7d×50+30d×30+90d×20, yield_dilution_risk LOW/MEDIUM/HIGH/CRITICAL, tvl_label RAPID_GROWTH/HEALTHY_GROWTH/STABLE/DECLINING/RAPID_DECLINE, ring-buffer log cap 100, atomic write) — 253 tests GREEN, done_count 828->830, sprint_current v8.06->v8.05\nv7.51: MP-1026 DeFiProtocolGovernanceProposalImpactScorer (107 tests, passage_probability logistic, tvl_impact_ratio, urgency_score 0-100, risk_category_score per type, overall_impact_score, CRITICAL_PROPOSAL/HIGH_IMPACT/MODERATE_IMPACT/LOW_IMPACT/ROUTINE labels, EMERGENCY_GOVERNANCE/TEAM_PROPOSAL/LIKELY_TO_PASS/AFFECTS_LARGE_TVL/NO_TIMELOCK_RISK/COMMUNITY_DRIVEN flags, ring-buffer log cap 100, atomic write) + MP-1027 ProtocolDeFiProtocolRevenueSustainabilityAnalyzer (109 tests, burn_multiple/diversification_score/market_cycle_resilience/sustainability_score 0-100, HIGHLY_SUSTAINABLE/SUSTAINABLE/BREAK_EVEN/SUBSIDIZED/UNSUSTAINABLE/ZOMBIE labels, PROFITABLE/EMISSION_SUBSIDIZED/LOW_REVENUE_DIVERSIFICATION/MARKET_DEPENDENT/REVENUE_GROWING/RUNWAY_CRITICAL flags, ring-buffer log cap 100, atomic write) — 216 tests GREEN, done_count 690->692, sprint_current v7.50->v7.51\nv7.38: MP-1000 DeFiProtocolFeeTierOptimizer (124 tests, optimal fee tier 5/30/100/500bps, 5 labels, 5 flags, ring-buffer log, atomic write) + MP-1001 ProtocolDeFiTokenBuybackImpactAnalyzer (120 tests, buyback yield/supply reduction/sustainability 0-100, 5 labels, 6 flags, ring-buffer log, atomic write) — 244 tests GREEN, done_count 656->658, sprint_current v7.37->v7.38\nv7.37: MP-998 DeFiProtocolVolumeToTVLEfficiencyAnalyzer (115 tests, velocity=Vol/TVL, capital_efficiency_score/revenue_quality_score/lp_net_apy, 5 labels, 6 flags, ring-buffer log, atomic write) + MP-999 ProtocolDeFiWhaleConcentrationMonitor (115 tests, whale_dominance/retail_health/exit_risk/decentralization 0-100, 5 concentration labels, 6 flags, ring-buffer log, atomic write) — 230 tests GREEN, done_count 654->656, sprint_current v7.35->v7.37\nv7.36: MP-996 DeFiProtocolAirdropFarmingDetector (89 tests, farming_intensity_score/organic_user_pct/sybil_risk_score/capital_stickiness_prediction 0-100, ORGANIC_GROWTH/MIXED_ORGANIC/AIRDROP_INFLATED/FARMING_DOMINANT/SYBIL_FARM labels, ANNOUNCED_AIRDROP_CATALYST/POINTS_FARMING_ACTIVE/HIGH_SYBIL_RISK/CAPITAL_FLIGHT_RISK/DUST_WALLET_CONCENTRATION/ORGANIC_RETENTION_SIGNAL flags, ring-buffer log cap 100, atomic write) + MP-997 ProtocolDeFiPointsSystemValuationAnalyzer (83 tests, implied_point_value_usd/apy_from_points_pct/dilution_risk_score 0-100/uncertainty_discount_factor 0-1/risk_adjusted_implied_value_usd, HIGH_VALUE_CONFIRMED/LIKELY_VALUABLE/SPECULATIVE_VALUE/LOW_VALUE/DILUTION_RISK labels, POINTS_MARKET_EXISTS/SNAPSHOT_IMMINENT/CONVERSION_ANNOUNCED/TRANSFERABLE_POINTS/HIGH_DILUTION_RISK/NO_FDV_SIGNAL flags, ring-buffer log cap 100, atomic write) — 172 tests GREEN, done_count 654->656, sprint_current v7.35->v7.36\nv7.34-mp992-993: MP-992 DeFiProtocolRegulatoryRiskScorer (102 tests, kyc_aml_score/jurisdiction_risk_score/securities_risk_score/operational_opacity_score/composite_regulatory_score 0-100, COMPLIANT/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL_RISK labels, SECURITIES_RISK/NO_AML_KYC/ANONYMOUS_TEAM/US_NEXUS_RISK/REGULATOR_ACTION_HISTORY/STABLECOIN_SYSTEMIC flags, ring-buffer log cap 100, atomic write) + MP-993 ProtocolDeFiStablecoinHealthMonitor (102 tests, peg_deviation_pct/peg_volatility_30d/max_depeg_30d/redemption_pressure_ratio/net_flow_7d metrics, ROCK_SOLID/STABLE/CAUTIOUS/AT_RISK/DEPEGGING/COLLAPSED labels, ACTIVE_DEPEG/ALGO_CONCENTRATION/UNAUDITED_RESERVES/REDEMPTION_PRESSURE/REDEMPTION_SUSPENDED/NET_OUTFLOW_ACCELERATING flags, ring-buffer log cap 100, atomic write) — 204 tests GREEN, done_count 652->654, sprint_current v7.33->v7.34\nv7.32: MP-988 DeFiYieldAggregationEfficiencyAnalyzer (97 tests, value_add_pct/fee_efficiency_ratio/compound_boost_pct/harvest_cost_ratio/capital_utilization_score 0-100, HIGHLY_EFFICIENT/EFFICIENT/NEUTRAL/INEFFICIENT/VALUE_DESTROYING labels, VALUE_DESTROYING/HIGH_FEE_DRAG/COMPOUND_HEAVY/GAS_INTENSIVE/UNDER_UTILIZED flags, ring-buffer log cap 100, atomic write) + MP-989 ProtocolCrossChainBridgeRiskMonitor (102 tests, centralization_score/incident_risk_score/coverage_ratio/composite_risk_score 0-100, FORTRESS/LOW_RISK/MODERATE_RISK/HIGH_RISK/CRITICAL labels, MULTISIG_RISK/RECENT_INCIDENT/UNINSURED/ASSET_CONCENTRATED/CANONICAL_SAFE flags, ring-buffer log cap 100, atomic write) — 199 tests GREEN, done_count 648->650, sprint_current v7.31->v7.32\nv7.31: MP-986 DeFiLiquidityConcentrationRiskScorer (84 tests, top3_concentration_pct/lp_hhi/withdrawal_scenario_10pct_impact/sticky_ratio_pct/concentration_risk_score 0-100, WELL_DISTRIBUTED/LOW_CONCENTRATION/MODERATE_RISK/HIGH_CONCENTRATION/SINGLE_LP_RISK labels, SINGLE_LP_DOMINANT/INCENTIVE_DEPENDENT/PROTOCOL_OWNED_MAJORITY/STICKY_MAJORITY/CL_RANGE_RISK flags, ring-buffer log cap 100, atomic write) + MP-987 ProtocolYieldFarmingLifecycleAnalyzer (84 tests, apy_decay_rate_pct/tvl_retention_rate_pct/farmer_retention_rate_pct/lifecycle_stage_days/value_extraction_ratio, LAUNCH_PHASE/GROWTH_PHASE/MATURITY/DECLINE/SUNSET/ZOMBIE labels, APY_CRASHED/MERCENARY_CAPITAL/EMISSIONS_ENDING_SOON/HIGH_VALUE_EXTRACTION/STICKY_FARMERS flags, ring-buffer log cap 100, atomic write) — 168 tests GREEN, done_count 646->648, sprint_current v7.30->v7.31\nv7.30: MP-984 DeFiYieldSourceDiversificationScorer (100 tests, per-type allocation/yield_contribution HHI, source/protocol/chain diversity, diversification_score 0-100 = 40%*source+35%*protocol+25%*chain HHI invert, HIGHLY_DIVERSIFIED..SINGLE_SOURCE labels, SINGLE_CHAIN/PROTOCOL_CONCENTRATED/REAL_YIELD_HEAVY/POINTS_HEAVY/BEAR_MARKET_EXPOSED flags, ring-buffer log cap 100, atomic write) + MP-985 ProtocolNetworkEffectStrengthAnalyzer (98 tests, metcalfe_value=users²×avg_tx, user_growth/tvl_growth_pct_3m, integration_density=integrations/sqrt(n_cat), network_strength_score 0-100 = growth×0.30+switching×0.25+integration×0.25+metcalfe×0.20, DOMINANT_NETWORK/STRONG_NETWORK/EMERGING_NETWORK/WEAK_NETWORK/NO_MOAT labels, METCALFE_SCALING/HIGH_SWITCHING_COST/INTEGRATION_HUB/USER_GROWTH_STALLING/LOSING_INTEGRATIONS flags, ring-buffer log cap 100, atomic write) — 198 tests green, done_count 644->646, sprint_current v7.29->v7.30",
   "notes_v667": "v6.67: MP-857 ProtocolUpgradeRiskMonitor (102 tests, timelock/governance/audit/track-record safety scoring, LOW..CRITICAL risk levels, key_risk_factors, pending_high_risk_count) + MP-858 YieldAggregatorFeeAnalyzer (82 tests, management/performance/withdrawal fee drag, net-APY, EXCELLENT..AVOID competitiveness, fee_efficiency_score 0-100, vs_benchmark) — 184 tests green, ring-buffer logs, atomic writes, stdlib only",
   "real_track_start": "2026-06-10",
   "golive_decision_date": "2026-07-15 (перенос на ~2026-08-01 по ADR MP-014)",
@@ -9890,10 +9890,246 @@
         "added": "2026-06-19",
         "status": "done",
         "done_date": "2026-06-19"
+      },
+      {
+        "id": "MP-1307",
+        "title": "GMX Research Data Adapter",
+        "sprint": "v9.23",
+        "status": "done",
+        "files": [
+          "spa_core/adapters/gmx_research.py",
+          "tests/test_gmx_research_adapter.py"
+        ],
+        "tests": 35,
+        "description": "GMXResearchAdapter: DeFiLlama APY feed, RESEARCH_ONLY, fallback=15%, 35 tests",
+        "completed": "2026-06-19"
+      },
+      {
+        "id": "MP-1308",
+        "title": "Concentrated LP Impermanent Loss Model",
+        "sprint": "v9.24",
+        "status": "done",
+        "files": [
+          "spa_core/analytics/conc_lp_il_model.py",
+          "tests/test_conc_lp_il_model.py"
+        ],
+        "tests": 45,
+        "description": "ConcLPILModel: Uniswap V3 IL math, scenario_analysis, for_btc_usd, rs002_net_apy, 45 tests",
+        "completed": "2026-06-19"
+      },
+      {
+        "id": "MP-1309",
+        "title": "Owner Acceptance Workflow — paper launch prerequisites & sign-off",
+        "description": "spa_core/backtesting/owner_acceptance.py: OwnerAcceptanceWorkflow class with check_prerequisites(), generate_draft(), sign(), is_signed(), revoke(), acceptance_status(); CLI --generate-draft / --status; 50 tests. Validates pre-paper gate PASS + source pipeline, atomic writes, immutability after sign().",
+        "sprint": "v9.25",
+        "tags": [
+          "backtesting",
+          "owner-acceptance",
+          "paper-trading"
+        ],
+        "added": "2026-06-19",
+        "completed": "2026-06-19",
+        "tests": 50
+      },
+      {
+        "id": "MP-1310",
+        "title": "PIT Backtest Full Run + Report Generator",
+        "description": "spa_core/backtesting/run_pit_backtest.py: PITBacktestRunner class with run(), save_results(), generate_report(); PIT-format synthetic data generator; vs_cpa comparison (cpa_apy from gates); cash_days_pct; CLI --run/--save/--report; 50 tests. All tests pass in <0.1s.",
+        "sprint": "v9.26",
+        "tags": [
+          "backtesting",
+          "pit",
+          "backtest-runner"
+        ],
+        "added": "2026-06-19",
+        "completed": "2026-06-19",
+        "tests": 50
+      },
+      {
+        "id": "MP-1305",
+        "title": "Paper Backtest Drift V2 Analytics",
+        "sprint": "v9.21",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1306",
+        "title": "Weekly Paper Report V2",
+        "sprint": "v9.22",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1311",
+        "title": "Research Risk Attribution Module",
+        "sprint": "v9.27",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1312",
+        "title": "Research Scenario Matrix Generator",
+        "sprint": "v9.28",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1313",
+        "title": "Pre-Paper Checklist Validator",
+        "sprint": "v9.29",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1314",
+        "title": "Source Promotion Engine",
+        "sprint": "v9.30",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1315",
+        "title": "CPA Integration Tests",
+        "sprint": "v9.31",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1316",
+        "title": "RS-001 Live APY Engine",
+        "sprint": "v9.32",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1317",
+        "title": "Adaptive APY Target Engine",
+        "sprint": "v9.33",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1318",
+        "title": "Protocol Data Audit Module",
+        "sprint": "v9.34",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1319",
+        "title": "Research Tournament Evaluator",
+        "sprint": "v9.35",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1320",
+        "title": "RS-002 Live APY Engine + IL Model",
+        "sprint": "v9.36",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1321",
+        "title": "Paper Period Simulator",
+        "sprint": "v9.37",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1322",
+        "title": "PIT vs Naive Backtest Comparison",
+        "sprint": "v9.38",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1323",
+        "title": "Telegram Research Alerts",
+        "sprint": "v9.39",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1324",
+        "title": "GMX Research Adapter (DeFiLlama)",
+        "sprint": "v9.40",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1325",
+        "title": "Gold Proxy Research Adapter",
+        "sprint": "v9.41",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1326",
+        "title": "Owner Acceptance Workflow",
+        "sprint": "v9.42",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1327",
+        "title": "PIT Backtest Full Run + Report Generator",
+        "sprint": "v9.43",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1328",
+        "title": "Site Dashboard + Methodology Pages",
+        "sprint": "v9.44",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1329",
+        "title": "Site Due Diligence + Research Pages",
+        "sprint": "v9.45",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1330",
+        "title": "Paper Evidence Tracker V2",
+        "sprint": "v9.46",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1331",
+        "title": "Strategy RS-001/RS-002 Trackers",
+        "sprint": "v9.47",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1332",
+        "title": "Run PIT Backtest CLI Tool",
+        "sprint": "v9.48",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1333",
+        "title": "Research Strategies Summary Report",
+        "sprint": "v9.49",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
+      },
+      {
+        "id": "MP-1334",
+        "title": "KANBAN Reconciliation v9.21-v9.50",
+        "sprint": "v9.50",
+        "completed": "2026-06-19",
+        "added_by": "reconciliation-MP-1334"
       }
     ]
   },
-  "sprint_completed": "v9.15",
+  "sprint_completed": "v9.62",
   "_v544_dispatch_note": "SPA-V544 (MP-620): ChainExposureReport — advisory/read-only агрегация экспозиции портфеля по БЛОКЧЕЙНАМ (ethereum/arbitrum/base/optimism/polygon/UNKNOWN). HHI chain-концентрация, policy chain-concentration cap (ethereum<=70% AUM, MP-387), chain-weighted APY, флаг L2-экспозиции, Telegram-сводка. Третий срез того же источника data/yield_attribution_tracker.json (после stablecoin_exposure_report и tier_exposure_report). Pure stdlib, atomic writes (tmp+os.replace), ring-buffer 30, fail-safe загрузка, CLI --check/--run/--data-dir, всегда exit(0). 183 tests green. Текущий снапшот: ethereum 100% > 70% cap → policy BREACH, HHI=1.000 CONCENTRATED (корректный флаг chain-концентрации).",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
@@ -9925,6 +10161,38 @@
   "_v478_mp443_dispatch_note": "MP-443 done: fund_api_server.py + launchd plist + 9 tests",
   "_v479_dispatch_note": "MP-509 done: Ethena sUSDe ERC-4626 T3 adapter (susde_adapter.py). 100 tests PASS, regression 282 green. Registered in ADAPTER_REGISTRY (susde, T3).",
   "done": [
+    {
+      "id": "MP-1313",
+      "title": "RS-001/RS-002 Backtest Scenario Matrix — 120 stress scenarios, 49 tests green",
+      "type": "code",
+      "status": "done",
+      "sprint": "v9.29",
+      "completed": "2026-06-19",
+      "completed_by": "claude (SPA-V929)",
+      "tags": [
+        "backtesting",
+        "research",
+        "rs001",
+        "rs002",
+        "scenarios"
+      ]
+    },
+    {
+      "id": "MP-1314",
+      "title": "Research Strategies Page /strategies/research on earn-defi.com — RS-001 + RS-002 due diligence",
+      "type": "landing",
+      "status": "done",
+      "sprint": "v9.30",
+      "completed": "2026-06-19",
+      "completed_by": "claude (SPA-V930)",
+      "tags": [
+        "landing",
+        "research",
+        "rs001",
+        "rs002",
+        "astro"
+      ]
+    },
     {
       "id": "MP-1104",
       "title": "DeFiProtocolTotalValueAtRiskAggregator — parametric VaR, correlation matrix, LOW_RISK..EXTREME_RISK; 132 tests green",
@@ -11134,6 +11402,128 @@
       "status": "done",
       "description": "perf-fee gross-of-bridge-delay-opportunity-cost base gap (time-value cost of capital locked during cross-chain bridge operations: Optimism 7-day challenge, Arbitrum 7-day dispute, zkSync ~24h finality; distinct from bridge_fee, crosschain_message_fee, withdrawal_delay_cost, rebalancing_transaction_cost)",
       "sprint": "v9.07"
+    },
+    {
+      "id": "MP-1302",
+      "title": "RS-001 Anti-Crisis research strategy S20 — 18.2% target, research-only, ring-buffer shadow tracker",
+      "type": "code",
+      "status": "done",
+      "description": "AntiCrisisResearchStrategy (S20): 20% GMX BTC (15% placeholder), 10% GMX ETH (15% placeholder), 35% BTC stable pool (25% placeholder), 5% ETH aggressive pool (45% placeholder), 15% gold proxy (15% placeholder), 15% stablecoin T1 (live proxy). blended_apy=18.2%, strict_eligible_fraction=0.15, research_exclusion_report (5 excluded). RS001ShadowTracker ring-buffer cap=100. 76 unit tests.",
+      "sprint": "v9.18"
+    },
+    {
+      "id": "MP-1300",
+      "title": "PointInTimeWhitelist — look-ahead bias fix for backtesting engine",
+      "type": "code",
+      "status": "done",
+      "description": "PointInTimeWhitelist (15 protocols, is_eligible/eligible_protocols/ineligible_reason/coverage_stats, O(1) arithmetic, conservative unknown=False) + PITEngine wrapper (100% BacktestEngine API compat, filter_stats per-protocol, timestamp/date field support) — 66 tests GREEN, stdlib only, no LLM",
+      "sprint": "v9.16"
+    },
+    {
+      "id": "MP-1301",
+      "title": "BacktestGate + gate_api — unified CPA gate status for cycle_runner and dashboard",
+      "type": "code",
+      "status": "done",
+      "description": "BacktestGate (pre_paper_status/paper_ready_status/owner_acceptance_status/four_state_status/can_paper_trade, defensive JSON reads, missing=UNKNOWN) + gate_api (get_gate_response, GateAPIHandler /api/backtest/gate, run_gate_server, CORS header, CLI entry point) — 40 tests GREEN, stdlib only, no LLM",
+      "sprint": "v9.17"
+    },
+    {
+      "id": "MP-1303",
+      "title": "RS-002 Cashflow Research Strategy (s21_cashflow_research.py + tracker)",
+      "sprint": "v9.19",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/strategies/s21_cashflow_research.py",
+        "spa_core/analytics/strategy_rs002_tracker.py",
+        "tests/test_s21_cashflow_research.py"
+      ],
+      "tests": 52,
+      "notes": "RESEARCH-ONLY, gross APY 29.24%, net 12-18% sideways, IL drag model, ring-buffer cap=100"
+    },
+    {
+      "id": "MP-1304",
+      "title": "CPA Source Pipeline (source_pipeline.py)",
+      "sprint": "v9.20",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/backtesting/source_pipeline.py",
+        "data/backtest/source_pipeline.json",
+        "tests/test_source_pipeline.py"
+      ],
+      "tests": 54,
+      "notes": "SourceState + SourcePipeline, strict/research/pending classification, RS-001/RS-002 = SOURCE_NEEDED"
+    },
+    {
+      "id": "MP-1305",
+      "title": "Dashboard 4-State Gate Panel + RS-001/RS-002 strategy cards",
+      "sprint": "v9.21",
+      "completed_at": "2026-06-19",
+      "files": [
+        "landing/src/pages/dashboard.astro"
+      ],
+      "notes": "System Gate Status panel (4 states: backtest PASS / pre-paper PASS / paper NOT_READY / live BLOCKED) added to dashboard.astro. Client-side fetch from /api/backtest/gate with static fallback. S20 Anti-Crisis Research (18.2% target) and S21 Cashflow Research (29.24% gross) Research Strategy cards added."
+    },
+    {
+      "id": "MP-1306",
+      "title": "Paper vs Backtest Drift v2 — CPA methodology (paper_backtest_drift_v2.py)",
+      "sprint": "v9.22",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/analytics/paper_backtest_drift_v2.py",
+        "tests/test_paper_backtest_drift_v2.py"
+      ],
+      "tests": 40,
+      "notes": "PaperBacktestDriftV2: nav_drift/drift_alert/allocation_drift(KL)/source_drift/record_paper_day/weekly_drift_report/save/load. Ring-buffer cap=100. Atomic writes. Stdlib only. 40 tests GREEN."
+    },
+    {
+      "id": "MP-1311",
+      "title": "Research Strategy Risk Attribution (research_risk_attribution.py)",
+      "sprint": "v9.27",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/analytics/research_risk_attribution.py",
+        "tests/test_research_risk_attribution.py",
+        "scripts/push_v927.sh"
+      ],
+      "tests": 40,
+      "notes": "SlotRiskProfile + ResearchRiskAttribution; 6 risk factors; RS-002 riskier than RS-001; risk_vs_return(); atomic save; stdlib only"
+    },
+    {
+      "id": "MP-1312",
+      "title": "Enhanced Weekly Paper Report v2 with CPA Gate Section (weekly_paper_report_v2.py)",
+      "sprint": "v9.28",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/analytics/weekly_paper_report_v2.py",
+        "tests/test_weekly_paper_report_v2.py",
+        "scripts/push_v928.sh"
+      ],
+      "tests": 40,
+      "notes": "WeeklyPaperReportV2: gate_section (4-state), research_exclusions_section, paper_performance_section (APY + drift), research_shadow_section (graceful empty), source_quality_section, to_markdown(), atomic save; stdlib only"
+    },
+    {
+      "id": "MP-1315",
+      "title": "Gold Proxy Research Adapter (gold_proxy_research.py, 30 tests)",
+      "sprint": "v9.31",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/adapters/gold_proxy_research.py",
+        "tests/test_gold_proxy_research.py"
+      ],
+      "tests": 30,
+      "notes": "RESEARCH_ONLY, PAXG/OUSG/sXAU venues, DeFiLlama gold search, FALLBACK_APY=8.0, 3 PROXY_VENUES"
+    },
+    {
+      "id": "MP-1316",
+      "title": "RS-001 Live APY Wiring (rs001_live_apy_engine.py, 35 tests)",
+      "sprint": "v9.32",
+      "completed_at": "2026-06-19",
+      "files": [
+        "spa_core/analytics/rs001_live_apy_engine.py",
+        "tests/test_rs001_live_apy_engine.py"
+      ],
+      "tests": 35,
+      "notes": "CLEAN stablecoin_t1 + RESEARCH gmx/gold + PLACEHOLDER btc/eth slots, RESEARCH_DOMINATED status, atomic save"
     }
   ],
   "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
@@ -11141,7 +11531,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 1008,
+  "done_count": 1076,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -11630,5 +12020,8 @@
   "_v889_ewp_reconcile_note": "RECONCILE 2026-06-19: данный scheduled-прогон стартовал на устаревшем состоянии (sprint_completed=v8.87/v8.88) и выбрал новый непересекающийся gross_of_* слой EARLY_WITHDRAWAL_PENALTY. К моменту записи параллельные прогоны уже заняли v8.89 (MP-1243 curator_fee/cabinet), v8.90 (MP-1244/1245 insurance_fund_premium/avs), v8.91 (MP-1246 protocol_revenue_share) и sprint_current=v8.92. Модуль early_withdrawal_penalty — НЕ дубликат (в реестре ровно 1 раз, get_module_info OK), 98 тестов OK. Чтобы не клоберить активную нумерацию параллельных прогонов, работа зафиксирована как MP-1247 / sprint 'v8.92-ewp'; глобальные sprint_completed/current/next НЕ изменялись. Push: bash scripts/push_v889_ewp.sh (ручной запуск на Mac).",
   "current_sprint": "v9.04",
   "_v916_reconcile_note": "2026-06-19 auto-reconcile: moved 25 done tasks from tasks[] to done[], sprint_completed v9.00→v9.15, done_count recalculated, spa-dev-continue was already disabled (no new gross_of modules). Notification Center blocked computer-use clicks; cloudflared needs manual restart.",
-  "_cpa_integration_note": "2026-06-19: CPA backtest handoff integrated. 5 new MPs (1300-1304) for point-in-time whitelist, gate system, RS-001/RS-002 research strategies, source pipeline"
+  "_cpa_integration_note": "2026-06-19: CPA backtest handoff integrated. 5 new MPs (1300-1304) for point-in-time whitelist, gate system, RS-001/RS-002 research strategies, source pipeline",
+  "_v918_dispatch_note": "MP-1302 RS-001 Anti-Crisis S20 research strategy + shadow tracker + 76 tests",
+  "_v930_dispatch_note": "Sprint v9.29-v9.30: MP-1313 (120 scenario matrix RS001/RS002) + MP-1314 (research.astro landing page)",
+  "_v954_dispatch_note": "Sprint v9.53+v9.54: MP-1337 CPAGateHook (spa_core/backtesting/cycle_runner_cpa_hook.py — CPA gate hook for cycle_runner.py, live/paper/research gating, 45 tests GREEN) + MP-1338 MarketRegimeGate (spa_core/analytics/market_regime_gate.py — market regime detection bull/bear/neutral via 30d MA, RS-001/RS-002 gates, atomic save, 46 tests GREEN). done_count 1054->1056, sprint_completed v9.52->v9.54."
 }
