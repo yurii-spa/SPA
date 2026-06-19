@@ -1,0 +1,58 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LiveStatsWidget from '../components/LiveStatsWidget.jsx';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Dashboard — SPA Paper Trading Metrics | earn-defi.com"
+  description="Live paper trading metrics for SPA strategies. Multi-strategy tabs: Overview, Core, Preserve, Max Yield, Risk Blocks, GoLive criteria, Changelog. Updated daily."
+>
+
+  <!-- Top nav (minimal) -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/20 mx-2">/</span>
+      <span class="text-white/60 text-sm font-medium">Dashboard</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors">&larr; Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">Strategies</a>
+      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline">Risk</a>
+    </div>
+  </nav>
+
+  <!-- Dashboard content -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2">Paper Trading Dashboard</h1>
+      <p class="text-white/40 text-sm">
+        Real-time paper trading metrics for SPA strategies. Data updated daily via automated cycle runner.
+      </p>
+    </div>
+
+    <LiveStatsWidget client:load />
+
+    <!-- Bottom disclaimer -->
+    <div class="mt-16 pt-8 border-t border-white/5">
+      <div class="rounded-xl bg-white/3 border border-white/8 px-6 py-5">
+        <h3 class="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Paper Trading Disclaimer</h3>
+        <p class="text-xs text-white/30 leading-relaxed">
+          All data shown represents paper trading with virtual capital ($100,000 USDC).
+          No real funds are at risk. APY figures are variable and not guaranteed.
+          Past paper performance does not predict or guarantee future results.
+          This dashboard is for informational and due-diligence purposes only and
+          does not constitute investment advice. SPA is not a licensed financial advisor.
+          See <a href="/risk" class="text-accent-400/60 hover:text-accent-400">Risk Disclosure</a> for full details.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+
+</Layout>
