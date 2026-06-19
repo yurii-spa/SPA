@@ -37,7 +37,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -390,22 +389,9 @@ class RS001LiveAPYEngine:
 
         report = self.apy_breakdown_report()
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(out_path.parent),
-            prefix=".rs001_apy_breakdown_",
-            suffix=".tmp.json",
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(report, fh, indent=2)
-            os.replace(tmp_path, str(out_path))
-            logger.info("RS001LiveAPYEngine.save: wrote %s", out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(report, str(out_path))
+        logger.info("RS001LiveAPYEngine.save: wrote %s", out_path)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
