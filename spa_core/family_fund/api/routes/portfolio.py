@@ -8,11 +8,13 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from ..dependencies import get_current_user
 from ..file_store import read_json_file
 from ..models import (
+    AttributionItem,
+    AttributionResponse,
     CurrentUser,
     PerformanceResponse,
     PortfolioResponse,
@@ -137,3 +139,46 @@ async def get_performance(
         paper_start_date=status_data.get("paper_start_date"),
         last_cycle_ts=status_data.get("last_cycle_ts"),
     )
+
+
+@router.get("/attribution", response_model=AttributionResponse)
+async def get_attribution(
+    days: int = Query(default=7, ge=1, le=365),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> AttributionResponse:
+    """Yield attribution by protocol over the requested period."""
+    equity_data = await read_json_file("equity_curve_daily.json")
+    pos_data = await read_json_file("current_positions.json")
+    daily = equity_data.get("daily", []) if isinstance(equity_data, dict) else []
+
+    daily_sorted = sorted(
+        [e for e in daily if isinstance(e, dict) and e.get("date")],
+        key=lambda e: e["date"],
+    )
+    period = daily_sorted[-days:] if len(daily_sorted) >= days else daily_sorted
+
+    positions = pos_data.get("positions") or {}
+    items_raw, total_deployed = _positions_to_items(positions)
+    total_yield = Decimal("0")
+    for entry in period:
+        y = entry.get("daily_yield_usd")
+        if y is not None:
+            total_yield += _dec(y)
+
+    active_days = len(period)
+    items: list[AttributionItem] = []
+    for pos in items_raw:
+        weight = pos.weight_pct / Decimal("100") if pos.weight_pct else Decimal("0")
+        protocol_yield = total_yield * weight
+        yield_pct = (protocol_yield / pos.allocation_usd * 100) if pos.allocation_usd > 0 else Decimal("0")
+        apy = (yield_pct / active_days * 365) if active_days > 0 else Decimal("0")
+        items.append(AttributionItem(
+            protocol=pos.protocol,
+            yield_usd=protocol_yield.quantize(Decimal("0.01")),
+            yield_pct=yield_pct.quantize(Decimal("0.0001")),
+            apy=apy.quantize(Decimal("0.0001")),
+            days_active=active_days,
+        ))
+
+    items.sort(key=lambda it: it.yield_usd, reverse=True)
+    return AttributionResponse(items=items, period_days=days, total_yield_usd=total_yield.quantize(Decimal("0.01")))
