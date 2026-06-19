@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.init_db import get_connection, get_db_path
 from risk.policy import RiskPolicy, RiskConfig, Position, PortfolioState, RiskCheckResult
+from spa_core.utils.errors import SPAError, RegistryError
 
 # Pendle PT strategy (imported lazily where needed to avoid heavy deps at startup)
 # from paper_trading.pendle_strategy import PendlePosition, pendle_allocation_size, build_pendle_position
@@ -246,7 +247,7 @@ class PaperTrader:
         open_trades = self._get_open_trades(protocol_key)
 
         if not open_trades:
-            raise ValueError(f"No open position for {protocol_key}")
+            raise SPAError(f"No open position for {protocol_key}", code="NO_OPEN_POSITION")
 
         # ── Live execution leg (FEAT-004/005 Phase 4 — SPA-V41-001) ──────────
         # Additive: SQL UPDATE below is unconditional. Bridge gated as in
@@ -1170,7 +1171,7 @@ class PaperTrader:
                 "SELECT * FROM protocols WHERE key = ?", (protocol_key,)
             ).fetchone()
         if not row:
-            raise ValueError(f"Protocol '{protocol_key}' not found in whitelist")
+            raise RegistryError(f"Protocol '{protocol_key}' not found in whitelist")
         return dict(row)
 
     def _ensure_strategy_state(self) -> None:
