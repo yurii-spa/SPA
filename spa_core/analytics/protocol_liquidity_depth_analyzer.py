@@ -16,6 +16,8 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Any
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -37,7 +39,7 @@ BAND_PCT = 0.01  # 1% of mid price
 # ---------------------------------------------------------------------------
 
 
-class ProtocolLiquidityDepthAnalyzer:
+class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
     """Analyzes available liquidity depth for position entry/exit.
 
     Parameters
@@ -46,9 +48,16 @@ class ProtocolLiquidityDepthAnalyzer:
         Directory where ``liquidity_depth_log.json`` is written.
     """
 
+    OUTPUT_PATH = "data/liquidity_depth_log.json"
+
     def __init__(self, data_dir: str = "") -> None:
+        super().__init__()
         self._data_dir = data_dir
         self._last_result: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict:
+        """Returns last liquidity depth analysis as JSON-serializable dict."""
+        return dict(self._last_result) if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
