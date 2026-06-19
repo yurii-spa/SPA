@@ -25,6 +25,13 @@ import argparse
 import textwrap
 from pathlib import Path
 from typing import Optional
+# stdlib contract guard integration
+try:
+    from stdlib_contract_guard import is_stdlib_contract as _is_stdlib_contract
+except ImportError:
+    def _is_stdlib_contract(filepath):
+        return False
+
 
 # ---------------------------------------------------------------------------
 # Detection patterns (regex, applied line-by-line or on full source)
@@ -159,6 +166,10 @@ def scan_all(base_dir: str = "spa_core") -> list:
 
     for py_file in sorted(base.rglob("*.py")):
         filepath = str(py_file)
+        # Skip stdlib contract files
+        if _is_stdlib_contract(filepath):
+            print(f"  [SKIP] stdlib contract: {filepath}")
+            continue
         result = scan_file(filepath)
         if result["has_pattern"] and not result["already_migrated"]:
             affected.append(filepath)
@@ -412,6 +423,10 @@ def main(argv=None) -> int:
         print(f"DRY RUN — {len(files)} files to process\n")
         applied = 0
         for f in files:
+            # Skip stdlib contract files
+            if _is_stdlib_contract(f):
+                print(f"  [SKIP] stdlib contract: {f}")
+                continue
             if apply_migration(f, dry_run=True):
                 applied += 1
         print(f"\nWould migrate: {applied}/{len(files)} files")
@@ -421,6 +436,10 @@ def main(argv=None) -> int:
         print(f"APPLY — {len(files)} files\n")
         applied = 0
         for f in files:
+            # Skip stdlib contract files
+            if _is_stdlib_contract(f):
+                print(f"  [SKIP] stdlib contract: {f}")
+                continue
             if apply_migration(f, dry_run=False):
                 applied += 1
         print(f"\nMigrated: {applied}/{len(files)} files")
