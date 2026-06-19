@@ -1,0 +1,153 @@
+# SPA v10.0 Release Notes
+
+**Date:** 2026-06-19
+**Sprint range:** v9.21 – v9.99
+**Done count:** 1106 tasks
+
+---
+
+## Overview
+
+SPA reaches version **10.0** — the first stable pre-paper-trading release.
+
+This version completes the CPA (Capital Preservation Algorithm) methodology integration,
+research strategies RS-001 / RS-002, the 4-State Gate system, and all infrastructure
+required for paper trading → live deployment.
+
+---
+
+## What's New in v10.0
+
+### Public API & Versioning (MP-1383, Sprint v9.99)
+
+- **`spa_core/__init__.py`** — first-class public API with clean imports
+- **`spa_core/version.py`** — single source of truth: `VERSION = "10.0.0"`
+- **`spa_core/utils/errors.py`** — typed error catalog (`SPAError`, `GateError`, `SourceError`, …)
+- **`tests/test_spa_public_api.py`** — 29 acceptance tests (all green)
+
+Quick start:
+
+```python
+from spa_core import BacktestGate, PITEngine, RS001LiveAPYEngine
+from spa_core import atomic_save, SPAError
+print(spa_core.VERSION)  # "10.0.0"
+```
+
+### Core Infrastructure (AUDIT fixes — v9.80-v9.99)
+
+| Module | MP | Description |
+|--------|----|-------------|
+| `spa_core/utils/atomic.py` | AUDIT-001 | Centralized atomic save (tmp + os.replace) |
+| `spa_core/utils/keychain.py` | — | Centralized macOS Keychain access |
+| `spa_core/utils/kanban.py` | AUDIT-003 | Thread-safe KANBAN updates |
+| `spa_core/utils/defillama.py` | — | Centralized DeFiLlama client |
+| `spa_core/utils/errors.py` | MP-1383 | Typed error catalog |
+| `spa_core/base.py` | AUDIT-002 | BaseAnalytics / BaseAdapter / BaseReport |
+| `spa_core/adapters/registry.py` | AUDIT-004 | Unified dict-based adapter registry (MP-1380) |
+| `spa_core/__init__.py` | MP-1383 | Public API surface |
+
+### CPA Integration Wave (v9.21 – v9.70, 50 sprints)
+
+- **BacktestGate** (`spa_core/backtesting/gate.py`) — 4-state gate system:
+  `BACKTEST → PRE_PAPER → PAPER → LIVE`
+- **PITEngine** (`spa_core/backtesting/pit_engine.py`) — Point-in-Time backtest
+  (avoids look-ahead bias, strict whitelist filtering)
+- **RS-001 Anti-Crisis** (`spa_core/analytics/rs001_live_apy_engine.py`) —
+  18.2% APY target; status: `RESEARCH_ONLY`
+- **RS-002 Cashflow LP** (`spa_core/analytics/rs002_live_apy_engine.py`) —
+  29.2% gross APY; status: `RESEARCH_ONLY, SUSPENDED` (IL risk)
+- 86.97% cash drag in strict PIT mode — expected behavior, not a bug
+
+### Paper Trading Infrastructure
+
+| Module | MP | Description |
+|--------|----|-------------|
+| `spa_core/backtesting/paper_trading_kickoff.py` | — | Formal kickoff workflow |
+| `spa_core/backtesting/paper_day_counter.py` | — | Progress tracking (days elapsed) |
+| `spa_core/backtesting/evidence_scoring_audit.py` | — | ETA to live readiness |
+| `spa_core/analytics/golive_readiness_report.py` | MP-1353 | 35/100 pts, ~30 days to ready |
+
+### Family Fund
+
+| Module | Description |
+|--------|-------------|
+| `spa_core/family_fund/registry.py` | Investor KYC workflow |
+| `spa_core/family_fund/pnl_attribution.py` | P&L attribution by investor |
+| `spa_core/family_fund/telegram_blast.py` | Telegram blast to participants |
+| `spa_core/family_fund/http_server.py` | Investor portal (stdlib TCP, port 8765) |
+
+### Adapters Registry (MP-1380, v9.96)
+
+`spa_core/adapters/registry.py` — rich dict-based registry (replaces list-based):
+
+- Per-adapter metadata: tier, contract address, chain, APY range, audit status
+- `get_adapter(key)` — factory function
+- `registry_summary()` — stats by tier
+
+### Website (earn-defi.com)
+
+- Dashboard v3.0 with Research tab (RS-001 / RS-002 metrics)
+- FAQ page (`/faq`)
+- Methodology CPA section (`/methodology#cpa`)
+- Due Diligence page (`/due-diligence`)
+- Research Strategies page (`/strategies/research`)
+
+---
+
+## Metrics
+
+| Metric | Value |
+|--------|-------|
+| Total sprints in this release | ~79 (v9.21 – v9.99) |
+| Test files | 130+ |
+| New tests (v9.21-v9.99) | ~1 700+ |
+| Modules created | 50+ |
+| KANBAN done_count | 1106 |
+| Lines of production code | ~15 000+ |
+
+---
+
+## Gate Status
+
+| Gate | Status |
+|------|--------|
+| ✅ Backtest Gate | PASS |
+| ✅ Pre-Paper Gate | PASS |
+| ⏳ Paper Trading | NOT_READY (needs to start) |
+| 🔒 Live Deployment | BLOCKED (~30 days from paper start) |
+
+---
+
+## Breaking Changes
+
+**None.** All new modules in v10.0 are additive.
+Existing `spa_core.*` imports continue to work unchanged.
+
+---
+
+## Upgrading
+
+```bash
+# Pull latest
+git pull
+
+# Verify public API
+python3 -c "import spa_core; print('SPA', spa_core.VERSION, '— OK')"
+
+# Run acceptance tests
+python3 -m unittest tests/test_spa_public_api.py -v
+```
+
+---
+
+## Next Steps (v10.1+)
+
+1. **Start paper trading** (user action — run `spa_core/backtesting/paper_trading_kickoff.py`)
+2. Acquire GMX v2 pool IDs from DeFiLlama for RS-002 resume
+3. Sign owner acceptance document (`spa_core/backtesting/owner_acceptance.py`)
+4. Deploy Gnosis Safe multisig for live capital
+5. Monitor `data/golive_status.json` — target go-live **2026-08-01**
+
+---
+
+*Generated by claude (SPA-V999) · 2026-06-19*
