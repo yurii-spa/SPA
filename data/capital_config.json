@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-06-19",
+  "description": "SPA capital configuration — starting capital, allocation limits, risk parameters",
+  "capital": {
+    "starting_capital_usd": 100000.0,
+    "currency": "USDC",
+    "mode": "paper",
+    "is_demo": false,
+    "go_live_target": "2026-08-01"
+  },
+  "allocation_limits": {
+    "min_cash_buffer_pct": 5.0,
+    "max_per_protocol_t1_pct": 40.0,
+    "max_per_protocol_t2_pct": 20.0,
+    "max_t2_total_pct": 50.0,
+    "tvl_floor_usd": 5000000
+  },
+  "risk_parameters": {
+    "max_drawdown_kill_pct": 5.0,
+    "apy_floor_pct": 1.0,
+    "apy_ceiling_pct": 30.0,
+    "min_paper_days_before_live": 30
+  },
+  "performance_targets": {
+    "target_apy_pct": 8.0,
+    "target_sharpe": 1.5,
+    "max_ulcer_index": 0.05
+  }
+}
