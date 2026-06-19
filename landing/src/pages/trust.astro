@@ -1,0 +1,238 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Trust Architecture — SPA earn-defi.com"
+  description="How SPA is structured, who controls what, and how your capital is handled. 9 key questions answered for allocators."
+  canonical="https://earn-defi.com/trust"
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <a href="/" class="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+      </svg>
+      <span class="text-sm">Back to earn-defi.com</span>
+    </a>
+    <span class="text-xs text-white/20 font-mono">trust</span>
+  </nav>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+
+    <!-- Header -->
+    <div class="mb-12">
+      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3">Architecture</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Trust Architecture</h1>
+      <p class="text-white/50 text-lg leading-relaxed">
+        How SPA is structured, who controls what, and how your capital is handled.
+      </p>
+    </div>
+
+    <!-- Intro -->
+    <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6 mb-12 text-sm text-white/60 leading-relaxed">
+      <p>
+        SPA operates as a paper trading system through go-live. This page documents the control
+        architecture, data flows, and operational safeguards that govern how the system works.
+        Transparency is the product.
+      </p>
+    </div>
+
+    <!-- Custody Model -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Custody Model</h2>
+      <div class="space-y-4 text-sm text-white/55 leading-relaxed">
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p><strong class="text-white/80">Paper trading phase:</strong> no real capital involved. Virtual $100,000 USDC portfolio.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p><strong class="text-white/80">Live phase (planned):</strong> self-custodial model. Users retain control of assets via Gnosis Safe multisig. SPA operates as an authorised keeper with limited execution rights.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p>SPA does not hold user funds in a centralised custodian.</p>
+        </div>
+        <div class="flex gap-3">
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <p><strong class="text-white/80">Keeper permissions:</strong> rebalance within approved whitelist only. Cannot withdraw to external addresses.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 Key Questions -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-2 pb-3 border-b border-white/8">The 9 Key Questions</h2>
+      <p class="text-xs text-white/30 mb-8">Every question an allocator should ask before trusting a system with capital.</p>
+
+      <div class="space-y-6">
+
+        <!-- Q1 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q1</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Who can change the strategy?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            Strategy parameters are defined in RiskPolicy v1.0. Changes require a documented ADR
+            (Architecture Decision Record), version bump, and re-run of GoLiveChecker. No undocumented changes.
+          </p>
+        </div>
+
+        <!-- Q2 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q2</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Who can change RiskPolicy?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            RiskPolicy changes require explicit versioning. Currently v1.0. Any change produces a new
+            version with documented rationale. Changelog is public in repository.
+          </p>
+        </div>
+
+        <!-- Q3 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q3</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Who can pause deposits?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            Kill switch can be triggered by: (1) automated drawdown gate (&minus;5% monthly),
+            (2) manual trigger by operator. Both paths are logged. Kill switch moves portfolio to cash buffer.
+          </p>
+        </div>
+
+        <!-- Q4 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q4</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Who can close positions?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            In paper trading: automated rebalancer only, within RiskPolicy gates. In live phase: keeper
+            (automated) within approved permissions + multisig emergency override.
+          </p>
+        </div>
+
+        <!-- Q5 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q5</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Who can upgrade contracts?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            Live phase: multisig required for any contract upgrade. Timelock TBD before go-live.
+            Paper trading phase: no live contracts deployed.
+          </p>
+        </div>
+
+        <!-- Q6 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q6</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Can a human override a risk gate?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            No. In paper trading phase, blocked rebalances are logged but not executed. The gate result
+            is final. Manual override capability is explicitly excluded from keeper permissions.
+          </p>
+        </div>
+
+        <!-- Q7 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q7</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Is there a multisig, and who are the signers?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            Gnosis Safe multisig planned for live phase. Signer composition and threshold TBD before
+            go-live. Will be published in this document before August 1, 2026.
+          </p>
+        </div>
+
+        <!-- Q8 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q8</p>
+          <h3 class="text-sm font-semibold text-white mb-2">Where can I see all logs?</h3>
+          <p class="text-sm text-white/55 leading-relaxed">
+            Dashboard &rarr; Trades tab (all rebalance events), Dashboard &rarr; Risk Blocks tab
+            (all blocked rebalances), GitHub repository (JSON logs, ADRs, RiskPolicy versions).
+          </p>
+        </div>
+
+        <!-- Q9 -->
+        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+          <p class="text-xs text-green-400/70 font-mono mb-2">Q9</p>
+          <h3 class="text-sm font-semibold text-white mb-2">What happens during an incident?</h3>
+          <div class="text-sm text-white/55 leading-relaxed space-y-1">
+            <p>1. Kill switch activates if drawdown gate fires.</p>
+            <p>2. Operator notified via monitoring alerts.</p>
+            <p>3. Portfolio moves to cash buffer.</p>
+            <p>4. Incident documented and published.</p>
+            <p>5. No resumption until root cause identified.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Operational Model -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Operational Model</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">Daily Cycle</p>
+          <p class="text-sm text-white/60">Scan &rarr; Gate &rarr; Rebalance (automated)</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">LLM in Execution</p>
+          <p class="text-sm text-white/60">None. Zero AI in the decision path.</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">Decision Logic</p>
+          <p class="text-sm text-white/60">All decisions deterministic and logged</p>
+        </div>
+        <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <p class="text-xs text-white/30 font-mono mb-1">Paper Trading</p>
+          <p class="text-sm text-white/60">No real transactions — all operations simulated</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Monitors -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Live Monitors</h2>
+      <div class="space-y-3">
+        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
+          <div>
+            <p class="text-sm text-white/80 group-hover:text-white">GoLiveChecker</p>
+            <p class="text-xs text-white/40">20/26 criteria currently passing</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+          </svg>
+        </a>
+        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
+          <div>
+            <p class="text-sm text-white/80 group-hover:text-white">Risk Blocks</p>
+            <p class="text-xs text-white/40">All blocked rebalances logged</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+          </svg>
+        </a>
+        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
+          <div>
+            <p class="text-sm text-white/80 group-hover:text-white">Paper APY</p>
+            <p class="text-xs text-white/40">Tracked daily since June 10, 2026</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+          </svg>
+        </a>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-4 pb-3 border-b border-white/8">Contact</h2>
+      <p class="text-sm text-white/55 leading-relaxed">
+        For due diligence inquiries: <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
+      </p>
+    </section>
+
+  </main>
+
+  <Footer />
+
+</Layout>
