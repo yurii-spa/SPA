@@ -1,5 +1,14 @@
 # Sprint Log
 
+## v9.05 — 2026-06-19
+
+**Sprint:** v9.05  
+**Module:** MP-1260 GrossOfRebalancingTransactionCostAnalyzer  
+**Tests:** 98 passed  
+**Tier:** B (yield_quality)  
+**done_count:** 959 total=709  
+**Description:** perf-fee gross-of-rebalancing-transaction-cost base gap (transaction costs incurred when a vault rebalances its portfolio — gas fees, slippage, and price impact from restructuring positions when drift exceeds threshold: Uniswap V3 range out-of-range, portfolio weight drift, Yearn V3 strategy migration, Balancer pool reweight; these costs should be deducted from GROSS yield before performance fee; distinct from swap_fee per-trade AMM fee, gas_fee base gas cost per tx, lp_amm_fee LP routing drag, liquidity_mining_opportunity_cost forgone yield from locked capital)
+
 ## v9.04 — 2026-06-19
 
 **Sprint:** v9.04  
