@@ -20,6 +20,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import List, Optional
 
+from spa_core.base import BaseAnalytics
+
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -78,7 +80,7 @@ class CategoryScore:
 
 # ── GoLiveReadinessReport ──────────────────────────────────────────────────────
 
-class GoLiveReadinessReport:
+class GoLiveReadinessReport(BaseAnalytics):
     """
     Full go-live readiness assessment across 6 categories.
 
@@ -91,11 +93,26 @@ class GoLiveReadinessReport:
         path = report.save()             # writes JSON + MD to data/reports/
     """
 
+    OUTPUT_PATH = "data/reports/golive_readiness.json"
+
     def __init__(self, base_dir: str = ".") -> None:
+        super().__init__(base_dir)
         self.base_dir = Path(base_dir)
         self.data_dir = self.base_dir / "data"
         self.backtest_dir = self.data_dir / "backtest"
         self._categories_cache: Optional[List[CategoryScore]] = None
+
+    def to_dict(self) -> dict:
+        """Returns go-live readiness report as JSON-serializable dict."""
+        cats = self._get_categories()
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "overall_status": self.overall_status(),
+            "total_score": self.total_score(),
+            "estimated_days_to_ready": self.estimated_days_to_ready(),
+            "categories": [c.to_dict() for c in cats],
+            "blocking_items": self.blocking_items(),
+        }
 
     # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -320,22 +337,28 @@ class GoLiveReadinessReport:
         )
 
     def assess_capital(self) -> CategoryScore:
-        """Capital: virtual $100K USDC ready, equity curve populated."""
+        """Capital: virtual $100K USDC ready, equity curve populated, portfolio active."""
         pts_data = self._read_json(self.data_dir / "paper_trading_status.json")
         eq_data = self._read_json(self.data_dir / "equity_curve_daily.json")
+        pos_data = self._read_json(self.data_dir / "current_positions.json")
 
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
         max_score = 100.0
 
-        # Virtual capital check
+        # ── 1. Virtual capital check (50 pts) ──
+        # Check multiple field names used across different schema versions
         capital = float(
             pts_data.get("virtual_capital",
                 pts_data.get("total_capital",
-                    pts_data.get("capital", 0)))
+                    pts_data.get("capital",
+                        pts_data.get("current_equity", 0))))
         )
-        is_demo = pts_data.get("is_demo", True)
+        # Fallback: current_positions.json capital_usd
+        if capital == 0:
+            capital = float(pos_data.get("capital_usd", 0))
+        is_demo = pts_data.get("is_demo", pos_data.get("is_demo", True))
 
         if capital >= 100_000 and not is_demo:
             score += 50.0
@@ -355,29 +378,61 @@ class GoLiveReadinessReport:
         else:
             items_pending.append("Virtual capital not initialised ($0)")
 
-        # Equity curve check
+        # ── 2. Equity curve check (30 pts) ──
+        # Support multiple storage schemas: list / {daily:[...]} / {entries:[...]} / {data:[...]}
         if isinstance(eq_data, list):
             curve = eq_data
         elif isinstance(eq_data, dict):
-            curve = eq_data.get("entries", eq_data.get("data", []))
+            curve = (
+                eq_data.get("daily")
+                or eq_data.get("entries")
+                or eq_data.get("data")
+                or []
+            )
         else:
             curve = []
+        # Also accept summary.num_days as supplementary count
+        num_days_summary = (
+            eq_data.get("summary", {}).get("num_days", 0)
+            if isinstance(eq_data, dict) else 0
+        )
+        eff_days = max(len(curve) if isinstance(curve, list) else 0, num_days_summary)
 
-        if len(curve) >= 30:
+        if eff_days >= 30:
             score += 30.0
-            items_done.append(f"Equity curve: {len(curve)} days recorded ✓")
-        elif len(curve) >= 1:
+            items_done.append(f"Equity curve: {eff_days} days recorded ✓")
+        elif eff_days >= 7:
+            score += 20.0
+            items_done.append(f"Equity curve: {eff_days} day(s) recorded")
+            items_pending.append(f"Need 30+ equity curve entries ({30 - eff_days} more)")
+        elif eff_days >= 1:
             score += 15.0
-            items_done.append(f"Equity curve: {len(curve)} day(s) recorded")
-            items_pending.append(f"Need 30+ equity curve entries ({30 - len(curve)} more)")
+            items_done.append(f"Equity curve: {eff_days} day(s) recorded")
+            items_pending.append(f"Need 30+ equity curve entries ({30 - eff_days} more)")
         else:
             items_pending.append("Equity curve: no entries yet")
 
-        # Live capital note (for go-live, not paper)
+        # ── 3. Active portfolio check (10 pts) ──
+        deployed = float(pos_data.get("deployed_usd", 0))
+        cap_ref = float(pos_data.get("capital_usd", capital or 1.0))
+        if cap_ref > 0 and deployed / cap_ref >= 0.5:
+            score += 10.0
+            items_done.append(
+                f"Portfolio active: ${deployed:,.0f} deployed "
+                f"({deployed / cap_ref * 100:.0f}% of capital) ✓"
+            )
+        elif deployed > 0:
+            items_pending.append(
+                f"Portfolio underdeployed: ${deployed:,.0f} ({deployed / cap_ref * 100:.0f}%)"
+            )
+        else:
+            items_pending.append("Portfolio: no positions deployed")
+
+        # ── 4. Base allocation credit (20 pts) ──
         items_pending.append(
             "For LIVE: $100K actual USDC must be deposited in Gnosis Safe"
         )
-        score += 20.0  # paper virtual capital is pre-allocated
+        score += 20.0  # paper virtual capital is pre-allocated (always given)
 
         score = min(score, max_score)
 
@@ -386,18 +441,451 @@ class GoLiveReadinessReport:
             notes=f"${capital:,.0f} virtual, is_demo={is_demo}",
         )
 
+    def assess_documentation(self) -> CategoryScore:
+        """Documentation: key policy, runbook and reference docs present and non-empty."""
+        docs_dir = self.base_dir / "docs"
+        adr_dir = docs_dir / "adr"
+
+        items_done: List[str] = []
+        items_pending: List[str] = []
+
+        # Required documents: (filename, label, pts)
+        REQUIRED_DOCS = [
+            ("RISK_MANAGEMENT_POLICY.md",  "Risk Management Policy",      10.0),
+            ("DEPLOYMENT_RUNBOOK.md",       "Deployment Runbook",          10.0),
+            ("DATA_SOURCES_REGISTRY.md",    "Data Sources Registry",       10.0),
+            ("FAMILY_FUND_ONBOARDING.md",   "Family Fund Onboarding",      10.0),
+            ("API_REFERENCE.md",            "API Reference",               10.0),
+            ("SECURITY_CHECKLIST.md",       "Security Checklist",          10.0),
+            ("DISASTER_RECOVERY.md",        "Disaster Recovery Procedure", 10.0),
+            ("TOKEN_ROTATION_RUNBOOK.md",   "Token Rotation Runbook",      10.0),
+        ]
+        ADR_MIN = 3
+        ADR_PTS = 20.0
+        MIN_BYTES = 500
+
+        score = 0.0
+        max_score = sum(pts for _, _, pts in REQUIRED_DOCS) + ADR_PTS
+
+        for filename, label, pts in REQUIRED_DOCS:
+            path = docs_dir / filename
+            try:
+                size = path.stat().st_size
+            except OSError:
+                size = 0
+            if size >= MIN_BYTES:
+                score += pts
+                items_done.append(f"{label}: ✓ ({size:,} bytes)")
+            else:
+                items_pending.append(
+                    f"{label}: missing or too small — create docs/{filename}"
+                )
+
+        # ADR directory check
+        try:
+            adr_files = [f for f in adr_dir.iterdir() if f.suffix == ".md"]
+        except OSError:
+            adr_files = []
+
+        if len(adr_files) >= ADR_MIN:
+            score += ADR_PTS
+            items_done.append(f"ADR directory: {len(adr_files)} ADRs present ✓")
+        else:
+            items_pending.append(
+                f"ADR directory: need ≥{ADR_MIN} ADR files (found {len(adr_files)})"
+            )
+
+        return CategoryScore(
+            "documentation", score, max_score, items_done, items_pending,
+            notes=f"{score:.0f}/{max_score:.0f} pts",
+        )
+
+    # ── v10.41–42 NEW category assessors (max_score directly in pts) ──────────
+
+    def assess_gates(self) -> CategoryScore:
+        """Gates: Backtest/Pre-Paper/Paper progress. Max 20 pts.
+        MP-1425 (v10.41)
+        """
+        items_done: List[str] = []
+        items_pending: List[str] = []
+        score = 0.0
+        max_score = 20.0
+
+        # Backtest gate: +8
+        bg = self._read_json(self.backtest_dir / "pre_paper_backtest_gate.json")
+        if bg.get("status") == "PASS":
+            score += 8.0
+            items_done.append("Backtest Gate: PASS ✓")
+        else:
+            items_pending.append(
+                f"Backtest Gate: {bg.get('status', 'UNKNOWN')} — run CPA backtest"
+            )
+
+        # Pre-paper gate: +8
+        pg = self._read_json(self.backtest_dir / "paper_ready_gate.json")
+        if pg.get("status") in ("READY", "PASS"):
+            score += 8.0
+            items_done.append("Pre-Paper Gate: READY ✓")
+        else:
+            items_pending.append("Pre-Paper Gate: NOT_READY — resolve hardening + P1B sources")
+
+        # Paper trading started (≥1 day): +2
+        pe = self._read_json(self.data_dir / "paper_evidence.json")
+        paper_days = len(pe.get("days", [])) if isinstance(pe, dict) else 0
+        eq = self._read_json(self.data_dir / "equity_curve_daily.json")
+        if isinstance(eq, list):
+            eq_days = len(eq)
+        elif isinstance(eq, dict):
+            eq_days = len(
+                eq.get("daily") or eq.get("entries") or eq.get("data") or []
+            )
+        else:
+            eq_days = 0
+        effective_days = max(paper_days, eq_days)
+
+        if effective_days >= 1:
+            score += 2.0
+            items_done.append(f"Paper trading started: {effective_days} day(s) ✓")
+        else:
+            items_pending.append("Paper trading not started yet")
+
+        # Paper ≥7 days: +2
+        if effective_days >= 7:
+            score += 2.0
+            items_done.append(f"Paper 7+ days: {effective_days} ✓")
+        else:
+            items_pending.append(
+                f"Paper track: {effective_days}/7 days "
+                f"({max(0, 7 - effective_days)} more for +2 pts)"
+            )
+
+        return CategoryScore(
+            "gates", score, max_score, items_done, items_pending,
+            notes=f"{score:.0f}/{max_score:.0f} pts",
+        )
+
+    def assess_evidence(self) -> CategoryScore:
+        """Evidence infrastructure + accumulated paper cycles. Max 25 pts.
+        MP-1426 (v10.42)
+          +5  evidence_auto_calculator.py exists
+          +5  paper_evidence_history.json initialized
+          +5  ≥5 completed cycles  (cumulative tiers)
+          +5  ≥10 completed cycles
+          +5  ≥20 completed cycles
+        """
+        items_done: List[str] = []
+        items_pending: List[str] = []
+        score = 0.0
+        max_score = 25.0
+
+        # Infrastructure: auto-calculator
+        calc_path = (
+            self.base_dir / "spa_core" / "analytics" / "evidence_auto_calculator.py"
+        )
+        calc_exists = calc_path.exists()
+        if calc_exists:
+            score += 5.0
+            items_done.append("evidence_auto_calculator.py: present ✓")
+        else:
+            items_pending.append(
+                "evidence_auto_calculator.py: missing — create MP-1409"
+            )
+
+        # Infrastructure: history file initialized
+        history_path = self.data_dir / "paper_evidence_history.json"
+        hist_data = self._read_json(history_path)
+        history_initialized = bool(hist_data.get("schema_version"))
+        if history_initialized:
+            score += 5.0
+            items_done.append("paper_evidence_history.json: initialized ✓")
+        else:
+            items_pending.append(
+                "paper_evidence_history.json: not initialized "
+                "(run: python3 -m spa_core.analytics.evidence_auto_calculator --run)"
+            )
+
+        # Completed cycles — read from paper_evidence.json (cycle_runner writes this)
+        pe = self._read_json(self.data_dir / "paper_evidence.json")
+        completed_days = (
+            len(pe.get("days", [])) if isinstance(pe, dict) else 0
+        )
+        # Also take max from history
+        history_days = hist_data.get("day_count", len(hist_data.get("days", [])))
+        completed_days = max(completed_days, history_days)
+
+        TIERS = [(5, "+5 pts at ≥5 cycles"), (10, "+5 pts at ≥10 cycles"), (20, "+5 pts at ≥20 cycles")]
+        for threshold, label in TIERS:
+            if completed_days >= threshold:
+                score += 5.0
+                items_done.append(f"Cycles ≥{threshold}: {completed_days} ✓")
+            else:
+                items_pending.append(
+                    f"{label} — currently {completed_days}/{threshold}"
+                )
+
+        return CategoryScore(
+            "evidence", score, max_score, items_done, items_pending,
+            notes=f"{score:.0f}/{max_score:.0f} pts, {completed_days} completed days",
+        )
+
+    def assess_infrastructure_v2(self) -> CategoryScore:
+        """Infrastructure health. Max 20 pts (10 checks × 2 pts).
+        MP-1425 (v10.41)
+        """
+        gs = self._read_json(self.data_dir / "golive_status.json")
+        checks = gs.get("checks", {})
+
+        items_done: List[str] = []
+        items_pending: List[str] = []
+
+        INFRA_CHECKS = [
+            ("autopush_installed",    "autopush launchd daemon",          2.0),
+            ("http_server",           "HTTP dashboard (port 8765)",        2.0),
+            ("cycle_runner_exists",   "cycle_runner.py present",           2.0),
+            ("multi_strategy_runner", "multi_strategy_runner.py",          2.0),
+            ("safe_tx_builder",       "Gnosis Safe TX builder",            2.0),
+            ("promotion_engine",      "promotion_engine.py",               2.0),
+            ("gap_monitor_ok",        "gap_monitor: no gaps",              2.0),
+            ("adr022_exists",         "ADR-022 present",                   2.0),
+            ("data_fresh_48h",        "data freshness < 48h",              2.0),
+            ("telegram_alert_today",  "Telegram daily alert sent today",   2.0),
+        ]
+
+        score = 0.0
+        max_score = sum(pts for _, _, pts in INFRA_CHECKS)  # 20.0
+
+        for key, label, pts in INFRA_CHECKS:
+            if checks.get(key):
+                score += pts
+                items_done.append(f"{label}: ✓")
+            else:
+                items_pending.append(f"{label}: missing/failed")
+
+        return CategoryScore(
+            "infrastructure", score, max_score, items_done, items_pending,
+            notes=f"{score:.0f}/{max_score:.0f} pts",
+        )
+
+    def assess_financial(self) -> CategoryScore:
+        """Financial readiness. Max 15 pts.
+        MP-1425 (v10.41)
+          +3  capital_config.json exists and has starting_capital
+          +2  starting_capital >= $100K (from paper_trading_status)
+          +2  risk_policy defined (spa_core/risk/policy.py)
+          +2  fee_structure.py documented
+          +2  KYC docs present (docs/legal/ONBOARDING_CHECKLIST.md)
+          +2  equity_curve >= 7 days (performance reporting ready)
+          +2  is_demo = False
+        """
+        items_done: List[str] = []
+        items_pending: List[str] = []
+        score = 0.0
+        max_score = 15.0
+
+        # capital_config.json: +3
+        cap_cfg_path = self.data_dir / "capital_config.json"
+        cap_cfg = self._read_json(cap_cfg_path)
+        cfg_capital = (
+            cap_cfg.get("capital", {}).get("starting_capital_usd", 0)
+            if isinstance(cap_cfg.get("capital"), dict)
+            else 0
+        )
+        if cfg_capital >= 100_000:
+            score += 3.0
+            items_done.append(
+                f"capital_config.json: starting_capital=${cfg_capital:,.0f} ✓"
+            )
+        else:
+            items_pending.append(
+                "capital_config.json: missing or starting_capital < $100K "
+                "— create data/capital_config.json"
+            )
+
+        # Starting capital ≥ $100K (live status): +2
+        pts_data = self._read_json(self.data_dir / "paper_trading_status.json")
+        pos_data = self._read_json(self.data_dir / "current_positions.json")
+        capital = float(
+            pts_data.get("virtual_capital",
+                pts_data.get("total_capital",
+                    pts_data.get("capital",
+                        pts_data.get("current_equity", 0))))
+        )
+        if capital == 0:
+            capital = float(pos_data.get("capital_usd", 0))
+        if capital >= 100_000:
+            score += 2.0
+            items_done.append(f"Starting capital: ${capital:,.0f} USDC ✓")
+        else:
+            items_pending.append(
+                f"Starting capital: ${capital:,.0f} (need $100,000)"
+            )
+
+        # Risk policy defined: +2
+        risk_policy_path = self.base_dir / "spa_core" / "risk" / "policy.py"
+        if risk_policy_path.exists() and risk_policy_path.stat().st_size > 100:
+            score += 2.0
+            items_done.append("Risk policy (spa_core/risk/policy.py): defined ✓")
+        else:
+            items_pending.append("Risk policy: missing — create spa_core/risk/policy.py")
+
+        # fee_structure.py: +2
+        fee_path = self.base_dir / "spa_core" / "analytics" / "fee_structure.py"
+        if fee_path.exists() and fee_path.stat().st_size > 200:
+            score += 2.0
+            items_done.append("fee_structure.py: present ✓")
+        else:
+            items_pending.append(
+                "fee_structure.py: missing — create spa_core/analytics/fee_structure.py"
+            )
+
+        # KYC docs: +2
+        kyc_path = self.base_dir / "docs" / "legal" / "ONBOARDING_CHECKLIST.md"
+        if kyc_path.exists() and kyc_path.stat().st_size >= 200:
+            score += 2.0
+            items_done.append("Family Fund KYC (ONBOARDING_CHECKLIST.md): present ✓")
+        else:
+            items_pending.append(
+                "Family Fund KYC: missing — create docs/legal/ONBOARDING_CHECKLIST.md"
+            )
+
+        # Equity curve ≥7 days: +2
+        eq_data = self._read_json(self.data_dir / "equity_curve_daily.json")
+        if isinstance(eq_data, list):
+            eq_days = len(eq_data)
+        elif isinstance(eq_data, dict):
+            eq_days = len(
+                eq_data.get("daily") or eq_data.get("entries") or eq_data.get("data") or []
+            )
+            eq_days = max(eq_days, eq_data.get("summary", {}).get("num_days", 0))
+        else:
+            eq_days = 0
+        if eq_days >= 7:
+            score += 2.0
+            items_done.append(f"Performance reporting: {eq_days} equity curve days ✓")
+        else:
+            items_pending.append(
+                f"Performance reporting: {eq_days}/7 equity curve days "
+                f"({max(0, 7 - eq_days)} more needed for +2 pts)"
+            )
+
+        # is_demo = False: +2
+        is_demo = pts_data.get("is_demo", pos_data.get("is_demo", True))
+        if not is_demo:
+            score += 2.0
+            items_done.append("Paper trading mode: is_demo=False ✓")
+        else:
+            items_pending.append(
+                "Paper trading: is_demo=True — ensure cycle_runner runs with is_demo=False"
+            )
+
+        return CategoryScore(
+            "financial", score, max_score, items_done, items_pending,
+            notes=f"{score:.0f}/{max_score:.0f} pts",
+        )
+
+    def assess_data_sources(self) -> CategoryScore:
+        """Data source quality. Max 10 pts.
+        MP-1426 (v10.42)
+          +2  spa_core/utils/defillama.py exists
+          +2  spa_core/analytics/t1_data_verifier.py exists
+          +2  source_pipeline.json has ≥5 CLEAN sources
+          +2  promotion_engine.py present
+          +2  CLEAN source % ≥ 50%
+        """
+        items_done: List[str] = []
+        items_pending: List[str] = []
+        score = 0.0
+        max_score = 10.0
+
+        # DeFiLlama utils client: +2
+        defillama_utils = self.base_dir / "spa_core" / "utils" / "defillama.py"
+        defillama_adapter = (
+            self.base_dir / "spa_core" / "adapters" / "defillama_feed.py"
+        )
+        if defillama_utils.exists() or defillama_adapter.exists():
+            score += 2.0
+            items_done.append("DeFiLlama client (utils/defillama.py or adapters/defillama_feed.py): ✓")
+        else:
+            items_pending.append("DeFiLlama client: missing")
+
+        # T1 data verifier: +2
+        t1_verifier = self.base_dir / "spa_core" / "analytics" / "t1_data_verifier.py"
+        if t1_verifier.exists():
+            score += 2.0
+            items_done.append("T1 data verifier (t1_data_verifier.py): ✓")
+        else:
+            items_pending.append("T1 data verifier: missing")
+
+        # Source pipeline CLEAN count: +2 if ≥5 CLEAN sources
+        sp = self._read_json(self.backtest_dir / "source_pipeline.json")
+        sources: dict = sp.get("sources", {})
+        clean_sources = [k for k, v in sources.items() if v == "clean_included"]
+        if len(clean_sources) >= 5:
+            score += 2.0
+            items_done.append(
+                f"Source pipeline: {len(clean_sources)}/{len(sources)} CLEAN sources ✓"
+            )
+        else:
+            items_pending.append(
+                f"Source pipeline: {len(clean_sources)}/{len(sources)} CLEAN "
+                f"(need ≥5 for +2 pts)"
+            )
+
+        # Promotion engine: +2
+        promo_root = self.base_dir / "promotion_engine.py"
+        promo_spa = self.base_dir / "spa_core" / "analytics" / "strategy_promoter.py"
+        if promo_root.exists() or promo_spa.exists():
+            score += 2.0
+            items_done.append("Promotion engine: present ✓")
+        else:
+            items_pending.append("Promotion engine: missing")
+
+        # CLEAN % ≥ 50%: +2
+        total = len(sources)
+        clean_pct = len(clean_sources) / total * 100.0 if total > 0 else 0.0
+        if clean_pct >= 50.0:
+            score += 2.0
+            items_done.append(f"CLEAN source %: {clean_pct:.0f}% ≥50% ✓")
+        else:
+            items_pending.append(
+                f"CLEAN source %: {clean_pct:.0f}% < 50% "
+                f"(promote more sources to clean_included)"
+            )
+
+        return CategoryScore(
+            "data_sources", score, max_score, items_done, items_pending,
+            notes=f"{score:.0f}/{max_score:.0f} pts, {len(clean_sources)}/{total} CLEAN",
+        )
+
+    def assess_documentation_v2(self) -> CategoryScore:
+        """Documentation: key policy and runbook docs. Max 10 pts.
+        MP-1425 (v10.41) — normalized from assess_documentation()
+        """
+        old = self.assess_documentation()
+        # Normalize old (max=100) to new max=10
+        new_score = round(old.score / old.max_score * 10.0, 2) if old.max_score > 0 else 0.0
+        return CategoryScore(
+            "documentation", new_score, 10.0,
+            old.items_done, old.items_pending,
+            notes=f"{new_score:.1f}/10.0 pts",
+        )
+
     # ── aggregation ────────────────────────────────────────────────────────────
 
     def _get_categories(self) -> List[CategoryScore]:
-        """Run all assessments (cached)."""
+        """Run all assessments (cached).
+        v10.41+ uses 6-category system (max_total=100):
+          gates(20) + evidence(25) + infrastructure(20) + financial(15)
+          + data_sources(10) + documentation(10)
+        """
         if self._categories_cache is None:
             self._categories_cache = [
-                self.assess_gate_status(),
-                self.assess_data_quality(),
-                self.assess_evidence_points(),
-                self.assess_owner_acceptance(),
-                self.assess_infrastructure(),
-                self.assess_capital(),
+                self.assess_gates(),
+                self.assess_evidence(),
+                self.assess_infrastructure_v2(),
+                self.assess_financial(),
+                self.assess_data_sources(),
+                self.assess_documentation_v2(),
             ]
         return self._categories_cache
 
@@ -600,17 +1088,8 @@ class GoLiveReadinessReport:
 
     @staticmethod
     def _atomic_write_json(path: Path, data: dict) -> None:
-        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2)
-            os.replace(tmp, path)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except Exception:
-                pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(data, str(path))
 
     @staticmethod
     def _atomic_write_text(path: Path, text: str) -> None:
