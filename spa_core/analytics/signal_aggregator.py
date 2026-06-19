@@ -32,7 +32,6 @@ import json
 import logging
 import os
 import sys
-import tempfile
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
@@ -385,24 +384,8 @@ class SignalAggregator:
 
     def _write_atomic(self, path: Path, data: Dict[str, Any]) -> None:
         """Атомарная запись через tempfile + os.replace."""
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_name = tempfile.mkstemp(
-            dir=str(path.parent), prefix="." + path.name + ".", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2, ensure_ascii=False)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_name, path)
-        except Exception:
-            if os.path.exists(tmp_name):
-                try:
-                    os.remove(tmp_name)
-                except OSError:
-                    pass
-            raise
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(data, str(path))
 
     def flush_health(self) -> None:
         """Записать ring-buffer health-лог (100 последних записей)."""
