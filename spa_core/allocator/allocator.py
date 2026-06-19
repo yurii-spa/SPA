@@ -19,6 +19,7 @@ from pathlib import Path
 
 from spa_core.allocator import allocation_models as models
 from spa_core.strategies.strategy_selector import StrategySelector
+from spa_core.utils.errors import AllocationError
 
 log = logging.getLogger("spa.allocator")
 
@@ -409,9 +410,10 @@ class StrategyAllocator:
         model = model or self.allocation_model
         is_risk_model = model in _RISK_MODEL_ALIASES
         if not is_risk_model and model not in _MODEL_DISPATCH:
-            raise ValueError(
+            raise AllocationError(
                 f"Неизвестная модель аллокации: {model!r}. "
-                f"Доступны: {sorted(set(_MODEL_DISPATCH) | _RISK_MODEL_ALIASES)}"
+                f"Доступны: {sorted(set(_MODEL_DISPATCH) | _RISK_MODEL_ALIASES)}",
+                code="UNKNOWN_ALLOCATION_MODEL",
             )
 
         adapters = self._load_adapters()
