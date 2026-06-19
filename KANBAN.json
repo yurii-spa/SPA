@@ -9851,7 +9851,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 960,
+  "done_count": 961,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -10173,6 +10173,14 @@
       "status": "done",
       "sprint": "v5.61",
       "file": "spa_core/analytics/slippage_model_advisor.py"
+    },
+    {
+      "id": "MP-1262",
+      "title": "GrossOfBridgeDelayOpportunityCostAnalyzer",
+      "type": "code",
+      "status": "done",
+      "description": "perf-fee gross-of-bridge-delay-opportunity-cost base gap (time-value cost of capital locked during cross-chain bridge operations: Optimism 7-day challenge, Arbitrum 7-day dispute, zkSync ~24h finality; distinct from bridge_fee, crosschain_message_fee, withdrawal_delay_cost, rebalancing_transaction_cost)",
+      "sprint": "v9.07"
     }
   ],
   "_v520_dispatch_note": "MP-596 AdapterWatchdog: APY/peg/risk thresholds, AlertDispatcher integration, ring-buffer 48h, 136 tests OK (2026-06-13)",
