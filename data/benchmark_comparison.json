@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "generated_at": "2026-06-20T23:48:38.146201+00:00",
+    "module": "benchmark_comparator",
+    "mp": "MP-1236",
+    "advisory_only": true,
+    "is_demo": false,
+    "confidence_level": "95% (one-sided)",
+    "annualization_days": 365,
+    "track_days": 11,
+    "return_days": 10,
+    "track_start": "2026-06-10",
+    "track_end": "2026-06-20",
+    "source_files": [
+      "equity_curve_daily.json"
+    ],
+    "disclaimer": "Advisory / read-only. Paper-trading track ($100k virtual USDC); not investment advice. Past simulated performance does not guarantee future results. Attribution uses capital-weighted decomposition over available daily bars \u2014 see per-field notes for approximations."
+  },
+  "spa_annualized_return_pct": 4.1137,
+  "comparisons": [
+    {
+      "benchmark": "US T-Bills",
+      "benchmark_apy_pct": 5.0,
+      "spa_annualized_return_pct": 4.1137,
+      "alpha_pct": -0.8863,
+      "information_ratio": -70.0577,
+      "significant_at_95_now": false,
+      "days_to_95_significance": null,
+      "additional_days_needed": null,
+      "excess_days_observed": 10
+    },
+    {
+      "benchmark": "ETH staking (stETH)",
+      "benchmark_apy_pct": 3.5,
+      "spa_annualized_return_pct": 4.1137,
+      "alpha_pct": 0.6137,
+      "information_ratio": 38.4506,
+      "significant_at_95_now": true,
+      "days_to_95_significance": 1,
+      "additional_days_needed": 0,
+      "excess_days_observed": 10
+    },
+    {
+      "benchmark": "AAVE conservative",
+      "benchmark_apy_pct": 3.8,
+      "spa_annualized_return_pct": 4.1137,
+      "alpha_pct": 0.3137,
+      "information_ratio": 16.7489,
+      "significant_at_95_now": true,
+      "days_to_95_significance": 4,
+      "additional_days_needed": 0,
+      "excess_days_observed": 10
+    },
+    {
+      "benchmark": "SPA target",
+      "benchmark_apy_pct": 4.1137,
+      "spa_annualized_return_pct": 4.1137,
+      "alpha_pct": -0.0,
+      "information_ratio": -5.9438,
+      "significant_at_95_now": false,
+      "days_to_95_significance": null,
+      "additional_days_needed": null,
+      "excess_days_observed": 10
+    }
+  ],
+  "notes": [
+    "Days-to-significance is a frequentist projection assuming the observed daily-excess mean/variance persist; not a guarantee."
+  ]
+}
