@@ -7,9 +7,9 @@ import json
 import math
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 # ---------------------------------------------------------------------------
 # Path setup so tests run from any directory
