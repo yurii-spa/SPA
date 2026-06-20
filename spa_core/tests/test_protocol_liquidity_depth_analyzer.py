@@ -20,6 +20,7 @@ from spa_core.analytics.protocol_liquidity_depth_analyzer import (
     ProtocolLiquidityDepthAnalyzer,
     _atomic_append,
 )
+from spa_core.utils.errors import SPAError
 
 
 # ---------------------------------------------------------------------------
@@ -426,7 +427,7 @@ class TestPersistence(unittest.TestCase):
     # T045
     def test_save_before_analyze_raises(self):
         a = ProtocolLiquidityDepthAnalyzer(data_dir=self.tmpdir)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             a.save()
 
     # T046
