@@ -261,7 +261,7 @@ _PROTOCOL_TIERS: dict[str, str] = {
 
 _T1_CAP = 0.40
 _T2_CAP = 0.20
-_T2_TOTAL_CAP = 0.35
+_T2_TOTAL_CAP = 0.50  # ADR-019: поднят с 0.35 → 0.50 (2026-06-12)
 _CASH_BUFFER = 0.05
 _MAX_DEPLOYABLE = 1.0 - _CASH_BUFFER   # 0.95
 
