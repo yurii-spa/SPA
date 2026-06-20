@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -994,20 +995,7 @@ class ResearchSummaryReport(BaseAnalytics):
 
         # ── Save JSON ─────────────────────────────────────────────────────────
         json_path = base.with_suffix(".json")
-        fd, tmp_json = tempfile.mkstemp(
-            dir=json_path.parent, prefix=".tmp_", suffix=".json"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(report, f, indent=2, ensure_ascii=False)
-            os.replace(tmp_json, json_path)
-        except Exception:
-            try:
-                os.unlink(tmp_json)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(report, str(json_path))
         # ── Save Markdown ─────────────────────────────────────────────────────
         md_path = base.with_suffix(".md")
         fd, tmp_md = tempfile.mkstemp(
