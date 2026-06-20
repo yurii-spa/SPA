@@ -7,9 +7,9 @@ Run: python3 -m unittest spa_core.tests.test_collateral_diversification_scorer -
 
 import json
 import os
-import tempfile
 import time
 import unittest
+import tempfile
 
 from spa_core.analytics.collateral_diversification_scorer import (
     _append_log,
