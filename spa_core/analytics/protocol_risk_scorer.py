@@ -20,7 +20,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from spa_core.base import BaseAnalytics
 
@@ -69,6 +69,11 @@ class ProtocolRiskScore:
     grade: str                  # A(>=80) / B(>=65) / C(>=50) / D(<50)
     tier_recommendation: str    # T1 / T2 / T3 / SUSPEND
     risk_flags: List[str]       # human-readable risk reasons
+
+    @property
+    def total_score(self) -> float:
+        """Normalized composite score in [0, 1] for use in position sizing."""
+        return self.composite_score / 100.0
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +245,32 @@ class ProtocolRiskScorer(BaseAnalytics):
             risk_flags=flags,
         )
 
+    # ── predefined universe of whitelisted protocols ───────────────────
+    KNOWN_PROTOCOLS: Dict[str, "ProtocolInput"] = {}  # populated below class def
+
+    # ── abstract method implementation ─────────────────────────────────
+    def analyze(self, *args, **kwargs) -> Dict[str, Any]:
+        """Implement BaseAnalytics.analyze — runs score_all and returns dict."""
+        scores = self.score_all()
+        return {
+            "source": "protocol_risk_scorer",
+            "protocol_count": len(scores),
+            "scores": {pid: {
+                "composite_score": s.composite_score,
+                "grade": s.grade,
+                "tier_recommendation": s.tier_recommendation,
+                "risk_flags": s.risk_flags,
+                "total_score": s.total_score,
+            } for pid, s in scores.items()},
+        }
+
+    def score_all(self) -> Dict[str, "ProtocolRiskScore"]:
+        """Score all protocols in KNOWN_PROTOCOLS, return {protocol_id: score}."""
+        results: Dict[str, ProtocolRiskScore] = {}
+        for pid, p in self.KNOWN_PROTOCOLS.items():
+            results[pid] = self.score(p)
+        return results
+
     def score_batch(self, protocols: List[ProtocolInput]) -> List[ProtocolRiskScore]:
         """Score a list of protocols, returning one result per protocol."""
         return [self.score(p) for p in protocols]
@@ -276,3 +307,58 @@ class ProtocolRiskScorer(BaseAnalytics):
             return json.loads(self.data_file.read_text())
         except Exception:
             return []
+
+
+# ---------------------------------------------------------------------------
+# Predefined protocol universe — populated after class definition
+# ---------------------------------------------------------------------------
+ProtocolRiskScorer.KNOWN_PROTOCOLS = {
+    "aave_v3": ProtocolInput(
+        protocol_id="aave_v3",
+        tvl_usd=12_000_000_000,
+        audit_count=8,
+        age_days=1100,
+        incident_count=0,
+        is_upgradeable=True,
+    ),
+    "compound_v3": ProtocolInput(
+        protocol_id="compound_v3",
+        tvl_usd=2_500_000_000,
+        audit_count=6,
+        age_days=900,
+        incident_count=0,
+        is_upgradeable=True,
+    ),
+    "morpho_steakhouse": ProtocolInput(
+        protocol_id="morpho_steakhouse",
+        tvl_usd=600_000_000,
+        audit_count=4,
+        age_days=400,
+        incident_count=0,
+        is_upgradeable=False,
+    ),
+    "morpho_blue": ProtocolInput(
+        protocol_id="morpho_blue",
+        tvl_usd=1_200_000_000,
+        audit_count=5,
+        age_days=350,
+        incident_count=0,
+        is_upgradeable=False,
+    ),
+    "yearn_v3": ProtocolInput(
+        protocol_id="yearn_v3",
+        tvl_usd=500_000_000,
+        audit_count=4,
+        age_days=1200,
+        incident_count=1,
+        is_upgradeable=True,
+    ),
+    "euler_v2": ProtocolInput(
+        protocol_id="euler_v2",
+        tvl_usd=200_000_000,
+        audit_count=3,
+        age_days=150,
+        incident_count=0,
+        is_upgradeable=True,
+    ),
+}
