@@ -44,10 +44,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.adapter_watchdog")
 
@@ -69,22 +70,6 @@ MAX_LOG_ENTRIES = 200     # ring-buffer for watchdog_log.json
 
 # ─── Atomic IO ───────────────────────────────────────────────────────────────
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -234,7 +219,7 @@ def attempt_adapter_restart(
 
         # 1. Update state (rate-limit counter)
         new_state = _increment_restart_count(state, adapter_name, hour_key)
-        _atomic_write_json(dd / WATCHDOG_STATE_FILENAME, new_state)
+        atomic_save(new_state, str(dd / WATCHDOG_STATE_FILENAME))
 
         # 2. Append to watchdog log (ring-buffer)
         wlog = _read_json(dd / WATCHDOG_LOG_FILENAME, [])
@@ -248,7 +233,7 @@ def attempt_adapter_restart(
             "restart_count_this_hour": count + 1,
         })
         wlog = wlog[-MAX_LOG_ENTRIES:]
-        _atomic_write_json(dd / WATCHDOG_LOG_FILENAME, wlog)
+        atomic_save(wlog, str(dd / WATCHDOG_LOG_FILENAME))
 
         # 3. Write orchestrator trigger
         trigger = _read_json(dd / ORCHESTRATOR_TRIGGER_FILENAME, {})
@@ -259,7 +244,7 @@ def attempt_adapter_restart(
             restarted_list.append(adapter_name)
         trigger["adapter_restarted"] = restarted_list
         trigger["triggered_at"] = ts
-        _atomic_write_json(dd / ORCHESTRATOR_TRIGGER_FILENAME, trigger)
+        atomic_save(trigger, str(dd / ORCHESTRATOR_TRIGGER_FILENAME))
 
         log.info("watchdog: restart triggered for adapter %r (count=%d)", adapter_name, count + 1)
         return {
@@ -328,7 +313,7 @@ def run_watchdog_cycle(
             "restarts_rate_limited": restarts_rate_limited,
             "restart_details": restart_details,
         }
-        _atomic_write_json(dd / WATCHDOG_CYCLE_RESULT_FILENAME, summary)
+        atomic_save(summary, str(dd / WATCHDOG_CYCLE_RESULT_FILENAME))
         return summary
 
     except Exception as exc:
@@ -339,7 +324,7 @@ def run_watchdog_cycle(
             "error": f"{type(exc).__name__}: {exc}",
         }
         try:
-            _atomic_write_json(_ddir(data_dir) / WATCHDOG_CYCLE_RESULT_FILENAME, err_doc)
+            atomic_save(err_doc, str(_ddir(data_dir) / WATCHDOG_CYCLE_RESULT_FILENAME))
         except Exception:
             pass
         return err_doc
