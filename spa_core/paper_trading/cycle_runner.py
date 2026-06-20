@@ -198,6 +198,9 @@ class CycleResult:
 # ─── Atomic IO helpers (stdlib only) ─────────────────────────────────────────
 
 
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default: Any) -> Any:
     """Read JSON defensively. Missing/corrupt file → ``default`` (never raises)."""
     path = Path(path)
@@ -208,6 +211,9 @@ def _read_json(path: Path, default: Any) -> Any:
     except (ValueError, OSError) as exc:
         log.warning("%s unreadable (%s) — using default", path.name, exc)
         return default
+
+
+# ─── Pure helpers ────────────────────────────────────────────────────────────
 
 
 def _live_apy_map(adapters: list[dict]) -> dict[str, float]:
@@ -592,7 +598,7 @@ def _record_policy_block(
         }
     )
     blocks = blocks[-MAX_POLICY_BLOCKS:]  # ring-buffer
-    atomic_save(blocks, str(ddir / RISK_BLOCKS_FILENAME))
+    _atomic_write_json(ddir / RISK_BLOCKS_FILENAME, blocks)
 
 
 def _policy_version() -> str:
@@ -900,7 +906,7 @@ def run_cycle(
         try:
             _regime_result = _regime_detector.detect(apy_map)
             # Write to the cycle's own ddir (not the module-level default path).
-            atomic_save(_regime_result, str(ddir / "market_regime.json"))
+            _atomic_write_json(ddir / "market_regime.json", _regime_result)
             _regime_name = _regime_result.get("regime", "UNKNOWN")
             _regime_t1_avg_apy = float(_regime_result.get("t1_avg_apy", 0.0))
             log.info(
@@ -930,7 +936,7 @@ def run_cycle(
         equity_doc = raw_equity_doc
     else:
         if isinstance(raw_equity_doc, dict) and raw_equity_doc.get("daily") and write:
-            atomic_save(raw_equity_doc, str(ddir / "equity_curve_daily.demo_backup.json"))
+            _atomic_write_json(ddir / "equity_curve_daily.demo_backup.json", raw_equity_doc)
             notes.append(
                 "archived legacy demo equity_curve_daily.json → "
                 "equity_curve_daily.demo_backup.json; started a fresh real curve."
@@ -1129,7 +1135,7 @@ def run_cycle(
                 equity_history=_eb_equity_history,
                 static_apy=_static_apy,
             )
-            atomic_save(_eb_result, str(ddir / "emergency_status.json"))
+            _atomic_write_json(ddir / "emergency_status.json", _eb_result)
             notes.append(
                 f"emergency_breakers: status={_eb_result.get('status', 'UNKNOWN')} "
                 f"triggered={_eb_result.get('triggered', [])}"
@@ -1219,7 +1225,7 @@ def run_cycle(
                         "correlation_id": _correlation_id,
                         "signals": {p: _blk["protocols"][p] for p in _blk_protos},
                     })
-                    atomic_save(_ab_hist[-100:], str(_ab_path))
+                    _atomic_write_json(_ab_path, _ab_hist[-100:])
                 except Exception as _abw_exc:
                     log.warning("analytics_blocks write failed (%s)", _abw_exc)
     except Exception as _ag_exc:  # gate must never crash the cycle
@@ -1463,9 +1469,10 @@ def run_cycle(
 
     # ── Step 6: persist everything atomically ─────────────────────────────
     if write:
-        atomic_save(trades, str(ddir / TRADES_FILENAME))
-        atomic_save(equity_doc, str(ddir / EQUITY_FILENAME))
-        atomic_save(
+        _atomic_write_json(ddir / TRADES_FILENAME, trades)
+        _atomic_write_json(ddir / EQUITY_FILENAME, equity_doc)
+        _atomic_write_json(
+            ddir / POSITIONS_FILENAME,
             {
                 "generated_at": run_ts,
                 "source": "cycle_runner",
@@ -1477,7 +1484,6 @@ def run_cycle(
                 "model_used": model_used,
                 "positions": {p: round(v, 2) for p, v in effective_positions.items()},
             },
-            str(ddir / POSITIONS_FILENAME),
         )
         _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
 
@@ -2185,7 +2191,7 @@ def _run_daily_monitors(
             output_file=ddir / "red_flags.json",
             risk_scores_file=ddir / RISK_SCORES_FILENAME,
         ).export(dry_run=True, offline=offline)
-        atomic_save(snapshot, str(ddir / "red_flags.json"))
+        _atomic_write_json(ddir / "red_flags.json", snapshot)
         results["red_flags"] = "ok"
     except Exception as exc:  # noqa: BLE001 — monitors must never crash the cycle
         log.warning("red_flag monitor failed (%s) — cycle continues", exc)
@@ -2201,7 +2207,7 @@ def _run_daily_monitors(
         if isinstance(doc, dict) and doc.get("error"):
             results["governance"] = f"error: {doc['error']}"
         else:
-            atomic_save(doc, str(ddir / "governance_proposals.json"))
+            _atomic_write_json(ddir / "governance_proposals.json", doc)
             results["governance"] = "ok"
     except Exception as exc:  # noqa: BLE001
         log.warning("governance watcher failed (%s) — cycle continues", exc)
@@ -2211,7 +2217,7 @@ def _run_daily_monitors(
         from spa_core.data_pipeline.incidents_fetcher import build_incidents_snapshot
 
         snapshot = build_incidents_snapshot(offline=offline)
-        atomic_save(snapshot, str(ddir / "incidents.json"))
+        _atomic_write_json(ddir / "incidents.json", snapshot)
         results["incidents"] = "ok"
     except Exception as exc:  # noqa: BLE001
         log.warning("incidents fetcher failed (%s) — cycle continues", exc)
@@ -2352,7 +2358,7 @@ def _write_status(
         "market_regime": result.market_regime,
         "regime_t1_avg_apy": result.regime_t1_avg_apy,
     }
-    atomic_save(doc, str(ddir / STATUS_FILENAME))
+    _atomic_write_json(ddir / STATUS_FILENAME, doc)
 
 
 # ─── SPA-V434: dashboard cycle-metrics snapshot ───────────────────────────────
@@ -2441,7 +2447,7 @@ def save_dashboard_snapshot(
             ),
             "history": raw_history,
         }
-        atomic_save(doc, str(path))
+        _atomic_write_json(path, doc)
         return True
     except Exception as exc:  # noqa: BLE001 — snapshot must never raise
         log.warning("save_dashboard_snapshot failed (%s)", exc)
