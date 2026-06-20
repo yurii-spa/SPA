@@ -68,6 +68,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -243,7 +245,7 @@ class ForecastResult:
 # Core class
 # ---------------------------------------------------------------------------
 
-class YieldForecastEngine:
+class YieldForecastEngine(BaseAnalytics):
     """Statistical APY forecast engine.
 
     Usage::
@@ -254,10 +256,20 @@ class YieldForecastEngine:
         engine.save(result)
     """
 
+    OUTPUT_PATH = "data/yield_forecast_log.json"
+
     def __init__(self, data_dir: Optional[str] = None) -> None:
+        _base = data_dir if data_dir else str(_DEFAULT_DATA_DIR)
+        super().__init__(base_dir=_base)
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self._log_path = self._data_dir / _LOG_FILE
         self._last_result: Optional[ForecastResult] = None
+
+    def to_dict(self) -> dict:
+        """Return last ensemble_forecast() result as JSON-serializable dict."""
+        if self._last_result is None:
+            return {}
+        return self._last_result.to_dict()
 
     # ------------------------------------------------------------------
     # Core forecast methods
