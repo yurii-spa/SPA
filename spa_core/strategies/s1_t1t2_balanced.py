@@ -33,6 +33,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ─── Константы ────────────────────────────────────────────────────────────────
 
 STRATEGY_ID   = "s1_t1t2_balanced"
@@ -69,7 +71,7 @@ _EQUITY_HISTORY_MAX = 365
 
 # ─── S1T1T2BalancedStrategy ───────────────────────────────────────────────────
 
-class S1T1T2BalancedStrategy:
+class S1T1T2BalancedStrategy(BaseAnalytics):
     """S1 сбалансированная стратегия T1+T2 (Aave 40% + Morpho 40% + Compound 20%).
 
     Симулирует накопление yield на бумажных позициях.
@@ -77,14 +79,24 @@ class S1T1T2BalancedStrategy:
     Совместима с VPortfolio через to_vportfolio_format().
 
     Не зависит от внешних библиотек — только stdlib.
+
+    BaseAnalytics:
+        OUTPUT_PATH = "data/strategies/s1_t1t2_balanced_state.json"
+        to_dict()   → to_vportfolio_format()
+        save()      → атомарная запись состояния
+        load()      → загрузка из JSON
     """
 
-    def __init__(self, capital: float = 100_000.0) -> None:
+    OUTPUT_PATH = "data/strategies/s1_t1t2_balanced_state.json"
+
+    def __init__(self, capital: float = 100_000.0, base_dir: str = ".") -> None:
         """Инициализировать стратегию с начальным капиталом.
 
         Args:
-            capital: начальный виртуальный капитал в USD (дефолт: $100K)
+            capital:  начальный виртуальный капитал в USD (дефолт: $100K)
+            base_dir: корневой каталог для save()/load() (дефолт: ".")
         """
+        super().__init__(base_dir)
         self.strategy_id   = STRATEGY_ID
         self.risk_level    = STRATEGY_RISK_LEVEL
         self.capital       = float(capital)
@@ -193,6 +205,14 @@ class S1T1T2BalancedStrategy:
     def current_equity(self) -> float:
         """Текущая совокупная стоимость позиций (USD). Не включает cash."""
         return sum(self._positions.values())
+
+    def to_dict(self) -> Dict:
+        """Сериализовать текущее состояние стратегии в dict (BaseAnalytics API).
+
+        Делегирует в to_vportfolio_format() — формат, совместимый с VPortfolio.
+        Используется через save() и load() из BaseAnalytics.
+        """
+        return self.to_vportfolio_format()
 
     def to_vportfolio_format(self) -> Dict:
         """Экспортировать состояние в формат, совместимый с VPortfolio.
