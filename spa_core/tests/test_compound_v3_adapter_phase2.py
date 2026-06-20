@@ -34,6 +34,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from execution.compound_v3_adapter import CompoundV3Adapter  # noqa: E402
+from spa_core.utils.errors import SourceError  # noqa: E402
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,7 +115,7 @@ class TestEthCallHelper:
         assert captured["headers"].get("Content-type") == "application/json"
 
     def test_rpc_error_envelope_raises(self):
-        """JSON-RPC `error` field surfaces as RuntimeError."""
+        """JSON-RPC `error` field surfaces as SourceError."""
         adapter = CompoundV3Adapter(chain="ethereum", dry_run=False)
         with patch(
             "execution.compound_v3_adapter.urllib.request.urlopen",
@@ -123,11 +124,11 @@ class TestEthCallHelper:
                  "error": {"code": -32000, "message": "bad"}}
             ),
         ):
-            with pytest.raises(RuntimeError, match="RPC error"):
+            with pytest.raises(SourceError, match="RPC error"):
                 adapter._eth_call("https://x", "0xabc", "0x6f307dc3")
 
     def test_timeout_raises_runtimeerror(self):
-        """urllib OSError/TimeoutError gets wrapped into RuntimeError."""
+        """urllib OSError/TimeoutError gets wrapped into SourceError."""
         adapter = CompoundV3Adapter(chain="ethereum", dry_run=False)
 
         def boom(req, timeout=None):
@@ -137,7 +138,7 @@ class TestEthCallHelper:
             "execution.compound_v3_adapter.urllib.request.urlopen",
             side_effect=boom,
         ):
-            with pytest.raises(RuntimeError, match="HTTP failure"):
+            with pytest.raises(SourceError, match="HTTP failure"):
                 adapter._eth_call("https://x", "0xabc", "0x6f307dc3")
 
 
@@ -173,10 +174,10 @@ class TestFallbackRouting:
         adapter = CompoundV3Adapter(chain="ethereum", dry_run=False)
 
         def always_fail(self, rpc_url, to, data):  # noqa: ARG001
-            raise RuntimeError(f"down: {rpc_url}")
+            raise SourceError("eth_call", f"down: {rpc_url}")
 
         with patch.object(CompoundV3Adapter, "_eth_call", new=always_fail):
-            with pytest.raises(RuntimeError, match="All 3 RPCs failed"):
+            with pytest.raises(SourceError, match="all 3 RPCs failed"):
                 adapter._call_with_fallback(
                     "USDC", CompoundV3Adapter.SELECTOR_GET_UTILIZATION,
                 )
@@ -188,10 +189,10 @@ class TestFallbackRouting:
 
         def fake_eth_call(self, rpc_url, to, data):  # noqa: ARG001
             seen_urls.append(rpc_url)
-            raise RuntimeError("never mind")
+            raise SourceError("eth_call", "never mind")
 
         with patch.object(CompoundV3Adapter, "_eth_call", new=fake_eth_call):
-            with pytest.raises(RuntimeError):
+            with pytest.raises(SourceError):
                 adapter._call_with_fallback(
                     "USDC", CompoundV3Adapter.SELECTOR_GET_UTILIZATION,
                 )
