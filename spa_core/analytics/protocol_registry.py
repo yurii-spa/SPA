@@ -47,10 +47,10 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.analytics.protocol_registry")
 
@@ -735,23 +735,7 @@ class ProtocolRegistry:
             "registry": {pid: dict(entry) for pid, entry in self._registry.items()},
         }
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(target_dir), prefix=".protocol_registry_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2, ensure_ascii=False)
-                fh.write("\n")
-            os.replace(tmp_path, str(target))
-            log.info("protocol_registry.json saved (%d protocols)", len(self._registry))
-        except Exception as exc:   # noqa: BLE001
-            log.error("Failed to save protocol_registry.json: %s", exc)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(payload, str(target))
         return str(target)
 
     def load_registry(self, data_dir: Optional[str] = None) -> int:
