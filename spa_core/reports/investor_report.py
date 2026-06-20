@@ -41,12 +41,12 @@ import argparse
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from spa_core.reports.pnl_attribution import compute_pnl_attribution
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.reports.investor_report")
 
@@ -206,29 +206,8 @@ def build_investor_report(
 # ─── Atomic write ──────────────────────────────────────────────────────────────
 
 def _atomic_write_json(data: dict, path: str | Path) -> None:
-    """Write ``data`` as pretty JSON atomically (tmpfile + os.replace)."""
-    out = Path(path)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=out.name + ".", suffix=".tmp", dir=str(out.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, default=str)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, out)
-    except BaseException:
-        # Clean up the temp file on any failure (including the os.replace).
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        except OSError:
-            pass
-        raise
-
-
-# ─── Optional PDF ──────────────────────────────────────────────────────────────
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(path, str(data))
 def _maybe_generate_pdf(report: dict, json_path: str | Path) -> str | None:
     """Render a PDF next to the JSON, only if reportlab + pdf_generator exist.
 
