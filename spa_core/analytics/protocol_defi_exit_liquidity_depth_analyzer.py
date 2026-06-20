@@ -14,9 +14,9 @@ Python 3.9 compatible.
 import json
 import math
 import os
-import tempfile
 import time
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Data file (relative to repo root: two levels up from spa_core/analytics/)
@@ -257,16 +257,4 @@ class ProtocolDeFiExitLiquidityDepthAnalyzer:
         existing.append(result)
         existing = existing[-RING_BUFFER_CAP:]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=data_dir if data_dir else ".", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(existing, fh, indent=2)
-            os.replace(tmp_path, self._data_file)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(existing, str(self))
