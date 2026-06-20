@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_lending_market_utilization_ana
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_lending_market_utilization_analyzer import (
     DeFiLendingMarketUtilizationAnalyzer,
