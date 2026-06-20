@@ -47,7 +47,6 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.adapter_watchdog")
@@ -71,7 +70,9 @@ MAX_LOG_ENTRIES = 200     # ring-buffer for watchdog_log.json
 # ─── Atomic IO ───────────────────────────────────────────────────────────────
 
 
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
@@ -219,7 +220,7 @@ def attempt_adapter_restart(
 
         # 1. Update state (rate-limit counter)
         new_state = _increment_restart_count(state, adapter_name, hour_key)
-        atomic_save(new_state, str(dd / WATCHDOG_STATE_FILENAME))
+        _atomic_write_json(dd / WATCHDOG_STATE_FILENAME, new_state)
 
         # 2. Append to watchdog log (ring-buffer)
         wlog = _read_json(dd / WATCHDOG_LOG_FILENAME, [])
@@ -233,7 +234,7 @@ def attempt_adapter_restart(
             "restart_count_this_hour": count + 1,
         })
         wlog = wlog[-MAX_LOG_ENTRIES:]
-        atomic_save(wlog, str(dd / WATCHDOG_LOG_FILENAME))
+        _atomic_write_json(dd / WATCHDOG_LOG_FILENAME, wlog)
 
         # 3. Write orchestrator trigger
         trigger = _read_json(dd / ORCHESTRATOR_TRIGGER_FILENAME, {})
@@ -244,7 +245,7 @@ def attempt_adapter_restart(
             restarted_list.append(adapter_name)
         trigger["adapter_restarted"] = restarted_list
         trigger["triggered_at"] = ts
-        atomic_save(trigger, str(dd / ORCHESTRATOR_TRIGGER_FILENAME))
+        _atomic_write_json(dd / ORCHESTRATOR_TRIGGER_FILENAME, trigger)
 
         log.info("watchdog: restart triggered for adapter %r (count=%d)", adapter_name, count + 1)
         return {
@@ -313,7 +314,7 @@ def run_watchdog_cycle(
             "restarts_rate_limited": restarts_rate_limited,
             "restart_details": restart_details,
         }
-        atomic_save(summary, str(dd / WATCHDOG_CYCLE_RESULT_FILENAME))
+        _atomic_write_json(dd / WATCHDOG_CYCLE_RESULT_FILENAME, summary)
         return summary
 
     except Exception as exc:
@@ -324,7 +325,7 @@ def run_watchdog_cycle(
             "error": f"{type(exc).__name__}: {exc}",
         }
         try:
-            atomic_save(err_doc, str(_ddir(data_dir) / WATCHDOG_CYCLE_RESULT_FILENAME))
+            _atomic_write_json(_ddir(data_dir) / WATCHDOG_CYCLE_RESULT_FILENAME, err_doc)
         except Exception:
             pass
         return err_doc
