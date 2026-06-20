@@ -20,8 +20,8 @@ Covers ≥65 test cases:
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.token_price_impact_estimator import (
