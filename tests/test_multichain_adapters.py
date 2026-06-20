@@ -3,10 +3,12 @@
 Standalone тесты для multichain expansion (Arbitrum / Optimism).
 
 Покрывают новые read-only адаптеры и газовые мониторы:
-  - RadiantArbitrumAdapter        (Radiant Capital USDC, Arbitrum, T2)
-  - GmxGlpArbitrumAdapter         (GMX GLP, Arbitrum, T2)
   - VelodromeOptimismAdapter      (Velodrome USDC-USDT, Optimism, T2)
   - ArbitrumGasMonitor / OptimismGasMonitor (advisory gas kill-switch)
+
+NB (v1.254, 2026-06-21): Radiant и GMX GLP адаптеры удалены (Radiant мёртв —
+0 пулов на DeFiLlama; GMX GLP deprecated). Их заменили Silo Finance и Dolomite —
+покрытие в tests/test_silo_dolomite_arb.py.
 
 Запуск:  python3 tests/test_multichain_adapters.py
          python3 -m pytest tests/test_multichain_adapters.py -v
@@ -28,14 +30,6 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from spa_core.adapters.radiant_arbitrum_adapter import (
-    APY_FALLBACK as RADIANT_FALLBACK,
-    RadiantArbitrumAdapter,
-)
-from spa_core.adapters.gmx_glp_arbitrum_adapter import (
-    APY_FALLBACK as GMX_FALLBACK,
-    GmxGlpArbitrumAdapter,
-)
 from spa_core.adapters.velodrome_optimism_adapter import (
     APY_FALLBACK as VELO_FALLBACK,
     VelodromeOptimismAdapter,
@@ -100,143 +94,7 @@ def _pool(project, symbol, chain, apy=5.0, tvl=50_000_000.0, pool_id="p"):
     }
 
 
-_RADIANT_MOD = "spa_core.adapters.radiant_arbitrum_adapter"
-_GMX_MOD = "spa_core.adapters.gmx_glp_arbitrum_adapter"
 _VELO_MOD = "spa_core.adapters.velodrome_optimism_adapter"
-
-
-# ===========================================================================
-# Radiant Arbitrum (10 tests)
-# ===========================================================================
-
-class TestRadiantArbitrum(unittest.TestCase):
-    def test_01_chain_and_tier(self):
-        a = RadiantArbitrumAdapter()
-        self.assertEqual(a.CHAIN, "arbitrum")
-        self.assertEqual(a.TIER, "T2")
-        self.assertEqual(a.tier, "T2")
-
-    def test_02_protocol_keys(self):
-        a = RadiantArbitrumAdapter()
-        self.assertEqual(a.PROTOCOL_ID, "radiant-arbitrum")
-        self.assertEqual(a.PROTOCOL, "radiant_arbitrum")
-        self.assertEqual(a.CHAIN_ID, 42161)
-
-    def test_03_tvl_above_floor(self):
-        a = RadiantArbitrumAdapter()
-        self.assertGreaterEqual(a.TVL_USD, 5_000_000)
-
-    def test_04_risk_score_range(self):
-        a = RadiantArbitrumAdapter()
-        self.assertGreater(a.RISK_SCORE, 0.0)
-        self.assertLessEqual(a.RISK_SCORE, 1.0)
-
-    def test_05_live_apy(self):
-        a = RadiantArbitrumAdapter()
-        pools = [_pool("radiant-v2", "USDC", "Arbitrum", apy=6.3)]
-        with _patch_pools(_RADIANT_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), 6.3, places=5)
-
-    def test_06_fallback_on_network_error(self):
-        a = RadiantArbitrumAdapter()
-        with _patch_error(_RADIANT_MOD, urllib.error.URLError("down")):
-            self.assertAlmostEqual(a.get_apy(), RADIANT_FALLBACK, places=5)
-
-    def test_07_ignores_wrong_chain(self):
-        a = RadiantArbitrumAdapter()
-        pools = [
-            _pool("radiant-v2", "USDC", "Ethereum", apy=9.9, tvl=9e8),
-            _pool("radiant-v2", "USDC", "Arbitrum", apy=4.7),
-        ]
-        with _patch_pools(_RADIANT_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), 4.7, places=5)
-
-    def test_08_ignores_non_usdc(self):
-        a = RadiantArbitrumAdapter()
-        pools = [_pool("radiant-v2", "WETH", "Arbitrum", apy=12.0, tvl=9e8)]
-        with _patch_pools(_RADIANT_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), RADIANT_FALLBACK, places=5)
-
-    def test_09_yield_info_decimal(self):
-        a = RadiantArbitrumAdapter()
-        pools = [_pool("radiant-v2", "USDC", "Arbitrum", apy=5.0)]
-        with _patch_pools(_RADIANT_MOD, pools):
-            info = a.get_yield_info()
-        self.assertAlmostEqual(info.apy, 0.05, places=6)
-        self.assertEqual(info.tier, "T2")
-        self.assertEqual(info.protocol, "radiant_arbitrum")
-
-    def test_10_health_and_writestate(self):
-        a = RadiantArbitrumAdapter()
-        h = a.health_check()
-        self.assertEqual(h["status"], "ok")
-        self.assertTrue(h["tvl_floor_ok"])
-        ws = a.get_write_state()
-        self.assertEqual(ws["write_state"], "read_only")
-        self.assertEqual(ws["chain"], "arbitrum")
-
-
-# ===========================================================================
-# GMX GLP Arbitrum (10 tests)
-# ===========================================================================
-
-class TestGmxGlpArbitrum(unittest.TestCase):
-    def test_01_chain_and_tier(self):
-        a = GmxGlpArbitrumAdapter()
-        self.assertEqual(a.CHAIN, "arbitrum")
-        self.assertEqual(a.TIER, "T2")
-
-    def test_02_protocol_keys(self):
-        a = GmxGlpArbitrumAdapter()
-        self.assertEqual(a.PROTOCOL_ID, "gmx-glp-arbitrum")
-        self.assertEqual(a.PROTOCOL, "gmx_glp_arbitrum")
-
-    def test_03_not_pure_stablecoin(self):
-        a = GmxGlpArbitrumAdapter()
-        self.assertFalse(a.health_check()["is_pure_stablecoin"])
-        self.assertFalse(a.to_dict()["is_pure_stablecoin"])
-
-    def test_04_higher_risk_than_lending(self):
-        # GLP несёт рыночную экспозицию → risk_score выше lending-T2 (Radiant 0.45)
-        self.assertGreater(GmxGlpArbitrumAdapter().RISK_SCORE, 0.45)
-
-    def test_05_live_apy_from_defillama(self):
-        a = GmxGlpArbitrumAdapter()
-        pools = [_pool("gmx-v1", "GLP", "Arbitrum", apy=11.2, tvl=4e8)]
-        with _patch_pools(_GMX_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), 11.2, places=5)
-
-    def test_06_fallback_on_error(self):
-        a = GmxGlpArbitrumAdapter()
-        with _patch_error(_GMX_MOD, urllib.error.URLError("down")):
-            # GMX-API path тоже бьётся той же мок-ошибкой → fallback
-            self.assertAlmostEqual(a.get_apy(), GMX_FALLBACK, places=5)
-
-    def test_07_ignores_non_glp_symbol(self):
-        a = GmxGlpArbitrumAdapter()
-        pools = [_pool("gmx-v1", "USDC", "Arbitrum", apy=3.0, tvl=9e8)]
-        with _patch_pools(_GMX_MOD, pools):
-            # нет GLP-пула в DeFiLlama; GMX-API мок вернёт тот же payload без apr → fallback
-            self.assertAlmostEqual(a.get_apy(), GMX_FALLBACK, places=5)
-
-    def test_08_apy_max_window_high(self):
-        # GLP допускает APY-диапазон шире lending (до 60%)
-        a = GmxGlpArbitrumAdapter()
-        pools = [_pool("gmx-v1", "GLP", "Arbitrum", apy=42.0, tvl=4e8)]
-        with _patch_pools(_GMX_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), 42.0, places=5)
-
-    def test_09_yield_info_decimal(self):
-        a = GmxGlpArbitrumAdapter()
-        pools = [_pool("gmx-v1", "GLP", "Arbitrum", apy=8.0, tvl=4e8)]
-        with _patch_pools(_GMX_MOD, pools):
-            info = a.get_yield_info()
-        self.assertAlmostEqual(info.apy, 0.08, places=6)
-        self.assertEqual(info.protocol, "gmx_glp_arbitrum")
-
-    def test_10_exit_latency_nonzero(self):
-        # GLP redeem не мгновенный (cooldown)
-        self.assertGreater(GmxGlpArbitrumAdapter().EXIT_LATENCY_HOURS, 0.0)
 
 
 # ===========================================================================
@@ -402,16 +260,25 @@ class TestMultichainRegistry(unittest.TestCase):
     def test_01_new_adapters_registered(self):
         from spa_core.adapters import ADAPTER_REGISTRY
         keys = [k for k, _, _ in ADAPTER_REGISTRY]
-        for k in ("radiant_arbitrum", "gmx_glp_arbitrum", "velodrome_optimism"):
+        for k in ("silo_arbitrum", "dolomite_arbitrum", "velodrome_optimism"):
             self.assertIn(k, keys)
 
-    def test_02_new_adapters_are_t2(self):
+    def test_02_dead_adapters_removed(self):
+        # v1.254: Radiant (мёртв) и GMX GLP (deprecated) удалены из реестра
+        from spa_core.adapters import ADAPTER_REGISTRY, MULTICHAIN_L2_ADAPTERS
+        keys = [k for k, _, _ in ADAPTER_REGISTRY]
+        self.assertNotIn("radiant_arbitrum", keys)
+        self.assertNotIn("gmx_glp_arbitrum", keys)
+        self.assertNotIn("radiant-arbitrum", MULTICHAIN_L2_ADAPTERS)
+        self.assertNotIn("gmx-glp-arbitrum", MULTICHAIN_L2_ADAPTERS)
+
+    def test_03_new_adapters_are_t2(self):
         from spa_core.adapters import ADAPTER_REGISTRY
         for key, tier, _ in ADAPTER_REGISTRY:
-            if key in ("radiant_arbitrum", "gmx_glp_arbitrum", "velodrome_optimism"):
+            if key in ("silo_arbitrum", "dolomite_arbitrum", "velodrome_optimism"):
                 self.assertEqual(tier, "T2", f"{key} tier mismatch")
 
-    def test_03_no_duplicate_aave_l2(self):
+    def test_04_no_duplicate_aave_l2(self):
         # Aave Arbitrum/Optimism уже существуют — не должно быть дублей-ключей
         from spa_core.adapters import ADAPTER_REGISTRY
         keys = [k for k, _, _ in ADAPTER_REGISTRY]
@@ -419,10 +286,10 @@ class TestMultichainRegistry(unittest.TestCase):
         self.assertIn("aave_arbitrum", keys)
         self.assertIn("aave_v3_optimism", keys)
 
-    def test_04_multichain_dict_instances(self):
+    def test_05_multichain_dict_instances(self):
         from spa_core.adapters import MULTICHAIN_L2_ADAPTERS
-        self.assertIn("radiant-arbitrum", MULTICHAIN_L2_ADAPTERS)
-        self.assertIn("gmx-glp-arbitrum", MULTICHAIN_L2_ADAPTERS)
+        self.assertIn("silo-arbitrum", MULTICHAIN_L2_ADAPTERS)
+        self.assertIn("dolomite-arbitrum", MULTICHAIN_L2_ADAPTERS)
         self.assertIn("velodrome-optimism", MULTICHAIN_L2_ADAPTERS)
 
 
@@ -434,8 +301,6 @@ if __name__ == "__main__":
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     for cls in (
-        TestRadiantArbitrum,
-        TestGmxGlpArbitrum,
         TestVelodromeOptimism,
         TestL2GasMonitors,
         TestMultichainRegistry,
