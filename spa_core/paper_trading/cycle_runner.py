@@ -452,6 +452,46 @@ def _upsert_equity_point(
     return equity_doc, close_equity, daily_yield, daily_return_pct
 
 
+def _write_equity(
+    ddir: Path,
+    equity_doc: dict,
+    prev_equity_usd: float,
+    date: str,
+    daily_yield_usd: float,
+    positions: dict[str, float],
+    apy_today_pct: float,
+) -> dict:
+    """Persist a zero-accrual equity snapshot on HALT / blocked-cycle days.
+
+    Called when the DailyLimitsChecker or another safety gate fires HALT so
+    the track record still has an entry for every calendar day without gaps.
+    Yield is forced to 0 USD (empty positions → _accrue_daily_yield = 0).
+
+    Args:
+        ddir:            data directory (Path).
+        equity_doc:      current in-memory equity document.
+        prev_equity_usd: previous equity value (informational, not used for
+                         accrual — prev_close comes from equity_doc.daily).
+        date:            ISO date string for the halted day (``YYYY-MM-DD``).
+        daily_yield_usd: intended yield (0.0 on HALT days).
+        positions:       current positions (empty dict on full HALT).
+        apy_today_pct:   weighted APY (0.0 on HALT days).
+
+    Returns the updated equity_doc.
+    """
+    run_ts = datetime.now(timezone.utc).isoformat()
+    updated_doc, _close, _yield, _ret = _upsert_equity_point(
+        equity_doc,
+        date=date,
+        apy_today_pct=apy_today_pct,
+        positions={},   # empty → _accrue_daily_yield returns 0.0
+        apy_map={},
+        run_ts=run_ts,
+    )
+    _atomic_write_json(ddir / EQUITY_FILENAME, updated_doc)
+    return updated_doc
+
+
 # ─── MP-005: deterministic RiskPolicy gate ───────────────────────────────────
 
 
@@ -1099,7 +1139,7 @@ def run_cycle(
                 notes=notes,
                 policy_approved=False,
             )
-            _write_equity(ddir, equity_doc, current_usd, today, 0.0, {}, 0.0)
+            _write_equity(ddir, equity_doc, prev_equity, today, 0.0, {}, 0.0)
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
             return result
         if _dl_result["gate"] == "WARN":
