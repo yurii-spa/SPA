@@ -21,10 +21,10 @@ import json
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -399,19 +399,7 @@ class DeFiPortfolioRebalancingTriggerAnalyzer:
     @staticmethod
     def _atomic_write(path: Path, data: Any) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".tmp_")
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(data, f, indent=2)
-            os.replace(tmp, str(path))
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
-
-
+        atomic_save(data, str(path))
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
