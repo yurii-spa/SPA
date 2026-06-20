@@ -19,8 +19,8 @@ import json
 import os
 import pathlib
 import sys
-import tempfile
 import unittest
+import tempfile
 
 _HERE = pathlib.Path(__file__).resolve().parent
 _REPO = _HERE.parent
