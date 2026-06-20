@@ -6,9 +6,9 @@ sentiment labels, signal breakdown, log persistence, edge cases.
 
 import json
 import os
-import tempfile
 import time
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_sentiment_tracker import (
     DeFiSentimentTracker,
