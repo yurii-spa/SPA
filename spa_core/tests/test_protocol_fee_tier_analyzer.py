@@ -8,9 +8,9 @@ Run with: python3 -m unittest spa_core/tests/test_protocol_fee_tier_analyzer.py
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 # ---------------------------------------------------------------------------
 # Path bootstrap
