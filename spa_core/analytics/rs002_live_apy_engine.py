@@ -38,12 +38,12 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ─── Slot definitions ─────────────────────────────────────────────────────────
 
@@ -343,31 +343,17 @@ class RS002LiveAPYEngine(BaseAnalytics):
 
         target.parent.mkdir(parents=True, exist_ok=True)
         report = self.apy_breakdown_report()
-        payload = json.dumps(report, indent=2, ensure_ascii=False)
+        atomic_save(report, str(target))
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=target.parent,
-            prefix=".rs002_apy_breakdown_tmp_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, target)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-
-# ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def _cli() -> None:  # pragma: no cover
     import sys
+    args = sys.argv[1:]
     engine = RS002LiveAPYEngine()
-    if "--scenarios" in sys.argv:
+    if "--save" in args:
+        engine.save()
+        print("Saved.")
+    elif "--scenarios" in args:
         print(json.dumps(engine.net_apy_scenarios(), indent=2))
     else:
         print(json.dumps(engine.apy_breakdown_report(), indent=2))
