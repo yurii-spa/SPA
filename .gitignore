@@ -32,3 +32,7 @@ venv/
 
 # Cloudflare — содержит Tunnel Token, не пушить!
 scripts/cf_install_token.command
+
+# Node modules (landing, etc.)
+node_modules/
+landing/node_modules/
