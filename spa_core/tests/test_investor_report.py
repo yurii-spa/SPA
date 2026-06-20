@@ -31,6 +31,7 @@ from spa_core.reports.pnl_attribution import (
     _period_days,
 )
 from spa_core.reports import investor_report as ir
+from spa_core.utils.atomic import atomic_save
 
 
 # ─── Runner ───────────────────────────────────────────────────────────────────
@@ -301,7 +302,7 @@ def test_atomic_write_creates_file():
     with tempfile.TemporaryDirectory() as td:
         out = Path(td) / "sub" / "investor_report.json"  # parent created on write
         payload = {"hello": "world", "n": 1}
-        ir._atomic_write_json(payload, out)
+        atomic_save(payload, str(out))
         assert out.exists(), out
         loaded = json.loads(out.read_text(encoding="utf-8"))
         assert loaded == payload, loaded
