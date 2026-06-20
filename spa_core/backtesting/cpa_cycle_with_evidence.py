@@ -3,6 +3,8 @@ spa_core/backtesting/cpa_cycle_with_evidence.py
 
 MP-1410 (v10.26): CPACycleWithEvidence — wraps CPADailyCycle and automatically
 records an EvidenceAutoCalculator entry after every run.
+MP-1542 (v11.58): SQLite integration — after evidence recording, also persists
+a paper_trading_record and an evidence_record to SQLite via db_factory.
 
 Design:
   - Inherits CPADailyCycle; overrides run() to append evidence recording.
@@ -10,6 +12,7 @@ Design:
   - Atomic save via EvidenceAutoCalculator.save().
   - Uses _log() helper so tests can inspect log lines.
   - Never raises from evidence recording path (best-effort).
+  - SQLite write is also best-effort — failure never blocks the cycle.
   - LLM FORBIDDEN in this module (monitoring-adjacent).
 
 Usage:
@@ -17,10 +20,12 @@ Usage:
 
     cycle = CPACycleWithEvidence(base_dir="/path/to/repo")
     result = cycle.run()   # same return value as CPADailyCycle.run()
-                           # side-effect: evidence updated in data/paper_evidence_history.json
+                           # side-effects:
+                           #   • evidence updated in data/paper_evidence_history.json
+                           #   • paper_trading_record + evidence_record written to SQLite
 
 stdlib only, atomic writes, LLM FORBIDDEN.
-MP-1410 (v10.26)
+MP-1410 (v10.26), MP-1542 (v11.58)
 """
 
 from __future__ import annotations
@@ -90,6 +95,12 @@ class CPACycleWithEvidence:
         except Exception as exc:  # noqa: BLE001
             self._log(f"[evidence_hook] WARNING: evidence update failed: {exc}")
 
+        # Best-effort SQLite write — failure never blocks the cycle (MP-1542)
+        try:
+            self._write_to_sqlite(result)
+        except Exception as exc:  # noqa: BLE001
+            self._log(f"[sqlite_hook] WARNING: SQLite write failed: {exc}")
+
         return result
 
     # ── Evidence Hook ─────────────────────────────────────────────────────────
@@ -145,6 +156,95 @@ class CPACycleWithEvidence:
             f"risk={score.risk_policy_pts}, bonus={score.bonus_pts})"
         )
         return score
+
+    def _write_to_sqlite(self, cycle_result: dict) -> None:
+        """
+        Write paper trading record and evidence snapshot to SQLite (MP-1542).
+
+        Uses db_factory.get_db_manager() so backend is controlled by the
+        DATABASE_URL / SQLITE_PATH environment variables.
+
+        Extracts:
+          nav, pnl, apy    — from paper_trading_status section or cycle_result
+          strategy_id      — "S_COMPOSITE" (composite paper portfolio)
+          cycle_number     — monotonically increasing counter (instance-level)
+          allocation       — positions dict from current_positions section
+
+        All failures are swallowed — this is advisory / best-effort.
+        """
+        from spa_core.database.db_factory import get_db_manager
+
+        db = get_db_manager(base_dir=str(self._base_dir))
+
+        sections = cycle_result.get("sections", {})
+
+        # ── Extract paper trading metrics ──────────────────────────────────
+        pt_section = sections.get("paper_trading_status", {})
+        ev_section = sections.get("evidence_update", {})
+
+        nav = float(pt_section.get("nav", ev_section.get("equity", 0.0)))
+        daily_pnl = float(
+            pt_section.get("daily_pnl",
+                ev_section.get("daily_yield_usd", 0.0))
+        )
+        daily_apy = float(
+            pt_section.get("apy_today",
+                ev_section.get("apy_today_pct", 0.0))
+        )
+        allocation = pt_section.get("positions")
+
+        # Increment and persist cycle counter
+        self._cycle_count = getattr(self, "_cycle_count", 0) + 1
+
+        rowid = db.insert_paper_record(
+            date=self._date,
+            cycle_number=self._cycle_count,
+            strategy_id="S_COMPOSITE",
+            portfolio_nav=nav,
+            daily_pnl=daily_pnl,
+            daily_apy=daily_apy,
+            allocation=allocation,
+        )
+
+        self._log(
+            f"[sqlite_hook] paper_trading_records row {rowid} written "
+            f"({self._date} nav={nav:.2f} apy={daily_apy:.2f}%)"
+        )
+
+        # ── Write evidence snapshot ────────────────────────────────────────
+        sections_ok = cycle_result.get("status") == "OK"
+        apy_ok = bool(
+            ev_section.get("paper_active", False)
+            and ev_section.get("apy_today_pct") is not None
+            and float(ev_section.get("apy_today_pct", 0)) > 0
+        )
+        risk_ok = self._risk_policy_passed_today(sections)
+
+        ev_rowid = db.insert_evidence_record(
+            date=self._date,
+            daily_cycle_pts=1.0 if sections_ok else 0.0,
+            apy_tracking_pts=1.0 if apy_ok else 0.0,
+            risk_policy_pts=1.0 if risk_ok else 0.0,
+            total_pts=(1.0 if sections_ok else 0.0)
+                      + (1.0 if apy_ok else 0.0)
+                      + (1.0 if risk_ok else 0.0),
+            is_seed=False,
+        )
+
+        self._log(
+            f"[sqlite_hook] evidence_records row {ev_rowid} written "
+            f"({self._date} cycle={sections_ok} apy={apy_ok} risk={risk_ok})"
+        )
+
+        # ── Log the event ──────────────────────────────────────────────────
+        db.log_event(
+            event_type="CYCLE_COMPLETE",
+            description=(
+                f"CPACycleWithEvidence run {self._date} status={cycle_result.get('status','?')}"
+            ),
+            severity="INFO",
+            metadata={"nav": nav, "apy": daily_apy, "cycle": self._cycle_count},
+        )
 
     def _risk_policy_passed_today(self, sections: dict) -> bool:
         """
