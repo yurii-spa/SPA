@@ -7,8 +7,8 @@ Atomic writes: tmp file + os.replace().
 """
 import json
 import os
-import tempfile
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 
 class DeFiYieldOptimizerAllocationScorer:
@@ -362,18 +362,6 @@ class DeFiYieldOptimizerAllocationScorer:
             dir_name = os.path.dirname(os.path.abspath(log_path))
             os.makedirs(dir_name, exist_ok=True)
 
-            fd, tmp_path = tempfile.mkstemp(
-                dir=dir_name, prefix=".yield_optimizer_alloc_tmp_"
-            )
-            try:
-                with os.fdopen(fd, "w") as fh:
-                    json.dump(data, fh, indent=2)
-                os.replace(tmp_path, log_path)
-            except Exception:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-                raise
+            atomic_save(data, str(log_path))
         except Exception:
             pass  # analytics must never crash the system
