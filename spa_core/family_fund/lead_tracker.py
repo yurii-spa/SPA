@@ -22,6 +22,7 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.errors import ConfigError
 
@@ -57,7 +58,7 @@ class Lead:
             )
 
 
-class LeadTracker:
+class LeadTracker(BaseAnalytics):
     """
     Tracks prospective investors through a simple CRM pipeline.
 
@@ -77,13 +78,17 @@ class LeadTracker:
         print(tracker.summary())
     """
 
+    OUTPUT_PATH = "data/family_fund/leads.json"
+
     def __init__(
         self,
         leads_path: str = "data/family_fund/leads.json",
         *,
         telegram_token: Optional[str] = None,
         telegram_chat_id: Optional[str] = None,
+        base_dir: str = ".",
     ) -> None:
+        super().__init__(base_dir)
         self.leads_path = leads_path
         self._telegram_token_override = telegram_token
         self._telegram_chat_id_override = telegram_chat_id
@@ -228,6 +233,10 @@ class LeadTracker:
             "total_leads": len(self._leads),
             "pipeline_usd": self.total_pipeline_usd(),
         }
+
+    def to_dict(self) -> dict:
+        """Returns lead tracker summary as JSON-serializable dict (BaseAnalytics)."""
+        return self.summary()
 
     # ------------------------------------------------------------------ #
     # Telegram
