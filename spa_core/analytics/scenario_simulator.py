@@ -70,11 +70,11 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.analytics.scenario_simulator")
 
@@ -732,25 +732,9 @@ class ScenarioSimulator:
         document = dict(report)
         document["history"] = history
 
-        text = json.dumps(document, ensure_ascii=False, indent=2)
 
         # Atomic write: temp file → os.replace
-        fd, tmp = tempfile.mkstemp(
-            dir=str(self._data_dir),
-            prefix=".scenario_report_tmp_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(text)
-            os.replace(tmp, str(out_path))
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(document, str(out_path))
         log.info("scenario_report written → %s", out_path)
         return out_path
 
