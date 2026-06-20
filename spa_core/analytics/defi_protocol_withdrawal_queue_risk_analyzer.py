@@ -49,9 +49,9 @@ Pure stdlib only.  Read-only / advisory.  Python 3.9 compatible.
 
 import json
 import os
-import tempfile
 import time
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -210,19 +210,7 @@ def _atomic_write(path: str, data: Any) -> None:
     dir_ = os.path.dirname(path)
     if dir_:
         os.makedirs(dir_, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=dir_ or ".", prefix=".tmp_wq_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _load_log(path: str) -> List[Dict[str, Any]]:
     """Load log entries from *path*, returning [] on missing/corrupt file."""
     try:
