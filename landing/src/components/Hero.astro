@@ -1,29 +1,32 @@
 ---
-// Hero.astro
-// Copy: Variant A (TradFi Bridge) from research/03_landing_page_conversion.md
-// Architecture decision: §3.2 of SPA_ARCHITECTURE_EVOLUTION_v2.md
+// Hero.astro — v2 reframe: research project, no capital-raising signals
+// Блок 0: systematic onchain stablecoin yield, personal research project
 ---
 
-<section class="relative min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-16 overflow-hidden">
+<!-- Research project banner (Блок 0) -->
+<div class="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 text-center">
+  <p class="text-xs text-amber-400/80 leading-relaxed">
+    Personal research project — currently in paper-testing and tuning, not at a capital-raising stage.
+  </p>
+</div>
+
+<section class="relative min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 pt-20 pb-16 overflow-hidden">
 
   <!-- Subtle background gradient — no animation to keep LCP fast -->
   <div class="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#0d1520] to-[#0a0a0a] pointer-events-none" aria-hidden="true"></div>
 
   <!-- Top nav -->
-  <nav class="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+  <nav class="absolute top-10 left-0 right-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
     <div class="flex items-center gap-2">
       <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
       <span class="font-semibold text-white tracking-tight">SPA</span>
       <span class="hidden sm:inline text-xs text-white/30 font-mono ml-1">earn-defi.com</span>
     </div>
     <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">Strategies</a>
       <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
       <a href="/risk" class="hover:text-white transition-colors hidden sm:inline">Risk</a>
+      <a href="/due-diligence" class="hover:text-white transition-colors hidden lg:inline">Evidence</a>
       <a href="/trust" class="hover:text-white transition-colors hidden lg:inline">Trust</a>
-      <a href="/fees" class="hover:text-white transition-colors hidden lg:inline">Fees</a>
-      <a href="/due-diligence" class="hover:text-white transition-colors hidden lg:inline">Due Diligence</a>
-      <a href="/faq" class="hover:text-white transition-colors hidden lg:inline">FAQ</a>
       <a
         href="/dashboard"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
@@ -41,48 +44,47 @@
       <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" aria-hidden="true"></span>
       <span>Paper Trading Mode</span>
       <span class="text-white/30 mx-1">·</span>
-      <span>Go-live target: August 1, 2026</span>
+      <span>Paper day 11 · started Jun 10, 2026</span>
     </div>
 
-    <!-- H1 — from research/03 Variant A -->
+    <!-- H1 — Блок 0 reframe -->
     <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.1] tracking-tight mb-6">
-      Institutional-Grade DeFi Yield.<br />
-      <span class="text-accent-400">Verified Daily.</span>
+      Systematic onchain<br />
+      <span class="text-accent-400">stablecoin yield.</span>
     </h1>
 
     <!-- Subheadline -->
     <p class="text-lg sm:text-xl text-white/60 max-w-2xl leading-relaxed mb-4">
-      A systematic strategy that monitors 8+ DeFi protocols, enforces hard risk gates —
-      and shows you everything. Built for family offices allocating capital
-      to onchain stablecoins.
+      A personal research project building and validating a deterministic DeFi yield optimizer.
+      Live-data paper testing since June 10, 2026 — every allocation, risk gate, and rebalance is logged and public.
     </p>
 
-    <!-- Paper trading positioning framing (research/03 §10) -->
+    <!-- Research framing (Блок 0) -->
     <p class="text-sm text-white/40 max-w-xl mb-10 leading-relaxed">
-      74% of family offices conduct 2–3 months of due diligence. We built our track record
-      phase to match that timeline — every allocation is logged, every risk gate is public.
+      Open methodology journal. Tracking real APY data across several read-only DeFi adapters.
+      Not raising capital — building a track record first.
     </p>
 
-    <!-- CTA buttons -->
+    <!-- CTA buttons — журнал, не продажа -->
     <div class="flex flex-col sm:flex-row gap-4 mb-16">
       <a
-        href="/dashboard"
+        href="/methodology"
         class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold text-sm transition-colors shadow-lg shadow-accent-500/20"
       >
-        Access Live Dashboard
+        Methodology Journal
       </a>
       <a
-        href="#how-it-works"
+        href="/dashboard"
         class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg border border-white/15 hover:border-white/30 text-white/70 hover:text-white font-medium text-sm transition-all"
       >
-        Review Strategy Methodology
+        View Paper Results
       </a>
     </div>
 
-    <!-- Trust proof strip — protocol logos as "Protocols we monitor" -->
+    <!-- Protocols monitored -->
     <div class="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-white/30">
-      <span class="uppercase tracking-widest text-white/20 text-[10px]">Protocols we monitor</span>
-      {['Aave V3', 'Morpho', 'Compound V3', 'Yearn V3', 'Euler V2', 'Maple', 'Pendle'].map((protocol) => (
+      <span class="uppercase tracking-widest text-white/20 text-[10px]">Protocols monitored (read-only)</span>
+      {['Aave V3', 'Morpho Steakhouse', 'Compound V3', 'Yearn V3', 'Euler V2', 'Maple', 'Pendle'].map((protocol) => (
         <span class="px-2.5 py-1 rounded border border-white/10 bg-white/3 text-white/40 font-mono text-[11px]">
           {protocol}
         </span>
