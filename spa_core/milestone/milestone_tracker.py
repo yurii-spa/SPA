@@ -24,11 +24,12 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_save
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
@@ -83,27 +84,6 @@ class MilestoneStatus:
 
 
 # ─── IO helpers ───────────────────────────────────────────────────────────────
-
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically: tmpfile in the same dir + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -455,7 +435,7 @@ def update_golive_status_milestone(
     doc["timestamp"] = datetime.now(timezone.utc).isoformat()
     doc["source"] = "golive_checker+milestone"
 
-    _atomic_write_json(path, doc)
+    atomic_save(doc, str(path))
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
