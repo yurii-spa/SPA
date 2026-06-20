@@ -48,9 +48,10 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from spa_core.utils.atomic import atomic_save
 
 
 # ── Checklist definition ──────────────────────────────────────────────────────
@@ -327,24 +328,7 @@ class PrePaperChecklist:
         if not dest.is_absolute():
             dest = self._base / dest
 
-        dest.parent.mkdir(parents=True, exist_ok=True)
-
-        payload = json.dumps(result, indent=2, ensure_ascii=False)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(dest.parent),
-            prefix=".tmp_pre_paper_checklist_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, str(dest))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(result, str(dest))
 
     def to_markdown(self, result: dict) -> str:
         """
