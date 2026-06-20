@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.utils.errors import ConfigError
+
 __all__ = [
     "format_protocols_message",
     "split_message",
@@ -460,8 +462,9 @@ def _get_keychain_secret(key: str) -> str:
         timeout=10,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Keychain lookup failed for key={key!r}: {result.stderr.strip()}"
+        raise ConfigError(
+            key,
+            f"Keychain lookup failed: {result.stderr.strip()}",
         )
     return result.stdout.strip()
 
