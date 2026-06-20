@@ -27,10 +27,11 @@ import argparse
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.daily_report")
 
@@ -46,26 +47,6 @@ REPORT_FILENAME_TPL = "daily_report_{date}.json"
 
 # ─── IO helpers (stdlib only, mirrors cycle_runner conventions) ──────────────
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically: tmpfile in the same dir + os.replace (rename)."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -209,7 +190,7 @@ def generate_daily_report(
     }
 
     if write:
-        _atomic_write_json(ddir / REPORT_FILENAME_TPL.format(date=date_str), report)
+        atomic_save(report, str(ddir / REPORT_FILENAME_TPL.format(date=date_str)))
     return report
 
 
