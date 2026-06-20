@@ -8,8 +8,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # Make spa_core importable when run directly from spa_core/tests.
