@@ -19,7 +19,6 @@ Whitelist reference: T2-02, Pendle, Ethereum/Arbitrum, PT-stablecoin
 ADR: ADR_002_pendle_pt_integration.md (PROPOSED — paper test only until approved)
 """
 
-import urllib.request
 import json
 import datetime
 import logging
