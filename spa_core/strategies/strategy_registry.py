@@ -268,6 +268,11 @@ def _load_builtin_strategies() -> None:
         # S31–S32: regime-defensive expansion (2026-06-21)
         "spa_core.strategies.s31_bear_market_hedge",     # S31 Bear Market Hedge (T1, regime-aware)
         "spa_core.strategies.s32_market_neutral",        # S32 Market Neutral (T2, 50/45/5 weekly)
+        # S34–S37: Arbitrum-focused expansion (2026-06-21)
+        "spa_core.strategies.s34_arbitrum_yield",         # S34 Arbitrum Yield (T2, sequencer rotation)
+        "spa_core.strategies.s35_gmx_carry",              # S35 GMX Stablecoin Carry (T2, GLP gate >8%)
+        "spa_core.strategies.s36_cross_chain_optimizer",  # S36 Cross-Chain Optimizer (T2, weekly tilt)
+        "spa_core.strategies.s37_radiant_concentrated",   # S37 Radiant Concentrated (T2, 50% Radiant)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
