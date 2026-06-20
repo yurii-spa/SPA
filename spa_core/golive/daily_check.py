@@ -246,8 +246,8 @@ def run_daily_golive_check(data_dir: str | None = None) -> dict:
             "verdict_emoji":         "🔴",
             "days_remaining":        0,
             "go_live_date":          "2026-07-15",
-            "paper_start_date":      "2026-05-20",
-            "min_paper_days":        50,
+            "paper_start_date":      "2026-06-10",  # FIX-P0: canonical real-track start
+            "min_paper_days":        30,
             "summary":               f"Check failed: {exc}",
             "criteria":              [],
             "recommendation":        "Fix the checklist error and re-run.",
