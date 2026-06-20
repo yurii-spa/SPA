@@ -1,0 +1,45 @@
+[
+  {
+    "ts": "2026-06-14T19:17:48.097204+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_concentrated_vault": "DAI-Vault-WhaleDom",
+      "least_concentrated_vault": "USDC-Vault-Diverse",
+      "avg_concentration_score": 50.43,
+      "whale_dominated_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Vault-Diverse",
+        "classification": "WELL_DISTRIBUTED",
+        "concentration_score": 90.3,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "WELL_DISTRIBUTED",
+          "DIVERSIFIED_BASE"
+        ]
+      },
+      {
+        "token": "ETH-Vault-Concentrated",
+        "classification": "HIGHLY_CONCENTRATED",
+        "concentration_score": 56.49,
+        "recommendation": "DEPLOY_CAUTIOUSLY",
+        "flags": []
+      },
+      {
+        "token": "DAI-Vault-WhaleDom",
+        "classification": "WHALE_DOMINATED",
+        "concentration_score": 4.5,
+        "recommendation": "AVOID",
+        "flags": [
+          "WHALE_DOMINATED",
+          "HIGH_TOP5_CONCENTRATION",
+          "FEW_DEPOSITORS",
+          "THIN_DEPOSITOR_BASE",
+          "SEVERE_EXIT_RISK"
+        ]
+      }
+    ]
+  }
+]
