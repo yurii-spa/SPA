@@ -14,8 +14,8 @@ import json
 import math
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -55,19 +55,7 @@ def _save_log(log_path: str, entries: list) -> None:
     entries = entries[-LOG_MAX_ENTRIES:]
     dir_name = os.path.dirname(log_path) or "."
     os.makedirs(dir_name, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(entries, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(log_path))
 def _get_log_path(data_dir: Optional[str]) -> str:
     if data_dir:
         return os.path.join(data_dir, "token_emission_log.json")
