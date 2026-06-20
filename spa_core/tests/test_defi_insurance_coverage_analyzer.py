@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_insurance_coverage_analyzer -v
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure project root is on path
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
