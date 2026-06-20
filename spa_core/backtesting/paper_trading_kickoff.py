@@ -28,11 +28,12 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 
 # ── Data classes ──────────────────────────────────────────────────────────────
@@ -114,21 +115,9 @@ class PaperTradingKickoff:
         return (self.base_dir / rel_path).exists()
 
     def _atomic_write(self, rel_path: str, data: dict) -> str:
-        """Write data as JSON atomically using tmp + os.replace. Returns abs path."""
+        """Write data as JSON atomically using atomic_save. Returns abs path."""
         p = self.base_dir / rel_path
-        p.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(p.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2, ensure_ascii=False)
-                fh.write("\n")
-            os.replace(tmp, str(p))
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(data, str(p))
         return str(p)
 
     # ── Prerequisite checks ───────────────────────────────────────────────────
