@@ -231,10 +231,13 @@ class TestSharpeTrigger(unittest.TestCase):
         )
 
     def test_sharpe_trigger_fires(self) -> None:
-        """Sharpe = -1.5 < -1.0 — должна сработать."""
-        self._write_analytics(-1.5, num_days=30)
+        """Sharpe = -1.5 < -1.0 — должна сработать (normal period, num_days=61 ≥ 60d grace)."""
+        # Grace period = first 60 days (SHARPE_EARLY_PERIOD_DAYS); threshold there
+        # is SHARPE_EARLY_THRESHOLD = -2.0.  At 30 days -1.5 > -2.0 → no trigger.
+        # Use num_days=61 to be in normal_period where threshold is -1.0 and -1.5 fires.
+        self._write_analytics(-1.5, num_days=61)
         triggered, reason = self.checker.check_sharpe_trigger()
-        self.assertTrue(triggered, f"Expected trigger at sharpe=-1.5: {reason}")
+        self.assertTrue(triggered, f"Expected trigger at sharpe=-1.5 (normal_period): {reason}")
         self.assertIn("-1.5", reason)
 
     def test_sharpe_trigger_no_fire(self) -> None:
