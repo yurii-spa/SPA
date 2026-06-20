@@ -16,9 +16,9 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import time
 from typing import Any, Dict, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -245,19 +245,7 @@ def _append_to_log(entry: Dict[str, Any], log_path: str) -> None:
         entries = entries[-LOG_RING_CAP:]
 
     dir_name = os.path.dirname(os.path.abspath(log_path))
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(entries, fh, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(log_path))
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
