@@ -30,8 +30,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from spa_core.utils.atomic import atomic_save
-
 from .declarative_adapter import DeclarativeAdapter
 from .manifest import MANIFEST_SUFFIXES, ValidationError, load_manifest_file
 
@@ -198,6 +196,22 @@ def build_status_report(registry: Dict[str, Any], fetch: bool = True) -> Dict[st
 # ─── Atomic write ─────────────────────────────────────────────────────────────
 
 
+def _atomic_write_json(obj: dict, out_path: Path) -> None:
+    """Write *obj* as pretty JSON to *out_path* atomically (tmp + os.replace)."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_name(f".adapter_sdk_status_{os.getpid()}.tmp")
+    try:
+        tmp.write_text(
+            json.dumps(obj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        os.replace(tmp, out_path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
@@ -270,7 +284,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if not args.no_write:
         try:
-            atomic_save(report, args.out)
+            _atomic_write_json(report, Path(args.out))
             print(f"report written: {args.out}")
         except OSError as exc:
             log.warning("could not write report to %s: %s", args.out, exc)
