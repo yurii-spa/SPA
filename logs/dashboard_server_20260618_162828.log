@@ -1,0 +1,14 @@
+════════════════════════════════════════════
+ SPA Dashboard Static Server (port 8766)
+ 2026-06-18 16:28:28
+════════════════════════════════════════════
+✅ Plist создан: /Users/yuriikulieshov/Library/LaunchAgents/com.spa.dashboard.plist
+   launchctl: 49761	0	com.spa.dashboard
+✅ Dashboard сервер запущен! PID=49761
+   URL: http://localhost:8766
+
+════════════════════════════════════════════
+ Теперь обнови Cloudflare route:
+ localhost:8765 → localhost:8766
+════════════════════════════════════════════
+Нажми Enter для закрытия...
