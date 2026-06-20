@@ -7,8 +7,8 @@ Compatible with both pytest and stdlib unittest:
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Make the scripts package importable without an __init__.py
 REPO_ROOT   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
