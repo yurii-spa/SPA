@@ -22,11 +22,12 @@ import json
 import logging
 import os
 import subprocess
-import tempfile
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from spa_core.utils.atomic import atomic_save
 
 from spa_core.alerts.telegram_format_ru import (
     format_alert_detail_ru,
@@ -106,25 +107,6 @@ def _read_json(path: Path, default):
         log.warning("_read_json %s unreadable (%s)", path.name, exc)
         return default
 
-
-def _atomic_write_json(path: Path, obj) -> None:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
 
 
 # ─── Telegram API helpers ─────────────────────────────────────────────────────
@@ -620,12 +602,12 @@ def _read_offset() -> int:
 
 
 def _write_offset(offset: int) -> None:
-    _atomic_write_json(
-        OFFSET_FILE,
+    atomic_save(
         {
             "offset": offset,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         },
+        str(OFFSET_FILE),
     )
 
 
