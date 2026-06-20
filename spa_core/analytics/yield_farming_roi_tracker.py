@@ -24,10 +24,10 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Project root & paths
@@ -175,19 +175,7 @@ def analyze(farm: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Di
 def _atomic_write(path: Path, data: Any) -> None:
     """Write JSON atomically via tmp + os.replace."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".tmp_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _append_to_log(log_path: Path, entry: Dict[str, Any]) -> None:
     """Append entry to ring-buffer log (capped at _LOG_CAP)."""
     if log_path.exists():
