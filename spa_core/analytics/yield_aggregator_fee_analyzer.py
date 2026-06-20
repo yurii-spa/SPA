@@ -16,8 +16,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths / constants
@@ -215,19 +215,7 @@ def _append_log(result: dict, data_file: str) -> None:
 
     data_dir = os.path.dirname(data_file)
     os.makedirs(data_dir, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=data_dir, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(log, f, indent=2)
-        os.replace(tmp, data_file)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(log, str(data_file))
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
