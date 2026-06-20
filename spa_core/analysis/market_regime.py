@@ -27,9 +27,9 @@ import json
 import math
 import os
 import statistics
-import tempfile
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 
 # ---------------------------------------------------------------------------
@@ -254,18 +254,7 @@ class MarketRegimeDetector:
         """
         os.makedirs(self._data_dir, exist_ok=True)
         cache_path = os.path.join(self._data_dir, "market_regime.json")
-        fd, tmp_path = tempfile.mkstemp(dir=self._data_dir, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(result, fh, indent=2)
-            os.replace(tmp_path, cache_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(result, str(cache_path))
     def load_from_adapter_status(self) -> Dict[str, float]:
         """
         Build an apy_map from ``data/adapter_status.json``.
