@@ -59,6 +59,11 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 OUTPUT_FILENAME = "progress_tracker.json"
 GO_LIVE_TARGET_DATE = "2026-07-15"
 
+# Canonical real-track start date (ADR-002 / CLAUDE.md).
+# All demo data before this date is invalid after the 2026-06-10 teardown.
+# This is the single source of truth for paper_start_date in the tracker.
+PAPER_START_DATE = "2026-06-10"
+
 # Milestone definitions: (id, label, module, required_days)
 _MILESTONE_DEFS: List[tuple] = [
     (
@@ -138,16 +143,18 @@ def _add_days(base: str, n: int) -> str:
 
 
 def _extract_paper_start(equity_doc: Any) -> Optional[str]:
-    """Extract the earliest date from equity_curve_daily.json."""
-    if not isinstance(equity_doc, dict):
-        return None
-    daily = equity_doc.get("daily")
-    if not isinstance(daily, list) or not daily:
-        return None
-    first = daily[0]
-    if isinstance(first, dict):
-        return first.get("date") or None
-    return None
+    """Return the canonical real-track start date (PAPER_START_DATE).
+
+    FIX-P0: Previously this read the first date from equity_curve_daily.json,
+    which returned "2026-05-21" (demo data, pre-teardown).  The canonical
+    start is hardcoded as PAPER_START_DATE ("2026-06-10") — the single source
+    of truth defined in CLAUDE.md and cycle_runner.py.  We still accept the
+    equity_doc parameter for API compatibility but ignore the first-bar date.
+    """
+    if isinstance(equity_doc, dict) and equity_doc.get("source") == "cycle_runner":
+        return PAPER_START_DATE
+    # Fallback: if equity source is unknown, still return the canonical date
+    return PAPER_START_DATE
 
 
 def _extract_current_equity(equity_doc: Any, status_doc: Any) -> float:
@@ -190,7 +197,13 @@ def _extract_apy_today(equity_doc: Any, status_doc: Any) -> float:
 
 
 def _count_real_paper_days(equity_doc: Any) -> int:
-    """Count real (non-demo) daily bars in the equity curve."""
+    """Count real (non-demo) daily bars in the equity curve.
+
+    FIX-P0: Only count bars with date >= PAPER_START_DATE ("2026-06-10").
+    Bars before that date are demo/invalid data from the pre-teardown period
+    and must not inflate the track-record counter or trigger min_track_days_30
+    prematurely.
+    """
     if not isinstance(equity_doc, dict):
         return 0
     if equity_doc.get("source") != "cycle_runner":
@@ -198,7 +211,15 @@ def _count_real_paper_days(equity_doc: Any) -> int:
     daily = equity_doc.get("daily")
     if not isinstance(daily, list):
         return 0
-    return len(daily)
+    count = 0
+    for bar in daily:
+        if not isinstance(bar, dict):
+            continue
+        bar_date = bar.get("date", "")
+        # Only count bars on or after the canonical real-track start
+        if isinstance(bar_date, str) and bar_date >= PAPER_START_DATE:
+            count += 1
+    return count
 
 
 def _build_milestone(
