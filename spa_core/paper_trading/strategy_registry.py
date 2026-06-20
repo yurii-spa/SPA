@@ -375,6 +375,107 @@ S10_PENDLE_YT = StrategyConfig(
 )
 
 
+# S22 — Ethena Yield Maximizer (high-APY synthetic dollar; MP high-yield expansion)
+# 40% sUSDe (T3) + 30% Sky sUSDS (spark_susds T1) + 30% Aave V3 (T1).
+# Kill switch: ethena_depeg → T1 safe harbor (see strategies/s22_ethena_yield_max.py).
+# sUSDe target 40% exceeds RiskPolicy T3_CAP 10% — gate clips; paper/advisory only.
+S22_ETHENA_YIELD_MAX = StrategyConfig(
+    id="S22",
+    name="Ethena Yield Maximizer",
+    description=(
+        "sUSDe 40% (T3, ~12% APY) + Sky sUSDS 30% (T1) + Aave V3 30% (T1). "
+        "Target 8-12% APY. Kill switch: ethena_depeg → T1 safe harbor. "
+        "T3 40% > T3_CAP 10% — gate clips; paper only. "
+        "Logic: EthenaYieldMaxStrategy."
+    ),
+    allocations={
+        "susde":       0.40,   # Ethena sUSDe (T3)
+        "spark_susds": 0.30,   # Sky/Spark sUSDS (T1)
+        "aave_v3":     0.30,   # Aave V3 (T1)
+    },
+    tier="T3",
+    target_apy_min=6.0,
+    target_apy_max=14.0,
+    kill_drawdown_pct=0.05,
+    status="active",
+    strategy_class="EthenaYieldMaxStrategy",
+)
+
+# S23 — Pendle PT Fixed Rate (fixed YTM via principal tokens; lower variance)
+# 50% Pendle PT (T2, fixed ~7%) + 30% Sky sUSDS (T1) + 20% Aave V3 (T1).
+# pendle_pt may be unavailable → effective_allocations redistributes to T1;
+# the strategy class itself uses a 7% mock rate for paper simulation.
+S23_PENDLE_PT_FIXED = StrategyConfig(
+    id="S23",
+    name="Pendle PT Fixed Rate",
+    description=(
+        "Pendle PT 50% (T2, fixed YTM ~7%) + Sky sUSDS 30% (T1) + Aave 20% (T1). "
+        "Target 6-9% locked, lower variance. Mock 7% PT when live data absent. "
+        "Logic: PendlePTFixedStrategy."
+    ),
+    allocations={
+        "pendle_pt":   0.50,   # Pendle PT (external; fallback → cash/T1)
+        "spark_susds": 0.30,   # Sky/Spark sUSDS (T1)
+        "aave_v3":     0.20,   # Aave V3 (T1)
+    },
+    tier="T2",
+    target_apy_min=5.0,
+    target_apy_max=9.0,
+    kill_drawdown_pct=0.05,
+    status="active",
+    strategy_class="PendlePTFixedStrategy",
+)
+
+# S24 — Base Chain Maximizer (Coinbase Base L2, read-only cross-chain)
+# 40% Morpho Blue Base + 30% Aave V3 Base + 30% Moonwell Base (all T2).
+# ADR-025 Phase 2 gated (Base capital ~2026-08-01); APY feeds always read-only.
+S24_BASE_CHAIN_MAX = StrategyConfig(
+    id="S24",
+    name="Base Chain Maximizer",
+    description=(
+        "Morpho Blue Base 40% + Aave V3 Base 30% + Moonwell Base 30% (all T2). "
+        "Target 4-9% APY, Coinbase Base L2, read-only. ADR-025 Phase 2 gated. "
+        "Logic: BaseChainMaxStrategy."
+    ),
+    allocations={
+        "morpho_blue_base": 0.40,   # Base T2 primary
+        "aave_v3_base":     0.30,   # Base T2 anchor
+        "moonwell_base":    0.30,   # Base T2 third leg (Aerodrome substitute)
+    },
+    tier="T2",
+    target_apy_min=4.0,
+    target_apy_max=9.0,
+    kill_drawdown_pct=0.05,
+    status="active",
+    strategy_class="BaseChainMaxStrategy",
+)
+
+# S25 — Yield Ladder (barbell: 60% ultra-safe T1 + 40% dynamic best T2)
+# Fixed: Sky sUSDS 30% + Aave 30%. Dynamic 40% → highest-APY of
+# {susde, yearn_v3, euler_v2, maple} re-selected each cycle. Allocation here
+# lists the default sleeve winner (susde); the strategy class rotates live.
+S25_YIELD_LADDER = StrategyConfig(
+    id="S25",
+    name="Yield Ladder",
+    description=(
+        "Barbell: Sky sUSDS 30% + Aave 30% (T1 base) + 40% dynamic best T2 "
+        "from {Ethena, Yearn, Euler, Maple}, rotated each cycle. Target 5-12%. "
+        "Logic: YieldLadderStrategy (select_best_t2)."
+    ),
+    allocations={
+        "spark_susds": 0.30,   # T1 ultra-safe base
+        "aave_v3":     0.30,   # T1 ultra-safe base
+        "susde":       0.40,   # dynamic T2/T3 sleeve (default winner; rotates live)
+    },
+    tier="T2",
+    target_apy_min=5.0,
+    target_apy_max=12.0,
+    kill_drawdown_pct=0.05,
+    status="active",
+    strategy_class="YieldLadderStrategy",
+)
+
+
 # ─── Реестр стратегий ──────────────────────────────────────────────────────────
 
 STRATEGY_REGISTRY: Dict[str, StrategyConfig] = {
@@ -390,6 +491,10 @@ STRATEGY_REGISTRY: Dict[str, StrategyConfig] = {
         S8_DELTA_NEUTRAL_SUSDE,  # S8 — Delta-Neutral sUSDe Funding Harvest (MP-157)
         S9_EMODE_LOOPING,        # S9 — Aave E-Mode USDC Looping (MP-155)
         S10_PENDLE_YT,           # S10 — Pendle YT Speculation (MP-160)
+        S22_ETHENA_YIELD_MAX,    # S22 — Ethena Yield Maximizer (high-APY expansion)
+        S23_PENDLE_PT_FIXED,     # S23 — Pendle PT Fixed Rate
+        S24_BASE_CHAIN_MAX,      # S24 — Base Chain Maximizer
+        S25_YIELD_LADDER,        # S25 — Yield Ladder barbell
     ]
 }
 
