@@ -43,10 +43,10 @@ import json
 import logging
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -338,19 +338,7 @@ def _save_log(log_path: Path, entries: List[Dict[str, Any]]) -> None:
     """Atomically save ring-buffer log (capped at _RING_BUFFER_CAP)."""
     entries = entries[-_RING_BUFFER_CAP:]
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(log_path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(entries, fh, indent=2)
-        os.replace(tmp, str(log_path))
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(log_path))
 def run(
     protocols: List[Dict[str, Any]],
     config: Optional[Dict[str, Any]] = None,
