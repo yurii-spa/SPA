@@ -9,8 +9,8 @@ Data: data/protocol_exit_risk_log.json (ring-buffer 100)
 
 import json
 import os
-import tempfile
 import time
+from spa_core.utils.atomic import atomic_save
 
 _DEFAULT_CONFIG = {
     "acceptable_slippage_pct": 1.0,
@@ -272,19 +272,7 @@ def log_result(result: dict, log_path: str = None) -> None:
     if log_dir and not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
 
-    fd, tmp_path = tempfile.mkstemp(dir=log_dir or ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(log, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(log, str(log_path))
 def analyze_and_log(position: dict, market: dict, config: dict = None, log_path: str = None) -> dict:
     """analyze() + log_result(). Returns the result dict."""
     result = analyze(position, market, config)
