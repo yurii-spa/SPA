@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_collateral_quality_sc
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
