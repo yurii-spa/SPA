@@ -10,7 +10,6 @@ import json
 import os
 import pathlib
 import sys
-import tempfile
 from datetime import date
 
 import pytest
