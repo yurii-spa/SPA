@@ -28,6 +28,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
 
+from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_save
 
 # ── Protocol registry ─────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ _BULL_CUTOFF = "2024-01-01"      # date from which bull market applies
 _CASH_DAY_THRESHOLD = 0.50
 
 
-class PITvsNaiveComparison:
+class PITvsNaiveComparison(BaseAnalytics):
     """
     Compares Point-In-Time (strict) backtest vs Naive (no date restrictions) backtest.
 
@@ -90,12 +91,16 @@ class PITvsNaiveComparison:
         cmp.save()                  # atomic write to data/backtest/pit_vs_naive_comparison.json
     """
 
+    OUTPUT_PATH = "data/backtest/pit_vs_naive_comparison.json"
+
     def __init__(
         self,
         start: str = "2022-05-01",
         end: str = "2026-05-05",
         initial_capital: float = 100_000.0,
+        base_dir: str = ".",
     ) -> None:
+        super().__init__(base_dir)
         self._start = start
         self._end = end
         self._initial_capital = initial_capital
@@ -226,6 +231,10 @@ class PITvsNaiveComparison:
         ]
 
         return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        """Returns full comparison result as JSON-serializable dict (BaseAnalytics)."""
+        return self.compare()
 
     def save(
         self, path: str = "data/backtest/pit_vs_naive_comparison.json"
