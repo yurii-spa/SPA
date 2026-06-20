@@ -495,7 +495,7 @@ class YieldLoopStrategy:
 
 def _register() -> None:
     try:
-        from strategies.strategy_registry import REGISTRY, StrategyMeta
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta
         REGISTRY.register(StrategyMeta(
             id="s3_yield_loop",
             name="S3 — Yield Loop (Borrow+Deposit)",
@@ -509,7 +509,7 @@ def _register() -> None:
                 "re-deposit. Max 2 loops. HF monitor (stop-loss at HF < 1.3). "
                 "35% max position size. PAPER TRADING ONLY until ADR approved."
             ),
-            module="strategies.s3_yield_loop",
+            module="spa_core.strategies.s3_yield_loop",
             handler_class="YieldLoopStrategy",
             tags=["leverage", "yield_loop", "aave", "t3", "high_risk", "paper_only"],
         ))
