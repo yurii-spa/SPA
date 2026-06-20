@@ -12,8 +12,8 @@ import json
 import math
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -217,19 +217,7 @@ def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically via tmp-file + os.replace."""
     dir_name = os.path.dirname(os.path.abspath(path))
     os.makedirs(dir_name, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def append_log(result: dict, log_path: str = LOG_FILE) -> None:
     """Append an analysis result to the ring-buffer log (capped at LOG_MAX)."""
     try:
