@@ -12,13 +12,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any
-
-from spa_core.base import BaseAnalytics
-from spa_core.utils.errors import SPAError
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -38,7 +35,7 @@ REGIME_SEVERELY_COMPRESSED = "SEVERELY_COMPRESSED"
 # ---------------------------------------------------------------------------
 
 
-class YieldCompressorScore(BaseAnalytics):
+class YieldCompressorScore:
     """Detects yield compression trends across the DeFi market.
 
     Parameters
@@ -47,16 +44,9 @@ class YieldCompressorScore(BaseAnalytics):
         Directory where ``yield_compressor_log.json`` is written.
     """
 
-    OUTPUT_PATH = "data/yield_compressor_log.json"
-
     def __init__(self, data_dir: str = "") -> None:
-        super().__init__(base_dir=data_dir or ".")
         self._data_dir = data_dir
         self._last_result: dict[str, Any] | None = None
-
-    def to_dict(self) -> dict:
-        """Return last compute() result as JSON-serializable dict."""
-        return self._last_result or {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -172,7 +162,7 @@ class YieldCompressorScore(BaseAnalytics):
         Returns the path written.
         """
         if self._last_result is None:
-            raise SPAError("No result to save – call compute() first.", code="NOT_INITIALIZED")
+            raise RuntimeError("No result to save – call compute() first.")
 
         base = data_dir or self._data_dir or ""
         path = os.path.join(base, LOG_FILE_DEFAULT) if not base.endswith(".json") else base
@@ -235,19 +225,7 @@ def _atomic_append(path: str, entry: dict[str, Any], cap: int = 100) -> None:
     existing = existing[-cap:]  # ring-buffer
 
     dir_ = os.path.dirname(os.path.abspath(path))
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(existing, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(existing, str(path))
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
