@@ -9,4 +9,7 @@ VERSION_TUPLE: tuple = (10, 0, 0)
 RELEASE_DATE: str = "2026-06-19"
 BUILD_SPRINTS: str = "v9.21-v9.99"  # sprints included in this release
 
-__all__ = ["VERSION", "VERSION_TUPLE", "RELEASE_DATE", "BUILD_SPRINTS"]
+# PEP 396 alias — importable as `from spa_core.version import __version__`
+__version__: str = VERSION
+
+__all__ = ["VERSION", "VERSION_TUPLE", "RELEASE_DATE", "BUILD_SPRINTS", "__version__"]
