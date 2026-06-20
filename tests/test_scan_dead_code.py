@@ -8,13 +8,13 @@ Run: python3 -m unittest tests/test_scan_dead_code.py -v
 import json
 import os
 import sys
-import tempfile
 import textwrap
 import unittest
 
 # Allow importing from scripts/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 import scan_dead_code as sdc
+import tempfile
 
 
 def _write(path: str, content: str = ""):
