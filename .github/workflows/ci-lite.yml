@@ -1,0 +1,142 @@
+name: SPA CI-Lite (syntax + import)
+
+# Все push/PR в main используют [skip ci] → основной ci.yml не запускается.
+# ci-lite запускается:
+#   1. По расписанию каждые 6 часов (schedule не блокируется [skip ci])
+#   2. Вручную через workflow_dispatch
+#
+# Цель: быстрая (<2 мин) проверка синтаксиса и импортов без тяжёлых тестов.
+# Тяжёлые тесты (pytest 800+ файлов) остаются в ci.yml по demand.
+
+on:
+  schedule:
+    # Каждые 6 часов — [skip ci] в коммитах НЕ блокирует schedule-триггер
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Причина ручного запуска'
+        required: false
+        default: 'manual check'
+
+jobs:
+  syntax-and-import:
+    name: Syntax & Import Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Syntax check — py_compile all .py files
+        run: |
+          echo "=== Syntax check: all .py files ==="
+          python3 -c "
+          import py_compile, os, sys
+          errors = []
+          for root, dirs, files in os.walk('.'):
+              # skip venv / __pycache__ / hidden dirs
+              dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('__pycache__', 'venv', 'env', 'node_modules')]
+              for f in files:
+                  if f.endswith('.py'):
+                      path = os.path.join(root, f)
+                      try:
+                          py_compile.compile(path, doraise=True)
+                      except py_compile.PyCompileError as e:
+                          errors.append(str(e))
+          if errors:
+              print('SYNTAX ERRORS:')
+              for e in errors:
+                  print(e)
+              sys.exit(1)
+          print(f'Syntax OK — checked all .py files')
+          "
+
+      - name: Import smoke test — spa_core
+        env:
+          SPA_ENV: ci
+        run: |
+          echo "=== Import smoke test ==="
+          python3 -c "
+          import sys
+          # Core imports
+          from spa_core.base import BaseAnalytics, BaseReport, BaseAdapter
+          from spa_core.utils.errors import SpaError
+          print('spa_core.base OK')
+
+          # Strategy registry (both)
+          from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta, StrategyRegistry
+          print(f'strategies.strategy_registry OK — {len(REGISTRY)} strategies loaded')
+
+          from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY, StrategyConfig
+          print(f'paper_trading.strategy_registry OK — {len(STRATEGY_REGISTRY)} configs')
+
+          # Tournament evaluator
+          from spa_core.paper_trading.tournament_evaluator import (
+              compute_composite_score, compute_sharpe, compute_calmar,
+              MIN_OBS, StrategyMetrics,
+          )
+          print('tournament_evaluator OK')
+
+          # Risk policy (no LLM, deterministic)
+          from spa_core.risk.policy import RiskPolicy, RiskConfig
+          print('risk.policy OK')
+
+          # Adapter registry
+          from spa_core.adapters import ADAPTER_REGISTRY
+          print(f'adapters OK — {len(ADAPTER_REGISTRY)} adapters')
+
+          print()
+          print('=== All smoke imports PASSED ===')
+          "
+
+      - name: Forbidden import check (risk + execution)
+        run: |
+          echo "=== Forbidden import check ==="
+          python3 -c "
+          import os, sys
+          FORBIDDEN_LIBS = ['anthropic', 'openai', 'langchain', 'numpy', 'pandas', 'requests', 'aiohttp']
+          FORBIDDEN_DOMAINS = ['spa_core/risk', 'spa_core/execution', 'spa_core/monitoring']
+          errors = []
+          for domain in FORBIDDEN_DOMAINS:
+              for root, dirs, files in os.walk(domain):
+                  dirs[:] = [d for d in dirs if d != '__pycache__']
+                  for f in files:
+                      if not f.endswith('.py'):
+                          continue
+                      path = os.path.join(root, f)
+                      src = open(path).read()
+                      for lib in FORBIDDEN_LIBS:
+                          if f'import {lib}' in src or f'from {lib}' in src:
+                              errors.append(f'{path}: forbidden import \"{lib}\"')
+          if errors:
+              print('FORBIDDEN IMPORTS FOUND:')
+              for e in errors:
+                  print(e)
+              sys.exit(1)
+          print('Forbidden import check PASSED')
+          "
+
+      - name: Strategy registry completeness check
+        env:
+          SPA_ENV: ci
+        run: |
+          echo "=== Strategy registry completeness ==="
+          python3 -c "
+          from spa_core.strategies.strategy_registry import REGISTRY
+          strategies = REGISTRY.as_list(enabled_only=False)
+          print(f'Registered strategies: {len(strategies)}')
+          for s in strategies:
+              print(f'  {s.id:<35} tier={s.risk_tier} enabled={s.enabled}')
+          if len(strategies) < 10:
+              import sys
+              print(f'ERROR: expected >= 10 strategies, got {len(strategies)}')
+              sys.exit(1)
+          print(f'Registry completeness OK')
+          "
