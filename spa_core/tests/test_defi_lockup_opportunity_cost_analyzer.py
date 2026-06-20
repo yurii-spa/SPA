@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_lockup_opportunity_cost_analyz
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_lockup_opportunity_cost_analyzer import (
     DeFiLockupOpportunityCostAnalyzer,
