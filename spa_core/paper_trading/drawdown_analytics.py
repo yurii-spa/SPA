@@ -101,9 +101,15 @@ def _read_json(path: Path) -> Any:
         return None
 
 
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
-    atomic_save(obj, path)
+def _num(value: Any) -> Optional[float]:
+    """Finite float or None (bool is not a number; NaN/inf are not data)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(float(value)):
+        return None
+    return float(value)
+
+
 def _valid_date(value: Any) -> bool:
     """True iff ``value`` is an ISO ``YYYY-MM-DD`` (prefix) date string."""
     if not isinstance(value, str) or len(value) < 10:
@@ -425,7 +431,7 @@ def write_status(
     history.append(_history_entry(doc))
     out = dict(doc)
     out["history"] = history[-HISTORY_MAX:]
-    _atomic_write_json(path, out)
+    atomic_save(out, str(path))
     log.info("drawdown analytics written: %s", path)
     return {"path": str(path), "changed": True}
 
