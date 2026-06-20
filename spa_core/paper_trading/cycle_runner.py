@@ -120,8 +120,9 @@ MAX_TRADES = 500           # ring-buffer cap for trades.json
 MAX_EQUITY_POINTS = 365    # ring-buffer cap for the daily equity curve
 MAX_POLICY_BLOCKS = 100    # ring-buffer cap for risk_policy_blocks.json
 MAX_DASHBOARD_ENTRIES = 365  # ring-buffer cap for dashboard_metrics_history.json
-# Rebalance only when |Δallocation| exceeds 1% of capital (turnover filter).
-DEFAULT_TRADE_THRESHOLD_PCT = 0.01
+# Rebalance when |Δallocation| exceeds 0.2% of capital (paper-mode turnover filter).
+# $200 threshold on $100K capital — was $1,000 (1%) which was too high for paper trading.
+DEFAULT_TRADE_THRESHOLD_PCT = 0.002
 
 
 # ─── Result object ───────────────────────────────────────────────────────────
