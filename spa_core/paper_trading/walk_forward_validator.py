@@ -52,7 +52,7 @@ Pure stdlib (json / os / math / argparse / logging / pathlib / sys) —
 no requests / web3 / LLM SDK / sockets / network. Never touches
 risk / execution / allocator / cycle_runner.
 """
-from __future__ import annotations
+# from __future__ import annotations  # MP-1233: neutralized — unreachable below DEPRECATED raise, broke py_compile
 
 import argparse
 import json
