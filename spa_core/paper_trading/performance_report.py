@@ -25,8 +25,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 from datetime import date, datetime
+from spa_core.utils.atomic import atomic_save
 
 
 # ─── Data loaders ─────────────────────────────────────────────────────────────
@@ -281,18 +281,7 @@ def persist_report(report: dict, data_dir: str = "data") -> str:
     Uses tmp-file + os.replace (POSIX atomic). Returns output path.
     """
     out_path = os.path.join(data_dir, "tear_sheet.json")
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=data_dir, prefix=".tear_sheet_", suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(report, fh, indent=2)
-            fh.write("\n")
-        os.replace(tmp_path, out_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    atomic_save(report, str(out_path))
     return out_path
 
 
