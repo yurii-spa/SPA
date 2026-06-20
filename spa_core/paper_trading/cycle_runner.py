@@ -17,8 +17,8 @@ One run == one "day" of paper trading:
    written, the block is appended to ``data/risk_policy_blocks.json``
    (ring-buffer 100) and the cycle continues holding the previous positions
    with ``status="blocked_by_policy"``. A failure inside the gate itself
-   (unexpected exception) is logged as WARNING and the gate is skipped
-   (fail-open) — the cycle never crashes because of the gate.
+   (unexpected exception) is logged as WARNING and the trade is BLOCKED
+   (fail-closed, FIX-P0) — the cycle never crashes because of the gate.
 3. If the (gate-approved) target allocation differs from the currently-held
    positions by more than ``trade_threshold_pct`` of capital → record a
    virtual ``rebalance`` trade in ``data/trades.json`` (ring-buffer, max 500).
@@ -520,10 +520,11 @@ def _apply_risk_policy_gate(
         warnings    list[str] — non-blocking policy warnings
         trimmed     bool — target was scaled down to the min-cash buffer
         target_usd  dict — the (possibly trimmed) allocation to use downstream
-        error       str | None — the gate itself failed → fail-open, log only
+        error       str | None — the gate itself failed → fail-closed (FIX-P0)
 
     Never raises: any unexpected exception is captured into ``error`` so a
-    broken gate degrades to a logged WARNING instead of crashing the cycle.
+    broken gate degrades to a logged WARNING and a BLOCKED trade (fail-closed).
+    Previously this was fail-open; changed to fail-closed for live-capital safety.
     """
     out: dict = {
         "approved": True,
@@ -670,8 +671,19 @@ def _apply_risk_policy_gate(
         out["approved"] = not violations
         out["target_usd"] = adjusted
     except Exception as exc:  # gate must never crash the cycle (MP-005 spec)
-        log.warning("RiskPolicy gate failed (%s) — fail-open, cycle continues", exc)
+        # FIX-P0 (fail-closed): any exception inside the gate BLOCKS the trade.
+        # Previously this was fail-open (approved=True on exception), which is
+        # a critical vulnerability for live capital — an error could silently
+        # bypass all risk checks.  Now: exception → approved=False, trade blocked.
+        log.warning(
+            "FAIL-CLOSED: risk gate exception, blocking trade: %s",
+            exc,
+        )
+        out["approved"] = False
         out["error"] = f"{type(exc).__name__}: {exc}"
+        out["violations"] = out.get("violations") or [
+            f"gate_exception: {type(exc).__name__}: {exc}"
+        ]
     return out
 
 
