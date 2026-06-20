@@ -70,10 +70,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.strategy_consolidator")
 
@@ -118,27 +118,8 @@ def _read_json(path: "str | Path") -> Any:
 
 
 def _atomic_write_json(path: "str | Path", obj: Any) -> None:
-    """Atomically write *obj* as JSON to *path* (tmp + os.replace)."""
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(p.parent), prefix=f".{p.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, p)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _num(value: Any) -> Optional[float]:
     """Return a finite float or None. bool is rejected; NaN/inf → None."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
