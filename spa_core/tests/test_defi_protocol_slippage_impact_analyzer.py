@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_slippage_impact_analy
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Make sure the repo root is on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
