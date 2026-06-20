@@ -65,6 +65,17 @@ class AlertEngine(BaseAnalytics):
         self._last_alerts: List[Alert] = []
         self._last_checked_ts: str = ""
 
+    # BaseAnalytics contract ───────────────────────────────────────────────────
+    def analyze(self, *args, **kwargs):  # type: ignore[override]
+        """Satisfy BaseAnalytics.analyze() abstract contract.
+        Delegates to check_snapshots() when called with (current, previous) args,
+        otherwise returns the last-computed alert summary dict.
+        """
+        if len(args) >= 2:
+            alerts = self.check_snapshots(args[0], args[1])
+            return {"alerts": [a.__str__() for a in alerts]}
+        return self.to_dict()
+
     def to_dict(self) -> dict:
         """Сериализовать последний набор alerts в dict (BaseAnalytics API).
 
