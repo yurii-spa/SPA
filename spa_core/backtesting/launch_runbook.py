@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Tuple
+
+from spa_core.utils.atomic import atomic_save
 
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -96,22 +97,9 @@ class LaunchRunbook:
         }
 
     def save(self) -> None:
-        """Atomic save to runbook_path using tmp + os.replace."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        """Atomic save to runbook_path using atomic_save."""
         self._state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=self._path.parent, suffix=".tmp.json"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(self._state, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, self._path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(self._state, str(self._path))
 
     # ── Step helpers ───────────────────────────────────────────────────────────
 
