@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import List, Dict, Any
+from spa_core.utils.atomic import atomic_save
 
 
 # ---------------------------------------------------------------------------
@@ -241,24 +241,7 @@ def load_history(path: str = _DEFAULT_LOG) -> list:
 
 def _atomic_write(path: str, data: Any) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
-# ---------------------------------------------------------------------------
-# CLI (advisory)
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+    atomic_save(data, str(path))
     import sys
 
     sample = [
