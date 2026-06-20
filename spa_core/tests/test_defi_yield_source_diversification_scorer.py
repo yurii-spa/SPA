@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_yield_source_diversification_s
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure project root is in path
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
