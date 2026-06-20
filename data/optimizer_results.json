@@ -1,0 +1,395 @@
+{
+  "run_date": "2026-06-20",
+  "generated_at": "2026-06-20T23:50:34.542995+00:00",
+  "universe": [
+    "aave_v3_usdc",
+    "compound_v3_usdc",
+    "sky_susds",
+    "yearn_v3_usdc",
+    "morpho_blue_usdc"
+  ],
+  "categorization": {
+    "aave": "T1",
+    "compound": "T1",
+    "sky": "T1",
+    "yearn": "T2",
+    "morpho": "T2"
+  },
+  "grid_step_pct": 5,
+  "constraints": {
+    "t1_max_pct": 100,
+    "t2_per_protocol_max_pct": 20.0,
+    "t2_total_max_pct": 50.0,
+    "bounds_pct": {
+      "aave": [
+        10,
+        60
+      ],
+      "compound": [
+        10,
+        60
+      ],
+      "sky": [
+        0,
+        30
+      ],
+      "yearn": [
+        0,
+        20
+      ],
+      "morpho": [
+        0,
+        20
+      ]
+    }
+  },
+  "score_formula": "0.5*cagr + 0.3*sharpe_daily + 0.2*(1 - max_drawdown)",
+  "num_portfolios_evaluated": 1502,
+  "best_by_return": {
+    "weights": {
+      "aave": 0.1,
+      "compound": 0.2,
+      "sky": 0.3,
+      "yearn": 0.2,
+      "morpho": 0.2
+    },
+    "weights_pct": {
+      "aave": 10,
+      "compound": 20,
+      "sky": 30,
+      "yearn": 20,
+      "morpho": 20
+    },
+    "t2_total_pct": 40,
+    "metrics": {
+      "cagr_pct": 4.8579,
+      "sharpe_daily": 5.1655,
+      "sharpe_annualized": 98.6864,
+      "max_drawdown_pct": 0.0,
+      "expected_apy_pct": 4.7439
+    },
+    "score": 1.773934
+  },
+  "best_by_sharpe": {
+    "weights": {
+      "aave": 0.3,
+      "compound": 0.2,
+      "sky": 0.3,
+      "yearn": 0.0,
+      "morpho": 0.2
+    },
+    "weights_pct": {
+      "aave": 30,
+      "compound": 20,
+      "sky": 30,
+      "yearn": 0,
+      "morpho": 20
+    },
+    "t2_total_pct": 20,
+    "metrics": {
+      "cagr_pct": 4.5858,
+      "sharpe_daily": 5.7645,
+      "sharpe_annualized": 110.1302,
+      "max_drawdown_pct": 0.0,
+      "expected_apy_pct": 4.484
+    },
+    "score": 1.952272
+  },
+  "best_blended": {
+    "weights": {
+      "aave": 0.3,
+      "compound": 0.2,
+      "sky": 0.3,
+      "yearn": 0.0,
+      "morpho": 0.2
+    },
+    "weights_pct": {
+      "aave": 30,
+      "compound": 20,
+      "sky": 30,
+      "yearn": 0,
+      "morpho": 20
+    },
+    "t2_total_pct": 20,
+    "metrics": {
+      "cagr_pct": 4.5858,
+      "sharpe_daily": 5.7645,
+      "sharpe_annualized": 110.1302,
+      "max_drawdown_pct": 0.0,
+      "expected_apy_pct": 4.484
+    },
+    "score": 1.952272
+  },
+  "top_10": [
+    {
+      "weights": {
+        "aave": 0.3,
+        "compound": 0.2,
+        "sky": 0.3,
+        "yearn": 0.0,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 30,
+        "compound": 20,
+        "sky": 30,
+        "yearn": 0,
+        "morpho": 20
+      },
+      "t2_total_pct": 20,
+      "metrics": {
+        "cagr_pct": 4.5858,
+        "sharpe_daily": 5.7645,
+        "sharpe_annualized": 110.1302,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.484
+      },
+      "score": 1.952272
+    },
+    {
+      "weights": {
+        "aave": 0.25,
+        "compound": 0.25,
+        "sky": 0.3,
+        "yearn": 0.0,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 25,
+        "compound": 25,
+        "sky": 30,
+        "yearn": 0,
+        "morpho": 20
+      },
+      "t2_total_pct": 20,
+      "metrics": {
+        "cagr_pct": 4.593,
+        "sharpe_daily": 5.7418,
+        "sharpe_annualized": 109.6973,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.491
+      },
+      "score": 1.94551
+    },
+    {
+      "weights": {
+        "aave": 0.35,
+        "compound": 0.15,
+        "sky": 0.3,
+        "yearn": 0.0,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 35,
+        "compound": 15,
+        "sky": 30,
+        "yearn": 0,
+        "morpho": 20
+      },
+      "t2_total_pct": 20,
+      "metrics": {
+        "cagr_pct": 4.5786,
+        "sharpe_daily": 5.7191,
+        "sharpe_annualized": 109.2642,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.4771
+      },
+      "score": 1.938638
+    },
+    {
+      "weights": {
+        "aave": 0.3,
+        "compound": 0.15,
+        "sky": 0.3,
+        "yearn": 0.05,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 30,
+        "compound": 15,
+        "sky": 30,
+        "yearn": 5,
+        "morpho": 20
+      },
+      "t2_total_pct": 25,
+      "metrics": {
+        "cagr_pct": 4.6465,
+        "sharpe_daily": 5.704,
+        "sharpe_annualized": 108.9751,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.5421
+      },
+      "score": 1.934437
+    },
+    {
+      "weights": {
+        "aave": 0.25,
+        "compound": 0.2,
+        "sky": 0.3,
+        "yearn": 0.05,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 25,
+        "compound": 20,
+        "sky": 30,
+        "yearn": 5,
+        "morpho": 20
+      },
+      "t2_total_pct": 25,
+      "metrics": {
+        "cagr_pct": 4.6538,
+        "sharpe_daily": 5.7006,
+        "sharpe_annualized": 108.9092,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.549
+      },
+      "score": 1.933439
+    },
+    {
+      "weights": {
+        "aave": 0.2,
+        "compound": 0.3,
+        "sky": 0.3,
+        "yearn": 0.0,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 20,
+        "compound": 30,
+        "sky": 30,
+        "yearn": 0,
+        "morpho": 20
+      },
+      "t2_total_pct": 20,
+      "metrics": {
+        "cagr_pct": 4.6003,
+        "sharpe_daily": 5.6541,
+        "sharpe_annualized": 108.0216,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.4979
+      },
+      "score": 1.919235
+    },
+    {
+      "weights": {
+        "aave": 0.35,
+        "compound": 0.1,
+        "sky": 0.3,
+        "yearn": 0.05,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 35,
+        "compound": 10,
+        "sky": 30,
+        "yearn": 5,
+        "morpho": 20
+      },
+      "t2_total_pct": 25,
+      "metrics": {
+        "cagr_pct": 4.6393,
+        "sharpe_daily": 5.6435,
+        "sharpe_annualized": 107.8189,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.5352
+      },
+      "score": 1.916247
+    },
+    {
+      "weights": {
+        "aave": 0.2,
+        "compound": 0.25,
+        "sky": 0.3,
+        "yearn": 0.05,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 20,
+        "compound": 25,
+        "sky": 30,
+        "yearn": 5,
+        "morpho": 20
+      },
+      "t2_total_pct": 25,
+      "metrics": {
+        "cagr_pct": 4.661,
+        "sharpe_daily": 5.6341,
+        "sharpe_annualized": 107.6387,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.5559
+      },
+      "score": 1.913525
+    },
+    {
+      "weights": {
+        "aave": 0.25,
+        "compound": 0.15,
+        "sky": 0.3,
+        "yearn": 0.1,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 25,
+        "compound": 15,
+        "sky": 30,
+        "yearn": 10,
+        "morpho": 20
+      },
+      "t2_total_pct": 30,
+      "metrics": {
+        "cagr_pct": 4.7145,
+        "sharpe_daily": 5.6119,
+        "sharpe_annualized": 107.2157,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.607
+      },
+      "score": 1.90715
+    },
+    {
+      "weights": {
+        "aave": 0.4,
+        "compound": 0.1,
+        "sky": 0.3,
+        "yearn": 0.0,
+        "morpho": 0.2
+      },
+      "weights_pct": {
+        "aave": 40,
+        "compound": 10,
+        "sky": 30,
+        "yearn": 0,
+        "morpho": 20
+      },
+      "t2_total_pct": 20,
+      "metrics": {
+        "cagr_pct": 4.5713,
+        "sharpe_daily": 5.6099,
+        "sharpe_annualized": 107.1768,
+        "max_drawdown_pct": 0.0,
+        "expected_apy_pct": 4.4702
+      },
+      "score": 1.905823
+    }
+  ],
+  "comparison_vs_current": {
+    "optimal_expected_apy_pct": 4.484,
+    "current_expected_apy_pct": 4.2243,
+    "apy_difference_pct": 0.2597,
+    "optimal_weights_pct": {
+      "aave": 30,
+      "compound": 20,
+      "sky": 30,
+      "yearn": 0,
+      "morpho": 20
+    },
+    "current_weights_pct": {
+      "aave": 20.98,
+      "compound": 31.18,
+      "sky": 32.98,
+      "yearn": 6.55,
+      "morpho": 8.31
+    },
+    "summary": "Optimal (blended) allocation would have returned 4.48% APY vs current 4.22% (+0.26 pp)."
+  }
+}
