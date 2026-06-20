@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_stablecoin_depeg_risk_monitor 
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
