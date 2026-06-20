@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_volume_to_tvl_efficie
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_protocol_volume_to_tvl_efficiency_analyzer import (
     DeFiProtocolVolumeToTVLEfficiencyAnalyzer,
