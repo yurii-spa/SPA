@@ -20,8 +20,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # ─── sys.path (позволяет запускать из любого CWD) ─────────────────────────────
