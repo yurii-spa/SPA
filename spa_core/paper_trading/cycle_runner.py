@@ -2911,6 +2911,20 @@ def _run_smart_modules(data_dir=None, send_telegram: bool = True) -> None:
     except Exception as _e:  # noqa: BLE001
         log.warning("MP-1578 daily_summary_agent failed (non-critical): %s", _e)
 
+    # 6. T2 aggregate concentration early-warning (MP-1263).
+    #    Advisory only — RiskPolicy still enforces the hard 50% ADR-019 cap.
+    #    Tiered alerts: 42% advisory (log) → 45% WARNING (Telegram) →
+    #    50% BREACH. Fail-safe: never aborts the cycle.
+    try:
+        from spa_core.risk.concentration_monitor import T2ConcentrationAlert
+        t2 = T2ConcentrationAlert(data_dir=ddir)
+        rep = t2.run(data_dir=ddir, send_telegram=send_telegram, write=True)
+        print(f"  t2_conc     : {rep['status']} "
+              f"{rep['t2_total_pct']:.2f}% (headroom {rep['headroom_pct']:.2f}%, "
+              f"telegram_sent={rep['telegram_sent']})")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("MP-1263 T2 concentration monitor failed (non-critical): %s", _e)
+
 
 def _run_analytics_pipeline(data_dir: "str | os.PathLike | None" = None) -> None:
     """Run analytics pipeline post-cycle. Non-blocking — failures are logged."""
