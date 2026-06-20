@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from spa_core.utils.atomic import atomic_save
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _DATA_DIR = _REPO_ROOT / "data"
 _OUT_PATH = _DATA_DIR / "agent_summaries.json"
@@ -173,19 +175,7 @@ def write_summaries(dry_run: bool = False) -> dict[str, Any]:
         return doc
 
     _OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=_OUT_PATH.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(doc, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp_path, _OUT_PATH)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(doc, str(_OUT_PATH))
     return doc
 
 
