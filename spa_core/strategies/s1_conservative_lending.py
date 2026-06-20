@@ -342,7 +342,7 @@ class ConservativeLendingStrategy:
 
 def _register() -> None:
     try:
-        from strategies.strategy_registry import REGISTRY, StrategyMeta
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta
         REGISTRY.register(StrategyMeta(
             id="s1_conservative_lending",
             name="S1 — Conservative Lending",
@@ -355,7 +355,7 @@ def _register() -> None:
                 "T1-only lending: Aave V3, Compound V3, Morpho, Sky/sUSDS, Yearn V3. "
                 "Max 40% per protocol, 5% cash buffer, rebalance at +1 pp APY gap."
             ),
-            module="strategies.s1_conservative_lending",
+            module="spa_core.strategies.s1_conservative_lending",
             handler_class="ConservativeLendingStrategy",
             tags=["conservative", "lending", "t1", "stable"],
         ))
