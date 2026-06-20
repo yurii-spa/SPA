@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_apy_momentum_tracker -v
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.apy_momentum_tracker import (
