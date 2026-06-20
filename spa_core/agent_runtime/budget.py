@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple, Union
 
+from spa_core.utils.atomic import atomic_save
 from .mandate import AgentMandate
 
 log = logging.getLogger("spa.agent_runtime.budget")
@@ -33,18 +34,8 @@ def _utc_now() -> datetime:
 
 
 def _atomic_write_json(obj: dict, out_path: Path) -> None:
-    """Атомарная запись JSON (tmp + os.replace), без хвостовых *.tmp."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out_path.with_name(f".{out_path.stem}_{os.getpid()}.tmp")
-    try:
-        tmp.write_text(
-            json.dumps(obj, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(tmp, out_path)
-    finally:
-        if tmp.exists():
-            tmp.unlink()
+    """Атомарная запись JSON через centralized atomic_save (MP-1452)."""
+    atomic_save(obj, str(out_path))
 
 
 class TokenBudgetTracker:
