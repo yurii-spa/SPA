@@ -39,7 +39,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.alpha_agent")
@@ -113,10 +112,9 @@ def _read_json(path: Path, default: Any) -> Any:
         return default
 
 
-
-# ─── Score component functions (deterministic, LLM-forbidden) ─────────────────
-
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _score_tvl(tvl_usd: float) -> int:
     """TVL score component (0–30)."""
     if tvl_usd > _TVL_TIER1:
@@ -393,7 +391,7 @@ def run_alpha_scan(
     }
 
     try:
-        atomic_save(doc, str(ddir / ALPHA_CANDIDATES_FILENAME))
+        _atomic_write_json(ddir / ALPHA_CANDIDATES_FILENAME, doc)
         log.info(
             "Alpha scan complete: %d candidates scored, top %d written to %s",
             len(scored),
