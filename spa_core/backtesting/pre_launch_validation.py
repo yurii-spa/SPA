@@ -29,11 +29,12 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -734,19 +735,7 @@ class PreLaunchValidation:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         out_path = val_dir / f"pre_launch_{date_str}.json"
 
-        payload = report.to_dict()
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=val_dir, suffix=".tmp.json")
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(report.to_dict(), str(out_path))
         return str(out_path)
 
     def to_markdown(self, report: ValidationReport) -> str:
