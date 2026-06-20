@@ -11,8 +11,8 @@ Atomic writes via tmp + os.replace.
 import json
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 _DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "treasury_runway_log.json"
@@ -31,19 +31,7 @@ def _resolve_data_file(data_dir: str | None) -> str:
 def _atomic_write(path: str, obj: Any) -> None:
     """Write JSON atomically via tmp + os.replace."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".tmp_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(obj, str(path))
 def _load_log(path: str) -> list:
     if not os.path.exists(path):
         return []
