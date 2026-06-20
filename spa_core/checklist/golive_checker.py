@@ -236,9 +236,15 @@ class GoLiveChecker:
         doc = _read_json(self.data_dir / "adapter_status.json")
         if not isinstance(doc, dict):
             return False, "data/adapter_status.json: missing or not a dict"
-        if key not in doc:
+        # v2 format (schema_version 2): adapters is a nested dict keyed by
+        # snake_case protocol name.  v1 format: keys are at the top level.
+        # Support both by checking the nested dict first (MP-1195).
+        scope = doc.get("adapters", doc)
+        if not isinstance(scope, dict):
+            scope = doc
+        if key not in scope:
             return False, f"data/adapter_status.json: key '{key}' not present"
-        return True, f"adapter_status.json['{key}'] present"
+        return True, f"adapter_status.json['adapters']['{key}'] present"
 
     def _check_adapter_status_has_compound(self) -> tuple[bool, str]:
         return self._check_adapter_status_key("compound_v3")
