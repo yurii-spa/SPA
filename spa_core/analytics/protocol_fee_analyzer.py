@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import List
+from spa_core.utils.atomic import atomic_save
 
 # ── Data directory (repo-relative) ──────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -269,16 +269,7 @@ def save_results(result: FeeAnalysisResult, log_file: str = _LOG_FILE) -> str:
         history = history[-_RING_BUFFER_CAP:]
 
     dir_ = os.path.dirname(log_file)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(history, fh, indent=2)
-        os.replace(tmp_path, log_file)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
-
+    atomic_save(history, str(log_file))
     return log_file
 
 
