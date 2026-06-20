@@ -668,8 +668,7 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_atomic_write_pattern_present(self):
         source = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("os.replace", source)
-        self.assertIn("tempfile.mkstemp", source)
+        self.assertIn("atomic_save", source)
 
     def test_no_numpy_import(self):
         """numpy must not be imported (may appear in docstrings as text)."""
