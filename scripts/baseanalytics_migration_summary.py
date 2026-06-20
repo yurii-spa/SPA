@@ -4,7 +4,7 @@ scripts/baseanalytics_migration_summary.py
 Final migration summary across all 3 phases of BaseAnalytics migration.
 Verifies all migrated modules are importable and have BaseAnalytics in MRO.
 
-Sprint v10.46 — MP-1430
+Sprint v10.54 — MP-1438 — COMPLETE: 37/37 analytics modules migrated
 """
 from __future__ import annotations
 
@@ -62,9 +62,11 @@ PHASE_3 = [
     "source_acquisition_tracker",
     "stablecoin_yield_optimizer",
     "t1_data_verifier",
+    # Batch C — MP-1437/1438: previously skipped, now tested + migrated
+    "rebalance_cost_estimator",
+    "yield_compressor_score",
+    "yield_forecast_engine",
 ]
-
-# Skipped (no tests): rebalance_cost_estimator, yield_compressor_score, yield_forecast_engine
 
 # ── Verification ───────────────────────────────────────────────────────────────
 
@@ -133,10 +135,41 @@ def summary() -> int:
         print("  ✅ All modules verified — BaseAnalytics in MRO confirmed")
     print("=" * 65)
 
-    # Skipped modules note
-    skipped = ["rebalance_cost_estimator", "yield_compressor_score", "yield_forecast_engine"]
-    print(f"\nNote: {len(skipped)} Phase 3 modules skipped (no tests): {', '.join(skipped)}")
-    print(f"Full Phase 3 queue: 9 migrated + 3 skipped = 12 total")
+    print(f"\nPhase 3 complete: 12/12 modules (Batch A: 6, Batch B: 3, Batch C: 3)")
+    print(f"Grand total: Phase 1 (5) + Phase 2 (20) + Phase 3 (12) = 37 modules")
+
+    # ── Phase 4 summary (backtesting/ + paper_trading/ + family_fund/) ─────────
+    PHASE_4 = [
+        # backtesting/ — Sprint v10.63 (MP-1447)
+        ("spa_core.backtesting.pit_vs_naive_comparison", "PITvsNaiveComparison"),
+        ("spa_core.backtesting.paper_day_counter",       "PaperDayCounter"),
+        ("spa_core.backtesting.source_promotion_engine", "SourcePromotionEngine"),
+        # paper_trading/ — Sprint v10.64 (MP-1448)
+        ("spa_core.paper_trading.golive_checker",        "GoLiveChecker"),
+        ("spa_core.paper_trading.tournament_evaluator",  "TournamentEvaluator"),
+        # family_fund/ — Sprint v10.64 (MP-1448)
+        ("spa_core.family_fund.lead_tracker",            "LeadTracker"),
+    ]
+
+    print(f"\n{'=' * 65}")
+    print(f"  Phase 4 — backtesting/ + paper_trading/ + family_fund/")
+    print(f"{'=' * 65}")
+    p4_pass = 0
+    for mod_path, cls_name in PHASE_4:
+        try:
+            parts = mod_path.rsplit(".", 1)
+            mod = importlib.import_module(mod_path)
+            cls = getattr(mod, cls_name)
+            from spa_core.base import BaseAnalytics
+            ok = BaseAnalytics in cls.__mro__
+            status = "✅" if ok else "❌"
+            if ok:
+                p4_pass += 1
+        except Exception as exc:
+            status, ok = "❌", False
+        print(f"  {status}  {cls_name:<50}")
+    print(f"\nPhase 4 complete: {p4_pass}/{len(PHASE_4)} modules")
+    print(f"Grand total: Phase 1 (5) + Phase 2 (20) + Phase 3 (12) + Phase 4 ({len(PHASE_4)}) = {37 + len(PHASE_4)} classes")
 
     return 0 if failed == 0 else 1
 
