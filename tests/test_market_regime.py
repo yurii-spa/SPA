@@ -27,8 +27,8 @@ import os
 import statistics
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure project root is on sys.path regardless of where pytest is invoked.
 _HERE = os.path.dirname(os.path.abspath(__file__))
