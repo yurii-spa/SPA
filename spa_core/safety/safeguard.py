@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import Callable
+from typing import Any, Callable
 
 from spa_core.utils.errors import LiveTradingForbiddenError
 
@@ -73,7 +73,7 @@ def live_trading_forbidden(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         raise LiveTradingForbiddenError(func.__name__)
 
     return wrapper
@@ -102,7 +102,7 @@ def require_gate(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         from spa_core.safety.live_trading_gate import require_live_gate
         require_live_gate()
         return func(*args, **kwargs)
@@ -139,7 +139,7 @@ def research_only(adapter_name: str = "") -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if adapter_name:
                 logger.debug(
                     "research_only call: %s.%s", adapter_name, func.__name__
