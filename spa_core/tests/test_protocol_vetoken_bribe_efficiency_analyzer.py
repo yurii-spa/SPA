@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_vetoken_bribe_efficiency_a
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure the repo root is on the path
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
