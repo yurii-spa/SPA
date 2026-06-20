@@ -24,11 +24,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -406,18 +406,7 @@ def save_results(
         history = history[-_HISTORY_MAX:]
 
     # Atomic write
-    fd, tmp_path = tempfile.mkstemp(dir=data_path, prefix=".opt_summary_tmp_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(history, fh, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(history, str(log_path))
     summary.saved_to = str(log_path.resolve())
     return summary.saved_to
 
