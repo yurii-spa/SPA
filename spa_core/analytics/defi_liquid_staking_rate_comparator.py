@@ -6,10 +6,10 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log.
 import json
 import math
 import os
-import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -238,16 +238,7 @@ class DeFiLiquidStakingRateComparator:
             if len(buf) > LOG_CAP:
                 buf = buf[-LOG_CAP:]
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(log_path))
-            try:
-                with os.fdopen(fd, "w") as f:
-                    json.dump(buf, f, indent=2)
-                os.replace(tmp, log_path)
-            except Exception:
-                try:
-                    os.unlink(tmp)
-                except OSError:
-                    pass
+            atomic_save(buf, str(log_path))
         except Exception:
             pass  # log failure must never break the caller
 
