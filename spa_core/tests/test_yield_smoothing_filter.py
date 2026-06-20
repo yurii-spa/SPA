@@ -1,7 +1,7 @@
 """Tests for MP-737: YieldSmoothingFilter — pure stdlib unittest."""
 import math
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.yield_smoothing_filter import (
