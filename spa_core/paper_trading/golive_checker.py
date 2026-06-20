@@ -385,7 +385,13 @@ class GoLiveChecker:
         if not isinstance(doc, dict):
             blockers.append("adapter_status.json: missing or not a dict")
             return False
-        if key not in doc:
+        # v2 format (schema_version 2): adapters is a nested dict keyed by
+        # snake_case protocol name.  v1 format: keys are at the top level.
+        # Support both by checking the nested dict first (MP-1195).
+        scope = doc.get("adapters", doc)
+        if not isinstance(scope, dict):
+            scope = doc
+        if key not in scope:
             blockers.append(f"adapter_status.json: key '{key}' not present")
             return False
         return True
