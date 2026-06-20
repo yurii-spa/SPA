@@ -52,10 +52,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.position_sizer")
 
@@ -496,24 +496,7 @@ class PositionSizer:
         if len(history) > REPORT_HISTORY_MAX:
             history = history[-REPORT_HISTORY_MAX:]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(data_path), prefix=".position_sizing_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(history, fh, indent=2, ensure_ascii=False)
-                fh.write("\n")
-            os.replace(tmp_path, str(target))
-            log.info("position_sizing_report.json updated (%d entries)", len(history))
-        except Exception as exc:  # noqa: BLE001
-            log.error("Failed to write position_sizing_report.json: %s", exc)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-
+        atomic_save(history, str(target))
 # ─── CLI entry-point ──────────────────────────────────────────────────────────
 
 def _main(argv: Optional[List[str]] = None) -> int:
