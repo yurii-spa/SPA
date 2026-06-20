@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-
 from spa_core.utils.atomic import atomic_save
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
@@ -86,6 +85,9 @@ class MilestoneStatus:
 # ─── IO helpers ───────────────────────────────────────────────────────────────
 
 
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default: Any) -> Any:
     path = Path(path)
     if not path.exists():
@@ -435,7 +437,7 @@ def update_golive_status_milestone(
     doc["timestamp"] = datetime.now(timezone.utc).isoformat()
     doc["source"] = "golive_checker+milestone"
 
-    atomic_save(doc, str(path))
+    _atomic_write_json(path, doc)
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
