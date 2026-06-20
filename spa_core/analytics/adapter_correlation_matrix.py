@@ -40,11 +40,11 @@ import json
 import math
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Default paths
@@ -74,30 +74,8 @@ def _parse_ts_unix(ts_str: str) -> float:
 
 
 def _atomic_write_json(path: Path, payload: object) -> None:
-    """Atomic JSON write: tmp-file + os.replace. Creates parent dirs."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        except OSError:
-            pass
-
-
-# ---------------------------------------------------------------------------
-# Dataclasses
-# ---------------------------------------------------------------------------
-
-@dataclass
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(payload, str(path))
 class CorrelationPair:
     """Pearson correlation result for one adapter pair."""
     adapter_a: str
