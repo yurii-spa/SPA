@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_reward_token_sell_pressure_ana
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_reward_token_sell_pressure_analyzer import (
     DeFiRewardTokenSellPressureAnalyzer,
