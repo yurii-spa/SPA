@@ -52,10 +52,10 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -375,22 +375,8 @@ class DailyDigest:
             "digest_count": len(history),
             "history":      history,
         }
-        content = json.dumps(payload, indent=2, ensure_ascii=False)
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self.data_dir, prefix=".daily_digest_tmp_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(content)
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(payload, str(out_path))
         return str(out_path.resolve())
 
     # ------------------------------------------------------------------
