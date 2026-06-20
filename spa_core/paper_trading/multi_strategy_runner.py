@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.utils.atomic import atomic_save
 from spa_core.paper_trading.strategy_registry import StrategyConfig
 from spa_core.paper_trading.vportfolio import VPortfolio, INITIAL_CAPITAL_USD
 from spa_core.paper_trading.tournament_evaluator import (
@@ -259,24 +260,9 @@ class MultiStrategyRunner:
             "weighted_apy": round(weighted_apy, 6),
         }
 
-        # Атомарная запись: tmp-файл в той же директории + os.replace
+        # Атомарная запись через centralized atomic_save (MP-1451)
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(
-            prefix=".tmp_tournament_ranking_",
-            dir=path.parent,
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(doc, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            os.replace(tmp_path, path)
-        except Exception:
-            # Чистим tmp при ошибке (не оставляем мусор)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(doc, str(path))
 
     # ── Внутренние методы ─────────────────────────────────────────────────────
 
