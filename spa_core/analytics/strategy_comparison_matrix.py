@@ -24,11 +24,11 @@ import json
 import math
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -350,18 +350,7 @@ def save_results(
         existing = existing[-_RING_BUFFER_MAX:]
 
     # Atomic write: tmp → os.replace
-    fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(existing, fh, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(existing, str(log_path))
     comparison.saved_to = str(log_path)
     return str(log_path)
 
