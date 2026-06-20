@@ -100,7 +100,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 
 # Paper trading start date (Day 0) — see CLAUDE.md / go-live criterion 1.
-PAPER_START_DATE = "2026-05-20"
+# Real track started 2026-06-10 (all data before this date is demo/invalid after teardown).
+PAPER_START_DATE = "2026-06-10"
 CAPITAL_USD = 100_000.0
 
 TRADES_FILENAME = "trades.json"
