@@ -42,10 +42,10 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -218,19 +218,7 @@ class PositionTracker:
     def _atomic_write(self, path: Path, data: List[dict]) -> None:
         """Write ``data`` atomically via tmp + os.replace."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, str(path))
-        except Exception:
-            # Best-effort cleanup of the tmp file on failure
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(data, str(path))
     @staticmethod
     def _build_snapshot(
         allocation: Dict[str, float],
