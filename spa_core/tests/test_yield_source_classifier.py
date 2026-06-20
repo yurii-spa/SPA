@@ -6,9 +6,9 @@ Run: python3 -m unittest spa_core.tests.test_yield_source_classifier -v
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 # Ensure project root is importable
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
