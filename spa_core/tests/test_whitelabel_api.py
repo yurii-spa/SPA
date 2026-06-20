@@ -19,8 +19,8 @@ import io
 import json
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.risk.scoring_engine import grade_for_score
