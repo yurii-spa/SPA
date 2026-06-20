@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -434,6 +435,118 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("\n[--check mode] No data written. Use --run to persist.")
 
     return 0
+
+
+# ---------------------------------------------------------------------------
+# PositionSizingEngine — risk-parity / optimisation façade (MP-763 v2)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AdapterAllocation:
+    """Single adapter's recommended weight from PositionSizingEngine.optimize()."""
+    adapter_id: str
+    recommended_weight: float    # fraction of total capital (0-1)
+    recommended_usd: float       # capital_usd * recommended_weight
+    tier: str = "T1"
+
+
+class PositionSizingEngine(BaseAnalytics):
+    """
+    Risk-parity position sizing for DeFi yield adapters.
+
+    Methods
+    -------
+    compute_risk_parity(adapter_risks)   → weights dict summing to 1.0
+    apply_tier_caps(weights, tier_map)   → capped weights (T1≤40%, T2≤25%)
+    optimize(adapter_risks, tier_map, apys) → list[AdapterAllocation]
+    analyze(adapter_risks, tier_map, apys)  → dict summary
+    """
+
+    MODULE_NAME = "position_sizing_engine"
+
+    # Default tier caps
+    T1_CAP = 0.40
+    T2_CAP = 0.25
+
+    def __init__(self, capital_usd: float = 100_000.0, risk_budget: float = 0.10,
+                 data_dir: str = "data") -> None:
+        super().__init__(data_dir)
+        self.capital_usd = capital_usd
+        self.risk_budget = risk_budget
+
+    # ------------------------------------------------------------------
+    # Core algorithms
+    # ------------------------------------------------------------------
+
+    def compute_risk_parity(self, adapter_risks: Dict[str, float]) -> Dict[str, float]:
+        """Inverse-risk weights normalised to sum to 1.0.
+
+        Each adapter contributes equal *risk* (not equal *capital*).
+        Weight_i = (1/risk_i) / sum(1/risk_j for all j)
+        """
+        if not adapter_risks:
+            return {}
+        inv = {aid: 1.0 / max(r, 1e-9) for aid, r in adapter_risks.items()}
+        total = sum(inv.values())
+        return {aid: v / total for aid, v in inv.items()}
+
+    def apply_tier_caps(self, weights: Dict[str, float],
+                        tier_map: Dict[str, str]) -> Dict[str, float]:
+        """Clip each weight to its tier cap then renormalise.
+
+        T1 → 40%  cap,  T2 (and unknown) → 25% cap.
+        """
+        capped: Dict[str, float] = {}
+        for aid, w in weights.items():
+            tier = tier_map.get(aid, "T1")
+            cap = self.T1_CAP if tier == "T1" else self.T2_CAP
+            capped[aid] = min(w, cap)
+        total = sum(capped.values()) or 1.0
+        return {aid: v / total for aid, v in capped.items()}
+
+    def optimize(self, adapter_risks: Dict[str, float],
+                 tier_map: Dict[str, str],
+                 apys: Dict[str, float]) -> List[AdapterAllocation]:
+        """Full risk-parity optimization pipeline.
+
+        1. Compute risk-parity weights
+        2. Apply tier caps
+        3. Return AdapterAllocation list (one per adapter)
+        """
+        weights = self.compute_risk_parity(adapter_risks)
+        capped = self.apply_tier_caps(weights, tier_map)
+        results: List[AdapterAllocation] = []
+        for aid in adapter_risks:
+            w = capped.get(aid, 0.0)
+            results.append(AdapterAllocation(
+                adapter_id=aid,
+                recommended_weight=w,
+                recommended_usd=self.capital_usd * w,
+                tier=tier_map.get(aid, "T1"),
+            ))
+        return results
+
+    # BaseAnalytics contract -----------------------------------------------
+    def analyze(self, adapter_risks: Optional[Dict[str, float]] = None,  # type: ignore[override]
+                tier_map: Optional[Dict[str, str]] = None,
+                apys: Optional[Dict[str, float]] = None,
+                **kwargs: Any) -> Dict[str, Any]:
+        if not adapter_risks:
+            return {"status": "no_data", "capital_usd": self.capital_usd}
+        allocations = self.optimize(
+            adapter_risks,
+            tier_map or {},
+            apys or {},
+        )
+        return {
+            "capital_usd": self.capital_usd,
+            "risk_budget": self.risk_budget,
+            "allocations": [
+                {"adapter_id": a.adapter_id, "weight": a.recommended_weight,
+                 "usd": a.recommended_usd}
+                for a in allocations
+            ],
+        }
 
 
 if __name__ == "__main__":
