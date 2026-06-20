@@ -17,7 +17,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from spa_core.base import BaseAnalytics
 
@@ -68,6 +68,15 @@ class ApyMilestoneTracker(BaseAnalytics):
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def analyze(self, *args: Any, **kwargs: Any) -> dict:
+        """BaseAnalytics contract: return the current milestone report.
+
+        Delegates to :meth:`get_milestone_report`. Without this method the
+        class is abstract and cannot be instantiated (BaseAnalytics.analyze
+        is ``@abstractmethod``).
+        """
+        return self.get_milestone_report()
 
     def record_day(
         self,
