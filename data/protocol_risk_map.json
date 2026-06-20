@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-06-20T23:58:27.120383Z",
+  "map_version": "1.0",
+  "tier_bands": {
+    "T1": [
+      0.0,
+      0.249
+    ],
+    "T2": [
+      0.25,
+      0.6
+    ],
+    "T3": [
+      0.601,
+      1.0
+    ]
+  },
+  "count": 32,
+  "count_by_tier": {
+    "T1": 6,
+    "T2": 24,
+    "T3": 2
+  },
+  "protocols": {
+    "aave_arbitrum": {
+      "tier": "T1",
+      "risk_score": 0.16,
+      "note": "Aave V3 Arbitrum \u2014 same code, L2 maturity discount"
+    },
+    "aave_v3": {
+      "tier": "T1",
+      "risk_score": 0.1,
+      "note": "Aave V3 Ethereum \u2014 deepest, most-audited lending market"
+    },
+    "aave_v3_base": {
+      "tier": "T2",
+      "risk_score": 0.28,
+      "note": "Aave V3 Base \u2014 Aave code, Base L2 + bridge risk"
+    },
+    "aave_v3_optimism": {
+      "tier": "T1",
+      "risk_score": 0.16,
+      "note": "Aave V3 Optimism \u2014 same code, L2 maturity discount"
+    },
+    "aave_v3_polygon": {
+      "tier": "T1",
+      "risk_score": 0.18,
+      "note": "Aave V3 Polygon \u2014 USDC.e bridge-asset note adds margin"
+    },
+    "aerodrome_base": {
+      "tier": "T2",
+      "risk_score": 0.45,
+      "note": "Aerodrome Base \u2014 AMM stable LP + AERO emissions"
+    },
+    "compound_v3": {
+      "tier": "T1",
+      "risk_score": 0.12,
+      "note": "Compound V3 Comet USDC \u2014 blue-chip, single-asset Comet"
+    },
+    "dolomite_arbitrum": {
+      "tier": "T2",
+      "risk_score": 0.4,
+      "note": "Dolomite Arbitrum \u2014 cross-chain lending, low TVL"
+    },
+    "ethena_susde": {
+      "tier": "T2",
+      "risk_score": 0.4,
+      "note": "Ethena sUSDe \u2014 delta-neutral, depeg & funding risk"
+    },
+    "euler_v2": {
+      "tier": "T2",
+      "risk_score": 0.38,
+      "note": "Euler V2 \u2014 re-audited rebuild after 2023 exploit"
+    },
+    "extra_finance_base": {
+      "tier": "T3",
+      "risk_score": 0.68,
+      "note": "Extra Finance XLend Base \u2014 isolated lending, small/new"
+    },
+    "fluid_fusdc": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "Fluid fUSDC \u2014 ERC-4626 vault, GSM gate"
+    },
+    "fluid_usdc": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "Fluid USDC lending \u2014 relatively new, medium TVL"
+    },
+    "frax": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "FraxLend USDC \u2014 utilisation-based yield, peg gate"
+    },
+    "maple": {
+      "tier": "T2",
+      "risk_score": 0.45,
+      "note": "Maple \u2014 private credit / undercollateralised RWA"
+    },
+    "moonwell_base": {
+      "tier": "T2",
+      "risk_score": 0.45,
+      "note": "Moonwell Base \u2014 smaller Base lending market"
+    },
+    "morpho_blue": {
+      "tier": "T2",
+      "risk_score": 0.3,
+      "note": "Morpho Blue \u2014 isolated lending markets, curator risk"
+    },
+    "morpho_blue_base": {
+      "tier": "T2",
+      "risk_score": 0.38,
+      "note": "Morpho Blue Base \u2014 Morpho code on Base L2"
+    },
+    "pendle": {
+      "tier": "T2",
+      "risk_score": 0.4,
+      "note": "Pendle \u2014 basis/yield-tokenisation, maturity & liquidity risk"
+    },
+    "pendle_pt_susde": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "Pendle PT sUSDe \u2014 fixed-rate PT, safer than YT"
+    },
+    "pendle_pt_usdc": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "Pendle PT USDC \u2014 fixed-rate PT, safer than YT"
+    },
+    "scrvusd": {
+      "tier": "T2",
+      "risk_score": 0.32,
+      "note": "Curve scrvUSD \u2014 savings crvUSD, soft-peg gate"
+    },
+    "sdai": {
+      "tier": "T2",
+      "risk_score": 0.26,
+      "note": "Maker sDAI \u2014 DSR yield, very safe but ERC-4626 wrapper risk"
+    },
+    "sfrax": {
+      "tier": "T2",
+      "risk_score": 0.3,
+      "note": "Frax sFRAX \u2014 Frax savings, peg-gated"
+    },
+    "silo_arbitrum": {
+      "tier": "T2",
+      "risk_score": 0.4,
+      "note": "Silo Arbitrum \u2014 cross-chain + isolated lending, low TVL"
+    },
+    "spark_susds": {
+      "tier": "T1",
+      "risk_score": 0.15,
+      "note": "Spark sUSDS \u2014 Sky/Maker-backed, DSR-style yield"
+    },
+    "stusd": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "Angle stUSD \u2014 hard-peg gate, RWA-backed yield"
+    },
+    "susde": {
+      "tier": "T3",
+      "risk_score": 0.65,
+      "note": "Ethena sUSDe (T3 adapter) \u2014 depeg + 7d unstake cooldown"
+    },
+    "usual_usd0pp": {
+      "tier": "T2",
+      "risk_score": 0.45,
+      "note": "Usual USD0++ \u2014 newer RWA-backed protocol"
+    },
+    "velodrome_optimism": {
+      "tier": "T2",
+      "risk_score": 0.45,
+      "note": "Velodrome Optimism \u2014 cross-chain AMM LP + VELO emissions"
+    },
+    "wusdm": {
+      "tier": "T2",
+      "risk_score": 0.35,
+      "note": "Mountain wUSDM \u2014 T-bill RWA backing, off-chain custody risk"
+    },
+    "yearn_v3": {
+      "tier": "T2",
+      "risk_score": 0.32,
+      "note": "Yearn V3 \u2014 ERC-4626 strategy vaults, strategy migration risk"
+    }
+  }
+}
