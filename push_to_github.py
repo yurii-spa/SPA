@@ -174,11 +174,9 @@ def main():
     if not files:
         parser.error("Укажи --file или --files")
 
-    # CF Pages / CI skip: по умолчанию все коммиты через Contents API пропускают CI.
-    # Лендинг деплоится через git push (spa_cf_fix*.command), который НЕ добавляет [skip ci].
+    # CI: больше не добавляем [skip ci] автоматически — CI должен запускаться на каждый коммит.
+    # Исключение: если сообщение явно содержит [skip ci] — оставляем как есть.
     message = args.message
-    if not args.trigger_deploy and "[skip ci]" not in message and "[ci skip]" not in message:
-        message = message + " [skip ci]"
 
     # --pat аргумент имеет приоритет над авто-обнаружением
     if args.pat:
