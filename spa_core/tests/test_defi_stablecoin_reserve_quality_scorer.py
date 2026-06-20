@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_stablecoin_reserve_quality_sco
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_stablecoin_reserve_quality_scorer import (
     DeFiStablecoinReserveQualityScorer,
