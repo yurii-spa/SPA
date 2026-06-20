@@ -46,7 +46,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.alpha_decay")
@@ -118,9 +117,9 @@ def _read_json(path: Path) -> Any:
         return None
 
 
-# ─── APY lookup index ─────────────────────────────────────────────────────────
-
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _build_apy_index(
     apy_history: List[Dict[str, Any]]
 ) -> Dict[Tuple[str, str], float]:
@@ -567,7 +566,7 @@ def write_status(
 
     out = dict(doc)
     out["history"] = history[-HISTORY_MAX:]
-    atomic_save(out, str(path))
+    _atomic_write_json(path, out)
     log.info("alpha_decay analytics written: %s", path)
     return {"path": str(path), "changed": True}
 
