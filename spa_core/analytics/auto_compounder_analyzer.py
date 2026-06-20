@@ -10,7 +10,7 @@ Advisory / read-only. Pure stdlib. Atomic writes. Ring-buffer log (cap=100).
 import json
 import os
 import time
-import tempfile
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -220,21 +220,7 @@ def _save_log(entries: list):
     _ensure_log_dir()
     if len(entries) > LOG_CAP:
         entries = entries[-LOG_CAP:]
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(LOG_PATH), suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(entries, f, indent=2)
-        os.replace(tmp_path, LOG_PATH)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(LOG_PATH))
 def log_result(result: dict):
     """Append *result* to the ring-buffer log at data/auto_compounder_log.json."""
     entries = _load_log()
