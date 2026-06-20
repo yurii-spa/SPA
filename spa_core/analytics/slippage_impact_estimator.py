@@ -16,9 +16,9 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, asdict
 from typing import List
+from spa_core.utils.atomic import atomic_save
 
 
 # ---------------------------------------------------------------------------
@@ -289,18 +289,7 @@ def save_results(result: SlippageResult, data_file: str = DEFAULT_DATA_FILE) -> 
         history = history[-RING_BUFFER_CAP:]
 
     os.makedirs(os.path.dirname(data_file), exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(data_file), suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(history, f, indent=2)
-        os.replace(tmp_path, data_file)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
-
+    atomic_save(history, str(data_file))
     result.saved_to = data_file
     return data_file
 
