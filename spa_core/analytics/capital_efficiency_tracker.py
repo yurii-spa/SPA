@@ -47,12 +47,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -194,7 +192,7 @@ def compute_position_efficiency(
 # CapitalEfficiencyTracker class
 # ---------------------------------------------------------------------------
 
-class CapitalEfficiencyTracker(BaseAnalytics):
+class CapitalEfficiencyTracker:
     """Stateful tracker that accumulates runs into a ring-buffer log.
 
     Usage
@@ -207,21 +205,14 @@ class CapitalEfficiencyTracker(BaseAnalytics):
         score   = tracker.get_efficiency_score()
     """
 
-    OUTPUT_PATH = "data/capital_efficiency_log.json"
-
     def __init__(
         self,
         data_dir: Optional[Path | str] = None,
         ring_cap: int = RING_BUFFER_CAP,
     ) -> None:
-        super().__init__()
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self._ring_cap = ring_cap
         self._last_result: Optional[Dict[str, Any]] = None
-
-    def to_dict(self) -> dict:
-        """Returns last efficiency result as JSON-serializable dict."""
-        return dict(self._last_result) if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -413,19 +404,7 @@ def _load_json_list(path: Path) -> List[Any]:
 def _atomic_write(path: Path, data: Any) -> None:
     """Write *data* as JSON to *path* atomically (tmp + os.replace)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 # ---------------------------------------------------------------------------
 # Module-level functional API (mirrors paper_trading analytics pattern)
 # ---------------------------------------------------------------------------
