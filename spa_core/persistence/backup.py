@@ -40,6 +40,8 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from spa_core.utils.atomic import atomic_save
+
 log = logging.getLogger("spa.track_backup")
 
 # Files that constitute the track record (copied when present).
@@ -98,21 +100,8 @@ def _atomic_copy(src: Path, dest: Path) -> None:
 
 
 def _atomic_write_json(path: Path, obj) -> None:
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
+    """Write JSON atomically via centralized atomic_save (MP-1451)."""
+    atomic_save(obj, str(path))
 
 
 def _rotate(backup_dir: Path, keep_last: int = KEEP_LAST) -> list[str]:
