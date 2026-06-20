@@ -24,10 +24,11 @@ import json
 import math
 import os
 import statistics
-import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
+
+from spa_core.utils.atomic import atomic_save
 
 # ── Protocol registry ─────────────────────────────────────────────────────────
 # Each protocol: launch date (ISO), tier, base APY (% in bull market), base TVL ($M)
@@ -239,17 +240,7 @@ class PITvsNaiveComparison:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
 
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=str(p.parent), suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(result, fh, indent=2)
-            os.replace(tmp_path, str(p))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(result, str(p))
 
     # ── Internal simulation ────────────────────────────────────────────────────
 
