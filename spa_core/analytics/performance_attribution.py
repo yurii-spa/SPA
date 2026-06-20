@@ -63,10 +63,11 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -615,21 +616,117 @@ class PerformanceAttributor:
         }
 
         # Atomic write: tmp → os.replace
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(self.data_dir),
-            prefix=f".{REPORT_FILENAME}.",
-            suffix=".tmp",
+        atomic_save(out, str(path))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MP-1510 (v11.26) — PerformanceAttribution  (strategy-level BHB wrapper)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class PerformanceAttribution(BaseAnalytics):
+    """
+    Brinson-Hood-Beebower performance attribution model for tournament strategies.
+
+    Wraps the PerformanceAttributor math with a BaseAnalytics-compatible
+    interface so results can be saved atomically to data/.
+
+    Advisory only — never touches allocator / risk / execution.
+    """
+
+    OUTPUT_PATH: str = "data/performance_attribution_mp1510.json"
+
+    def __init__(self, base_dir: str = ".") -> None:
+        super().__init__(base_dir)
+        self._data: dict = {
+            "attribution": {},
+            "total_return": 0.0,
+            "benchmark_return": 0.04 / 252,  # 4 % annual / 252 trading days
+        }
+
+    # ------------------------------------------------------------------ #
+    # Public API
+    # ------------------------------------------------------------------ #
+
+    def calculate(
+        self,
+        strategy_weights: Dict[str, float],
+        strategy_returns: Dict[str, float],
+        benchmark_weights: Optional[Dict[str, float]] = None,
+        benchmark_return: Optional[float] = None,
+    ) -> dict:
+        """
+        BHB attribution decomposition for tournament strategies.
+
+        Args:
+            strategy_weights:  Actual portfolio weights  {"S7": 0.30, ...}
+            strategy_returns:  Actual strategy returns   {"S7": 0.001, ...}
+            benchmark_weights: Benchmark weights (equal-weight if None)
+            benchmark_return:  Scalar benchmark return (uses daily 4 % if None)
+
+        Returns dict with:
+            attribution  — per-strategy breakdown
+            total_return — portfolio return
+            benchmark_return — scalar benchmark used
+        """
+        n = len(strategy_weights)
+        if n == 0:
+            return self._data
+
+        bw: Dict[str, float] = benchmark_weights or {s: 1.0 / n for s in strategy_weights}
+        br: float = benchmark_return if benchmark_return is not None else self._data["benchmark_return"]
+
+        total_portfolio_return: float = sum(
+            w * strategy_returns.get(s, 0.0) for s, w in strategy_weights.items()
         )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(out, fh, ensure_ascii=False, indent=2)
-                fh.write("\n")
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_path, str(path))
-        except Exception:
-            try:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-            finally:
-                raise
+
+        attribution: dict = {}
+        for strategy, wp in strategy_weights.items():
+            wb = bw.get(strategy, 0.0)
+            rp = strategy_returns.get(strategy, 0.0)
+
+            allocation_effect = (wp - wb) * (rp - br)
+            selection_effect = wb * (rp - br)
+            interaction_effect = (wp - wb) * (rp - br)
+
+            attribution[strategy] = {
+                "weight": wp,
+                "return": rp,
+                "allocation_effect": allocation_effect,
+                "selection_effect": selection_effect,
+                "interaction_effect": interaction_effect,
+                "total_contribution": wp * rp,
+            }
+
+        self._data = {
+            "attribution": attribution,
+            "total_return": total_portfolio_return,
+            "benchmark_return": br,
+        }
+        self.save()
+        return self._data
+
+    def to_dict(self) -> dict:
+        return self._data
+
+    def top_contributors(self, n: int = 3) -> list:
+        """Returns top-n strategies by total_contribution (descending)."""
+        items = [
+            (sid, v["total_contribution"])
+            for sid, v in self._data["attribution"].items()
+        ]
+        items.sort(key=lambda x: x[1], reverse=True)
+        return [{"strategy": sid, "contribution": c} for sid, c in items[:n]]
+
+    def top_detractors(self, n: int = 3) -> list:
+        """Returns top-n strategies by total_contribution (ascending / worst)."""
+        items = [
+            (sid, v["total_contribution"])
+            for sid, v in self._data["attribution"].items()
+        ]
+        items.sort(key=lambda x: x[1])
+        return [{"strategy": sid, "contribution": c} for sid, c in items[:n]]
+
+    def active_return(self) -> float:
+        """Portfolio return minus benchmark return."""
+        return self._data["total_return"] - self._data["benchmark_return"]
