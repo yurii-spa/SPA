@@ -25,7 +25,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from dataclasses import asdict, dataclass, field
@@ -46,6 +45,7 @@ from spa_core.orchestrator.health_score import (
     compute_health_score,
     compute_overall_health,
 )
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger(__name__)
 
@@ -275,30 +275,8 @@ def _build_summary(adapters: list[dict], overall: dict) -> dict:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Записать JSON атомарно: tmpfile в той же директории + os.replace (rename).
-
-    os.replace атомарен в пределах одной файловой системы — читатели всегда видят
-    либо старый, либо новый файл целиком, без частично записанного состояния.
-    """
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _append_run(runs_path: Path, run_record: dict) -> None:
     """Дописать прогон в кольцевой буфер ``orchestrator_runs.json`` (последние N)."""
     runs_path = Path(runs_path)
