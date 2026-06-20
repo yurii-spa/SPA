@@ -1,0 +1,47 @@
+[
+  {
+    "ts": "2026-06-14T20:19:06.575900+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_vulnerable_vault": "DAI-Vault-FreshDeploy",
+      "least_vulnerable_vault": "USDC-Vault-Mature",
+      "avg_vulnerability_score": 41.33,
+      "high_risk_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Vault-Mature",
+        "classification": "WELL_PROTECTED",
+        "vulnerability_score": 100.0,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "WELL_PROTECTED",
+          "HAS_VIRTUAL_SHARES",
+          "DEAD_SHARES_BUFFER",
+          "DECIMALS_OFFSET_PROTECTION"
+        ]
+      },
+      {
+        "token": "ETH-Vault-Young",
+        "classification": "MODERATE_RISK",
+        "vulnerability_score": 22.0,
+        "recommendation": "DEPLOY_CAUTIOUSLY",
+        "flags": [
+          "NO_INFLATION_PROTECTION"
+        ]
+      },
+      {
+        "token": "DAI-Vault-FreshDeploy",
+        "classification": "HIGH_RISK",
+        "vulnerability_score": 2.0,
+        "recommendation": "AVOID",
+        "flags": [
+          "TINY_SHARE_SUPPLY",
+          "NO_INFLATION_PROTECTION",
+          "HIGH_ROUNDING_LOSS_RISK"
+        ]
+      }
+    ]
+  }
+]
