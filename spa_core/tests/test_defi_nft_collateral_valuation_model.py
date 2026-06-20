@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_nft_collateral_valuation_model
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure project root is on path
 _HERE = os.path.dirname(__file__)
