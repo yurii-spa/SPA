@@ -11,7 +11,7 @@ import json
 import math
 import os
 import time
-import tempfile
+from spa_core.utils.atomic import atomic_save
 
 _DEFAULT_CONFIG = {
     "default_periods": 12,            # projection horizon when params omits "periods"
@@ -238,19 +238,7 @@ def log_result(result: dict, log_path: str = None) -> None:
     if log_dir and not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
 
-    fd, tmp_path = tempfile.mkstemp(dir=log_dir or ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(log, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(log, str(log_path))
 def forecast_and_log(protocol: str, params: dict, config: dict = None, log_path: str = None) -> dict:
     """forecast() + log_result(). Returns the result dict."""
     result = forecast(protocol, params, config)
