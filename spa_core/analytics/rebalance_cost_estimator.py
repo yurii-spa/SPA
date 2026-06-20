@@ -22,6 +22,8 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
+from spa_core.utils.errors import SPAError
+
 # ---------------------------------------------------------------------------
 # Constants / defaults
 # ---------------------------------------------------------------------------
@@ -215,7 +217,7 @@ class RebalanceCostEstimator:
     def save(self) -> str:
         """Atomically append last result to ring-buffer log. Returns log path."""
         if self._last_result is None:
-            raise RuntimeError("No estimate to save; call estimate() first.")
+            raise SPAError("No estimate to save; call estimate() first.", code="NOT_INITIALIZED")
 
         log_path = os.path.join(self._data_dir, LOG_FILENAME)
         log = _load_log(log_path)
