@@ -27,10 +27,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 # ─── Source state constants ───────────────────────────────────────────────────
 
@@ -315,31 +316,16 @@ class SourcePipeline:
         return None
 
     def _save(self) -> None:
-        """Atomically persist current state (mkstemp + os.replace)."""
-        self._data_dir.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(
+        """Atomically persist current state (atomic_save)."""
+        atomic_save(
             {
                 "schema_version": SCHEMA_VERSION,
                 "last_updated": datetime.now(timezone.utc).isoformat(),
                 "sources": self._sources,
                 "audit_log": self._audit_log,
             },
-            indent=2,
-            ensure_ascii=False,
+            str(self._path),
         )
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self._data_dir, prefix=".source_pipeline_tmp_", suffix=".json"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, self._path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
 
     def save(self) -> None:
         """Public wrapper: persist current state to disk."""
