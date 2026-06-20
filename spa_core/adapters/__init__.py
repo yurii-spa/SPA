@@ -67,6 +67,28 @@ try:
 except ImportError:
     _EXTRA_FINANCE_BASE_AVAILABLE = False
 
+# Multichain expansion — Arbitrum / Optimism new-protocol read-only APY feeds
+# (DeFiLlama live fetch + cached fallback). NOTE: Aave V3 Arbitrum (aave_arbitrum)
+# and Aave V3 Optimism (aave_v3_optimism) already exist above and are NOT
+# duplicated here — these add genuinely new pools (Radiant, GMX GLP, Velodrome).
+try:
+    from .radiant_arbitrum_adapter import RadiantArbitrumAdapter
+    _RADIANT_ARBITRUM_AVAILABLE = True
+except ImportError:
+    _RADIANT_ARBITRUM_AVAILABLE = False
+
+try:
+    from .gmx_glp_arbitrum_adapter import GmxGlpArbitrumAdapter
+    _GMX_GLP_ARBITRUM_AVAILABLE = True
+except ImportError:
+    _GMX_GLP_ARBITRUM_AVAILABLE = False
+
+try:
+    from .velodrome_optimism_adapter import VelodromeOptimismAdapter
+    _VELODROME_OPTIMISM_AVAILABLE = True
+except ImportError:
+    _VELODROME_OPTIMISM_AVAILABLE = False
+
 # ADR-025 Phase 1: Base chain read-only APY feeds (no capital allocation)
 # Populated at import time with whichever Base adapters are available.
 BASE_CHAIN_ADAPTERS: dict = {}  # ADR-025: key -> adapter instance, read-only
@@ -124,6 +146,20 @@ if _MOONWELL_BASE_AVAILABLE:
 if _EXTRA_FINANCE_BASE_AVAILABLE:
     ADAPTER_REGISTRY.append(("extra_finance_base", "T3", ExtraFinanceBaseAdapter))  # MP-510
 
+# Multichain expansion: new Arbitrum / Optimism protocol pools (all T2).
+# These are genuinely new pools (no pre-existing registry entry), so registering
+# them does not double-count an existing Aave-Arbitrum/Optimism position.
+MULTICHAIN_L2_ADAPTERS: dict = {}  # key -> adapter instance, read-only feeds
+if _RADIANT_ARBITRUM_AVAILABLE:
+    ADAPTER_REGISTRY.append(("radiant_arbitrum", "T2", RadiantArbitrumAdapter))
+    MULTICHAIN_L2_ADAPTERS["radiant-arbitrum"] = RadiantArbitrumAdapter()
+if _GMX_GLP_ARBITRUM_AVAILABLE:
+    ADAPTER_REGISTRY.append(("gmx_glp_arbitrum", "T2", GmxGlpArbitrumAdapter))
+    MULTICHAIN_L2_ADAPTERS["gmx-glp-arbitrum"] = GmxGlpArbitrumAdapter()
+if _VELODROME_OPTIMISM_AVAILABLE:
+    ADAPTER_REGISTRY.append(("velodrome_optimism", "T2", VelodromeOptimismAdapter))
+    MULTICHAIN_L2_ADAPTERS["velodrome-optimism"] = VelodromeOptimismAdapter()
+
 __all__ = [
     "BaseAdapter",
     "YieldInfo",
@@ -154,6 +190,10 @@ __all__ = [
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
     "ExtraFinanceBaseAdapter",  # MP-510
+    "RadiantArbitrumAdapter",       # multichain expansion (Arbitrum)
+    "GmxGlpArbitrumAdapter",        # multichain expansion (Arbitrum)
+    "VelodromeOptimismAdapter",     # multichain expansion (Optimism)
     "BASE_CHAIN_ADAPTERS",
+    "MULTICHAIN_L2_ADAPTERS",
     "ADAPTER_REGISTRY",
 ]
