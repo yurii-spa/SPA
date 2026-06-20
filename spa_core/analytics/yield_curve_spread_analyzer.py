@@ -10,10 +10,10 @@ Pure Python stdlib only. Atomic JSON writes via tmp+os.replace. Ring-buffer cap 
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, asdict
 from typing import List, Optional
 from statistics import mean
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Data file
@@ -275,18 +275,7 @@ def save_results(result: YieldCurveAnalysisResult, data_file: Optional[str] = No
         history = history[-_RING_BUFFER_CAP:]
 
     os.makedirs(os.path.dirname(data_file), exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(data_file), suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w") as fh:
-            json.dump(history, fh, indent=2)
-        os.replace(tmp_path, data_file)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(history, str(data_file))
     return data_file
 
 
