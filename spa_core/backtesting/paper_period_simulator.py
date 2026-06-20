@@ -32,11 +32,11 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
 from spa_core.backtesting.point_in_time_whitelist import PointInTimeWhitelist
+from spa_core.utils.atomic import atomic_save
 
 
 # ── Predefined simulation periods ─────────────────────────────────────────────
@@ -423,19 +423,4 @@ class PaperPeriodSimulator:
         out_path = Path(path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Atomic write: temp file in same directory, then rename
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(out_path.parent),
-            prefix=".tmp_paper_period_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, indent=2)
-            os.replace(tmp_path, str(out_path))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(payload, str(out_path))
