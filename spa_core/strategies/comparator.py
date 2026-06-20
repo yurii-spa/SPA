@@ -26,7 +26,6 @@ import os
 import sys
 from math import sqrt
 from pathlib import Path
-
 from spa_core.utils.atomic import atomic_save
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -61,7 +60,9 @@ def _load_json(path: Path) -> dict:
         return {}
 
 
-
+def _atomic_write(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_save(data, str(path))
 def _returns(equity_curve: list[dict]) -> list[float]:
     """Per-step fractional returns from an equity curve."""
     rets: list[float] = []
@@ -204,7 +205,7 @@ def _clean(value):
 
 def write_comparison(now_iso: str | None = None, output: Path = _OUTPUT) -> dict:
     doc = build_comparison(now_iso)
-    atomic_save(doc, str(output))
+    _atomic_write(output, doc)
     return doc
 
 
