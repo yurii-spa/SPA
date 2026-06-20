@@ -62,7 +62,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.audit_trail")
 
@@ -120,9 +120,9 @@ def _atomic_append_jsonl(path: Path, line: str) -> None:
             raise
 
 
-# ─── Internal helpers ─────────────────────────────────────────────────────────
-
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _get_trail_path(data_dir: str | None) -> Path:
     ddir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
     return ddir / AUDIT_FILENAME
