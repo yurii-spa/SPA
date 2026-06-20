@@ -232,6 +232,11 @@ class LiquidationRiskHeatmap(BaseAnalytics):
         """Returns last heatmap result as JSON-serializable dict."""
         return self._last_result.to_dict() if self._last_result else {}
 
+    def analyze(self, positions: Sequence[dict] = (), **kwargs) -> dict:
+        """Implement BaseAnalytics.analyze — delegates to compute_heatmap."""
+        result = self.compute_heatmap(list(positions))
+        return result.to_dict()
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
