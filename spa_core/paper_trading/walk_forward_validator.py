@@ -1,3 +1,10 @@
+# DEPRECATED — orphaned module. Canonical: spa_core.backtesting.walk_forward_validator
+# No active imports point here. TODO: remove in next cleanup.
+# This file is kept for git history only.
+raise ImportError(
+    "DEPRECATED: use spa_core.backtesting.walk_forward_validator instead"
+)
+
 #!/usr/bin/env python3
 """Walk-Forward Validation Harness (SPA-V428 / MP-128) — read-only / advisory.
 
