@@ -254,6 +254,33 @@ class S12BaseLayerYield:
 
 # ─── CLI точка входа ──────────────────────────────────────────────────────────
 
+# ─── Авто-регистрация в StrategyRegistry ─────────────────────────────────────
+
+def _register_s12() -> None:
+    """Авто-регистрация S12 в spa_core/strategies/strategy_registry.py REGISTRY."""
+    try:
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta
+        REGISTRY.register(StrategyMeta(
+            id=STRATEGY_ID,
+            name=STRATEGY_NAME,
+            type="lending",
+            risk_tier="T3",
+            target_apy_min=5.0,
+            target_apy_max=8.0,
+            max_drawdown_pct=5.0,
+            description=DESCRIPTION,
+            module="spa_core.strategies.s12_base_layer_yield",
+            handler_class="S12BaseLayerYield",
+            tags=["base_chain", "multi_protocol", "l2", "t3", "paper_only", "phase_gated"],
+        ))
+    except Exception as _exc:
+        import logging
+        logging.getLogger(__name__).warning("S12 auto-registration failed: %s", _exc)
+
+
+_register_s12()
+
+
 if __name__ == "__main__":
     import json
 
