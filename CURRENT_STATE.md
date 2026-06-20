@@ -1,9 +1,35 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v12.04** | Done: **1221** задач
+> Последнее обновление: **2026-06-21** | Версия: **v12.05** | Done: **1286** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+## KANBAN Full Sync — 2026-06-21 (v12.05)
+
+Полная синхронизация KANBAN.json с фактически реализованным кодом.
+
+| Метрика | Значение |
+|---------|----------|
+| done_count | **1234 → 1286** (+52) |
+| Board (columns) | done **728** / in_progress **2** / backlog **33** = **763** |
+| Синхронизировано из кода | **32** (22× WEB landing-правки + MP-379 httpserver + 4× AGENT P0 + 5× tasks MP-1300–1304) |
+| Новых тикетов | **24** (21 MP + 3 WEB): done **20**, in_progress **2**, backlog **2** |
+
+**⚠️ Ремап ID:** запрошенные MP-1300…MP-1320 уже заняты несвязанной работой
+(MP-1300=point-in-time whitelist и т.д.). Новые тикеты получили свободный диапазон
+**MP-1555…MP-1575**; в title каждого указан исходный запрошенный ID (`req MP-13xx`).
+
+**Новые тикеты (MP-1555–1575, WEB-023–025):**
+- DONE (код существует): Fluid/Usual/Arbitrum/Optimism адаптеры, Kelly sizer,
+  parameter optimizer, VaR, stress tester, correlation tracker, backtest runner,
+  historical APY pipeline, adaptive scheduler, rebalance trigger, anomaly detector,
+  daily summary, telegram reports, tear sheet, performance attribution; WEB-023/024.
+- IN_PROGRESS: MP-1555 Ethena sUSDe adapter (файлы есть, дорабатывается),
+  MP-1562 S22–S25 (s25 в работе).
+- BACKLOG: MP-1563 S26–S30 exotic (не реализованы), WEB-025 Cloudflare Access (user action).
 
 ---
 
