@@ -1,0 +1,1245 @@
+{
+  "best_params": {
+    "t1_cap": 0.3,
+    "t2_cap": 0.25,
+    "cash_buffer": 0.03,
+    "rebalance_threshold": 0.05
+  },
+  "best_score": 50.27362091,
+  "best_detail": {
+    "params": {
+      "t1_cap": 0.3,
+      "t2_cap": 0.25,
+      "cash_buffer": 0.03,
+      "rebalance_threshold": 0.05
+    },
+    "paper_sharpe": 100.481585,
+    "expected_apy_pct": 8.65,
+    "risk_adjusted_apy_pct": 6.565647,
+    "hhi": 0.250717,
+    "turnover_cost_pct": 0.6,
+    "tracking_error_pct": 0.4,
+    "score": 50.27362091
+  },
+  "num_combinations": 81,
+  "paper_sharpe": 100.481585,
+  "all_results": [
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.565647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27362091
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.565647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27362091
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.565647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27362091
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.550647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27354591
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.550647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27354591
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.550647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27354591
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.457828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27308182
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.457828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27308182
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.457828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27308182
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.442828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27300682
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.442828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27300682
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.442828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27300682
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.42867,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27293603
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.42867,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27293603
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.42867,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27293603
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.41367,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27286103
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.41367,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27286103
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.41367,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27286103
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.32597,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27242253
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.32597,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27242253
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.32597,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27242253
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.325647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27242091
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.325647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27242091
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.65,
+      "risk_adjusted_apy_pct": 6.325647,
+      "hhi": 0.250717,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27242091
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.31097,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27234753
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.31097,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27234753
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.31097,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27234753
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.28851,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27223523
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.28851,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27223523
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.28851,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27223523
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.27351,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27216023
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.27351,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27216023
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.27351,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27216023
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.217828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27188182
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.217828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27188182
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.29,
+      "risk_adjusted_apy_pct": 6.217828,
+      "hhi": 0.200765,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27188182
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 6.190848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27174692
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 6.190848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27174692
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 6.190848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27174692
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.18867,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27173603
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.18867,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27173603
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.5,
+      "risk_adjusted_apy_pct": 6.18867,
+      "hhi": 0.252078,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27173603
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 6.175848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27167192
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 6.175848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27167192
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 6.175848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27167192
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 6.137647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27148091
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 6.137647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27148091
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 6.137647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27148091
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 6.122647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27140591
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 6.122647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27140591
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 6.122647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27140591
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.08597,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27122253
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.08597,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27122253
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.15,
+      "risk_adjusted_apy_pct": 6.08597,
+      "hhi": 0.202216,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27122253
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.04851,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27103523
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.04851,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27103523
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.25,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.35,
+      "risk_adjusted_apy_pct": 6.04851,
+      "hhi": 0.254249,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27103523
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 6.026558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27092547
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 6.026558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27092547
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 6.026558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27092547
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 6.011558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27085047
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 6.011558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27085047
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 6.011558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27085047
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 5.950848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27054692
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 5.950848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27054692
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.2,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 8.01,
+      "risk_adjusted_apy_pct": 5.950848,
+      "hhi": 0.204532,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27054692
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.912979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27035757
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.912979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27035757
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.05
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.912979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 0.6,
+      "tracking_error_pct": 0.4,
+      "score": 50.27035757
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.897979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27028257
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.897979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27028257
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.08
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.897979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 0.375,
+      "tracking_error_pct": 0.64,
+      "score": 50.27028257
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 5.897647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27028091
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 5.897647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27028091
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.03,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.805,
+      "risk_adjusted_apy_pct": 5.897647,
+      "hhi": 0.171006,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.27028091
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 5.786558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.26972547
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 5.786558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.26972547
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.05,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.675,
+      "risk_adjusted_apy_pct": 5.786558,
+      "hhi": 0.168975,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.26972547
+    },
+    {
+      "params": {
+        "t1_cap": 0.3,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.672979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.26915757
+    },
+    {
+      "params": {
+        "t1_cap": 0.4,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.672979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.26915757
+    },
+    {
+      "params": {
+        "t1_cap": 0.5,
+        "t2_cap": 0.15,
+        "cash_buffer": 0.07,
+        "rebalance_threshold": 0.03
+      },
+      "paper_sharpe": 100.481585,
+      "expected_apy_pct": 7.545,
+      "risk_adjusted_apy_pct": 5.672979,
+      "hhi": 0.167534,
+      "turnover_cost_pct": 1.0,
+      "tracking_error_pct": 0.24,
+      "score": 50.26915757
+    }
+  ],
+  "timestamp": "2026-06-20T23:42:54.110876+00:00",
+  "notes": []
+}
