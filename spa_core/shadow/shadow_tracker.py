@@ -38,6 +38,9 @@ INITIAL_CAPITAL = 100_000.0
 MAX_HISTORY_POINTS = 365  # ring-buffer of daily equity snapshots
 
 
+def _atomic_write_json(path: Path, obj) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default):
     path = Path(path)
     if not path.exists():
@@ -137,5 +140,5 @@ def run_shadow_cycle(
         "strategies": strategies_out,
         "history": history,
     }
-    atomic_save(doc, str(ddir / SHADOW_FILENAME))
+    _atomic_write_json(ddir / SHADOW_FILENAME, doc)
     return doc
