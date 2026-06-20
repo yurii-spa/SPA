@@ -72,10 +72,10 @@ import hashlib
 import json
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 ANCHORS_FILENAME = "proof_of_track_anchors.json"
 AUDIT_FILENAME = "audit_trail.jsonl"      # как в audit_trail.py (MP-310)
@@ -306,31 +306,8 @@ def load_anchors(*, data_dir: Optional[str] = None) -> dict:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Атомарная запись JSON: tmp в той же папке + os.replace
-    (паттерн spa_core/governance/capital_ladder.py)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
-    finally:
-        # двойная страховка: после успешного os.replace tmp уже не существует
-        if os.path.exists(tmp):
-            try:
-                os.remove(tmp)
-            except OSError:
-                pass
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _new_anchor(date: str, root: Optional[str], leaf_count: int) -> dict:
     return {
         "date": date,
