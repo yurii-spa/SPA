@@ -6,15 +6,13 @@ import PaperTrackRecord from '../components/PaperTrackRecord.astro';
 import HowItWorks from '../components/HowItWorks.astro';
 import TrustSignals from '../components/TrustSignals.astro';
 import RiskGatesSnapshot from '../components/RiskGatesSnapshot.astro';
-import FeeStructure from '../components/FeeStructure.astro';
-import CompetitorTable from '../components/CompetitorTable.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import Footer from '../components/Footer.astro';
 ---
 
 <Layout
-  title="SPA — Institutional-Grade DeFi Yield. Verified Daily. | earn-defi.com"
-  description="Autonomous yield optimizer for family offices. Three risk profiles, deterministic risk policy, 30-day verified paper track record. Built on Aave, Morpho, Compound. Go-live August 2026."
+  title="SPA — Systematic onchain stablecoin yield | earn-defi.com"
+  description="Personal research project building a systematic DeFi yield optimizer. Paper validation since June 10, 2026. Open methodology journal. Not raising capital."
 >
 
   <!-- 1. Hero -->
@@ -35,45 +33,39 @@ import Footer from '../components/Footer.astro';
   <!-- 6. Risk Gates Snapshot -->
   <RiskGatesSnapshot />
 
-  <!-- 7. Fee Structure -->
-  <FeeStructure />
-
-  <!-- 8. Due Diligence CTA -->
+  <!-- 7. Methodology CTA — журнал, не привлечение -->
   <section class="py-20 px-4 sm:px-6 lg:px-8 text-center">
     <div class="max-w-2xl mx-auto">
-      <p class="text-xs text-white/30 uppercase tracking-widest font-mono mb-4">Due Diligence</p>
+      <p class="text-xs text-white/30 uppercase tracking-widest font-mono mb-4">Open Methodology</p>
       <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">
-        Ready for Deeper Analysis?
+        Methodology & Evidence Journal
       </h2>
       <p class="text-white/50 mb-10 leading-relaxed">
-        The dashboard is public. Every trade, every risk decision, every equity curve update
-        is there. Start your due diligence now — we'll tell you when we're ready for capital.
+        The dashboard is public. Every paper trade, every risk gate decision, every equity curve update
+        is logged and visible. This is a research project documenting what a systematic yield optimizer
+        looks like — built before asking anyone for capital.
       </p>
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
         <a
-          href="/dashboard"
+          href="/methodology"
           class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
         >
-          Start Due Diligence
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-            <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
-            <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
-          </svg>
+          Methodology Journal
         </a>
         <a
           href="/risk-disclosure"
           class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
         >
-          Read Full Risk Disclosure
+          Risk Disclosure
         </a>
       </div>
       <p class="text-sm text-white/30">
-        Talk to us: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+        Contact: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
       </p>
     </div>
   </section>
 
-  <!-- 9. FAQ -->
+  <!-- 8. FAQ — only methodology questions, no deposits/withdrawals -->
   <section id="faq" class="py-24 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <p class="text-white/30 text-sm font-mono uppercase tracking-widest mb-3">FAQ</p>
@@ -85,39 +77,29 @@ import Footer from '../components/Footer.astro';
 
         <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            How do I withdraw?
+            Is this a real trading system?
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
           </summary>
           <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
-            Withdrawals are processed on request. Standard processing time is usually within
-            1 business day, but large withdrawals or withdrawals requiring position unwinding
-            may take up to 5 business days. No withdrawal fee is planned for the MVP.
+            Yes — real APY/TVL data from live DeFi protocols, real deterministic risk policy, real daily cycles.
+            But no real capital yet: this is a paper simulation on a virtual $100,000 USDC portfolio.
+            Paper trading started June 10, 2026. Current APY: ~3.9% (paper, variable, not a forecast).
           </div>
         </details>
 
         <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            What tokens do you accept?
+            How are protocols selected?
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
           </summary>
           <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
-            USDT and USDC. We support ERC-20 networks. Network details are confirmed during onboarding.
-          </div>
-        </details>
-
-        <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
-          <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            Is there a minimum deposit?
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-            </svg>
-          </summary>
-          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
-            We don't publish fixed minimums. Allocations are discussed individually during onboarding.
+            Whitelisted protocols only — Tier 1 (Aave V3, Compound V3, Morpho Steakhouse) and Tier 2.
+            RiskPolicy v1.0 enforces: TVL ≥ $5M per pool, per-protocol cap 40% T1 / 20% T2,
+            T2 total cap ≤ 50%, APY gate 1–30%, cash buffer ≥ 5%.
           </div>
         </details>
 
@@ -129,9 +111,23 @@ import Footer from '../components/Footer.astro';
             </svg>
           </summary>
           <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
-            Fees are discussed individually. Early participants receive preferential terms.
-            Our model is performance-aligned &mdash;
-            <a href="/fees" class="text-accent-400/70 hover:text-accent-400 underline underline-offset-2 transition-colors">learn more</a>.
+            During paper trading: no fees charged. Future fee model (illustrative, live phase only):
+            performance-aligned with high-water mark.
+            See <a href="/fees" class="text-accent-400/70 hover:text-accent-400 underline underline-offset-2 transition-colors">Fees page</a> for details.
+          </div>
+        </details>
+
+        <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+          <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
+            When does live trading start?
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </summary>
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+            GoLiveChecker: 25/26 criteria passing (NOT READY). Target: ~August 1, 2026 — contingent on
+            all 26 criteria passing 7+ consecutive days + manual owner review (ADR-002).
+            Live will be own-capital only first — no third-party capital at this stage.
           </div>
         </details>
 
@@ -139,10 +135,7 @@ import Footer from '../components/Footer.astro';
     </div>
   </section>
 
-  <!-- 10. Competitor Table -->
-  <CompetitorTable />
-
-  <!-- 11. Disclaimer + Footer -->
+  <!-- 9. Disclaimer + Footer -->
   <Disclaimer />
   <Footer />
 
