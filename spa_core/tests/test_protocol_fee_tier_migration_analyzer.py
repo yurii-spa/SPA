@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_fee_tier_migration_analyze
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 _HERE = os.path.dirname(__file__)
 _ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
