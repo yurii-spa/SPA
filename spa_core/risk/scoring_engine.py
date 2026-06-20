@@ -118,6 +118,12 @@ DEFAULT_INCIDENTS_FILE = _REPO_ROOT / "data" / "incidents.json"
 DEFAULT_AUDIT_FILE = _REPO_ROOT / "data" / "audit_findings.json"
 DEFAULT_OUTPUT_PATH = _REPO_ROOT / "data" / "risk_scores.json"
 
+# FIX-P1 (AUDIT-011 — no live fetches from risk layer):
+# Local cache file written by the adapter pipeline (read-only consumer here).
+# When the cache exists the engine uses it as the protocols data source
+# instead of making live HTTP requests to DeFiLlama.
+DEFILLAMA_CACHE_FILE = _REPO_ROOT / "data" / "defi_llama_cache.json"
+
 # Grade thresholds (boundary inclusive on the high side)
 GRADE_THRESHOLDS = (
     ("A", 0.85),
@@ -467,50 +473,70 @@ class RiskScoringEngine:
 
     def _fetch_defillama_protocols(self, offline: bool = False) -> dict[str, dict[str, Any]]:
         """
-        Fetch DefiLlama /protocols and reshape to ``{slug: protocol_dict}``.
+        Return protocol data for risk scoring.
 
-        On any error (offline mode or network failure) returns
-        ``BOOTSTRAP_PROTOCOLS``. NEVER raises.
+        FIX-P1 (AUDIT-011 — no live fetches from risk layer):
+        The risk layer is deterministic and must not make live HTTP calls that
+        could introduce non-determinism or be poisoned by network data.
+
+        Priority order (no live network in any path):
+        1. Local DeFiLlama cache (``data/defi_llama_cache.json``) written by
+           the read-only adapter pipeline — most up-to-date offline source.
+        2. ``--offline`` mode / missing cache → BOOTSTRAP_PROTOCOLS (hardcoded
+           last-known-good values).
+
+        If the cache is stale or missing, a WARNING is logged and the engine
+        continues with bootstrap defaults.  ``fallback_used`` is set on output.
+        NEVER raises.
         """
         if offline:
             log.info("offline=True — using BOOTSTRAP_PROTOCOLS")
             return self._materialise_bootstrap()
 
-        last_err: Optional[str] = None
-        for attempt in range(FETCH_MAX_ATTEMPTS):
-            try:
-                req = urllib.request.Request(
-                    DEFILLAMA_PROTOCOLS_URL,
-                    headers={"User-Agent": "spa-risk-scoring-engine/1.0"},
+        # ── FIX-P1: try local cache first, NO live HTTP call ─────────────────
+        try:
+            if DEFILLAMA_CACHE_FILE.exists():
+                raw = DEFILLAMA_CACHE_FILE.read_text(encoding="utf-8")
+                payload = json.loads(raw)
+                if isinstance(payload, list):
+                    indexed: dict[str, dict[str, Any]] = {}
+                    for entry in payload:
+                        if not isinstance(entry, dict):
+                            continue
+                        slug = str(entry.get("slug", "")).strip().lower()
+                        if not slug:
+                            continue
+                        indexed[slug] = entry
+                    merged = self._materialise_bootstrap()
+                    for slug, entry in indexed.items():
+                        if slug not in merged:
+                            merged[slug] = self._reshape_defillama_entry(entry)
+                        else:
+                            merged[slug].update(self._reshape_defillama_entry(entry))
+                    log.info(
+                        "risk scoring: loaded %d protocols from local cache %s",
+                        len(indexed), DEFILLAMA_CACHE_FILE.name,
+                    )
+                    return merged
+                else:
+                    log.warning(
+                        "risk scoring: cache %s has unexpected format (%s) "
+                        "— using BOOTSTRAP_PROTOCOLS",
+                        DEFILLAMA_CACHE_FILE.name, type(payload).__name__,
+                    )
+            else:
+                log.warning(
+                    "risk scoring: local cache %s not found "
+                    "— using BOOTSTRAP_PROTOCOLS (last-known-good values). "
+                    "Run the adapter pipeline to refresh the cache.",
+                    DEFILLAMA_CACHE_FILE.name,
                 )
-                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    payload = json.loads(resp.read())
-                if not isinstance(payload, list):
-                    raise ValueError(f"unexpected DefiLlama payload type: {type(payload).__name__}")
-                indexed: dict[str, dict[str, Any]] = {}
-                for entry in payload:
-                    if not isinstance(entry, dict):
-                        continue
-                    slug = str(entry.get("slug", "")).strip().lower()
-                    if not slug:
-                        continue
-                    indexed[slug] = entry
-                # Merge bootstrap defaults to fill SPA whitelist gaps
-                merged = self._materialise_bootstrap()
-                for slug, entry in indexed.items():
-                    if slug not in merged:
-                        merged[slug] = self._reshape_defillama_entry(entry)
-                    else:
-                        merged[slug].update(self._reshape_defillama_entry(entry))
-                return merged
-            except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as e:
-                last_err = f"{type(e).__name__}: {e}"
-                if attempt < FETCH_MAX_ATTEMPTS - 1:
-                    import time
-                    time.sleep(FETCH_BACKOFF_BASE ** attempt)
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            log.warning(
+                "risk scoring: failed to read local cache (%s) — using BOOTSTRAP_PROTOCOLS",
+                e,
+            )
 
-        log.warning("DefiLlama unreachable after %d attempts (%s) — falling back to BOOTSTRAP_PROTOCOLS",
-                    FETCH_MAX_ATTEMPTS, last_err)
         self._fallback_used_run = True
         return self._materialise_bootstrap()
 
