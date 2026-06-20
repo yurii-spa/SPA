@@ -6,9 +6,9 @@ Uses unittest only (no pytest).
 
 import json
 import os
-import tempfile
 import time
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.whale_alert_detector import (
