@@ -26,7 +26,7 @@ Pure stdlib, read-only advisory, atomic writes.
 import json
 import os
 import time
-import tempfile
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -438,26 +438,7 @@ def log_result(result: dict, data_dir: str = "data") -> None:
         log = log[-_LOG_RING_SIZE:]
 
     os.makedirs(data_dir, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=data_dir, prefix=".protocol_upgrade_risk_log_", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(log, fh, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+    atomic_save(log, str(log_path))
     import argparse
 
     parser = argparse.ArgumentParser(description="MP-1039 ProtocolDeFiProtocolUpgradeRiskAnalyzer")
