@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_position_health_score_aggregat
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_position_health_score_aggregator import (
     DeFiPositionHealthScoreAggregator,
