@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -291,14 +291,4 @@ class ProtocolDeFiYieldStripPtYtAnalyzer:
             entries = entries[-LOG_CAP:]
 
         dir_path = os.path.dirname(log_path)
-        fd, tmp = tempfile.mkstemp(dir=dir_path, prefix=".yield_strip_log_", suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(entries, fh, indent=2)
-            os.replace(tmp, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(entries, str(log_path))
