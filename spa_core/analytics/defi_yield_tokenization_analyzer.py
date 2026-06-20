@@ -28,8 +28,8 @@ Pure Python stdlib only. Atomic writes via tmp + os.replace.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ── Labels ──────────────────────────────────────────────────────────────────
 LABEL_FIXED_RATE_ADVANTAGE = "FIXED_RATE_ADVANTAGE"   # implied_fixed > variable + 2%
@@ -164,19 +164,7 @@ def _atomic_write_yt(path: str, obj) -> None:
     """Write JSON atomically via tmp + os.replace."""
     dirpath = os.path.dirname(path) or "."
     os.makedirs(dirpath, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=dirpath, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(obj, str(path))
 def _load_yt_log(path: str) -> list:
     try:
         with open(path, "r", encoding="utf-8") as fh:
