@@ -125,6 +125,12 @@ def _finalize(result: dict) -> dict:
             _upsert_gap_alert(result)
         except Exception:
             pass  # fail-open: алерт-канал не должен ломать детекцию
+    else:
+        # gap resolved → убрать stale cycle_gap алерты из risk_alerts.json
+        try:
+            _clear_gap_alerts()
+        except Exception:
+            pass  # fail-open
     return result
 
 # ─── MP-101: CRITICAL-алерт в data/risk_alerts.json ─────────────────────────
@@ -212,6 +218,16 @@ def _attach_recovery_to_alert(day: str, recovery: dict) -> None:
             changed = True
     if changed:
         _save_alerts_doc(alerts)
+
+def _clear_gap_alerts() -> None:
+    """Удалить все cycle_gap алерты из risk_alerts.json когда gap resolved.
+    Вызывается из _finalize при status=ok (gap_detected=False).
+    Fail-safe: если файл недоступен — no-op."""
+    doc = _load_alerts_doc()
+    alerts = doc["alerts"]
+    filtered = [a for a in alerts if a.get("type") != ALERT_TYPE]
+    if len(filtered) < len(alerts):
+        _save_alerts_doc(filtered)
 
 # ─── MP-101: auto-recovery (детерминированная, идемпотентная) ────────────────
 
