@@ -34,11 +34,11 @@ import json
 import math
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -508,26 +508,7 @@ class DataFeedHealthScoreboard:
         }
 
         # Atomic write: tmp + os.replace.
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(out_path.parent),
-            prefix=f".{self.OUTPUT_FILE}.",
-            suffix=".tmp",
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(out, fh, ensure_ascii=False, indent=2)
-                fh.write("\n")
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_path, str(out_path))
-        except Exception:
-            try:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(out, str(out_path))
         return str(out_path)
 
     # -----------------------------------------------------------------------
