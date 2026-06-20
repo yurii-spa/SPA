@@ -38,7 +38,8 @@ from typing import Any
 # ── Constants ────────────────────────────────────────────────────────────────
 
 GO_LIVE_DATE     = "2026-07-15"
-PAPER_START_DATE = "2026-05-20"
+# Real track started 2026-06-10; data before this date is demo/invalid.
+PAPER_START_DATE = "2026-06-10"
 MIN_PAPER_DAYS   = 56    # minimum days of paper trading required (8 weeks)
 APY_TARGET       = 7.3   # target annualised APY (%)
 APY_GAP_MAX      = 2.0   # maximum allowed deviation from APY_TARGET (%)
@@ -93,7 +94,7 @@ def days_remaining() -> int:
 def check_paper_duration() -> dict:
     """Days of paper trading elapsed ≥ MIN_PAPER_DAYS.
 
-    Start date is hardcoded as PAPER_START_DATE (2026-05-20) and requires
+    Start date is hardcoded as PAPER_START_DATE (2026-06-10) and requires
     ≥ MIN_PAPER_DAYS (56) days of paper trading before PASS (8-week minimum
     per DEV_STRATEGY_v1.0).
     Any count below MIN_PAPER_DAYS is PENDING — never a hard FAIL, because being
