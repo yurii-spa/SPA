@@ -8,10 +8,10 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -348,17 +348,7 @@ def save_results(analysis: MigrationAnalysis) -> str:
     # Atomic write
     dir_path = os.path.dirname(_LOG_FILE)
     os.makedirs(dir_path, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(history, fh, indent=2)
-        os.replace(tmp_path, _LOG_FILE)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    atomic_save(history, str(_LOG_FILE))
     analysis.saved_to = _LOG_FILE
     return _LOG_FILE
 
