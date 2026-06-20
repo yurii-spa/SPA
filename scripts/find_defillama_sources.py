@@ -31,9 +31,9 @@ import json
 import os
 import sys
 import argparse
-import tempfile
 import urllib.request
 from datetime import datetime, timezone
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Config
@@ -228,22 +228,7 @@ def save_discovery(results: dict, path: str = "data/source_discovery.json") -> s
     }
 
     abs_path = os.path.abspath(path)
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(abs_path),
-        prefix=".tmp_source_discovery_",
-        suffix=".json",
-    )
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=2)
-        os.replace(tmp_path, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(payload, str(abs_path))
     return abs_path
 
 
