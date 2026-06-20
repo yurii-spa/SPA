@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_liquid_staking_premium_analyze
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure the repo root is on the path
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
