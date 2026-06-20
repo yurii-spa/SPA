@@ -4,8 +4,8 @@ Tests for MP-672: LiquidityPoolDepthAnalyzer
 """
 
 import json
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.liquidity_pool_depth_analyzer import (
