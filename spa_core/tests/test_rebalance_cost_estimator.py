@@ -32,6 +32,7 @@ from spa_core.analytics.rebalance_cost_estimator import (
     _load_log,
     estimate_rebalance_cost,
 )
+from spa_core.utils.errors import SPAError
 
 
 # ---------------------------------------------------------------------------
@@ -402,7 +403,7 @@ class TestRebalanceCostEstimatorClass(unittest.TestCase):
         self.assertIsInstance(data, list)
 
     def test_save_without_estimate_raises(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             self.est.save()
 
     def test_save_appends_entry(self):
