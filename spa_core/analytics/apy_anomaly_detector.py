@@ -54,6 +54,7 @@ import logging
 import math
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -204,6 +205,21 @@ def _detect_single(
 
 
 # ---------------------------------------------------------------------------
+# Anomaly record for scan_all_adapters API
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _AnomalyRecord:
+    """Lightweight anomaly result returned by scan_all_adapters()."""
+    adapter_id: str
+    reported_apy: float
+    anomaly_type: str   # "OUTLIER" | "NEGATIVE" | "SPIKE" | "DROP"
+    severity: str       # "CRITICAL" | "WARNING" | "INFO"
+    message: str
+
+
+# ---------------------------------------------------------------------------
 # APYAnomalyDetector class
 # ---------------------------------------------------------------------------
 
@@ -328,6 +344,107 @@ class APYAnomalyDetector:
                 "by_protocol": {},
             }
         return dict(self._last_result.get("summary", {}))
+
+    # ------------------------------------------------------------------
+    # High-level convenience API (scan_all_adapters / generate_report)
+    # ------------------------------------------------------------------
+
+    # Absolute bounds for anomaly classification (no history needed).
+    _MAX_APY: float = 0.50   # APY fraction > 50% → OUTLIER (CRITICAL)
+    _MIN_APY: float = -0.01  # APY fraction < -1% → NEGATIVE (CRITICAL)
+
+    def scan_all_adapters(
+        self, apy_map: Dict[str, float]
+    ) -> List["_AnomalyRecord"]:
+        """Scan a snapshot of current APYs and return anomaly records.
+
+        Uses absolute bounds (no historical data required):
+        * APY > _MAX_APY (50%) → OUTLIER / CRITICAL
+        * APY < _MIN_APY (-1%) → NEGATIVE / CRITICAL
+
+        Parameters
+        ----------
+        apy_map:
+            Mapping of adapter_id → current APY as a fraction (e.g. 0.05 = 5%).
+
+        Returns
+        -------
+        List of :class:`_AnomalyRecord` for anomalous adapters only.
+        """
+        records: List[_AnomalyRecord] = []
+        for adapter_id, apy in apy_map.items():
+            try:
+                current = float(apy)
+            except (TypeError, ValueError):
+                continue
+            if current > self._MAX_APY:
+                records.append(_AnomalyRecord(
+                    adapter_id=adapter_id,
+                    reported_apy=current,
+                    anomaly_type="OUTLIER",
+                    severity="CRITICAL",
+                    message=(
+                        f"APY {current:.2%} exceeds ceiling {self._MAX_APY:.0%}"
+                    ),
+                ))
+            elif current < self._MIN_APY:
+                records.append(_AnomalyRecord(
+                    adapter_id=adapter_id,
+                    reported_apy=current,
+                    anomaly_type="NEGATIVE",
+                    severity="CRITICAL",
+                    message=(
+                        f"APY {current:.2%} below floor {self._MIN_APY:.0%}"
+                    ),
+                ))
+        return records
+
+    def generate_report(self, apy_map: Dict[str, float]) -> Dict[str, Any]:
+        """Generate a structured anomaly report for the given APY snapshot.
+
+        Returns
+        -------
+        Dict with keys: generated_at, anomalies, critical_count,
+        warning_count, info_count, clean_adapters, advisory.
+        """
+        from datetime import datetime, timezone
+        anomalies = self.scan_all_adapters(apy_map)
+        critical = [a for a in anomalies if a.severity == "CRITICAL"]
+        warnings_list = [a for a in anomalies if a.severity == "WARNING"]
+        info_list = [a for a in anomalies if a.severity == "INFO"]
+        anomalous_ids = {a.adapter_id for a in anomalies}
+        clean = [aid for aid in apy_map if aid not in anomalous_ids]
+
+        if critical:
+            advisory = (
+                f"CRITICAL: {len(critical)} adapter(s) with critical APY anomaly. "
+                "Manual review required before rebalancing."
+            )
+        elif warnings_list:
+            advisory = (
+                f"WARNING: {len(warnings_list)} adapter(s) with elevated APY anomaly."
+            )
+        else:
+            advisory = "All adapters within normal APY bounds."
+
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "anomalies": [
+                {
+                    "adapter_id": a.adapter_id,
+                    "reported_apy": a.reported_apy,
+                    "anomaly_type": a.anomaly_type,
+                    "severity": a.severity,
+                    "message": a.message,
+                }
+                for a in anomalies
+            ],
+            "critical_count": len(critical),
+            "warning_count": len(warnings_list),
+            "info_count": len(info_list),
+            "clean_adapters": clean,
+            "advisory": advisory,
+        }
 
     def save(self) -> bool:
         """Atomically append last result to the ring-buffer log file.
