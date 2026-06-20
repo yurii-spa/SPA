@@ -3,7 +3,6 @@ Tests for APYTracker — 6 tests covering snapshot recording,
 trend calculation, pruning, and weighted portfolio APY.
 """
 import json
-import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
