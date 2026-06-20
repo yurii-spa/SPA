@@ -1,0 +1,44 @@
+[
+  {
+    "ts": "2026-06-14T23:18:51.822527+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "cheapest_vault": "USDC-Vault-LowFee",
+      "most_expensive_vault": "ETH-Vault-HighFee",
+      "avg_score": 56.56,
+      "high_fee_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Vault-LowFee",
+        "classification": "LOW_FEE",
+        "score": 90.62,
+        "recommendation": "HOLD_OK",
+        "flags": [
+          "LOW_MANAGEMENT_FEE"
+        ]
+      },
+      {
+        "token": "ETH-Vault-HighFee",
+        "classification": "EXCESSIVE_FEE",
+        "score": 22.5,
+        "recommendation": "AVOID_HIGH_FEE",
+        "flags": [
+          "HIGH_MANAGEMENT_FEE",
+          "EXCESSIVE_FEE",
+          "FEE_EXCEEDS_HALF_YIELD"
+        ]
+      },
+      {
+        "token": "DAI-Vault-NoFee",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "HOLD_OK",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
