@@ -9,6 +9,14 @@ at most once per calendar day — deduplication tracked in
 Fallback: if ``last_cycle_ts`` is null/missing, tries ``data/cycle_log.json``
 for the last entry's ``ts`` field.
 
+**Heartbeat guarantee (AGENT-P0-006 fix):** ``data/cycle_gap_state.json`` is
+written on EVERY run (unless ``dry_run=True``).  Even when no gap is detected
+the file is updated with ``last_check_ts``, ``gap_detected``, ``hours_since``
+and ``alert_sent`` so that external tools (GoLiveChecker, dashboards) can
+verify the monitor is alive without relying on a gap ever having occurred.
+Alert-deduplication fields (``last_alert_date``, ``last_alert_ts``) are
+preserved across writes.
+
 Stdlib only + ``spa_core.alerts.telegram_client``. Atomic state writes via
 mkstemp + os.replace. Never raises — all exceptions are caught and logged
 as warnings.
@@ -16,6 +24,7 @@ as warnings.
 CLI::
 
     python3 -m spa_core.paper_trading.cycle_gap_monitor --check   # dry-run
+    python3 -m spa_core.paper_trading.cycle_gap_monitor           # run + write heartbeat
 """
 from __future__ import annotations
 
@@ -165,6 +174,46 @@ def _updated_gap_state(gap_state: dict, *, today: str, now_ts: str) -> dict:
     return updated
 
 
+def _build_heartbeat_state(
+    existing_state: dict,
+    *,
+    gap_detected: bool,
+    hours_since: float,
+    alert_sent: bool,
+    now_ts: str,
+) -> dict:
+    """Build a heartbeat state dict for writing on every run.
+
+    Merges current-run results with ``existing_state`` so that alert
+    deduplication fields (``last_alert_date``, ``last_alert_ts``) are
+    preserved across runs where no new alert was sent.
+
+    Parameters
+    ----------
+    existing_state:
+        The previously-persisted state dict (may be empty for first run).
+    gap_detected:
+        Whether a cycle gap was detected in this run.
+    hours_since:
+        Elapsed hours since the last cycle (999.0 if unknown).
+    alert_sent:
+        Whether a Telegram alert was sent in this run.
+    now_ts:
+        ISO-8601 timestamp of this run (injected for determinism in tests).
+
+    Returns
+    -------
+    dict
+        A new dict suitable for atomic serialisation to ``cycle_gap_state.json``.
+    """
+    state = dict(existing_state)          # preserve last_alert_date / last_alert_ts
+    state["last_check_ts"] = now_ts
+    state["gap_detected"] = gap_detected
+    state["hours_since"] = round(hours_since, 2)
+    state["alert_sent"] = alert_sent
+    return state
+
+
 # ─── Message formatting ───────────────────────────────────────────────────────
 
 
@@ -253,7 +302,13 @@ def run_cycle_gap_monitor(
 
     Reads ``data/paper_trading_status.json`` for ``last_cycle_ts``. Sends at
     most one Telegram alert per calendar day (state tracked in
-    ``data/cycle_gap_state.json``). State is written atomically.
+    ``data/cycle_gap_state.json``).
+
+    **Heartbeat guarantee:** ``data/cycle_gap_state.json`` is written on every
+    call (unless ``dry_run=True``) regardless of whether a gap was detected.
+    This lets external systems (GoLiveChecker, dashboards) verify that the
+    monitor is alive even when cycles are healthy and no gap ever occurs.
+    Alert-deduplication fields are preserved across heartbeat writes.
 
     Parameters
     ----------
@@ -279,6 +334,7 @@ def run_cycle_gap_monitor(
         ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
         now_dt = now if now is not None else datetime.now(timezone.utc)
         today = now_dt.strftime("%Y-%m-%d")
+        now_ts = now_dt.isoformat()
 
         # ── Step 1: resolve last cycle timestamp ──────────────────────────
         last_cycle_ts = _get_last_cycle_ts(ddir)
@@ -288,10 +344,25 @@ def run_cycle_gap_monitor(
         result["gap_detected"] = gap_detected
         result["hours_since"] = round(hours_since, 2)
 
+        # ── Always load existing state (for dedup preservation + heartbeat) ──
+        gap_state = _read_json(ddir / GAP_STATE_FILENAME, {})
+        if not isinstance(gap_state, dict):
+            gap_state = {}
+
         if not gap_detected:
             log.debug(
                 "cycle_gap_monitor: no gap (%.1fh since last cycle)", hours_since
             )
+            # HEARTBEAT: write state even when healthy so monitors can see us
+            if not dry_run:
+                heartbeat = _build_heartbeat_state(
+                    gap_state,
+                    gap_detected=False,
+                    hours_since=hours_since,
+                    alert_sent=False,
+                    now_ts=now_ts,
+                )
+                _atomic_write_json(ddir / GAP_STATE_FILENAME, heartbeat)
             return result
 
         log.warning(
@@ -303,15 +374,21 @@ def run_cycle_gap_monitor(
         )
 
         # ── Step 3: deduplication — one alert per calendar day ───────────
-        gap_state = _read_json(ddir / GAP_STATE_FILENAME, {})
-        if not isinstance(gap_state, dict):
-            gap_state = {}
-
         if not _should_send_alert(gap_state, today):
             log.info(
                 "cycle_gap_monitor: alert already sent today (%s) — skipping duplicate",
                 today,
             )
+            # HEARTBEAT: update last_check_ts even though alert was already sent
+            if not dry_run:
+                heartbeat = _build_heartbeat_state(
+                    gap_state,
+                    gap_detected=True,
+                    hours_since=hours_since,
+                    alert_sent=False,
+                    now_ts=now_ts,
+                )
+                _atomic_write_json(ddir / GAP_STATE_FILENAME, heartbeat)
             return result
 
         if dry_run:
@@ -335,14 +412,25 @@ def run_cycle_gap_monitor(
             log.warning(
                 "cycle_gap_monitor: Telegram alert sent (%.1fh gap)", hours_since
             )
-            new_state = _updated_gap_state(
-                gap_state, today=today, now_ts=now_dt.isoformat()
+            alert_state = _updated_gap_state(
+                gap_state, today=today, now_ts=now_ts
             )
-            _atomic_write_json(ddir / GAP_STATE_FILENAME, new_state)
         else:
             log.warning(
-                "cycle_gap_monitor: Telegram returned False — state NOT updated"
+                "cycle_gap_monitor: Telegram returned False — heartbeat written, "
+                "alert dedup state NOT updated"
             )
+            alert_state = gap_state  # preserve existing alert dedup fields
+
+        # HEARTBEAT: always write state after alert attempt (sent or not)
+        heartbeat = _build_heartbeat_state(
+            alert_state,
+            gap_detected=True,
+            hours_since=hours_since,
+            alert_sent=sent,
+            now_ts=now_ts,
+        )
+        _atomic_write_json(ddir / GAP_STATE_FILENAME, heartbeat)
 
     except Exception as exc:  # noqa: BLE001 — must never crash the caller
         log.warning("cycle_gap_monitor: unexpected error: %s", exc)
