@@ -127,7 +127,16 @@
       "Bash(tar -xzf /tmp/spa_repo_scan/repo.tar.gz -C /tmp/spa_repo_scan)",
       "Bash(python3 push_to_github.py --files docs/TOKEN_ROTATION_RUNBOOK.md CLAUDE.md SECURITY_REMEDIATION.md KANBAN.json --message \"docs: token rotation runbook + close MP-001..003, schedule MP-071 \\(PAT expiry 2026-09-08\\)\")",
       "Bash(python3 push_to_github.py --files /Users/yuriikulieshov/Documents/SPA_Claude/docs/TOKEN_ROTATION_RUNBOOK.md --message \"docs: move TOKEN_ROTATION_RUNBOOK.md to docs/\")",
-      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' https://api.github.com/repos/yurii-spa/SPA/contents/TOKEN_ROTATION_RUNBOOK.md)"
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' https://api.github.com/repos/yurii-spa/SPA/contents/TOKEN_ROTATION_RUNBOOK.md)",
+      "Bash(npm run *)",
+      "Bash(zip -r /Users/yuriikulieshov/Documents/cabinet_dist.zip dist/)",
+      "Bash(npx wrangler *)",
+      "Bash(npm install *)",
+      "Bash(npx --cache /tmp wrangler --version)",
+      "Bash(npx --cache /tmp wrangler whoami)",
+      "Bash(npx --cache /tmp wrangler login --no-browser)",
+      "Bash(env)",
+      "Bash(sleep 5 && cat /tmp/wrangler_login_output.txt && echo \"---\" && ps aux | grep -E \"wrangler|login\" | grep -v grep)"
     ]
   }
 }
