@@ -17,8 +17,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -119,18 +119,7 @@ class ProtocolCrossChainFeeComparator:
             entries = entries[-self._LOG_CAP:]
 
         dir_name = os.path.dirname(log_path) or "."
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w") as fh:
-                json.dump(entries, fh, indent=2)
-            os.replace(tmp_path, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(entries, str(log_path))
     # ------------------------------------------------------------------
     # Internal: per-chain analysis
     # ------------------------------------------------------------------
