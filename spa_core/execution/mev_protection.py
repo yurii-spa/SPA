@@ -53,6 +53,8 @@ import urllib.error
 import urllib.request
 from typing import Any, Optional
 
+from spa_core.utils.errors import SourceError
+
 log = logging.getLogger("spa.mev_protection")
 
 # ─── Flashbots endpoints ──────────────────────────────────────────────────────
@@ -274,8 +276,9 @@ def broadcast_protected_hash(signed_tx_hex: str, timeout: int = 30) -> str:
     res = send_protected(signed_tx_hex, fallback_rpc=None, timeout=timeout)
     tx_hash = res.get("tx_hash")
     if res.get("status") == "FAILED" or not tx_hash:
-        raise RuntimeError(
-            f"MEV-protected broadcast failed: {res.get('reason', res)}"
+        raise SourceError(
+            "mev_protection",
+            f"MEV-protected broadcast failed: {res.get('reason', res)}",
         )
     return tx_hash
 
