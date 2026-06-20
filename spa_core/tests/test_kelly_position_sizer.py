@@ -5,8 +5,8 @@ Tempfile-based persistence — production data/ is never touched.
 """
 
 import json
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.kelly_position_sizer import (
