@@ -12,7 +12,6 @@ Stdlib only. No external dependencies.
 import json
 import os
 import re
-import tempfile
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -114,6 +113,7 @@ class SourceIntegrationHelper:
 
 import json
 import urllib.request
+from spa_core.utils.atomic import atomic_save
 
 DEFILLAMA_POOL_ID_{sanitized_name.upper()} = "{pool_id}"
 FALLBACK_APY_{sanitized_name.upper()} = {fallback_apy!r}
@@ -252,21 +252,7 @@ def fetch_{sanitized_name}_apy(timeout: int = 10) -> dict:
             dir_path = os.path.dirname(self._pipeline_path)
             os.makedirs(dir_path, exist_ok=True)
 
-            tmp_fd, tmp_path = tempfile.mkstemp(
-                dir=dir_path,
-                prefix=".tmp_source_pipeline_",
-                suffix=".json",
-            )
-            try:
-                with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                    json.dump(data, fh, indent=2)
-                os.replace(tmp_path, self._pipeline_path)
-            except Exception:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-                raise
+            atomic_save(data, str(self))
             return True
         except Exception:
             return False
