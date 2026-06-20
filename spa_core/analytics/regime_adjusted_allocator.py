@@ -43,6 +43,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ── Regime constants ────────────────────────────────────────────────────────────
 
 VALID_REGIMES = ("bull", "neutral", "bear")
@@ -153,7 +155,7 @@ class AllocationResult:
 
 # ── Allocator ───────────────────────────────────────────────────────────────────
 
-class RegimeAdjustedAllocator:
+class RegimeAdjustedAllocator(BaseAnalytics):
     """
     Adjusts RS-001 / RS-002 portfolio allocation based on current market regime.
 
@@ -163,6 +165,8 @@ class RegimeAdjustedAllocator:
         print(alloc.to_markdown())
         alloc.save()
     """
+
+    OUTPUT_PATH = "data/current_allocation.json"
 
     def __init__(
         self,
@@ -174,8 +178,24 @@ class RegimeAdjustedAllocator:
             total_capital: total portfolio capital in USD (default $100,000)
             base_dir: repository root for resolving data/ paths
         """
+        super().__init__(base_dir=base_dir)
         self.total_capital: float = total_capital
         self.base_dir: Path = Path(base_dir)
+
+    # ── BaseAnalytics interface ─────────────────────────────────────────────────
+
+    def to_dict(self) -> dict:
+        """Returns current allocation for all regimes as JSON-serializable dict."""
+        all_regimes = self.allocate_all_regimes()
+        current = self.current_regime()
+        return {
+            "generated_at":   datetime.now(timezone.utc).isoformat(),
+            "module":         "spa_core/analytics/regime_adjusted_allocator.py",
+            "total_capital":  self.total_capital,
+            "current_regime": current,
+            "current":        all_regimes[current].to_dict(),
+            "all_regimes":    {r: ar.to_dict() for r, ar in all_regimes.items()},
+        }
 
     # ── Regime detection ────────────────────────────────────────────────────────
 
