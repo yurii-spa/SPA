@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import datetime
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 __version__ = "1.0.0"
 __mp__ = "MP-952"
@@ -50,19 +50,7 @@ _DRAG_THRESHOLDS = [
 def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically via tmp + os.replace."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(path)))
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _load_log(path: str) -> list:
     try:
         with open(path) as fh:
