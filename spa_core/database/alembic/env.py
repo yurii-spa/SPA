@@ -20,7 +20,6 @@ Design notes
 """
 from __future__ import annotations
 
-import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -39,7 +38,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from spa_core.database.db_url import get_db_url, is_postgres, is_sqlite  # noqa: E402
+from spa_core.database.db_url import get_db_url, is_postgres  # noqa: E402
 
 config = context.config
 
