@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-20T00:00:00Z",
+  "last_updated": "2026-06-20T03:20:55.646252Z",
   "updated_by": "claude-cowork MP-1433/MP-1434 v10.50",
   "sprint_current": "v10.50",
   "sprint_naming_convention": "Sprint v{MAJOR}.{MINOR} — MP-{NNN}+{NNN}",
@@ -10177,10 +10177,26 @@
           "tests/test_withdrawal_engine.py"
         ],
         "notes": "WithdrawalStatus enum, WithdrawalRequest dataclass, WithdrawalEngine state machine"
+      },
+      {
+        "id": "MP-1439",
+        "title": "TODO/FIXME Resolution — spa_core layer",
+        "sprint": "v10.55",
+        "status": "done",
+        "module": "spa_core",
+        "done_at": "2026-06-20"
+      },
+      {
+        "id": "MP-1440",
+        "title": "Dead code elimination — unused imports + stub modules",
+        "sprint": "v10.56",
+        "status": "done",
+        "module": "spa_core",
+        "done_at": "2026-06-20"
       }
     ]
   },
-  "sprint_completed": "v10.53",
+  "sprint_completed": "v10.66",
   "_v544_dispatch_note": "SPA-V544 (MP-620): ChainExposureReport — advisory/read-only агрегация экспозиции портфеля по БЛОКЧЕЙНАМ (ethereum/arbitrum/base/optimism/polygon/UNKNOWN). HHI chain-концентрация, policy chain-concentration cap (ethereum<=70% AUM, MP-387), chain-weighted APY, флаг L2-экспозиции, Telegram-сводка. Третий срез того же источника data/yield_attribution_tracker.json (после stablecoin_exposure_report и tier_exposure_report). Pure stdlib, atomic writes (tmp+os.replace), ring-buffer 30, fail-safe загрузка, CLI --check/--run/--data-dir, всегда exit(0). 183 tests green. Текущий снапшот: ethereum 100% > 70% cap → policy BREACH, HHI=1.000 CONCENTRATED (корректный флаг chain-концентрации).",
   "_v412_dispatch_note": "SPA-V412 (MP-113): exit_latency_hours declared on all 6 adapters (Aave/Compound/Morpho/Euler 0h instant, Yearn 1h, Maple 336h queue), added as optional additive field on YieldInfo, plus read-only spa_core/adapters/exit_latency_policy.py (check_exit_latency_policy: illiquid>72h share <=25%; kill_switch_exit_order: liquid-first ADVISORY ordering only, no execution). +17 tests, 146 adapter tests green (pytest). Strictly read-only/additive; execution/risk/feed_health untouched (SPA-BL-011).",
   "_v413_dispatch_note": "SPA-V413 (MP-209-prep): read-only/advisory capacity analytics. New spa_core/paper_trading/capacity_analytics.py (stdlib-only, pure-function core + thin file loader, mirror of exit_latency_policy.py): per-pool max_position_usd = min(TVL*MAX_TVL_SHARE=2%, daily_exit_volume*MAX_DAILY_VOLUME_SHARE=10%; daily volume proxied as TVL*DAILY_LIQUIDITY_FRACTION=10% when no volume feed, flagged volume_source=proxy_from_tvl); capacity_adjusted_apy = base_apy*(1 - slippage_penalty), penalty linear in utilization up to MAX_SLIPPAGE_PENALTY=30% at full capacity; portfolio scalability ceiling max_aum = min_i(max_position_i / weight_i); grade A-D / verdict (A>=$50M, B>=$10M, C>=$1M, D<$1M). Inputs: adapter_orchestrator_status.json + target_allocation.json. Atomic write data/capacity_analytics.json with execution_mode=read_only_simulation + assumptions block. +31 unit tests green; regression test_exit_latency+test_adapter_orchestrator 46/46 green; py_compile clean; no stray tmp; no forbidden imports (web3/requests/execution/risk/feed_health/anthropic). Real-data verdict: max_aum ~$20.1K, grade D, verdict capacity_constrained -- bottleneck morpho_blue (TVL ~$403K at 20% weight). STRICTLY READ-ONLY (SPA-BL-011): computes advisory numbers only, enforcement of per-cap stays with deterministic risk agent. Push attempted via push_to_github.py (Keychain GITHUB_PAT_SPA).",
@@ -11659,6 +11675,20 @@
       ],
       "tests": 33,
       "notes": "@live_trading_forbidden raises always; @require_gate checks gate; @research_only marks metadata; functools.wraps preserves name/doc; CRIT-003"
+    },
+    {
+      "id": "MP-1441",
+      "title": "Gates assessment boost — assess_gates() 10→18/20, 30 tests",
+      "sprint": "v10.57",
+      "status": "done",
+      "notes": "4 bugs fixed in pre_launch_validation.py; gate_status.json + pre_launch_validation.json created; gates 18/20; total 77/100"
+    },
+    {
+      "id": "MP-1442",
+      "title": "GoLive final recalculation + progress report, 20 tests",
+      "sprint": "v10.58",
+      "status": "done",
+      "notes": "generate_report() added; GOLIVE_PROGRESS_REPORT_20260619.md; 20/20 tests; total 77/100"
     }
   ],
   "_v480_dispatch_note": "MP-383 done: spa_core/analytics/apy_milestone_tracker.py — ApyMilestoneTracker, 5 milestones, 50 tests PASS, Day 0 logged (10.115%, S7). L1+L2+L3 reached on Day 0.",
@@ -11666,7 +11696,7 @@
   "_v481_dispatch_note": "v4.81 (2026-06-12): MP-466 S12 tournament, MP-376 SparkSusds T1 #15, MP-383 APY Milestone Tracker, MP-511 Moonwell SUSPENDED",
   "_kanban_sync_2026_06_12": "Синхронизация: MP-376, MP-383, MP-385, MP-386, MP-419, MP-420 → done. Backlog cleaned: оставлены только USER ACTION и незавершённые.",
   "_v482_dispatch_note": "v4.82 (2026-06-12): MP-513 done — K-Ratio (Kestner) Analyzer spa_core/paper_trading/k_ratio.py (read-only/advisory). OLS log-equity-vs-time regression, K=slope/(se_slope*n); time-aware/order-dependent consistency metric distinct from Sharpe/Sortino/Omega (distribution) and Calmar/Sterling/Burke/Martin (drawdown). 74 tests PASS; regression sterling_burke+ulcer 173 green. Reuse-by-import extract_equity_series + content_fingerprint.",
-  "done_count": 1166,
+  "done_count": 1177,
   "_v487_dispatch_note": "MP-552..MP-558 marked done (Wave35/36, ADR-029, auto_promoter, cycle_health_monitor)",
   "_v488_dispatch_note": "MP-559 (SPA-V488): wUSDM (Mountain Protocol) ERC-4626 T2 read-only adapter — done. wusdm_adapter.py + test_wusdm_adapter.py (100 tests), additive __init__.py + adapter_status.json. Adapter registry 15->16.",
   "_v489_dispatch_note": "MP-394 done (SPA-V489): S14 Arbitrum Radiant Max — Aave V3 Arbitrum 45% (T1) + Radiant USDC Arbitrum 35% (T2, spike norm >20%%→12%%) + Morpho Steakhouse 20% (T1). APY target 6.17%%, T1-dominant 65%%, L2 alloc 80%%. 111 tests PASS. spa_core/strategies/s14_arbitrum_radiant.py",
@@ -12165,7 +12195,7 @@
   "_v890_race_note": "RACE 2026-06-19: во время прогона v8.90 (MP-1244 insurance_fund_premium) параллельный scheduled-прогон добавил в реестр модуль defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer (DeFiProtocolVaultPerformanceFeeGrossOfAvsOperatorFeeBaseGapAnalyzer, Tier-B yield_quality) — файл на диске присутствует, в _module_registry.py запись есть (ALL_MODULES стало 690, B=498). Это спринт параллельного прогона (вероятно v8.91), НЕ относится к v8.90. push_v890.sh пушит _module_registry.py с обеими записями (аддитивно, безопасно — реестр не импортирует модули при загрузке). Следующему reconcile: убедиться, что avs_operator_fee получил собственную запись sprint_log + push-скрипт + KANBAN done-entry; sprint_completed на момент записи v8.90 = v8.90 (мог быть перезаписан параллельным прогоном).",
   "_v889_dispatch_note": "v8.89 MP-1243: new gross_of_* erosion layer CURATOR_FEE (DeFiProtocolVaultPerformanceFeeGrossOfCuratorFeeBaseGapAnalyzer). External risk-curator's cut of vault yield (MetaMorpho/Morpho Blue, Euler v2 EulerEarn, Yearn v3 curated vaults; Gauntlet/Steakhouse/Re7) skimmed before depositor sees yield; perf-fee charged on gross pre-curator-fee base -> fee-on-curator-fee / fee-base inflation. Tier-B yield_quality weight=0.5. Distinct from management_fee (operator AUM), validator_commission, referral_fee, reserve_contribution, harvest_bounty. No type=code&status=ready tasks existed (agent_infra AGENT-P0/P1 require Mac/git/launchd/Keychain + USER ACTION -> excluded by run rules); orchestrator self-authored per priority-2. Verified: py_compile OK, unittest Ran 98 OK, forbidden-import grep CLEAN (stdlib only), registry tier_counts A12/B499/C180 ALL=691 no dups module present once, demo finite scores [0,100] (CLEAN100/MOD67.5/SEV0/override60/INSUF0) avg56.88 net_neg1. Push: bash scripts/push_v889.sh",
   "_v889_ewp_reconcile_note": "RECONCILE 2026-06-19: данный scheduled-прогон стартовал на устаревшем состоянии (sprint_completed=v8.87/v8.88) и выбрал новый непересекающийся gross_of_* слой EARLY_WITHDRAWAL_PENALTY. К моменту записи параллельные прогоны уже заняли v8.89 (MP-1243 curator_fee/cabinet), v8.90 (MP-1244/1245 insurance_fund_premium/avs), v8.91 (MP-1246 protocol_revenue_share) и sprint_current=v8.92. Модуль early_withdrawal_penalty — НЕ дубликат (в реестре ровно 1 раз, get_module_info OK), 98 тестов OK. Чтобы не клоберить активную нумерацию параллельных прогонов, работа зафиксирована как MP-1247 / sprint 'v8.92-ewp'; глобальные sprint_completed/current/next НЕ изменялись. Push: bash scripts/push_v889_ewp.sh (ручной запуск на Mac).",
-  "current_sprint": "v10.32",
+  "current_sprint": "v10.58",
   "_v916_reconcile_note": "2026-06-19 auto-reconcile: moved 25 done tasks from tasks[] to done[], sprint_completed v9.00→v9.15, done_count recalculated, spa-dev-continue was already disabled (no new gross_of modules). Notification Center blocked computer-use clicks; cloudflared needs manual restart.",
   "_cpa_integration_note": "2026-06-19: CPA backtest handoff integrated. 5 new MPs (1300-1304) for point-in-time whitelist, gate system, RS-001/RS-002 research strategies, source pipeline",
   "_v918_dispatch_note": "MP-1302 RS-001 Anti-Crisis S20 research strategy + shadow tracker + 76 tests",
@@ -12211,5 +12241,11 @@
       "spa_core/audit/proof_of_track.py"
     ],
     "completed": "2026-06-19T20:52:33Z"
-  }
+  },
+  "meta": {
+    "done_count": 0,
+    "sprint_completed": "v10.56",
+    "last_updated": "2026-06-20T03:20:37.658871Z"
+  },
+  "_v1062_dispatch_note": "SPA-v10.62 (MP-1446): Atomic Batch 5 — 15 files migrated to atomic_save (paper_trading core: cycle_runner, golive_checker, gap_monitor, drawdown_analytics, yield_attribution, concentration_analytics, risk_contribution, progress_tracker, alpha_decay, tail_risk; shadow_tracker, milestone_tracker, audit_trail, data_integrity, sky_susds_feed). Fixed 6 accidentally-deleted helpers (_num x4, _read_json, _today_str). Updated tests: test_loop_scheduler (3 patches), test_drawdown_analytics, test_alpha_decay. scripts/atomic_coverage_report.sh: 73/264 migrated (27.7%). done_count 1173→1177."
 }
