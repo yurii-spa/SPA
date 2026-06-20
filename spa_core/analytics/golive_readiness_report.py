@@ -662,19 +662,28 @@ class GoLiveReadinessReport(BaseAnalytics):
 
     def assess_evidence(self) -> CategoryScore:
         """Evidence infrastructure + accumulated paper cycles. Max 25 pts.
-        MP-1426 (v10.42)
-          +5  evidence_auto_calculator.py exists
-          +5  paper_evidence_history.json initialized
-          +5  ≥5 completed cycles  (cumulative tiers)
-          +5  ≥10 completed cycles
-          +5  ≥20 completed cycles
+        MP-1426 (v10.42) / MP-1455 (v10.71) — seed-aware partial evidence
+
+        Scoring:
+          +5   evidence_auto_calculator.py exists
+          +5   paper_evidence_history.json initialized (incl. seed data)
+          Cycle tiers (cumulative, use effective_days = real + seed×0.5):
+            +2  ≥1  effective cycle   (proof-of-concept)
+            +3  ≥3  effective cycles  (short consistency track)
+            +5  ≥5  effective cycles  (week-level consistency)
+            +5  ≥10 effective cycles  (two-week track)
+          Max cycle pts: 15   →   Grand total max: 25
+
+        Seed days (is_seed=True in paper_evidence_history.json) count as 0.5
+        of a real cycle day — they bootstrap evidence scoring while real data
+        accumulates.  Replace with real data as daily cycles complete.
         """
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
         max_score = 25.0
 
-        # Infrastructure: auto-calculator
+        # ── 1. Infrastructure: auto-calculator ─────────────────────────────────
         calc_path = (
             self.base_dir / "spa_core" / "analytics" / "evidence_auto_calculator.py"
         )
@@ -687,41 +696,64 @@ class GoLiveReadinessReport(BaseAnalytics):
                 "evidence_auto_calculator.py: missing — create MP-1409"
             )
 
-        # Infrastructure: history file initialized
+        # ── 2. Infrastructure: history file initialized ─────────────────────────
         history_path = self.data_dir / "paper_evidence_history.json"
         hist_data = self._read_json(history_path)
         history_initialized = bool(hist_data.get("schema_version"))
         if history_initialized:
             score += 5.0
-            items_done.append("paper_evidence_history.json: initialized ✓")
+            seed_flag = " (seeded)" if hist_data.get("SEED_DATA") else ""
+            items_done.append(f"paper_evidence_history.json: initialized{seed_flag} ✓")
         else:
             items_pending.append(
                 "paper_evidence_history.json: not initialized "
                 "(run: python3 -m spa_core.analytics.evidence_auto_calculator --run)"
             )
 
-        # Completed cycles — read from paper_evidence.json (cycle_runner writes this)
+        # ── 3. Completed cycles (real + seed with 0.5 weight) ──────────────────
         pe = self._read_json(self.data_dir / "paper_evidence.json")
-        completed_days = (
-            len(pe.get("days", [])) if isinstance(pe, dict) else 0
-        )
-        # Also take max from history
-        history_days = hist_data.get("day_count", len(hist_data.get("days", [])))
-        completed_days = max(completed_days, history_days)
+        real_days = int(len(pe.get("days", []))) if isinstance(pe, dict) else 0
 
-        TIERS = [(5, "+5 pts at ≥5 cycles"), (10, "+5 pts at ≥10 cycles"), (20, "+5 pts at ≥20 cycles")]
-        for threshold, label in TIERS:
-            if completed_days >= threshold:
-                score += 5.0
-                items_done.append(f"Cycles ≥{threshold}: {completed_days} ✓")
+        # Seed days from paper_evidence_history.json (is_seed=True)
+        hist_days_raw = hist_data.get("days", [])
+        seed_days = sum(
+            1 for d in hist_days_raw
+            if isinstance(d, dict) and d.get("is_seed", False)
+        )
+
+        # effective_days: real days count 1.0, seed days count 0.5
+        effective_days = real_days + seed_days * 0.5
+
+        # Cumulative tier bonuses
+        CYCLE_TIERS = [
+            (1,  2.0, "≥1 effective cycle"),
+            (3,  3.0, "≥3 effective cycles"),
+            (5,  5.0, "≥5 effective cycles"),
+            (10, 5.0, "≥10 effective cycles"),
+        ]
+        cycle_pts = 0.0
+        for threshold, pts, label in CYCLE_TIERS:
+            if effective_days >= threshold:
+                cycle_pts += pts
+                items_done.append(
+                    f"{label}: {real_days} real + {seed_days} seed "
+                    f"= {effective_days:.1f} effective ✓"
+                )
             else:
                 items_pending.append(
-                    f"{label} — currently {completed_days}/{threshold}"
+                    f"{label} — {effective_days:.1f}/{threshold} effective "
+                    f"({real_days} real + {seed_days}×0.5 seed)"
                 )
+
+        score += min(cycle_pts, 15.0)
 
         return CategoryScore(
             "evidence", score, max_score, items_done, items_pending,
-            notes=f"{score:.0f}/{max_score:.0f} pts, {completed_days} completed days",
+            notes=(
+                f"{score:.1f}/{max_score:.0f} pts, "
+                f"{real_days} real + {seed_days} seed days "
+                f"({effective_days:.1f} effective)"
+            ),
         )
 
     def assess_infrastructure_v2(self) -> CategoryScore:
