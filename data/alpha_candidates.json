@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-06-15T23:34:50.587874+00:00",
+  "scan_basis": "candidate_registry + active_adapters",
+  "candidates": [],
+  "already_active": [
+    "aave_v3",
+    "compound_v3",
+    "morpho_blue",
+    "yearn_v3",
+    "euler_v2",
+    "maple",
+    "pendle"
+  ],
+  "note": "candidates require ADR/human review before whitelisting — do not auto-promote",
+  "total_candidates_scanned": 0,
+  "total_scored": 0
+}
