@@ -207,7 +207,11 @@ class PreLaunchValidation:
 
         # B1: Equity curve has >= 30 real data points
         ec = self._read_json(self.data_dir / "equity_curve_daily.json")
-        entries = ec.get("entries", [])
+        # Support multiple storage schemas: entries / daily / data (list or dict)
+        if isinstance(ec, list):
+            entries = ec
+        else:
+            entries = ec.get("entries") or ec.get("daily") or ec.get("data") or []
         b1_pass = len(entries) >= 30
         checks.append(self._check(
             "evidence", "equity_curve_30_days",
@@ -241,7 +245,8 @@ class PreLaunchValidation:
 
         # B3: No demo trades (is_demo must be false)
         trades = self._read_json(self.data_dir / "trades.json")
-        trade_list = trades.get("trades", [])
+        # trades.json may be a list or a dict with "trades" key
+        trade_list = trades if isinstance(trades, list) else trades.get("trades", [])
         demo_count = sum(1 for t in trade_list if t.get("is_demo", True))
         b3_pass = len(trade_list) > 0 and demo_count == 0
         checks.append(self._check(
@@ -355,7 +360,11 @@ class PreLaunchValidation:
 
         # D1: Capital target — paper_trading_status shows ~$100K
         pts = self._read_json(self.data_dir / "paper_trading_status.json")
-        nav = pts.get("portfolio_nav", 0.0)
+        # Support multiple field names across schema versions
+        nav = float(pts.get("portfolio_nav",
+                    pts.get("current_equity",
+                    pts.get("total_capital",
+                    pts.get("virtual_capital", 0.0)))))
         d1_pass = nav >= 90_000.0  # $90K+ (accounting for minor drift from $100K)
         checks.append(self._check(
             "financial", "capital_target_100k",
@@ -553,8 +562,10 @@ class PreLaunchValidation:
             else "MASTER_PLAN_v1.md missing (advisory)",
         ))
 
-        # G4: DR_PROCEDURE_v2.md exists
+        # G4: DR_PROCEDURE_v2.md exists (may be at root or docs/)
         dr = self.base_dir / "DR_PROCEDURE_v2.md"
+        if not dr.exists():
+            dr = docs_dir / "DR_PROCEDURE_v2.md"
         g4_pass = self._exists(dr)
         checks.append(self._check(
             "documentation", "dr_procedure_v2_exists",
