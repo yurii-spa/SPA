@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import time
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_curve_position_log.json"
@@ -359,13 +359,4 @@ class DeFiYieldCurvePositionAnalyzer:
         if len(entries) > _LOG_CAP:
             entries = entries[-_LOG_CAP:]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(log_path))
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(entries, fh, indent=2)
-            os.replace(tmp_path, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+        atomic_save(entries, str(log_path))
