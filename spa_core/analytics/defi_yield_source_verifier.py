@@ -9,8 +9,8 @@ Advisory / read-only. Pure stdlib. Atomic writes (tmp + os.replace).
 import json
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 _DEFAULT_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_source_verification_log.json"
@@ -257,19 +257,7 @@ def _atomic_write(path: str, data: Any) -> None:
     """Write data to path atomically via tmp file + os.replace."""
     dir_ = os.path.dirname(os.path.abspath(path))
     os.makedirs(dir_, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=dir_, prefix=".tmp_")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def log_result(result: dict, data_file: str = None) -> None:
     """Append an analyze() result to the ring-buffer log (max 100 entries)."""
     path = data_file or _DEFAULT_DATA_FILE
