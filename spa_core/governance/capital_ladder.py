@@ -46,11 +46,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
@@ -167,26 +167,8 @@ _TRACK_DAY_GATES = {
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Записывает JSON атомарно: tmpfile в той же папке + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path) -> Any:
     """Читает JSON терпимо: нет файла / битый файл → None, никогда не raise."""
     path = Path(path)
