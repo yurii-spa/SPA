@@ -1,6 +1,7 @@
 """
 SPA GitHub Multi-File Pusher
-Usage: python -m spa_core.tools.github_pusher --token ghp_xxx [--dry-run]
+Usage: python -m spa_core.tools.github_pusher [--dry-run]
+       (PAT read from Keychain GITHUB_PAT_SPA, or GITHUB_TOKEN env var)
 
 Pushes all changed files to yurii-spa/SPA repo.
 Files are pushed one by one (GitHub API doesn't support multi-file commits natively)
@@ -385,6 +386,25 @@ PUSH_MANIFEST = [
 # Helpers
 # ──────────────────────────────────────────────
 
+def _token_from_keychain(service: str = "GITHUB_PAT_SPA") -> str:
+    """Read the GitHub PAT from the macOS Keychain (preferred source).
+
+    Returns "" if unavailable (non-macOS, not set, or `security` missing) so
+    the caller can fall back to env/CLI. The token is never logged or printed.
+    """
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["security", "find-generic-password", "-s", service, "-w"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
 def _headers(token: str) -> dict:
     return {
         "Authorization": f"token {token}",
@@ -578,12 +598,13 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m spa_core.tools.github_pusher --token ghp_xxx
+  python -m spa_core.tools.github_pusher              # PAT from Keychain GITHUB_PAT_SPA
   python -m spa_core.tools.github_pusher --dry-run
-  GITHUB_TOKEN=ghp_xxx python -m spa_core.tools.github_pusher
+  GITHUB_TOKEN=<PAT> python -m spa_core.tools.github_pusher
         """,
     )
-    parser.add_argument("--token",   help="GitHub personal access token (or set GITHUB_TOKEN env var)")
+    parser.add_argument("--token",   help="GitHub PAT (DISCOURAGED: leaks into shell history; "
+                                          "prefer Keychain GITHUB_PAT_SPA or GITHUB_TOKEN env)")
     parser.add_argument("--dry-run", action="store_true", help="List files that would be pushed, no actual push")
     args = parser.parse_args()
 
@@ -596,10 +617,17 @@ Examples:
         dry_run(project_root)
         return
 
-    token = args.token or os.environ.get("GITHUB_TOKEN", "")
+    # Token resolution order (most-secure first):
+    #   1. macOS Keychain (GITHUB_PAT_SPA) — preferred, never on CLI/history
+    #   2. GITHUB_TOKEN env var
+    #   3. --token CLI arg (discouraged: visible in `ps` and shell history)
+    token = _token_from_keychain() or os.environ.get("GITHUB_TOKEN", "") or (args.token or "")
     if not token:
         print("ERROR: No GitHub token provided.\n"
-              "  Use --token ghp_xxx  or  export GITHUB_TOKEN=ghp_xxx", file=sys.stderr)
+              "  Preferred: store in Keychain →\n"
+              "    security add-generic-password -s GITHUB_PAT_SPA -a \"$USER\" -w <PAT>\n"
+              "  Or: export GITHUB_TOKEN=<PAT>   (avoid --token: leaks into shell history)",
+              file=sys.stderr)
         sys.exit(1)
 
     push_all(token, project_root)
