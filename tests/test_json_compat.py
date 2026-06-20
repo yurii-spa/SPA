@@ -18,9 +18,9 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-import tempfile
 import unittest
 import unittest.mock
+import tempfile
 
 _HERE = pathlib.Path(__file__).resolve().parent
 _REPO = _HERE.parent
