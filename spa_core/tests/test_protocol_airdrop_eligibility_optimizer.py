@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_airdrop_eligibility_optimi
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _REPO_ROOT not in sys.path:
