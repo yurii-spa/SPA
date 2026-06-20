@@ -19,7 +19,6 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.risk_sentinel")
@@ -54,7 +53,9 @@ class AlertClass(str, enum.Enum):
 # ─── Atomic IO helpers ────────────────────────────────────────────────────────
 
 
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default: Any = None) -> Any:
     """Читает JSON защищённо; при ошибке возвращает default."""
     path = Path(path)
@@ -327,7 +328,7 @@ def run_sentinel_cycle(data_dir: str = "data") -> dict:
 
     # Атомарная запись sentinel_status.json
     try:
-        atomic_save(result, str(data_path / SENTINEL_STATUS_FILENAME))
+        _atomic_write_json(data_path / SENTINEL_STATUS_FILENAME, result)
     except Exception as exc:
         log.error("run_sentinel_cycle: failed to write sentinel_status.json: %s", exc)
 
