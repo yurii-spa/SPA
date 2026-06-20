@@ -762,7 +762,7 @@ class EModeLoopingStrategy:
 def _register() -> None:
     """Авто-регистрация S9 в StrategyRegistry (spa_core/strategies/)."""
     try:
-        from strategies.strategy_registry import REGISTRY, StrategyMeta
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta
         REGISTRY.register(StrategyMeta(
             id="s9_emode_looping",
             name="S9 — Aave E-Mode USDC Looping",
@@ -777,7 +777,7 @@ def _register() -> None:
                 "HF monitoring: warn<1.5, emergency<1.2 → auto-deleverage to 60% LTV. "
                 "Borrow spike (>8%) → deleverage. PAPER TRADING ONLY until ADR approved."
             ),
-            module="strategies.emode_looping",
+            module="spa_core.strategies.emode_looping",
             handler_class="EModeLoopingStrategy",
             tags=["emode", "looping", "leverage", "aave", "morpho", "pendle", "t3", "paper_only"],
         ))
