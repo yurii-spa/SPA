@@ -16,7 +16,7 @@ Design constraints (same as the original checker):
 * Never raises on missing/corrupt data — every failure is a ``passed=False``.
 * LLM_FORBIDDEN: this module must never be called from risk/execution/monitoring.
 """
-from __future__ import annotations
+# from __future__ import annotations  # MP-1233: neutralized — unreachable below DEPRECATED raise, broke py_compile
 
 import json
 import os
