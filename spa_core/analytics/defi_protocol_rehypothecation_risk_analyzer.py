@@ -36,8 +36,8 @@ Atomic writes: tmp + os.replace.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -395,19 +395,7 @@ def _atomic_write(path: str, data: object) -> None:
     """Write JSON atomically using tmp + os.replace."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     dir_ = os.path.dirname(path)
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _init_log(path: str) -> list:
     """Load existing log or return empty list."""
     if os.path.exists(path):
