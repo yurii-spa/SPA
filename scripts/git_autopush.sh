@@ -49,6 +49,15 @@ if ! cd "$REPO_DIR"; then
     exit 1
 fi
 
+# --- Sprint Coordinator pre-gate (перевірка перед пушем) ---
+log "Running pre-gate coordinator check..."
+if ! python3 -m spa_core.coordinator.sprint_coordinator pre-gate >> "$LOG" 2>&1; then
+    log "⚠️  Pre-gate FAILED — push skipped, fix issues first"
+    python3 -m spa_core.coordinator.sprint_coordinator wave-report >> "$LOG" 2>&1 || true
+    exit 1
+fi
+log "✅ Pre-gate passed"
+
 # --- Видалити stale index.lock ---
 if [ -f ".git/index.lock" ] && [ ! -s ".git/index.lock" ]; then
     rm -f ".git/index.lock"
