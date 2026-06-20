@@ -31,10 +31,10 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 import time
 from typing import Any, Dict, List, Optional, Type
 
+from spa_core.utils.atomic import atomic_save
 from spa_core.utils.errors import AdapterError, safe_call
 
 logger = logging.getLogger(__name__)
@@ -260,19 +260,7 @@ def refresh_all(
             results[protocol] = {"error": str(exc)}
 
     # ── Atomic write ─────────────────────────────────────────────────────────
-    dir_ = os.path.dirname(os.path.abspath(adapter_status_path))
-    os.makedirs(dir_, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_, prefix=".tmp_adapter_status_", suffix=".json")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(status, fh, indent=2)
-        os.replace(tmp_path, adapter_status_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    atomic_save(status, adapter_status_path)
 
     return results
 
