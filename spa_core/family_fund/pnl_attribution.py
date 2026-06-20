@@ -9,13 +9,13 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.family_fund.models import Investor, InvestorStatement
 from spa_core.family_fund.registry import InvestorRegistry
+from spa_core.utils.atomic import atomic_save
 
 __all__ = ["PnLAttributor"]
 
@@ -24,19 +24,8 @@ _STATEMENTS_DIR = _DATA_DIR / "statements"
 
 
 def _atomic_write(path: Path, data: dict) -> None:
-    """Write JSON atomically with mkstemp + os.replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".stmt_tmp_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    """Write JSON atomically via atomic_save."""
+    atomic_save(data, str(path))
 
 
 def _annualize_monthly_return(monthly_return: float) -> float:
