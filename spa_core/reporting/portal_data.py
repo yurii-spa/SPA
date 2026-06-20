@@ -64,10 +64,11 @@ import math
 import os
 import re
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 from spa_core.governance.capital_ladder import (
     INCIDENT_THRESHOLD_PCT,
@@ -138,26 +139,6 @@ def _read_json(path: Path) -> Any:
     except (ValueError, OSError):
         return None
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Атомарная запись JSON: tmpfile в той же папке + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps(obj, ensure_ascii=False, indent=2) + "\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 def _num(value: Any) -> Optional[float]:
@@ -657,7 +638,7 @@ def write_status(
     history.append(_history_entry(doc))
     doc = dict(doc)
     doc["history"] = history[-HISTORY_MAX:]
-    _atomic_write_json(json_path, doc)
+    atomic_save(doc, str(json_path))
     log.info("portal data written: %s", json_path)
     return {"json": str(json_path), "changed": True}
 
