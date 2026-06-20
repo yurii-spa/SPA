@@ -6,9 +6,9 @@ Run: python3 -m unittest spa_core.tests.test_protocol_exit_risk_analyzer -v
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
