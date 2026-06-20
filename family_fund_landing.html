@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>SPA Capital — Автономная доходность. Институциональный подход.</title>
 <style>
   :root {
@@ -395,6 +396,9 @@
 </style>
 </head>
 <body>
+<div style="background:#1a2035;border-bottom:1px solid rgba(255,200,0,0.2);padding:10px 24px;text-align:center;font-size:0.82rem;color:rgba(255,255,255,0.6)">
+  Личный исследовательский проект · Paper simulation — не стадия привлечения капитала
+</div>
 
 <!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
 <nav>
@@ -411,10 +415,8 @@
     <li><a href="#about">О Фонде</a></li>
     <li><a href="#strategies">Стратегия</a></li>
     <li><a href="#transparency">Доходность</a></li>
-    <li><a href="#conditions">Инвесторам</a></li>
   </ul>
 
-  <a href="#waitlist" class="btn btn-gold nav-cta">Присоединиться к листу ожидания</a>
 
   <div class="hamburger" onclick="this.classList.toggle('open')">
     <span></span><span></span><span></span>
@@ -428,22 +430,21 @@
   <div class="hero-inner">
     <div class="hero-badge">
       <div class="dot-pulse"></div>
-      Бумажное тестирование активно · Старт 2026-08-01
+      Бумажное тестирование активно · запуск ~2026-08-01 (tentative)
     </div>
     <h1 class="hero-title">
       Ваш капитал<br>
       <span class="gold-grad">работает 24/7</span>
     </h1>
-    <p class="hero-sub">DeFi-фонд нового поколения для закрытого круга. Автономная система, институциональный подход, прозрачный трек-рекорд.</p>
+    <p class="hero-sub">Автономная стратегия доходности по стейблкоинам. Личный исследовательский проект на стадии бумажного тестирования.</p>
     <div class="hero-ctas">
-      <a href="#waitlist" class="btn btn-gold">Оставить заявку</a>
       <a href="#about" class="btn btn-outline">Узнать больше</a>
     </div>
 
     <div class="hero-stats reveal">
       <div class="stat-card">
-        <span class="stat-value" id="cnt-apy">10–15%</span>
-        <span class="stat-label">Целевой APY</span>
+        <span class="stat-value">~4%</span>
+        <span class="stat-label">Paper APY (тест)</span>
       </div>
       <div class="stat-card">
         <span class="stat-value" id="cnt-strat">8</span>
@@ -452,10 +453,6 @@
       <div class="stat-card">
         <span class="stat-value" id="cnt-days">2</span>
         <span class="stat-label">Дней автономной работы</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value" id="cnt-inv">≤15</span>
-        <span class="stat-label">Участников в фонде</span>
       </div>
     </div>
   </div>
@@ -467,11 +464,10 @@
     <div class="about-grid">
       <div class="reveal">
         <div class="section-label">О Фонде</div>
-        <h2>Частное инвестиционное товарищество нового поколения</h2>
+        <h2>Личный R&amp;D проект</h2>
         <div class="divider"></div>
         <p>SPA Capital — автономная DeFi yield-стратегия, упакованная в понятную правовую форму <strong style="color:var(--white-70)">Договору простого товариства</strong> по украинскому праву.</p>
         <br>
-        <p>Фонд работает по принципу <em style="color:var(--white-70)">только по приглашению</em>: не более 15 участников, без публичной оферты, без KYC — только личное доверие и прозрачность данных.</p>
 
         <div class="about-features">
           <div class="feature-chip">
@@ -485,10 +481,6 @@
           <div class="feature-chip">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
             Открытый код (аудит)
-          </div>
-          <div class="feature-chip">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Только по приглашению
           </div>
         </div>
       </div>
@@ -556,7 +548,7 @@
           </div>
           <span class="strat-tier tier-t1">T1 — PRIME</span>
         </div>
-        <div class="strat-apy gold-grad">3–5% <span>APY</span></div>
+        <div class="strat-apy gold-grad" style="font-size:0.95rem;letter-spacing:0.04em">paper simulation</div>
         <p class="strat-desc">Только первоуровневые протоколы с TVL >$1B. Максимальная надёжность, минимальный смарт-контрактный риск. Базовый ориентир для сравнения.</p>
         <div class="risk-label">
           <span style="font-size:0.75rem;color:var(--white-45)">Риск:</span>
@@ -580,7 +572,7 @@
           </div>
           <span class="strat-tier tier-t2">T2 — CORE</span>
         </div>
-        <div class="strat-apy gold-grad">6.5% <span>APY</span></div>
+        <div class="strat-apy gold-grad" style="font-size:0.95rem;letter-spacing:0.04em">paper simulation</div>
         <p class="strat-desc">Оптимизированный USDC vault от Steakhouse Financial. Кредитование в Morpho Blue с профессиональным управлением рисками. Соотношение доход/риск лучше, чем у T1.</p>
         <div class="risk-label">
           <span style="font-size:0.75rem;color:var(--white-45)">Риск:</span>
@@ -604,7 +596,7 @@
           </div>
           <span class="strat-tier tier-t2">T2 — YIELD</span>
         </div>
-        <div class="strat-apy gold-grad">8–12% <span>APY</span></div>
+        <div class="strat-apy gold-grad" style="font-size:0.95rem;letter-spacing:0.04em">paper simulation</div>
         <p class="strat-desc">Фиксированная доходность через Principal Tokens на Pendle Finance. Рейт зафиксирован до сентября 2026 — нет процентного риска, есть срок погашения.</p>
         <div class="risk-label">
           <span style="font-size:0.75rem;color:var(--white-45)">Риск:</span>
@@ -628,7 +620,7 @@
           </div>
           <span class="strat-tier tier-t2">T2 — LOOP</span>
         </div>
-        <div class="strat-apy gold-grad">7.2% <span>APY</span></div>
+        <div class="strat-apy gold-grad" style="font-size:0.95rem;letter-spacing:0.04em">paper simulation</div>
         <p class="strat-desc">Рекурсивное кредитование в Aave E-Mode (только стейблкоины, LTV до 97%). Усиливает базовый APY через плечо без валютного риска. Автоматическое делеверирование при drawdown.</p>
         <div class="risk-label">
           <span style="font-size:0.75rem;color:var(--white-45)">Риск:</span>
@@ -658,7 +650,7 @@
     <div class="reveal">
       <div class="section-label">Доходность & Прозрачность</div>
       <h2>Вы видите всё. В реальном времени.</h2>
-      <p class="section-intro" style="margin-top:12px">Каждый инвестор получает полный доступ к данным. Никаких Excel-отчётов раз в квартал — только живые цифры.</p>
+      <p class="section-intro" style="margin-top:12px">Все данные публикуются в открытом доступе. Никаких скрытых отчётов — только живые цифры.</p>
     </div>
 
     <div class="transp-grid">
@@ -686,7 +678,7 @@
         </div>
         <div>
           <h3>Ежемесячные выписки PDF</h3>
-          <p>Персональный отчёт с расчётом вашей доли P&L, pro-rata аллокацией и историей операций.</p>
+          <p>Ежемесячный snapshot с P&L, аллокацией и историей операций.</p>
         </div>
       </div>
       <div class="transp-card reveal">
@@ -695,105 +687,28 @@
         </div>
         <div>
           <h3>Открытый код для аудита</h3>
-          <p>Весь алгоритм доступен для верификации инвесторами. Никакого «чёрного ящика» — только понятный, тестированный Python.</p>
+          <p>Весь алгоритм доступен для верификации. Никакого «чёрного ящика» — только понятный, тестированный Python.</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════ CONDITIONS ═══════════════════════════════ -->
+<!-- ═══════════════════════════════ STATUS ═══════════════════════════════ -->
 <section id="conditions">
   <div class="container">
-    <div class="reveal">
-      <div class="section-label">Инвесторам</div>
-      <h2>Условия участия</h2>
-      <p class="section-intro" style="margin-top:12px">Прямолинейная структура без скрытых комиссий. Мы зарабатываем только тогда, когда зарабатываете вы.</p>
-    </div>
-
-    <div class="conditions-row">
-      <div class="cond-card reveal">
-        <div class="cond-key">Мин. вход</div>
-        <div class="cond-value">$10,000</div>
-        <p class="cond-detail">USDC или эквивалент в стейблкоинах</p>
-      </div>
-      <div class="cond-card reveal">
-        <div class="cond-key">Горизонт</div>
-        <div class="cond-value">12+ мес</div>
-        <p class="cond-detail">Рекомендуемый срок для реализации стратегии</p>
-      </div>
-      <div class="cond-card reveal">
-        <div class="cond-key">Performance Fee</div>
-        <div class="cond-value">20%</div>
-        <p class="cond-detail">Только с прибыли сверх high-watermark</p>
-      </div>
-      <div class="cond-card reveal">
-        <div class="cond-key">Management Fee</div>
-        <div class="cond-value">0%</div>
-        <p class="cond-detail">Никаких фиксированных комиссий за управление</p>
-      </div>
-      <div class="cond-card reveal">
-        <div class="cond-key">Ликвидность</div>
-        <div class="cond-value">30 дней</div>
-        <p class="cond-detail">Notice period для вывода средств</p>
-      </div>
-      <div class="cond-card reveal">
-        <div class="cond-key">Участников</div>
-        <div class="cond-value">≤ 15</div>
-        <p class="cond-detail">Закрытый круг, только по личному приглашению</p>
-      </div>
-    </div>
-
-    <div style="margin-top:32px" class="reveal">
-      <div class="status-badge">
-        <div class="status-dot"></div>
-        Статус: Бумажное тестирование активно → Live старт: 2026-08-01
-      </div>
+    <div style="max-width:640px;margin:0 auto;text-align:center;padding:60px 0">
+      <div style="font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:16px">Текущий статус</div>
+      <h2 style="font-size:1.6rem;margin-bottom:16px">Paper simulation · Стадия тестирования</h2>
+      <p style="color:rgba(255,255,255,0.55);line-height:1.7">
+        Система тестируется на виртуальном капитале $100,000 USDC с 2026-06-10.
+        Paper APY на текущий момент: ~4%. Проект находится на стадии настройки и валидации —
+        не на стадии привлечения внешнего капитала.
+      </p>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════ WAITLIST ═══════════════════════════════ -->
-<section id="waitlist">
-  <div class="container">
-    <div class="reveal" style="text-align:center;margin-bottom:0">
-      <div class="section-label" style="justify-content:center">
-        Лист ожидания
-      </div>
-      <h2>Оставьте заявку</h2>
-      <p style="margin-top:12px;max-width:480px;margin-left:auto;margin-right:auto">Мы формируем первый круг инвесторов. Заявки рассматриваются лично — ответим в течение 48 часов.</p>
-    </div>
-
-    <div class="form-wrap reveal">
-      <form id="waitlist-form" onsubmit="handleSubmit(event)">
-        <div class="form-group">
-          <label for="f-name">Имя и фамилия</label>
-          <input type="text" id="f-name" placeholder="Иван Петренко" required>
-        </div>
-        <div class="form-group">
-          <label for="f-email">Email</label>
-          <input type="email" id="f-email" placeholder="ivan@example.com" required>
-        </div>
-        <div class="form-group">
-          <label for="f-tg">Telegram</label>
-          <input type="text" id="f-tg" placeholder="@username">
-        </div>
-        <div class="form-group">
-          <label for="f-amount">Сумма интереса</label>
-          <select id="f-amount" required>
-            <option value="" disabled selected>Выберите диапазон...</option>
-            <option value="10k">$10,000</option>
-            <option value="25k">$25,000</option>
-            <option value="50k">$50,000</option>
-            <option value="100k+">$100,000+</option>
-          </select>
-        </div>
-        <button type="submit" class="btn btn-gold">Оставить заявку →</button>
-      </form>
-      <p class="form-disclaimer">Нажимая кнопку, вы соглашаетесь на личную связь для обсуждения условий участия.<br>Данная страница не является публичной офертой.</p>
-    </div>
-  </div>
-</section>
 
 <!-- ═══════════════════════════════ FOOTER ═══════════════════════════════ -->
 <footer>
@@ -805,8 +720,7 @@
       </svg>
       <span class="footer-name">SPA Capital</span>
     </div>
-    <p>SPA Capital — Частне інвестиційне товариство</p>
-    <p>Ця сторінка не є публічною офертою та не є запрошенням до інвестування</p>
+    <p>SPA Capital — автономная доходность по стейблкоинам. Личный исследовательский проект в стадии paper-тестирования.</p>
     <p style="margin-top:14px;font-size:0.75rem;color:var(--white-20)">© 2026 SPA Capital · Всі права захищено</p>
   </div>
 </footer>
@@ -854,14 +768,6 @@
     animateCount(document.getElementById('cnt-strat'), 0, 8, 1200, '', '');
     animateCount(document.getElementById('cnt-days'), 0, daysDiff, 1400, '', '');
   }, 600);
-
-  // ── Form submit ──
-  function handleSubmit(e) {
-    e.preventDefault();
-    var name = document.getElementById('f-name').value.trim();
-    alert('Спасибо, ' + (name || 'друг') + '! Мы свяжемся с вами лично в течение 48 часов.');
-    document.getElementById('waitlist-form').reset();
-  }
 
   // ── Smooth nav highlight on scroll ──
   var sections = document.querySelectorAll('section[id]');
