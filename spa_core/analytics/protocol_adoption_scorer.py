@@ -9,6 +9,8 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 
+from spa_core.utils.errors import SPAError
+
 RING_BUFFER_CAP = 100
 _DEFAULT_LOG = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "protocol_adoption_log.json"
@@ -136,13 +138,13 @@ class ProtocolAdoptionScorer:
     def get_adoption_tier(self) -> str:
         """Return adoption_tier from last score() call."""
         if self._result is None:
-            raise RuntimeError("Call score() before get_adoption_tier()")
+            raise SPAError("Call score() before get_adoption_tier()", code="NOT_INITIALIZED")
         return self._result["adoption_tier"]
 
     def get_growth_breakdown(self) -> Dict[str, Any]:
         """Return growth_breakdown dict from last score() call."""
         if self._result is None:
-            raise RuntimeError("Call score() before get_growth_breakdown()")
+            raise SPAError("Call score() before get_growth_breakdown()", code="NOT_INITIALIZED")
         return self._result["growth_breakdown"]
 
     def get_last_result(self) -> Optional[Dict[str, Any]]:
