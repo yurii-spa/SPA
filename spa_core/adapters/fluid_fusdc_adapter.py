@@ -24,12 +24,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 import time
 from pathlib import Path
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -338,19 +338,10 @@ class FluidFUSDCAdapter(BaseAdapter):
         block.update(updates)
         data["fluid_fusdc"] = block
 
-        # Атомарная запись: tmp-файл в той же директории + os.replace
-        dir_ = path.parent
-        fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp", prefix="adapter_status_")
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, path)
+            atomic_save(data, str(path))
         except Exception as exc:  # noqa: BLE001
             logger.error("fluid_fusdc: ошибка атомарной записи %s: %s", path, exc)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
 
     # ── сериализация ─────────────────────────────────────────────────────
 
