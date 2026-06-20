@@ -150,8 +150,17 @@ def _read_json(path: Path) -> Any:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
-    atomic_save(obj, path)
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
+def _num(value: Any) -> Optional[float]:
+    """Finite float or None (bool is not a number; NaN/inf are not data)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(float(value)):
+        return None
+    return float(value)
+
+
 def normalize_protocol(name: Any) -> str:
     """Normalise a protocol name to its canonical slug.
 
