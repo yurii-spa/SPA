@@ -74,11 +74,11 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.yield_optimizer")
 
@@ -479,23 +479,7 @@ class YieldOptimizer:
         if len(history) > RESULTS_HISTORY_MAX:
             history = history[-RESULTS_HISTORY_MAX:]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(data_path), prefix=".yield_optimizer_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(history, fh, indent=2, ensure_ascii=False)
-                fh.write("\n")
-            os.replace(tmp_path, str(target))
-            log.info("yield_optimizer_results.json updated (%d entries)", len(history))
-        except Exception as exc:  # noqa: BLE001
-            log.error("Failed to write yield_optimizer_results.json: %s", exc)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(history, str(target))
     # ── Private helpers ────────────────────────────────────────────────────────
 
     def _optimize_with_lambda(
