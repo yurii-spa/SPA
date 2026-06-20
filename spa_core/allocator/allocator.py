@@ -120,12 +120,15 @@ class StrategyAllocator:
         strategy_loop_enabled: bool = True,
         comparison_path: str | os.PathLike | None = None,
         strategies_dir: str | os.PathLike | None = None,
+        registry_path: str | os.PathLike | None = None,
     ):
         self.status_path = Path(status_path) if status_path else _STATUS_PATH
         self.risk_scores_path = (
             Path(risk_scores_path) if risk_scores_path else _RISK_SCORES_PATH
         )
         self.allocation_model = allocation_model or DEFAULT_MODEL
+        # MP-REGISTRY: optional registry path; None → use project default.
+        self._registry_path = Path(registry_path) if registry_path else _REGISTRY_PATH
         # SPA-V408: shadow→allocator feedback loop.
         self.strategy_loop_enabled = strategy_loop_enabled
         self.comparison_path = (
@@ -232,10 +235,9 @@ class StrategyAllocator:
 
         # MP-REGISTRY: merge active adapters from adapter_registry.json that are
         # absent from the orchestrator snapshot (live data always takes precedence).
-        registry_path = getattr(self, "_registry_path", _REGISTRY_PATH)
-        if Path(registry_path).exists():
+        if self._registry_path.exists():
             try:
-                reg = json.loads(Path(registry_path).read_text(encoding="utf-8"))
+                reg = json.loads(self._registry_path.read_text(encoding="utf-8"))
                 for name, entry in reg.get("adapters", {}).items():
                     if name in seen_protocols:
                         continue  # live orchestrator value takes precedence
