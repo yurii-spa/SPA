@@ -24,6 +24,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.errors import SPAError
 
 # ---------------------------------------------------------------------------
 # Constants / defaults
@@ -259,7 +260,7 @@ class ProtocolTVLFilter(BaseAnalytics):
     def save(self) -> str:
         """Atomically append last result to ring-buffer log. Returns log path."""
         if self._last_result is None:
-            raise RuntimeError("No filter result to save; call filter_protocols() first.")
+            raise SPAError("No filter result to save; call filter_protocols() first.", code="NOT_INITIALIZED")
 
         log_path = os.path.join(self._data_dir, LOG_FILENAME)
         log = _load_log(log_path)
