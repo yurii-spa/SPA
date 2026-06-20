@@ -13,6 +13,7 @@ logs/*.log
 # Backup files
 *.bak
 *.bak_*
+*.tmp
 
 # Verification scratch output
 out_*.json
