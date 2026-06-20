@@ -62,13 +62,13 @@ import json
 import math
 import os
 import sys
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -430,20 +430,7 @@ class YieldForecastEngine(BaseAnalytics):
         if len(existing) > RING_BUFFER_CAP:
             existing = existing[-RING_BUFFER_CAP:]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(self._data_dir), suffix=".tmp"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(existing, fh, indent=2)
-            os.replace(tmp_path, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(existing, str(log_path))
         return log_path
 
     def load_history(self) -> List[dict]:
