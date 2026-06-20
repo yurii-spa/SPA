@@ -21,9 +21,9 @@ Pure stdlib.  Atomic write (tmp + os.replace).  Ring-buffer log capped at 100.
 import json
 import math
 import os
-import tempfile
 import time
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -65,21 +65,8 @@ _ADOPTION_LOG_HIGH     = 9.0     # log10($1 B)   → 20 pts
 # ---------------------------------------------------------------------------
 
 def _atomic_write_json(path: str, data) -> None:
-    abs_path = os.path.abspath(path)
-    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(abs_path), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(data, str(path))
 def _load_log(path: str) -> List:
     try:
         with open(path, "r") as fh:
