@@ -8,10 +8,10 @@ MP-960: DeFiLiquidityMiningROICalculator
 import json
 import math
 import os
-import tempfile
 import time
 from datetime import datetime
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 
 # ---------------------------------------------------------------------------
@@ -33,19 +33,7 @@ def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically via tmp + os.replace."""
     abs_path = os.path.abspath(path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(abs_path), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(abs_path))
 def _load_log(path: str) -> list:
     try:
         with open(path, "r", encoding="utf-8") as f:
