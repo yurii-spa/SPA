@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_cross_protocol_yield_optimizer
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_cross_protocol_yield_optimizer import DeFiCrossProtocolYieldOptimizer
 
