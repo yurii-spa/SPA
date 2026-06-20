@@ -1,0 +1,70 @@
+{
+  "_description": "Audit baseline — known non-issues and by-design states. Any audit must read this file first and suppress flagged items.",
+  "_updated": "2026-06-21",
+
+  "missing_files": {
+    "data/sky_monitor.json": {
+      "by_design": true,
+      "reason": "GSM Pause Delay check is inline in cycle_runner.py:1289 as APY fallback. No separate daemon file needed."
+    },
+    "data/pnl_history.json": {
+      "by_design": true,
+      "reason": "PnL history tracked via paper_evidence_history.json and equity_curve_daily.json. pnl_history.json is an old reference."
+    }
+  },
+
+  "mac_only_checks": {
+    "autopush_launchd": {
+      "note": "com.spa.autopush.plist lives at ~/Library/LaunchAgents/ — only valid on macOS host, NOT in Linux sandbox.",
+      "check_command": "launchctl list com.spa.autopush",
+      "sandbox_result_expected": "NOT FOUND (false negative)"
+    },
+    "golive_autopush_installed": {
+      "note": "GoLiveChecker._check_autopush_installed() checks ~/Library/LaunchAgents/com.spa.autopush.plist. Always fails in Linux sandbox. On Mac: 26/26 is the target."
+    }
+  },
+
+  "stale_by_design": {
+    "data/tournament_results.json": {
+      "note": "Regenerated every cycle by cycle_runner. After cycle restart or code push, may be stale for 1 cycle. composite_score=0.0 is correct when days_running < 14 (MIN_OBS)."
+    },
+    "data/equity_curve_daily.json": {
+      "note": "Contains 20 warmup entries (is_warmup: true, dates < 2026-06-10). These are synthetic seed data for algorithm warm-start. Not a bug."
+    },
+    "data/gap_monitor.json": {
+      "note": "dates field may be empty list [] — gap_monitor tracks last_entry_date, not full history array. status: ok is the relevant field."
+    }
+  },
+
+  "positions": {
+    "spark_susds": {
+      "status": "approved",
+      "reason": "SparkSusds T1 adapter approved via inline GSM gate in cycle_runner (fallback APY 4.6%). sky_monitor.py exists as module for future on-chain verification.",
+      "max_allocation_pct": 10
+    }
+  },
+
+  "cycle_runner_tournament": {
+    "active_strategies": ["S0","S1","S2","S3","S4","S5","S6","S7","S11","S12","S13","S15","S17","S18","S19"],
+    "excluded_by_design": {
+      "S8": "sFRAX T2 — excluded from tournament pending more data",
+      "S9": "Pendle YT speculation T3 — high risk, separate evaluation",
+      "S10": "Pendle YT v2 — T3, excluded pending stability",
+      "S14": "pending integration",
+      "S16": "pending integration",
+      "S20": "pending integration",
+      "S21": "pending integration"
+    },
+    "note": "cycle_runner manually constructs tournament strategies. strategy_registry.py has full list but tournament subset is intentional."
+  },
+
+  "docs_discrepancies": {
+    "pendle_pt_rest.py": {
+      "note": "Referenced in old CLAUDE.md table. File was consolidated into spa_core/execution/adapters/pendle_pt_adapter.py. Reference is stale documentation, not a missing file."
+    }
+  },
+
+  "push_scripts": {
+    "note": "scripts/push_v*.sh files with number <= autopush_state.json:last_version are dead/already-pushed. ~180 old scripts (v809-v1208) are expected clutter. smart_autopush.py ignores them correctly."
+  }
+}
