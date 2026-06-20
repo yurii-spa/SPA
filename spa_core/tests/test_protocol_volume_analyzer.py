@@ -7,8 +7,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_volume_analyzer -v
 import json
 import math
 import os
-import tempfile
 import unittest
+import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
