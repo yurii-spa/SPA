@@ -240,7 +240,7 @@ class RiskPolicy:
     Этот запрет не может быть переопределён агентами.
     """
 
-    def __init__(self, config: RiskConfig = None):
+    def __init__(self, config: Optional[RiskConfig] = None) -> None:
         self.config = config or RiskConfig()
 
     # ── Основные проверки ─────────────────────────────────────────────────────
