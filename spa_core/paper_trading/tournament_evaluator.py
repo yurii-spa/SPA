@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.base import BaseAnalytics
 from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY, StrategyConfig
 from spa_core.paper_trading.vportfolio import VPortfolio, VPortfolioManager
 
@@ -363,7 +364,7 @@ def compute_composite_score(m: StrategyMetrics) -> float:
 
 # ─── TournamentEvaluator ──────────────────────────────────────────────────────
 
-class TournamentEvaluator:
+class TournamentEvaluator(BaseAnalytics):
     """Оценивает все стратегии VPortfolioManager и ранжирует их.
 
     Usage:
@@ -372,11 +373,15 @@ class TournamentEvaluator:
         ranking = evaluator.evaluate_all()
     """
 
+    OUTPUT_PATH = "data/tournament_ranking.json"
+
     def __init__(
         self,
         manager: VPortfolioManager,
         data_dir: Optional[Path] = None,
+        base_dir: str = ".",
     ) -> None:
+        super().__init__(base_dir)
         self.manager = manager
         self._data_dir: Path = data_dir or manager._data_dir
 
@@ -490,6 +495,17 @@ class TournamentEvaluator:
             return False
 
         return True
+
+    def to_dict(self) -> dict:
+        """Returns current tournament ranking as JSON-serializable dict (BaseAnalytics)."""
+        results = self.evaluate_all()
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "source": "tournament_evaluator",
+            "is_demo": False,
+            "num_strategies": len(results),
+            "ranking": [r.to_dict() for r in results],
+        }
 
     # ── Persistence ───────────────────────────────────────────────────────────
 
