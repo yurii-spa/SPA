@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure repo root on path
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
