@@ -1,5 +1,5 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v11.70** | Done: **1211** задач
+> Последнее обновление: **2026-06-20** | Версия: **v12.01** | Done: **1211** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
@@ -7,7 +7,40 @@
 
 ---
 
-## SPA v11.70 — 2026-06-20
+## autopush launchd — 2026-06-20 (v12.01)
+
+| Задача | Статус | Результат |
+|--------|--------|-----------|
+| autopush launchd install | ✅ DONE | `com.spa.autopush` установлен → GoLive **26/26 ✅ READY** |
+| GoLive checker update | ✅ DONE | `data/golive_status.json` обновлён: `autopush_installed=true`, blockers=[] |
+| consecutive_ready_days | ✅ START | День 1 — отсчёт к ADR-002 (7 дней подряд READY) |
+| `_push_day_summary.command` | ✅ CREATED | Итоговый push текущего дня |
+
+**Sprint Coordinator:** pre-gate ✅ — imports 1170/1170 OK, 0 fail  
+**GoLive:** 26/26 ✅ **READY** — `data/golive_status.json` (timestamp 2026-06-20)  
+
+---
+
+## P1 Audit Fixes — 2026-06-20 (v12.00)
+
+| Задача | Статус | Результат |
+|--------|--------|-----------|
+| P1-A: adapter_registry.json | ✅ DONE | `data/adapter_registry.json` — 28 адаптеров (T1×7, T2×14, T3×3, watchlist×1, dev×1, research×2) |
+| P1-B: strategy_summary.json | ✅ DONE | `data/strategy_summary.json` — 24 стратегии (S1–S21 включая все варианты) |
+| P1-C: Compound V3 концентрация | ✅ OK | 38.0% vs 40% cap — в норме, headroom 2%. Cash 5.0% (min). Реаллокация не нужна. |
+| P1-D: CURRENT_STATE.md | ✅ DONE | Версия обновлена до v12.00 |
+
+**Коммит-точка перед P1:** `ad113f835`
+
+**P0 фиксы (до P1):**
+- `spa_core/base.py` — исправлен импорт (1170/1170 OK)
+- `spa_core/utils/kanban.py` — фикс concurrent writes
+- Sprint Coordinator добавлен в инфраструктуру
+- 1170/1170 импортов проверено — все чистые
+
+---
+
+## SPA v12.00 — 2026-06-20
 
 ### Version: 10.0.0
 
@@ -15,10 +48,10 @@
 |---|---|
 | version | **10.0.0** (`spa_core/version.py`) |
 | done_count | **1211** (KANBAN.json — source of truth) |
-| sprint_completed | **v11.70** |
+| sprint_completed | **v12.01** (autopush launchd + GoLive 26/26 READY) |
 | Gate Status | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
-| GoLive Score | **82/100** ✅ (цель 82+ достигнута) |
-| GoLive Status | **IN_PROGRESS** — 25/26 pass → target 26/26 (go-live 2026-08-01) |
+| GoLive Score | **100/100** ✅ (26/26 все критерии) |
+| GoLive Status | **✅ READY** — 26/26 pass | consecutive_ready_days=1 | go-live target 2026-08-01 |
 | Go-live target | **2026-08-01** |
 | Total tests | **2000+** |
 | ADRs | **41** |
@@ -36,7 +69,7 @@
 | AUDIT-001: 254 atomic_write copies | 🔄 IN PROGRESS | v10.5, v10.29–48 (~44 files done) |
 | AUDIT-002: 597 no BaseAnalytics | 🔄 IN PROGRESS | v10.21–64 (**43 migrated**, Phase 4 complete) |
 | AUDIT-003: DeFiLlama not centralized | ✅ FIXED | v9.95–96 |
-| AUDIT-004: Adapter registry missing | ✅ FIXED | v9.95–96 |
+| AUDIT-004: Adapter registry missing | ✅ FIXED | v9.95–96 (data/adapter_registry.json — 28 адаптеров, v12.00) |
 | AUDIT-005: Error catalog not adopted | ✅ FIXED | v10.83 — **100% adoption** (0 bare Exception/RuntimeError) |
 | AUDIT-006: safe_tx_builder TODOs | ✅ FIXED | v10.23 |
 | AUDIT-007: Execution safety | ✅ FIXED | v10.24 |
@@ -135,7 +168,7 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 | launchd `com.spa.daily_cycle` | ✅ (ежедневно 08:00) |
 | launchd `com.spa.httpserver` | ✅ (port 8765) |
 | launchd `com.spa.cloudflared` | ✅ (туннель) |
-| launchd `com.spa.autopush` | ❌ НЕ УСТАНОВЛЕН — фикс: `bash mp009_fix_launchd.command` |
+| launchd `com.spa.autopush` | ✅ УСТАНОВЛЕН (2026-06-20) |
 | `scripts/run_cpa_wave6_pushes.sh` | ✅ CREATED (MP-1450 v10.66) |
 | `_push_wave6.command` | ✅ CREATED (MP-1450 v10.66) |
 | `scripts/run_cpa_wave7_pushes.sh` | ✅ CREATED (MP-1458 v10.74) |
@@ -155,8 +188,8 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 - Evidence collecting via launchd cycle (daily 08:00)
 - Evidence auto-calculator: `spa_core/analytics/evidence_auto_calculator.py`
 - Evidence seed data: `data/paper_evidence_history.json` (3 seed + 3 real = 4.5 effective days)
-- GoLiveChecker: **20/26 pass** (NOT READY) — target **2026-08-01**
-- GoLive Readiness Score: **82/100** (threshold 80+ для READY, 90+ для activation)
+- GoLiveChecker: **26/26 pass** ✅ **READY** — target go-live **2026-08-01**
+- GoLive Readiness Score: **26/26** (все 26 критериев: ✅) | consecutive_ready_days=1
 - Cycle logs: `/tmp/spa_cycle.log`, `/tmp/spa_cycle_err.log`
 
 ---
