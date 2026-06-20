@@ -17,8 +17,8 @@ import os
 import random
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.paper_trading import bias_ratio as br_mod
