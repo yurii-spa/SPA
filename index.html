@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>SPA — Stable Portfolio Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1966,14 +1967,14 @@ body > .main-wrap, #app, .app-container,
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:600">Strategy Race</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">S0–S13 shadow strategies running in parallel · 30-day track to select live strategy</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">S0–S10 shadow strategies running in parallel · 30-day track to select live strategy</div>
     </div>
     <button class="refresh-btn" data-i18n="refresh" onclick="loadStrategies()">↻ Refresh</button>
   </div>
 
   <!-- BLOCK 1: Strategy Race Leaderboard -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">🏁 S0–S13 Strategy Leaderboard</div>
+    <div class="db-section">🏁 S0–S10 Strategy Leaderboard</div>
     <div id="strat-accumulate-bar" style="margin-bottom:12px"></div>
     <div style="overflow-x:auto">
       <table class="race-table" style="width:100%">
@@ -2039,52 +2040,7 @@ body > .main-wrap, #app, .app-container,
           </tr>
         </thead>
         <tbody id="tournament-leaderboard-tbody">
-          <!-- Static seed data (S11, S7, S12 from known results — updated by loadTournamentLeaderboard()) -->
-          <tr style="background:rgba(52,211,153,0.06)">
-            <td style="padding:8px 10px;font-weight:700;color:#059669">#1</td>
-            <td style="padding:8px 10px"><span style="font-weight:700">S11</span> <span style="font-size:11px;color:#888">Hybrid Yield Max</span></td>
-            <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">15.6%</td>
-            <td style="padding:8px 10px;text-align:right">2.1</td>
-            <td style="padding:8px 10px;text-align:right;color:#dc2626">-1.8%</td>
-            <td style="padding:8px 10px;text-align:right">74%</td>
-            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">🏆 Production</span></td>
-          </tr>
-          <tr>
-            <td style="padding:8px 10px;font-weight:600;color:#185FA5">#2</td>
-            <td style="padding:8px 10px"><span style="font-weight:700">S7</span> <span style="font-size:11px;color:#888">Pendle YT Aggressive</span></td>
-            <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">10.1%</td>
-            <td style="padding:8px 10px;text-align:right">1.8</td>
-            <td style="padding:8px 10px;text-align:right;color:#dc2626">-2.3%</td>
-            <td style="padding:8px 10px;text-align:right">71%</td>
-            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px">✅ Production</span></td>
-          </tr>
-          <tr style="background:rgba(0,0,0,0.02)">
-            <td style="padding:8px 10px;font-weight:600;color:#185FA5">#3</td>
-            <td style="padding:8px 10px"><span style="font-weight:700">S12</span> <span style="font-size:11px;color:#888">Base Layer Yield</span></td>
-            <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">7.4%</td>
-            <td style="padding:8px 10px;text-align:right">1.5</td>
-            <td style="padding:8px 10px;text-align:right;color:#dc2626">-1.2%</td>
-            <td style="padding:8px 10px;text-align:right">68%</td>
-            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px">✅ Production</span></td>
-          </tr>
-          <tr>
-            <td style="padding:8px 10px;color:#777">#4</td>
-            <td style="padding:8px 10px"><span style="font-weight:600">S20_CRV</span> <span style="font-size:11px;color:#888">Curve/Convex Optimizer</span></td>
-            <td style="padding:8px 10px;text-align:right;color:#059669">9.0%</td>
-            <td style="padding:8px 10px;text-align:right">1.4</td>
-            <td style="padding:8px 10px;text-align:right;color:#dc2626">-3.0%</td>
-            <td style="padding:8px 10px;text-align:right">72%</td>
-            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span></td>
-          </tr>
-          <tr style="background:rgba(0,0,0,0.02)">
-            <td style="padding:8px 10px;color:#777">#5</td>
-            <td style="padding:8px 10px"><span style="font-weight:600">S21_LOOP</span> <span style="font-size:11px;color:#888">Aave V3 USDC Loop</span></td>
-            <td style="padding:8px 10px;text-align:right;color:#059669">7.5%</td>
-            <td style="padding:8px 10px;text-align:right">1.2</td>
-            <td style="padding:8px 10px;text-align:right;color:#dc2626">-2.0%</td>
-            <td style="padding:8px 10px;text-align:right">78%</td>
-            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span></td>
-          </tr>
+          <tr><td colspan="7" style="text-align:center;padding:20px;color:#888">Загрузка данных из tournament_runner_v2.json…</td></tr>
         </tbody>
       </table>
     </div>
@@ -2455,7 +2411,7 @@ body > .main-wrap, #app, .app-container,
     </div>
   </section>
 
-  <div class="db-footer">SPA Paper Trading v0.4 · данные реальные, капитал виртуальный · обновляется каждые 4ч · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
+  <div class="db-footer">SPA Paper Trading v1.0 · данные реальные, капитал виртуальный · ежедневно 08:00 UTC · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
 
 </div><!-- /tab-dashboard -->
 
@@ -2516,7 +2472,7 @@ body > .main-wrap, #app, .app-container,
         </div>
         <div class="ops-card-meta">
           <div class="ops-card-name">Adapter Orchestrator</div>
-          <div class="ops-card-role">DeFiLlama API · 14 адаптеров · read-only</div>
+          <div class="ops-card-role">DeFiLlama API · 9 адаптеров · read-only</div>
         </div>
       </div>
       <div class="ops-status-row">
@@ -2562,7 +2518,7 @@ body > .main-wrap, #app, .app-container,
       </div>
       <div class="ops-schedule">
         <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Ранжирование APY · аллокация с TVL floor ≥$5M</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">T2 total cap ≤35% · per-protocol 40%T1 / 20%T2</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">T2 total cap ≤50% · per-protocol 40%T1 / 20%T2</span></div>
         <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Дельта > порога → виртуальный rebalance-трейд</span></div>
       </div>
       <div class="ops-card-footer">
@@ -2626,11 +2582,11 @@ body > .main-wrap, #app, .app-container,
         <div class="ops-status-label">Python 3 stdlib · launchd daily</div>
       </div>
       <div class="ops-task" id="ops-task-ceo" style="border-left-color:#F59E0B">
-        Оркестрирует весь дневной цикл → GoLiveChecker (6 критериев)
+        Оркестрирует весь дневной цикл → GoLiveChecker (26 критериев)
       </div>
       <div class="ops-schedule">
         <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">Yield accrual → equity_curve_daily.json (ring-buffer 365)</span></div>
-        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">GoLiveChecker: 6 критериев → golive_status.json</span></div>
+        <div class="ops-sch-item"><span class="ops-sch-freq">ежедневно</span><span class="ops-sch-desc">GoLiveChecker: 26 критериев → golive_status.json</span></div>
         <div class="ops-sch-item"><span class="ops-sch-freq">90 мин</span><span class="ops-sch-desc">autopush.py → GitHub (launchd com.spa.autopush)</span></div>
       </div>
       <div class="ops-card-footer">
@@ -2658,7 +2614,7 @@ body > .main-wrap, #app, .app-container,
           <div style="font-weight:600;color:#fcd34d;margin-bottom:6px">python3 -m spa_core.paper_trading.cycle_runner</div>
           <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline">
             <span style="color:#3B82F6;font-size:11px">①</span>
-            <span><span style="color:#60A5FA;font-weight:600">Adapter Orchestrator</span> → DeFiLlama yields API <span style="color:#6b7280;font-size:10px">(кэш TTL 300с)</span> → 14 адаптеров (read-only)</span>
+            <span><span style="color:#60A5FA;font-weight:600">Adapter Orchestrator</span> → DeFiLlama yields API <span style="color:#6b7280;font-size:10px">(кэш TTL 300с)</span> → 9 адаптеров (read-only)</span>
             <span style="color:#10B981;font-size:11px">②</span>
             <span><span style="color:#34d399;font-weight:600">StrategyAllocator</span> → целевая аллокация USD по пулам с cap'ами T1/T2</span>
             <span style="color:#10B981;font-size:11px">②b</span>
@@ -2670,7 +2626,7 @@ body > .main-wrap, #app, .app-container,
             <span style="color:#06b6d4;font-size:11px">⑤</span>
             <span><code style="font-size:10px;color:#a78bfa">data/equity_curve_daily.json</code> <span style="color:#6b7280;font-size:10px">(ring-buffer 365 дней)</span></span>
             <span style="color:#fbbf24;font-size:11px">⑥</span>
-            <span><span style="color:#fcd34d;font-weight:600">GoLiveChecker</span> → <code style="font-size:10px;color:#a78bfa">data/golive_status.json</code> (6 критериев)</span>
+            <span><span style="color:#fcd34d;font-weight:600">GoLiveChecker</span> → <code style="font-size:10px;color:#a78bfa">data/golive_status.json</code> (26 критериев)</span>
           </div>
         </div>
       </div>
@@ -2710,7 +2666,7 @@ body > .main-wrap, #app, .app-container,
       <div class="stack-row"><span class="stack-label">Оркестрация</span><span class="stack-value">launchd (daily 08:00 UTC)</span></div>
       <div class="stack-row"><span class="stack-label">Язык</span><span class="stack-value">Python 3 · только stdlib</span></div>
       <div class="stack-row"><span class="stack-label">Хранилище</span><span class="stack-value">data/*.json (атомарные записи)</span></div>
-      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama yields API · 14 адаптеров</span></div>
+      <div class="stack-row"><span class="stack-label">Данные</span><span class="stack-value">DeFiLlama yields API · 9 адаптеров</span></div>
       <div class="stack-row"><span class="stack-label">Автопуш</span><span class="stack-value">launchd autopush (каждые 90 мин)</span></div>
       <div class="stack-row"><span class="stack-label">Frontend</span><span class="stack-value">GitHub Pages · HTML/JS</span></div>
       <div class="stack-row"><span class="stack-label">Туннель</span><span class="stack-value">cloudflared · локальный httpserver</span></div>
@@ -2718,7 +2674,7 @@ body > .main-wrap, #app, .app-container,
     <div class="team-stack">
       <div class="flow-title">дорожная карта</div>
       <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Rebuild: реальный трек, cycle_runner, launchd</span></div>
-      <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Dashboard v2 · Kanban · 121+ тест</span></div>
+      <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Dashboard v2 · Kanban · 800+ тестов</span></div>
       <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-1">~</span> ●</span><span class="stack-value">30 честных дней трека (ADR-002)</span></div>
       <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-2">~</span></span><span class="stack-value">GoLiveChecker: 7 дней READY подряд</span></div>
       <div class="stack-row"><span class="stack-label">Go-Live</span><span class="stack-value">~2026-08-01 · Реальный капитал (ADR-002)</span></div>
@@ -3466,7 +3422,7 @@ body > .main-wrap, #app, .app-container,
           <div class="day-progress-bar-fill" id="golive-day-fill" style="width:0%"></div>
         </div>
         <div class="day-progress-label">
-          <span>2026-05-20 (paper start)</span>
+          <span>2026-06-10 (paper start)</span>
           <span id="golive-day-today"></span>
           <span>2026-08-01 (go-live)</span>
         </div>
@@ -3483,7 +3439,7 @@ body > .main-wrap, #app, .app-container,
         <circle id="donut-fail" cx="70" cy="70" r="54" fill="none" stroke="#ef4444" stroke-width="18"
           stroke-dasharray="0 339.3" stroke-dashoffset="84.8" stroke-linecap="round" style="transition:stroke-dasharray .6s ease;transform:rotate(-90deg);transform-origin:70px 70px"/>
         <text id="donut-label" x="70" y="67" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a1a">—</text>
-        <text x="70" y="84" text-anchor="middle" font-size="11" fill="#888">of 8</text>
+        <text x="70" y="84" text-anchor="middle" font-size="11" fill="#888">of 26</text>
       </svg>
     </div>
   </div>
@@ -3528,7 +3484,7 @@ body > .main-wrap, #app, .app-container,
         <div style="text-align:center">
           <div style="width:22px;height:22px;border-radius:50%;background:#16a34a;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700">✓</div>
           <div style="font-size:11px;font-weight:600;color:#16a34a">Paper Start</div>
-          <div style="font-size:10px;color:#aaa">2026-05-20</div>
+          <div style="font-size:10px;color:#aaa">2026-06-10</div>
         </div>
         <div style="text-align:center">
           <div style="width:22px;height:22px;border-radius:50%;background:#185FA5;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:white">●</div>
@@ -4458,7 +4414,7 @@ async function loadPerformance() {
   if (statusBarEl) {
     const lastTs       = status ? status.last_cycle_ts : null;
     const lastCycleStr = lastTs ? 'Last cycle: ' + _perfTimeAgo(lastTs) : 'No cycle data';
-    const criteriaStr  = golive ? `${golive.criteria_met != null ? golive.criteria_met : '—'}/${golive.total_criteria != null ? golive.total_criteria : 6} criteria` : '—/6 criteria';
+    const criteriaStr  = golive ? `${golive.criteria_met != null ? golive.criteria_met : '—'}/${golive.total_criteria != null ? golive.total_criteria : 26} criteria` : '—/26 criteria';
     statusBarEl.innerHTML =
       `<span style="color:#3B6D11;font-weight:600">✅ Systems operational</span>` +
       `<span style="color:#888;font-size:12px;margin-left:14px">` + lastCycleStr + `</span>` +
@@ -4918,7 +4874,7 @@ async function loadTournamentLeaderboard() {
   const STATUS_DEMOTE = '<span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px">⚠️ Watch</span>';
   const STATUS_LEAD   = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">🏆 Production</span>';
 
-  const PRODUCTION_IDS = new Set(['S7', 'S11', 'S12']);
+  const PRODUCTION_IDS = new Set(['S8', 'S9', 'S10']);
 
   tbody.innerHTML = leaderboard.map((entry, i) => {
     const sid    = entry.strategy_id || entry.id || '?';
@@ -5749,7 +5705,7 @@ function renderDashboard(status, protocols, stratState, meta) {
     const t2total = positions.filter(p=>p.tier==='T2').reduce((s,p)=>s+p.amount_usd,0);
     const t2pct = ((t2total/total)*100).toFixed(1);
     const cashPctNum = ((p.cash_usd/total)*100).toFixed(1);
-    document.getElementById('conc-body').innerHTML = concHtml + `<div style="font-size:12px;color:#888;margin-top:8px">T2 совокупно: ${t2pct}% / лимит 35% · cash: ${cashPctNum}% / min 5%</div>`;
+    document.getElementById('conc-body').innerHTML = concHtml + `<div style="font-size:12px;color:#888;margin-top:8px">T2 совокупно: ${t2pct}% / лимит 50% · cash: ${cashPctNum}% / min 5%</div>`;
   }
 
   // Portfolio chart: MP-007 — строится из equity_curve_daily.json в loadDashboard,
@@ -6030,8 +5986,8 @@ function openAgentModal(agId) {
   let rows = '';
   if (agId === 'data') {
     rows += makeRow('Источник', 'DeFiLlama API');
-    rows += makeRow('Протоколов', '15 (T1 + T2)');
-    rows += makeRow('Частота', 'каждые 4 часа (GitHub Actions)');
+    rows += makeRow('Протоколов', '9 (T1 + T2)');
+    rows += makeRow('Частота', 'ежедневно 08:00 UTC (launchd)');
     rows += makeRow('Последний fetch', (st && st.last_updated) || '—');
   } else if (agId === 'strategy') {
     rows += makeRow('Стратегия', 'paper-v1 · пассивная');
@@ -6044,7 +6000,7 @@ function openAgentModal(agId) {
     rows += makeRow('Статус', 'работает');
     rows += makeRow('VaR 24h', fmtPct(st && st.risk && st.risk.var_24h_pct));
   } else if (agId === 'ceo') {
-    rows += makeRow('Политика', 'RiskPolicy v0.4.5');
+    rows += makeRow('Политика', 'RiskPolicy v1.0');
     rows += makeRow('Капитал', fmt(port.total_capital_usd));
     rows += makeRow('PnL', fmtSign(port.total_pnl_usd));
     rows += makeRow('Просадка', fmtPct(port.total_pnl_pct));
@@ -10889,10 +10845,10 @@ function initOffice() {
   // ── Thought Bubble Message Pools v0.8 ────────────────────────────────────────
   // IMPORTANT: declared here (before agents loop) to avoid TDZ when used in agent init
   const BUBBLE_MESSAGES = {
-    data:     ['Fetching Aave APY…','DeFiLlama ✓ 7 pools','APY scan complete','Checking TVL…','Compound: 4.02%','Maple: 4.80%','15 protos active','Data pipeline OK'],
-    strategy: ['Reviewing allocations…','Aave 40K @ 4.23%','Maple position stable','No rebalance needed','T2 budget: 35%','Cash buffer: 5%','Scoring protocols…','v1_passive running'],
-    monitor:  ['Portfolio health OK','Drawdown: 0.0%','Concentration check ✓','VaR within limits','All positions safe','Kill switch: armed','No alerts active','Risk policy v0.4.5'],
-    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','4h cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-08-01','paper-v1 on track','Approving trades…'],
+    data:     ['Fetching Aave APY…','DeFiLlama ✓ 7 pools','APY scan complete','Checking TVL…','Compound: 4.02%','Maple: 4.80%','9 protos active','Data pipeline OK'],
+    strategy: ['Reviewing allocations…','Aave 40K @ 4.23%','Maple position stable','No rebalance needed','T2 budget: 50%','Cash buffer: 5%','Scoring protocols…','v1_passive running'],
+    monitor:  ['Portfolio health OK','Drawdown: 0.0%','Concentration check ✓','VaR within limits','All positions safe','Kill switch: armed','No alerts active','Risk policy v1.0'],
+    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','daily cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-08-01','paper-v1 on track','Approving trades…'],
   };
   // Stagger so agents don't all talk at once (frames at 60fps)
   const BUBBLE_STAGGER = {data:20,strategy:120,monitor:220,ceo:320};
