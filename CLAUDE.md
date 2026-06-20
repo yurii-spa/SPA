@@ -16,7 +16,7 @@ AUM (third-party capital) после подтверждённого track record
 
 ---
 
-## Текущее состояние (2026-06-12)
+## Текущее состояние (2026-06-20)
 
 | Поле | Значение |
 |---|---|
@@ -24,7 +24,7 @@ AUM (third-party capital) после подтверждённого track record
 | Капитал | $100,000 USDC (виртуальный) |
 | Go-live решение | план 2026-07-15 → **перенос на ~2026-08-01** (ADR-002 go-live transfer rule) |
 | 30 честных дней трека | истекают ~2026-07-10 |
-| GoLiveChecker | **NOT READY** — **16/26 pass**; `trades_real: false` (реальных трейдов is_demo:false ещё нет) |
+| GoLiveChecker | **NOT READY** — **25/26 pass** (`ready: false`; 1 блокер остался) |
 | Тесты | `spa_core/tests/` — **~800+ файлов**; `tests/` — 11 файлов |
 
 ⚠️ Старый CLAUDE.md (заморожен на «Sprint v1.6, День 2/56», 4h GitHub Actions cron)
@@ -163,7 +163,7 @@ LLM-вызовы запрещены (prompt injection в капитал — кр
 ## GoLiveChecker (spa_core/paper_trading/golive_checker.py)
 
 **26 критериев** (расширен с 6 базовых); статус пишется в `data/golive_status.json`.
-Текущий статус: **16/26 pass** (NOT READY), target go-live **2026-08-01**.
+Текущий статус: **25/26 pass** (NOT READY, 1 блокер), target go-live **2026-08-01**.
 
 Ключевые группы критериев:
 
@@ -216,7 +216,7 @@ READY 7+ дней подряд + gap_monitor без пробелов 30 дней
 
 | Файл | Что |
 |---|---|
-| `golive_status.json` | 26 критериев GoLiveChecker + ready/blockers (16/26 pass) |
+| `golive_status.json` | 26 критериев GoLiveChecker + ready/blockers (25/26 pass) |
 | `gap_monitor.json` | Непрерывность трека (пробелы = перенос go-live) |
 | `trades.json` | Виртуальные трейды (ring-buffer 500), `is_demo: false` |
 | `equity_curve_daily.json` | Дневная equity curve (ring-buffer 365) |
@@ -310,4 +310,4 @@ python3 push_to_github.py --files /abs/path/a.py /abs/path/b.json --message "msg
 
 ---
 
-*Обновлено: 2026-06-12 (MP-367 v4.68 — стратегии S8/S9/S10, адаптеры Morpho Steakhouse/Compound V3/Aave Arbitrum/Pendle PT, Family Fund + http_server, GoLiveChecker 26 чеков 16/26 pass, ADR-019/020/021, Dashboard v3.0, promotion_engine, multi_strategy_runner, DR_PROCEDURE_v2).*
+*Обновлено: 2026-06-20 (MP-367 v4.68 — стратегии S8/S9/S10, адаптеры Morpho Steakhouse/Compound V3/Aave Arbitrum/Pendle PT, Family Fund + http_server, GoLiveChecker 26 чеков 25/26 pass, ADR-019/020/021, Dashboard v3.0, promotion_engine, multi_strategy_runner, DR_PROCEDURE_v2; fix FORBIDDEN golive/readiness_score imports v1199).*
