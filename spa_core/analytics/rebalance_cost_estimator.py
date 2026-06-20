@@ -22,6 +22,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
 from spa_core.utils.errors import SPAError
 
 # ---------------------------------------------------------------------------
@@ -137,7 +138,7 @@ def estimate_rebalance_cost(
 # RebalanceCostEstimator class
 # ---------------------------------------------------------------------------
 
-class RebalanceCostEstimator:
+class RebalanceCostEstimator(BaseAnalytics):
     """Stateful wrapper around estimate_rebalance_cost with ring-buffer log.
 
     Usage
@@ -155,9 +156,16 @@ class RebalanceCostEstimator:
     est.save()
     """
 
+    OUTPUT_PATH = "data/rebalance_cost_log.json"
+
     def __init__(self, data_dir: str = "data") -> None:
+        super().__init__(base_dir=data_dir)
         self._data_dir = data_dir
         self._last_result: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> dict:
+        """Return last estimation result as JSON-serializable dict."""
+        return self._last_result or {}
 
     # ------------------------------------------------------------------
     # Public API
