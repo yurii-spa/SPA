@@ -3,8 +3,16 @@
 # MP-1427 (v10.43): Daily paper trading cycle runner
 # Wraps CPACycleWithEvidence — called by launchd at 08:00 UTC daily.
 # Logs to logs/daily_cycle_YYYYMMDD.log
+#
+# BUG FIX (PATH 2026-06-20 v12.03):
+#   Hardcode PYTHON path — launchd не наследует shell PATH.
+#   Используем miniconda python (паритет с com.spa.cyclerunner).
 
 set -e
+
+# Абсолютный путь к python (miniconda, паритет с cyclerunner plist)
+PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
+
 cd ~/Documents/SPA_Claude
 
 LOG_DIR=~/Documents/SPA_Claude/logs
@@ -13,7 +21,7 @@ LOG_FILE="$LOG_DIR/daily_cycle_$(date +%Y%m%d).log"
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle" >> "$LOG_FILE"
 
-python3 -c "
+"$PYTHON" -c "
 import sys
 sys.path.insert(0, '.')
 from spa_core.backtesting.cpa_cycle_with_evidence import CPACycleWithEvidence
