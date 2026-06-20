@@ -25,6 +25,7 @@ import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from spa_core.utils.atomic import atomic_save
 from spa_core.persistence.db import (
     get_equity_curve,
     get_daily_report,
@@ -145,22 +146,9 @@ def _atomic_append_equity_json(
         doc["daily"] = daily
         doc["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        # Atomic write.
-        parent = eq_path.parent
-        parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_name = tempfile.mkstemp(dir=str(parent), prefix=".eq_curve_", suffix=".tmp")
-        os.close(fd)
-        try:
-            Path(tmp_name).write_text(
-                json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            os.replace(tmp_name, str(eq_path))
-        except Exception:
-            try:
-                os.remove(tmp_name)
-            except OSError:
-                pass
-            raise
+        # Atomic write via centralized atomic_save (MP-1452).
+        eq_path.parent.mkdir(parents=True, exist_ok=True)
+        atomic_save(doc, str(eq_path))
     except Exception as exc:
         log.warning("_atomic_append_equity_json failed (%s) — JSON not updated", exc)
 
