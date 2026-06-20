@@ -1,0 +1,67 @@
+[
+  {
+    "ts": "2026-06-18T16:16:09.224534+00:00",
+    "position_count": 5,
+    "aggregate": {
+      "cleanest_vault": "USDC-Base-Vault-CleanBlobFee",
+      "worst_blob_fee_gap_vault": "BAL-Arbitrum-Vault-SevereBlobFeeSpike",
+      "avg_score": 56.88,
+      "net_negative_count": 1,
+      "position_count": 5
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Base-Vault-CleanBlobFee",
+        "classification": "CLEAN_NET_OF_BLOB_FEE_BASE",
+        "score": 100.0,
+        "recommendation": "TRUST_FEE_STRUCTURE",
+        "flags": [
+          "CLEAN_NET_OF_BLOB_FEE_BASE",
+          "CLEAN_NET_BASE"
+        ]
+      },
+      {
+        "token": "CRV-Optimism-Vault-ModerateBlobFee",
+        "classification": "MODERATE_FEE_ON_BLOB_FEE_GAP",
+        "score": 67.5,
+        "recommendation": "DEMAND_NET_OF_BLOB_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_BLOB_FEE_GAP",
+          "FEE_ON_BLOB_FEE"
+        ]
+      },
+      {
+        "token": "BAL-Arbitrum-Vault-SevereBlobFeeSpike",
+        "classification": "SEVERE_FEE_ON_BLOB_FEE_GAP",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_BLOB_FEE",
+        "flags": [
+          "SEVERE_FEE_ON_BLOB_FEE_GAP",
+          "NET_NEGATIVE_AFTER_FEE",
+          "HIGH_BLOB_FEE",
+          "FEE_ON_BLOB_FEE",
+          "FULL_FEE_ON_BLOB_FEE"
+        ]
+      },
+      {
+        "token": "UNI-Base-Vault-OverrideBlobFeeGap",
+        "classification": "MODERATE_FEE_ON_BLOB_FEE_GAP",
+        "score": 60.0,
+        "recommendation": "DEMAND_NET_OF_BLOB_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_BLOB_FEE_GAP",
+          "GAP_FROM_OVERRIDE"
+        ]
+      },
+      {
+        "token": "MYSTERY-Vault-NoData",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_BLOB_FEE",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
