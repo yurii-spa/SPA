@@ -12,8 +12,8 @@ Pure stdlib. No external deps. Atomic JSON writes.
 import json
 import os
 import time
-import tempfile
 from typing import Dict, Any, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -267,20 +267,7 @@ class ProtocolDeFiTokenUnlockPressureAnalyzer:
         if len(existing) > LOG_RING_BUFFER:
             existing = existing[-LOG_RING_BUFFER:]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=self._data_dir, prefix=".token_unlock_log_"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(existing, fh, indent=2)
-            os.replace(tmp_path, self._log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(existing, str(self))
     # ------------------------------------------------------------------
     # Convenience class-method
     # ------------------------------------------------------------------
