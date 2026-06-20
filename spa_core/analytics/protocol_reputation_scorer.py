@@ -8,9 +8,9 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log (100 entries).
 
 import json
 import os
-import tempfile
 import time
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -61,19 +61,7 @@ def _save_log(path: str, entries: list) -> None:
     dir_path = os.path.dirname(path)
     if dir_path:
         os.makedirs(dir_path, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_path or ".", prefix=".reputation_tmp_")
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(capped, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(capped, str(path))
 def _compute_hack_ratio(total_hacks_usd: float, tvl_peak_usd: float) -> float:
     """Hack ratio = total_hacks / tvl_peak. Edge: peak=0 → 1.0 if hacked else 0.0."""
     if tvl_peak_usd > 0:
