@@ -51,10 +51,10 @@ import argparse
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -396,22 +396,8 @@ def build_tearsheet(
 
 
 def _atomic_write_json(obj: dict, out_path: Path) -> None:
-    """Write *obj* as pretty JSON to *out_path* atomically (tmp + os.replace)."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(out_path.parent), prefix=".tearsheet_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp, out_path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(out_path, str(obj))
 def generate_tearsheet_report(
     data_dir: os.PathLike | str = DEFAULT_DATA_DIR,
     out_path: os.PathLike | str = DEFAULT_OUT,
