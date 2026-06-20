@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 
 # ─── Константы ────────────────────────────────────────────────────────────────
@@ -315,21 +315,5 @@ class PromotionEngine:
 
         # Атомарная запись: tmp → os.replace
         tmp_dir = out_path.parent
-        fd, tmp_path = tempfile.mkstemp(
-            prefix=".tmp_promotion_report_",
-            dir=tmp_dir,
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(doc, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            os.replace(tmp_path, out_path)
-        except Exception:
-            # Зачищаем tmp при ошибке
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(doc, str(out_path))
         return out_path
