@@ -65,7 +65,11 @@ class TestCashDrag(unittest.TestCase):
 
     def _alloc(self, adapters) -> StrategyAllocator:
         write_status(self.status, adapters)
-        return StrategyAllocator(status_path=self.status)
+        # Disable registry merge so only the test fixture's adapters are used.
+        return StrategyAllocator(
+            status_path=self.status,
+            registry_path=self.dir / "__no_registry__.json",
+        )
 
     # ── базовая проблема: drag без якоря ─────────────────────────────────
     def test_drag_present_without_t1_anchor(self):
