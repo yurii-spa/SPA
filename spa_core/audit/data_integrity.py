@@ -75,10 +75,11 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.audit.data_integrity")
 
@@ -159,28 +160,6 @@ def _read_json(path: Path) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return None
-
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Атомарная запись JSON: tmpfile в той же папке + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 def _num(value: Any) -> Optional[float]:
@@ -881,7 +860,7 @@ def write_status(
     })
     out = dict(doc)
     out["history"] = history[-HISTORY_MAX:]
-    _atomic_write_json(path, out)
+    atomic_save(out, str(path))
     log.info("data integrity status written: %s", path)
     return {"path": str(path), "changed": True}
 
