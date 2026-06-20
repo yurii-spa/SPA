@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_vault_fee_structure_b
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.protocol_defi_vault_fee_structure_breakeven_analyzer import (
     ProtocolDeFiVaultFeeStructureBreakevenAnalyzer,
