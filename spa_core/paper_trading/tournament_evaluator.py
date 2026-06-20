@@ -76,12 +76,18 @@ class StrategyMetrics:
     is_statistically_significant: bool   # ≥ MIN_OBS дней
     notes: List[str] = field(default_factory=list)
 
+    @property
+    def has_real_data(self) -> bool:
+        """True если накоплено ≥ MIN_OBS дней для статистически значимой оценки."""
+        return self.is_statistically_significant
+
     def to_dict(self) -> Dict:
         return {
             "strategy_id": self.strategy_id,
             "name": self.name,
             "status": self.status,
             "days_observed": self.days_observed,
+            "has_real_data": self.has_real_data,
             "current_equity": round(self.current_equity, 2),
             "total_return_pct": round(self.total_return_pct, 4),
             "realized_apy_pct": round(self.realized_apy_pct, 4),
@@ -309,8 +315,16 @@ def compute_composite_score(m: StrategyMetrics) -> float:
       - Rachev Ratio (10%)
 
     Нормализация: каждый компонент → sigmoid-like [0, 1].
-    Если метрика недоступна — нейтральный балл 0.4 (не штрафуем).
+
+    Если стратегия не накопила ≥ MIN_OBS дней (has_real_data=False) —
+    возвращает 0.0, а НЕ нейтральный fallback.  Это гарантирует, что все
+    стратегии без достаточной истории получают одинаково честный нулевой балл
+    вместо артефактного 0.3386, скрывающего отсутствие реальных данных.
     """
+    # Честный нулевой балл при нехватке статистически значимых данных
+    if not m.is_statistically_significant:
+        return 0.0
+
     score = 0.0
     weight_total = 0.0
 
