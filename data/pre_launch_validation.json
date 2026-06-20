@@ -1,0 +1,293 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-20T03:15:31.845638+00:00",
+  "launch_ready": false,
+  "passed_count": 32,
+  "blocking_count": 6,
+  "warning_count": 2,
+  "total_count": 40,
+  "checks": [
+    {
+      "group": "gates",
+      "name": "pre_paper_gate_pass",
+      "passed": true,
+      "blocking": true,
+      "message": "Pre-paper backtest gate PASS"
+    },
+    {
+      "group": "gates",
+      "name": "paper_ready_gate_pass",
+      "passed": false,
+      "blocking": true,
+      "message": "Paper ready gate not ready (paper_trading_allowed=False)"
+    },
+    {
+      "group": "gates",
+      "name": "owner_acceptance_signed",
+      "passed": false,
+      "blocking": true,
+      "message": "Owner acceptance not signed (run owner_acceptance.py --sign)"
+    },
+    {
+      "group": "gates",
+      "name": "golive_checker_24_of_26",
+      "passed": false,
+      "blocking": true,
+      "message": "GoLive checker: 20/26 pass (need 24+/26)"
+    },
+    {
+      "group": "evidence",
+      "name": "equity_curve_30_days",
+      "passed": false,
+      "blocking": true,
+      "message": "Equity curve has 2 days (need 30+)"
+    },
+    {
+      "group": "evidence",
+      "name": "drawdown_below_kill_switch",
+      "passed": false,
+      "blocking": true,
+      "message": "equity_curve_daily.json missing or empty"
+    },
+    {
+      "group": "evidence",
+      "name": "no_demo_trades",
+      "passed": true,
+      "blocking": true,
+      "message": "All 2 trades are real (is_demo=false)"
+    },
+    {
+      "group": "evidence",
+      "name": "paper_status_not_demo",
+      "passed": true,
+      "blocking": true,
+      "message": "paper_trading_status.json: is_demo=false"
+    },
+    {
+      "group": "evidence",
+      "name": "gap_monitor_30d_clean",
+      "passed": false,
+      "blocking": true,
+      "message": "Gap monitor: 0/30 days, 0 gap(s) found"
+    },
+    {
+      "group": "evidence",
+      "name": "apy_above_floor",
+      "passed": false,
+      "blocking": false,
+      "message": "Current APY 0.00% below 1% floor"
+    },
+    {
+      "group": "infrastructure",
+      "name": "kill_switch_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Kill switch script found at scripts/kill_switch_drill.py"
+    },
+    {
+      "group": "infrastructure",
+      "name": "gnosis_safe_checklist_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Gnosis Safe checklist found"
+    },
+    {
+      "group": "infrastructure",
+      "name": "autopush_installed",
+      "passed": true,
+      "blocking": false,
+      "message": "Autopush launchd plist found"
+    },
+    {
+      "group": "infrastructure",
+      "name": "http_server_plist_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "HTTP server plist found (port 8765)"
+    },
+    {
+      "group": "infrastructure",
+      "name": "cloudflared_plist_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "Cloudflared tunnel plist found"
+    },
+    {
+      "group": "financial",
+      "name": "capital_target_100k",
+      "passed": true,
+      "blocking": true,
+      "message": "Portfolio NAV $100,022 (target $100,000)"
+    },
+    {
+      "group": "financial",
+      "name": "legal_docs_exist",
+      "passed": true,
+      "blocking": true,
+      "message": "Legal docs directory exists with documents"
+    },
+    {
+      "group": "financial",
+      "name": "family_fund_registry_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "Family fund registry found (spa_core/family_fund/registry.py)"
+    },
+    {
+      "group": "financial",
+      "name": "investment_memo_generator_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "Investment memo generator found"
+    },
+    {
+      "group": "data_sources",
+      "name": "aave_v3_adapter_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Aave V3 (T1) adapter found"
+    },
+    {
+      "group": "data_sources",
+      "name": "compound_v3_adapter_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Compound V3 (T1) adapter found"
+    },
+    {
+      "group": "data_sources",
+      "name": "morpho_steakhouse_adapter_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Morpho Steakhouse (T1) adapter found"
+    },
+    {
+      "group": "data_sources",
+      "name": "defillama_feed_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "DeFiLlama feed found (spa_core/adapters/defillama_feed.py)"
+    },
+    {
+      "group": "data_sources",
+      "name": "adapter_registry_defined",
+      "passed": true,
+      "blocking": true,
+      "message": "ADAPTER_REGISTRY defined in adapters/__init__.py"
+    },
+    {
+      "group": "strategy",
+      "name": "strategy_registry_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Strategy registry found (spa_core/strategies/strategy_registry.py)"
+    },
+    {
+      "group": "strategy",
+      "name": "tournament_evaluator_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Tournament evaluator found"
+    },
+    {
+      "group": "strategy",
+      "name": "rs001_live_apy_engine_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "RS-001 live APY engine found"
+    },
+    {
+      "group": "strategy",
+      "name": "rs002_live_apy_engine_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "RS-002 live APY engine found"
+    },
+    {
+      "group": "strategy",
+      "name": "multi_strategy_runner_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Multi-strategy runner found (spa_core/paper_trading/multi_strategy_runner.py)"
+    },
+    {
+      "group": "documentation",
+      "name": "owner_acceptance_doc_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Owner acceptance gate JSON found"
+    },
+    {
+      "group": "documentation",
+      "name": "adr002_golive_transfer_rule_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "ADR-002 (go-live transfer rule) found"
+    },
+    {
+      "group": "documentation",
+      "name": "master_plan_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "MASTER_PLAN_v1.md found"
+    },
+    {
+      "group": "documentation",
+      "name": "dr_procedure_v2_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "DR_PROCEDURE_v2.md found"
+    },
+    {
+      "group": "documentation",
+      "name": "investment_memo_generator_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "Investment memo generator found"
+    },
+    {
+      "group": "technical",
+      "name": "integration_tests_exist",
+      "passed": true,
+      "blocking": true,
+      "message": "Integration tests: 175 test files in tests/"
+    },
+    {
+      "group": "technical",
+      "name": "unit_tests_exist",
+      "passed": true,
+      "blocking": true,
+      "message": "Unit tests: 942 test files in spa_core/tests/"
+    },
+    {
+      "group": "technical",
+      "name": "risk_policy_version_v1_0",
+      "passed": true,
+      "blocking": true,
+      "message": "Risk policy version is v1.0 (frozen for paper period)"
+    },
+    {
+      "group": "technical",
+      "name": "cycle_runner_exists",
+      "passed": true,
+      "blocking": true,
+      "message": "Cycle runner found (spa_core/paper_trading/cycle_runner.py)"
+    },
+    {
+      "group": "technical",
+      "name": "no_external_runtime_deps",
+      "passed": false,
+      "blocking": false,
+      "message": "Forbidden external import 'import requests' in defillama_fetcher.py"
+    },
+    {
+      "group": "technical",
+      "name": "push_to_github_script_exists",
+      "passed": true,
+      "blocking": false,
+      "message": "push_to_github.py found"
+    }
+  ],
+  "pass_count": 32,
+  "pass_pct": 80.0
+}
