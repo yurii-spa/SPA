@@ -47,3 +47,12 @@ jobs:
               sys.exit(1)
           print('Import check PASS')
           "
+
+      - name: KANBAN Health Check
+        run: python3 scripts/kanban_health.py --check-only
+
+      - name: SPAError Adoption Check
+        run: python3 scripts/spaerror_final_audit.py 2>/dev/null || true
+
+      - name: Stdlib Contract Guard
+        run: python3 scripts/stdlib_contract_guard.py --check
