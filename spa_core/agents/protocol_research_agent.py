@@ -35,7 +35,6 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.protocol_research_agent")
@@ -81,10 +80,9 @@ def _read_json(path: Path, default: Any) -> Any:
         return default
 
 
-
-# ─── Name normalisation ───────────────────────────────────────────────────────
-
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _normalise(name: str) -> str:
     """Normalise protocol name/id for deduplication: lowercase, dashes→underscores."""
     return str(name).strip().lower().replace("-", "_").replace(" ", "_")
@@ -414,7 +412,7 @@ def run_research_cycle(
             "skip_list": skip_list,
         }
         try:
-            atomic_save(research_doc, str(ddir / RESEARCH_FILENAME))
+            _atomic_write_json(ddir / RESEARCH_FILENAME, research_doc)
         except Exception as exc:
             log.warning("protocol_research.json write failed (%s)", exc)
 
@@ -431,7 +429,7 @@ def run_research_cycle(
             "total_candidates_in_registry": len(all_candidates),
         }
         try:
-            atomic_save(status_doc, str(ddir / RESEARCH_STATUS_FILENAME))
+            _atomic_write_json(ddir / RESEARCH_STATUS_FILENAME, status_doc)
         except Exception as exc:
             log.warning("protocol_research_status.json write failed (%s)", exc)
 
@@ -458,7 +456,7 @@ def run_research_cycle(
             "top_protocol": None,
         }
         try:
-            atomic_save(err_status, str(ddir / RESEARCH_STATUS_FILENAME))
+            _atomic_write_json(ddir / RESEARCH_STATUS_FILENAME, err_status)
         except Exception:
             pass
         return {
