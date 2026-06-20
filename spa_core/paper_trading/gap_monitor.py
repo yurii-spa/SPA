@@ -18,7 +18,6 @@ STRICTLY READ-ONLY / paper trading only (SPA-BL-011): recovery лишь
 import json, os, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from spa_core.utils.atomic import atomic_save
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 EQUITY_FILE = DATA_DIR / "equity_curve_daily.json"
@@ -138,6 +137,11 @@ def _read_status() -> dict:
     except Exception:
         return {}
 
+def _atomic_write_json(path: Path, obj) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2))
+    os.replace(tmp, path)
+
 def _load_alerts_doc() -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
     try:
@@ -153,13 +157,13 @@ def _load_alerts_doc() -> dict:
 def _save_alerts_doc(alerts: list) -> None:
     """Пересборка документа в схеме export_data.py: generated_at/count/status/alerts."""
     alerts = alerts[-MAX_ALERTS:]
-    atomic_save({
+    _atomic_write_json(RISK_ALERTS_FILE, {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "count": len(alerts),
         "status": "critical" if any(a.get("severity") == "critical" for a in alerts)
                   else ("warning" if alerts else "ok"),
         "alerts": alerts,
-    }, str(RISK_ALERTS_FILE))
+    })
 
 def _upsert_gap_alert(result: dict) -> None:
     """Дописать/обновить CRITICAL-алерт о gap за сегодняшний день.
