@@ -44,11 +44,11 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -524,22 +524,8 @@ class StrategyTournament:
             report = dict(report)
             report["ranked_strategies"] = ranked[:RING_BUFFER_MAX]
 
-        payload = json.dumps(report, indent=2, ensure_ascii=False)
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(self.data_dir), prefix=".strategy_tournament_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, str(out_path))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(report, str(out_path))
         logger.info("Saved leaderboard report → %s", out_path)
         return str(out_path)
 
