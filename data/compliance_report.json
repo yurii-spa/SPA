@@ -1,0 +1,476 @@
+{
+  "report_type": "institutional_audit_report",
+  "version": "v1.0",
+  "generated_at": "2026-06-20T23:51:06.365651+00:00",
+  "data_dir": "/Users/yuriikulieshov/Documents/SPA_Claude/data",
+  "sections": {
+    "identity": {
+      "statement": "Personal research project. No external capital managed. Paper trading only.",
+      "capital_type": "virtual",
+      "external_capital_managed_usd": 0.0,
+      "trading_mode": "paper"
+    },
+    "governance": {
+      "adr_count": 37,
+      "last_decision_date": "2026-06-20",
+      "last_decision_file": "ADR_INDEX.md",
+      "rule_changes_this_month": 37,
+      "risk_policy_version": "v1.0"
+    },
+    "risk_controls": {
+      "limits": {
+        "kill_switch_drawdown_pct": 5.0,
+        "max_concentration_t1_pct": 40.0,
+        "max_concentration_t2_pct": 20.0,
+        "max_total_t2_pct": 50.0,
+        "min_tvl_usd": 5000000.0,
+        "min_apy_pct": 1.0,
+        "max_apy_pct": 30.0,
+        "min_cash_pct": 5.0
+      },
+      "controls": [
+        {
+          "control": "kill_switch",
+          "label": "Portfolio drawdown kill switch (≥5% closes all)",
+          "status": "PASS",
+          "detail": "observed max drawdown 0.20% vs 5% threshold"
+        },
+        {
+          "control": "t1_concentration_cap",
+          "label": "T1 per-protocol cap (≤40%)",
+          "status": "PASS",
+          "detail": "max T1 position spark_susds at 7.53%"
+        },
+        {
+          "control": "t2_concentration_cap",
+          "label": "T2 per-protocol cap (≤20%)",
+          "status": "PASS",
+          "detail": "max T2 position morpho_steakhouse at 8.90%"
+        },
+        {
+          "control": "t2_total_cap",
+          "label": "T2 aggregate cap (≤50%)",
+          "status": "PASS",
+          "detail": "T2 aggregate 47.14% of portfolio"
+        },
+        {
+          "control": "min_cash_buffer",
+          "label": "Minimum cash buffer (≥5%)",
+          "status": "PASS",
+          "detail": "cash buffer 5.00% of capital"
+        },
+        {
+          "control": "tvl_floor",
+          "label": "Per-pool TVL floor (≥$5,000,000)",
+          "status": "PASS",
+          "detail": "enforced by RiskPolicy gate on every rebalance"
+        },
+        {
+          "control": "apy_entry_bounds",
+          "label": "New-position APY bounds (1%–30%)",
+          "status": "PASS",
+          "detail": "enforced by RiskPolicy gate on every candidate entry"
+        }
+      ],
+      "passed": 7,
+      "total": 7,
+      "all_pass": true
+    },
+    "paper_track": {
+      "track_start_date": "2026-06-10",
+      "days_elapsed": 10,
+      "track_days_recorded": 31,
+      "start_equity_usd": 100000.0,
+      "end_equity_usd": 100121.33,
+      "total_return_pct": 0.1213,
+      "annualized_return_pct": 1.4282,
+      "max_drawdown_pct": -0.2047,
+      "daily_volatility_pct": 0.002,
+      "positive_days": 29,
+      "negative_days": 0,
+      "consistency_pct": 100.0,
+      "is_demo": false
+    },
+    "positions": {
+      "capital_usd": 100000.0,
+      "deployed_usd": 94999.88,
+      "cash_usd": 5000.12,
+      "position_count": 24,
+      "positions": [
+        {
+          "protocol": "morpho_steakhouse",
+          "size_usd": 8897.68,
+          "weight_pct": 8.8977,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "spark_susds",
+          "size_usd": 7528.81,
+          "weight_pct": 7.5288,
+          "tier": "T1",
+          "apy_pct": null
+        },
+        {
+          "protocol": "compound_v3",
+          "size_usd": 7118.15,
+          "weight_pct": 7.1181,
+          "tier": "T1",
+          "apy_pct": null
+        },
+        {
+          "protocol": "aave_v3_polygon",
+          "size_usd": 6981.26,
+          "weight_pct": 6.9813,
+          "tier": "T1",
+          "apy_pct": null
+        },
+        {
+          "protocol": "aave_v3_optimism",
+          "size_usd": 6570.6,
+          "weight_pct": 6.5706,
+          "tier": "T1",
+          "apy_pct": null
+        },
+        {
+          "protocol": "aave_arbitrum",
+          "size_usd": 5612.39,
+          "weight_pct": 5.6124,
+          "tier": "T1",
+          "apy_pct": null
+        },
+        {
+          "protocol": "susde",
+          "size_usd": 5555.55,
+          "weight_pct": 5.5556,
+          "tier": "T3",
+          "apy_pct": null
+        },
+        {
+          "protocol": "aave_v3",
+          "size_usd": 4791.06,
+          "weight_pct": 4.7911,
+          "tier": "T1",
+          "apy_pct": null
+        },
+        {
+          "protocol": "pendle",
+          "size_usd": 3703.7,
+          "weight_pct": 3.7037,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "extra_finance_base",
+          "size_usd": 3703.7,
+          "weight_pct": 3.7037,
+          "tier": "T3",
+          "apy_pct": null
+        },
+        {
+          "protocol": "frax",
+          "size_usd": 3472.22,
+          "weight_pct": 3.4722,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "scrvusd",
+          "size_usd": 3240.74,
+          "weight_pct": 3.2407,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "fluid_fusdc",
+          "size_usd": 3009.25,
+          "weight_pct": 3.0093,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "morpho_blue_base",
+          "size_usd": 2870.36,
+          "weight_pct": 2.8704,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "sfrax",
+          "size_usd": 2777.78,
+          "weight_pct": 2.7778,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "stusd",
+          "size_usd": 2777.78,
+          "weight_pct": 2.7778,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "sdai",
+          "size_usd": 2546.29,
+          "weight_pct": 2.5463,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "moonwell_base",
+          "size_usd": 2546.29,
+          "weight_pct": 2.5463,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "wusdm",
+          "size_usd": 2314.81,
+          "weight_pct": 2.3148,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "maple",
+          "size_usd": 2231.48,
+          "weight_pct": 2.2315,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "aave_v3_base",
+          "size_usd": 2083.33,
+          "weight_pct": 2.0833,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "morpho_blue",
+          "size_usd": 1898.14,
+          "weight_pct": 1.8981,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "yearn_v3",
+          "size_usd": 1495.36,
+          "weight_pct": 1.4954,
+          "tier": "T2",
+          "apy_pct": null
+        },
+        {
+          "protocol": "euler_v2",
+          "size_usd": 1273.15,
+          "weight_pct": 1.2732,
+          "tier": "T2",
+          "apy_pct": null
+        }
+      ]
+    },
+    "events_log": {
+      "source": "audit_trail_jsonl",
+      "total_records": 672,
+      "returned": 30,
+      "entries": [
+        {
+          "timestamp": "2026-06-20T15:42:30.123551+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "4545cf16-c561-45ca-9238-9cad82c200bc",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:42:30.136484+00:00",
+          "event_type": "trade_executed",
+          "event_id": "332d6aa9-00c9-4cfc-a3c4-680c109503eb",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:43:12.290255+00:00",
+          "event_type": "cycle_start",
+          "event_id": "abe09541-c1da-4a23-a1ef-d7b348fcb487",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:43:17.500670+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "2435dac5-84c1-4cdc-8ba8-c86941ebf2d6",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:43:17.580284+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "d27caf3d-258b-4d31-bf49-64dc562903cd",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:43:17.592086+00:00",
+          "event_type": "trade_executed",
+          "event_id": "c5c40de9-d904-4c68-be04-6e1a84fd35a8",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:50:47.814169+00:00",
+          "event_type": "cycle_start",
+          "event_id": "5ae2abc4-f2e3-436c-bcc9-1348ce1a84cd",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:50:53.042524+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "1aa0c9de-fcf2-40e9-baa7-3b576dbbcd9d",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:50:53.120932+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "7f01d528-f76f-47f5-b8ad-def41a5e4187",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:50:53.133012+00:00",
+          "event_type": "trade_executed",
+          "event_id": "ede8f2c8-3bde-455e-954c-133d58c54c1a",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:51:34.812234+00:00",
+          "event_type": "cycle_start",
+          "event_id": "253e9c49-87ab-4691-995d-d75a0d915587",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:51:40.039031+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "d5981512-e1a5-4771-8902-dfeb714fc324",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T15:51:40.119046+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "824806cf-9d46-4764-b55f-0ba3e03bec18",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T16:53:40.784685+00:00",
+          "event_type": "cycle_start",
+          "event_id": "2193a2d9-6c4e-4b7a-a97f-9ec459812b2b",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T16:53:42.992739+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "6dc3839b-f829-4096-bd04-3b82bf17610e",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T16:53:43.074916+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "7263229f-1ef7-4e5e-9779-689dddbfb48d",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T16:59:25.443189+00:00",
+          "event_type": "cycle_start",
+          "event_id": "7c0dff7b-fb6d-4155-9672-edd5aafcf175",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T16:59:27.638201+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "c58c57e7-1dbf-4042-bc94-4beadfe0cbaf",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T16:59:27.724071+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "a37ff004-72d3-4df7-b213-40bac10856a8",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:03:50.332993+00:00",
+          "event_type": "cycle_start",
+          "event_id": "13424584-7475-467a-83e9-ee8e300f92ec",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:03:57.469246+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "d7dbca06-dbb5-4da5-99d1-bc8eb4d2767a",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:03:57.566468+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "8a413e64-d4b3-41b9-9131-717a054b7c7a",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:22:39.141166+00:00",
+          "event_type": "cycle_start",
+          "event_id": "6877347c-7279-4ff4-82b9-73579e5a822f",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:22:41.732858+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "efe1863d-c120-40d8-9a9a-fb82133edcfe",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:22:41.786918+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "7afd6525-f252-4e3d-8f82-b80933b1c416",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T17:22:41.980549+00:00",
+          "event_type": "trade_executed",
+          "event_id": "cdf0f8a0-2fba-48c5-8c2e-7e2221f75fba",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T21:23:06.108134+00:00",
+          "event_type": "cycle_start",
+          "event_id": "2c85ea8e-0a05-4619-9f4e-5f2f7cdb90a3",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T21:23:09.194187+00:00",
+          "event_type": "allocation_proposal",
+          "event_id": "512fafdf-0563-480a-af2d-8b006b54c247",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T21:23:09.263343+00:00",
+          "event_type": "risk_verdict",
+          "event_id": "1abe2152-f60b-4435-89ae-cd0d2ba29f6e",
+          "chain_hash": null
+        },
+        {
+          "timestamp": "2026-06-20T21:23:09.465517+00:00",
+          "event_type": "trade_executed",
+          "event_id": "d6ca255c-a594-43de-bf04-f010de40d5fe",
+          "chain_hash": null
+        }
+      ]
+    },
+    "integrity_check": {
+      "chain_file": "/Users/yuriikulieshov/Documents/SPA_Claude/data/audit_chain.jsonl",
+      "chain_exists": false,
+      "records": 0,
+      "verified": true,
+      "status": "INTACT"
+    },
+    "system_health": {
+      "golive_ready": false,
+      "golive_passed": 27,
+      "golive_total": 29,
+      "golive_blockers": [
+        "gap_monitor_30d: 11/30 honest track days (since 2026-06-10; 19 more needed — target ~2026-07-09)",
+        "min_track_days_30: 11/30 honest paper-trading days (since 2026-06-10; 19 more needed — target go-live ~2026-07-09)"
+      ],
+      "last_cycle_run": "2026-06-20T21:23:06.104513+00:00",
+      "error_count_7d": 189
+    }
+  }
+}
