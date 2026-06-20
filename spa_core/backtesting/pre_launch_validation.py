@@ -643,26 +643,32 @@ class PreLaunchValidation:
             else "Cycle runner missing",
         ))
 
-        # H5: No external runtime dependencies (verify no 'import requests' in spa_core/)
+        # H5: No external runtime dependencies (verify no bare 'import X' at line-start)
         h5_pass = True
         h5_msg = "No forbidden external imports found in spa_core/"
-        forbidden_imports = ["import requests", "import aiohttp", "import httpx",
-                             "import numpy", "import pandas", "import scipy"]
+        # Check for actual import statements at line-start (not string literals or comments)
+        _forbidden_pkgs = ["requests", "aiohttp", "httpx", "numpy", "pandas", "scipy"]
+        import re as _re
+        _import_pat = _re.compile(
+            r"^(?:import|from)\s+(" + "|".join(_forbidden_pkgs) + r")\b",
+            _re.MULTILINE,
+        )
         try:
             spa_core_dir = self.base_dir / "spa_core"
             for py_file in spa_core_dir.rglob("*.py"):
-                # skip tests and __pycache__
+                # skip tests, __pycache__, and this file itself (lists the names)
                 parts = py_file.parts
                 if "tests" in parts or "__pycache__" in parts:
                     continue
                 try:
                     content = py_file.read_text(encoding="utf-8")
-                    for fi in forbidden_imports:
-                        if fi in content:
-                            h5_pass = False
-                            h5_msg = f"Forbidden external import '{fi}' in {py_file.name}"
-                            break
-                    if not h5_pass:
+                    m = _import_pat.search(content)
+                    if m:
+                        h5_pass = False
+                        h5_msg = (
+                            f"Forbidden external import '{m.group(0).strip()}'"
+                            f" in {py_file.name}"
+                        )
                         break
                 except Exception:
                     pass
