@@ -1,236 +1,297 @@
 # SPA Error Code Reference
 
-Version: 10.50  
-Generated: 2026-06-20  
-Source: `spa_core/utils/errors.py` (MP-1382 v9.98)
+**Source:** `spa_core/utils/errors.py` · **Catalog:** `spa_core/utils/error_catalog.py`  
+**Updated:** 2026-06-20 (MP-1485 v11.01)
+
+All SPA exceptions inherit from `SPAError`. Each instance carries:
+- `.code` — machine-readable string (e.g. `"GATE_BACKTEST_FAIL"`)
+- `.details` — dict with structured context
+- `.to_dict()` — JSON-safe serialization for logging
 
 ---
 
 ## Error Hierarchy
 
 ```
-SPAError (base)                     — spa_core/utils/errors.py
-├── GateError                       — CPA gate failures (4-state gate system)
-├── SourceError                     — Data source unavailable or invalid
-├── ValidationError                 — Field-level validation failure
-├── KANBANError                     — KANBAN.json operation failures
-├── AdapterError                    — DeFi adapter fetch/parse failures
-├── ConfigError                     — Missing or invalid configuration
-├── AtomicWriteError                — Atomic file write (tmp+os.replace) failed
-├── RegistryError                   — Adapter/module not found in a registry
-├── RiskPolicyError                 — RiskPolicy violation detected
-├── AllocationError                 — Invalid allocation or constraint violation
-└── LiveTradingForbiddenError       — Live trading attempted before gate PASS
-```
-
-All exceptions carry:
-- `code` — machine-readable string (e.g. `"GATE_LIVE_BLOCKED"`)
-- `details` — free-form dict with contextual information
-- `to_dict()` — JSON-safe serialisation for logging and API responses
-
----
-
-## Error Codes by Class
-
-### SPAError (base)
-
-| Code | Description | Raised By |
-|------|-------------|-----------|
-| `SPA_UNKNOWN` | Default code when none specified | `SPAError` base |
-| `NOT_INITIALIZED` | Method called before required compute step | `analytics/*.py` |
-| `NO_OPEN_POSITION` | Protocol has no open position to close | `paper_trading/engine.py` |
-
-### GateError
-
-Auto-generates code as `GATE_<GATE>_<STATUS>` (uppercased, dashes → underscores).
-
-| Code Pattern | Example | Description | Raised By |
-|---|---|---|---|
-| `GATE_<name>_FAIL` | `GATE_BACKTEST_FAIL` | Gate returned FAIL status | `backtesting/gate.py`, `safety/live_trading_gate.py` |
-| `GATE_<name>_NOT_READY` | `GATE_PAPER_NOT_READY` | Gate not in PASS state | `backtesting/gate.py` |
-| `GATE_<name>_UNKNOWN` | `GATE_LIVE_UNKNOWN` | Gate file missing or corrupt | `backtesting/gate.py` |
-| `GATE_<name>_BLOCKED` | `GATE_LIVE_BLOCKED` | Gate explicitly blocked | `backtesting/cpa_daily_cycle.py` |
-
-### SourceError
-
-Fixed code `SOURCE_ERROR`. All instances carry `source_id` and `reason` in details.
-
-| Source ID | Reason | Raised By |
-|-----------|--------|-----------|
-| `chainlink_rpc` | `eth_call HTTP failure: …` | `data_pipeline/price_feeds.py` |
-| `chainlink_rpc` | `eth_call malformed JSON: …` | `data_pipeline/price_feeds.py` |
-| `chainlink_rpc` | `eth_call RPC error: …` | `data_pipeline/price_feeds.py` |
-| `chainlink_rpc` | `eth_call missing/invalid result: …` | `data_pipeline/price_feeds.py` |
-| `chainlink_rpc` | Feed timeout or stale data | `data_pipeline/price_feeds.py` |
-| `defillama` | `DeFiLlama returned empty histories` | `export_data.py` |
-
-### ValidationError
-
-Fixed code `VALIDATION_ERROR`. Carries `field`, `value`, `reason` in details.
-
-| Field | Description | Raised By |
-|-------|-------------|-----------|
-| manifest fields | Invalid adapter manifest schema | `adapter_sdk/manifest.py` |
-| `clean_pct` | Value outside `[0.0, 1.0]` | `utils/errors.py` (example) |
-
-### KANBANError
-
-Default code `KANBAN_ERROR`. Custom codes set per raise site.
-
-| Code | Description | Raised By |
-|------|-------------|-----------|
-| `KANBAN_PARSE_ERROR` | Failed to parse KANBAN.json | KANBAN write utilities |
-| `KANBAN_ERROR` | Generic KANBAN operation failure | KANBAN write utilities |
-
-### AdapterError
-
-Fixed code `ADAPTER_ERROR`. All instances carry `adapter_id` and `reason` in details.
-
-| Adapter ID | Reason | Raised By |
-|------------|--------|-----------|
-| `<protocol>` | `no APY available from any interface` | `adapters/adapter_registry.py` |
-| `compound_v3` | `TVL response missing 'tvlUsd' key` | (example in errors.py docstring) |
-
-### ConfigError
-
-Fixed code `CONFIG_ERROR`. Carries `key` and `reason` in details.
-
-| Key | Reason | Raised By |
-|-----|--------|-----------|
-| `DATABASE_URL` | Could not extract sqlite path from URL | `database/connection.py` |
-| `DATABASE_URL` | No SQLite path found | `database/connection.py` |
-| `GITHUB_PAT_SPA` | not found in Keychain | `family_fund/api/keychain.py` |
-| `TELEGRAM_BOT_TOKEN` | not set (env or Keychain) | `family_fund/lead_tracker.py` |
-| `TELEGRAM_BOT_TOKEN` | not set in env or Keychain | `family_fund/telegram_blast.py` |
-| `<keychain_key>` | Keychain lookup failed: `<stderr>` | `telegram_protocols_reporter.py` |
-
-### AtomicWriteError
-
-Fixed code `ATOMIC_WRITE_ERROR`. Carries `path` and `reason` in details.
-
-| Description | Raised By |
-|-------------|-----------|
-| `mkstemp + os.replace` failure on state files | Any atomic write helper |
-
-### RegistryError
-
-Default code `REGISTRY_ERROR`. Custom codes set per raise site.
-
-| Code | Description | Raised By |
-|------|-------------|-----------|
-| `REGISTRY_ERROR` | Protocol not found in whitelist | `paper_trading/engine.py` |
-| `STRATEGY_DUPLICATE_ID` | Strategy ID already registered with different metadata | `strategies/strategy_registry.py` |
-| `UNKNOWN_TOPIC` | Topic not in `Topic.ALL` | `message_bus/bus.py` |
-
-### RiskPolicyError
-
-Default code `RISK_POLICY_ERROR`.
-
-| Description | Raised By |
-|-------------|-----------|
-| RiskPolicy constraint violation | `risk/policy.py` |
-
-> Note: `RiskPolicyViolation` in `paper_trading/engine.py` (line 69) is a legacy local exception class — not yet migrated to `RiskPolicyError`. Tracked separately.
-
-### AllocationError
-
-Default code `ALLOCATION_ERROR`. Custom codes set per raise site.
-
-| Code | Description | Raised By |
-|------|-------------|-----------|
-| `UNKNOWN_ALLOCATION_MODEL` | Allocation model string not in dispatch table | `allocator/allocator.py` |
-| `ALLOCATION_ERROR` | Generic allocation constraint violation | `allocator/allocator.py` |
-
-### LiveTradingForbiddenError
-
-Fixed code `LIVE_TRADING_FORBIDDEN`. Carries `gate` in details.
-
-| Gate | Description | Raised By |
-|------|-------------|-----------|
-| `live_trading_gate` | Live gate check failed | `safety/live_trading_gate.py` |
-| `<func_name>` | Function decorated with `@safeguard` called without gate PASS | `safety/safeguard.py` |
-| `<gate_name>` | `require_gate()` assertion failed | `utils/errors.py:require_gate()` |
-| `paper_ready` | Paper gate not PASS on activation | `golive/activate.py` |
-
----
-
-## Utility Functions
-
-### `safe_call(func, *args, default=None, log_error=True, logger_name="spa.safe_call", **kwargs)`
-
-Exception-safe wrapper. Returns `default` on any exception. Logs at WARNING level.
-
-**Use in:** background tasks, launchd jobs, daily cycle non-critical sections.  
-**Do NOT use in:** live trading paths, test assertions.
-
-```python
-result = safe_call(adapter.fetch, default={"apy": 0.0})
-```
-
-### `require_gate(gate_status: str, gate_name: str) -> None`
-
-Asserts gate is `"PASS"` — raises `LiveTradingForbiddenError` otherwise.
-
-**Use at:** entry point of any live-trading function.
-
-```python
-require_gate(status["live"], "live")   # raises LiveTradingForbiddenError if not "PASS"
+SPAError (E001)
+├── GateError (G001)               — validation gate failed
+├── SourceError (S001)             — data source unavailable / stale
+├── ValidationError (V001)         — field-level validation failure
+├── KANBANError (K001)             — KANBAN.json operation failed
+├── AdapterError (A001)            — DeFi adapter fetch / parse failure
+├── ConfigError (C001)             — bad configuration / missing key
+├── AtomicWriteError (W001)        — atomic file write failed (CRITICAL)
+├── RegistryError (R001)           — adapter or strategy not registered
+├── RiskPolicyError (P001)         — RiskPolicy constraint violated
+├── AllocationError (L001)         — portfolio allocation constraint violated
+└── LiveTradingForbiddenError (X001) — live trading blocked by safeguard
 ```
 
 ---
 
-## Usage Patterns
+## E001 — SPAError (Base)
 
-### Importing
+**Class:** `SPAError` | **Runtime code:** `SPA_UNKNOWN` | **Category:** base
 
-```python
-from spa_core.utils.errors import (
-    SPAError,
-    GateError,
-    SourceError,
-    ConfigError,
-    RegistryError,
-    AdapterError,
-    AllocationError,
-    LiveTradingForbiddenError,
-    safe_call,
-    require_gate,
-)
-```
+**When raised:** Catch-all when no domain-specific subclass applies.
 
-### Catching all SPA errors
+**Remediation:** Inspect `.code` and `.details` via `e.to_dict()`.
+Prefer raising a specific subclass over bare `SPAError`.
 
 ```python
-try:
-    run_cycle()
-except LiveTradingForbiddenError:
-    raise          # never swallow live trading blocks
-except SPAError as e:
-    logging.error("SPA error: %s", e.to_dict())
-```
-
-### Safe adapter call
-
-```python
-apy = safe_call(adapter.fetch_apy, default=None)
-if apy is None:
-    # adapter failed — handled gracefully
-    ...
+raise SPAError("unexpected condition", code="MY_CODE", details={"context": "startup"})
 ```
 
 ---
 
-## Error Code Migration Status
+## G001 — GateError
 
-| Batch | Files | Status |
-|-------|-------|--------|
-| Batch 0 | `utils/errors.py` (catalog) | ✅ v9.98 |
-| Batch 1 | price_feeds, keychain, telegram_blast, lead_tracker, engine, export_data, message_bus/bus, database/connection, strategy_registry, allocator, adapter_registry, aave_v3, euler_v2, maple, morpho_blue, yearn_v3 | ✅ v10.48 |
-| Batch 2 | analytics/protocol_liquidity_depth_analyzer, analytics/rebalance_cost_estimator, analytics/yield_compressor_score, analytics/yield_timing_optimizer, analytics/protocol_tvl_filter, analytics/protocol_adoption_scorer, telegram_protocols_reporter | ✅ v10.49 |
-| Pending | `execution/` domain (eth_signer, aave_v3_adapter, compound_v3_adapter, morpho_adapter) | 🔲 Separate domain — execution-only RuntimeError |
+**Class:** `GateError` | **Runtime code:** `GATE_{GATE}_{STATUS}` | **Category:** gate
 
-> **LLM_FORBIDDEN:** `execution/` and `risk/` components must NOT use LLM-generated code paths (prompt injection vector). RuntimeErrors in `execution/` are intentional low-level guards and do not require SPAError migration.
+**When raised:** A validation gate (backtest, pre-paper, paper, live) failed or
+returned a non-PASS status. Gate JSON missing, status is FAIL/NOT_READY/BLOCKED,
+or gate data is corrupt.
+
+**Attributes:** `.gate` (gate name), `.status` (observed status)
+
+**Remediation:**
+1. Read `e.gate` and `e.status` to identify which gate failed
+2. Re-run the gate: `python3 -m spa_core.backtesting.backtest_gate`
+3. Check `data/backtest/<gate>.json` for root cause
+
+```python
+raise GateError("paper_ready", "NOT_READY")
+# e.code → "GATE_PAPER_READY_NOT_READY"
+```
 
 ---
 
-*Updated: 2026-06-20 (MP-1434 v10.50)*
+## S001 — SourceError
+
+**Class:** `SourceError` | **Runtime code:** `SOURCE_ERROR` | **Category:** data_source
+
+**When raised:** DeFiLlama timeout, 5xx response, TVL below floor ($5M),
+APY outside sanity band (0–200%), or adapter fetch returns `None`.
+
+**Attributes:** `.source_id`, `.reason`
+
+**Remediation:**
+1. Check network and DeFiLlama status
+2. Inspect `e.source_id` and `e.reason`
+3. Cycle skips failed adapters and retries next run
+
+```python
+raise SourceError("aave_v3", "DeFiLlama returned HTTP 503")
+```
+
+---
+
+## V001 — ValidationError
+
+**Class:** `ValidationError` | **Runtime code:** `VALIDATION_ERROR` | **Category:** validation
+
+**When raised:** Field value outside expected range — allocation weight > 1.0,
+negative TVL, bad date format in state files.
+
+**Attributes:** `.field`, `.value`, `.reason`
+
+**Remediation:** Inspect `e.field`, `e.value`, `e.reason`. Correct the upstream data.
+
+```python
+raise ValidationError("clean_pct", 1.5, "must be in [0.0, 1.0]")
+```
+
+---
+
+## K001 — KANBANError
+
+**Class:** `KANBANError` | **Runtime code:** `KANBAN_ERROR` | **Category:** kanban
+
+**When raised:** `KANBAN.json` is missing, not valid JSON, or `os.replace` fails.
+
+**Remediation:**
+1. Validate: `python3 -c "import json; json.load(open('KANBAN.json'))"`
+2. Restore from last GitHub push if corrupt
+3. Always write KANBAN.json with tmp + os.replace
+
+```python
+raise KANBANError("KANBAN.json: invalid JSON near line 42", code="KANBAN_PARSE_ERROR")
+```
+
+---
+
+## A001 — AdapterError
+
+**Class:** `AdapterError` | **Runtime code:** `ADAPTER_ERROR` | **Category:** adapter
+
+**When raised:** Network failure, unexpected API response schema, missing required
+key in payload, TVL/APY parse error in a DeFi protocol adapter.
+
+**Attributes:** `.adapter_id`, `.reason`
+
+**Remediation:**
+1. Inspect `e.adapter_id` and `e.reason`
+2. Check adapter logs
+3. Cycle skips failed adapters and continues with available data
+
+```python
+raise AdapterError("compound_v3", "missing 'tvlUsd' key in response payload")
+```
+
+---
+
+## C001 — ConfigError
+
+**Class:** `ConfigError` | **Runtime code:** `CONFIG_ERROR` | **Category:** config
+
+**When raised:** `GITHUB_PAT_SPA` not in Keychain, `DEFILLAMA_API_URL` empty,
+or a required JSON config key is absent.
+
+**Attributes:** `.key`, `.reason`
+
+**Remediation:**
+- PAT: `bash setup_pat.sh <token>` — see `docs/TOKEN_ROTATION_RUNBOOK.md`
+- Env vars: verify defaults in `spa_core/adapters/config.py`
+
+```python
+raise ConfigError("GITHUB_PAT_SPA", "not found in macOS Keychain")
+```
+
+---
+
+## W001 — AtomicWriteError ⚠️ CRITICAL
+
+**Class:** `AtomicWriteError` | **Runtime code:** `ATOMIC_WRITE_ERROR` | **Category:** io
+
+**When raised:** `os.replace` fails during tmp-file atomic write.
+Causes: disk full, permission denied, cross-filesystem replace.
+
+**Attributes:** `.path`, `.reason`
+
+**Remediation:**
+1. `df -h` — check disk space
+2. `ls -la data/` — check permissions
+3. Restore affected file from last GitHub push after fixing root cause
+
+```python
+raise AtomicWriteError("data/trades.json", "os.replace: [Errno 13] Permission denied")
+```
+
+---
+
+## R001 — RegistryError
+
+**Class:** `RegistryError` | **Runtime code:** `REGISTRY_ERROR` | **Category:** registry
+
+**When raised:** Adapter or strategy key not found in `ADAPTER_REGISTRY`
+or `strategy_registry.py`.
+
+**Remediation:**
+```bash
+python3 -c "from spa_core.adapters.registry import ADAPTER_REGISTRY; print(list(ADAPTER_REGISTRY))"
+```
+
+```python
+raise RegistryError("adapter 'unknown_v9' not in ADAPTER_REGISTRY")
+```
+
+---
+
+## P001 — RiskPolicyError
+
+**Class:** `RiskPolicyError` | **Runtime code:** `RISK_POLICY_ERROR` | **Category:** risk
+
+**When raised:** RiskPolicy constraint violated — T1 > 40%, T2 > 20%, T2 total > 50%,
+TVL < $5M, APY outside 1–30%, drawdown ≥ 5% (kill switch).
+
+**Remediation:**
+1. Check `data/risk_policy_blocks.json` for the blocking record
+2. `RiskPolicy.approved=False` **cannot be overridden by any agent**
+3. Wait for conditions to normalize or review allocation model
+
+```python
+raise RiskPolicyError("T2 total cap exceeded: 52% > 50% limit")
+```
+
+---
+
+## L001 — AllocationError
+
+**Class:** `AllocationError` | **Runtime code:** `ALLOCATION_ERROR` | **Category:** allocation
+
+**When raised:** Allocation weights don't sum to 1.0, negative weight,
+or `StrategyAllocator` received contradictory constraints.
+(Distinct from P001 which covers RiskPolicy rule violations.)
+
+**Remediation:**
+1. Inspect allocation model output
+2. Check `spa_core/allocator/allocator.py`
+3. Ensure weights sum to 1.0 within float tolerance
+
+```python
+raise AllocationError("weights sum to 0.97, expected 1.0 ± 0.001")
+```
+
+---
+
+## X001 — LiveTradingForbiddenError 🔒
+
+**Class:** `LiveTradingForbiddenError` | **Runtime code:** `LIVE_TRADING_FORBIDDEN` | **Category:** safety
+
+**NEVER suppress this exception.** It is the hard stop protecting real capital.
+
+**When raised:** Any live-execution function is called while paper-ready or live gate
+is not PASS. Also raised by `live_trading_forbidden()` safeguard.
+
+**Attributes:** `.gate` (the gate that blocked activation)
+
+**Remediation:**
+1. **Do NOT suppress.**
+2. Check `data/golive_status.json` — all 26 GoLiveChecker criteria must pass
+3. Live trading can only be activated via `spa_core/golive/activate.py`
+   with manual confirmation: `"I CONFIRM LIVE TRADING"`
+
+```python
+raise LiveTradingForbiddenError("paper_ready")
+# LiveTradingForbiddenError: Live trading forbidden: gate 'paper_ready' has not passed
+```
+
+---
+
+## Machine-Readable Catalog
+
+```python
+from spa_core.utils.error_catalog import lookup, list_codes, lookup_by_class
+
+info = lookup("G001")
+# {'code': 'G001', 'class': 'GateError', 'runtime_code': 'GATE_{GATE}_{STATUS}', ...}
+
+list_codes()
+# ['E001', 'G001', 'S001', 'V001', 'K001', 'A001', 'C001', 'W001', 'R001', 'P001', 'L001', 'X001']
+
+lookup_by_class("LiveTradingForbiddenError")
+# {'code': 'X001', ...}
+```
+
+---
+
+## Quick Reference Table
+
+| Code | Class | Category | Blocking? |
+|------|-------|----------|-----------|
+| E001 | SPAError | base | No |
+| G001 | GateError | gate | Yes |
+| S001 | SourceError | data_source | No (degrades) |
+| V001 | ValidationError | validation | Depends |
+| K001 | KANBANError | kanban | No |
+| A001 | AdapterError | adapter | No (skips) |
+| C001 | ConfigError | config | Yes |
+| W001 | AtomicWriteError | io | Yes (CRITICAL) |
+| R001 | RegistryError | registry | Yes |
+| P001 | RiskPolicyError | risk | Yes |
+| L001 | AllocationError | allocation | Yes |
+| X001 | LiveTradingForbiddenError | safety | Yes (hard stop) |
+
+---
+
+*Generated by MP-1485 (v11.01) — 2026-06-20*
