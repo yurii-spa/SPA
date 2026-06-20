@@ -73,18 +73,25 @@ except ImportError:
 # Multichain expansion — Arbitrum / Optimism new-protocol read-only APY feeds
 # (DeFiLlama live fetch + cached fallback). NOTE: Aave V3 Arbitrum (aave_arbitrum)
 # and Aave V3 Optimism (aave_v3_optimism) already exist above and are NOT
-# duplicated here — these add genuinely new pools (Radiant, GMX GLP, Velodrome).
+# duplicated here — these add genuinely new pools (Silo, Dolomite, Velodrome).
+#
+# v1.254 (2026-06-21): Radiant Capital Arbitrum and GMX GLP Arbitrum REMOVED —
+# Radiant is dead (0 DeFiLlama pools, any chain) and GMX GLP is deprecated (rolled
+# into GM/GLV perps LP, no stablecoin yield). Replaced by Silo Finance and Dolomite
+# (both live on Arbitrum). ⚠️ Their current USDC-pool TVL is BELOW the RiskPolicy
+# $5M floor (Silo ~$12K, Dolomite ~$1.47M), so they register as read-only
+# monitoring feeds — RiskPolicy will not allocate until TVL grows ≥ $5M.
 try:
-    from .radiant_arbitrum_adapter import RadiantArbitrumAdapter
-    _RADIANT_ARBITRUM_AVAILABLE = True
+    from .silo_arbitrum_usdc_adapter import SiloArbitrumUSDCAdapter
+    _SILO_ARBITRUM_AVAILABLE = True
 except ImportError:
-    _RADIANT_ARBITRUM_AVAILABLE = False
+    _SILO_ARBITRUM_AVAILABLE = False
 
 try:
-    from .gmx_glp_arbitrum_adapter import GmxGlpArbitrumAdapter
-    _GMX_GLP_ARBITRUM_AVAILABLE = True
+    from .dolomite_arbitrum_usdc_adapter import DolomiteArbitrumUSDCAdapter
+    _DOLOMITE_ARBITRUM_AVAILABLE = True
 except ImportError:
-    _GMX_GLP_ARBITRUM_AVAILABLE = False
+    _DOLOMITE_ARBITRUM_AVAILABLE = False
 
 try:
     from .velodrome_optimism_adapter import VelodromeOptimismAdapter
@@ -162,12 +169,12 @@ if _EXTRA_FINANCE_BASE_AVAILABLE:
 # These are genuinely new pools (no pre-existing registry entry), so registering
 # them does not double-count an existing Aave-Arbitrum/Optimism position.
 MULTICHAIN_L2_ADAPTERS: dict = {}  # key -> adapter instance, read-only feeds
-if _RADIANT_ARBITRUM_AVAILABLE:
-    ADAPTER_REGISTRY.append(("radiant_arbitrum", "T2", RadiantArbitrumAdapter))
-    MULTICHAIN_L2_ADAPTERS["radiant-arbitrum"] = RadiantArbitrumAdapter()
-if _GMX_GLP_ARBITRUM_AVAILABLE:
-    ADAPTER_REGISTRY.append(("gmx_glp_arbitrum", "T2", GmxGlpArbitrumAdapter))
-    MULTICHAIN_L2_ADAPTERS["gmx-glp-arbitrum"] = GmxGlpArbitrumAdapter()
+if _SILO_ARBITRUM_AVAILABLE:
+    ADAPTER_REGISTRY.append(("silo_arbitrum", "T2", SiloArbitrumUSDCAdapter))
+    MULTICHAIN_L2_ADAPTERS["silo-arbitrum"] = SiloArbitrumUSDCAdapter()
+if _DOLOMITE_ARBITRUM_AVAILABLE:
+    ADAPTER_REGISTRY.append(("dolomite_arbitrum", "T2", DolomiteArbitrumUSDCAdapter))
+    MULTICHAIN_L2_ADAPTERS["dolomite-arbitrum"] = DolomiteArbitrumUSDCAdapter()
 if _VELODROME_OPTIMISM_AVAILABLE:
     ADAPTER_REGISTRY.append(("velodrome_optimism", "T2", VelodromeOptimismAdapter))
     MULTICHAIN_L2_ADAPTERS["velodrome-optimism"] = VelodromeOptimismAdapter()
@@ -208,8 +215,8 @@ __all__ = [
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
     "ExtraFinanceBaseAdapter",  # MP-510
-    "RadiantArbitrumAdapter",       # multichain expansion (Arbitrum)
-    "GmxGlpArbitrumAdapter",        # multichain expansion (Arbitrum)
+    "SiloArbitrumUSDCAdapter",      # multichain expansion (Arbitrum, v1.254 — replaces Radiant)
+    "DolomiteArbitrumUSDCAdapter",  # multichain expansion (Arbitrum, v1.254 — replaces GMX GLP)
     "VelodromeOptimismAdapter",     # multichain expansion (Optimism)
     "AerodromeUsdcAdapter",         # MP v12.51 (Base AMM stable LP)
     "BASE_CHAIN_ADAPTERS",
