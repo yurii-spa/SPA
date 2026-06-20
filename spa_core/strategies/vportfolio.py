@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from pathlib import Path
 
 from .base import _as_float
+from spa_core.utils.atomic import atomic_save
 
 #: equity_curve is a ring buffer of at most this many most-recent points.
 EQUITY_CURVE_MAX = 90
@@ -148,18 +148,7 @@ class VirtualPortfolio:
         """Atomically persist the portfolio (tmp file + ``os.replace``)."""
         target = Path(path) if path is not None else self.path()
         target.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(target.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(self.to_dict(), fh, indent=2, ensure_ascii=False)
-                fh.write("\n")
-            os.replace(tmp, target)
-        except BaseException:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(self.to_dict(), str(target))
         return target
 
     @classmethod
