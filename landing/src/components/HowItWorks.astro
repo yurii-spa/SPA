@@ -39,7 +39,7 @@
               <div class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Step 1 · 08:00 daily</div>
               <h3 class="text-xl font-semibold text-white mb-3">Daily APY Scan</h3>
               <p class="text-white/50 text-sm leading-relaxed">
-                At 08:00 UTC, the cycle runner fetches live APY and TVL data from 8+ whitelisted
+                At 08:00 UTC, the cycle runner fetches live APY and TVL data from several whitelisted
                 DeFi protocols via DeFiLlama's yields API. Each protocol adapter is read-only —
                 it observes, never writes.
               </p>
@@ -113,8 +113,8 @@
               <p class="text-white/50 text-sm leading-relaxed">
                 Approved rebalances execute, daily yield accrues to positions, and the equity
                 curve updates — all written atomically to versioned JSON files.
-                Tournament of 10+ strategies selects the best allocation via Sharpe, Calmar,
-                Ulcer, and Rachev metrics.
+                A multi-strategy tournament (advisory-only) evaluates allocations via Sharpe, Calmar,
+                Ulcer, and Rachev metrics — the RiskPolicy gate makes the final go/no-go call.
               </p>
               <ul class="mt-4 space-y-1.5 text-sm text-white/35">
                 <li class="flex items-center gap-2">
