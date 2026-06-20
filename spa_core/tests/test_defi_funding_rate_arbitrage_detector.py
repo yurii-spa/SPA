@@ -5,9 +5,9 @@ Run: python3 -m unittest spa_core.tests.test_defi_funding_rate_arbitrage_detecto
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 # Ensure repo root on path
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
