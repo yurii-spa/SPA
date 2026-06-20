@@ -1,0 +1,29 @@
+{
+  "compound_v3": {
+    "adapter": "compound_v3",
+    "tier": "T1",
+    "status": "ok",
+    "apy": 0.0487,
+    "tvl_usd": 850000000.0,
+    "checked_at": "2026-06-20T07:53:03.687164+00:00",
+    "source": "defillama_feed"
+  },
+  "morpho_steakhouse": {
+    "adapter": "morpho_steakhouse",
+    "tier": "T1",
+    "status": "ok",
+    "apy": 0.0652,
+    "tvl_usd": 320000000.0,
+    "checked_at": "2026-06-20T07:53:03.687164+00:00",
+    "source": "defillama_feed"
+  },
+  "aave_arbitrum": {
+    "adapter": "aave_v3_arbitrum",
+    "tier": "T1",
+    "status": "ok",
+    "apy": 0.0461,
+    "tvl_usd": 180000000.0,
+    "checked_at": "2026-06-20T07:53:03.687164+00:00",
+    "source": "defillama_feed"
+  }
+}
