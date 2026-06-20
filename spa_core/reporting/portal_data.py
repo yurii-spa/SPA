@@ -68,8 +68,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional
 
-from spa_core.utils.atomic import atomic_save
-
 from spa_core.governance.capital_ladder import (
     INCIDENT_THRESHOLD_PCT,
     detect_incidents,
@@ -79,6 +77,7 @@ from spa_core.reporting.tear_sheet import (
     compound_return_pct,
     max_drawdown_from_returns,
 )
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.reporting.portal_data")
 
@@ -140,7 +139,9 @@ def _read_json(path: Path) -> Any:
         return None
 
 
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _num(value: Any) -> Optional[float]:
     """Число или None (bool — не число); NaN/inf — не данные."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -638,7 +639,7 @@ def write_status(
     history.append(_history_entry(doc))
     doc = dict(doc)
     doc["history"] = history[-HISTORY_MAX:]
-    atomic_save(doc, str(json_path))
+    _atomic_write_json(json_path, doc)
     log.info("portal data written: %s", json_path)
     return {"json": str(json_path), "changed": True}
 
