@@ -39,6 +39,9 @@ from .ethena_susde_adapter import EthenaSusdeAdapter  # MP-1227
 from .fluid_usdc_adapter import FluidUSDCAdapter  # MP-1227
 # MP-1227: Usual Protocol USD0++ RWA-backed T2 adapter (Usual API + DeFiLlama fallback)
 from .usual_usd0pp_adapter import UsualUSD0PPAdapter  # MP-1227
+# MP-1250: Pendle PT fixed-rate adapters (T2, DeFiLlama feed + fallback, maturity-aware)
+from .pendle_pt_susde_adapter import PendlePTSusdeAdapter  # MP-1250
+from .pendle_pt_usdc_adapter import PendlePTUsdcAdapter    # MP-1250
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -89,6 +92,13 @@ try:
 except ImportError:
     _VELODROME_OPTIMISM_AVAILABLE = False
 
+# MP v12.51: Aerodrome Finance Base USDC-USDT stable-pool T2 adapter (ve(3,3) DEX)
+try:
+    from .aerodrome_usdc_adapter import AerodromeUsdcAdapter
+    _AERODROME_BASE_AVAILABLE = True
+except ImportError:
+    _AERODROME_BASE_AVAILABLE = False
+
 # ADR-025 Phase 1: Base chain read-only APY feeds (no capital allocation)
 # Populated at import time with whichever Base adapters are available.
 BASE_CHAIN_ADAPTERS: dict = {}  # ADR-025: key -> adapter instance, read-only
@@ -132,6 +142,8 @@ ADAPTER_REGISTRY = [
     ("ethena_susde",     "T2", EthenaSusdeAdapter),     # MP-1227
     ("fluid_usdc",       "T2", FluidUSDCAdapter),       # MP-1227
     ("usual_usd0pp",     "T2", UsualUSD0PPAdapter),     # MP-1227
+    ("pendle_pt_susde",  "T2", PendlePTSusdeAdapter),   # MP-1250
+    ("pendle_pt_usdc",   "T2", PendlePTUsdcAdapter),    # MP-1250
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -159,6 +171,10 @@ if _GMX_GLP_ARBITRUM_AVAILABLE:
 if _VELODROME_OPTIMISM_AVAILABLE:
     ADAPTER_REGISTRY.append(("velodrome_optimism", "T2", VelodromeOptimismAdapter))
     MULTICHAIN_L2_ADAPTERS["velodrome-optimism"] = VelodromeOptimismAdapter()
+# MP v12.51: Aerodrome USDC-USDT stable LP on Base (T2 AMM)
+if _AERODROME_BASE_AVAILABLE:
+    ADAPTER_REGISTRY.append(("aerodrome_base", "T2", AerodromeUsdcAdapter))
+    MULTICHAIN_L2_ADAPTERS["aerodrome-base"] = AerodromeUsdcAdapter()
 
 __all__ = [
     "BaseAdapter",
@@ -186,6 +202,8 @@ __all__ = [
     "EthenaSusdeAdapter",     # MP-1227
     "FluidUSDCAdapter",       # MP-1227
     "UsualUSD0PPAdapter",     # MP-1227
+    "PendlePTSusdeAdapter",   # MP-1250
+    "PendlePTUsdcAdapter",    # MP-1250
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
@@ -193,6 +211,7 @@ __all__ = [
     "RadiantArbitrumAdapter",       # multichain expansion (Arbitrum)
     "GmxGlpArbitrumAdapter",        # multichain expansion (Arbitrum)
     "VelodromeOptimismAdapter",     # multichain expansion (Optimism)
+    "AerodromeUsdcAdapter",         # MP v12.51 (Base AMM stable LP)
     "BASE_CHAIN_ADAPTERS",
     "MULTICHAIN_L2_ADAPTERS",
     "ADAPTER_REGISTRY",
