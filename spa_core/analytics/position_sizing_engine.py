@@ -20,11 +20,11 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -340,18 +340,7 @@ def save_results(
         history = history[-_RING_BUFFER_MAX:]
 
     # Atomic write via tmp + os.replace
-    fd, tmp_path = tempfile.mkstemp(dir=str(data_dir), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(history, fh, indent=2)
-        os.replace(tmp_path, str(log_file))
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(history, str(log_file))
     result.saved_to = str(log_file)
     return result
 
