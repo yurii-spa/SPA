@@ -57,6 +57,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.errors import ValidationError
+
 log = logging.getLogger("spa.engine_bridge")
 
 
@@ -320,7 +322,7 @@ class LiveExecutionBridge:
             elif action == "withdraw":
                 adapter_result = adapter.withdraw(asset, float(amount_usd))
             else:  # pragma: no cover — internal misuse
-                raise ValueError(f"unknown action {action!r}")
+                raise ValidationError("action", action, "must be 'supply' or 'withdraw'")
         except Exception as exc:  # noqa: BLE001
             adapter_result = {
                 "status":    "ERROR",
