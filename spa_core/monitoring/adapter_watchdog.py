@@ -1,3 +1,10 @@
+# DEPRECATED — orphaned module. Canonical: spa_core.scheduler.adapter_watchdog
+# No active imports point here. TODO: remove in next cleanup.
+# This file is kept for git history only.
+raise ImportError(
+    "DEPRECATED: use spa_core.scheduler.adapter_watchdog instead"
+)
+
 """
 adapter_watchdog.py — MP-596 AdapterWatchdog.
 
