@@ -9,10 +9,10 @@ import json
 import math
 import os
 import statistics
-import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_FILE = os.path.join(
@@ -259,19 +259,7 @@ def _atomic_write(path: str, data: Any) -> None:
     dir_path = os.path.dirname(path)
     if dir_path:
         os.makedirs(dir_path, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=dir_path or ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _append_log(result: dict, log_path: str) -> None:
     """Append a log entry (ring-buffer, cap LOG_CAP)."""
     existing: list = []
