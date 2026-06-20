@@ -25,6 +25,7 @@ from pathlib import Path
 
 from spa_core.paper_trading import drawdown_analytics as dd
 from spa_core.reporting.tear_sheet import max_drawdown_from_returns
+from spa_core.utils.atomic import atomic_save
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -394,7 +395,7 @@ class TestPersistence(_TmpBase):
         prev["history"] = [{"generated_at": f"t{i}"} for i in range(600)]
         prev["headline"] = dict(doc["headline"])
         prev["headline"]["num_episodes"] = 999  # ensure CONTENT fingerprint differs
-        dd._atomic_write_json(self._status_path(), prev)
+        atomic_save(prev, str(self._status_path()))
         out = dd.write_status(doc, data_dir=self.data_dir)
         self.assertTrue(out["changed"])
         hist = json.loads(self._status_path().read_text())["history"]
