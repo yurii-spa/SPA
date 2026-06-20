@@ -7,8 +7,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Allow direct module import regardless of working directory
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
