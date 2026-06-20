@@ -19,7 +19,6 @@ import json
 import os
 import sys
 from datetime import date
-
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
@@ -70,7 +69,11 @@ def _load_json(path: str) -> dict:
         return {}
 
 
-
+def _atomic_write(path: str, data: dict) -> None:
+    """Atomically write *data* as indented JSON to *path* (tmp + os.replace)."""
+    dir_ = os.path.dirname(os.path.abspath(path))
+    os.makedirs(dir_, exist_ok=True)
+    atomic_save(data, str(path))
 # ---------------------------------------------------------------------------
 # Analytics helpers
 # ---------------------------------------------------------------------------
@@ -228,7 +231,7 @@ def generate_summary(
         "days_to_go_live": days,
     }
 
-    atomic_save(summary, output_path)
+    _atomic_write(output_path, summary)
     return summary
 
 
