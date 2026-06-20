@@ -1,24 +1,28 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v10.74** | Done: **1181** задач
+> Последнее обновление: **2026-06-20** | Версия: **v11.70** | Done: **1211** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
+> 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
 
 ---
 
-## SPA v10.74 — 2026-06-20
+## SPA v11.70 — 2026-06-20
 
 ### Version: 10.0.0
 
 | Поле | Значение |
 |---|---|
 | version | **10.0.0** (`spa_core/version.py`) |
-| done_count | **1181** (KANBAN.json — source of truth) |
-| sprint_completed | **v10.74** |
-| Gate Status | Backtest ✅ Pre-Paper ⏳ Paper ⏳ Live 🔒 |
-| GoLive Score | **82/100** ✅ (цель 82+ достигнута — было 77/100 в v10.66) |
-| GoLive Status | **IN_PROGRESS** — 20/26 pass → target 26/26 (go-live 2026-08-01) |
+| done_count | **1211** (KANBAN.json — source of truth) |
+| sprint_completed | **v11.70** |
+| Gate Status | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
+| GoLive Score | **82/100** ✅ (цель 82+ достигнута) |
+| GoLive Status | **IN_PROGRESS** — 25/26 pass → target 26/26 (go-live 2026-08-01) |
 | Go-live target | **2026-08-01** |
+| Total tests | **2000+** |
+| ADRs | **41** |
+| Sprint series | **🏁 100-sprint series COMPLETE** (v10.67–v11.70) |
 
 ---
 
@@ -33,7 +37,7 @@
 | AUDIT-002: 597 no BaseAnalytics | 🔄 IN PROGRESS | v10.21–64 (**43 migrated**, Phase 4 complete) |
 | AUDIT-003: DeFiLlama not centralized | ✅ FIXED | v9.95–96 |
 | AUDIT-004: Adapter registry missing | ✅ FIXED | v9.95–96 |
-| AUDIT-005: Error catalog not adopted | 🔄 IN PROGRESS | v10.31–65 (**13 execution files** + 16 prior) |
+| AUDIT-005: Error catalog not adopted | ✅ FIXED | v10.83 — **100% adoption** (0 bare Exception/RuntimeError) |
 | AUDIT-006: safe_tx_builder TODOs | ✅ FIXED | v10.23 |
 | AUDIT-007: Execution safety | ✅ FIXED | v10.24 |
 | AUDIT-008: LiveTradingGate body missing | ✅ FIXED | v10.24 |
@@ -123,6 +127,9 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 | Push scripts wave 5 | ✅ `run_cpa_wave5_pushes.sh` (v10.29–v10.50) — pushed |
 | Push scripts wave 6 | ⏳ `run_cpa_wave6_pushes.sh` (v10.51–v10.66) — **user action pending** |
 | Push scripts wave 7 | ⏳ `run_cpa_wave7_pushes.sh` (v10.67–v10.74) — **user action pending** |
+| Push scripts wave 8 | ⏳ `run_cpa_wave8_pushes.sh` (v10.75–v10.86) — **user action pending** |
+| Push scripts wave 9  | ⏳ `run_cpa_wave9_pushes.sh` (v10.99–v11.42) — **user action pending** |
+| Push scripts wave 11 | ⏳ `run_cpa_wave11_pushes.sh` (v11.55–v11.70) — **user action pending** |
 | Pre-commit hook | `scripts/pre_commit_check.sh` + `install_git_hooks.sh` |
 | KANBAN health | `scripts/kanban_health.py` (--watch mode) |
 | launchd `com.spa.daily_cycle` | ✅ (ежедневно 08:00) |
@@ -133,6 +140,12 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 | `_push_wave6.command` | ✅ CREATED (MP-1450 v10.66) |
 | `scripts/run_cpa_wave7_pushes.sh` | ✅ CREATED (MP-1458 v10.74) |
 | `_push_wave7.command` | ✅ CREATED (MP-1458 v10.74) |
+| `scripts/run_cpa_wave8_pushes.sh` | ✅ CREATED (MP-1470 v10.86) |
+| `_push_wave8.command` | ✅ CREATED (MP-1470 v10.86) |
+| `scripts/run_cpa_wave9_pushes.sh` | ✅ CREATED (MP-1526 v11.42) |
+| `_push_wave9.command` | ✅ CREATED (MP-1526 v11.42) |
+| `scripts/run_cpa_wave11_pushes.sh` | ✅ CREATED (MP-1552 v11.68) |
+| `_push_wave11.command` | ✅ CREATED (MP-1552 v11.68) |
 
 ---
 
@@ -148,9 +161,68 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 
 ---
 
+## Wave 9 Sprint Summary (v11.39–v11.42) — MP-1523–1526
+
+| Sprint | MP | Описание |
+|--------|----|----------|
+| **v11.39** | **MP-1523** | **SPA Admin CLI** — `scripts/spa_admin.py` (7 команд: status/golive/adapters/evidence/kanban/strategies/push-check), 37 тестов GREEN |
+| **v11.40** | **MP-1524** | **System Health Check** — `scripts/system_health_check.py` (15 проверок: KANBAN/gates/adapters/LiveTradingGate/SPAError/atomic/GoLive/equity_curve/is_demo/risk/gap_monitor/cycle_runner/push/RiskPolicy), 24 теста GREEN, 15/15 PASS |
+| **v11.41** | **MP-1525** | **Backup + Restore** — `scripts/backup_spa_data.py` + `scripts/restore_spa_data.py` (atomic write, manifest.json, dry-run, --latest, --files filter), 24 теста GREEN |
+| **v11.42** | **MP-1526** | **Wave 9 Push Script** — `scripts/run_cpa_wave9_pushes.sh`, `_push_wave9.command`, CURRENT_STATE v11.42, KANBAN +4 |
+
+### New admin scripts (v11.39–v11.42)
+
+```bash
+# SPA Admin CLI — unified management
+python3 scripts/spa_admin.py status           # full system overview
+python3 scripts/spa_admin.py golive           # 26-criteria GoLive breakdown
+python3 scripts/spa_admin.py adapters --tier T1
+python3 scripts/spa_admin.py evidence
+python3 scripts/spa_admin.py kanban
+python3 scripts/spa_admin.py strategies --leaderboard
+python3 scripts/spa_admin.py push-check
+
+# System Health Check — 15 diagnostic probes
+python3 scripts/system_health_check.py        # → 15/15 PASS
+
+# Backup / Restore
+python3 scripts/backup_spa_data.py            # backup to ~/Documents/SPA_Backups/
+python3 scripts/restore_spa_data.py --latest  # restore from latest backup
+python3 scripts/backup_spa_data.py --dry-run  # preview only
+```
+
+---
+
 ## Push Pending (user action)
 
 ```bash
+# Wave 9 (v11.39–v11.42) — новые спринты (MP-1523–1526):
+bash ~/Documents/SPA_Claude/_push_wave9.command
+# или:
+bash ~/Documents/SPA_Claude/scripts/run_cpa_wave9_pushes.sh
+
+# Wave 8 (v10.75–v10.86) — новые спринты:
+
+```bash
+bash ~/Documents/SPA_Claude/scripts/run_cpa_wave8_pushes.sh   # v10.75–v10.86
+```
+
+Лог: `/tmp/wave8_push.log`
+
+---
+
+## Wave 8 Sprint Summary (v10.75–v10.86)
+
+| Sprint | MP | Описание |
+|--------|----|----------|
+| v10.75–v10.82 | MP-1459–1466 | (предыдущие спринты wave 8) |
+| **v10.83** | **MP-1467** | **SPAError Final Sweep** — audit script `scripts/spaerror_final_audit.py`, 22 tests `test_spaerror_complete.py`, **100% adoption confirmed** |
+| **v10.84** | **MP-1468** | **Test Coverage Gaps** — 75 new tests (5 modules × 15): drawdown_attribution, capm_decomposition, regime_detector, monthly_report, risk_contribution |
+| **v10.85** | **MP-1469** | **KANBAN Health** — sprint_current/current_sprint aligned v10.86, `audit_status` field added, done_count=1185 |
+| **v10.86** | **MP-1470** | **Wave 8 Push Script** — `run_cpa_wave8_pushes.sh`, `_push_wave8.command`, CURRENT_STATE v10.86 |
+
+---
+
 # Wave 7 (v10.67–v10.74) — новые спринты:
 bash ~/Documents/SPA_Claude/_push_wave7.command
 
@@ -263,4 +335,49 @@ com.spa.autopush      ❌  НЕ УСТАНОВЛЕН (PYTHON_PATH-заглушк
 
 ---
 
-*Обновлено: 2026-06-20 (MP-1450 v10.66 — Wave 6 push script, CURRENT_STATE v10.66, BaseAnalytics Phase 4 complete 43 classes, SPAError Batch 5 complete 13 execution files)*
+## Wave 11 Sprint Summary (v11.55–v11.70)
+
+| Sprint | MP | Описание |
+|--------|----|----------|
+| v11.55–v11.58 | MP-1539–1542 | SQLite data layer + JSON→SQLite migration + DB factory + daily cycle SQLite |
+| v11.59–v11.62 | MP-1543–1546 | Landing meta tags + FAQ + methodology + blog posts + performance |
+| v11.63–v11.65 | MP-1547–1549 | Fluid + Notional V3 adapters + AaveV3 improvements + Adapter conformance v2 |
+| **v11.66** | **MP-1550** | **ADR-041** — adapter conformance standard v2 |
+| **v11.67** | **MP-1551** | **Final KANBAN sync** — done_count 1206→1210, 100-sprint marker, audit_status COMPLETE |
+| **v11.68** | **MP-1552** | **Wave 11 push script** — `run_cpa_wave11_pushes.sh`, `_push_wave11.command`, 15 tests |
+| **v11.69** | **MP-1553** | **100-sprint retrospective** — `docs/RETROSPECTIVE_100_SPRINTS.md` |
+| **v11.70** | **MP-1554** | **CURRENT_STATE v11.70 final** — 100-sprint series COMPLETE |
+
+---
+
+## Push Pending Wave 11 (user action)
+
+```bash
+bash ~/Documents/SPA_Claude/_push_wave11.command   # v11.55–v11.70
+```
+
+Log: `/tmp/wave11_push.log`
+
+---
+
+## New Infrastructure (100-sprint series, v10.67–v11.70)
+
+| Category | Items |
+|----------|-------|
+| Analytics | VaR/CVaR, MonteCarlo, CrossChain, WalkForward |
+| Safety | PositionLimitEnforcer, DrawdownCircuitBreaker |
+| API | FastAPI REST server + client (spa_core/api/) |
+| Database | SQLite manager (spa_core/database/) |
+| Adapters | Fluid, Notional V3 (22 total) |
+| Strategies | S20 Curve/Convex, S21 Aave Loop (22 total S0–S21) |
+| Observability | Structured logging, metrics collector |
+| Landing | FAQ, blog, methodology, status panel |
+| Admin | SPA Admin CLI, system health check |
+| CI/CD | GitHub Actions workflows |
+| Tests | 2000+ total |
+
+See full detail: `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+*Обновлено: 2026-06-20 (MP-1554 v11.70 — 100-sprint series COMPLETE, done_count 1210, GoLive 82/100, 22 adapters, S0–S21 strategies, Wave 11 push script)*
