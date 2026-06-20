@@ -6,9 +6,9 @@ Evaluates risks of using NFTs as collateral in DeFi protocols.
 
 import json
 import os
-import tempfile
 import datetime
 from typing import List, Dict, Any, Optional
+from spa_core.utils.atomic import atomic_save
 
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "ring_buffer_cap": 100,
@@ -300,13 +300,4 @@ class DeFiProtocolNFTCollateralRiskAnalyzer:
             os.makedirs(dir_name, exist_ok=True)
 
         write_dir = dir_name if dir_name else "."
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=write_dir, suffix=".tmp.json")
-        try:
-            with os.fdopen(tmp_fd, "w") as fh:
-                json.dump(log, fh, indent=2)
-            os.replace(tmp_path, log_file)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
+        atomic_save(log, str(log_file))
