@@ -7,9 +7,9 @@ import json
 import math
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 _ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _ROOT not in sys.path:
