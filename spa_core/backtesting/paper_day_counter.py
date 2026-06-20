@@ -52,6 +52,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -71,7 +73,7 @@ _DEFAULT_PTS_PER_DAY = 0.17 * 1.0  # ≈ 0.17 pts/day
 
 # ── Milestones ────────────────────────────────────────────────────────────────
 
-class PaperDayCounter:
+class PaperDayCounter(BaseAnalytics):
     """
     Tracks paper trading day count and evidence accumulation progress.
 
@@ -91,6 +93,8 @@ class PaperDayCounter:
         today:             Override today's date (for testing); defaults to date.today().
     """
 
+    OUTPUT_PATH = "data/paper/paper_day_counter.json"
+
     EVIDENCE_REQUIRED = EVIDENCE_REQUIRED
 
     MILESTONES: List[tuple] = [
@@ -107,7 +111,9 @@ class PaperDayCounter:
         paper_state_path: str = _DEFAULT_STATE_PATH,
         evidence_path: str = _DEFAULT_EVIDENCE_PATH,
         today: Optional[date] = None,
+        base_dir: str = ".",
     ) -> None:
+        super().__init__(base_dir)
         self.paper_state_path = Path(paper_state_path)
         self.evidence_path = Path(evidence_path)
         self._today = today  # None → use real date.today()
