@@ -65,10 +65,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.loop_scheduler")
 
@@ -85,22 +86,6 @@ LAST_APPROVED_ALLOC_FILENAME = "last_approved_allocation.json"
 
 # ─── Atomic IO ───────────────────────────────────────────────────────────────
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -179,7 +164,7 @@ def run_fast_loop(
                 "model_used": cycle_result.get("model_used"),
                 "equity": cycle_result.get("current_equity", 0.0),
             }
-            _atomic_write_json(dd / LAST_APPROVED_ALLOC_FILENAME, approved_config)
+            atomic_save(approved_config, str(dd / LAST_APPROVED_ALLOC_FILENAME))
             config_updated = True
 
         # --- build status document -------------------------------------------
@@ -196,7 +181,7 @@ def run_fast_loop(
             "alerts": alerts,
             "alert_count": len(alerts),
         }
-        _atomic_write_json(dd / FAST_LOOP_STATUS_FILENAME, status_doc)
+        atomic_save(status_doc, str(dd / FAST_LOOP_STATUS_FILENAME))
         return status_doc
 
     except Exception as exc:
@@ -258,7 +243,7 @@ def run_slow_loop(
                     "insights": [],
                     "reason": "llm_unavailable",
                 }
-            _atomic_write_json(dd / SLOW_LOOP_INSIGHTS_FILENAME, doc)
+            atomic_save(doc, str(dd / SLOW_LOOP_INSIGHTS_FILENAME))
             return doc
 
         # LLM-available path: the real LLM call is made by the calling layer
@@ -283,7 +268,7 @@ def run_slow_loop(
             "insights": [],  # populated by calling layer with LLM output
             "llm_used": True,
         }
-        _atomic_write_json(dd / SLOW_LOOP_INSIGHTS_FILENAME, doc)
+        atomic_save(doc, str(dd / SLOW_LOOP_INSIGHTS_FILENAME))
         return doc
 
     except Exception as exc:
@@ -296,7 +281,7 @@ def run_slow_loop(
             "insights": [],
         }
         try:
-            _atomic_write_json(_ddir(data_dir) / SLOW_LOOP_INSIGHTS_FILENAME, err_doc)
+            atomic_save(err_doc, str(_ddir(data_dir) / SLOW_LOOP_INSIGHTS_FILENAME))
         except Exception:
             pass
         return err_doc
@@ -341,7 +326,7 @@ def run_strategic_loop(
                 "reason": "llm_unavailable",
                 "notes": [],
             }
-            _atomic_write_json(dd / STRATEGIC_LOOP_NOTES_FILENAME, doc)
+            atomic_save(doc, str(dd / STRATEGIC_LOOP_NOTES_FILENAME))
             return doc
 
         # LLM-available path: gather inputs.
@@ -366,7 +351,7 @@ def run_strategic_loop(
             "notes": [],  # populated by calling layer with LLM strategic analysis
             "llm_used": True,
         }
-        _atomic_write_json(dd / STRATEGIC_LOOP_NOTES_FILENAME, doc)
+        atomic_save(doc, str(dd / STRATEGIC_LOOP_NOTES_FILENAME))
         return doc
 
     except Exception as exc:
@@ -379,7 +364,7 @@ def run_strategic_loop(
             "notes": [],
         }
         try:
-            _atomic_write_json(_ddir(data_dir) / STRATEGIC_LOOP_NOTES_FILENAME, err_doc)
+            atomic_save(err_doc, str(_ddir(data_dir) / STRATEGIC_LOOP_NOTES_FILENAME))
         except Exception:
             pass
         return err_doc
