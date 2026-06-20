@@ -8,8 +8,8 @@ import math
 import os
 import statistics
 import sys
-import tempfile
 import unittest
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
