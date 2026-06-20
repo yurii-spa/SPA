@@ -21,12 +21,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .shadow_allocator import _normalize_adapters, compute_shadow_allocation
 from .shadow_registry import STRATEGIES
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.shadow_tracker")
 
@@ -36,25 +36,6 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 SHADOW_FILENAME = "shadow_portfolio.json"
 INITIAL_CAPITAL = 100_000.0
 MAX_HISTORY_POINTS = 365  # ring-buffer of daily equity snapshots
-
-
-def _atomic_write_json(path: Path, obj) -> None:
-    """tmp file + os.replace — same contract as cycle_runner."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
 
 
 def _read_json(path: Path, default):
@@ -156,5 +137,5 @@ def run_shadow_cycle(
         "strategies": strategies_out,
         "history": history,
     }
-    _atomic_write_json(ddir / SHADOW_FILENAME, doc)
+    atomic_save(doc, str(ddir / SHADOW_FILENAME))
     return doc
