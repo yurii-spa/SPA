@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_gas_cost_yield_drag_analyzer -
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_gas_cost_yield_drag_analyzer import (
     DeFiGasCostYieldDragAnalyzer,
