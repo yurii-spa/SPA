@@ -63,11 +63,11 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.portfolio_monitor")
 
@@ -524,25 +524,7 @@ class PortfolioMonitor:
             snapshots = snapshots[-SNAPSHOTS_MAX:]
 
         # Atomic write
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(data_path), prefix=".monitor_snapshots_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(snapshots, fh, indent=2, ensure_ascii=False)
-                fh.write("\n")
-            os.replace(tmp_path, str(snapshots_file))
-            log.info(
-                "monitor_snapshots.json updated (%d entries)", len(snapshots)
-            )
-        except Exception as exc:  # noqa: BLE001
-            log.error("Failed to write monitor_snapshots.json: %s", exc)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(snapshots, str(snapshots_file))
     def load_latest_snapshot(
         self,
         data_dir: Optional[str] = None,
