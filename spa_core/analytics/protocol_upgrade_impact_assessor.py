@@ -11,9 +11,9 @@ Pure Python stdlib only. Atomic JSON writes via tmp+os.replace. Ring-buffer cap 
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Data file
@@ -371,19 +371,7 @@ class ProtocolUpgradeImpactAssessor:
             if dir_name:
                 os.makedirs(dir_name, exist_ok=True)
 
-            fd, tmp_path = tempfile.mkstemp(
-                dir=dir_name or ".", suffix=".tmp"
-            )
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                    json.dump(log, fh, indent=2)
-                os.replace(tmp_path, self._data_file)
-            except Exception:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-                raise
+            atomic_save(log, str(self))
         except Exception:
             # Advisory module — never crash the caller
             pass
