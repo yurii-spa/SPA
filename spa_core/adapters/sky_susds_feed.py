@@ -50,7 +50,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,6 +58,7 @@ from typing import Any, Optional
 import requests
 
 from . import config
+from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
 
@@ -97,24 +97,8 @@ GATE_REASON = (
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Записывает JSON атомарно: tmpfile в той же папке + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
+    """Записывает JSON атомарно через atomic_save."""
+    atomic_save(obj, str(path))
 
 
 def _read_json(path: Path) -> Any:
