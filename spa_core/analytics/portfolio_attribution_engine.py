@@ -41,11 +41,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Project root & paths
@@ -304,19 +304,7 @@ class PortfolioAttributionEngine:
 def _atomic_write(path: Path, payload: object) -> None:
     """Write *payload* to *path* atomically via tmp + os.replace."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".tmp_", suffix=".json")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(payload, str(path))
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
