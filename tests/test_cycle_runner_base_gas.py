@@ -1,7 +1,7 @@
 """Tests for ADR-025 Base gas monitor integration in cycle_runner. MP-456."""
 import os
-import tempfile
 import unittest
+import tempfile
 
 
 class TestCycleRunnerBaseGas(unittest.TestCase):
