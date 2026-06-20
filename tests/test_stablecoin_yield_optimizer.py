@@ -9,8 +9,8 @@ Run:
 """
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.stablecoin_yield_optimizer import (
     T1_PROTOCOLS,
