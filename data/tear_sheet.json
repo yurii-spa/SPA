@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "generated_at": "2026-06-20T23:48:38.070572+00:00",
+    "module": "tear_sheet_hf",
+    "mp": "MP-1236",
+    "advisory_only": true,
+    "is_demo": false,
+    "risk_free_annual_pct": 4.5,
+    "annualization_days": 365,
+    "track_days": 11,
+    "return_days": 10,
+    "track_start": "2026-06-10",
+    "track_end": "2026-06-20",
+    "source_files": [
+      "equity_curve_daily.json"
+    ],
+    "disclaimer": "Advisory / read-only. Paper-trading track ($100k virtual USDC); not investment advice. Past simulated performance does not guarantee future results. Attribution uses capital-weighted decomposition over available daily bars \u2014 see per-field notes for approximations."
+  },
+  "ratios": {
+    "sharpe_ratio": -27.9466,
+    "sortino_ratio": null,
+    "calmar_ratio": null,
+    "annualized_return_pct": 4.1137,
+    "annualized_vol_pct": 0.0138
+  },
+  "drawdown": {
+    "max_drawdown_pct": 0.0,
+    "max_drawdown_usd": 0.0,
+    "num_episodes": 0,
+    "avg_drawdown_duration_days": 0.0,
+    "max_drawdown_duration_days": 0
+  },
+  "returns": {
+    "total_return_pct_compounded": 0.110508,
+    "annualized_return_pct": 4.1137,
+    "win_rate_pct": 100.0,
+    "best_day": {
+      "date": "2026-06-20",
+      "daily_return_pct": 0.013216
+    },
+    "worst_day": {
+      "date": "2026-06-19",
+      "daily_return_pct": 0.010799
+    },
+    "mean_daily_return_pct": 0.011,
+    "daily_volatility_pct": 0.0007
+  },
+  "rolling_sharpe_30d": {
+    "window_days": 30,
+    "series": [],
+    "note": "Track has 10 return days (< 30); rolling-Sharpe series empty. See risk_metrics.sharpe_ratio for the full-period figure."
+  },
+  "monthly_returns": [
+    {
+      "month": "2026-06",
+      "return_pct": 0.110508,
+      "days": 10
+    }
+  ],
+  "notes": []
+}
