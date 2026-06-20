@@ -18,8 +18,8 @@ import json
 import os
 import sys
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -215,21 +215,7 @@ def analyze(snapshot: dict, config: dict | None = None) -> dict:
 def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically via tmp + os.replace."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(path), prefix=".tmp_liq_migration_"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _read_log(path: str) -> list:
     if not os.path.exists(path):
         return []
