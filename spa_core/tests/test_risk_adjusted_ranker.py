@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.risk_adjusted_ranker import (
