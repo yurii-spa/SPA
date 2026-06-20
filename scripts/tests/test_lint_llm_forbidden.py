@@ -10,7 +10,6 @@ Run with:
 
 import os
 import sys
-import tempfile
 import textwrap
 import unittest
 
@@ -20,6 +19,7 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 import lint_llm_forbidden as linter
+import tempfile
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
