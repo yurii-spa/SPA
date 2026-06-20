@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_impermanent_loss_breakeven_ana
 import json
 import math
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_impermanent_loss_breakeven_analyzer import (
     DeFiImpermanentLossBreakevenAnalyzer,
