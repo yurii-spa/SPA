@@ -11,7 +11,6 @@ import http.client
 import json
 import os
 import sys
-import tempfile
 import threading
 import time
 import unittest
@@ -47,6 +46,7 @@ def _start_server(data_dir: str, port: int):
 
 
 import http.server as _http_server
+import tempfile
 
 
 class FundAPITestCase(unittest.TestCase):
