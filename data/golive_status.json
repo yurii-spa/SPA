@@ -1,7 +1,7 @@
 {
   "ready": false,
-  "passed": 25,
-  "total": 26,
+  "passed": 27,
+  "total": 29,
   "checks": {
     "equity_curve_real": true,
     "trades_real": true,
@@ -22,19 +22,231 @@
     "adapter_status_has_morpho": true,
     "adapter_status_has_arbitrum": true,
     "gap_monitor_ok": true,
-    "gap_monitor_30d": true,
-    "autopush_installed": false,
+    "gap_monitor_30d": false,
+    "autopush_installed": true,
     "telegram_alert_today": true,
-    "min_track_days_30": true,
+    "min_track_days_30": false,
     "apy_above_floor": true,
     "drawdown_below_kill": true,
-    "risk_policy_snapshot": true
+    "risk_policy_snapshot": true,
+    "adapter_registry_complete": true,
+    "backtest_completed": true,
+    "audit_trail_signed": true
   },
-  "blockers": [
-    "autopush_installed: ~/Library/LaunchAgents/com.spa.autopush.plist not found \u2014 run: bash mp009_fix_launchd.command"
+  "criteria": [
+    {
+      "name": "equity_curve_real",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "trades_real",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "status_real",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "no_demo_data",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "data_fresh_48h",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "cycle_runner_exists",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "compound_v3_adapter",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "morpho_steakhouse_adapter",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "aave_arbitrum_adapter",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "pendle_pt_adapter",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "multi_strategy_runner",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "promotion_engine",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "safe_tx_builder",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "http_server",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "adr022_exists",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "adapter_status_has_compound",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "adapter_status_has_morpho",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "adapter_status_has_arbitrum",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "gap_monitor_ok",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "gap_monitor_30d",
+      "status": "PENDING",
+      "blocking": true,
+      "estimated_days_to_pass": 19,
+      "target_date": "2026-07-09",
+      "message": "11/30 honest track days \u2014 19 more needed (target 2026-07-09)"
+    },
+    {
+      "name": "autopush_installed",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "telegram_alert_today",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "min_track_days_30",
+      "status": "PENDING",
+      "blocking": true,
+      "estimated_days_to_pass": 19,
+      "target_date": "2026-07-09",
+      "message": "11/30 honest track days \u2014 19 more needed (target 2026-07-09)"
+    },
+    {
+      "name": "apy_above_floor",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "drawdown_below_kill",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "risk_policy_snapshot",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "adapter_registry_complete",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "backtest_completed",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    },
+    {
+      "name": "audit_trail_signed",
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
+    }
   ],
-  "timestamp": "2026-06-20T08:06:15.806566+00:00",
+  "blockers": [
+    "gap_monitor_30d: 11/30 honest track days (since 2026-06-10; 19 more needed \u2014 target ~2026-07-09)",
+    "min_track_days_30: 11/30 honest paper-trading days (since 2026-06-10; 19 more needed \u2014 target go-live ~2026-07-09)"
+  ],
+  "real_track_days": 11,
+  "timestamp": "2026-06-20T23:50:34.332345+00:00",
   "source": "golive_checker",
-  "version": "v5.0-26criteria",
+  "version": "v6.0-29criteria",
   "consecutive_ready_days": 0
 }
