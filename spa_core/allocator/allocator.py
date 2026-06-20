@@ -21,6 +21,14 @@ from spa_core.strategies.strategy_selector import StrategySelector
 from spa_core.utils.errors import AllocationError
 from spa_core.utils.atomic import atomic_save
 
+# FIX-P1 (single source of limits): import RiskConfig so allocator limits
+# are always in sync with policy.py — no more hardcoded duplicates that drift.
+try:
+    from spa_core.risk.policy import RiskConfig as _RiskConfig
+    _POLICY_CONFIG = _RiskConfig()
+except Exception:  # pragma: no cover — import guard for test isolation
+    _POLICY_CONFIG = None  # type: ignore[assignment]
+
 log = logging.getLogger("spa.allocator")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -102,15 +110,30 @@ class StrategyAllocator:
     """Advisory-аллокатор целевых весов портфеля."""
 
     CAPITAL = 100_000  # USD paper trading
-    T1_CAP = 0.40      # макс 40% на один T1 протокол
-    T2_CAP = 0.20      # макс 20% на один T2 протокол (T3 трактуем как T2)
-    # MP-011: зеркала лимитов RiskPolicy (policy.py: min_tvl_usd,
-    # max_total_t2_allocation). Аллокатор обязан соблюдать их сам, иначе
-    # детерминированный гейт MP-005 блокирует каждый target и сделок нет.
-    # TODO(P1): заменить хардкод на import RiskConfig() чтобы избежать дрейфа.
-    # T1_CAP/T2_CAP/TVL_FLOOR_USD зеркалируют policy.py:max_concentration_t1/t2/min_tvl_usd.
-    TVL_FLOOR_USD = 5_000_000   # минимальный TVL пула для входа (= policy.min_tvl_usd)
-    T2_TOTAL_CAP = 0.50         # T2 совокупно не более 50% портфеля (ADR-019: было 0.35)
+
+    # FIX-P1 (single source of limits): all concentration/TVL limits are read
+    # from RiskConfig (policy.py) at class definition time so the allocator and
+    # the risk gate are always in sync.  _POLICY_CONFIG is None only when the
+    # import failed (e.g. in isolated unit tests); in that case the hardcoded
+    # fallback values below keep backwards-compatibility.
+    #
+    # policy.py source of truth:
+    #   max_concentration_t1  → T1_CAP
+    #   max_concentration_t2  → T2_CAP
+    #   min_tvl_usd           → TVL_FLOOR_USD
+    #   max_total_t2_alloc    → T2_TOTAL_CAP  (ADR-019: 50%)
+    T1_CAP: float = (
+        _POLICY_CONFIG.max_concentration_t1 if _POLICY_CONFIG is not None else 0.40
+    )
+    T2_CAP: float = (
+        _POLICY_CONFIG.max_concentration_t2 if _POLICY_CONFIG is not None else 0.20
+    )
+    TVL_FLOOR_USD: float = (
+        _POLICY_CONFIG.min_tvl_usd if _POLICY_CONFIG is not None else 5_000_000.0
+    )
+    T2_TOTAL_CAP: float = (
+        _POLICY_CONFIG.max_total_t2_allocation if _POLICY_CONFIG is not None else 0.50
+    )
 
     def __init__(
         self,
