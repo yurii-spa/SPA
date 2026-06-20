@@ -1,3 +1,8 @@
+# DEPRECATED — orphaned module, use spa_core.paper_trading.golive_checker instead
+# This file is kept for historical reference only. No imports point here.
+# TODO: remove in next cleanup cycle
+raise ImportError("DEPRECATED: use spa_core.paper_trading.golive_checker")
+
 #!/usr/bin/env python3
 """SPA GoLive readiness checker — extended edition (MP-384).
 
