@@ -17,8 +17,8 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 from unittest import mock
 
