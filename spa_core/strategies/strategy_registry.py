@@ -265,6 +265,9 @@ def _load_builtin_strategies() -> None:
         "spa_core.strategies.s28_momentum_yield",        # S28 Momentum Yield (T2)
         "spa_core.strategies.s29_barbell_plus",          # S29 Barbell Plus (T2)
         "spa_core.strategies.s30_all_weather",           # S30 All-Weather DeFi (T2)
+        # S31–S32: regime-defensive expansion (2026-06-21)
+        "spa_core.strategies.s31_bear_market_hedge",     # S31 Bear Market Hedge (T1, regime-aware)
+        "spa_core.strategies.s32_market_neutral",        # S32 Market Neutral (T2, 50/45/5 weekly)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
