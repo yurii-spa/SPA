@@ -8,8 +8,8 @@ All HTTP calls are mocked — no real network requests.
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from unittest.mock import patch, MagicMock
 from io import BytesIO
 
