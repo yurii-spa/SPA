@@ -5,9 +5,9 @@ Run with: python3 -m unittest spa_core.tests.test_protocol_smart_contract_age_sc
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
