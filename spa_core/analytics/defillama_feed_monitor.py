@@ -43,7 +43,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -52,6 +51,7 @@ from pathlib import Path
 
 from spa_core.base import BaseAnalytics
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 __all__ = ["DeFiLlamaFeedMonitor", "MONITORED_PROTOCOLS"]
 
@@ -257,21 +257,7 @@ class DeFiLlamaFeedMonitor(BaseAnalytics):
 
         report = self.monitoring_report()
 
-        fd, tmp = tempfile.mkstemp(dir=out_path.parent, prefix=".dlm_tmp_")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(report, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
-
-    # ── Private: network ──────────────────────────────────────────────────────
-
-    def _fetch_pools(self) -> Optional[List[Dict]]:
+        atomic_save(report, str(out_path))
         """Fetch pool data from DeFiLlama yields API.
 
         Returns:
