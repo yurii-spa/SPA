@@ -18,8 +18,9 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
+
+from spa_core.utils.atomic import atomic_save
 
 from .base import apply_risk_policy, tier_map
 from .vportfolio import VirtualPortfolio
@@ -41,21 +42,6 @@ def _load_json(path: Path) -> dict:
     except (OSError, ValueError):
         return {}
 
-
-def _atomic_write(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 def _registry():
@@ -128,7 +114,7 @@ def _append_run_log(ts: str, results: dict) -> None:
         }
     )
     entries = entries[-RUN_LOG_MAX:]
-    _atomic_write(_RUN_LOG, {"entries": entries, "max_entries": RUN_LOG_MAX})
+    atomic_save({"entries": entries, "max_entries": RUN_LOG_MAX}, str(_RUN_LOG))
 
 
 def main(argv: list[str] | None = None) -> int:
