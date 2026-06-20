@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -247,22 +247,7 @@ class ChainConcentrationAnalyzer:
             Destination JSON file.  Parent directory must exist.
         """
         data = self.summary()
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(Path(path).parent), prefix=".chain_concentration_"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2)
-            os.replace(tmp_path, path)
-        except Exception:
-            # Clean up temp file on failure; re-raise so callers can log it.
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-
+        atomic_save(data, str(path))
 # ---------------------------------------------------------------------------
 # CLI (offline, exit 0 always)
 # ---------------------------------------------------------------------------
