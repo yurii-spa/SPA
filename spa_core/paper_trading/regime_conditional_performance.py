@@ -92,7 +92,6 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -106,6 +105,7 @@ from spa_core.paper_trading.drawdown_analytics import extract_equity_series
 # reimplement fingerprinting. The same function object is shared with
 # tear_sheet (proven by an `assertIs` test).
 from spa_core.reporting.tear_sheet import content_fingerprint
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.regime_conditional_performance")
 
@@ -633,21 +633,7 @@ def write_status(
     doc = dict(result)
     doc["history"] = history
 
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_regime_cond_", dir=str(data_dir))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(doc, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_path, out_path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-        finally:
-            raise
-
+    atomic_save(doc, str(out_path))
     return "DATA_WRITTEN"
 
 
