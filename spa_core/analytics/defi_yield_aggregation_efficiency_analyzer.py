@@ -7,9 +7,9 @@ Pure stdlib — no external dependencies.
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 LOG_CAP = 100
 DEFAULT_LOG_PATH = os.path.join(
@@ -25,19 +25,7 @@ def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically using tmp + os.replace."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     dir_ = os.path.dirname(path)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _compute_compound_boost(
     gross_apy_pct: float,
     harvest_interval_hours: float,
