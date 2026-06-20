@@ -24,7 +24,7 @@ from typing import Iterator, Optional
 
 # BL-008 Phase 2 — delegate to the new dual-driver abstraction.
 from .connection import get_connection as _abstract_get_connection
-from .db_url import get_db_url, is_postgres, is_sqlite
+from .db_url import get_db_url, is_postgres
 
 log = logging.getLogger(__name__)
 
