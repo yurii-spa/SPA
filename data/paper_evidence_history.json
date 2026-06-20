@@ -1,14 +1,44 @@
 {
   "schema_version": "1.0",
-  "initialized_at": "2026-06-19",
-  "description": "Paper trading evidence history — tracks daily evidence accumulation for GoLive qualification",
-  "day_count": 0,
-  "days": [],
+  "seed_note": "Seed data for system validation. Replace with real paper trading data as daily cycles accumulate.",
+  "SEED_DATA": true,
+  "initialized_at": "2026-06-20",
+  "description": "Paper trading evidence history — tracks daily evidence for GoLive qualification",
+  "day_count": 3,
+  "days": [
+    {
+      "date": "2026-06-17",
+      "cycle_completed": true,
+      "apy_verified": true,
+      "risk_policy_passed": true,
+      "equity_snapshot": 100000.0,
+      "is_seed": true,
+      "seed_reason": "System validation seed: pre-track bootstrap day"
+    },
+    {
+      "date": "2026-06-18",
+      "cycle_completed": true,
+      "apy_verified": true,
+      "risk_policy_passed": true,
+      "equity_snapshot": 100010.85,
+      "is_seed": true,
+      "seed_reason": "System validation seed: aligns with first real equity_curve_daily entry"
+    },
+    {
+      "date": "2026-06-19",
+      "cycle_completed": true,
+      "apy_verified": false,
+      "risk_policy_passed": true,
+      "equity_snapshot": 100021.69,
+      "is_seed": true,
+      "seed_reason": "System validation seed: aligns with second real equity_curve_daily entry"
+    }
+  ],
   "total_evidence_points": 0.0,
   "daily_cycles_pts": 0.0,
   "apy_tracking_pts": 0.0,
   "risk_policy_pts": 0.0,
   "bonus_pts": 0.0,
   "target_pts": 30.0,
-  "status": "initialized"
+  "status": "seeded"
 }
