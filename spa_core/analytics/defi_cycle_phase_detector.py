@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ── Default paths ──────────────────────────────────────────────────────────
 _DEFAULT_LOG = os.path.join(
@@ -447,19 +447,7 @@ def load_history(log_path: str = _DEFAULT_LOG) -> list:
 def _atomic_write(path: str, data: object) -> None:
     """Write JSON atomically via tmp file + os.replace."""
     dir_ = os.path.dirname(path)
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 # ── CLI entry ──────────────────────────────────────────────────────────────
 
 def _demo() -> None:
