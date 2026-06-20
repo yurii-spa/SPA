@@ -31,6 +31,7 @@ import logging
 from typing import Optional
 
 from spa_core.safety.safeguard import live_trading_forbidden
+from spa_core.utils.errors import SPAError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -140,9 +141,7 @@ class SafeTxBuilder:
         """
         _validate_safe_address(safe_address)
         if not isinstance(chain_id, int) or chain_id <= 0:
-            raise ValueError(
-                f"chain_id must be a positive integer, got {chain_id!r}"
-            )
+            raise ValidationError("chain_id", chain_id, "must be a positive integer")
         self._safe_address = safe_address
         self._chain_id = chain_id
         self._mode = os.environ.get("SPA_EXECUTION_MODE", "paper").lower()
@@ -212,7 +211,7 @@ class SafeTxBuilder:
             return {}
 
         if amount_usd <= 0:
-            raise ValueError(f"amount_usd must be positive, got {amount_usd}")
+            raise ValidationError("amount_usd", amount_usd, "must be positive")
 
         if adapter not in PROTOCOL_WHITELIST:
             logger.error(
@@ -296,7 +295,7 @@ class SafeTxBuilder:
             return {}
 
         if amount_usd <= 0:
-            raise ValueError(f"amount_usd must be positive, got {amount_usd}")
+            raise ValidationError("amount_usd", amount_usd, "must be positive")
 
         if adapter not in PROTOCOL_WHITELIST:
             logger.error(
@@ -467,7 +466,10 @@ class SafeTxBuilder:
             LiveTradingForbiddenError: всегда (до активации LiveTradingGate).
         """
         # Тело недостижимо — @live_trading_forbidden всегда поднимает исключение.
-        raise RuntimeError("unreachable: @live_trading_forbidden must have raised")
+        raise SPAError(
+            "unreachable: @live_trading_forbidden must have raised",
+            code="UNREACHABLE_SENTINEL",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -691,23 +693,16 @@ def _validate_safe_address(addr: str) -> None:
         ValueError: Если формат неверный.
     """
     if not isinstance(addr, str):
-        raise ValueError(f"safe_address must be a string, got {type(addr).__name__}")
+        raise ValidationError("safe_address", type(addr).__name__, "must be a string")
     if not addr.startswith("0x"):
-        raise ValueError(
-            f"safe_address must start with '0x', got {addr!r}"
-        )
+        raise ValidationError("safe_address", addr, "must start with '0x'")
     hex_part = addr[2:]
     if len(hex_part) != 40:
-        raise ValueError(
-            f"safe_address must be 0x + 40 hex chars (20 bytes), "
-            f"got length {len(hex_part)} in {addr!r}"
-        )
+        raise ValidationError("safe_address", addr, f"must be 0x + 40 hex chars (20 bytes); got length {len(hex_part)}")
     try:
         int(hex_part, 16)
     except ValueError:
-        raise ValueError(
-            f"safe_address contains non-hex characters: {addr!r}"
-        )
+        raise ValidationError("safe_address", addr, "contains non-hex characters")
 
 
 def _abi_encode_address(addr: str) -> str:
@@ -737,7 +732,7 @@ def _abi_encode_uint256(value: int) -> str:
         str: 64-char lowercase hex string (32 bytes).
     """
     if value < 0:
-        raise ValueError(f"uint256 must be non-negative, got {value}")
+        raise ValidationError("value", value, "uint256 must be non-negative")
     return format(value, "064x")
 
 
