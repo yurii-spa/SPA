@@ -1,136 +1,102 @@
 """
 spa_core/base.py
-
-Base classes for all SPA analytics and adapter modules.
-Eliminates copy-pasted save()/load() across 80+ files.
-
-Usage:
-    from spa_core.base import BaseAnalytics, BaseAdapter
-
-    class MyAnalytics(BaseAnalytics):
-        OUTPUT_PATH = "data/my_output.json"
-
-        def compute(self) -> dict:
-            result = {"value": 42}
-            self.save(result)
-            return result
-
-        def to_dict(self) -> dict:
-            return self.load()
+Base abstract classes for SPA analytics, reporting, and adapter modules.
+All analytics classes should inherit from BaseAnalytics.
+All report classes should inherit from BaseReport.
+All protocol adapter classes should inherit from BaseAdapter.
 """
-import logging
-import os
+from __future__ import annotations
+
+import json
 from abc import ABC, abstractmethod
-from typing import Any, Optional
-
-from spa_core.utils.atomic import atomic_load, atomic_save
-
-logger = logging.getLogger(__name__)
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 
 class BaseAnalytics(ABC):
     """
-    Base class for all analytics modules.
-    Provides: save(), load(), _path(), _ensure_dir().
-    Requires subclasses to implement: to_dict()
+    Abstract base for all SPA analytics modules.
+    Provides standard save/load helpers and enforces analyze() contract.
     """
 
-    OUTPUT_PATH: str = ""  # Override in subclass
+    MODULE_NAME: str = "base_analytics"
+    VERSION: str = "1.0.0"
 
-    def __init__(self, base_dir: str = "."):
-        self.base_dir = base_dir
+    def __init__(self, data_dir: str = "data"):
+        self._data_dir = Path(data_dir)
+        self._data_dir.mkdir(parents=True, exist_ok=True)
 
-    def _path(self, relative: str) -> str:
-        return os.path.join(self.base_dir, relative)
+    # ------------------------------------------------------------------
+    # Persistence helpers
+    # ------------------------------------------------------------------
 
-    def _ensure_dir(self, path: str) -> None:
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    def _default_path(self, filename: Optional[str] = None) -> Path:
+        fname = filename or f"{self.MODULE_NAME}.json"
+        return self._data_dir / fname
 
-    def save(self, data: Any = None, path: str = None) -> str:
-        """Atomic save. Uses OUTPUT_PATH if path not specified."""
-        target = path or self._path(self.OUTPUT_PATH)
-        if data is None:
-            data = self.to_dict()
-        atomic_save(data, target)
-        return target
+    def save(self, data: Any, filename: Optional[str] = None) -> bool:
+        """Save data as JSON. Returns True on success."""
+        try:
+            path = self._default_path(filename)
+            path.write_text(json.dumps(data, indent=2, default=str))
+            return True
+        except Exception:
+            return False
 
-    def load(self, path: str = None) -> Any:
-        """Loads from OUTPUT_PATH or given path."""
-        target = path or self._path(self.OUTPUT_PATH)
-        return atomic_load(target)
+    def load(self, filename: Optional[str] = None, default: Any = None) -> Any:
+        """Load JSON data. Returns default on missing/corrupt file."""
+        try:
+            path = self._default_path(filename)
+            if not path.exists():
+                return default
+            return json.loads(path.read_text())
+        except Exception:
+            return default
+
+    # ------------------------------------------------------------------
+    # Contract
+    # ------------------------------------------------------------------
 
     @abstractmethod
-    def to_dict(self) -> dict:
-        """Returns current state as JSON-serializable dict."""
-        ...
+    def analyze(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        """Run analysis and return a result dict."""
+
+    def run_and_save(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        """Convenience: analyze + save result."""
+        result = self.analyze(*args, **kwargs)
+        self.save(result)
+        return result
+
+
+class BaseReport(ABC):
+    """Abstract base for all SPA report generators."""
+
+    @abstractmethod
+    def generate(self, *args: Any, **kwargs: Any) -> str:
+        """Generate and return report as string."""
 
 
 class BaseAdapter(ABC):
     """
-    Base class for all DeFi protocol adapters.
-    Ensures RESEARCH_ONLY flag and standard interface.
+    Abstract base for protocol yield adapters.
+    Subclasses must define PROTOCOL and override fetch_apy().
     """
 
+    PROTOCOL: str = "base"
+    TIER: int = 3
     RESEARCH_ONLY: bool = True
-    SOURCE_ID: str = ""
-    FALLBACK_APY: float = 5.0
-    CACHE_TTL: int = 300  # seconds
-
-    def __init__(self):
-        self._cache: Optional[dict] = None
-        self._cache_time: float = 0.0
-
-    def _cache_expired(self) -> bool:
-        import time
-
-        return (time.time() - self._cache_time) > self.CACHE_TTL
-
-    @abstractmethod
-    def current_apy(self) -> float:
-        """Returns current APY. Uses FALLBACK_APY on error."""
-        ...
-
-    @abstractmethod
-    def source_metadata(self) -> dict:
-        """Returns source state info."""
-        ...
-
-    def is_research_only(self) -> bool:
-        return self.RESEARCH_ONLY
+    FALLBACK_APY: float = 0.04  # 4% conservative fallback
 
     def safe_apy(self) -> float:
-        """Returns current_apy() or FALLBACK_APY on any exception."""
+        """Return APY safely — never raises, falls back to FALLBACK_APY."""
         try:
-            return self.current_apy()
-        except Exception as e:
-            logger.warning(f"{self.SOURCE_ID}: safe_apy fallback ({e})")
+            result = self.fetch_apy()
+            if result is None or not isinstance(result, (int, float)):
+                return self.FALLBACK_APY
+            return float(result)
+        except Exception:
             return self.FALLBACK_APY
 
-
-class BaseReport(BaseAnalytics):
-    """
-    Base class for reports (markdown + JSON output).
-    """
-
-    @abstractmethod
-    def to_markdown(self) -> str:
-        """Renders report as Markdown string."""
-        ...
-
-    def save_markdown(self, path: str = None) -> str:
-        """Saves markdown to .md file atomically (tmp+os.replace)."""
-        import os
-        md = self.to_markdown()
-        target = path or (self._path(self.OUTPUT_PATH).replace(".json", ".md"))
-        self._ensure_dir(target)
-        tmp = target + ".tmp"
-        try:
-            with open(tmp, "w", encoding="utf-8") as f:
-                f.write(md)
-            os.replace(tmp, target)
-        finally:
-            try:
-                os.remove(tmp)
-            except FileNotFoundError:
-                pass
-        return target
+    def fetch_apy(self) -> Optional[float]:
+        """Override to return live APY. May return None or raise on failure."""
+        return self.FALLBACK_APY
