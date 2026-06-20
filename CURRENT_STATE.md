@@ -1,9 +1,30 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v12.02** | Done: **1211** задач
+> Последнее обновление: **2026-06-20** | Версия: **v12.03** | Done: **1221** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+## P0 Session Fixes — 2026-06-20 (v12.03)
+
+| Task | Статус | Результат |
+|------|--------|-----------|
+| MP-1201: daily_cycle PATH fix | ✅ DONE | `scripts/com.spa.daily_cycle.plist` — miniconda добавлен в PATH + HOME + SPA_ENV |
+| MP-1202: run_daily_paper_cycle.sh абс. путь | ✅ DONE | `scripts/run_daily_paper_cycle.sh` — `PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3` |
+
+**System Status (2026-06-20 daily_cycle fix):**
+
+| Поле | Значение |
+|------|----------|
+| daily_cycle plist | ✅ FIXED — miniconda PATH, HOME, SPA_ENV (паритет с cyclerunner) |
+| run_daily_paper_cycle.sh | ✅ FIXED — абсолютный путь к python3 |
+| GoLive | **26/26 ✅ READY** |
+| APY | **5.40%** ($14.82/day) |
+| equity | **$100,109.42** |
+| days_running | **34** |
+| LAST_PUSH | **push_v1198** (2026-06-20) |
 
 ---
 
@@ -75,8 +96,8 @@
 | Поле | Значение |
 |---|---|
 | version | **10.0.0** (`spa_core/version.py`) |
-| done_count | **1211** (KANBAN.json — source of truth) |
-| sprint_completed | **v12.01** (autopush launchd + GoLive 26/26 READY) |
+| done_count | **1221** (KANBAN.json — source of truth) |
+| sprint_completed | **v12.03** (daily_cycle PATH fix, miniconda, 5.4% APY) |
 | Gate Status | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
 | GoLive Score | **100/100** ✅ (26/26 все критерии) |
 | GoLive Status | **✅ READY** — 26/26 pass | consecutive_ready_days=1 | go-live target 2026-08-01 |
