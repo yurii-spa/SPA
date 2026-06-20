@@ -59,10 +59,10 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -678,33 +678,4 @@ class RiskBudgetManager:
         }
 
         # Atomic write: tmp → os.replace
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=self._data_dir, prefix=".risk_budget_report_tmp_"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(doc, fh, indent=2)
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-
-# ---------------------------------------------------------------------------
-# Module-level convenience exports
-# ---------------------------------------------------------------------------
-
-__all__ = [
-    "RiskBudgetManager",
-    "STATUS_OK",
-    "STATUS_WARNING",
-    "STATUS_BREACH",
-    "_norm_ppf",
-    "_safe_float",
-    "_normalise_weights",
-    "_WARNING_THRESHOLD_FRAC",
-    "_REPORT_HISTORY_MAX",
-]
+        atomic_save(doc, str(out_path))
