@@ -17,6 +17,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from spa_core.analytics.protocol_adoption_scorer import ProtocolAdoptionScorer, RING_BUFFER_CAP
+from spa_core.utils.errors import SPAError
 
 
 # ---------------------------------------------------------------------------
@@ -74,12 +75,12 @@ class TestProtocolAdoptionScorerInit(unittest.TestCase):
 
     def test_get_adoption_tier_raises_before_score(self):
         s = ProtocolAdoptionScorer()
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             s.get_adoption_tier()
 
     def test_get_growth_breakdown_raises_before_score(self):
         s = ProtocolAdoptionScorer()
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             s.get_growth_breakdown()
 
 
