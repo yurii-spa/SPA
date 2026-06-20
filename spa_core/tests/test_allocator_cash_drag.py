@@ -70,26 +70,26 @@ class TestCashDrag(unittest.TestCase):
     # ── базовая проблема: drag без якоря ─────────────────────────────────
     def test_drag_present_without_t1_anchor(self):
         # 4×T2 equal = 0.25 → cap 0.20 каждый; MP-011 срезает совокупный T2
-        # до 35% → без якоря 0.65 честно остаётся кэшем.
+        # до 50% (ADR-019) → без якоря 0.50 честно остаётся кэшем.
         res = self._alloc(four_t2()).allocate(model="equal_weight")
-        self.assertAlmostEqual(res.cash_pct, 0.65, places=6)
-        self.assertAlmostEqual(res.total_deployed_pct, 0.35, places=6)
+        self.assertAlmostEqual(res.cash_pct, 0.50, places=6)
+        self.assertAlmostEqual(res.total_deployed_pct, 0.50, places=6)
 
     # ── решение: якорь заполняет остаток ─────────────────────────────────
     def test_no_cash_drag_when_all_adapters_live(self):
-        # 4×T2 + 1 T1: MP-011 срезает T2 0.80 → 0.35, освобождённое уходит
-        # в Aave до его cap 40% → деплой 0.75, кэш 0.25 (policy-остаток:
-        # T2 ≤ 35% и единственный T1 ≤ 40% физически не вмещают 100%).
+        # 4×T2 + 1 T1: MP-011 срезает T2 0.80 → 0.50 (ADR-019), freed=0.30 уходит
+        # в Aave (0.20 → 0.40, room=0.20), оставшиеся 0.10 честный кэш.
+        # max деплой = T2(50%) + T1(40%) = 90%, кэш = 10%.
         res = self._alloc(four_t2_plus_aave()).allocate(model="equal_weight")
-        self.assertAlmostEqual(res.cash_pct, 0.25, places=6)
-        self.assertAlmostEqual(res.total_deployed_pct, 0.75, places=6)
+        self.assertAlmostEqual(res.cash_pct, 0.10, places=6)
+        self.assertAlmostEqual(res.total_deployed_pct, 0.90, places=6)
         self.assertAlmostEqual(
             res.target_weights["aave_v3"], StrategyAllocator.T1_CAP, places=6
         )
 
     def test_t1_fills_remainder(self):
-        # equal_weight 5 адаптеров = 0.20 каждый; T2 ровно на cap, Aave 0.20.
-        # Остатка нет, но проверяем, что T1 несёт ненулевой вес и разбивка верна.
+        # equal_weight 5 адаптеров = 0.20 каждый; T2 total 0.80 → срезается до 0.50,
+        # freed 0.30 уходит в Aave (до cap 0.40); проверяем T1 ненулевой и разбивка верна.
         res = self._alloc(four_t2_plus_aave()).allocate(model="equal_weight")
         self.assertGreater(res.t1_pct, 0.0)
         self.assertIn("aave_v3", res.target_weights)
@@ -97,13 +97,13 @@ class TestCashDrag(unittest.TestCase):
 
     def test_best_apy_remainder_goes_to_anchor(self):
         # best_apy выбирает top-3 T2 (maple/euler/morpho) по 0.333 → cap 0.20.
-        # Остаток уходит в Aave (cap 0.40); MP-011 затем срезает T2 до 35%,
-        # излишку некуда (Aave уже на cap) → честный кэш 0.25.
+        # Остаток 0.40 уходит в Aave (cap 0.40); MP-011 срезает T2 0.60 → 0.50 (ADR-019),
+        # freed=0.10 — Aave уже на cap, некуда → честный кэш 0.10.
         res = self._alloc(four_t2_plus_aave()).allocate(model="best_apy")
         self.assertIn("aave_v3", res.target_weights)
         self.assertAlmostEqual(res.target_weights["aave_v3"], 0.40, places=6)
-        self.assertAlmostEqual(res.cash_pct, 0.25, places=6)
-        self.assertAlmostEqual(res.total_deployed_pct, 0.75, places=6)
+        self.assertAlmostEqual(res.cash_pct, 0.10, places=6)
+        self.assertAlmostEqual(res.total_deployed_pct, 0.90, places=6)
 
     def test_t1_weight_never_exceeds_cap(self):
         res = self._alloc(four_t2_plus_aave()).allocate(model="best_apy")
@@ -121,13 +121,13 @@ class TestCashDrag(unittest.TestCase):
     # ── честный кэш, когда якорь недоступен ──────────────────────────────
     def test_cash_remains_when_t1_unavailable(self):
         # T1 в статусе error → отфильтрован → только T2; MP-011 срезает
-        # совокупный T2 до 35% → 0.65 честно остаётся кэшем.
+        # совокупный T2 до 50% (ADR-019) → 0.50 честно остаётся кэшем.
         adapters = four_t2() + [
             {"protocol": "aave_v3", "apy_pct": 5.2, "tier": "T1", "status": "error"}
         ]
         res = self._alloc(adapters).allocate(model="equal_weight")
         self.assertNotIn("aave_v3", res.target_weights)
-        self.assertAlmostEqual(res.cash_pct, 0.65, places=6)
+        self.assertAlmostEqual(res.cash_pct, 0.50, places=6)
 
     def test_cash_fallback_when_all_error(self):
         adapters = [
@@ -142,10 +142,10 @@ class TestCashDrag(unittest.TestCase):
     def test_remainder_to_best_t2_when_no_t1(self):
         # Нет T1 вообще, best_apy берёт top-3 из 4 T2 → 0.60, остаток
         # заполняет headroom 4-го T2 → 0.80; MP-011 срезает совокупный T2
-        # до 35% → 0.65 кэш (нет якоря — излишку некуда).
+        # до 50% (ADR-019) → 0.50 кэш (нет якоря — излишку некуда).
         res = self._alloc(four_t2()).allocate(model="best_apy")
-        self.assertAlmostEqual(res.total_deployed_pct, 0.35, places=6)
-        self.assertAlmostEqual(res.cash_pct, 0.65, places=6)
+        self.assertAlmostEqual(res.total_deployed_pct, 0.50, places=6)
+        self.assertAlmostEqual(res.cash_pct, 0.50, places=6)
         # 4-й T2 (yearn) подхватил часть остатка.
         self.assertIn("yearn_v3", res.target_weights)
 
@@ -178,8 +178,8 @@ class TestCashDrag(unittest.TestCase):
         self.assertIn("t1_pct", loaded)
         self.assertIn("t2_pct", loaded)
         self.assertIn("total_deployed_pct", loaded)
-        # MP-011: policy-остаток 25% (T2 ≤ 35%, единственный T1 ≤ 40%).
-        self.assertAlmostEqual(loaded["cash_pct"], 0.25, places=6)
+        # MP-011: policy-остаток 10% (T2 ≤ 50% ADR-019, freed 0.30 → T1 до 0.40, кэш 0.10).
+        self.assertAlmostEqual(loaded["cash_pct"], 0.10, places=6)
 
 
 if __name__ == "__main__":
