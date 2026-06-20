@@ -38,10 +38,12 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+
+from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ─── Slot definitions ─────────────────────────────────────────────────────────
 
@@ -102,7 +104,7 @@ _BTC_MOVE_SCENARIOS = [-50.0, -30.0, -10.0, 0.0, 10.0, 30.0, 50.0]
 # RS002LiveAPYEngine
 # ══════════════════════════════════════════════════════════════════════════════
 
-class RS002LiveAPYEngine:
+class RS002LiveAPYEngine(BaseAnalytics):
     """
     Computes RS-002 Cashflow strategy APY with IL adjustment.
 
@@ -115,7 +117,10 @@ class RS002LiveAPYEngine:
         Default 0.60 (= 60%).
     """
 
+    OUTPUT_PATH = "data/research/rs002_apy_breakdown.json"
+
     def __init__(self, btc_vol_annualized: float = 0.60) -> None:
+        super().__init__()
         if btc_vol_annualized < 0:
             raise ValueError("btc_vol_annualized must be >= 0")
         self._btc_vol = btc_vol_annualized
@@ -314,6 +319,13 @@ class RS002LiveAPYEngine:
     # Persistence
     # ──────────────────────────────────────────────────────────────────────────
 
+
+    # ── BaseAnalytics interface ─────────────────────────────────────────────────
+
+    def to_dict(self) -> dict:
+        """Returns APY breakdown report as JSON-serializable dict."""
+        return self.apy_breakdown_report()
+
     def save(self, path: Optional[str] = None) -> None:
         """
         Atomically save the APY breakdown report to disk.
@@ -331,31 +343,17 @@ class RS002LiveAPYEngine:
 
         target.parent.mkdir(parents=True, exist_ok=True)
         report = self.apy_breakdown_report()
-        payload = json.dumps(report, indent=2, ensure_ascii=False)
+        atomic_save(report, str(target))
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=target.parent,
-            prefix=".rs002_apy_breakdown_tmp_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, target)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-
-# ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def _cli() -> None:  # pragma: no cover
     import sys
+    args = sys.argv[1:]
     engine = RS002LiveAPYEngine()
-    if "--scenarios" in sys.argv:
+    if "--save" in args:
+        engine.save()
+        print("Saved.")
+    elif "--scenarios" in args:
         print(json.dumps(engine.net_apy_scenarios(), indent=2))
     else:
         print(json.dumps(engine.apy_breakdown_report(), indent=2))
