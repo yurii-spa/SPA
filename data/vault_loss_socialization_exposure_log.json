@@ -1,0 +1,48 @@
+[
+  {
+    "ts": "2026-06-14T23:18:51.848016+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "safest_vault": "USDC-Vault-Safe",
+      "riskiest_vault": "ETH-Vault-Stressed",
+      "avg_score": 52.5,
+      "high_exposure_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Vault-Safe",
+        "classification": "LOW",
+        "score": 100.0,
+        "recommendation": "HOLD",
+        "flags": [
+          "NO_BAD_DEBT",
+          "HAS_BACKSTOP"
+        ]
+      },
+      {
+        "token": "ETH-Vault-Stressed",
+        "classification": "HIGH_LOSS_EXPOSURE",
+        "score": 5.0,
+        "recommendation": "EXIT",
+        "flags": [
+          "PARTIALLY_COVERED",
+          "UNCOVERED_LOSS",
+          "NO_BACKSTOP",
+          "SUBORDINATED_TRANCHE",
+          "LARGE_HAIRCUT",
+          "CONCENTRATED_POSITION"
+        ]
+      },
+      {
+        "token": "DAI-Vault-Empty",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "HOLD",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
