@@ -92,13 +92,14 @@ import json
 import logging
 import os
 import sys
-import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.risk.scoring_engine")
 
@@ -995,23 +996,7 @@ class RiskScoringEngine:
         # or the new snapshot in full, never a partially written file.
         out = Path(output_file)
         out.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_name = tempfile.mkstemp(
-            dir=str(out.parent), prefix=f".{out.name}.", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(snapshot, indent=2, sort_keys=False, ensure_ascii=False)
-                )
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_name, out)
-        except Exception:
-            try:
-                if os.path.exists(tmp_name):
-                    os.remove(tmp_name)
-            finally:
-                raise
+        atomic_save(snapshot, str(out))
         log.info("Wrote %d risk scores to %s", len(scores), out)
         return snapshot
 
