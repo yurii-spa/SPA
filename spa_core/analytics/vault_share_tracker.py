@@ -30,9 +30,9 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -59,19 +59,7 @@ def _atomic_write(path: str, data: Any) -> None:
     dirpath = os.path.dirname(path)
     if dirpath and not os.path.exists(dirpath):
         os.makedirs(dirpath, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dirpath or ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _load_log(path: str) -> List[Dict]:
     if not os.path.exists(path):
         return []
