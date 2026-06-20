@@ -14,9 +14,9 @@ Ring-buffer log capped at 100 entries.
 
 import json
 import os
-import tempfile
 import time
 from typing import Any, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ── Data file ────────────────────────────────────────────────────────────────
 
@@ -43,19 +43,7 @@ def _atomic_write(path: str, obj: Any) -> None:
     """Write *obj* as JSON atomically via tmp + os.replace."""
     dir_ = os.path.dirname(os.path.abspath(path))
     os.makedirs(dir_, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=dir_, prefix=".tmp_velock_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(obj, str(path))
 def _load_log(path: str) -> list:
     """Load ring-buffer log from *path*. Returns [] on any error."""
     if not os.path.exists(path):
