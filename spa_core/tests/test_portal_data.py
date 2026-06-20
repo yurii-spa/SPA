@@ -12,8 +12,8 @@ import json
 import re
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.governance.capital_ladder import detect_incidents
