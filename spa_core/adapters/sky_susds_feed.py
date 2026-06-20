@@ -96,11 +96,6 @@ GATE_REASON = (
 # ─── Atomic / tolerant IO helpers (паттерн capital_ladder / golive_checker) ──
 
 
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Записывает JSON атомарно через atomic_save."""
-    atomic_save(obj, str(path))
-
-
 def _read_json(path: Path) -> Any:
     """Читает JSON терпимо: нет файла / битый файл → None, никогда не raise."""
     path = Path(path)
@@ -422,7 +417,7 @@ class SkySUSDSFeed:
             )
             doc = dict(snapshot)
             doc["history"] = history[-HISTORY_MAX:]
-            _atomic_write_json(self.data_dir / STATUS_FILENAME, doc)
+            atomic_save(doc, str(self.data_dir / STATUS_FILENAME))
         return snapshot
 
     def summary(self, snapshot: dict) -> str:
