@@ -88,6 +88,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
+from spa_core.utils.atomic import atomic_save
+
 from spa_core.governance.capital_ladder import (
     INCIDENT_THRESHOLD_PCT,
     detect_incidents,
@@ -181,12 +183,6 @@ def _atomic_write_text(path: Path, text: str) -> None:
         finally:
             raise
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Атомарная запись JSON через :func:`_atomic_write_text`."""
-    _atomic_write_text(
-        path, json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
-    )
 
 
 def _num(value: Any) -> Optional[float]:
@@ -880,7 +876,7 @@ def write_outputs(
     history.append(_history_entry(doc))
     doc = dict(doc)
     doc["history"] = history[-HISTORY_MAX:]
-    _atomic_write_json(json_path, doc)
+    atomic_save(doc, str(json_path))
     _atomic_write_text(md_path, render_markdown(doc))
     log.info("tear sheet written: %s, %s", json_path, md_path)
     return {"json": str(json_path), "markdown": str(md_path), "changed": True}
