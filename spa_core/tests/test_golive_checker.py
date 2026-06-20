@@ -1,8 +1,12 @@
-"""Tests for the 26-criteria go-live gate (MP-006 / MP-384 / MP-417).
+"""Tests for the 29-criteria go-live gate (MP-006 / MP-384 / MP-417 / MP-1228).
 
 Every test builds its own isolated data dir and, where needed, a fake home
 dir under ``tmp_path`` so no test ever touches real state on disk.
 ``now`` is frozen at NOW for fully deterministic results.
+
+The synthetic equity histories below predate the real teardown date, so the
+helpers inject an early ``paper_start`` (EARLY_PAPER_START) — otherwise the
+MP-1228 honesty rule would (correctly) discard those bars as pre-teardown.
 """
 from __future__ import annotations
 
@@ -18,6 +22,8 @@ from spa_core.paper_trading import cycle_runner as cr
 from spa_core.paper_trading.golive_checker import GoLiveChecker, GoLiveResult
 
 NOW = datetime(2026, 6, 10, 12, 0, tzinfo=timezone.utc)
+# Early enough that all synthetic May/June fixtures count as honest track days.
+EARLY_PAPER_START = datetime(2026, 5, 1, tzinfo=timezone.utc)
 
 # 30 consecutive dates ending the day before NOW → passes freshness + 30d checks
 _30D_DATES = [
@@ -25,8 +31,8 @@ _30D_DATES = [
     for i in range(30)
 ]  # 2026-05-11 … 2026-06-09  (latest is ~27 h before NOW → fresh)
 
-# All 26 check names in order
-ALL_26_CHECKS = [
+# All 29 check names in order
+ALL_CHECKS = [
     # Group 1
     "equity_curve_real", "trades_real", "status_real", "no_demo_data",
     "data_fresh_48h", "cycle_runner_exists",
@@ -47,7 +53,10 @@ ALL_26_CHECKS = [
     "min_track_days_30", "apy_above_floor", "drawdown_below_kill",
     # Group 8
     "risk_policy_snapshot",
+    # Group 9 (MP-1228)
+    "adapter_registry_complete", "backtest_completed", "audit_trail_signed",
 ]
+TOTAL_CHECKS = len(ALL_CHECKS)  # 29
 
 
 # ─── Low-level write helper ───────────────────────────────────────────────────
@@ -112,6 +121,21 @@ def _telegram_alert_state(date_str="2026-06-10"):
     return {"daily_summary": date_str}
 
 
+def _adapter_registry(n=20):
+    return {
+        "version": "1.0",
+        "adapters": {f"protocol_{i}": {"tier": "T1", "status": "ok"} for i in range(n)},
+    }
+
+
+def _backtest_vs_paper():
+    return {
+        "generated_at": NOW.isoformat(),
+        "paper_days": 11,
+        "summary": {"rank_correlation": 0.8},
+    }
+
+
 # ─── Data-dir factories ───────────────────────────────────────────────────────
 
 def _make_data_dir(tmp_path: Path, **overrides) -> Path:
@@ -156,6 +180,8 @@ def _make_full_data_dir(tmp_path: Path, now: datetime = NOW, **overrides) -> Pat
         "adapter_status.json": _adapter_status(),
         "gap_monitor.json": _gap_monitor("ok"),
         "telegram_alert_state.json": _telegram_alert_state(today),
+        "adapter_registry.json": _adapter_registry(),
+        "backtest_vs_paper.json": _backtest_vs_paper(),
     }
     docs.update(overrides)
     for name, doc in docs.items():
@@ -175,20 +201,26 @@ def _fake_home_with_autopush(tmp_path: Path) -> Path:
 
 # ─── Checker factory helpers ──────────────────────────────────────────────────
 
-def _check(ddir: Path, *, now: datetime = NOW, **kw) -> GoLiveResult:
-    """Instantiate GoLiveChecker with defaults (uses real repo for file checks)."""
-    return GoLiveChecker(data_dir=ddir, now=now, **kw).check()
+def _check(ddir: Path, *, now: datetime = NOW, paper_start=EARLY_PAPER_START, **kw) -> GoLiveResult:
+    """Instantiate GoLiveChecker with defaults (uses real repo for file checks).
+
+    Injects an early ``paper_start`` so synthetic pre-teardown histories still
+    count as honest track days (MP-1228 honesty rule).
+    """
+    return GoLiveChecker(data_dir=ddir, now=now, paper_start=paper_start, **kw).check()
 
 
 def _full_checker(tmp_path: Path, now: datetime = NOW, **data_overrides) -> GoLiveResult:
-    """Run all 26 checks against a fully-populated fixture.
+    """Run all 29 checks against a fully-populated fixture.
 
     Uses the real repo_root (so adapter/component file checks pass)
     and a fake home_dir with autopush plist installed.
     """
     ddir = _make_full_data_dir(tmp_path, now=now, **data_overrides)
     home = _fake_home_with_autopush(tmp_path)
-    return GoLiveChecker(data_dir=ddir, now=now, home_dir=home).check(write=False)
+    return GoLiveChecker(
+        data_dir=ddir, now=now, home_dir=home, paper_start=EARLY_PAPER_START
+    ).check(write=False)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -208,18 +240,18 @@ def test_group1_all_pass_with_minimal_fixture(tmp_path):
     assert isinstance(result, GoLiveResult)
 
 
-def test_all_26_checks_present(tmp_path):
-    """result.checks always contains exactly 26 named criteria."""
+def test_all_checks_present(tmp_path):
+    """result.checks always contains exactly 29 named criteria."""
     result = _check(_make_data_dir(tmp_path))
-    assert set(result.checks.keys()) == set(ALL_26_CHECKS)
-    assert len(result.checks) == 26
+    assert set(result.checks.keys()) == set(ALL_CHECKS)
+    assert len(result.checks) == TOTAL_CHECKS == 29
 
 
-def test_all_26_pass_with_full_fixture(tmp_path):
-    """All 26 criteria pass when the full fixture is provided."""
+def test_all_pass_with_full_fixture(tmp_path):
+    """All 29 criteria pass when the full fixture is provided."""
     result = _full_checker(tmp_path)
     failing = [name for name, ok in result.checks.items() if not ok]
-    assert failing == [], f"Expected 26/26 PASS; still failing: {failing}"
+    assert failing == [], f"Expected 29/29 PASS; still failing: {failing}"
     assert result.ready is True
     assert result.blockers == []
 
@@ -474,17 +506,17 @@ def test_writes_golive_status_json(tmp_path):
     result = _check(ddir)
     out = json.loads((ddir / "golive_status.json").read_text(encoding="utf-8"))
     assert out["source"] == "golive_checker"
-    assert out["total"] == 26
+    assert out["total"] == 29
     assert "passed" in out
     assert out["passed"] == sum(result.checks.values())
-    assert out["version"] == "v5.0-26criteria"
+    assert out["version"] == "v6.0-29criteria"
 
 
 def test_to_dict_contains_passed_and_total(tmp_path):
     result = _full_checker(tmp_path)
     d = result.to_dict()
-    assert d["passed"] == 26
-    assert d["total"] == 26
+    assert d["passed"] == 29
+    assert d["total"] == 29
     assert d["ready"] is True
 
 
@@ -515,7 +547,7 @@ def test_summary_contains_blockers_and_verdict(tmp_path):
 
     full_text = _full_checker(tmp_path).summary()
     assert "Verdict: READY" in full_text
-    assert "26/26" in full_text
+    assert "29/29" in full_text
 
 
 def test_summary_shows_group_headers(tmp_path):
@@ -559,7 +591,7 @@ def test_cycle_runner_writes_golive_status(tmp_path):
     assert result.status == "ok"  # gate never blocks the cycle
     out = json.loads((tmp_path / "golive_status.json").read_text(encoding="utf-8"))
     assert out["source"] == "golive_checker"
-    assert out["total"] == 26
+    assert out["total"] == 29
     # First-ever cycle: files don't exist yet → not ready
     assert out["ready"] is False
 
@@ -578,3 +610,49 @@ def test_cycle_runner_logs_warning_once_per_day(tmp_path, caplog):
 def test_cycle_runner_dry_run_does_not_write_status(tmp_path):
     _run_cycle(tmp_path, write=False)
     assert not (tmp_path / "golive_status.json").exists()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MP-1193: API contract — check() exists, run_all_checks() must NOT be used
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_golive_checker_has_check_not_run_all_checks(tmp_path):
+    """GoLiveChecker exposes check(), NOT run_all_checks().
+
+    Regression guard: if anyone adds run_all_checks() as an alias they break
+    the API contract; if they accidentally rename check() callers break too.
+    This test pins the correct public interface so a future refactor is caught
+    immediately rather than silently returning {"status": "error"}.
+    """
+    checker = GoLiveChecker(data_dir=tmp_path, now=NOW)
+    assert callable(getattr(checker, "check", None)), (
+        "GoLiveChecker.check() must exist — it is the canonical public API"
+    )
+    assert not hasattr(checker, "run_all_checks"), (
+        "GoLiveChecker must NOT expose run_all_checks() — callers must use check()"
+    )
+
+
+def test_golive_checker_check_returns_golive_result_no_attribute_error(tmp_path):
+    """GoLiveChecker().check() must return a GoLiveResult without AttributeError.
+
+    This is the core regression: the checker was previously being called as
+    .run_all_checks() in some paths, raising AttributeError caught by a broad
+    except that returned {"status": "error"} — making GoLive score always wrong.
+    Here we verify check() runs to completion and returns the correct type.
+    """
+    ddir = tmp_path / "data"
+    ddir.mkdir()
+
+    # Must not raise AttributeError (or any exception)
+    result = GoLiveChecker(data_dir=ddir, now=NOW).check(write=False)
+
+    assert isinstance(result, GoLiveResult), (
+        f"check() must return GoLiveResult, got {type(result).__name__}"
+    )
+    assert isinstance(result.ready, bool)
+    assert isinstance(result.blockers, list)
+    assert isinstance(result.checks, dict)
+    assert len(result.checks) == 29, (
+        f"Expected 29 criteria, got {len(result.checks)}"
+    )
