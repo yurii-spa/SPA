@@ -5,9 +5,9 @@ Run: python3 -m unittest spa_core.tests.test_protocol_ponzi_risk_screener -v
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _REPO_ROOT not in sys.path:
