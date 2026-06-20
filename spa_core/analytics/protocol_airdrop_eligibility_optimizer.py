@@ -33,9 +33,9 @@ Pure stdlib. No external dependencies.
 
 import json
 import os
-import tempfile
 import time
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -314,17 +314,7 @@ def _atomic_log(
         existing.append(entry)
         if len(existing) > max_entries:
             existing = existing[-max_entries:]
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=log_dir or ".", suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(existing, fh, indent=2)
-            os.replace(tmp_path, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(existing, str(log_path))
     except Exception:
         pass  # advisory module — log failures are non-fatal
 
