@@ -7,8 +7,8 @@ multiple trade sizes.
 import json
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # --- constants -----------------------------------------------------------
 
@@ -61,19 +61,7 @@ def _atomic_write(path: str, data: Any) -> None:
     dir_name = os.path.dirname(path)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name or ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _load_log(path: str) -> list:
     try:
         with open(path, "r") as f:
