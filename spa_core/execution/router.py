@@ -35,7 +35,8 @@ Design notes:
     fallback. This is intentional — silent fallback to a worse rate is
     a go-live anti-pattern.
 
-Used by: spa_core/orchestration/engine.py (Phase 2 — TODO),
+Used by: spa_core/orchestration/engine.py (Phase 2 — KNOWN LIMITATION: wiring deferred
+         to post-go-live sprint; requires engine.py refactor per FEAT-005),
          spa_core/tests/test_execution_router.py (Phase 1 — this sprint).
 """
 from __future__ import annotations
@@ -48,6 +49,8 @@ log = logging.getLogger("spa.execution_router")
 
 
 # ─── Adapter contract (structural typing) ────────────────────────────────────
+
+from spa_core.utils.errors import SPAError, ValidationError
 
 class _AdapterLike(Protocol):
     """Structural typing contract — every registered adapter must expose
@@ -141,10 +144,7 @@ class ExecutionRouter:
             name = _protocol_name(adapter)
             key = (name, adapter.chain)
             if key in self._adapters:
-                raise ValueError(
-                    f"Duplicate adapter registration: protocol={name!r} "
-                    f"chain={adapter.chain!r} is already registered"
-                )
+                raise SPAError(f"Duplicate adapter registration: protocol={name!r} chain={adapter.chain!r} already registered")
             self._adapters[key] = adapter
             log.debug(
                 "ExecutionRouter registered: protocol=%s chain=%s dry_run=%s",
@@ -287,9 +287,7 @@ class ExecutionRouter:
             ValueError: On non-positive amount.
         """
         if amount is None or amount <= 0:
-            raise ValueError(
-                f"Invalid amount {amount!r}: must be a positive number"
-            )
+            raise ValidationError("amount", amount, "must be a strictly positive number")
         ts = datetime.now(timezone.utc).isoformat()
         comparison = self.get_apy_comparison(
             asset, chain,
@@ -378,9 +376,7 @@ class ExecutionRouter:
             ValueError: On non-positive amount.
         """
         if amount is None or amount <= 0:
-            raise ValueError(
-                f"Invalid amount {amount!r}: must be a positive number"
-            )
+            raise ValidationError("amount", amount, "must be a strictly positive number")
         ts = datetime.now(timezone.utc).isoformat()
         adapter = self._adapters.get((protocol, chain))
         if adapter is None:
