@@ -9,8 +9,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # Ensure spa_core package is importable
