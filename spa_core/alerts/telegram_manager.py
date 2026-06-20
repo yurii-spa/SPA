@@ -40,12 +40,12 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.alerts.telegram_manager")
 
@@ -117,17 +117,7 @@ def _save_cooldown_state(path: Path, state: Dict[str, float]) -> None:
     """Atomically write cooldown state. Silent on failure."""
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(state, fh, indent=2)
-            os.replace(tmp, path)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(state, str(path))
     except Exception as exc:
         log.warning("telegram_cooldowns.json write failed (%s) — dedup not persisted", exc)
 
