@@ -13,9 +13,9 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import time
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
@@ -216,22 +216,7 @@ def _append_log(entry: Dict) -> None:
 
 def _atomic_write(path: str, obj) -> None:
     dir_ = os.path.dirname(path) or "."
-    fd, tmp = tempfile.mkstemp(dir=dir_)
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(obj, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
-# ── CLI entry-point ──────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
+    atomic_save(obj, str(path))
     import sys
 
     req = {
