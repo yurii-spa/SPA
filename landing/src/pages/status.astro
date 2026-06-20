@@ -1,0 +1,202 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Shows current system status: GoLive score, paper trading progress
+// Values updated from golive_status.json + equity_curve_daily.json (2026-06-20)
+const goLiveChecks = 25;
+const goLiveTotal = 26;
+const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
+const evidenceDays = 10;      // real track since 2026-06-10
+const evidenceTarget = 30;    // 30 honest days required (ADR-002)
+const goLiveTarget = "2026-08-01";
+const trackStart = "2026-06-10";
+const lastUpdated = "2026-06-20";
+
+const blockers = [
+  "autopush daemon not installed — run: bash mp009_fix_launchd.command"
+];
+
+type CheckStatus = "pass" | "warn" | "fail";
+
+const checks: { label: string; status: CheckStatus; detail: string }[] = [
+  { label: "GoLive Criteria", status: "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — 1 blocker remaining` },
+  { label: "Paper Track Record", status: "warn", detail: `${evidenceDays}/${evidenceTarget} honest days (target: ${goLiveTarget})` },
+  { label: "Daily Cycle (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 08:00 UTC" },
+  { label: "HTTP Dashboard", status: "pass", detail: "com.spa.httpserver on port 8765" },
+  { label: "Cloudflare Tunnel", status: "pass", detail: "com.spa.cloudflared active" },
+  { label: "Risk Policy Gate", status: "pass", detail: "RiskPolicy v1.0 — deterministic, LLM forbidden" },
+  { label: "Adapter Health", status: "pass", detail: "Aave V3, Compound V3, Morpho Steakhouse — all responding" },
+  { label: "Auto-Push (GitHub)", status: "fail", detail: "com.spa.autopush NOT installed — pending fix" },
+];
+
+const statusColor: Record<CheckStatus, string> = {
+  pass: "text-emerald-400",
+  warn: "text-amber-400",
+  fail: "text-red-400",
+};
+const statusIcon: Record<CheckStatus, string> = {
+  pass: "✅",
+  warn: "⚠️",
+  fail: "❌",
+};
+const statusBg: Record<CheckStatus, string> = {
+  pass: "border-emerald-500/30 bg-emerald-950/20",
+  warn: "border-amber-500/30 bg-amber-950/20",
+  fail: "border-red-500/30 bg-red-950/20",
+};
+---
+
+<Layout
+  title="System Status — SPA earn-defi.com"
+  description="Live operational status of the SPA autonomous DeFi yield optimizer. GoLive criteria, paper track record progress, infrastructure health. Updated daily."
+>
+  <main class="min-h-screen bg-[#0a0a0a] text-white font-sans">
+
+    <!-- Header -->
+    <header class="border-b border-white/10 bg-[#0d0d0d]">
+      <div class="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">← SPA</a>
+          <span class="text-white/20">/</span>
+          <span class="text-white font-medium">System Status</span>
+        </div>
+        <span class="text-white/40 text-sm">Updated {lastUpdated}</span>
+      </div>
+    </header>
+
+    <div class="max-w-4xl mx-auto px-6 py-12 space-y-10">
+
+      <!-- Hero status banner -->
+      <div class="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-8">
+        <div class="flex items-start gap-4">
+          <div class="text-3xl mt-1">⚠️</div>
+          <div>
+            <h1 class="text-2xl font-bold text-amber-300 mb-2">IN PROGRESS — Paper Trading Phase</h1>
+            <p class="text-white/60 leading-relaxed">
+              SPA is currently in verified paper trading mode with virtual capital of $100,000 USDC.
+              Go-live transfer to real capital is planned for <strong class="text-white">{goLiveTarget}</strong> after 30 honest tracking days and manual Owner review.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two main metrics -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+        <!-- GoLive Readiness -->
+        <div class="rounded-xl border border-white/10 bg-white/5 p-6">
+          <div class="text-sm text-white/40 uppercase tracking-wider mb-3">GoLive Readiness</div>
+          <div class="flex items-end gap-2 mb-3">
+            <span class="text-5xl font-bold text-amber-400">{goLiveChecks}</span>
+            <span class="text-2xl text-white/30 mb-1">/ {goLiveTotal}</span>
+          </div>
+          <!-- Progress bar -->
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+            <div
+              class="h-full bg-amber-400 rounded-full transition-all"
+              style={`width: ${goLiveReadinessPct}%`}
+            ></div>
+          </div>
+          <p class="text-white/50 text-sm">{goLiveReadinessPct}% criteria pass — 1 blocker remaining</p>
+        </div>
+
+        <!-- Paper Track Record -->
+        <div class="rounded-xl border border-white/10 bg-white/5 p-6">
+          <div class="text-sm text-white/40 uppercase tracking-wider mb-3">Honest Track Record</div>
+          <div class="flex items-end gap-2 mb-3">
+            <span class="text-5xl font-bold text-blue-400">{evidenceDays}</span>
+            <span class="text-2xl text-white/30 mb-1">/ {evidenceTarget} days</span>
+          </div>
+          <!-- Progress bar -->
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+            <div
+              class="h-full bg-blue-400 rounded-full transition-all"
+              style={`width: ${Math.round(evidenceDays / evidenceTarget * 100)}%`}
+            ></div>
+          </div>
+          <p class="text-white/50 text-sm">Real track started {trackStart} (demo data excluded)</p>
+        </div>
+
+      </div>
+
+      <!-- Blockers -->
+      {blockers.length > 0 && (
+        <div class="rounded-xl border border-red-500/30 bg-red-950/20 p-6">
+          <h2 class="text-red-400 font-semibold text-lg mb-4">⛔ Active Blockers</h2>
+          <ul class="space-y-2">
+            {blockers.map(b => (
+              <li class="flex items-start gap-3 text-white/70 text-sm">
+                <span class="text-red-400 mt-0.5 shrink-0">•</span>
+                <code class="font-mono text-red-300/80 text-xs bg-red-950/40 px-2 py-1 rounded">{b}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <!-- Component status checks -->
+      <div>
+        <h2 class="text-white font-semibold text-xl mb-4">Infrastructure Checks</h2>
+        <div class="space-y-3">
+          {checks.map(c => (
+            <div class={`rounded-xl border px-5 py-4 flex items-start gap-4 ${statusBg[c.status]}`}>
+              <span class="text-xl shrink-0 mt-0.5">{statusIcon[c.status]}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-white">{c.label}</span>
+                  <span class={`text-xs font-semibold uppercase ${statusColor[c.status]}`}>
+                    {c.status}
+                  </span>
+                </div>
+                <p class="text-white/50 text-sm mt-0.5">{c.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="rounded-xl border border-white/10 bg-white/5 p-6">
+        <h2 class="text-white font-semibold text-lg mb-6">Go-Live Timeline</h2>
+        <div class="relative pl-6">
+          <div class="absolute left-0 top-2 bottom-2 w-px bg-white/10"></div>
+          <div class="space-y-6">
+            <div class="relative">
+              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30"></div>
+              <div class="text-emerald-400 text-sm font-semibold">2026-06-10</div>
+              <div class="text-white/70 text-sm mt-0.5">Real paper track begins (demo data invalidated and excluded)</div>
+            </div>
+            <div class="relative">
+              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-amber-400/30"></div>
+              <div class="text-amber-400 text-sm font-semibold">2026-07-10 (estimated)</div>
+              <div class="text-white/70 text-sm mt-0.5">30 honest days complete — GoLive criteria fully satisfied</div>
+            </div>
+            <div class="relative">
+              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-blue-400 ring-2 ring-blue-400/30"></div>
+              <div class="text-blue-400 text-sm font-semibold">2026-07-15 → 2026-08-01</div>
+              <div class="text-white/70 text-sm mt-0.5">Manual Owner review + gap_monitor 30-day continuity check (ADR-002)</div>
+            </div>
+            <div class="relative">
+              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-white/20 ring-2 ring-white/10"></div>
+              <div class="text-white/40 text-sm font-semibold">2026-08-01 (target)</div>
+              <div class="text-white/40 text-sm mt-0.5">Go-live: real capital deployment after confirmed 30-day verified track</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer note -->
+      <div class="text-center text-white/30 text-sm pb-4">
+        <p>Status is updated daily by the autonomous cycle runner.</p>
+        <p class="mt-1">
+          <a href="/due-diligence" class="text-white/50 hover:text-white transition-colors underline underline-offset-2">Due Diligence Center</a>
+          &nbsp;·&nbsp;
+          <a href="/risk-disclosure" class="text-white/50 hover:text-white transition-colors underline underline-offset-2">Risk Disclosure</a>
+          &nbsp;·&nbsp;
+          <a href="/" class="text-white/50 hover:text-white transition-colors underline underline-offset-2">Home</a>
+        </p>
+      </div>
+
+    </div>
+  </main>
+</Layout>
