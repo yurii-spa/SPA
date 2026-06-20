@@ -130,7 +130,7 @@ class TestStrategyAllocator(unittest.TestCase):
 
     def test_t2_cap_enforced(self):
         # 4×T2 equal weight = 0.25 каждый > 0.20 cap → каждый капается на 0.20.
-        # MP-011: совокупный T2 ограничен 35% — без T1-якоря остальное в кэш.
+        # MP-011: совокупный T2 ограничен 50% (ADR-019) — без T1-якоря остальное в кэш.
         alloc = self._allocator(make_adapters())
         res = alloc.allocate(model="equal_weight")
         for p, w in res.target_weights.items():
@@ -170,7 +170,7 @@ class TestStrategyAllocator(unittest.TestCase):
 
     def test_all_zero_apy(self):
         # 5×T2 по equal weight = 0.20 каждый (ровно cap, без обрезки).
-        # MP-011: суммарный T2 срезается до 35% — без T1 остальное в кэш.
+        # MP-011: суммарный T2 срезается до 50% (ADR-019) — без T1 остальное в кэш.
         adapters = [
             {"protocol": f"p{i}", "apy_pct": 0.0, "tvl_usd": 1e7, "tier": "T2"}
             for i in range(5)
