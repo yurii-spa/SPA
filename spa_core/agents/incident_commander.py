@@ -19,7 +19,6 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.incident_commander")
@@ -54,7 +53,9 @@ class IncidentSeverity(str, enum.Enum):
 # ─── Atomic IO helpers ────────────────────────────────────────────────────────
 
 
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default: Any = None) -> Any:
     """Читает JSON защищённо; при ошибке возвращает default (никогда не бросает)."""
     path = Path(path)
@@ -383,7 +384,7 @@ def create_incident(
     # Сохраняем файл атомарно
     incidents_path = data_path / INCIDENTS_DIR
     filename = f"incident_{date_prefix}_{incident_id[:8]}.json"
-    atomic_save(incident, str(incidents_path / filename))
+    _atomic_write_json(incidents_path / filename, incident)
     log.warning(
         "Incident created: %s (severity=%s, type=%s)",
         incident_id[:8], severity.value, alert_type,
@@ -429,7 +430,7 @@ def resolve_incident(
                     return True
                 doc["status"] = "resolved"
                 doc["resolved_at"] = datetime.now(timezone.utc).isoformat()
-                atomic_save(doc, str(incident_file))
+                _atomic_write_json(incident_file, doc)
                 log.info(
                     "resolve_incident: %s resolved", incident_id[:8]
                 )
