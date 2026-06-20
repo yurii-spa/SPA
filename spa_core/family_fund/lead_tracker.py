@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import tempfile
 import urllib.error
 import urllib.request
 import uuid
@@ -23,6 +22,7 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from spa_core.utils.atomic import atomic_save
 from spa_core.utils.errors import ConfigError
 
 __all__ = ["Lead", "LeadTracker", "LEAD_STATUSES"]
@@ -106,24 +106,12 @@ class LeadTracker:
             self._leads[lead.lead_id] = lead
 
     def save(self) -> None:
-        """Atomic save: write to tmp file then os.replace."""
-        os.makedirs(os.path.dirname(self.leads_path) or ".", exist_ok=True)
+        """Atomic save via atomic_save."""
         payload = {
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "leads": [asdict(lead) for lead in self._leads.values()],
         }
-        dir_name = os.path.dirname(os.path.abspath(self.leads_path))
-        fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, self.leads_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(payload, self.leads_path)
 
     # ------------------------------------------------------------------ #
     # Lead management
