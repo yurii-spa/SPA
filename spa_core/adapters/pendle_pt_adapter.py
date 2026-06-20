@@ -1,3 +1,12 @@
+from __future__ import annotations
+
+# DEPRECATED — orphaned module. Canonical: spa_core.execution.adapters.pendle_pt_adapter
+# No active imports point here. TODO: remove in next cleanup.
+# This file is kept for git history only.
+raise ImportError(
+    "DEPRECATED: use spa_core.execution.adapters.pendle_pt_adapter instead"
+)
+
 """
 Pendle PT Adapter — REST-only адаптер для Pendle Finance.
 
@@ -11,7 +20,6 @@ stdlib : urllib.request, json, datetime — NO external deps.
 
 MP-354 — Pendle PT REST adapter (главный yield unlocker, 8–18% fixed APY).
 """
-from __future__ import annotations
 
 import datetime
 import json
