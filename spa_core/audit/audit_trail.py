@@ -63,6 +63,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+
 log = logging.getLogger("spa.audit_trail")
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -108,24 +109,6 @@ def _atomic_append_jsonl(path: Path, line: str) -> None:
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(new_content)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
-
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write a JSON file atomically (tmp + os.replace)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
