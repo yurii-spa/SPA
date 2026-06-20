@@ -1152,5 +1152,186 @@ class TestFullPipelineSmoke(unittest.TestCase):
                 self.assertTrue(_importable(mod), f"Module {mod!r} is not importable")
 
 
+# ---------------------------------------------------------------------------
+# MP-1476 (v10.92) additional E2E tests
+# ---------------------------------------------------------------------------
+
+class TestAdapterRegistryAPY(unittest.TestCase):
+    """All registry adapters have valid fallback APY metadata."""
+
+    def test_101_adapter_registry_not_empty(self):
+        """ADAPTER_REGISTRY from registry.py must have ≥15 entries."""
+        from spa_core.adapters.registry import ADAPTER_REGISTRY
+        self.assertGreaterEqual(len(ADAPTER_REGISTRY), 15)
+
+    def test_102_all_adapters_have_fallback_apy(self):
+        """Every adapter in ADAPTER_REGISTRY must have a numeric fallback_apy."""
+        from spa_core.adapters.registry import ADAPTER_REGISTRY
+        for aid, meta in ADAPTER_REGISTRY.items():
+            with self.subTest(adapter=aid):
+                self.assertIn("fallback_apy", meta, f"{aid} missing fallback_apy")
+                apy = meta["fallback_apy"]
+                self.assertIsInstance(apy, (int, float), f"{aid} fallback_apy is not numeric")
+                self.assertGreater(apy, 0.0, f"{aid} fallback_apy must be > 0")
+
+    def test_103_fallback_apy_in_reasonable_range(self):
+        """Fallback APY values must be within 0.5%–50% (policy)."""
+        from spa_core.adapters.registry import ADAPTER_REGISTRY
+        for aid, meta in ADAPTER_REGISTRY.items():
+            with self.subTest(adapter=aid):
+                apy = meta.get("fallback_apy", 0)
+                self.assertGreaterEqual(apy, 0.5, f"{aid}: APY {apy} below policy floor 0.5%")
+                self.assertLessEqual(apy, 50.0, f"{aid}: APY {apy} above policy cap 50%")
+
+    def test_104_all_adapters_have_tier(self):
+        """Every adapter must declare a tier (T1/T2/T3)."""
+        from spa_core.adapters.registry import ADAPTER_REGISTRY
+        valid_tiers = {"T1", "T2", "T3"}
+        for aid, meta in ADAPTER_REGISTRY.items():
+            with self.subTest(adapter=aid):
+                self.assertIn("tier", meta)
+                self.assertIn(meta["tier"], valid_tiers,
+                              f"{aid} tier {meta['tier']!r} not in {valid_tiers}")
+
+    def test_105_t1_adapter_instance_has_get_apy(self):
+        """T1 adapter instances must expose get_apy()."""
+        from spa_core.adapters.registry import ADAPTER_REGISTRY, get_adapter
+        t1_ids = [aid for aid, m in ADAPTER_REGISTRY.items() if m["tier"] == "T1"]
+        self.assertTrue(t1_ids, "No T1 adapters found in registry")
+        adapter = get_adapter(t1_ids[0])
+        self.assertTrue(hasattr(adapter, "get_apy"), f"{t1_ids[0]} missing get_apy()")
+
+
+class TestGoLiveReadinessScore(unittest.TestCase):
+    """GoLiveReadinessReport produces a valid score structure."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_106_golive_report_returns_dict(self):
+        """generate_report() must return a dict."""
+        from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport
+        r = GoLiveReadinessReport(base_dir=self.tmpdir)
+        rep = r.generate_report()
+        self.assertIsInstance(rep, dict)
+
+    def test_107_golive_report_has_total_score_key(self):
+        """Report must contain a 'total_score' key."""
+        from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport
+        r = GoLiveReadinessReport(base_dir=self.tmpdir)
+        rep = r.generate_report()
+        self.assertIn("total_score", rep)
+
+    def test_108_golive_total_score_is_numeric(self):
+        """total_score must be a float in [0, 100]."""
+        from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport
+        r = GoLiveReadinessReport(base_dir=self.tmpdir)
+        rep = r.generate_report()
+        score = rep["total_score"]
+        self.assertIsInstance(score, float)
+        self.assertGreaterEqual(score, 0.0)
+        self.assertLessEqual(score, 100.0)
+
+    def test_109_golive_report_has_categories(self):
+        """Report must include 'categories' breakdown."""
+        from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport
+        r = GoLiveReadinessReport(base_dir=self.tmpdir)
+        rep = r.generate_report()
+        self.assertIn("categories", rep)
+
+    def test_110_golive_report_has_blocking_items(self):
+        """Report must include 'blocking_items' list (empty dir → blocked)."""
+        from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport
+        r = GoLiveReadinessReport(base_dir=self.tmpdir)
+        rep = r.generate_report()
+        self.assertIn("blocking_items", rep)
+        self.assertIsInstance(rep["blocking_items"], list)
+
+
+class TestKanbanConcurrentWrite(unittest.TestCase):
+    """KANBAN increment_done is thread-safe under concurrent writes."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        import shutil
+        shutil.copy("KANBAN.json", os.path.join(self.tmpdir, "KANBAN.json"))
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_111_increment_done_returns_int(self):
+        """increment_done must return an integer."""
+        from spa_core.utils.kanban import increment_done
+        result = increment_done(base_dir=self.tmpdir, n=0)
+        self.assertIsInstance(result, int)
+
+    def test_112_increment_done_increments_by_n(self):
+        """increment_done(n=5) must increase done_count by exactly 5."""
+        import json
+        from spa_core.utils.kanban import increment_done
+        before_path = os.path.join(self.tmpdir, "KANBAN.json")
+        with open(before_path) as f:
+            before = json.load(f)["done_count"]
+        after = increment_done(base_dir=self.tmpdir, n=5)
+        self.assertEqual(after, before + 5)
+
+    def test_113_concurrent_increments_are_serialized(self):
+        """10 concurrent increment_done(n=1) must add exactly 10 to done_count."""
+        import json
+        import threading
+        from spa_core.utils.kanban import increment_done
+
+        before_path = os.path.join(self.tmpdir, "KANBAN.json")
+        with open(before_path) as f:
+            before_count = json.load(f)["done_count"]
+
+        results = []
+        errors = []
+
+        def worker():
+            try:
+                r = increment_done(base_dir=self.tmpdir, n=1)
+                results.append(r)
+            except Exception as e:
+                errors.append(str(e))
+
+        threads = [threading.Thread(target=worker) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(errors, [], f"Worker errors: {errors}")
+        with open(before_path) as f:
+            final_count = json.load(f)["done_count"]
+        self.assertEqual(final_count, before_count + 10)
+
+    def test_114_sprint_label_updated(self):
+        """increment_done with sprint kwarg must update sprint_completed."""
+        import json
+        from spa_core.utils.kanban import increment_done
+        increment_done(base_dir=self.tmpdir, n=1, sprint="v10.99-test")
+        with open(os.path.join(self.tmpdir, "KANBAN.json")) as f:
+            data = json.load(f)
+        self.assertEqual(data.get("sprint_completed"), "v10.99-test")
+
+    def test_115_zero_increment_is_idempotent(self):
+        """increment_done(n=0) must not change done_count."""
+        import json
+        from spa_core.utils.kanban import increment_done
+        p = os.path.join(self.tmpdir, "KANBAN.json")
+        with open(p) as f:
+            before = json.load(f)["done_count"]
+        increment_done(base_dir=self.tmpdir, n=0)
+        with open(p) as f:
+            after = json.load(f)["done_count"]
+        self.assertEqual(before, after)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
