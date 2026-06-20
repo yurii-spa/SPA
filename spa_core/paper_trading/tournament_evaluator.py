@@ -28,7 +28,7 @@ import random
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from spa_core.base import BaseAnalytics
 from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY, StrategyConfig
@@ -400,6 +400,23 @@ class TournamentEvaluator(BaseAnalytics):
         self._data_dir: Path = data_dir or manager._data_dir
 
     # ── Public API ────────────────────────────────────────────────────────────
+
+    def analyze(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        """BaseAnalytics contract: run the tournament and return a result dict.
+
+        Delegates to :meth:`evaluate_all` (the canonical entry point) and
+        returns a JSON-serialisable summary. Without this method the class is
+        abstract and cannot be instantiated (BaseAnalytics.analyze is
+        ``@abstractmethod``).
+        """
+        ranking = self.evaluate_all()
+        return {
+            "count": len(ranking),
+            "leader": ranking[0].strategy_id if ranking else None,
+            "ranking": [
+                getattr(r, "strategy_id", str(r)) for r in ranking
+            ],
+        }
 
     def evaluate_all(self) -> List[StrategyResult]:
         """Вычислить метрики для всех стратегий и вернуть ранжированный список.
