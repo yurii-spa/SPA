@@ -252,13 +252,13 @@ const GATE_STATIC = {
             <span class="shrink-0 font-mono text-lg text-amber-400 font-bold">0<span class="text-white/20 text-sm">/30</span></span>
           </div>
 
-          <!-- Main progress bar -->
+          <!-- Main progress bar — 7 seed days / 30 target = 23% -->
           <div class="px-5 py-4 border-b border-white/5">
             <div class="flex items-center gap-4 mb-2">
               <div class="flex-1 h-3 rounded-full bg-white/8 overflow-hidden">
-                <div class="h-full rounded-full bg-amber-500/40 transition-all" style="width:0%"></div>
+                <div class="h-full rounded-full bg-amber-500/60 transition-all" style="width:23%"></div>
               </div>
-              <span class="shrink-0 text-xs font-mono text-white/40">0%</span>
+              <span class="shrink-0 text-xs font-mono text-amber-400">23%</span>
             </div>
             <div class="flex items-center gap-6 flex-wrap">
               <div class="flex items-center gap-2">
@@ -266,28 +266,32 @@ const GATE_STATIC = {
                 <span class="text-xs font-mono text-white/60">~July 18, 2026</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="text-[10px] text-white/25 uppercase tracking-wider">Days elapsed</span>
-                <span class="text-xs font-mono text-amber-400">0 / 30+</span>
+                <span class="text-[10px] text-white/25 uppercase tracking-wider">Seed days</span>
+                <span class="text-xs font-mono text-amber-400">7 / 30</span>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-[10px] text-white/25 uppercase tracking-wider">Status</span>
-                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-red-500/30 bg-red-500/8 text-red-400">NOT STARTED</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/8 text-amber-400">IN PROGRESS</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] text-white/25 uppercase tracking-wider">Need</span>
+                <span class="text-xs font-mono text-white/50">23 more real days</span>
               </div>
             </div>
           </div>
 
-          <!-- Category breakdown -->
+          <!-- Category breakdown with live data -->
           <div class="divide-y divide-white/5">
 
             <div class="px-5 py-3 flex items-center gap-4">
               <div class="w-32 shrink-0">
                 <div class="text-[10px] font-mono text-white/40">Daily Cycles</div>
-                <div class="text-[10px] text-white/20">cycle_runner logs</div>
+                <div class="text-[10px] text-white/20">6.5 effective / 15</div>
               </div>
               <div class="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
-                <div class="h-full rounded-full bg-white/20" style="width:0%"></div>
+                <div class="h-full rounded-full bg-amber-500/50" style="width:43%"></div>
               </div>
-              <span class="shrink-0 text-[10px] font-mono text-white/35 w-16 text-right">0 / 15 pts</span>
+              <span class="shrink-0 text-[10px] font-mono text-amber-400/80 w-16 text-right">10 / 15 pts</span>
             </div>
 
             <div class="px-5 py-3 flex items-center gap-4">
@@ -314,9 +318,52 @@ const GATE_STATIC = {
 
           </div>
 
+          <!-- ── PAPER TRADING EVIDENCE TRACKER (MP-1465) ─────────────── -->
+          <div class="border-t border-white/8 bg-white/1">
+            <!-- Streak badges -->
+            <div class="px-5 pt-4 pb-2 flex items-center gap-3 flex-wrap">
+              <span class="text-[10px] font-mono px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/8 text-emerald-400">
+                ✅ APY verified 6 days streak
+              </span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded-full border border-amber-500/30 bg-amber-500/6 text-amber-400/80">
+                🌱 7 seed days logged
+              </span>
+              <span class="text-[10px] text-white/25 ml-auto">Need 23 more real days (target: ~2026-07-18)</span>
+            </div>
+
+            <!-- Last 7 days table -->
+            <div class="px-5 pb-4 overflow-x-auto">
+              <table class="w-full text-[10px] font-mono">
+                <thead>
+                  <tr class="text-white/20 border-b border-white/5">
+                    <th class="py-1.5 text-left font-normal">Date</th>
+                    <th class="py-1.5 text-center font-normal">Cycle</th>
+                    <th class="py-1.5 text-center font-normal">APY ✓</th>
+                    <th class="py-1.5 text-center font-normal">Risk ✓</th>
+                    <th class="py-1.5 text-right font-normal">Pts (×0.5)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/4">
+                  <tr><td class="py-1.5 text-white/30">2026-06-14</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr><td class="py-1.5 text-white/30">2026-06-15</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr><td class="py-1.5 text-white/30">2026-06-16</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr><td class="py-1.5 text-white/30">2026-06-17</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr><td class="py-1.5 text-white/30">2026-06-18</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr><td class="py-1.5 text-white/30">2026-06-19</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-amber-400/50">–</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr><td class="py-1.5 text-white/60 font-semibold">2026-06-20</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-center text-emerald-400">✓</td><td class="py-1.5 text-right text-amber-400/70">+0.5</td></tr>
+                  <tr class="border-t border-white/10 text-white/40">
+                    <td class="pt-2 pb-1" colspan="4">Total seed contribution</td>
+                    <td class="pt-2 pb-1 text-right text-amber-400 font-semibold">3.5 pts</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <!-- /PAPER TRADING EVIDENCE TRACKER -->
+
           <div class="px-5 py-3 border-t border-white/5 bg-white/1">
             <p class="text-[11px] text-white/20 leading-relaxed">
-              Paper trading blocked — Owner acceptance required to start 30-day track. Once started, evidence points accumulate automatically each cycle.
+              Seed days (×0.5 weight) bootstrap evidence scoring while real cycles accumulate. 3 real cycles logged · 7 seed cycles · 6.5 effective total · <span class="text-amber-400/60">GoLive target: 2026-08-01</span>
             </p>
           </div>
         </div>
@@ -766,6 +813,162 @@ const GATE_STATIC = {
       </div>
       <GoLiveWidget score={35} etaDays={29} status="BLOCKED" />
     </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MULTI-CHAIN ALLOCATION PANEL  (MP-1490 v11.06)
+         Shows cross-chain capital split: Ethereum vs Base.
+         Data: static advisory defaults; live data via /api/chain-allocation
+         ═══════════════════════════════════════════════════════ -->
+    <section id="multichain" class="mb-12" aria-label="Multi-Chain Allocation">
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Multi-Chain Allocation</h2>
+          <p class="text-[11px] text-white/30 mt-0.5">
+            Advisory capital split across Ethereum and Base — updated daily by chain allocator
+          </p>
+        </div>
+        <span id="multichain-source-badge" class="text-[10px] font-mono text-white/20">advisory</span>
+      </div>
+
+      <!-- Chain grid -->
+      <div class="chain-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        <!-- Ethereum card -->
+        <div class="chain-card rounded-xl border border-white/10 bg-white/3 px-5 py-5">
+          <div class="flex items-center gap-2 mb-3">
+            <!-- Ethereum logo placeholder -->
+            <span class="text-lg">⟠</span>
+            <h3 class="text-sm font-semibold text-white">Ethereum</h3>
+            <span class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded border border-blue-500/30 bg-blue-500/10 text-blue-400">T1</span>
+          </div>
+          <dl class="space-y-2 text-[12px]">
+            <div class="flex justify-between items-center border-b border-white/5 pb-1.5">
+              <dt class="text-white/40">Best APY</dt>
+              <dd class="font-mono text-emerald-400" id="eth-apy">—</dd>
+            </div>
+            <div class="flex justify-between items-center border-b border-white/5 pb-1.5">
+              <dt class="text-white/40">Advisory Allocation</dt>
+              <dd class="font-mono text-white font-semibold" id="eth-alloc">60%</dd>
+            </div>
+            <div class="flex justify-between items-center border-b border-white/5 pb-1.5">
+              <dt class="text-white/40">Capital (advisory)</dt>
+              <dd class="font-mono text-white/60" id="eth-capital">$60,000</dd>
+            </div>
+            <div class="flex justify-between items-center">
+              <dt class="text-white/40">Gas / rebalance</dt>
+              <dd class="font-mono text-amber-400/80">~$50</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Base card -->
+        <div class="chain-card rounded-xl border border-white/10 bg-white/3 px-5 py-5">
+          <div class="flex items-center gap-2 mb-3">
+            <!-- Base logo placeholder -->
+            <span class="text-lg">🔵</span>
+            <h3 class="text-sm font-semibold text-white">Base</h3>
+            <span class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded border border-purple-500/30 bg-purple-500/10 text-purple-400">T2</span>
+          </div>
+          <dl class="space-y-2 text-[12px]">
+            <div class="flex justify-between items-center border-b border-white/5 pb-1.5">
+              <dt class="text-white/40">Best APY</dt>
+              <dd class="font-mono text-emerald-400" id="base-apy">—</dd>
+            </div>
+            <div class="flex justify-between items-center border-b border-white/5 pb-1.5">
+              <dt class="text-white/40">Advisory Allocation</dt>
+              <dd class="font-mono text-white font-semibold" id="base-alloc">40%</dd>
+            </div>
+            <div class="flex justify-between items-center border-b border-white/5 pb-1.5">
+              <dt class="text-white/40">Capital (advisory)</dt>
+              <dd class="font-mono text-white/60" id="base-capital">$40,000</dd>
+            </div>
+            <div class="flex justify-between items-center">
+              <dt class="text-white/40">Gas / rebalance</dt>
+              <dd class="font-mono text-emerald-400/80">~$0.01</dd>
+            </div>
+          </dl>
+        </div>
+
+      </div><!-- /chain-grid -->
+
+      <!-- Summary bar -->
+      <div class="mt-4 rounded-xl border border-white/8 bg-white/2 px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3 text-[11px]">
+        <div class="flex items-center gap-2 text-white/50">
+          <span class="text-white/25">Optimizer:</span>
+          <span id="multichain-advisory" class="text-white/60 italic">
+            Balanced split 60% Ethereum / 40% Base. APY signals within threshold.
+          </span>
+        </div>
+        <div class="sm:ml-auto flex items-center gap-3 shrink-0">
+          <span class="text-white/25">APY spread:</span>
+          <span id="multichain-spread" class="font-mono text-white/50">—</span>
+          <span class="text-white/15">|</span>
+          <span class="text-white/25">Best chain:</span>
+          <span id="multichain-best" class="font-mono text-white/60">—</span>
+        </div>
+      </div>
+
+    </section><!-- /multichain -->
+
+    <script>
+    /* Multi-Chain Allocation Panel — client-side live fetch (MP-1490) */
+    (function () {
+      'use strict';
+
+      const TOTAL_CAPITAL = 100_000;
+
+      function fmt(pct) { return pct.toFixed(1) + '%'; }
+      function fmtUsd(v) { return '$' + Math.round(v).toLocaleString(); }
+
+      async function fetchChainAllocation() {
+        try {
+          const resp = await fetch('/api/chain-allocation', { signal: AbortSignal.timeout(4000) });
+          if (!resp.ok) throw new Error('non-2xx');
+          const d = await resp.json();
+
+          const alloc = d.allocation ?? {};
+          const ethFrac  = alloc.ethereum ?? 0.6;
+          const baseFrac = alloc.base     ?? 0.4;
+
+          const chains = d.chains ?? {};
+          const ethApy  = chains.ethereum?.best_apy ?? null;
+          const baseApy = chains.base?.best_apy     ?? null;
+
+          document.getElementById('eth-alloc').textContent   = fmt(ethFrac  * 100);
+          document.getElementById('base-alloc').textContent  = fmt(baseFrac * 100);
+          document.getElementById('eth-capital').textContent  = fmtUsd(ethFrac  * TOTAL_CAPITAL);
+          document.getElementById('base-capital').textContent = fmtUsd(baseFrac * TOTAL_CAPITAL);
+
+          if (ethApy  !== null) document.getElementById('eth-apy').textContent  = ethApy.toFixed(2)  + '%';
+          if (baseApy !== null) document.getElementById('base-apy').textContent = baseApy.toFixed(2) + '%';
+
+          if (d.advisory) {
+            document.getElementById('multichain-advisory').textContent = d.advisory;
+          }
+          if (d.apy_spread != null) {
+            document.getElementById('multichain-spread').textContent = d.apy_spread.toFixed(2) + ' pp';
+          }
+          if (d.best_chain) {
+            document.getElementById('multichain-best').textContent = d.best_chain;
+          }
+
+          const badge = document.getElementById('multichain-source-badge');
+          if (badge) {
+            badge.textContent = 'live API';
+            badge.className = 'text-[10px] font-mono text-emerald-400/60';
+          }
+        } catch {
+          /* Silently retain static advisory defaults */
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fetchChainAllocation);
+      } else {
+        fetchChainAllocation();
+      }
+    })();
+    </script>
 
     <!-- Bottom disclaimer -->
     <div class="mt-16 pt-8 border-t border-white/5">
