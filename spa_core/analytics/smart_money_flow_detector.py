@@ -10,8 +10,8 @@ Pure stdlib only. LLM FORBIDDEN.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ── defaults ─────────────────────────────────────────────────────────────────
 _DEFAULT_WHALE_THRESHOLD_USD: float = 500_000.0
@@ -41,19 +41,7 @@ def _save_log(path: str, entries: list) -> None:
     """Atomic write with ring-buffer cap."""
     entries = entries[-_LOG_RING_SIZE:]
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(entries, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(path))
 def _clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
 
