@@ -16,10 +16,10 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.alerts.milestone_alert")
 
@@ -70,21 +70,7 @@ def save_alert_state(state: dict, data_dir: str | Path | None = None) -> None:
     """Atomically write data/milestone_alert_state.json (mkstemp + os.replace)."""
     ddir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
     path = ddir / ALERT_STATE_FILE
-    payload = json.dumps(state, indent=2, ensure_ascii=False)
-    fd, tmp_path = tempfile.mkstemp(dir=str(ddir), prefix=".milestone_alert_state_tmp_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(payload)
-        os.replace(tmp_path, str(path))
-    except Exception:
-        # Clean up tmp on failure; let caller handle
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(state, str(path))
 # ─── Core logic ─────────────────────────────────────────────────────────────
 
 
