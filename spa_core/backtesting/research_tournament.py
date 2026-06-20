@@ -31,10 +31,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 # ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -274,21 +275,7 @@ class ResearchTournament:
         dest = Path(path)
         dest.parent.mkdir(parents=True, exist_ok=True)
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            prefix=".research_tournament_tmp_",
-            dir=str(dest.parent),
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, str(dest))
-        except Exception:
-            # Clean up tmp file on error
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(results, str(dest))
 
     # ── Private helpers ────────────────────────────────────────────────────────
 
