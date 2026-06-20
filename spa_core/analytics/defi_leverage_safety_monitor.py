@@ -12,8 +12,8 @@ import json
 import math
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -217,21 +217,7 @@ def log_result(result: dict, data_dir: str = ".") -> None:
     entries.append(result)
     entries = entries[-LOG_MAX:]
 
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(log_path) or ".", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(entries, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(log_path))
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
