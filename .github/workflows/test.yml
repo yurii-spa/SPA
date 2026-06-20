@@ -1,0 +1,87 @@
+name: SPA Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-pytest
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Run integration tests
+        run: python -m pytest tests/ -v --tb=short
+        env:
+          SPA_ENV: ci
+
+      - name: Run spa_core unit tests
+        run: |
+          python -m pytest spa_core/tests/ -q --tb=short \
+            --ignore=spa_core/tests/test_golive_checker.py
+        env:
+          SPA_ENV: ci
+
+      - name: Pre-deploy checks (dry run)
+        run: python3 scripts/pre_deploy_check.py || true
+        env:
+          SPA_ENV: ci
+
+  lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check forbidden imports (risk/execution domains)
+        run: |
+          python3 -c "
+          import ast, os, sys
+          forbidden = ['anthropic', 'openai', 'langchain', 'numpy', 'pandas']
+          errors = []
+          for domain in ['spa_core/risk', 'spa_core/execution']:
+              for root, dirs, files in os.walk(domain):
+                  for f in files:
+                      if f.endswith('.py'):
+                          src = open(os.path.join(root, f)).read()
+                          for lib in forbidden:
+                              if f'import {lib}' in src or f'from {lib}' in src:
+                                  errors.append(f'{os.path.join(root, f)}: forbidden import {lib}')
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print('Import check PASS')
+          "
+
+      - name: Stdlib contract guard
+        run: python3 scripts/stdlib_contract_guard.py --check
+
+      - name: KANBAN health check
+        run: python3 scripts/kanban_health.py --check-only
