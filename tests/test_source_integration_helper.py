@@ -8,8 +8,8 @@ File I/O uses temporary directories — no real data files are touched.
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
