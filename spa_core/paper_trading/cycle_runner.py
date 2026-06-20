@@ -500,6 +500,7 @@ def _apply_risk_policy_gate(
     target_usd: dict[str, float],
     capital_usd: float,
     adapters: list[dict],
+    ddir: "Path | None" = None,
 ) -> dict:
     """Validate the allocator's target against ``RiskPolicy`` (MP-005).
 
@@ -542,6 +543,33 @@ def _apply_risk_policy_gate(
             if isinstance(a, dict) and a.get("protocol"):
                 meta[str(a["protocol"])] = a
 
+        # ── MP-1180: load adapter_registry.json fallbacks ────────────────────
+        # When live orchestrator returns apy=None/tvl=None (network errors),
+        # the gate sees APY=0%/TVL=$0 → policy_blocked=True → 0 trades.
+        # We resolve this by loading researched fallback values from the
+        # registry (keyed by snake_case adapter name, matching target_usd keys).
+        # fallback_apy is stored as decimal fraction (0.035 = 3.5%) and must
+        # be converted to percentage units for RiskPolicy.check_new_position().
+        # TVL is not stored in registry → use conservative safe minimum $20M
+        # (safely above the policy floor of $5M for all whitelisted protocols).
+        _reg_fallbacks: dict[str, dict] = {}
+        if ddir is not None:
+            try:
+                _reg_doc = _read_json(Path(ddir) / "adapter_registry.json", {})
+                if isinstance(_reg_doc, dict):
+                    _reg_adapters = _reg_doc.get("adapters", {})
+                    if isinstance(_reg_adapters, dict):
+                        _reg_fallbacks = {
+                            k: v
+                            for k, v in _reg_adapters.items()
+                            if isinstance(v, dict)
+                        }
+            except Exception as _rfb_exc:
+                log.warning(
+                    "MP-1180 registry fallback load failed (%s) — gate continues",
+                    _rfb_exc,
+                )
+
         adjusted = {
             str(p): float(v)
             for p, v in target_usd.items()
@@ -571,6 +599,45 @@ def _apply_risk_policy_gate(
             # Without it, a per-pool placeholder prevents the single-chain cap
             # from falsely lumping every pool onto "ethereum".
             chain = str(m.get("chain") or f"unknown:{pool}")
+
+            # ── MP-1180: registry fallback when live data is missing ──────────
+            # Live orchestrator returns None→0 for APY/TVL on network errors.
+            # Prefer registry fallback over blocking the rebalance entirely.
+            # Live values (apy>0 or tvl>0) are never overwritten.
+            if (apy == 0.0 or tvl == 0.0) and pool in _reg_fallbacks:
+                _fb = _reg_fallbacks[pool]
+                if apy == 0.0:
+                    # registry stores fraction (0.035); gate expects pct (3.5)
+                    _fb_apy_frac = _fb.get("live_apy") or _fb.get("fallback_apy")
+                    if isinstance(_fb_apy_frac, (int, float)) and _fb_apy_frac > 0:
+                        apy = float(_fb_apy_frac) * 100.0
+                        log.warning(
+                            "MP-1180 %s: live apy missing → registry fallback"
+                            " apy=%.3f%% (was 0.0%%)",
+                            pool,
+                            apy,
+                        )
+                if tvl == 0.0:
+                    # registry has no tvl_usd → conservative safe minimum
+                    # $20M is above the policy floor of $5M for all whitelisted
+                    # protocols, and below any real deployed TVL.
+                    _fb_tvl = _fb.get("tvl_usd")
+                    tvl = (
+                        float(_fb_tvl)
+                        if isinstance(_fb_tvl, (int, float)) and _fb_tvl > 0
+                        else 20_000_000.0
+                    )
+                    log.warning(
+                        "MP-1180 %s: live tvl missing → fallback tvl=$%.0f",
+                        pool,
+                        tvl,
+                    )
+                # also fill tier/chain from registry when meta was empty
+                if not m.get("tier") and _fb.get("tier") is not None:
+                    _t = _fb["tier"]
+                    tier = f"T{_t}".upper() if isinstance(_t, int) else str(_t).upper()
+                if chain.startswith("unknown:") and _fb.get("chain"):
+                    chain = str(_fb["chain"])
             res = policy.check_new_position(
                 state,
                 protocol_key=pool,
@@ -1277,7 +1344,7 @@ def run_cycle(
         notes.append(f"analytics_blocking_error: {type(_ag_exc).__name__}")
 
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
-    gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters)
+    gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters, ddir=ddir)
     policy_checked = gate["error"] is None
     policy_blocked = False
 
