@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-06-20T23:38:13.219201+00:00",
+  "data_source": "synthetic",
+  "period_days": 90,
+  "seed": 42,
+  "initial_capital_usd": 100000.0,
+  "note": "Stablecoin yield-accrual strategies (S0\u2013S3) have near-zero price volatility, so max drawdown ~0% and Sharpe is structurally high \u2014 this is a property of monotonic yield accrual, not an error. S7's speculative Pendle-YT leg carries real variance (see scenarios).",
+  "strategies": {
+    "S0_baseline": {
+      "sharpe_ratio": 37.1743,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 1.3822,
+      "annualised_return_pct": 5.7249,
+      "final_capital_usd": 101382.15,
+      "total_interest_usd": 1382.15,
+      "backtest_days": 90,
+      "_driver": "run_day",
+      "total_trades": 90,
+      "win_rate": 1.0,
+      "strategy_name": "Baseline (Equal Weight)",
+      "risk_tier": "T1",
+      "universe": "lending"
+    },
+    "S1_conservative_lending": {
+      "sharpe_ratio": 9.3022,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 1.0884,
+      "annualised_return_pct": 4.488,
+      "final_capital_usd": 101088.4,
+      "total_interest_usd": 1088.4,
+      "backtest_days": 90,
+      "total_trades": 277,
+      "win_rate": 1.0,
+      "_driver": "native_backtest",
+      "strategy_name": "Conservative Lending",
+      "risk_tier": "T1",
+      "universe": "lending"
+    },
+    "S2_lp_stable": {
+      "sharpe_ratio": 107.4286,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 2.143,
+      "annualised_return_pct": 8.9798,
+      "final_capital_usd": 102143.01,
+      "total_interest_usd": 2143.01,
+      "backtest_days": 90,
+      "total_trades": 31,
+      "win_rate": 1.0,
+      "_driver": "native_backtest",
+      "strategy_name": "LP Stablecoin Pairs",
+      "risk_tier": "T2",
+      "universe": "lending"
+    },
+    "S3_yield_loop": {
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.0,
+      "annualised_return_pct": 0.0,
+      "final_capital_usd": 100000.0,
+      "total_interest_usd": 0.0,
+      "backtest_days": 90,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "_driver": "native_backtest",
+      "strategy_name": "Yield Loop",
+      "risk_tier": "T3",
+      "universe": "lending"
+    },
+    "S7_pendle_yt_aggressive": {
+      "sharpe_ratio": 61.4725,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 2.6241,
+      "annualised_return_pct": 11.0764,
+      "final_capital_usd": 102624.06,
+      "total_interest_usd": 2624.06,
+      "backtest_days": 90,
+      "_driver": "simulate_day[base]",
+      "total_trades": 90,
+      "win_rate": 1.0,
+      "strategy_name": "Pendle YT+PT Aggressive",
+      "risk_tier": "T3",
+      "universe": "pendle_yt",
+      "scenarios": {
+        "base": {
+          "annualised_return_pct": 11.0764,
+          "sharpe_ratio": 61.4725,
+          "max_drawdown_pct": 0.0
+        },
+        "bull": {
+          "annualised_return_pct": 17.7253,
+          "sharpe_ratio": 56.4228,
+          "max_drawdown_pct": 0.0
+        },
+        "bear": {
+          "annualised_return_pct": -14.28,
+          "sharpe_ratio": -1568.2473,
+          "max_drawdown_pct": 3.7281
+        }
+      }
+    }
+  },
+  "leaderboard": [
+    {
+      "strategy": "S7_pendle_yt_aggressive",
+      "name": "Pendle YT+PT Aggressive",
+      "risk_tier": "T3",
+      "annualised_return_pct": 11.0764,
+      "sharpe_ratio": 61.4725,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 2.6241
+    },
+    {
+      "strategy": "S2_lp_stable",
+      "name": "LP Stablecoin Pairs",
+      "risk_tier": "T2",
+      "annualised_return_pct": 8.9798,
+      "sharpe_ratio": 107.4286,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 2.143
+    },
+    {
+      "strategy": "S0_baseline",
+      "name": "Baseline (Equal Weight)",
+      "risk_tier": "T1",
+      "annualised_return_pct": 5.7249,
+      "sharpe_ratio": 37.1743,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 1.3822
+    },
+    {
+      "strategy": "S1_conservative_lending",
+      "name": "Conservative Lending",
+      "risk_tier": "T1",
+      "annualised_return_pct": 4.488,
+      "sharpe_ratio": 9.3022,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 1.0884
+    },
+    {
+      "strategy": "S3_yield_loop",
+      "name": "Yield Loop",
+      "risk_tier": "T3",
+      "annualised_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 0.0
+    }
+  ]
+}
