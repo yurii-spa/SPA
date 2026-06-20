@@ -6,9 +6,9 @@ Stdlib only, read-only analytics, atomic ring-buffer log (cap 100).
 
 import json
 import os
-import tempfile
 import time
 from typing import Dict, List, Optional, Any
+from spa_core.utils.atomic import atomic_save
 
 _LOG_FILE = os.path.join(
     os.path.dirname(__file__), '..', '..', 'data', 'composability_risk_log.json'
@@ -252,15 +252,4 @@ class DeFiProtocolComposabilityRiskAnalyzer:
         dir_path = os.path.dirname(log_path)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=dir_path or '.', prefix='.comp_risk_log_tmp_'
-        )
-        try:
-            with os.fdopen(fd, 'w', encoding='utf-8') as fh:
-                json.dump(entries, fh, indent=2)
-            os.replace(tmp_path, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+        atomic_save(entries, str(log_path))
