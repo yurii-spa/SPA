@@ -45,7 +45,6 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import date as _date
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +59,7 @@ from spa_core.paper_trading.drawdown_analytics import (
     extract_equity_series as _extract_equity_series,
 )
 from spa_core.reporting.tear_sheet import content_fingerprint
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.drawdown_attribution")
 
@@ -952,18 +952,7 @@ def write_status(
     doc["_fingerprint"] = current_fp
     doc["history"] = history
 
-    fd, tmp_path = tempfile.mkstemp(dir=ddir, prefix=".tmp_dd_attr_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(doc, fh, indent=2)
-        os.replace(tmp_path, out_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(doc, str(out_path))
     return "DATA_WRITTEN"
 
 
