@@ -9,9 +9,9 @@ All file writes are atomic (tmp + os.replace).
 
 import os
 import json
-import tempfile
 import datetime
 from pathlib import Path
+from spa_core.utils.atomic import atomic_save
 
 
 # Strategy IDs that are NEVER auto-promoted regardless of metrics (ADR-029 + ADR-021).
@@ -300,20 +300,7 @@ class AutoPromoter:
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / "promotion_report.json"
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=out_dir, prefix=".promotion_report_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(report, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(report, str(out_path))
     # -----------------------------------------------------------------------
     # Private criterion checkers
     # -----------------------------------------------------------------------
