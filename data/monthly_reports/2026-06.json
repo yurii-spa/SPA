@@ -1,0 +1,240 @@
+{
+  "generated_at": "2026-06-20T23:55:05.186303+00:00",
+  "source": "monthly_performance_report",
+  "mp": "MP-1252",
+  "month": "2026-06",
+  "available": true,
+  "active_strategy_id": "S0",
+  "period": {
+    "start": "2026-06-10",
+    "end": "2026-06-20",
+    "track_days": 11
+  },
+  "capital": {
+    "start_equity_usd": 100000.0,
+    "spa_value_usd": 100121.33,
+    "lazy_aave_value_usd": 100093.46,
+    "alpha_usd": 27.87
+  },
+  "returns": {
+    "spa_total_return_pct": 0.1213,
+    "benchmark_total_return_pct": 0.0935,
+    "cumulative_alpha_pct": 0.0279,
+    "spa_annualized_pct": 4.1055,
+    "benchmark_apy_pct": 3.1,
+    "alpha_annualized_pct": 1.0055
+  },
+  "risk": {
+    "sharpe_annualized": 56.2914,
+    "max_daily_drawdown_pct": 0.0,
+    "days_positive": 10,
+    "days_total": 11,
+    "daily_volatility_pct": 0.003408
+  },
+  "allocation": {
+    "total_usd": 94999.88,
+    "num_positions": 24,
+    "positions": [
+      {
+        "protocol": "morpho_steakhouse",
+        "usd": 8897.68,
+        "weight_pct": 9.366
+      },
+      {
+        "protocol": "spark_susds",
+        "usd": 7528.81,
+        "weight_pct": 7.9251
+      },
+      {
+        "protocol": "compound_v3",
+        "usd": 7118.15,
+        "weight_pct": 7.4928
+      },
+      {
+        "protocol": "aave_v3_polygon",
+        "usd": 6981.26,
+        "weight_pct": 7.3487
+      },
+      {
+        "protocol": "aave_v3_optimism",
+        "usd": 6570.6,
+        "weight_pct": 6.9164
+      },
+      {
+        "protocol": "aave_arbitrum",
+        "usd": 5612.39,
+        "weight_pct": 5.9078
+      },
+      {
+        "protocol": "susde",
+        "usd": 5555.55,
+        "weight_pct": 5.848
+      },
+      {
+        "protocol": "aave_v3",
+        "usd": 4791.06,
+        "weight_pct": 5.0432
+      },
+      {
+        "protocol": "pendle",
+        "usd": 3703.7,
+        "weight_pct": 3.8986
+      },
+      {
+        "protocol": "extra_finance_base",
+        "usd": 3703.7,
+        "weight_pct": 3.8986
+      },
+      {
+        "protocol": "frax",
+        "usd": 3472.22,
+        "weight_pct": 3.655
+      },
+      {
+        "protocol": "scrvusd",
+        "usd": 3240.74,
+        "weight_pct": 3.4113
+      },
+      {
+        "protocol": "fluid_fusdc",
+        "usd": 3009.25,
+        "weight_pct": 3.1676
+      },
+      {
+        "protocol": "morpho_blue_base",
+        "usd": 2870.36,
+        "weight_pct": 3.0214
+      },
+      {
+        "protocol": "sfrax",
+        "usd": 2777.78,
+        "weight_pct": 2.924
+      },
+      {
+        "protocol": "stusd",
+        "usd": 2777.78,
+        "weight_pct": 2.924
+      },
+      {
+        "protocol": "sdai",
+        "usd": 2546.29,
+        "weight_pct": 2.6803
+      },
+      {
+        "protocol": "moonwell_base",
+        "usd": 2546.29,
+        "weight_pct": 2.6803
+      },
+      {
+        "protocol": "wusdm",
+        "usd": 2314.81,
+        "weight_pct": 2.4366
+      },
+      {
+        "protocol": "maple",
+        "usd": 2231.48,
+        "weight_pct": 2.3489
+      },
+      {
+        "protocol": "aave_v3_base",
+        "usd": 2083.33,
+        "weight_pct": 2.193
+      },
+      {
+        "protocol": "morpho_blue",
+        "usd": 1898.14,
+        "weight_pct": 1.998
+      },
+      {
+        "protocol": "yearn_v3",
+        "usd": 1495.36,
+        "weight_pct": 1.5741
+      },
+      {
+        "protocol": "euler_v2",
+        "usd": 1273.15,
+        "weight_pct": 1.3402
+      }
+    ]
+  },
+  "daily": [
+    {
+      "date": "2026-06-10",
+      "spa_return_pct": 0.0,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": -0.008493,
+      "spa_equity": 100010.81
+    },
+    {
+      "date": "2026-06-11",
+      "spa_return_pct": 0.010809,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002316,
+      "spa_equity": 100021.62
+    },
+    {
+      "date": "2026-06-12",
+      "spa_return_pct": 0.010808,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002315,
+      "spa_equity": 100032.43
+    },
+    {
+      "date": "2026-06-13",
+      "spa_return_pct": 0.010806,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002313,
+      "spa_equity": 100043.24
+    },
+    {
+      "date": "2026-06-14",
+      "spa_return_pct": 0.010805,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002312,
+      "spa_equity": 100054.05
+    },
+    {
+      "date": "2026-06-15",
+      "spa_return_pct": 0.010804,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002311,
+      "spa_equity": 100064.86
+    },
+    {
+      "date": "2026-06-16",
+      "spa_return_pct": 0.010803,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.00231,
+      "spa_equity": 100075.67
+    },
+    {
+      "date": "2026-06-17",
+      "spa_return_pct": 0.010802,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002309,
+      "spa_equity": 100086.48
+    },
+    {
+      "date": "2026-06-18",
+      "spa_return_pct": 0.010801,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002308,
+      "spa_equity": 100097.29
+    },
+    {
+      "date": "2026-06-19",
+      "spa_return_pct": 0.010799,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.002306,
+      "spa_equity": 100108.1
+    },
+    {
+      "date": "2026-06-20",
+      "spa_return_pct": 0.013215,
+      "benchmark_return_pct": 0.008493,
+      "daily_alpha_pct": 0.004722,
+      "spa_equity": 100121.33
+    }
+  ],
+  "note": "Stablecoin yield accrual is near-monotonic, so daily volatility is tiny and annualised Sharpe is structurally high (null when zero variance) \u2014 a property of the asset class, not an error."
+}
