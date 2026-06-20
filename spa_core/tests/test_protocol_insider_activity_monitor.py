@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -31,6 +30,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import spa_core.analytics.protocol_insider_activity_monitor as _mod
+import tempfile
 from spa_core.analytics.protocol_insider_activity_monitor import (
     MAX_ENTRIES,
     _anomaly_score,
