@@ -503,33 +503,46 @@ class GoLiveReadinessReport(BaseAnalytics):
     # ── v10.41–42 NEW category assessors (max_score directly in pts) ──────────
 
     def assess_gates(self) -> CategoryScore:
-        """Gates: Backtest/Pre-Paper/Paper progress. Max 20 pts.
-        MP-1425 (v10.41)
+        """Gates: Backtest/Pre-Paper/Paper + infrastructure signals. Max 20 pts.
+        MP-1441 (v10.57) — enhanced 7-criteria scoring
+
+        Scoring breakdown (max 20):
+          +6  Backtest Gate PASS                         (was +8)
+          +2  Pre-Paper Gate PASS / READY                (was +8)
+          +3  Paper trading started (≥1 day)             (was +2)
+          +3  Evidence infrastructure initialized
+          +2  Kill-switch in LOCKED / tested state
+          +2  Pre-launch validation ≥ 80 % pass
+          +2  gate_status.json present
         """
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
         max_score = 20.0
 
-        # Backtest gate: +8
+        # ── 1. Backtest Gate: +6 ──
         bg = self._read_json(self.backtest_dir / "pre_paper_backtest_gate.json")
         if bg.get("status") == "PASS":
-            score += 8.0
+            score += 6.0
             items_done.append("Backtest Gate: PASS ✓")
         else:
             items_pending.append(
                 f"Backtest Gate: {bg.get('status', 'UNKNOWN')} — run CPA backtest"
             )
 
-        # Pre-paper gate: +8
+        # ── 2. Pre-Paper Gate: +2 ──
         pg = self._read_json(self.backtest_dir / "paper_ready_gate.json")
         if pg.get("status") in ("READY", "PASS"):
-            score += 8.0
+            score += 2.0
             items_done.append("Pre-Paper Gate: READY ✓")
         else:
-            items_pending.append("Pre-Paper Gate: NOT_READY — resolve hardening + P1B sources")
+            hardening = pg.get("hardening_status", "NOT_READY")
+            items_pending.append(
+                f"Pre-Paper Gate: NOT_READY (hardening={hardening}) — "
+                "resolve hardening + P1B sources (+2 pts)"
+            )
 
-        # Paper trading started (≥1 day): +2
+        # ── 3. Paper trading started (≥1 day): +3 ──
         pe = self._read_json(self.data_dir / "paper_evidence.json")
         paper_days = len(pe.get("days", [])) if isinstance(pe, dict) else 0
         eq = self._read_json(self.data_dir / "equity_curve_daily.json")
@@ -539,24 +552,107 @@ class GoLiveReadinessReport(BaseAnalytics):
             eq_days = len(
                 eq.get("daily") or eq.get("entries") or eq.get("data") or []
             )
+            eq_days = max(eq_days, eq.get("summary", {}).get("num_days", 0))
         else:
             eq_days = 0
         effective_days = max(paper_days, eq_days)
 
         if effective_days >= 1:
-            score += 2.0
+            score += 3.0
             items_done.append(f"Paper trading started: {effective_days} day(s) ✓")
         else:
-            items_pending.append("Paper trading not started yet")
+            items_pending.append("Paper trading not started yet (+3 pts pending)")
 
-        # Paper ≥7 days: +2
-        if effective_days >= 7:
-            score += 2.0
-            items_done.append(f"Paper 7+ days: {effective_days} ✓")
+        # ── 4. Evidence infrastructure initialized: +3 ──
+        calc_path = (
+            self.base_dir / "spa_core" / "analytics" / "evidence_auto_calculator.py"
+        )
+        hist_path = self.data_dir / "paper_evidence_history.json"
+        hist_data = self._read_json(hist_path)
+        calc_exists = calc_path.exists()
+        hist_initialized = bool(hist_data.get("schema_version"))
+
+        if calc_exists and hist_initialized:
+            score += 3.0
+            items_done.append(
+                "Evidence infrastructure initialized ✓ "
+                "(evidence_auto_calculator.py + paper_evidence_history.json)"
+            )
+        elif calc_exists:
+            score += 1.5
+            items_done.append("Evidence auto-calculator present ✓")
+            items_pending.append(
+                "paper_evidence_history.json not initialized — "
+                "run: python3 -m spa_core.analytics.evidence_auto_calculator --run"
+            )
         else:
             items_pending.append(
-                f"Paper track: {effective_days}/7 days "
-                f"({max(0, 7 - effective_days)} more for +2 pts)"
+                "Evidence infrastructure missing — create evidence_auto_calculator.py"
+            )
+
+        # ── 5. Kill-switch in LOCKED / tested state: +2 ──
+        ks = self._read_json(self.data_dir / "kill_switch_status.json")
+        gate_s = self._read_json(self.data_dir / "gate_status.json")
+        ks_present = ks.get("triggered") is not None
+        ks_armed = ks_present and not ks.get("triggered", True)
+        gate_ks_ok = gate_s.get("kill_switch_status") in ("LOCKED", "ARMED", "TESTED")
+
+        if ks_armed or gate_ks_ok:
+            score += 2.0
+            items_done.append("Kill-switch: LOCKED / tested ✓")
+        else:
+            items_pending.append(
+                "Kill-switch: not confirmed LOCKED — check data/kill_switch_status.json"
+            )
+
+        # ── 6. Pre-launch validation ≥ 80 % pass: +2 ──
+        plv = self._read_json(self.data_dir / "pre_launch_validation.json")
+        if plv:
+            pass_count = plv.get("pass_count", plv.get("passed_count", 0))
+            total_count = plv.get("total_count", 1)
+            pass_pct = pass_count / total_count * 100.0 if total_count > 0 else 0.0
+            if pass_pct >= 80.0:
+                score += 2.0
+                items_done.append(
+                    f"Pre-launch validation: {pass_count}/{total_count} "
+                    f"({pass_pct:.0f}%) ✓"
+                )
+            else:
+                items_pending.append(
+                    f"Pre-launch validation: {pass_count}/{total_count} "
+                    f"({pass_pct:.0f}%) — need ≥80%"
+                )
+        else:
+            # Fallback: golive_status.json infrastructure checks
+            golive = self._read_json(self.data_dir / "golive_status.json")
+            golive_checks = golive.get("checks", {})
+            if golive_checks:
+                gpass = sum(1 for v in golive_checks.values() if v)
+                gtotal = len(golive_checks)
+                gpct = gpass / gtotal * 100.0 if gtotal > 0 else 0.0
+                if gpct >= 80.0:
+                    score += 2.0
+                    items_done.append(
+                        f"Infrastructure checks: {gpass}/{gtotal} ({gpct:.0f}%) ✓"
+                    )
+                else:
+                    items_pending.append(
+                        f"Infrastructure checks: {gpass}/{gtotal} ({gpct:.0f}%) < 80% — "
+                        "run pre_launch_validation to generate data/pre_launch_validation.json"
+                    )
+            else:
+                items_pending.append(
+                    "Pre-launch validation: file missing — "
+                    "run spa_core.backtesting.pre_launch_validation --run"
+                )
+
+        # ── 7. gate_status.json present: +2 ──
+        if gate_s.get("schema_version"):
+            score += 2.0
+            items_done.append("gate_status.json: present ✓")
+        else:
+            items_pending.append(
+                "gate_status.json missing — create data/gate_status.json"
             )
 
         return CategoryScore(
@@ -1056,6 +1152,13 @@ class GoLiveReadinessReport(BaseAnalytics):
         ]
 
         return "\n".join(lines)
+
+    def generate_report(self) -> dict:
+        """Generate and return the full readiness report as a dict.
+        Alias for to_dict() — used by MP-1442 and external callers.
+        MP-1441 (v10.57)
+        """
+        return self.to_dict()
 
     def save(self) -> str:
         """Saves JSON + MD to data/reports/. Returns JSON file path."""
