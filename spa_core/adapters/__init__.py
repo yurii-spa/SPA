@@ -33,6 +33,12 @@ from .frax_adapter import FraxAdapter  # MP-563
 from .aave_v3_optimism_adapter import AaveV3OptimismAdapter  # MP-565
 # MP-593: Aave V3 Polygon USDC.e lending T1 L2 adapter (hard-peg gate 0.5%, gas 90% cheaper, USDC.e bridge note)
 from .aave_v3_polygon_adapter import AaveV3PolygonAdapter  # MP-593
+# MP-1227: Ethena sUSDe T2 adapter (delta-neutral; live Ethena API + DeFiLlama fallback, anomaly flag)
+from .ethena_susde_adapter import EthenaSusdeAdapter  # MP-1227
+# MP-1227: Fluid Protocol USDC lending T2 adapter (Fluid API + DeFiLlama fallback)
+from .fluid_usdc_adapter import FluidUSDCAdapter  # MP-1227
+# MP-1227: Usual Protocol USD0++ RWA-backed T2 adapter (Usual API + DeFiLlama fallback)
+from .usual_usd0pp_adapter import UsualUSD0PPAdapter  # MP-1227
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -101,6 +107,9 @@ ADAPTER_REGISTRY = [
     ("frax",          "T2", FraxAdapter),   # MP-563
     ("aave_v3_optimism", "T1", AaveV3OptimismAdapter),  # MP-565
     ("aave_v3_polygon",  "T1", AaveV3PolygonAdapter),   # MP-593
+    ("ethena_susde",     "T2", EthenaSusdeAdapter),     # MP-1227
+    ("fluid_usdc",       "T2", FluidUSDCAdapter),       # MP-1227
+    ("usual_usd0pp",     "T2", UsualUSD0PPAdapter),     # MP-1227
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -138,6 +147,9 @@ __all__ = [
     "FraxAdapter",   # MP-563
     "AaveV3OptimismAdapter",  # MP-565
     "AaveV3PolygonAdapter",   # MP-593
+    "EthenaSusdeAdapter",     # MP-1227
+    "FluidUSDCAdapter",       # MP-1227
+    "UsualUSD0PPAdapter",     # MP-1227
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
