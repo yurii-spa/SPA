@@ -32,10 +32,10 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -246,19 +246,7 @@ def _save_log(path: Path, log: List[Dict]) -> None:
     """Atomic write with ring-buffer cap."""
     if len(log) > _RING_BUFFER_MAX:
         log = log[-_RING_BUFFER_MAX:]
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(log, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        raise
-
-
+    atomic_save(log, str(path))
 def run(markets: List[Dict], config: Optional[Dict] = None,
         data_dir: Optional[str] = None) -> Dict:
     """analyze() + append result to ring-buffer log file."""
