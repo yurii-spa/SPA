@@ -19,7 +19,6 @@ import json
 import os
 import pathlib
 import sys
-import tempfile
 import unittest
 import unittest.mock
 
@@ -54,6 +53,7 @@ _tc_patcher = _mock.patch.dict(
 _tc_patcher.start()
 
 import spa_core.alerts.alert_manager as _am
+import tempfile
 
 
 def _patch_data_dir(tmp_path: pathlib.Path):
