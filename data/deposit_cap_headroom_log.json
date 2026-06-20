@@ -1,0 +1,49 @@
+[
+  {
+    "ts": "2026-06-14T19:17:48.079037+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_headroom_vault": "USDC-Vault-Ample",
+      "least_headroom_vault": "ETH-Vault-NearCap",
+      "avg_headroom_score": 38.15,
+      "cap_reached_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Vault-Ample",
+        "classification": "AMPLE_HEADROOM",
+        "headroom_score": 80.0,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "AMPLE_HEADROOM",
+          "INTENDED_FITS",
+          "HARD_CAP"
+        ]
+      },
+      {
+        "token": "ETH-Vault-NearCap",
+        "classification": "TIGHT_HEADROOM",
+        "headroom_score": 4.46,
+        "recommendation": "DEPLOY_PARTIAL",
+        "flags": [
+          "NEAR_CAP",
+          "INTENDED_EXCEEDS_HEADROOM",
+          "FAST_FILLING",
+          "HARD_CAP"
+        ]
+      },
+      {
+        "token": "DAI-Vault-Full",
+        "classification": "CAP_REACHED",
+        "headroom_score": 30.0,
+        "recommendation": "WAIT_OR_SKIP",
+        "flags": [
+          "CAP_REACHED",
+          "INTENDED_EXCEEDS_HEADROOM",
+          "SOFT_CAP"
+        ]
+      }
+    ]
+  }
+]
