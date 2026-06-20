@@ -10,8 +10,8 @@ Run:  python3 -m unittest spa_core.tests.test_gap_monitor -v
 import json
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
