@@ -17,6 +17,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+from spa_core.utils.errors import SPAError
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -162,7 +164,7 @@ class YieldCompressorScore:
         Returns the path written.
         """
         if self._last_result is None:
-            raise RuntimeError("No result to save – call compute() first.")
+            raise SPAError("No result to save – call compute() first.", code="NOT_INITIALIZED")
 
         base = data_dir or self._data_dir or ""
         path = os.path.join(base, LOG_FILE_DEFAULT) if not base.endswith(".json") else base
