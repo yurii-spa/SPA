@@ -4,8 +4,8 @@ Tests for MP-679: CorrelationMatrixBuilder
 """
 
 import json
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.correlation_matrix_builder import (
