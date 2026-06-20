@@ -7,9 +7,9 @@ Pure stdlib — no external dependencies.
 import json
 import math
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 NETWORK_LABELS = [
     # (min_score, high_switching_required, label)
@@ -47,19 +47,7 @@ def _clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
 def _atomic_write(path: str, data: Any) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     dir_ = os.path.dirname(path)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 class ProtocolNetworkEffectStrengthAnalyzer:
     """
     Measures network effect strength for a list of DeFi protocols.
