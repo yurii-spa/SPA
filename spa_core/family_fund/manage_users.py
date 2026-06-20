@@ -24,11 +24,11 @@ import getpass
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 from spa_core.family_fund.api.auth import hash_password
 from spa_core.family_fund.api.models import UserRole
+from spa_core.utils.atomic import atomic_save
 
 _USERS_PATH = Path(__file__).resolve().parent / "users.json"
 _ROLES = [r.value for r in UserRole]
@@ -42,14 +42,7 @@ def _load() -> dict:
 
 
 def _atomic_write(data: dict) -> None:
-    dir_ = _USERS_PATH.parent
-    with tempfile.NamedTemporaryFile(
-        "w", dir=dir_, delete=False, suffix=".tmp", encoding="utf-8"
-    ) as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-        tmp = f.name
-    os.replace(tmp, _USERS_PATH)
+    atomic_save(data, str(_USERS_PATH))
 
 
 def cmd_set(args: argparse.Namespace) -> int:
