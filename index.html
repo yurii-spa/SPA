@@ -1728,6 +1728,8 @@ body > .main-wrap, #app, .app-container,
 <div class="tabs">
   <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
+  <button class="tab-btn"         onclick="showTab('backtest',  this)">📉 Backtest</button>
+  <button class="tab-btn"         onclick="showTab('protocols', this)">🔌 Protocols</button>
   <button class="tab-btn" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
@@ -2032,20 +2034,19 @@ body > .main-wrap, #app, .app-container,
           <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
             <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Rank</th>
             <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Strategy</th>
-            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">APY</th>
-            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Sharpe</th>
-            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Max DD</th>
-            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Win Rate</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Composite Score</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Days Observed</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Net APY</th>
             <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Status</th>
           </tr>
         </thead>
         <tbody id="tournament-leaderboard-tbody">
-          <tr><td colspan="7" style="text-align:center;padding:20px;color:#888">Загрузка данных из tournament_runner_v2.json…</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#888">Загрузка данных из tournament_ranking.json…</td></tr>
         </tbody>
       </table>
     </div>
-    <div style="margin-top:8px;font-size:11px;color:#aaa">
-      Live data from <code>data/tournament_runner_v2.json</code> · Ranked by Sharpe ratio · ADR-023 promotion policy
+    <div style="margin-top:10px;padding:8px 12px;background:#EFF6FF;border-left:3px solid #185FA5;border-radius:4px;font-size:11.5px;color:#1e3a5f">
+      ℹ️ <strong>Tournament is advisory-only.</strong> Allocation decisions are made by the risk-gated cycle runner — never by tournament ranking. Strategies need a full track before a composite score is meaningful (ADR-023 promotion policy).
     </div>
   </div>
 
@@ -2082,6 +2083,90 @@ body > .main-wrap, #app, .app-container,
   </div>
 
 </div><!-- /tab-strategies -->
+
+
+<!-- ══════════════════ TAB: BACKTEST (MP-1229) ══════════════════ -->
+<div id="tab-backtest" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600">Backtest Results</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Historical risk/return metrics per strategy · source <code>data/backtest_results.json</code></div>
+    </div>
+    <button class="refresh-btn" onclick="loadBacktest()">↻ Refresh</button>
+  </div>
+
+  <!-- BLOCK 1: Backtest metrics table -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">📊 Strategy Backtest Metrics</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Strategy</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Sharpe Ratio</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Max Drawdown</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Annualized Return</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Period</th>
+          </tr>
+        </thead>
+        <tbody id="backtest-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:#888">Loading backtest data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BLOCK 2: Sharpe comparison bar chart -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">📈 Sharpe Ratio Comparison</div>
+    <div id="backtest-sharpe-chart" style="padding:8px 4px">
+      <div style="text-align:center;padding:20px;color:#888">Loading…</div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#aaa">
+      Color: <span style="color:#16a34a;font-weight:600">■ Sharpe &gt; 1.0</span> ·
+      <span style="color:#d97706;font-weight:600">■ 0.5–1.0</span> ·
+      <span style="color:#dc2626;font-weight:600">■ &lt; 0.5</span>
+    </div>
+  </div>
+
+</div><!-- /tab-backtest -->
+
+
+<!-- ══════════════════ TAB: PROTOCOLS MONITOR (MP-1229) ══════════════════ -->
+<div id="tab-protocols" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600">Protocols Monitor</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">All adapters in <code>ADAPTER_REGISTRY</code> · live APY from <code>data/adapter_status.json</code></div>
+    </div>
+    <button class="refresh-btn" onclick="loadProtocols()">↻ Refresh</button>
+  </div>
+
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">🔌 Adapter Registry — Live Status</div>
+    <div id="protocols-meta" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Protocol</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Chain</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Tier</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Live APY</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Status</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Last Updated</th>
+          </tr>
+        </thead>
+        <tbody id="protocols-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#888">Loading adapters…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /tab-protocols -->
 
 
 <!-- ══════════════════ TAB: DECISIONS (OWNER REVIEW) ══════════════════ -->
@@ -4033,6 +4118,8 @@ function showTab(id, btn) {
   btn.classList.add('active');
   if (id === 'overview')    loadPerformance();
   if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); }
+  if (id === 'backtest')    loadBacktest();
+  if (id === 'protocols')   loadProtocols();
   if (id === 'ops')         loadOps();
   if (id === 'decisions')   loadDecisions();
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
@@ -4845,70 +4932,202 @@ async function loadStrategies() {
 }
 
 // ─── Tournament Leaderboard (MP-1514, v11.30) ────────────────────────────────
+// Minimum observed days before a composite score is treated as meaningful.
+// Mirrors the 30-day honest-track requirement (ADR-002 / ADR-023).
+const TOURNAMENT_MIN_DAYS = 30;
+const TOURNAMENT_PRODUCTION_IDS = new Set(['S8', 'S9', 'S10']);
+
 async function loadTournamentLeaderboard() {
   const tbody = document.getElementById('tournament-leaderboard-tbody');
   const lastRunEl = document.getElementById('tournament-last-run');
   if (!tbody) return;
 
   let data = null;
-  // Try tournament_runner_v2.json first, fall back to tournament_results.json
-  for (const path of ['data/tournament_runner_v2.json', 'data/tournament_results.json']) {
+  // tournament_ranking.json (.strategies[]) is the live source; fall back to results.
+  for (const path of ['data/tournament_ranking.json', 'data/tournament_results.json', 'data/tournament_runner_v2.json']) {
     try {
       const res = await fetch(path + '?t=' + Date.now());
       if (res.ok) { data = await res.json(); break; }
     } catch (_) {}
   }
-
   if (!data) return; // Keep seed rows if no data file found
 
-  const leaderboard = data.leaderboard || data.results || [];
-  if (!leaderboard.length) return;
+  // Normalise: ranking/results use .strategies[]; runner_v2 uses .leaderboard/.results[].
+  const rows = data.strategies || data.leaderboard || data.results || [];
+  if (!rows.length) return;
 
-  if (lastRunEl && data.last_run) {
-    lastRunEl.textContent = 'Updated: ' + data.last_run.replace('T', ' ').slice(0, 16) + ' UTC';
+  const updated = data.timestamp || data.last_run;
+  if (lastRunEl && updated) {
+    lastRunEl.textContent = 'Updated: ' + String(updated).replace('T', ' ').slice(0, 16) + ' UTC';
   }
 
-  // Status badge helpers
-  const STATUS_PROD   = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">✅ Production</span>';
-  const STATUS_TOUR   = '<span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span>';
-  const STATUS_DEMOTE = '<span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px">⚠️ Watch</span>';
-  const STATUS_LEAD   = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">🏆 Production</span>';
+  const STATUS_LEAD = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">🏆 Leader</span>';
+  const STATUS_PROD = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">✅ Production</span>';
+  const STATUS_TOUR = '<span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span>';
+  const STATUS_OFF  = '<span style="font-size:11px;background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px">⏸ Inactive</span>';
 
-  const PRODUCTION_IDS = new Set(['S8', 'S9', 'S10']);
-
-  tbody.innerHTML = leaderboard.map((entry, i) => {
+  tbody.innerHTML = rows.map((entry, i) => {
     const sid    = entry.strategy_id || entry.id || '?';
-    const name   = entry.strategy_name || entry.name || sid;
-    const sharpe = entry.sharpe != null ? Number(entry.sharpe).toFixed(2) : '—';
-    const apy    = entry.annualized_return != null
-      ? (Number(entry.annualized_return) * 100).toFixed(1) + '%'
-      : (entry.annual_return != null ? (Number(entry.annual_return) * 100).toFixed(1) + '%' : '—');
-    const dd     = entry.max_drawdown != null
-      ? (Number(entry.max_drawdown) * 100).toFixed(1) + '%'
-      : '—';
-    const wr     = entry.win_rate != null
-      ? (Number(entry.win_rate) * 100).toFixed(0) + '%'
-      : '—';
+    const name   = entry.strategy_name || entry.name || '';
+    const days   = entry.days_observed != null ? entry.days_observed
+                 : (entry.days_running != null ? entry.days_running : null);
+    const score  = entry.composite_score != null ? entry.composite_score : null;
+    const apy    = entry.net_apy != null ? entry.net_apy
+                 : (entry.annualized_return != null ? entry.annualized_return * 100 : null);
+    const active = entry.is_active !== false;
+    const isWinner = i === 0 && active;
 
-    const inProd = entry.in_production || PRODUCTION_IDS.has(sid);
+    // Composite score column: real score once enough days observed, else "Pending".
+    let scoreCell;
+    if (days != null && days < TOURNAMENT_MIN_DAYS) {
+      const togo = TOURNAMENT_MIN_DAYS - days;
+      scoreCell = `<span style="color:#94a3b8">Pending — ${togo} day${togo === 1 ? '' : 's'} to go</span>`;
+    } else if (score != null) {
+      scoreCell = `<span style="font-weight:600">${Number(score).toFixed(4)}</span>`;
+    } else {
+      scoreCell = '<span style="color:#bbb">—</span>';
+    }
+
     let badge;
-    if (i === 0 && inProd) badge = STATUS_LEAD;
-    else if (inProd)        badge = STATUS_PROD;
-    else                    badge = STATUS_TOUR;
+    if (isWinner)                                badge = STATUS_LEAD;
+    else if (TOURNAMENT_PRODUCTION_IDS.has(sid)) badge = STATUS_PROD;
+    else if (active)                             badge = STATUS_TOUR;
+    else                                         badge = STATUS_OFF;
 
-    const rankColor = i === 0 ? '#059669' : (i < 3 ? '#185FA5' : '#777');
-    const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
-    const ddColor = entry.max_drawdown < 0 ? '#dc2626' : '#888';
-    const apyColor = '#059669';
+    const rankColor = isWinner ? '#059669' : (i < 3 ? '#185FA5' : '#777');
+    const rowBg = isWinner ? 'background:#f0fdf4' : (i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)');
+    const apyStr = apy != null ? Number(apy).toFixed(2) + '%' : '<span style="color:#bbb">—</span>';
 
     return `<tr style="${rowBg}">
-      <td style="padding:8px 10px;font-weight:${i < 3 ? 700 : 500};color:${rankColor}">#${i+1}</td>
-      <td style="padding:8px 10px"><span style="font-weight:${i < 3 ? 700 : 600}">${sid}</span> <span style="font-size:11px;color:#888">${name}</span></td>
-      <td style="padding:8px 10px;text-align:right;color:${apyColor};font-weight:600">${apy}</td>
-      <td style="padding:8px 10px;text-align:right">${sharpe}</td>
-      <td style="padding:8px 10px;text-align:right;color:${ddColor}">${dd}</td>
-      <td style="padding:8px 10px;text-align:right">${wr}</td>
+      <td style="padding:8px 10px;font-weight:${i < 3 ? 700 : 500};color:${rankColor}">${isWinner ? '🏆 ' : '#'}${i+1}</td>
+      <td style="padding:8px 10px"><span style="font-weight:${i < 3 ? 700 : 600}">${sid}</span>${name ? ` <span style="font-size:11px;color:#888">${name}</span>` : ''}</td>
+      <td style="padding:8px 10px;text-align:right">${scoreCell}</td>
+      <td style="padding:8px 10px;text-align:right">${days != null ? days : '<span style="color:#bbb">—</span>'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">${apyStr}</td>
       <td style="padding:8px 10px;text-align:center">${badge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Backtest Tab (MP-1229) ──────────────────────────────────────────────────
+async function loadBacktest() {
+  const tbody = document.getElementById('backtest-tbody');
+  const chart = document.getElementById('backtest-sharpe-chart');
+  if (!tbody) return;
+
+  let data = null;
+  try {
+    const res = await fetch(dataBase + '/backtest_results.json?_=' + Date.now());
+    if (res.ok) data = await res.json();
+  } catch (_) {}
+
+  const rows = data ? (data.results || data.strategies || data.backtests || []) : [];
+
+  if (!rows.length) {
+    const pending = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">⏳ Backtest pending… <span style="font-size:11px">(no <code>data/backtest_results.json</code> yet)</span></td></tr>';
+    tbody.innerHTML = pending;
+    if (chart) chart.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8">⏳ Backtest pending…</div>';
+    return;
+  }
+
+  // Color rule for Sharpe: >1.0 green, 0.5–1.0 amber, <0.5 red.
+  const sharpeColor = (s) => s == null ? '#888' : (s > 1.0 ? '#16a34a' : (s >= 0.5 ? '#d97706' : '#dc2626'));
+  const pct = (v) => v == null ? '—' : (Number(v) * (Math.abs(v) <= 1 ? 100 : 1)).toFixed(1) + '%';
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const sid    = r.strategy_id || r.id || r.strategy || '?';
+    const name   = r.strategy_name || r.name || '';
+    const sharpe = r.sharpe != null ? r.sharpe : (r.sharpe_ratio != null ? r.sharpe_ratio : null);
+    const mdd    = r.max_drawdown != null ? r.max_drawdown : (r.mdd != null ? r.mdd : null);
+    const ann    = r.annualized_return != null ? r.annualized_return
+                 : (r.annual_return != null ? r.annual_return : (r.cagr != null ? r.cagr : null));
+    const period = r.period || r.window ||
+                   ((r.start && r.end) ? (r.start + ' → ' + r.end) : '—');
+    const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
+    return `<tr style="${rowBg}">
+      <td style="padding:8px 10px"><span style="font-weight:600">${sid}</span>${name ? ` <span style="font-size:11px;color:#888">${name}</span>` : ''}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;color:${sharpeColor(sharpe)}">${sharpe != null ? Number(sharpe).toFixed(2) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#dc2626">${mdd != null ? '-' + pct(Math.abs(mdd)) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">${ann != null ? pct(ann) : '—'}</td>
+      <td style="padding:8px 10px;font-size:12px;color:#666">${period}</td>
+    </tr>`;
+  }).join('');
+
+  // Bar chart: one horizontal bar per strategy, length ∝ Sharpe, color-coded.
+  if (chart) {
+    const withSharpe = rows
+      .map(r => ({ sid: r.strategy_id || r.id || r.strategy || '?',
+                   s: r.sharpe != null ? r.sharpe : (r.sharpe_ratio != null ? r.sharpe_ratio : null) }))
+      .filter(x => x.s != null);
+    if (!withSharpe.length) {
+      chart.innerHTML = '<div style="text-align:center;padding:18px;color:#94a3b8">No Sharpe data to chart.</div>';
+    } else {
+      const maxS = Math.max(1, ...withSharpe.map(x => Math.abs(x.s)));
+      chart.innerHTML = withSharpe.map(x => {
+        const w = Math.max(2, (Math.abs(x.s) / maxS) * 100);
+        const c = sharpeColor(x.s);
+        return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+          <div style="width:48px;font-size:12px;font-weight:600;color:#555;text-align:right">${x.sid}</div>
+          <div style="flex:1;background:#f1f5f9;border-radius:4px;height:20px;position:relative">
+            <div style="width:${w}%;background:${c};height:100%;border-radius:4px;transition:width .3s"></div>
+          </div>
+          <div style="width:46px;font-size:12px;font-weight:600;color:${c}">${Number(x.s).toFixed(2)}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+// ─── Protocols Monitor Tab (MP-1229) ─────────────────────────────────────────
+async function loadProtocols() {
+  const tbody = document.getElementById('protocols-tbody');
+  const metaEl = document.getElementById('protocols-meta');
+  if (!tbody) return;
+
+  let data = null;
+  try {
+    const res = await fetch(dataBase + '/adapter_status.json?_=' + Date.now());
+    if (res.ok) data = await res.json();
+  } catch (_) {}
+
+  if (!data || !data.adapters) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#94a3b8">adapter_status.json not available.</td></tr>';
+    if (metaEl) metaEl.textContent = '';
+    return;
+  }
+
+  const adapters = data.adapters;
+  const keys = Object.keys(adapters);
+  if (metaEl) {
+    const gen = data.generated_at ? String(data.generated_at).replace('T', ' ').slice(0, 16) + ' UTC' : '—';
+    metaEl.innerHTML = `${keys.length} adapters · ${data.live_count != null ? data.live_count + ' live' : ''} · generated ${gen}`;
+  }
+
+  const tierLabel = (t) => t === 0 ? 'WATCH' : 'T' + t;
+  const tierColor = (t) => t === 1 ? '#185FA5' : t === 2 ? '#7c3aed' : t === 3 ? '#b45309' : '#94a3b8';
+
+  // Order: active first, then by tier, then by APY desc.
+  const ordered = keys.map(k => Object.assign({ key: k }, adapters[k]))
+    .sort((a, b) => (b.active === true) - (a.active === true)
+                 || (a.tier || 9) - (b.tier || 9)
+                 || (b.apy || 0) - (a.apy || 0));
+
+  tbody.innerHTML = ordered.map((a, i) => {
+    const live = a.live_apy != null ? Number(a.live_apy) : null;
+    const apy  = live != null ? live : (a.apy != null ? Number(a.apy) : null);
+    let status, scolor, sbg;
+    if (a.active === false) { status = 'SUSPENDED'; scolor = '#991b1b'; sbg = '#fee2e2'; }
+    else if (live == null)  { status = 'PENDING';   scolor = '#854d0e'; sbg = '#fef9c3'; }
+    else                    { status = 'ACTIVE';    scolor = '#166534'; sbg = '#dcfce7'; }
+    const upd = a.last_updated ? String(a.last_updated).replace('T', ' ').slice(0, 16) : '—';
+    const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
+    return `<tr style="${rowBg}">
+      <td style="padding:7px 10px"><span style="font-weight:600">${a.display_name || a.key}</span> <span style="font-size:11px;color:#aaa;font-family:monospace">${a.key}</span></td>
+      <td style="padding:7px 10px;color:#666">${a.chain || '—'}</td>
+      <td style="padding:7px 10px;text-align:center;color:${tierColor(a.tier)};font-weight:600">${tierLabel(a.tier)}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:600">${apy != null ? apy.toFixed(2) + '%' : '<span style=\"color:#bbb\">—</span>'}</td>
+      <td style="padding:7px 10px;text-align:center"><span style="font-size:11px;background:${sbg};color:${scolor};padding:2px 8px;border-radius:10px">${status}</span></td>
+      <td style="padding:7px 10px;font-size:12px;color:#888">${upd}</td>
     </tr>`;
   }).join('');
 }
