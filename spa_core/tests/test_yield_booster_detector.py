@@ -7,9 +7,9 @@ Run: python3 -m unittest spa_core.tests.test_yield_booster_detector -v
 
 import json
 import os
-import tempfile
 import time
 import unittest
+import tempfile
 
 from spa_core.analytics.yield_booster_detector import (
     _append_log,
