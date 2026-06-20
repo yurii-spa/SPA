@@ -35,9 +35,9 @@ import json
 import math
 import os
 import statistics
-import tempfile
 from datetime import datetime, timezone
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -203,21 +203,7 @@ def _atomic_append_log(log_path: str, entry: dict, cap: int = _LOG_CAP) -> None:
     if len(data) > cap:
         data = data[-cap:]
 
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(abs_path), suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(abs_path))
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
