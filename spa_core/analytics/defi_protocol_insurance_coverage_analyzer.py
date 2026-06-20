@@ -51,9 +51,9 @@ Else (has insurance):
 
 import json
 import os
-import tempfile
 import time
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -308,20 +308,7 @@ class DeFiProtocolInsuranceCoverageAnalyzer:
         if len(log) > self.log_cap:
             log = log[-self.log_cap :]
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=log_dir or ".", prefix=".ins_cov_log_tmp_"
-        )
-        try:
-            with os.fdopen(tmp_fd, "w") as fh:
-                json.dump(log, fh, indent=2)
-            os.replace(tmp_path, self.log_file)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(log, str(self))
     # ------------------------------------------------------------------
     # Convenience: load log
     # ------------------------------------------------------------------
