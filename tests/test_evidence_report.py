@@ -6,7 +6,6 @@ import importlib
 import json
 import os
 import sys
-import tempfile
 import types
 
 import pytest
