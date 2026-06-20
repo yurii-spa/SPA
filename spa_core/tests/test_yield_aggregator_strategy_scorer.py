@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_yield_aggregator_strategy_scorer -v
 
 import json
 import os
-import tempfile
 import time
 import unittest
 
