@@ -7,8 +7,8 @@ Tests for MP-774: OraclePriceDeviationDetector
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure project root is on sys.path so spa_core.analytics is importable
 _HERE = os.path.dirname(os.path.abspath(__file__))
