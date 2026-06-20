@@ -30,10 +30,11 @@ import json
 import logging
 import os
 import re
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_write_via_tmp
 
 log = logging.getLogger("spa.pdf_report")
 
@@ -666,20 +667,9 @@ def generate_pdf_report(
     out_name = f"investor_report_{date_str}.pdf"
     out_path = reports_dir / out_name
 
-    # Atomic write: build into a temp file, then rename
-    fd, tmp_str = tempfile.mkstemp(
-        dir=str(reports_dir), prefix=f".{out_name}.", suffix=".tmp"
-    )
-    os.close(fd)
-    try:
-        _build_pdf(ctx, Path(tmp_str))
-        os.replace(tmp_str, str(out_path))
-    except Exception:
-        try:
-            if os.path.exists(tmp_str):
-                os.remove(tmp_str)
-        finally:
-            raise
+    # Atomic write: build into a temp file, then rename (MP-1471)
+    with atomic_write_via_tmp(str(out_path)) as tmp_path:
+        _build_pdf(ctx, tmp_path)
 
     log.info("Investor PDF report generated: %s", out_path)
     return str(out_path.resolve())
