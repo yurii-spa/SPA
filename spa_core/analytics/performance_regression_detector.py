@@ -40,11 +40,12 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -449,22 +450,7 @@ class PerformanceRegressionDetector:
 
         self._data_dir.mkdir(parents=True, exist_ok=True)
         target = self._data_dir / _ALERTS_FILE
-        tmp_path: Optional[Path] = None
-        try:
-            fd, tmp_str = tempfile.mkstemp(
-                dir=self._data_dir, prefix=".regression_alerts_tmp_", suffix=".json"
-            )
-            tmp_path = Path(tmp_str)
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(combined, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, target)
-            tmp_path = None  # consumed
-        finally:
-            if tmp_path and tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
+        atomic_save(combined, str(target))
 
     # ------------------------------------------------------------------
     # Report generation
