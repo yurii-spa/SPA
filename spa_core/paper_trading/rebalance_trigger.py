@@ -43,6 +43,8 @@ _DEFAULT_DRIFT_TRIGGER_PCT: float = 5.0         # RT-01 threshold (pp)
 _DEFAULT_CALENDAR_TRIGGER_DAYS: int = 7         # RT-04 day window
 _DEFAULT_CALENDAR_MIN_DRIFT_PCT: float = 2.0    # RT-04 minimum drift (pp)
 _DEFAULT_APY_OPPORTUNITY_BPS: float = 50.0      # RT-02 threshold (bps)
+_DEFAULT_APY_SPREAD_TRIGGER_PCT: float = 1.5    # RT-05 threshold (% APY)
+                                                # (MP-1577 / Improvement 2)
 
 
 class RebalanceTrigger:
@@ -70,11 +72,13 @@ class RebalanceTrigger:
         calendar_trigger_days: int = _DEFAULT_CALENDAR_TRIGGER_DAYS,
         calendar_min_drift_pct: float = _DEFAULT_CALENDAR_MIN_DRIFT_PCT,
         apy_opportunity_bps: float = _DEFAULT_APY_OPPORTUNITY_BPS,
+        apy_spread_trigger_pct: float = _DEFAULT_APY_SPREAD_TRIGGER_PCT,
     ) -> None:
         self.drift_trigger_pct: float = float(drift_trigger_pct)
         self.calendar_trigger_days: int = int(calendar_trigger_days)
         self.calendar_min_drift_pct: float = float(calendar_min_drift_pct)
         self.apy_opportunity_bps: float = float(apy_opportunity_bps)
+        self.apy_spread_trigger_pct: float = float(apy_spread_trigger_pct)
 
     # ------------------------------------------------------------------
     # RT-01: Drift Trigger
@@ -281,6 +285,76 @@ class RebalanceTrigger:
         }
 
     # ------------------------------------------------------------------
+    # RT-05: APY Spread (MP-1577 / Improvement 2)
+    # ------------------------------------------------------------------
+
+    def check_rt05_apy_spread(
+        self,
+        current_apy_pct: Optional[float],
+        available_apys,
+    ) -> dict:
+        """RT-05: best-available APY beats the current portfolio APY by >1.5%.
+
+        Unlike RT-02 (which needs a *regime change* plus a 50 bps gain), RT-05
+        fires purely on the opportunity spread: if a whitelisted pool offers a
+        materially higher yield than we are currently earning, a rebalance is
+        worth attempting regardless of dollar drift.
+
+        Parameters
+        ----------
+        current_apy_pct :
+            Current blended portfolio APY in percent (e.g. ``4.8`` for 4.8%).
+            ``None`` is treated as 0.0.
+        available_apys :
+            Either a list of APYs (percent) or a ``{protocol: apy_pct}`` map of
+            the best available whitelisted yields.
+
+        Returns
+        -------
+        dict
+            ``{triggered, current_apy_pct, best_apy_pct, best_protocol,
+               spread_pct, threshold_pct}``
+        """
+        try:
+            cur = float(current_apy_pct) if current_apy_pct is not None else 0.0
+        except (TypeError, ValueError):
+            cur = 0.0
+
+        best = cur
+        best_protocol: Optional[str] = None
+        if isinstance(available_apys, dict):
+            for proto, apy in available_apys.items():
+                try:
+                    val = float(apy)
+                except (TypeError, ValueError):
+                    continue
+                if val > best:
+                    best = val
+                    best_protocol = str(proto)
+        elif isinstance(available_apys, (list, tuple)):
+            for apy in available_apys:
+                try:
+                    val = float(apy)
+                except (TypeError, ValueError):
+                    continue
+                if val > best:
+                    best = val
+
+        spread = best - cur
+        if spread < 0:
+            spread = 0.0
+        triggered = spread > self.apy_spread_trigger_pct
+
+        return {
+            "triggered": triggered,
+            "current_apy_pct": round(cur, 6),
+            "best_apy_pct": round(best, 6),
+            "best_protocol": best_protocol,
+            "spread_pct": round(spread, 6),
+            "threshold_pct": self.apy_spread_trigger_pct,
+        }
+
+    # ------------------------------------------------------------------
     # check_all — aggregate
     # ------------------------------------------------------------------
 
@@ -294,6 +368,8 @@ class RebalanceTrigger:
         apy_gain_bps: float = 0.0,
         daily_limits_result: Optional[dict] = None,
         last_rebalance_date: Optional[str] = None,
+        current_apy_pct: Optional[float] = None,
+        available_apys=None,
     ) -> dict:
         """Run all 4 trigger checks and aggregate the result.
 
@@ -336,6 +412,7 @@ class RebalanceTrigger:
         rt02 = self.check_rt02_apy_opportunity(current_regime, new_regime, apy_gain_bps)
         rt03 = self.check_rt03_risk_gate(daily_limits_result)
         rt04 = self.check_rt04_calendar(last_rebalance_date, current_weights, target_weights)
+        rt05 = self.check_rt05_apy_spread(current_apy_pct, available_apys)
 
         fired: List[str] = []
         if rt01["triggered"]:
@@ -346,6 +423,8 @@ class RebalanceTrigger:
             fired.append("RT-03")
         if rt04["triggered"]:
             fired.append("RT-04")
+        if rt05["triggered"]:
+            fired.append("RT-05")
 
         return {
             "should_rebalance": bool(fired),
@@ -355,6 +434,7 @@ class RebalanceTrigger:
                 "rt02": rt02,
                 "rt03": rt03,
                 "rt04": rt04,
+                "rt05": rt05,
             },
             "checked_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -409,6 +489,8 @@ class RebalanceTrigger:
             self.calendar_min_drift_pct = float(cfg["calendar_min_drift_pct"])
         if "apy_opportunity_bps" in cfg:
             self.apy_opportunity_bps = float(cfg["apy_opportunity_bps"])
+        if "apy_spread_trigger_pct" in cfg:
+            self.apy_spread_trigger_pct = float(cfg["apy_spread_trigger_pct"])
 
         logger.info(
             "rebalance_trigger: config loaded from %r "
@@ -419,6 +501,136 @@ class RebalanceTrigger:
             self.calendar_min_drift_pct,
             self.apy_opportunity_bps,
         )
+
+
+# ---------------------------------------------------------------------------
+# Smart helpers (MP-1577 / Improvement 2) — USD→weight + state-driven eval
+# ---------------------------------------------------------------------------
+
+def usd_to_weights(positions: Dict[str, float]) -> Dict[str, float]:
+    """Normalise a ``{protocol: usd}`` map into ``{protocol: fraction}`` in [0,1].
+
+    Returns an empty dict for an empty / non-positive map. Non-numeric values
+    are skipped. Used so callers can feed dollar positions straight into the
+    fraction-based RT-01/RT-04 checks.
+    """
+    if not isinstance(positions, dict):
+        return {}
+    vals: Dict[str, float] = {}
+    for k, v in positions.items():
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            continue
+        if fv > 0:
+            vals[k] = fv
+    total = sum(vals.values())
+    if total <= 0:
+        return {}
+    return {k: v / total for k, v in vals.items()}
+
+
+def smart_rebalance_check(
+    *,
+    current_positions: Dict[str, float],
+    target_positions: Dict[str, float],
+    current_apy_pct: Optional[float] = None,
+    available_apys=None,
+    last_rebalance_date: Optional[str] = None,
+    trigger: Optional["RebalanceTrigger"] = None,
+) -> dict:
+    """High-level advisory check combining drift (RT-01/04) and APY spread (RT-05).
+
+    Accepts dollar positions directly (converted to weights internally) so the
+    cycle can call it with ``current_positions`` / ``target_positions`` from
+    ``paper_trading_status`` and the allocator target. Never raises.
+    """
+    trig = trigger or RebalanceTrigger()
+    cur_w = usd_to_weights(current_positions or {})
+    tgt_w = usd_to_weights(target_positions or {})
+    return trig.check_all(
+        current_weights=cur_w,
+        target_weights=tgt_w,
+        last_rebalance_date=last_rebalance_date,
+        current_apy_pct=current_apy_pct,
+        available_apys=available_apys,
+    )
+
+
+def _extract_available_apys(snapshot) -> Dict[str, float]:
+    """Best-effort ``{protocol: apy_pct}`` from a read-only adapter snapshot."""
+    out: Dict[str, float] = {}
+
+    def _apy(d: dict):
+        return d.get("apy", d.get("apy_pct", d.get("net_apy")))
+
+    if isinstance(snapshot, dict):
+        protos = snapshot.get("protocols")
+        if isinstance(protos, list):
+            for p in protos:
+                if isinstance(p, dict):
+                    name = p.get("name") or p.get("protocol") or p.get("id")
+                    if name is not None:
+                        try:
+                            out[str(name)] = float(_apy(p) or 0.0)
+                        except (TypeError, ValueError):
+                            pass
+        else:
+            for name, p in snapshot.items():
+                try:
+                    out[str(name)] = float(_apy(p) if isinstance(p, dict) else p)
+                except (TypeError, ValueError):
+                    pass
+    elif isinstance(snapshot, list):
+        for p in snapshot:
+            if isinstance(p, dict):
+                name = p.get("name") or p.get("protocol") or p.get("id")
+                if name is not None:
+                    try:
+                        out[str(name)] = float(_apy(p) or 0.0)
+                    except (TypeError, ValueError):
+                        pass
+    return out
+
+
+def evaluate_from_state(data_dir: str = "data") -> dict:
+    """Read live snapshots and run the smart check. Fail-safe (exit-0 friendly)."""
+    base = Path(data_dir)
+    status: dict = {}
+    adapters = {}
+    target: dict = {}
+    try:
+        status = json.loads((base / "paper_trading_status.json").read_text("utf-8"))
+    except Exception:  # noqa: BLE001
+        status = {}
+    try:
+        adapters = json.loads((base / "adapter_snapshot.json").read_text("utf-8"))
+    except Exception:  # noqa: BLE001
+        adapters = {}
+    try:
+        target = json.loads((base / "target_allocation.json").read_text("utf-8"))
+    except Exception:  # noqa: BLE001
+        target = {}
+
+    current_positions = status.get("current_positions", {}) if isinstance(status, dict) else {}
+    current_apy = status.get("apy_today_pct") if isinstance(status, dict) else None
+    target_positions = {}
+    if isinstance(target, dict):
+        target_positions = (
+            target.get("target_positions")
+            or target.get("positions")
+            or target.get("allocation")
+            or {}
+        )
+    if not target_positions:
+        target_positions = current_positions
+
+    return smart_rebalance_check(
+        current_positions=current_positions,
+        target_positions=target_positions,
+        current_apy_pct=current_apy,
+        available_apys=_extract_available_apys(adapters),
+    )
 
 
 # ---------------------------------------------------------------------------
