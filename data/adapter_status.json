@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-06-20T07:53:03.687164+00:00",
+  "schema_version": 1,
+  "execution_mode": "paper",
+  "live_apy_enabled": false,
+  "adapters": [
+    {
+      "protocol_key": "aave-v3",
+      "name": "Aave V3",
+      "tier": "T1",
+      "allocation_cap": 0.4,
+      "write_state": "BLOCKED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    },
+    {
+      "protocol_key": "compound-v3",
+      "name": "Compound V3",
+      "tier": "T1",
+      "allocation_cap": 0.4,
+      "write_state": "BLOCKED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    },
+    {
+      "protocol_key": "yearn-v3",
+      "name": "Yearn V3",
+      "tier": "T1",
+      "allocation_cap": 0.2,
+      "write_state": "BLOCKED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    },
+    {
+      "protocol_key": "euler-v2",
+      "name": "Euler V2",
+      "tier": "T1",
+      "allocation_cap": 0.2,
+      "write_state": "BLOCKED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    },
+    {
+      "protocol_key": "maple",
+      "name": "Maple",
+      "tier": "T1",
+      "allocation_cap": 0.2,
+      "write_state": "BLOCKED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    },
+    {
+      "protocol_key": "pendle-pt",
+      "name": "Pendle Pt",
+      "tier": "T2",
+      "allocation_cap": 0.2,
+      "write_state": "NOT_IMPLEMENTED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    },
+    {
+      "protocol_key": "sky-susds",
+      "name": "Sky Susds",
+      "tier": "T2",
+      "allocation_cap": 0.0,
+      "write_state": "BLOCKED",
+      "chains": [
+        "ethereum"
+      ],
+      "assets": [
+        "USDC"
+      ],
+      "mock_apy": 0.05,
+      "apy_source": "defillama",
+      "status": "ok",
+      "apy": 0.05,
+      "tvl_usd": 100000000,
+      "checked_at": "2026-06-20T07:53:03.687164+00:00"
+    }
+  ]
+}
