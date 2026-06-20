@@ -11,7 +11,7 @@ import json
 import os
 import time
 import datetime
-import tempfile
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -228,21 +228,7 @@ def _save_log(entries: list):
     # ring-buffer cap
     if len(entries) > LOG_CAP:
         entries = entries[-LOG_CAP:]
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(LOG_PATH), suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(entries, f, indent=2)
-        os.replace(tmp_path, LOG_PATH)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(entries, str(LOG_PATH))
 def log_result(result: dict):
     """Append *result* to the ring-buffer log at data/incentive_decay_log.json."""
     entries = _load_log()
