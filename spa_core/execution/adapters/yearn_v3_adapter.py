@@ -55,6 +55,8 @@ log = logging.getLogger("spa.yearn_v3_adapter")
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
+from spa_core.utils.errors import SourceError, ValidationError
+
 @dataclass
 class TxRequest:
     to: str
@@ -188,7 +190,7 @@ def _eth_call(rpc_url: str, to: str, data: str, timeout: int = 8) -> str:
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         result = json.loads(resp.read())
     if "error" in result:
-        raise ValueError(f"eth_call error: {result['error']}")
+        raise SourceError(f"eth_call RPC error: {result['error']}")
     return result.get("result", "0x")
 
 
@@ -231,10 +233,7 @@ class YearnV3Adapter:
 
     def __init__(self, chain: str = "ethereum", dry_run: bool = True) -> None:
         if chain not in self.SUPPORTED_CHAINS:
-            raise ValueError(
-                f"YearnV3Adapter: unsupported chain '{chain}'. "
-                f"Supported: {self.SUPPORTED_CHAINS}"
-            )
+            raise ValidationError("chain", chain, f"must be one of {self.SUPPORTED_CHAINS}")
         self.chain = chain
         self.dry_run = dry_run
         self._endpoints = _RPC_ENDPOINTS[chain]
@@ -245,9 +244,7 @@ class YearnV3Adapter:
     def _vault_address(self, asset: str) -> str:
         asset = asset.upper()
         if asset not in _VAULT_ADDRESSES.get(self.chain, {}):
-            raise ValueError(
-                f"YearnV3Adapter: unsupported asset '{asset}' on '{self.chain}'"
-            )
+            raise ValidationError("asset", asset, f"unsupported on {self.chain!r}")
         return _VAULT_ADDRESSES[self.chain][asset]
 
     def _token_address(self, asset: str) -> str:
@@ -308,9 +305,9 @@ class YearnV3Adapter:
         decimals = 6  # USDC / USDT both 6 dp
 
         if amount <= 0:
-            raise ValueError(f"supply: amount must be positive, got {amount}")
+            raise ValidationError("amount", amount, "supply: must be positive")
         if amount > 10_000_000:
-            raise ValueError(f"supply: amount {amount} exceeds sanity cap 10M")
+            raise ValidationError("amount", amount, "supply: exceeds sanity cap 10M")
 
         log.info("YearnV3Adapter.supply: asset=%s amount=%s chain=%s dry_run=%s",
                  asset, amount, self.chain, self.dry_run)
@@ -395,7 +392,7 @@ class YearnV3Adapter:
         decimals = 6
 
         if amount <= 0:
-            raise ValueError(f"withdraw: amount must be positive, got {amount}")
+            raise ValidationError("amount", amount, "withdraw: must be positive")
 
         log.info("YearnV3Adapter.withdraw: asset=%s amount=%s chain=%s dry_run=%s",
                  asset, amount, self.chain, self.dry_run)
