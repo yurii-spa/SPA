@@ -1,0 +1,20 @@
+=== Перезапуск SPA Telegram Bot ===
+Thu Jun 18 14:24:41 CEST 2026
+
+▶ Перезапуск bot_commands...
+✅ bot_commands перезапущен
+
+▶ Перезапуск cycle_gap_monitor...
+✅ cycle_gap_monitor готов
+
+▶ Загрузка cycle_health...
+✅ cycle_health загружен
+
+=== Готово ===
+Бот перезапущен с новым кодом:
+  • Кнопка 'Подробнее' теперь показывает детали события
+  • Daily Report теперь показывает реальные данные
+  • Telegram алерты: не чаще 1 раза в сутки
+
+Лог: logs/restart_bot_20260618_142441.log
+Нажми Enter для закрытия...
