@@ -41,9 +41,9 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -115,19 +115,7 @@ def _atomic_log(log_path: str, entry: dict) -> None:
     data.append(entry)
     if len(data) > _LOG_CAP:
         data = data[-_LOG_CAP:]
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(abs_path))
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, default=str)
-        os.replace(tmp_path, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(abs_path))
 # ---------------------------------------------------------------------------
 # Metric computation functions (all pure, testable independently)
 # ---------------------------------------------------------------------------
