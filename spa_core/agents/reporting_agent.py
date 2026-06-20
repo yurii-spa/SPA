@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.atomic import atomic_save
+
 log = logging.getLogger("spa.agents.reporting_agent")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -59,26 +61,6 @@ def _read_json(path: Path, default):
         log.warning("_read_json %s unreadable (%s) — using default", p.name, exc)
         return default
 
-
-def _atomic_write_json(path: Path, obj) -> None:
-    """Atomic write: tmpfile in same dir + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, str(path))
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 def _safe_float(val, default: float = 0.0) -> Optional[float]:
@@ -413,7 +395,7 @@ def send_daily_report_telegram(
 
     # Write reporting_status.json atomically
     try:
-        _atomic_write_json(ddir / "reporting_status.json", result)
+        atomic_save(result, str(ddir / "reporting_status.json"))
     except Exception as exc:
         log.warning("reporting_status.json write failed (%s)", exc)
 
