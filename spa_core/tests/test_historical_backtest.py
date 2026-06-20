@@ -5,8 +5,8 @@
 import json
 import math
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.backtest.historical_backtest import (
     HistoricalScenario,
