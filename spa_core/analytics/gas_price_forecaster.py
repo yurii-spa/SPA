@@ -12,11 +12,12 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import time
 from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import List, Optional, Tuple
+
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -332,19 +333,7 @@ class GasPriceForecaster:
     def _write_log(path: str, entries: list) -> None:
         dir_ = os.path.dirname(path) or "."
         os.makedirs(dir_, exist_ok=True)
-        tmp = None
-        try:
-            fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-            with os.fdopen(fd, "w") as f:
-                json.dump(entries, f, indent=2)
-            os.replace(tmp, path)
-        except Exception:
-            if tmp and os.path.exists(tmp):
-                try:
-                    os.unlink(tmp)
-                except OSError:
-                    pass
-            raise
+        atomic_save(entries, str(path))
 
     @staticmethod
     def _ensure_dir(path: str) -> None:
