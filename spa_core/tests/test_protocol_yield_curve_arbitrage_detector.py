@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_yield_curve_arbitrage_dete
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.protocol_yield_curve_arbitrage_detector import (
     ProtocolYieldCurveArbitrageDetector,
