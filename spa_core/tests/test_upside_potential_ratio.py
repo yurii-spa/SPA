@@ -18,8 +18,8 @@ import os
 import random
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.paper_trading import upside_potential_ratio as upr_mod
