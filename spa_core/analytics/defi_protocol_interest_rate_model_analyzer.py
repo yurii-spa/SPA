@@ -68,10 +68,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -357,19 +357,7 @@ def _load_json_list(path: Path) -> List[Any]:
 def _atomic_write(path: Path, data: Any) -> None:
     """Write *data* as JSON to *path* atomically (tmp + os.replace)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def write_log(result: Dict[str, Any], data_dir: Path = _DEFAULT_DATA_DIR) -> Path:
     """Append *result* to the ring-buffer log; return log file path."""
     log_path = data_dir / LOG_FILENAME
