@@ -13,8 +13,8 @@ Atomic writes: tmp + os.replace.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -360,31 +360,13 @@ def _append_log(entry: dict) -> None:
     existing.append(entry)
     existing = existing[-LOG_MAX_ENTRIES:]
 
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=log_dir, suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w") as fh:
-            json.dump(existing, fh, indent=2)
-        os.replace(tmp_path, LOG_PATH)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
-
-
+    atomic_save(existing, str(LOG_PATH))
 def init_log() -> None:
     """Initialize the log file as an empty list if it doesn't exist."""
     log_dir = os.path.dirname(LOG_PATH)
     os.makedirs(log_dir, exist_ok=True)
     if not os.path.exists(LOG_PATH):
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=log_dir, suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w") as fh:
-                json.dump([], fh)
-            os.replace(tmp_path, LOG_PATH)
-        except Exception:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
+        atomic_save([], str(LOG_PATH))
 
 
 # ---------------------------------------------------------------------------
