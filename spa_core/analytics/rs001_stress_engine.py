@@ -42,6 +42,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
+from spa_core.base import BaseAnalytics
+
 # ── Scenario registry ───────────────────────────────────────────────────────────
 
 SCENARIOS: List[str] = [
@@ -107,7 +109,7 @@ class StressResult:
 
 # ── Engine ──────────────────────────────────────────────────────────────────────
 
-class RS001StressEngine:
+class RS001StressEngine(BaseAnalytics):
     """
     Stress test engine for RS-001 Anti-Crisis Research Strategy.
 
@@ -120,6 +122,8 @@ class RS001StressEngine:
         all_results = engine.run_all()
         print(engine.summary_table())
     """
+
+    OUTPUT_PATH = "data/rs001_stress_results.json"
 
     # RS-001 slot weights (hardcoded for RESEARCH_ONLY phase)
     SLOT_WEIGHTS: Dict[str, float] = {
@@ -366,6 +370,21 @@ class RS001StressEngine:
         "multi_contagion":  "_scenario_multi_contagion",
         "stablecoin_depeg": "_scenario_stablecoin_depeg",
     }
+
+    # ── BaseAnalytics interface ─────────────────────────────────────────────────
+
+    def to_dict(self) -> dict:
+        """Returns all scenario results as JSON-serializable dict."""
+        results = self.run_all()
+        return {
+            "generated_at":        datetime.now(timezone.utc).isoformat(),
+            "strategy":            "RS-001 Anti-Crisis",
+            "module":              "spa_core/analytics/rs001_stress_engine.py",
+            "scenario_count":      len(results),
+            "all_survivable":      self.all_survivable(),
+            "worst_case_scenario": self.worst_case().scenario,
+            "scenarios":           [r.to_dict() for r in results],
+        }
 
     # ── Public API ──────────────────────────────────────────────────────────────
 
