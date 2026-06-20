@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +19,7 @@ from pathlib import Path
 from spa_core.allocator import allocation_models as models
 from spa_core.strategies.strategy_selector import StrategySelector
 from spa_core.utils.errors import AllocationError
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.allocator")
 
@@ -692,14 +692,7 @@ class StrategyAllocator:
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
         payload = result.to_dict()
-        fd, tmp = tempfile.mkstemp(dir=str(out.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp, out)
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        atomic_save(payload, str(out))
         return out
 
 
