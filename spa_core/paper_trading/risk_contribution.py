@@ -177,6 +177,9 @@ def _read_json(path: Path) -> Any:
         return None
 
 
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _num(value: Any) -> Optional[float]:
     """Finite float or None (bool is not a number; NaN/inf are not data)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -763,7 +766,7 @@ def write_status(
     history.append(_history_entry(doc))
     out = dict(doc)
     out["history"] = history[-HISTORY_MAX:]
-    atomic_save(out, str(path))
+    _atomic_write_json(path, out)
     log.info("risk contribution status written: %s", path)
     return {"path": str(path), "changed": True}
 
