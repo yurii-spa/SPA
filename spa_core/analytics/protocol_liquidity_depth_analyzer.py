@@ -12,12 +12,9 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Any
-
-from spa_core.base import BaseAnalytics
-from spa_core.utils.errors import SPAError
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -40,7 +37,7 @@ BAND_PCT = 0.01  # 1% of mid price
 # ---------------------------------------------------------------------------
 
 
-class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
+class ProtocolLiquidityDepthAnalyzer:
     """Analyzes available liquidity depth for position entry/exit.
 
     Parameters
@@ -49,16 +46,9 @@ class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
         Directory where ``liquidity_depth_log.json`` is written.
     """
 
-    OUTPUT_PATH = "data/liquidity_depth_log.json"
-
     def __init__(self, data_dir: str = "") -> None:
-        super().__init__()
         self._data_dir = data_dir
         self._last_result: dict[str, Any] | None = None
-
-    def to_dict(self) -> dict:
-        """Returns last liquidity depth analysis as JSON-serializable dict."""
-        return dict(self._last_result) if self._last_result else {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -154,7 +144,7 @@ class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
         Returns the path written.
         """
         if self._last_result is None:
-            raise SPAError("No result to save – call analyze() first.", code="NOT_INITIALIZED")
+            raise RuntimeError("No result to save – call analyze() first.")
 
         base = data_dir or self._data_dir or ""
         if base:
@@ -265,19 +255,7 @@ def _atomic_append(path: str, entry: dict[str, Any], cap: int = 100) -> None:
     existing = existing[-cap:]
 
     dir_ = os.path.dirname(os.path.abspath(path))
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(existing, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(existing, str(path))
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
