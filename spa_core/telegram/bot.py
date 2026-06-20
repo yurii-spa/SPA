@@ -46,13 +46,13 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.telegram.bot")
 
@@ -122,27 +122,8 @@ def _read_json(path: Path, default: Any) -> Any:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Write JSON atomically (tmp + os.replace)."""
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix="." + p.name + ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, str(p))
-    except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        finally:
-            raise
-
-
-# ─── Formatting helpers ─────────────────────────────────────────────────────
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _fmt_usd(value: float) -> str:
     return "${:,.2f}".format(float(value or 0.0))
 
