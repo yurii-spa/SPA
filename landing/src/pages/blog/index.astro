@@ -1,0 +1,104 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+
+const posts = [
+  {
+    slug: '2026-06-20-paper-trading-started',
+    date: '2026-06-20',
+    title: 'Paper Trading Phase Started',
+    summary: 'SPA officially entered paper trading with $100,000 USDC virtual capital across 20 DeFi adapters on Ethereum and Base.',
+    tag: 'Milestone',
+    tagColor: 'text-accent-400',
+  },
+  {
+    slug: '2026-06-19-architecture-audit',
+    date: '2026-06-19',
+    title: 'Internal Architecture Audit Completed',
+    summary: 'Comprehensive audit of all system components: adapters, RiskPolicy gates, GoLiveChecker, launchd daemons, and execution isolation.',
+    tag: 'Engineering',
+    tagColor: 'text-teal-400',
+  },
+  {
+    slug: '2026-06-18-domain-launched',
+    date: '2026-06-18',
+    title: 'earn-defi.com Launched',
+    summary: 'The public landing site for SPA goes live on Cloudflare Pages. Institutional-grade presentation with live GoLive readiness tracking.',
+    tag: 'Launch',
+    tagColor: 'text-green-400',
+  },
+];
+---
+
+<Layout
+  title="Blog — SPA Updates | earn-defi.com"
+  description="Updates, milestones, and engineering changelog for SPA — the systematic DeFi yield optimizer."
+  canonical="https://earn-defi.com/blog"
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/50">Blog</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-white/50">
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
+      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
+      <a
+        href="/dashboard"
+        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+      >
+        Dashboard ↗
+      </a>
+    </div>
+  </nav>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <section class="pt-16 pb-10">
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3">Public Updates</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+        Blog & Changelog
+      </h1>
+      <p class="text-white/50 text-lg leading-relaxed">
+        Milestones, engineering updates, and public announcements from SPA.
+      </p>
+    </section>
+
+    <!-- Post list -->
+    <section class="pb-20 space-y-4">
+      {posts.map((post) => (
+        <a
+          href={`/blog/${post.slug}`}
+          class="block rounded-xl bg-white/[0.03] border border-white/10 p-6 hover:border-white/25 hover:bg-white/[0.05] transition-all group"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>
+              {post.tag}
+            </span>
+            <span class="text-xs text-white/20 font-mono">{post.date}</span>
+          </div>
+          <h2 class="text-base sm:text-lg font-semibold text-white mb-2 group-hover:text-accent-300 transition-colors">
+            {post.title}
+          </h2>
+          <p class="text-sm text-white/50 leading-relaxed">{post.summary}</p>
+          <p class="mt-4 text-xs text-accent-400 font-mono group-hover:translate-x-1 transition-transform inline-block">
+            Read more →
+          </p>
+        </a>
+      ))}
+    </section>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
