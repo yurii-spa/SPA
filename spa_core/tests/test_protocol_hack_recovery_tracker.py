@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_hack_recovery_tracker -v
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 
 from spa_core.analytics.protocol_hack_recovery_tracker import ProtocolHackRecoveryTracker
 
