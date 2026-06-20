@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass, asdict
 from typing import List
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -290,15 +290,6 @@ def save_results(result: RewardTrackingResult, filepath: str = LOG_FILE) -> Rewa
         history = history[-RING_BUFFER_CAP:]
 
     dir_name = os.path.dirname(os.path.abspath(filepath))
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(history, fh, indent=2)
-        os.replace(tmp_path, filepath)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
-
+    atomic_save(history, str(filepath))
     result.saved_to = filepath
     return result
