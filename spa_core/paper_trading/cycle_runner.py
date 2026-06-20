@@ -941,6 +941,23 @@ def run_cycle(
     except Exception as _audit_exc:
         log.warning("audit begin_cycle failed (%s) — cycle continues", _audit_exc)
 
+    # ── Step 0-pre (MP-1195): refresh adapter_status.json (v2 format) ────────
+    # Regenerates adapter_status.json from adapter_registry.json + optional
+    # DeFiLlama live APY.  Fail-safe: any error here is a WARNING; cycle
+    # continues with the existing file on disk.  Skipped on dry-run.
+    if write:
+        try:
+            from spa_core.monitoring.adapter_status_generator import (
+                run_and_write as _asg_run,
+            )
+            _asg_run()
+            log.info("MP-1195 adapter_status_generator: adapter_status.json refreshed")
+        except Exception as _asg_exc:  # never crash the cycle
+            log.warning(
+                "MP-1195 adapter_status_generator skipped (%s) — cycle continues",
+                _asg_exc,
+            )
+
     # ── Step 0 (MP-006): go-live anti-demo gate — advisory, never blocks ──
     _run_golive_gate(ddir, now_dt, write)
 
@@ -988,10 +1005,16 @@ def run_cycle(
     # We merge their values from adapter_status.json (best available data)
     # as a safe fallback — only for keys genuinely missing from apy_map and
     # only when the value is a positive float.  Never overwrites live data.
+    # MP-1195: supports both v1 (top-level protocol keys) and v2 (nested
+    # "adapters" dict) formats by using .get("adapters", doc) with fallback.
     try:
         _adapter_status = _read_json(ddir / "adapter_status.json", {})
         if isinstance(_adapter_status, dict):
-            for _proto_key, _entry in _adapter_status.items():
+            # v2: adapters is a nested dict; v1: iterate top-level keys
+            _as_adapters = _adapter_status.get("adapters", _adapter_status)
+            if not isinstance(_as_adapters, dict):
+                _as_adapters = _adapter_status
+            for _proto_key, _entry in _as_adapters.items():
                 if _proto_key in apy_map:
                     continue  # live orchestrator value takes precedence
                 if not isinstance(_entry, dict):
@@ -1006,6 +1029,36 @@ def run_cycle(
                     )
     except Exception as _mp413_exc:  # never crash the cycle
         log.warning("MP-413 apy_map merge failed (%s) — cycle continues", _mp413_exc)
+
+    # ── Fix P0-B1: registry fallback APY for yield accrual ───────────────────
+    # Problem: _accrue_daily_yield skips any pool absent from apy_map → with
+    # only 1 live adapter, 23 deployed positions accrue $0 yield (8× collapse).
+    # Fix: fill apy_map gaps from adapter_registry.json fallback_apy (decimal
+    # fraction, e.g. 0.035 = 3.5%) so every position contributes its expected
+    # yield.  Live orchestrator data already in apy_map is never overwritten.
+    try:
+        _yield_reg_doc = _read_json(ddir / "adapter_registry.json", {})
+        _yield_reg_adapters = (
+            _yield_reg_doc.get("adapters", {})
+            if isinstance(_yield_reg_doc, dict)
+            else {}
+        )
+        if isinstance(_yield_reg_adapters, dict):
+            for _yrk, _yrv in _yield_reg_adapters.items():
+                if _yrk in apy_map:
+                    continue  # live / MP-413 value takes precedence
+                if not isinstance(_yrv, dict):
+                    continue
+                _yr_fb = _yrv.get("live_apy") or _yrv.get("fallback_apy")
+                if isinstance(_yr_fb, (int, float)) and _yr_fb > 0:
+                    apy_map[_yrk] = float(_yr_fb) * 100.0  # fraction → pct
+                    log.debug(
+                        "P0-B1 apy_map[%s]=%.3f%% (registry fallback, yield accrual)",
+                        _yrk,
+                        float(_yr_fb) * 100.0,
+                    )
+    except Exception as _yr_exc:
+        log.warning("P0-B1 yield registry fallback failed (%s) — cycle continues", _yr_exc)
 
     # ── MP-534: Detect market regime ─────────────────────────────────────────
     _regime_name: str = "UNKNOWN"
@@ -2426,6 +2479,22 @@ def _run_cycle_alerts(
     return sent
 
 
+def _last_trade_id_from_file(ddir: Path) -> "str | None":
+    """Return the trade_id of the last recorded trade in trades.json, or None.
+
+    Used as a fallback in _write_status so ``last_trade_id`` is never null
+    while real trades exist (Fix P0-B2).
+    """
+    try:
+        raw = _read_json(ddir / TRADES_FILENAME, [])
+        trades: list = raw if isinstance(raw, list) else (raw.get("trades", []) if isinstance(raw, dict) else [])
+        if trades and isinstance(trades[-1], dict):
+            return trades[-1].get("trade_id")
+    except Exception:
+        pass
+    return None
+
+
 def _write_status(
     ddir: Path,
     result: CycleResult,
@@ -2451,7 +2520,14 @@ def _write_status(
         "current_positions": result.positions,
         "last_allocation_model": result.model_used,
         "strategy_loop_active": result.strategy_loop_active,
-        "last_trade_id": result.trade_id,
+        # Fix P0-B2: when this cycle did not trade, fall back to the last
+        # recorded trade_id from trades.json so the field never shows null
+        # while real trades exist.
+        "last_trade_id": (
+            result.trade_id
+            if result.trade_id is not None
+            else _last_trade_id_from_file(ddir)
+        ),
         "notes": result.notes,
         # MP-005: deterministic RiskPolicy gate verdict for this cycle.
         "risk_policy_checked": result.policy_checked,
