@@ -27,6 +27,8 @@ import json
 import os
 from typing import Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 VALID_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "FOUND", "INTEGRATED", "CLEAN"]
 
 # Status ordering (lower = earlier in pipeline)
@@ -187,16 +189,27 @@ class SourceEntry:
         )
 
 
-class SourceAcquisitionTracker:
+class SourceAcquisitionTracker(BaseAnalytics):
     """
     Tracks the progress of acquiring real on-chain/API data for SOURCE_NEEDED protocols.
     Persists state to a JSON file with atomic writes.
     """
 
+    OUTPUT_PATH = "data/source_acquisition.json"
+
     def __init__(self, tracker_path: str = "data/source_acquisition.json"):
+        super().__init__()
         self.tracker_path = tracker_path
         self._sources: Dict[str, SourceEntry] = {}
         self.load()
+
+    # ── BaseAnalytics interface ───────────────────────────────────────────────
+
+    def to_dict(self) -> dict:
+        """Returns current tracker state as JSON-serializable dict."""
+        return {
+            "sources": [e.to_dict() for e in self._sources.values()],
+        }
 
     # ── I/O ──────────────────────────────────────────────────────────────────
 
