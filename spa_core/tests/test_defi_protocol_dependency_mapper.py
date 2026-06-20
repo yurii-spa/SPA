@@ -5,9 +5,9 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_dependency_mapper -v
 
 import json
 import os
-import tempfile
 import time
 import unittest
+import tempfile
 
 from spa_core.analytics.defi_protocol_dependency_mapper import (
     _admin_risk_score,
