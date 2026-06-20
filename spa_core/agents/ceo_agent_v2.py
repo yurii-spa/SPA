@@ -50,7 +50,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from spa_core.agent_runtime import AgentRuntime
-from spa_core.agent_runtime.budget import _atomic_write_json
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.ceo_agent_v2")
 
@@ -407,7 +407,7 @@ def append_decision(
         "max_entries": DECISIONS_MAX_ENTRIES,
         "decisions": decisions,
     }
-    _atomic_write_json(payload, Path(path))
+    atomic_save(payload, str(path))
     return decisions
 
 
