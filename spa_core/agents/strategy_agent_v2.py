@@ -65,7 +65,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from spa_core.agent_runtime import AgentRuntime
-from spa_core.agent_runtime.budget import _atomic_write_json
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.strategy_agent_v2")
 
@@ -643,7 +643,7 @@ def append_recommendation(
         "advisory_only": True,
         "recommendations": recommendations,
     }
-    _atomic_write_json(payload, Path(path))
+    atomic_save(payload, str(path))
     return recommendations
 
 
