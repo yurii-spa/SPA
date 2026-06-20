@@ -22,11 +22,12 @@ import datetime
 import hashlib
 import json
 import os
-import tempfile
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
+
+from spa_core.utils.atomic import atomic_save
 
 __all__ = [
     "InvestorRecord",
@@ -122,23 +123,10 @@ class InvestorRegistry:
             self._records[rid] = InvestorRecord.from_dict(rdata)
 
     def save(self) -> None:
-        """Atomically write current records to JSON (mkstemp + os.replace)."""
+        """Atomically write current records to JSON via atomic_save."""
         p = Path(self.registry_path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-
         payload = {"records": {rid: rec.to_dict() for rid, rec in self._records.items()}}
-
-        fd, tmp_path = tempfile.mkstemp(dir=str(p.parent), prefix=".investor_reg_tmp_")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, str(p))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(payload, str(p))
 
     # ------------------------------------------------------------------
     # Registration workflow
