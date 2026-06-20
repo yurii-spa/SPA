@@ -110,7 +110,6 @@ import math
 import os
 import statistics
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -141,6 +140,7 @@ from spa_core.paper_trading.strategy_consolidator import (
 
 # ── content_fingerprint REUSED BY IMPORT (project convention, MP-501) ─────────
 from spa_core.reporting.tear_sheet import content_fingerprint
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.deflated_sharpe")
 
@@ -489,18 +489,7 @@ def write_status(
     doc["_fingerprint"] = current_fp
     doc["history"] = history
 
-    fd, tmp_path = tempfile.mkstemp(dir=data_dir, prefix=".tmp_deflated_sharpe_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(doc, fh, indent=2)
-        os.replace(tmp_path, out_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
+    atomic_save(doc, str(out_path))
     return "DATA_WRITTEN"
 
 
