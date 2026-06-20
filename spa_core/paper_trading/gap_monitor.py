@@ -138,9 +138,6 @@ def _read_status() -> dict:
     except Exception:
         return {}
 
-def _atomic_write_json(path: Path, obj) -> None:
-    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
-    atomic_save(obj, path)
 def _load_alerts_doc() -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
     try:
@@ -156,13 +153,13 @@ def _load_alerts_doc() -> dict:
 def _save_alerts_doc(alerts: list) -> None:
     """Пересборка документа в схеме export_data.py: generated_at/count/status/alerts."""
     alerts = alerts[-MAX_ALERTS:]
-    _atomic_write_json(RISK_ALERTS_FILE, {
+    atomic_save({
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "count": len(alerts),
         "status": "critical" if any(a.get("severity") == "critical" for a in alerts)
                   else ("warning" if alerts else "ok"),
         "alerts": alerts,
-    })
+    }, str(RISK_ALERTS_FILE))
 
 def _upsert_gap_alert(result: dict) -> None:
     """Дописать/обновить CRITICAL-алерт о gap за сегодняшний день.
