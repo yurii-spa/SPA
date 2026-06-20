@@ -9,8 +9,8 @@ Pure stdlib, read-only advisory, atomic writes, ring-buffer 100.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -219,19 +219,7 @@ def _read_log(path: str) -> list:
 
 def _atomic_write(path: str, data) -> None:
     dir_ = os.path.dirname(path) or "."
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _ensure_dir(path: str) -> None:
     d = os.path.dirname(path)
     if d:
