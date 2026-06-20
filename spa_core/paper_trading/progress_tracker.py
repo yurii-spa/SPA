@@ -110,9 +110,11 @@ def _read_json(path: Path, default: Any) -> Any:
         return default
 
 
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Shim — delegates to spa_core.utils.atomic.atomic_save."""
-    atomic_save(obj, path)
+def _today_str() -> str:
+    """UTC today as YYYY-MM-DD string."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 def _days_between(start: str, end: str) -> int:
     """Calendar days between two YYYY-MM-DD strings (end - start, can be negative)."""
     try:
@@ -339,7 +341,7 @@ def run_progress_tracker(
 
     out_path = Path(output_path) if output_path is not None else ddir / OUTPUT_FILENAME
     try:
-        _atomic_write_json(out_path, result)
+        atomic_save(result, str(out_path))
     except Exception as exc:  # noqa: BLE001
         # Write failure is non-fatal; caller gets the result dict anyway
         result["write_error"] = f"{type(exc).__name__}: {exc}"
