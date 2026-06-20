@@ -6,8 +6,8 @@ Logs to data/portfolio_health_log.json (ring-buffer 100, atomic writes).
 
 import json
 import os
-import tempfile
 import time
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Config
@@ -33,19 +33,7 @@ def _atomic_write(path, obj):
     """Write JSON atomically via tmp + os.replace."""
     dir_ = os.path.dirname(os.path.abspath(path))
     os.makedirs(dir_, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w") as fh:
-            json.dump(obj, fh, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(obj, str(path))
 def _load_log(path):
     try:
         with open(path) as fh:
