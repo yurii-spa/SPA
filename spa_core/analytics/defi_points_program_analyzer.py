@@ -11,7 +11,7 @@ Outputs: data/points_program_log.json (ring-buffer 100 entries, atomic write)
 import json
 import os
 import time
-import tempfile
+from spa_core.utils.atomic import atomic_save
 
 _DEFAULT_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -227,20 +227,8 @@ def _build_recommendation(c: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def _atomic_write_json(obj, path: str, dir_path: str) -> None:
-    """Write obj as JSON to path atomically via a temp file."""
-    fd, tmp_path = tempfile.mkstemp(dir=dir_path)
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(obj, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(path, str(obj))
 def _append_log(entry: dict, data_dir: str) -> None:
     """Atomically append entry to ring-buffer log (max 100 entries)."""
     os.makedirs(data_dir, exist_ok=True)
