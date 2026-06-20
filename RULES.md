@@ -199,4 +199,31 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 
 ---
 
-*Обновлён: 2026-06-14. Следующее обновление — при любом изменении правил или инфраструктуры.*
+*Обновлён: 2026-06-21. Следующее обновление — при любом изменении правил или инфраструктуры.*
+
+---
+
+## Non-Issues (by design)
+
+> Before flagging anything as a bug, check `data/AUDIT_BASELINE.json`. Items listed there are known states, not defects.
+
+### Mac-only checks (false negatives in Linux sandbox)
+- `com.spa.autopush.plist` — GoLiveChecker checks `~/Library/LaunchAgents/`. In Linux sandbox `~` ≠ `/Users/yuriikulieshov`, so check always fails. **On Mac host: 26/26 is correct.**
+- Any `launchctl` or `launchd` command — macOS only.
+
+### Missing files that are intentionally absent
+- `data/sky_monitor.json` — GSM gate is inline in `cycle_runner.py:1289`. No separate file needed.
+- `data/pnl_history.json` — superseded by `equity_curve_daily.json` and `paper_evidence_history.json`.
+
+### Stale data (auto-regenerated each cycle)
+- `data/tournament_results.json` — regenerated each cycle. composite_score=0.0 is correct for strategies with < 14 days of data.
+- `data/equity_curve_daily.json` — contains 20 synthetic warmup entries (`is_warmup: true`). Expected, not corruption.
+
+### Positions
+- `spark_susds` at ≤10% — approved. T1 adapter with inline GSM fallback (APY 4.6%). Legitimate position.
+
+### Old push scripts
+- `scripts/push_v*.sh` files with version ≤ `data/autopush_state.json:last_version` — dead/already-pushed. ~180 files are expected clutter.
+
+### cycle_runner tournament
+- Strategies S8, S9, S10, S14, S16–S21 excluded from tournament intentionally (T3/high-risk/pending). `strategy_registry.py` has all 25 but tournament subset = 15 is by design.
