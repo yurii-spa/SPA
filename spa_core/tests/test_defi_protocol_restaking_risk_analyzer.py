@@ -6,8 +6,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_restaking_risk_analyz
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
