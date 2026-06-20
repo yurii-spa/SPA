@@ -24,7 +24,7 @@ def alloc():
 
 def test_tvl_floor_constant_matches_policy(alloc):
     assert alloc.TVL_FLOOR_USD == 5_000_000
-    assert alloc.T2_TOTAL_CAP == 0.35
+    assert alloc.T2_TOTAL_CAP == 0.50  # ADR-019: поднят с 0.35 → 0.50
 
 
 def test_tvl_floor_filters_low_tvl(alloc):
