@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from pathlib import Path
 from typing import List, Optional
 
 from spa_core.family_fund.models import Investor
+from spa_core.utils.atomic import atomic_save
 
 __all__ = ["InvestorRegistry"]
 
@@ -42,21 +42,7 @@ class InvestorRegistry:
 
     def _write_raw(self, data: dict) -> None:
         """Atomically write the investors.json envelope."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self._path.parent, prefix=".investors_tmp_"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, self._path)
-        except Exception:
-            # Clean up temp file on failure
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(data, str(self._path))
 
     @staticmethod
     def _empty_envelope() -> dict:
