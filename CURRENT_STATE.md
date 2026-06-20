@@ -1,9 +1,33 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v12.03** | Done: **1221** задач
+> Последнее обновление: **2026-06-20** | Версия: **v12.04** | Done: **1221** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+## P0 Audit Fixes — 2026-06-20 (v12.04)
+
+| Task | Статус | Результат |
+|------|--------|-----------|
+| P0-T1: paper_start_date honesty fix | ✅ DONE | `PAPER_START_DATE` исправлен на `2026-06-10` в cycle_runner.py, golive/readiness_checker.py, golive/checklist.py; тест обновлён |
+| P0-T2: seed data evidence | ✅ N/A | `data/paper_evidence_history.json` — 0 entries, чистить нечего |
+| P0-T3: CURRENT_STATE.md голайв-синхронизация | ✅ DONE | Убрано "26/26 READY"; реальный статус: **25/26 NOT READY**, 1 блокер (autopush) |
+
+**Реальный статус системы (2026-06-20T19:04 UTC, из golive_status.json):**
+
+| Поле | Значение |
+|------|----------|
+| GoLive | ❌ **25/26 NOT READY** — 1 блокер: `autopush_installed` |
+| Блокер | `com.spa.autopush` plist не найден → запусти `bash mp009_fix_launchd.command` |
+| consecutive_ready_days | **0** |
+| paper_start_date | **2026-06-10** (исправлено с 2026-05-20) |
+| days_running | **11** (от 2026-06-10) |
+| equity | **$100,120.13** |
+| apy_today | **4.39%** (27 адаптеров активны после фикса v1194) |
+| go-live target | **2026-08-01** |
+| LAST_PUSH | **push_v1200** (2026-06-20) |
 
 ---
 
@@ -20,11 +44,11 @@
 |------|----------|
 | daily_cycle plist | ✅ FIXED — miniconda PATH, HOME, SPA_ENV (паритет с cyclerunner) |
 | run_daily_paper_cycle.sh | ✅ FIXED — абсолютный путь к python3 |
-| GoLive | **26/26 ✅ READY** |
-| APY | **5.40%** ($14.82/day) |
-| equity | **$100,109.42** |
-| days_running | **34** |
-| LAST_PUSH | **push_v1198** (2026-06-20) |
+| GoLive | ❌ **25/26 NOT READY** (autopush блокер) |
+| APY | **4.39%** (27 адаптеров, пост-v1194) |
+| equity | **$100,120.13** |
+| days_running | **11** (от 2026-06-10, исправлено v1200) |
+| LAST_PUSH | **push_v1200** (2026-06-20) |
 
 ---
 
@@ -60,13 +84,13 @@
 
 | Задача | Статус | Результат |
 |--------|--------|-----------|
-| autopush launchd install | ✅ DONE | `com.spa.autopush` установлен → GoLive **26/26 ✅ READY** |
-| GoLive checker update | ✅ DONE | `data/golive_status.json` обновлён: `autopush_installed=true`, blockers=[] |
-| consecutive_ready_days | ✅ START | День 1 — отсчёт к ADR-002 (7 дней подряд READY) |
+| autopush launchd install | ❌ REVERTED | `com.spa.autopush` plist не найден — фикс: `bash mp009_fix_launchd.command` |
+| GoLive checker update | ⚠️ STALE | `data/golive_status.json` фактически: `autopush_installed=false`, 1 blocker |
+| consecutive_ready_days | ❌ 0 | Отсчёт не запущен — GoLive NOT READY (25/26) |
 | `_push_day_summary.command` | ✅ CREATED | Итоговый push текущего дня |
 
 **Sprint Coordinator:** pre-gate ✅ — imports 1170/1170 OK, 0 fail  
-**GoLive:** 26/26 ✅ **READY** — `data/golive_status.json` (timestamp 2026-06-20)  
+**GoLive:** ❌ 25/26 **NOT READY** — `data/golive_status.json`: autopush_installed=false, 1 блокер  
 
 ---
 
@@ -99,8 +123,8 @@
 | done_count | **1221** (KANBAN.json — source of truth) |
 | sprint_completed | **v12.03** (daily_cycle PATH fix, miniconda, 5.4% APY) |
 | Gate Status | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
-| GoLive Score | **100/100** ✅ (26/26 все критерии) |
-| GoLive Status | **✅ READY** — 26/26 pass | consecutive_ready_days=1 | go-live target 2026-08-01 |
+| GoLive Score | **25/26** ❌ NOT READY — 1 блокер: autopush_installed |
+| GoLive Status | ❌ **NOT READY** — 25/26 pass \| consecutive_ready_days=0 \| go-live target 2026-08-01 |
 | Go-live target | **2026-08-01** |
 | Total tests | **2000+** |
 | ADRs | **41** |
@@ -236,9 +260,9 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 - Track started: **2026-06-10**
 - Evidence collecting via launchd cycle (daily 08:00)
 - Evidence auto-calculator: `spa_core/analytics/evidence_auto_calculator.py`
-- Evidence seed data: `data/paper_evidence_history.json` (3 seed + 3 real = 4.5 effective days)
-- GoLiveChecker: **26/26 pass** ✅ **READY** — target go-live **2026-08-01**
-- GoLive Readiness Score: **26/26** (все 26 критериев: ✅) | consecutive_ready_days=1
+- Evidence data: `data/paper_evidence_history.json` (0 entries — пустой, seed данных нет)
+- GoLiveChecker: **25/26** ❌ **NOT READY** — 1 блокер: autopush_installed | target go-live **2026-08-01**
+- GoLive Readiness: **25/26** — consecutive_ready_days=**0** | autopush plist не установлен
 - Cycle logs: `/tmp/spa_cycle.log`, `/tmp/spa_cycle_err.log`
 
 ---
