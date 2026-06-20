@@ -5,11 +5,11 @@
 """
 import json
 import os
-import tempfile
 import unittest
 import unittest.mock
 
 import spa_core.milestone.milestone_v2 as mv2
+import tempfile
 
 
 def _write_json(path: str, data) -> None:
