@@ -57,10 +57,10 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -343,19 +343,7 @@ def _load_json_list(path: Path) -> list:
 
 def _atomic_write(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
-        os.replace(tmp, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(payload, str(path))
 def _append_log(result: Dict[str, Any], data_dir: Path) -> None:
     log_path = data_dir / LOG_FILENAME
     entries = _load_json_list(log_path)
