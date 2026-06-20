@@ -58,10 +58,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 __version__ = "2.0.0"
 __module__ = "MP-133"
@@ -623,22 +623,7 @@ def _build_portfolio_state_from_data(data_dir: Path) -> dict[str, dict[str, Any]
 def _atomic_write(path: Path, data: dict) -> None:
     """Write *data* to *path* atomically via a temp-file + os.replace."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(path.parent), prefix=".tmp_", suffix=".json"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 # ---------------------------------------------------------------------------
 # Main runner / CLI
 # ---------------------------------------------------------------------------
