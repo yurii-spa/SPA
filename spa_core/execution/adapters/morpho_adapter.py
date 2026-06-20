@@ -58,6 +58,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from spa_core.safety.safeguard import live_trading_forbidden
+from spa_core.utils.errors import ConfigError, SourceError, ValidationError
 
 log = logging.getLogger("spa.morpho_adapter")
 
@@ -232,10 +233,7 @@ class MorphoAdapter:
         rpc_endpoints: Optional[dict[str, list[str]]] = None,
     ) -> None:
         if chain not in self.SUPPORTED_CHAINS:
-            raise ValueError(
-                f"Unsupported chain '{chain}'. "
-                f"Must be one of: {self.SUPPORTED_CHAINS}"
-            )
+            raise ValidationError("chain", chain, f"must be one of {self.SUPPORTED_CHAINS}")
         self.chain = chain
         self.dry_run = dry_run
         self.rpc_endpoints: dict[str, list[str]] = (
@@ -251,12 +249,9 @@ class MorphoAdapter:
 
     def _validate_inputs(self, asset: str, amount: float) -> None:
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValueError(
-                f"Unsupported asset '{asset}'. "
-                f"Must be one of: {self.SUPPORTED_ASSETS}"
-            )
+            raise ValidationError("asset", asset, f"must be one of {self.SUPPORTED_ASSETS}")
         if amount is None or amount <= 0:
-            raise ValueError(f"Invalid amount {amount!r}: must be a positive number")
+            raise ValidationError("amount", amount, "must be a strictly positive number")
 
     def _vault_key(self, asset: str, chain: Optional[str] = None) -> str:
         return f"{asset}_{chain or self.chain}"
@@ -265,10 +260,7 @@ class MorphoAdapter:
         key = self._vault_key(asset, chain)
         vault = self.VAULTS.get(key)
         if not vault:
-            raise ValueError(
-                f"No vault configured for asset={asset} chain={chain or self.chain}. "
-                f"Available: {list(self.VAULTS.keys())}"
-            )
+            raise ValidationError("vault_key", f"{asset}_{chain or self.chain}", f"no vault configured; available: {list(self.VAULTS.keys())}")
         return vault
 
     @staticmethod
@@ -284,7 +276,7 @@ class MorphoAdapter:
     @staticmethod
     def _pad_uint256(value: int) -> str:
         if value < 0:
-            raise ValueError(f"uint256 must be non-negative; got {value}")
+            raise ValidationError("value", value, "uint256 must be non-negative")
         return format(value, "064x")
 
     def _eth_call(self, rpc_url: str, to: str, data: str) -> str:
@@ -303,22 +295,22 @@ class MorphoAdapter:
             with urllib.request.urlopen(req, timeout=self.RPC_TIMEOUT_SECONDS) as r:
                 raw = r.read()
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"eth_call HTTP failure: {exc}") from exc
+            raise SourceError("eth_call", f"HTTP failure: {exc}") from exc
         try:
             parsed = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
-            raise RuntimeError(f"eth_call malformed JSON: {exc}") from exc
+            raise SourceError("eth_call", f"malformed JSON: {exc}") from exc
         if "error" in parsed:
-            raise RuntimeError(f"eth_call RPC error: {parsed['error']}")
+            raise SourceError("eth_call", f"RPC error: {parsed['error']}")
         result = parsed.get("result")
         if not isinstance(result, str) or not result.startswith("0x"):
-            raise RuntimeError(f"eth_call missing/invalid result: {parsed!r}")
+            raise SourceError("eth_call", f"missing/invalid result: {parsed!r}")
         return result
 
     def _call_with_fallback(self, to: str, data: str, label: str = "") -> str:
         endpoints = self.rpc_endpoints.get(self.chain, [])
         if not endpoints:
-            raise RuntimeError(f"No RPC endpoints for chain={self.chain}")
+            raise SourceError(f"morpho:{self.chain}", f"no RPC endpoints for chain={self.chain}")
         failures: list[str] = []
         for raw_url in endpoints:
             url = self._strip_fragment(raw_url)
@@ -327,9 +319,10 @@ class MorphoAdapter:
             except Exception as exc:  # noqa: BLE001
                 log.debug("eth_call failed label=%s url=%s err=%s", label, url, exc)
                 failures.append(f"{url} -> {exc}")
-        raise RuntimeError(
-            f"All {len(endpoints)} RPCs failed for {label} on {self.chain}: "
-            + " | ".join(failures)
+        raise SourceError(
+            f"morpho:{self.chain}",
+            f"all {len(endpoints)} RPCs failed for {label}: "
+            + " | ".join(failures),
         )
 
     def _eth_rpc(self, rpc_url: str, method: str, params: list) -> Any:
@@ -343,21 +336,21 @@ class MorphoAdapter:
             with urllib.request.urlopen(req, timeout=self.RPC_TIMEOUT_SECONDS) as r:
                 raw = r.read()
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"{method} HTTP failure: {exc}") from exc
+            raise SourceError(method, f"HTTP failure: {exc}") from exc
         try:
             parsed = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
-            raise RuntimeError(f"{method} malformed JSON: {exc}") from exc
+            raise SourceError(method, f"malformed JSON: {exc}") from exc
         if "error" in parsed:
-            raise RuntimeError(f"{method} RPC error: {parsed['error']}")
+            raise SourceError(method, f"RPC error: {parsed['error']}")
         if "result" not in parsed:
-            raise RuntimeError(f"{method} missing result: {parsed!r}")
+            raise SourceError(method, f"missing result: {parsed!r}")
         return parsed["result"]
 
     def _rpc_first(self, method: str, params: list) -> Any:
         endpoints = self.rpc_endpoints.get(self.chain, [])
         if not endpoints:
-            raise RuntimeError(f"No RPC endpoints for chain={self.chain}")
+            raise SourceError(f"morpho:{self.chain}", f"no RPC endpoints for chain={self.chain}")
         failures: list[str] = []
         for raw_url in endpoints:
             url = self._strip_fragment(raw_url)
@@ -366,9 +359,10 @@ class MorphoAdapter:
             except Exception as exc:  # noqa: BLE001
                 log.debug("rpc %s failed url=%s err=%s", method, url, exc)
                 failures.append(f"{url} -> {exc}")
-        raise RuntimeError(
-            f"All {len(endpoints)} RPCs failed for {method} on "
-            f"{self.chain}: " + " | ".join(failures)
+        raise SourceError(
+            f"morpho:{self.chain}",
+            f"all {len(endpoints)} RPCs failed for {method}: "
+            + " | ".join(failures),
         )
 
     def _get_chain_id(self) -> int:
@@ -391,7 +385,9 @@ class MorphoAdapter:
     def _send_raw_tx(self, signed_hex: str) -> str:
         result = self._rpc_first("eth_sendRawTransaction", [signed_hex])
         if not isinstance(result, str) or not result.startswith("0x"):
-            raise RuntimeError(f"eth_sendRawTransaction bad result: {result!r}")
+            raise ValidationError(
+                "result", result, f"eth_sendRawTransaction bad result: {result!r}"
+            )
         return result
 
     def _wait_for_receipt(self, tx_hash: str) -> dict:
@@ -405,8 +401,9 @@ class MorphoAdapter:
             if isinstance(result, dict):
                 return result
             time.sleep(self.RECEIPT_POLL_INTERVAL_SECONDS)
-        raise RuntimeError(
-            f"Receipt timeout after {self.RECEIPT_POLL_MAX_SECONDS}s for tx {tx_hash}"
+        raise SourceError(
+            "eth_getTransactionReceipt",
+            f"receipt timeout after {self.RECEIPT_POLL_MAX_SECONDS}s for tx {tx_hash}",
         )
 
     @staticmethod
@@ -433,16 +430,14 @@ class MorphoAdapter:
     @staticmethod
     def _validate_private_key(pk: str) -> str:
         if not pk:
-            raise ValueError("SPA_PRIVATE_KEY missing")
+            raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
         cleaned = pk[2:] if pk.lower().startswith("0x") else pk
         if len(cleaned) != 64:
-            raise ValueError(
-                f"SPA_PRIVATE_KEY must be 64 hex chars; got {len(cleaned)}"
-            )
+            raise ValidationError("SPA_PRIVATE_KEY", cleaned, f"must be 64 hex chars; got {len(cleaned)}")
         try:
             int(cleaned, 16)
         except ValueError as exc:
-            raise ValueError("SPA_PRIVATE_KEY is not valid hex") from exc
+            raise ValidationError("SPA_PRIVATE_KEY", "***", "not valid hex") from exc
         return "0x" + cleaned
 
     def _check_live_preconditions(self) -> Optional[dict]:
@@ -454,16 +449,13 @@ class MorphoAdapter:
         Account = _require_eth_account()
         pk = os.environ.get("SPA_PRIVATE_KEY", "")
         if not pk:
-            raise ValueError("SPA_PRIVATE_KEY missing")
+            raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
         normalised = self._validate_private_key(pk)
         acct = Account.from_key(normalised)
         derived = acct.address
         configured = os.environ.get("SPA_WALLET_ADDRESS")
         if configured and configured.lower() != derived.lower():
-            raise ValueError(
-                f"SPA_WALLET_ADDRESS ({configured}) does not match "
-                f"derived ({derived})"
-            )
+            raise ValidationError("SPA_WALLET_ADDRESS", configured, f"does not match derived address {derived}")
         return acct, derived
 
     @live_trading_forbidden
@@ -495,7 +487,9 @@ class MorphoAdapter:
         signed = Account.sign_transaction(tx, private_key=private_key)
         raw = getattr(signed, "rawTransaction", None) or getattr(signed, "raw_transaction", None)
         if raw is None:
-            raise RuntimeError("Signed tx missing rawTransaction attribute")
+            raise ValidationError(
+                "rawTransaction", None, "missing attribute — unexpected eth_account version"
+            )
         if isinstance(raw, (bytes, bytearray)):
             signed_hex = "0x" + raw.hex()
         else:
@@ -785,8 +779,7 @@ class MorphoAdapter:
               Falls back to mock on any failure.
         """
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValueError(f"Unsupported asset '{asset}'. "
-                             f"Must be one of: {self.SUPPORTED_ASSETS}")
+            raise ValidationError("asset", asset, f"must be one of {self.SUPPORTED_ASSETS}")
         if self.dry_run:
             return self._MOCK_APYS[asset]
 
@@ -817,15 +810,14 @@ class MorphoAdapter:
         Live: calls balanceOf(wallet) on the vault, then convertToAssets.
         """
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValueError(f"Unsupported asset '{asset}'. "
-                             f"Must be one of: {self.SUPPORTED_ASSETS}")
+            raise ValidationError("asset", asset, f"must be one of {self.SUPPORTED_ASSETS}")
         if self.dry_run:
             return self._MOCK_BALANCES[asset]
 
         try:
             wallet = os.environ.get("SPA_WALLET_ADDRESS")
             if not wallet:
-                raise RuntimeError("SPA_WALLET_ADDRESS not set for live mode")
+                raise ConfigError("SPA_WALLET_ADDRESS", "not set for live mode")
             vault = self._get_vault_address(asset)
 
             # 1) balanceOf(wallet) → shares
