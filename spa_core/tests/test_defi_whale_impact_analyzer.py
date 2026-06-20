@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_whale_impact_analyzer -v
 
 import json
 import os
-import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -13,6 +12,7 @@ from unittest.mock import patch
 
 # Patch DATA_FILE before import to avoid writing to real data/
 import spa_core.analytics.defi_whale_impact_analyzer as _mod
+import tempfile
 
 _ORIG_DATA_FILE = _mod.DATA_FILE
 
