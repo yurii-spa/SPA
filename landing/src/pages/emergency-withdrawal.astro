@@ -4,8 +4,8 @@ import Footer from '../components/Footer.astro';
 ---
 
 <Layout
-  title="Emergency Withdrawal — SPA earn-defi.com"
-  description="How to withdraw your funds. Standard processing within 1 business day, up to 5 days for positions requiring unwinding. Contact procedures and safety guidelines."
+  title="No User Funds — SPA earn-defi.com"
+  description="SPA is a personal paper-trading research project. No external funds are managed and there is no withdrawal process."
   canonical="https://earn-defi.com/emergency-withdrawal"
 >
 
@@ -23,7 +23,7 @@ import Footer from '../components/Footer.astro';
   <!-- Paper-only banner -->
   <div class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 text-center">
     <p class="text-amber-400 text-sm font-medium">
-      ⚠ Paper Trading Only — No real user funds exist. This page is informational for the future live phase.
+      ⚠ Paper Trading Only — No user funds — paper simulation only.
     </p>
   </div>
 
@@ -31,131 +31,40 @@ import Footer from '../components/Footer.astro';
 
     <!-- Header -->
     <div class="mb-12">
-      <p class="text-xs text-red-400/70 font-mono uppercase tracking-widest mb-3">Emergency (Future Reference)</p>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Emergency Withdrawal</h1>
+      <p class="text-xs text-white/40 font-mono uppercase tracking-widest mb-3">No User Funds</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">No User Funds — Paper Simulation Only</h1>
       <p class="text-white/50 text-lg leading-relaxed">
-        How to access funds in urgent situations — documented for the live phase. Currently paper-only: no user funds exist.
+        There is no withdrawal process because there are no external funds to withdraw.
       </p>
     </div>
 
-    <!-- Withdrawal Policy -->
+    <!-- Explanation -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Withdrawal Policy</h2>
-      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <p class="text-sm text-white/60 leading-relaxed">
-          Withdrawals are processed on request. Standard processing time is usually within
-          1 business day, but large withdrawals or withdrawals requiring position unwinding
-          may take up to 5 business days. No withdrawal fee is planned for the MVP.
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6 space-y-4 text-sm text-white/60 leading-relaxed">
+        <p>
+          SPA is a personal paper-trading research project. It runs on a virtual
+          $100,000 USDC portfolio to evaluate DeFi yield strategies. All trades are simulated.
+        </p>
+        <p>
+          No external funds are managed. No deposits are accepted, no capital is held in
+          custody, and there is no withdrawal process of any kind.
+        </p>
+        <p>
+          Because no user funds exist, there is nothing to recover or withdraw — in an
+          emergency or otherwise. Any source claiming to offer withdrawals, deposits, or
+          fund access on behalf of SPA is not legitimate.
         </p>
       </div>
     </section>
 
-    <!-- Withdrawal Procedure -->
+    <!-- Back link -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Withdrawal Procedure</h2>
-      <div class="space-y-3">
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
-          <div>
-            <p class="text-sm text-white/70 font-medium">Contact us directly</p>
-            <p class="text-xs text-white/40 mt-1">Email: <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a></p>
-          </div>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
-          <div>
-            <p class="text-sm text-white/70 font-medium">Describe your situation</p>
-            <p class="text-xs text-white/40 mt-1">We will respond within 4 hours during business hours.</p>
-          </div>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
-          <div>
-            <p class="text-sm text-white/70 font-medium">Funds available without unwinding</p>
-            <p class="text-xs text-white/40 mt-1">If funds are available without unwinding positions, we process as quickly as possible.</p>
-          </div>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
-          <div>
-            <p class="text-sm text-white/70 font-medium">Positions need unwinding</p>
-            <p class="text-xs text-white/40 mt-1">If positions need to be unwound, processing takes up to 5 business days.</p>
-          </div>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-red-500/15 bg-red-500/5 p-4">
-          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">!</span>
-          <div>
-            <p class="text-sm text-white/70 font-medium">No guaranteed same-day withdrawal</p>
-            <p class="text-xs text-white/40 mt-1">Do not trust any source promising instant access to your funds.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Direct Protocol Withdrawal -->
-    <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Direct Protocol Withdrawal</h2>
-      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <p class="text-sm text-white/55 leading-relaxed mb-4">
-          Because SPA deploys to established DeFi protocols (Aave, Compound, Morpho),
-          your funds remain in audited, permissionless smart contracts. In an emergency,
-          you can interact directly with the underlying protocol to withdraw.
-        </p>
-        <p class="text-sm text-white/40 leading-relaxed">
-          Contract addresses for direct interaction will be published before go-live.
-          Currently in paper trading &mdash; no live contracts deployed.
-        </p>
-      </div>
-    </section>
-
-    <!-- What to Do During a Frontend Incident -->
-    <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">What to Do During a Frontend Incident</h2>
-      <div class="space-y-4">
-        <div class="flex gap-4 items-start rounded-lg border border-red-500/15 bg-red-500/5 p-4">
-          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">!</span>
-          <p class="text-sm text-white/60">Do <strong class="text-white/80">NOT</strong> click any links claiming to be &ldquo;emergency&rdquo; alternatives.</p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
-          <p class="text-sm text-white/55">Verify official communication at <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a> only.</p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
-          <p class="text-sm text-white/55">Check GitHub repository for official statement.</p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
-          <p class="text-sm text-white/55">Do not interact with any unverified contract.</p>
-        </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
-          <p class="text-sm text-white/55">Wait for official communication before taking action.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Official Communication Channels -->
-    <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Official Communication Channels</h2>
-      <div class="space-y-3">
-        <div class="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
-          <p class="text-xs text-green-400/60 font-mono mb-1">Email</p>
-          <a href="mailto:yuriycooleshov@gmail.com" class="text-sm text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
-        </div>
-        <div class="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
-          <p class="text-xs text-green-400/60 font-mono mb-1">GitHub</p>
-          <p class="text-sm text-white/60">github.com/yurii-spa/SPA</p>
-        </div>
-        <div class="rounded-lg border border-red-500/15 bg-red-500/5 p-4">
-          <p class="text-xs text-red-400/60 font-mono mb-1">No Telegram</p>
-          <p class="text-sm text-white/50">Any Telegram group claiming to be SPA is fake.</p>
-        </div>
-        <div class="rounded-lg border border-red-500/15 bg-red-500/5 p-4">
-          <p class="text-xs text-red-400/60 font-mono mb-1">No Discord</p>
-          <p class="text-sm text-white/50">Any Discord server claiming to be SPA is fake.</p>
-        </div>
-      </div>
+      <a href="/methodology" class="inline-flex items-center gap-2 text-sm text-green-400/80 hover:text-green-400 transition-colors">
+        <span>Read the methodology</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+        </svg>
+      </a>
     </section>
 
   </main>
