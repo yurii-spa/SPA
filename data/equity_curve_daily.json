@@ -1,16 +1,28 @@
 {
-  "generated_at": "2026-06-20T13:40:44.869144+00:00",
+  "generated_at": "2026-06-20T21:23:06.104513+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
   "summary": {
-    "total_entries": 31,
-    "start_date": "2026-05-21",
-    "end_date": "2026-06-20",
-    "first_open": 100000.0,
-    "last_close": 100118.91,
-    "peak_equity": 100216.0,
-    "total_return_pct": 0.1081
+    "num_days": 31,
+    "num_snapshots": 31,
+    "start_equity": 100000.0,
+    "end_equity": 100121.33,
+    "total_return_pct": 0.1213,
+    "best_day": {
+      "date": "2026-06-20",
+      "daily_return_pct": 0.0132
+    },
+    "worst_day": {
+      "date": "2026-06-10",
+      "daily_return_pct": 0.0
+    },
+    "max_drawdown_pct": -0.2047,
+    "positive_days": 29,
+    "negative_days": 0,
+    "daily_volatility_pct": 0.002,
+    "first_date": "2026-05-21",
+    "last_date": "2026-06-20"
   },
   "daily": [
     {
@@ -33,7 +45,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-22",
@@ -55,7 +68,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-23",
@@ -77,7 +91,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-24",
@@ -99,7 +114,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-25",
@@ -121,7 +137,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-26",
@@ -143,7 +160,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-27",
@@ -165,7 +183,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-28",
@@ -187,7 +206,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-29",
@@ -209,7 +229,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-30",
@@ -231,7 +252,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-05-31",
@@ -253,7 +275,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-01",
@@ -275,7 +298,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-02",
@@ -297,7 +321,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-03",
@@ -319,7 +344,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-04",
@@ -341,7 +367,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-05",
@@ -363,7 +390,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-06",
@@ -385,7 +413,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-07",
@@ -407,7 +436,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-08",
@@ -429,7 +459,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-09",
@@ -451,7 +482,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": true
     },
     {
       "date": "2026-06-10",
@@ -473,7 +505,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-11",
@@ -495,7 +528,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-12",
@@ -517,7 +551,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-13",
@@ -539,7 +574,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-14",
@@ -561,7 +597,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-15",
@@ -583,7 +620,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-16",
@@ -605,7 +643,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-17",
@@ -627,7 +666,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-18",
@@ -649,7 +689,8 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-19",
@@ -671,28 +712,47 @@
         "yearn_v3": 11230.28,
         "euler_v2": 9564.55,
         "maple": 12455.16
-      }
+      },
+      "is_warmup": false
     },
     {
       "date": "2026-06-20",
       "open_equity": 100108.1,
-      "close_equity": 100118.91,
-      "high_equity": 100118.91,
+      "close_equity": 100121.33,
+      "high_equity": 100121.33,
       "low_equity": 100108.1,
       "snapshots": 1,
-      "daily_return_pct": 0.010798,
-      "cumulative_return_pct": 0.11891,
-      "drawdown_pct": 0.0,
-      "equity": 100118.91,
-      "nav": 100118.91,
-      "apy_today": 3.943,
-      "daily_yield_usd": 10.8052,
+      "daily_return_pct": 0.013215,
+      "cumulative_return_pct": 0.12133,
+      "drawdown_pct": -0.094466,
+      "equity": 100121.33,
+      "apy_today": 4.823,
+      "daily_yield_usd": 13.2296,
       "positions": {
-        "aave_v3": 23750.0,
-        "compound_v3": 38000.0,
-        "yearn_v3": 11230.28,
-        "euler_v2": 9564.55,
-        "maple": 12455.16
+        "compound_v3": 7118.15,
+        "aave_v3": 4791.06,
+        "spark_susds": 7528.81,
+        "morpho_steakhouse": 8897.68,
+        "aave_arbitrum": 5612.39,
+        "aave_v3_optimism": 6570.6,
+        "aave_v3_polygon": 6981.26,
+        "morpho_blue": 1898.14,
+        "yearn_v3": 1495.36,
+        "euler_v2": 1273.15,
+        "maple": 2231.48,
+        "pendle": 3703.7,
+        "fluid_fusdc": 3009.25,
+        "sfrax": 2777.78,
+        "wusdm": 2314.81,
+        "scrvusd": 3240.74,
+        "stusd": 2777.78,
+        "sdai": 2546.29,
+        "frax": 3472.22,
+        "aave_v3_base": 2083.33,
+        "morpho_blue_base": 2870.36,
+        "moonwell_base": 2546.29,
+        "susde": 5555.55,
+        "extra_finance_base": 3703.7
       }
     }
   ]
