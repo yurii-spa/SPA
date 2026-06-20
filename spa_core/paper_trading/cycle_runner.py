@@ -70,12 +70,13 @@ from typing import Any, Callable
 from spa_core.utils.atomic import atomic_save
 
 # ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)
+_BASE_GAS_MONITOR_CLASS: type[Any] | None
 try:
     from spa_core.monitoring.base_gas_monitor import BaseGasMonitor as _BaseGasMonitor
     _BASE_GAS_MONITOR_CLASS = _BaseGasMonitor
     _BASE_CHAIN_MONITORING = True
 except ImportError:
-    _BASE_GAS_MONITOR_CLASS = None  # type: ignore[assignment]
+    _BASE_GAS_MONITOR_CLASS = None
     _BASE_CHAIN_MONITORING = False
 
 # ── MP-534: Market Regime Detection ──────────────────────────────────────────
@@ -203,6 +204,8 @@ class CycleResult:
 def _atomic_write_json(path: Path, obj: Any) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
     atomic_save(obj, str(path))
+
+
 def _read_json(path: Path, default: Any) -> Any:
     """Read JSON defensively. Missing/corrupt file → ``default`` (never raises)."""
     path = Path(path)
@@ -331,7 +334,6 @@ def _rebuild_summary(daily: list[dict]) -> dict:
 
     start_equity = float(daily[0].get("open_equity", daily[0].get("close_equity", 0.0)))
     end_equity = float(daily[-1].get("close_equity", 0.0))
-    rets = [float(d.get("daily_return_pct", 0.0)) for d in daily]
     # Day 1 has a synthetic 0.0 return — exclude from best/worst/vol stats.
     real_rets = [
         (d.get("date"), float(d.get("daily_return_pct", 0.0))) for d in daily[1:]
@@ -784,14 +786,14 @@ def _run_daily_report(ddir: Path, date: str) -> None:
 # ─── Default orchestrator / allocator wiring (overridable for tests) ─────────
 
 
-def _default_orchestrator(data_dir: Path):
+def _default_orchestrator(data_dir: Path) -> Any:
     """Run the real read-only adapter orchestrator (writes its status file)."""
     from spa_core.orchestrator.adapter_orchestrator import run_orchestrator
 
     return run_orchestrator(write=True, data_dir=str(data_dir))
 
 
-def _default_allocator(data_dir: Path):
+def _default_allocator(data_dir: Path) -> Any:
     """Construct the real StrategyAllocator bound to this data dir's snapshot.
 
     ADR-033: the shadow→allocator feedback loop only steers the real allocation
@@ -1271,10 +1273,27 @@ def run_cycle(
                 "daily_limits_halt: " + "; ".join(_dl_result["halt_reasons"])
             )
             result = CycleResult(
+                run_ts=run_ts,
                 date=today,
                 status="blocked_by_daily_limits",
+                traded=False,
+                trade_id=None,
+                live_data=True,
+                num_adapters_live=len(apy_map),
+                current_equity=round(prev_equity, 2),
+                daily_yield_usd=0.0,
+                daily_return_pct=0.0,
+                apy_today_pct=0.0,
+                total_return_pct=round((prev_equity / capital_usd - 1.0) * 100.0, 4),
+                days_running=_days_running(today, paper_start_date),
+                model_used=model_used,
+                strategy_loop_active=strategy_loop_active,
+                positions=current_positions,
                 notes=notes,
                 policy_approved=False,
+                correlation_id=_correlation_id,
+                market_regime=_regime_name,
+                regime_t1_avg_apy=_regime_t1_avg_apy,
             )
             _write_equity(ddir, equity_doc, prev_equity, today, 0.0, {}, 0.0)
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
@@ -1613,7 +1632,10 @@ def run_cycle(
 
     days = _days_running(today, paper_start_date)
     # MP-108: status reflects kill-switch if active
-    _cycle_status = "kill_switch" if _ks_triggered else ("blocked_by_policy" if policy_blocked else "ok")
+    _cycle_status = (
+        "kill_switch" if _ks_triggered
+        else ("blocked_by_policy" if policy_blocked else "ok")
+    )
     result = CycleResult(
         run_ts=run_ts,
         date=today,
@@ -2101,10 +2123,7 @@ def run_cycle(
         # Runs AFTER gap_monitor so its gap_detected flag feeds the streak
         # check. Never blocks the cycle — any exception → WARNING only.
         try:
-            from spa_core.milestone.milestone_tracker import (
-                check_milestone,
-                generate_milestone_report,
-            )
+            from spa_core.milestone.milestone_tracker import check_milestone
 
             _gm_data = _read_json(ddir / "gap_monitor.json", {})
             milestone_status = check_milestone(
@@ -2142,7 +2161,7 @@ def run_cycle(
         # disk. Fail-safe: any exception → WARNING, cycle never fails.
         try:
             from spa_core.agents.reporting_agent import run_reporting_cycle as _run_reporting
-            _run_reporting(data_dir=str(ddir), dry_run=False)
+            _run_reporting(data_dir=ddir, dry_run=False)
         except Exception as _rep_exc:  # noqa: BLE001
             log.warning("reporting_cycle failed (%s) — cycle continues", _rep_exc)
 
@@ -2423,7 +2442,9 @@ def _run_daily_monitors(
     # MP-307: Protocol Research Agent — weekly new protocol search (Mondays only, fail-safe)
     if _now_wd == 0:  # Monday
         try:
-            from spa_core.agents.protocol_research_agent import run_research_cycle as _research_cycle
+            from spa_core.agents.protocol_research_agent import (
+                run_research_cycle as _research_cycle,
+            )
             _research_cycle(data_dir=ddir)
             results["protocol_research"] = "ok"
         except Exception as exc:  # noqa: BLE001
@@ -2503,9 +2524,13 @@ def _last_trade_id_from_file(ddir: Path) -> "str | None":
     """
     try:
         raw = _read_json(ddir / TRADES_FILENAME, [])
-        trades: list = raw if isinstance(raw, list) else (raw.get("trades", []) if isinstance(raw, dict) else [])
+        trades: list = (
+            raw if isinstance(raw, list)
+            else (raw.get("trades", []) if isinstance(raw, dict) else [])
+        )
         if trades and isinstance(trades[-1], dict):
-            return trades[-1].get("trade_id")
+            tid = trades[-1].get("trade_id")
+            return str(tid) if tid is not None else None
     except Exception:
         pass
     return None
@@ -2817,12 +2842,77 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         _run_analytics_pipeline(data_dir=args.data_dir)
 
+    # MP-1576..1580: smart / autonomous advisory modules after each cycle.
+    # All STRICTLY read-only / advisory; each is independently fail-safe and
+    # never modifies allocator / risk / execution state or touches capital.
+    if not args.dry_run:
+        _run_smart_modules(data_dir=args.data_dir, send_telegram=not args.no_monitors)
+
     if args.dry_run:
         print("(dry-run: no files written)")
     return 0 if result.status == "ok" else 1
 
 
-def _run_analytics_pipeline(data_dir=None) -> None:
+def _run_smart_modules(data_dir=None, send_telegram: bool = True) -> None:
+    """Run the MP-1576..1580 advisory modules post-cycle (each fail-safe).
+
+    Order: adaptive cadence → smart rebalance signal → anomaly scan →
+    KANBAN metrics → daily performance summary. A failure in any one module
+    is logged and never aborts the cycle or the remaining modules.
+    """
+    from pathlib import Path as _Path
+    ddir = _Path(data_dir) if data_dir else None
+
+    # 1. Adaptive cycle-frequency recommendation (MP-1576).
+    try:
+        from spa_core.paper_trading.adaptive_scheduler import run as _adaptive_run
+        dec = _adaptive_run(data_dir=ddir, write=True)
+        print(f"  adaptive    : {dec.mode} ({dec.interval_minutes}min)")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("MP-1576 adaptive_scheduler failed (non-critical): %s", _e)
+
+    # 2. Smart rebalance trigger signal (MP-1577).
+    try:
+        from spa_core.paper_trading.rebalance_trigger import evaluate_from_state
+        _data_path = str(ddir) if ddir else "data"
+        verdict = evaluate_from_state(_data_path)
+        from spa_core.utils.atomic import atomic_save as _atomic_save
+        _atomic_save(verdict, str(_Path(_data_path) / "rebalance_trigger.json"))
+        print(f"  rebalance?  : {verdict.get('should_rebalance')} "
+              f"{verdict.get('triggered') or ''}")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("MP-1577 rebalance_trigger failed (non-critical): %s", _e)
+
+    # 3. Anomaly detection + alerts (MP-1579).
+    try:
+        from spa_core.monitoring.anomaly_detector import AnomalyDetector
+        det = AnomalyDetector(data_dir=ddir)
+        out = det.run(alert=send_telegram, write=True)
+        print(f"  anomalies   : {out['count']} detected, "
+              f"{out.get('telegram_sent', 0)} alerted")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("MP-1579 anomaly_detector failed (non-critical): %s", _e)
+
+    # 4. KANBAN completion metrics (MP-1580).
+    try:
+        from spa_core.reporting.kanban_metrics import run as _kanban_run
+        m = _kanban_run(write=True)
+        print(f"  kanban      : {m['done']}/{m['total']} ({m['completion_pct']:.1f}%)")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("MP-1580 kanban_metrics failed (non-critical): %s", _e)
+
+    # 5. Daily performance summary + Telegram (MP-1578).
+    try:
+        from spa_core.agents.daily_summary_agent import DailySummaryAgent
+        agent = DailySummaryAgent(data_dir=ddir)
+        res = agent.run(send=send_telegram, write=True)
+        print(f"  summary     : day {res.get('day_N')} "
+              f"(telegram_sent={res.get('telegram_sent')})")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("MP-1578 daily_summary_agent failed (non-critical): %s", _e)
+
+
+def _run_analytics_pipeline(data_dir: "str | os.PathLike | None" = None) -> None:
     """Run analytics pipeline post-cycle. Non-blocking — failures are logged."""
     try:
         from spa_core.analytics.analytics_pipeline import AnalyticsPipeline
