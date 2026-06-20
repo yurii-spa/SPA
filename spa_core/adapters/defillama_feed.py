@@ -18,11 +18,12 @@ Two read surfaces, kept deliberately distinct (and individually tested):
 """
 from __future__ import annotations
 
+import json as _json
 import logging
 import time
+import urllib.error
+import urllib.request
 from typing import Optional
-
-import requests
 
 from . import config
 
@@ -75,13 +76,13 @@ class DeFiLlamaFeed:
         try:
             # Pin Accept-Encoding to gzip: DeFiLlama otherwise serves brotli,
             # which some local brotli decoders mishandle (SPA-V398).
-            resp = requests.get(
+            req = urllib.request.Request(
                 self.api_url,
-                timeout=self.timeout,
                 headers={"Accept-Encoding": "gzip"},
             )
-            resp.raise_for_status()
-            payload = resp.json()
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                raw = resp.read()
+            payload = _json.loads(raw.decode("utf-8"))
         except Exception as exc:  # noqa: BLE001 - log and fall back
             logger.warning("DeFiLlama fetch failed: %s", exc)
             return None
