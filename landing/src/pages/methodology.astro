@@ -85,7 +85,7 @@ import Footer from '../components/Footer.astro';
         {[
           { label: 'Data source', value: 'DeFiLlama Yields API — primary APY feed' },
           { label: 'Adapters', value: 'Dedicated read-only adapter per protocol' },
-          { label: 'Sanity check', value: 'APY bounds [2%, 40%] — anything outside triggers a flag' },
+          { label: 'Sanity check', value: 'APY bounds [1%, 30%] — anything outside triggers a flag' },
           { label: 'Schedule', value: 'Daily cycle (automated via scheduler)' },
           { label: 'Output', value: 'Timestamped JSON log per cycle' },
         ].map((row) => (
@@ -164,35 +164,35 @@ import Footer from '../components/Footer.astro';
           <tbody class="divide-y divide-white/5">
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono">TVL floor</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">$500M minimum</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">$5M minimum per pool</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">25% of portfolio</td>
+              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap (Tier 1)</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">40% of portfolio</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Tier 1 minimum allocation</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">60%</td>
+              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap (Tier 2)</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">20% of portfolio</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono">Tier 2 total cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">≤50% of portfolio</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono">Cash buffer</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">5%</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">≥5%</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono">APY lower bound</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">2% (avoid dust yields)</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">1% (avoid dust yields)</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono">APY upper bound</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">40% (sanity cap)</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">30% (sanity cap)</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-red-400/80 font-mono">Monthly drawdown kill switch</td>
-              <td class="px-5 py-3 text-red-400 font-mono font-semibold">&minus;5%</td>
-            </tr>
-            <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Max single-asset concentration</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">40%</td>
+              <td class="px-5 py-3 text-red-400/80 font-mono">Drawdown kill switch</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold">&minus;5% → close all</td>
             </tr>
           </tbody>
         </table>
@@ -222,8 +222,9 @@ import Footer from '../components/Footer.astro';
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4">Strategy Tournament</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed">
-        Multiple strategies compete on risk-adjusted performance. The tournament ensures only
-        the best-performing approach gets capital allocation.
+        Multiple strategies run in parallel and are evaluated on risk-adjusted performance.
+        Tournament output is <strong class="text-white/60">advisory-only</strong> — all allocation decisions still go through RiskPolicy gate.
+        No strategy can override the gate.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -418,7 +419,7 @@ import Footer from '../components/Footer.astro';
             {
               stage: '04',
               state: 'Live Capital',
-              desc: 'Real AUM deployment. Requires GoLiveChecker 26/26 pass + Owner manual review (ADR-002).',
+              desc: 'Own capital only. Requires GoLiveChecker 26/26 pass (currently 25/26) + 7+ consecutive days READY + Owner manual review (ADR-002).',
               color: 'border-accent-500/30',
             },
           ].map((gate) => (
