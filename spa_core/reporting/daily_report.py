@@ -30,7 +30,6 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.daily_report")
@@ -48,7 +47,9 @@ REPORT_FILENAME_TPL = "daily_report_{date}.json"
 # ─── IO helpers (stdlib only, mirrors cycle_runner conventions) ──────────────
 
 
-
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path, default: Any) -> Any:
     """Read JSON defensively. Missing/corrupt file → ``default`` (never raises)."""
     path = Path(path)
@@ -190,7 +191,7 @@ def generate_daily_report(
     }
 
     if write:
-        atomic_save(report, str(ddir / REPORT_FILENAME_TPL.format(date=date_str)))
+        _atomic_write_json(ddir / REPORT_FILENAME_TPL.format(date=date_str), report)
     return report
 
 
