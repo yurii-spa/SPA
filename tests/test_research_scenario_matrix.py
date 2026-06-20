@@ -19,9 +19,9 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 from pathlib import Path
 
 # Make sure spa_core is importable from the project root
