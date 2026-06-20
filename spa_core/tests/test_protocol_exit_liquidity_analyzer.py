@@ -6,9 +6,9 @@ Tests for MP-872 ProtocolExitLiquidityAnalyzer
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 # ---------------------------------------------------------------------------
 # Path setup
