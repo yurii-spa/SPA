@@ -254,6 +254,17 @@ def _load_builtin_strategies() -> None:
         "spa_core.strategies.s20_anticrisis_research",   # S20 Anti-Crisis Research (T3)
         "spa_core.strategies.s20_curve_convex",          # S20 Curve+Convex (T2/T3)
         "spa_core.strategies.s21_aave_loop",             # S21 Aave Loop (T2/T3)
+        # S22–S25: high-APY expansion (2026-06-21)
+        "spa_core.strategies.s22_ethena_yield_max",      # S22 Ethena Yield Maximizer (T3)
+        "spa_core.strategies.s23_pendle_pt_fixed",       # S23 Pendle PT Fixed Rate (T2)
+        "spa_core.strategies.s24_base_chain_max",        # S24 Base Chain Maximizer (T3)
+        "spa_core.strategies.s25_yield_ladder",          # S25 Yield Ladder barbell (T2)
+        # S26–S30: exotic / advanced strategies (2026-06-21)
+        "spa_core.strategies.s26_volatility_harvester",  # S26 Volatility Harvester (T2)
+        "spa_core.strategies.s27_stablecoin_carry",      # S27 Stablecoin Carry (T1)
+        "spa_core.strategies.s28_momentum_yield",        # S28 Momentum Yield (T2)
+        "spa_core.strategies.s29_barbell_plus",          # S29 Barbell Plus (T2)
+        "spa_core.strategies.s30_all_weather",           # S30 All-Weather DeFi (T2)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
