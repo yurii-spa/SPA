@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Константы путей
@@ -490,23 +491,4 @@ class APYAggregator:
             "by_risk_adjusted":[_snap_to_dict(s) for s in self.rank_by_risk_adjusted()],
         }
 
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Атомарная запись: создаём tmp в той же директории, затем os.replace
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=path.parent,
-            prefix=".tmp_apy_ranking_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, path)
-        except Exception:
-            # Убираем tmp-файл при любой ошибке, не «мусорим»
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(payload, str(Path(path)))
