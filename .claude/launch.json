@@ -6,6 +6,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8123"],
       "port": 8123
+    },
+    {
+      "name": "cabinet",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd /Users/yuriikulieshov/Documents/SPA_Claude/cabinet && npm run dev"],
+      "port": 5173
     }
   ]
 }
