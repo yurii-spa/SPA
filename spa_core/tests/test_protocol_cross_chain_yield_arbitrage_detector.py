@@ -6,8 +6,8 @@ Target: ≥85 tests, stdlib unittest only.
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
