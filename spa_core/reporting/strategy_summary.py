@@ -18,8 +18,9 @@ CLI:
 import json
 import os
 import sys
-import tempfile
 from datetime import date
+
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -68,23 +69,6 @@ def _load_json(path: str) -> dict:
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return {}
 
-
-def _atomic_write(path: str, data: dict) -> None:
-    """Atomically write *data* as indented JSON to *path* (tmp + os.replace)."""
-    dir_ = os.path.dirname(os.path.abspath(path))
-    os.makedirs(dir_, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_, prefix=".tmp_strategy_summary_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-            fh.write("\n")
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +228,7 @@ def generate_summary(
         "days_to_go_live": days,
     }
 
-    _atomic_write(output_path, summary)
+    atomic_save(summary, output_path)
     return summary
 
 
