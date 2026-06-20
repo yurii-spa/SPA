@@ -20,6 +20,7 @@ from spa_core.analytics.yield_compressor_score import (
     YieldCompressorScore,
     _atomic_append,
 )
+from spa_core.utils.errors import SPAError
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +312,7 @@ class TestYieldCompressorPersistence(unittest.TestCase):
     # --- T034 ---
     def test_save_before_compute_raises(self):
         s = YieldCompressorScore(data_dir=self.tmpdir)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             s.save()
 
     # --- T035 ---
