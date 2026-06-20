@@ -66,6 +66,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from spa_core.utils.errors import SourceError, ValidationError
+
 log = logging.getLogger("spa.eth_signer")
 
 # Ethereum mainnet chain id — MEV protection only applies here.
@@ -122,15 +124,12 @@ def get_address_from_private_key(private_key_hex: str) -> str:
         EIP-55 checksummed ``0x...`` address string.
 
     Raises:
-        ValueError: If the key length is wrong or not valid hex.
+        ValidationError: If the key length is wrong or not valid hex.
         ImportError: If eth_account is not installed.
     """
     pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
-        raise ValueError(
-            f"Private key must be 64 hex chars (0x prefix optional); "
-            f"got length {len(pk_hex)}"
-        )
+        raise ValidationError("private_key", pk_hex, f"must be 64 hex chars (0x prefix optional); got {len(pk_hex)}")
     Account = _get_account()
     normalised = "0x" + pk_hex
     return Account.from_key(normalised).address
@@ -160,14 +159,12 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
         Raw signed transaction bytes (EIP-2718 envelope, starts with 0x02).
 
     Raises:
-        ValueError: If the private key is malformed.
+        ValidationError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
     pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
-        raise ValueError(
-            f"Private key must be 64 hex chars; got length {len(pk_hex)}"
-        )
+        raise ValidationError("private_key", pk_hex, f"must be 64 hex chars; got {len(pk_hex)}")
     normalised_pk = "0x" + pk_hex
 
     # Normalise data field
@@ -198,7 +195,11 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
     if raw is None:
         raw = getattr(signed, "raw_transaction", None)
     if raw is None:
-        raise RuntimeError("Signed tx missing rawTransaction attribute — unexpected eth_account version")
+        raise ValidationError(
+            "rawTransaction",
+            None,
+            "missing attribute — unexpected eth_account version",
+        )
     return bytes(raw)
 
 
@@ -218,14 +219,12 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
         0x-prefixed hex signature string (65 bytes: r + s + v).
 
     Raises:
-        ValueError: If the private key is malformed.
+        ValidationError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
     pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
-        raise ValueError(
-            f"Private key must be 64 hex chars; got length {len(pk_hex)}"
-        )
+        raise ValidationError("private_key", pk_hex, f"must be 64 hex chars; got {len(pk_hex)}")
     normalised_pk = "0x" + pk_hex
 
     from eth_account.messages import encode_defunct  # type: ignore
@@ -257,29 +256,22 @@ def encode_function_call(selector_hex: str, *args: Any) -> bytes:
     _sel_hex = selector_hex[2:] if selector_hex[:2].lower() == "0x" else selector_hex
     sel = bytes.fromhex(_sel_hex)
     if len(sel) != 4:
-        raise ValueError(f"Selector must be exactly 4 bytes; got {len(sel)}")
+        raise ValidationError("selector_hex", selector_hex, f"must be exactly 4 bytes; got {len(sel)}")
     parts = [sel]
     for i, arg in enumerate(args):
         if isinstance(arg, bool):
             parts.append((1 if arg else 0).to_bytes(32, "big"))
         elif isinstance(arg, int):
             if arg < 0 or arg.bit_length() > 256:
-                raise ValueError(
-                    f"arg[{i}] = {arg!r}: uint256 must be in [0, 2**256)"
-                )
+                raise ValidationError(f"arg[{i}]", arg, "uint256 must be in [0, 2**256)")
             parts.append(arg.to_bytes(32, "big"))
         elif isinstance(arg, str) and arg.startswith("0x"):
             cleaned = arg[2:].lower()
             if len(cleaned) > 40:
-                raise ValueError(
-                    f"arg[{i}] address too long: {arg!r}"
-                )
+                raise ValidationError(f"arg[{i}]", arg, "address too long for EVM (max 20 bytes)")
             parts.append(bytes.fromhex(cleaned.rjust(40, "0")).rjust(32, b"\x00"))
         else:
-            raise TypeError(
-                f"arg[{i}] = {arg!r}: unsupported type {type(arg).__name__}. "
-                "encode_function_call supports int, bool, and '0x...' address strings."
-            )
+            raise ValidationError(f"arg[{i}]", type(arg).__name__, "unsupported type — encode_function_call accepts int, bool, '0x...' str")
     return b"".join(parts)
 
 
@@ -337,17 +329,17 @@ def _rpc_call(rpc_url: str, method: str, params: list, timeout: float = _RPC_TIM
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"{method}: HTTP failure — {exc}") from exc
+        raise SourceError(method, f"HTTP failure — {exc}") from exc
 
     try:
         parsed = json.loads(raw.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as exc:
-        raise RuntimeError(f"{method}: malformed JSON — {exc}") from exc
+        raise SourceError(method, f"malformed JSON — {exc}") from exc
 
     if "error" in parsed:
-        raise RuntimeError(f"{method}: RPC error — {parsed['error']}")
+        raise SourceError(method, f"RPC error — {parsed['error']}")
     if "result" not in parsed:
-        raise RuntimeError(f"{method}: missing result in {parsed!r}")
+        raise SourceError(method, f"missing result in {parsed!r}")
     return parsed["result"]
 
 
@@ -361,8 +353,10 @@ def get_base_fee(rpc_url: str) -> int:
     """Return the baseFeePerGas of the latest block (wei)."""
     block = _rpc_call(rpc_url, "eth_getBlockByNumber", ["latest", False])
     if not isinstance(block, dict) or "baseFeePerGas" not in block:
-        raise RuntimeError(
-            f"get_base_fee: no baseFeePerGas in block response: {block!r}"
+        raise ValidationError(
+            "baseFeePerGas",
+            block,
+            f"missing from block response: {block!r}",
         )
     return int(block["baseFeePerGas"], 16)
 
@@ -385,8 +379,10 @@ def _broadcast(signed_tx_hex: str, rpc_url: str) -> str:
     """Low-level ``eth_sendRawTransaction`` to *rpc_url*; returns the tx hash."""
     result = _rpc_call(rpc_url, "eth_sendRawTransaction", [signed_tx_hex])
     if not isinstance(result, str) or not result.startswith("0x"):
-        raise RuntimeError(
-            f"eth_sendRawTransaction returned unexpected result: {result!r}"
+        raise ValidationError(
+            "result",
+            result,
+            f"eth_sendRawTransaction returned unexpected result: {result!r}",
         )
     return result
 
