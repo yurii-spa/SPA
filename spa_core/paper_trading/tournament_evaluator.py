@@ -25,7 +25,6 @@ import json
 import math
 import os
 import random
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +33,7 @@ from typing import Dict, List, Optional, Tuple
 from spa_core.base import BaseAnalytics
 from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY, StrategyConfig
 from spa_core.paper_trading.vportfolio import VPortfolio, VPortfolioManager
+from spa_core.utils.atomic import atomic_save
 
 # ─── Константы ────────────────────────────────────────────────────────────────
 
@@ -525,22 +525,7 @@ class TournamentEvaluator(BaseAnalytics):
             "ranking": [r.to_dict() for r in results],
         }
 
-        fd, tmp_path = tempfile.mkstemp(
-            prefix=".tmp_tournament_ranking_",
-            dir=self._data_dir,
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(doc, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(doc, str(out_path))
         return out_path
 
     # ── Internal helpers ──────────────────────────────────────────────────────
