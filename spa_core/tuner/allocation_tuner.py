@@ -13,11 +13,10 @@ import logging
 import math
 import os
 import random
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.tuner")
@@ -576,7 +575,10 @@ def _load_current_weights(data_dir: Optional[Path] = None) -> Optional[Dict[str,
             if isinstance(v, (int, float)) and float(v) > 0}
 
 
-
+def _atomic_write(path: Path, data: dict) -> None:
+    """Атомарная запись JSON: tmp-файл + os.replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_save(data, str(path))
 # ─── Точка входа ─────────────────────────────────────────────────────────────
 
 
@@ -624,7 +626,7 @@ def run_allocation_tuner(
             "Предложение тюнера — только для информации. "
             "Применяется вручную после review (MP-207)."
         )
-        atomic_save(payload, str(out_path))
+        _atomic_write(out_path, payload)
         log.info("Tuner suggestion saved to %s", out_path)
 
     return result
