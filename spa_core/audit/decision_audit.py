@@ -45,11 +45,11 @@ import json
 import logging
 import os
 import sys
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger(__name__)
 
@@ -70,21 +70,8 @@ def _now_iso() -> str:
 
 
 def _atomic_write_json(path: Path, data: Any) -> None:
-    """Write *data* as JSON to *path* atomically via mkstemp + os.replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, ensure_ascii=False, indent=2)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-    os.replace(tmp, str(path))
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(data, str(path))
 def _read_json_safe(path: Path, default: Any) -> Any:
     """Read JSON from *path*; return *default* on any error (corrupt / missing)."""
     try:
