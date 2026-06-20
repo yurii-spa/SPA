@@ -28,7 +28,12 @@ _STATUS_PATH = _REPO_ROOT / "data" / "adapter_orchestrator_status.json"
 _RISK_SCORES_PATH = _REPO_ROOT / "data" / "risk_scores.json"
 _SHADOW_COMPARISON_PATH = _REPO_ROOT / "data" / "strategy_shadow_comparison.json"
 _DEFAULT_OUT = _REPO_ROOT / "data" / "target_allocation.json"
+_REGISTRY_PATH = _REPO_ROOT / "data" / "adapter_registry.json"
 _EPS = 1e-12
+
+# MP-REGISTRY: fallback TVL assumption for registry-only adapters (not in orchestrator).
+# These are all established protocols with TVL >> $5M TVL floor; $50M is conservative.
+_REGISTRY_FALLBACK_TVL_USD = 50_000_000.0
 
 # Модель по умолчанию: risk-aware (SPA-V406). Раньше было "equal_weight".
 DEFAULT_MODEL = "risk_adjusted"
@@ -102,8 +107,10 @@ class StrategyAllocator:
     # MP-011: зеркала лимитов RiskPolicy (policy.py: min_tvl_usd,
     # max_total_t2_allocation). Аллокатор обязан соблюдать их сам, иначе
     # детерминированный гейт MP-005 блокирует каждый target и сделок нет.
-    TVL_FLOOR_USD = 5_000_000   # минимальный TVL пула для входа
-    T2_TOTAL_CAP = 0.35         # T2 совокупно не более 35% портфеля
+    # TODO(P1): заменить хардкод на import RiskConfig() чтобы избежать дрейфа.
+    # T1_CAP/T2_CAP/TVL_FLOOR_USD зеркалируют policy.py:max_concentration_t1/t2/min_tvl_usd.
+    TVL_FLOOR_USD = 5_000_000   # минимальный TVL пула для входа (= policy.min_tvl_usd)
+    T2_TOTAL_CAP = 0.50         # T2 совокупно не более 50% портфеля (ADR-019: было 0.35)
 
     def __init__(
         self,
@@ -194,24 +201,75 @@ class StrategyAllocator:
 
         Берутся записи со ``status == 'ok'`` (или без поля status). Каждая
         приводится к контракту моделей: protocol / apy_pct / tvl_usd / tier.
+
+        MP-REGISTRY: после загрузки оркестраторного снимка дополнительно
+        мёрджит активные адаптеры из ``data/adapter_registry.json``, которых
+        нет в снимке. Используется ``fallback_apy`` (decimal → pct × 100) и
+        консервативный TVL по умолчанию ($50M). Это устраняет 0%-аллокацию
+        адаптеров (morpho_steakhouse, aave_arbitrum, spark_susds и т.д.),
+        которые зарегистрированы, но ещё не охвачены оркестратором.
         """
-        if not self.status_path.exists():
-            return []
-        with open(self.status_path, encoding="utf-8") as fh:
-            raw = json.load(fh)
-        adapters = []
-        for a in raw.get("adapters", []):
-            status = a.get("status", "ok")
-            if status not in ("ok", "partial"):
-                continue
-            adapters.append(
-                {
-                    "protocol": a["protocol"],
-                    "apy_pct": float(a.get("apy_pct", 0.0)),
-                    "tvl_usd": float(a.get("tvl_usd", 0.0)),
-                    "tier": a.get("tier", "T2"),
-                }
-            )
+        adapters: list[dict] = []
+        seen_protocols: set[str] = set()
+
+        if self.status_path.exists():
+            with open(self.status_path, encoding="utf-8") as fh:
+                raw = json.load(fh)
+            for a in raw.get("adapters", []):
+                status = a.get("status", "ok")
+                if status not in ("ok", "partial"):
+                    continue
+                protocol = str(a["protocol"])
+                seen_protocols.add(protocol)
+                adapters.append(
+                    {
+                        "protocol": protocol,
+                        "apy_pct": float(a.get("apy_pct", 0.0)),
+                        "tvl_usd": float(a.get("tvl_usd", 0.0)),
+                        "tier": a.get("tier", "T2"),
+                    }
+                )
+
+        # MP-REGISTRY: merge active adapters from adapter_registry.json that are
+        # absent from the orchestrator snapshot (live data always takes precedence).
+        registry_path = getattr(self, "_registry_path", _REGISTRY_PATH)
+        if Path(registry_path).exists():
+            try:
+                reg = json.loads(Path(registry_path).read_text(encoding="utf-8"))
+                for name, entry in reg.get("adapters", {}).items():
+                    if name in seen_protocols:
+                        continue  # live orchestrator value takes precedence
+                    if not isinstance(entry, dict):
+                        continue
+                    if entry.get("research_only"):
+                        continue
+                    if entry.get("status") not in ("active",):
+                        continue
+                    fallback_apy = entry.get("fallback_apy")
+                    if not isinstance(fallback_apy, (int, float)) or fallback_apy <= 0:
+                        continue
+                    # Registry stores tier as integer (1/2/3); treat tier≥3 as T2.
+                    tier_int = entry.get("tier", 2)
+                    tier_str = "T1" if tier_int == 1 else "T2"
+                    tvl = float(entry.get("fallback_tvl_usd", _REGISTRY_FALLBACK_TVL_USD))
+                    adapters.append(
+                        {
+                            "protocol": name,
+                            "apy_pct": float(fallback_apy) * 100.0,  # decimal → pct
+                            "tvl_usd": tvl,
+                            "tier": tier_str,
+                        }
+                    )
+                    log.info(
+                        "MP-REGISTRY: fallback adapter %s apy=%.2f%% tier=%s tvl=$%.0fM",
+                        name,
+                        float(fallback_apy) * 100.0,
+                        tier_str,
+                        tvl / 1_000_000,
+                    )
+            except Exception as _reg_exc:
+                log.warning("MP-REGISTRY: registry merge failed (%s) — using orchestrator only", _reg_exc)
+
         return adapters
 
     # ── кап'ы по тирам (water-filling) ────────────────────────────────────
@@ -293,7 +351,7 @@ class StrategyAllocator:
     ) -> tuple[dict[str, float], bool]:
         """Ограничивает суммарный вес T2 значением :data:`T2_TOTAL_CAP`.
 
-        Если совокупный T2 > 35% — T2-веса срезаются пропорционально, а
+        Если совокупный T2 > 50% (ADR-019) — T2-веса срезаются пропорционально, а
         освобождённый вес перераспределяется в headroom T1-адаптеров
         (не превышая :data:`T1_CAP` на протокол). Если T1-ёмкости не хватает,
         остаток честно остаётся кэшем. Возвращает ``(weights, enforced)``.
