@@ -1,0 +1,45 @@
+{
+  "schema_version": "0.1",
+  "status": "READY",
+  "paper_trading_allowed": true,
+  "generated_at": "2026-06-19",
+  "run_id": "backtest-20260619T120827Z",
+  "backtest_gate_status": "PASS",
+  "regression_status": "PASS",
+  "hardening_status": "NOT_READY",
+  "manual_replay_gate_status": "PASS",
+  "event_coverage_status": "PASS",
+  "source_promotion_status": "READY_FOR_PROMOTION_REVIEW",
+  "allocation_methodology_gate_status": "PASS",
+  "execution_source_readiness_status": "PASS",
+  "expanded_universe_verification_status": "STRICT_BLOCKED",
+  "source_status": [
+    {
+      "protocol_id": "aave_v2_usdc",
+      "status": "clean_included",
+      "label": "DeFiLlama Aave V2 USDC pool accepted",
+      "next_action": "Optional: cross-check with archive RPC."
+    },
+    {
+      "protocol_id": "compound_v2_usdc",
+      "status": "clean_included",
+      "label": "DeFiLlama Compound V2 cUSDC pool accepted",
+      "next_action": "Optional: cross-check with archive RPC."
+    }
+  ],
+  "owner_acceptance": {
+    "accepted": false,
+    "owner": null,
+    "accepted_at": null,
+    "path": "data/backtest/owner_paper_acceptance_draft.json"
+  },
+  "blockers": [],
+  "warnings": [],
+  "required_before_paper_trading": [
+    "Backtest hardening audit is not PASS.",
+    "Expanded universe verification queue is not PASS.",
+    "Owner paper acceptance is not signed.",
+    "Review docs/owner_paper_acceptance.md and sign data/backtest/owner_paper_acceptance.json before paper launch."
+  ],
+  "signed_at": "2026-06-20T07:53:19.370589+00:00"
+}
