@@ -14,8 +14,8 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.ci.llm_forbidden_lint import (
