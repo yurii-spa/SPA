@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_defi_lending_protocol_bad_debt_moni
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.defi_lending_protocol_bad_debt_monitor import (
