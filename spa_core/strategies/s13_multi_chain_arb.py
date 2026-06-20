@@ -285,6 +285,33 @@ class MultiChainArbStrategy:
         }
 
 
+# ─── Авто-регистрация в StrategyRegistry ─────────────────────────────────────
+
+def _register_s13() -> None:
+    """Авто-регистрация S13 в spa_core/strategies/strategy_registry.py REGISTRY."""
+    try:
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta
+        REGISTRY.register(StrategyMeta(
+            id=STRATEGY_ID,
+            name=STRATEGY_NAME,
+            type="lending",
+            risk_tier="T2",
+            target_apy_min=6.0,
+            target_apy_max=11.0,
+            max_drawdown_pct=5.0,
+            description=DESCRIPTION,
+            module="spa_core.strategies.s13_multi_chain_arb",
+            handler_class="MultiChainArbStrategy",
+            tags=["multi_chain", "arb", "base_chain", "yield_arb", "t2", "phase_gated"],
+        ))
+    except Exception as _exc:
+        import logging
+        logging.getLogger(__name__).warning("S13 auto-registration failed: %s", _exc)
+
+
+_register_s13()
+
+
 # ─── CLI точка входа ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
