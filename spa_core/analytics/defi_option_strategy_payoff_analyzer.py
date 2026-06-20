@@ -13,8 +13,8 @@ Atomic writes: tmp + os.replace.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -443,19 +443,7 @@ def _atomic_write(path: str, data) -> None:
     dir_ = os.path.dirname(path)
     if dir_ and not os.path.exists(dir_):
         os.makedirs(dir_, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_ or ".", prefix=".tmp_")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def _append_log(result: dict, log_path: str, cap: int = LOG_MAX_ENTRIES) -> None:
     try:
         if os.path.exists(log_path):
