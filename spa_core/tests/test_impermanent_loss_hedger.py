@@ -7,8 +7,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # Support both `python -m pytest spa_core/tests/` and direct execution
