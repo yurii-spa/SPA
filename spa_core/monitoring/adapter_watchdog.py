@@ -18,7 +18,7 @@ adapter_watchdog.py — MP-596 AdapterWatchdog.
 
 NOT imported from: risk/, execution/, monitoring/ (LLM_FORBIDDEN_AGENTS).
 """
-from __future__ import annotations
+# from __future__ import annotations  # MP-1233: neutralized — unreachable below DEPRECATED raise, broke py_compile
 
 import json
 import logging
