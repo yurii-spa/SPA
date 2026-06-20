@@ -1,4 +1,4 @@
-"""MP-144: Unit tests for cycle_gap_monitor.py.
+"""MP-144 / AGENT-P0-006: Unit tests for cycle_gap_monitor.py.
 
 Covers:
 - Gap detection thresholds (24h, 26h, 48h)
@@ -10,6 +10,8 @@ Covers:
 - Never-raise guarantee (corrupt JSON, missing files)
 - Return dict structure validation
 - Telegram send mocking
+- Heartbeat guarantee (AGENT-P0-006): cycle_gap_state.json written on EVERY
+  run (even when no gap), so external tools can verify the monitor is alive.
 
 Run::
 
@@ -21,7 +23,7 @@ import json
 import os
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -33,6 +35,7 @@ from spa_core.paper_trading.cycle_gap_monitor import (
     CYCLE_LOG_FILENAME,
     _UNKNOWN_HOURS,
     _atomic_write_json,
+    _build_heartbeat_state,
     _compute_days_to_golive,
     _compute_paper_days,
     _format_alert_message,
@@ -63,6 +66,12 @@ def _write_json_file(path: Path, obj) -> None:
     """Write JSON file directly (for test setup)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, indent=2), encoding="utf-8")
+
+
+def _read_state(ddir: Path) -> dict:
+    """Load cycle_gap_state.json from ddir."""
+    path = ddir / GAP_STATE_FILENAME
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 # ─── Category 1: detect_gap() ─────────────────────────────────────────────────
@@ -358,11 +367,9 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
         self.ddir = Path(self.tmpdir)
 
     def _recent_ts(self, hours_ago: float = 1.0) -> str:
-        from datetime import timedelta
         return (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
 
     def _old_ts(self, hours_ago: float = 30.0) -> str:
-        from datetime import timedelta
         return (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
 
     def test_no_gap_when_cycle_recent(self):
@@ -378,11 +385,12 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_gap_detected_when_old_cycle(self):
         """Old last_cycle_ts (30h) + hour>=10 → gap_detected=True."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=True,
@@ -392,11 +400,12 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_alert_sent_when_telegram_succeeds(self):
         """Gap + fresh day + Telegram OK → alert_sent=True."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=True,
@@ -406,11 +415,12 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_alert_not_sent_when_telegram_fails(self):
         """Gap + Telegram fails → alert_sent=False."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=False,
@@ -420,16 +430,17 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_deduplication_prevents_second_alert_same_day(self):
         """Second call on same day → alert_sent=False (already alerted)."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
         today = "2026-06-12"
         _write_json_file(
             self.ddir / GAP_STATE_FILENAME,
             {"last_alert_date": today},
         )
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=True,
@@ -440,11 +451,12 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_dry_run_no_telegram_call(self):
         """dry_run=True → Telegram is never called even if gap detected."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=True,
@@ -456,11 +468,12 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_state_written_after_successful_alert(self):
         """Gap state file is written after a successful Telegram send."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=True,
@@ -471,15 +484,23 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertEqual(state.get("last_alert_date"), "2026-06-12")
 
-    def test_state_not_written_when_no_gap(self):
-        """State file is NOT created if there is no gap."""
+    def test_state_written_even_when_telegram_fails(self):
+        """Heartbeat is written even when Telegram delivery fails (AGENT-P0-006)."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._recent_ts(1.0)},
+            {"last_cycle_ts": old_ts},
         )
-        now = datetime.now(timezone.utc).replace(hour=12)
-        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
-        self.assertFalse((self.ddir / GAP_STATE_FILENAME).exists())
+        with patch(
+            "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+            return_value=False,
+        ):
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state_path = self.ddir / GAP_STATE_FILENAME
+        self.assertTrue(state_path.exists(), "State must be written even when telegram fails")
+        state = _read_state(self.ddir)
+        self.assertIn("last_check_ts", state)
 
     def test_never_raises_corrupt_status_json(self):
         """Corrupt status JSON → result returned, no exception raised."""
@@ -503,7 +524,6 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_hours_since_approximately_correct(self):
         """hours_since in result is close to the actual elapsed hours."""
-        from datetime import timedelta
         now = _utc(2026, 6, 12, 12)
         elapsed = 30.0
         last_ts = (now - timedelta(hours=elapsed)).isoformat()
@@ -517,12 +537,13 @@ class TestRunCycleGapMonitorBehavior(unittest.TestCase):
 
     def test_never_raises_corrupt_gap_state(self):
         """Corrupt gap_state.json → no exception, still detects gap."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
-            {"last_cycle_ts": self._old_ts(30.0)},
+            {"last_cycle_ts": old_ts},
         )
         (self.ddir / GAP_STATE_FILENAME).write_text("NOT JSON", encoding="utf-8")
-        now = _utc(2026, 6, 12, 12)
         with patch(
             "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
             return_value=True,
@@ -545,7 +566,6 @@ class TestCLICheck(unittest.TestCase):
 
     def test_cli_check_no_state_file_written(self):
         """--check must not write cycle_gap_state.json even if gap exists."""
-        from datetime import timedelta
         old_ts = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
         _write_json_file(
             self.ddir / STATUS_FILENAME,
@@ -588,8 +608,8 @@ class TestCLICheck(unittest.TestCase):
         output = buf.getvalue()
         self.assertIn("Cycle Gap Monitor", output)
 
-    def test_cli_no_args_runs_without_exception(self):
-        """Running without --check uses run_cycle_gap_monitor (smoke test)."""
+    def test_cli_no_args_writes_heartbeat(self):
+        """Running without --check writes heartbeat file (AGENT-P0-006)."""
         _write_json_file(
             self.ddir / STATUS_FILENAME,
             {"last_cycle_ts": datetime.now(timezone.utc).isoformat()},
@@ -607,6 +627,9 @@ class TestCLICheck(unittest.TestCase):
             self.fail(f"main() raised unexpectedly: {exc}")
         finally:
             sys.stdout = old_stdout
+        # Heartbeat must have been written
+        state_path = self.ddir / GAP_STATE_FILENAME
+        self.assertTrue(state_path.exists(), "Heartbeat state must be written on default run")
 
 
 # ─── Category 8: Helper functions ────────────────────────────────────────────
@@ -679,6 +702,259 @@ class TestHelperFunctions(unittest.TestCase):
             self.assertEqual(result, "fallback")
         finally:
             os.unlink(fname)
+
+
+# ─── Category 9: Heartbeat guarantee (AGENT-P0-006) ──────────────────────────
+
+class TestHeartbeatGuarantee(unittest.TestCase):
+    """AGENT-P0-006: cycle_gap_state.json must be written on EVERY run.
+
+    Even when no gap is detected the file must exist so that GoLiveChecker
+    and dashboards can confirm the monitor is alive.
+    """
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.ddir = Path(self.tmpdir)
+
+    def _recent_ts(self) -> str:
+        return (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+
+    def _old_ts(self) -> str:
+        return (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+
+    # ── No-gap path ────────────────────────────────────────────────────────
+
+    def test_heartbeat_created_when_no_gap(self):
+        """State file must be CREATED even when cycle is healthy (no gap)."""
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+        now = datetime.now(timezone.utc).replace(hour=12)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        self.assertTrue(
+            (self.ddir / GAP_STATE_FILENAME).exists(),
+            "cycle_gap_state.json must be written even when no gap detected",
+        )
+
+    def test_heartbeat_no_gap_has_last_check_ts(self):
+        """Heartbeat written on no-gap path contains last_check_ts."""
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+        now = datetime.now(timezone.utc).replace(hour=12)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertIn("last_check_ts", state)
+
+    def test_heartbeat_no_gap_gap_detected_is_false(self):
+        """Heartbeat written on no-gap path has gap_detected=False."""
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+        now = datetime.now(timezone.utc).replace(hour=12)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertFalse(state["gap_detected"])
+
+    def test_heartbeat_no_gap_alert_sent_is_false(self):
+        """Heartbeat written on no-gap path has alert_sent=False."""
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+        now = datetime.now(timezone.utc).replace(hour=12)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertFalse(state["alert_sent"])
+
+    def test_heartbeat_no_gap_preserves_last_alert_date(self):
+        """No-gap heartbeat preserves existing last_alert_date for dedup."""
+        existing = {"last_alert_date": "2026-06-11", "last_alert_ts": "ts-prev"}
+        _write_json_file(self.ddir / GAP_STATE_FILENAME, existing)
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+        now = datetime.now(timezone.utc).replace(hour=12)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertEqual(state.get("last_alert_date"), "2026-06-11",
+                         "last_alert_date must be preserved across no-gap heartbeat writes")
+
+    def test_heartbeat_no_gap_hours_since_correct(self):
+        """Heartbeat has hours_since reflecting actual elapsed time."""
+        now = _utc(2026, 6, 12, 12)
+        last_dt = now - timedelta(hours=5)
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": last_dt.isoformat()})
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertAlmostEqual(state["hours_since"], 5.0, delta=0.1)
+
+    # ── Already-alerted-today (dedup) path ────────────────────────────────
+
+    def test_heartbeat_written_when_already_alerted_today(self):
+        """Heartbeat written even when dedup suppresses a second alert."""
+        today = "2026-06-12"
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
+        _write_json_file(
+            self.ddir / GAP_STATE_FILENAME,
+            {"last_alert_date": today, "last_alert_ts": "prev-ts"},
+        )
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": old_ts})
+        with patch("spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+                   return_value=True) as mock_send:
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        mock_send.assert_not_called()
+        state = _read_state(self.ddir)
+        self.assertIn("last_check_ts", state,
+                      "Heartbeat must include last_check_ts even in dedup path")
+
+    def test_heartbeat_dedup_path_gap_detected_is_true(self):
+        """Heartbeat in dedup path records gap_detected=True."""
+        today = "2026-06-12"
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
+        _write_json_file(self.ddir / GAP_STATE_FILENAME, {"last_alert_date": today})
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": old_ts})
+        with patch("spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+                   return_value=True):
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertTrue(state["gap_detected"])
+
+    def test_heartbeat_dedup_path_preserves_last_alert_date(self):
+        """Heartbeat in dedup path does NOT overwrite last_alert_date."""
+        today = "2026-06-12"
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
+        _write_json_file(
+            self.ddir / GAP_STATE_FILENAME,
+            {"last_alert_date": today, "last_alert_ts": "orig-ts"},
+        )
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": old_ts})
+        with patch("spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+                   return_value=True):
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        self.assertEqual(state.get("last_alert_date"), today)
+        self.assertEqual(state.get("last_alert_ts"), "orig-ts")
+
+    # ── Telegram-failed path ──────────────────────────────────────────────
+
+    def test_heartbeat_written_when_telegram_fails(self):
+        """State file is written even when Telegram send returns False."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": old_ts})
+        with patch("spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+                   return_value=False):
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        self.assertTrue((self.ddir / GAP_STATE_FILENAME).exists())
+        state = _read_state(self.ddir)
+        self.assertIn("last_check_ts", state)
+        self.assertFalse(state["alert_sent"])
+
+    def test_heartbeat_telegram_fail_does_not_update_last_alert_date(self):
+        """When Telegram fails, last_alert_date dedup state is NOT advanced."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": old_ts})
+        with patch("spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+                   return_value=False):
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now)
+        state = _read_state(self.ddir)
+        # last_alert_date should NOT be set to today because no alert was sent
+        self.assertNotEqual(state.get("last_alert_date"), "2026-06-12",
+                            "Telegram failure must not advance last_alert_date dedup field")
+
+    # ── dry_run must NOT write ─────────────────────────────────────────────
+
+    def test_dry_run_does_not_write_heartbeat_no_gap(self):
+        """dry_run=True must not write state even in no-gap path."""
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+        now = datetime.now(timezone.utc).replace(hour=12)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now, dry_run=True)
+        self.assertFalse(
+            (self.ddir / GAP_STATE_FILENAME).exists(),
+            "dry_run=True must never write cycle_gap_state.json",
+        )
+
+    def test_dry_run_does_not_write_heartbeat_gap_detected(self):
+        """dry_run=True must not write state even when gap is detected."""
+        now = _utc(2026, 6, 12, 12)
+        old_ts = (now - timedelta(hours=30)).isoformat()
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": old_ts})
+        with patch("spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+                   return_value=True):
+            run_cycle_gap_monitor(data_dir=self.ddir, now=now, dry_run=True)
+        self.assertFalse(
+            (self.ddir / GAP_STATE_FILENAME).exists(),
+            "dry_run=True must never write cycle_gap_state.json (gap path)",
+        )
+
+    # ── _build_heartbeat_state() unit tests ───────────────────────────────
+
+    def test_build_heartbeat_state_sets_last_check_ts(self):
+        """_build_heartbeat_state() always sets last_check_ts."""
+        state = _build_heartbeat_state(
+            {}, gap_detected=False, hours_since=2.0, alert_sent=False,
+            now_ts="2026-06-12T12:00:00+00:00",
+        )
+        self.assertEqual(state["last_check_ts"], "2026-06-12T12:00:00+00:00")
+
+    def test_build_heartbeat_state_sets_gap_detected(self):
+        state = _build_heartbeat_state(
+            {}, gap_detected=True, hours_since=30.0, alert_sent=False,
+            now_ts="ts",
+        )
+        self.assertTrue(state["gap_detected"])
+
+    def test_build_heartbeat_state_sets_hours_since(self):
+        state = _build_heartbeat_state(
+            {}, gap_detected=False, hours_since=5.5, alert_sent=False,
+            now_ts="ts",
+        )
+        self.assertAlmostEqual(state["hours_since"], 5.5, places=2)
+
+    def test_build_heartbeat_state_sets_alert_sent(self):
+        state = _build_heartbeat_state(
+            {}, gap_detected=True, hours_since=30.0, alert_sent=True,
+            now_ts="ts",
+        )
+        self.assertTrue(state["alert_sent"])
+
+    def test_build_heartbeat_state_preserves_existing_alert_dedup(self):
+        existing = {"last_alert_date": "2026-06-10", "last_alert_ts": "some-ts"}
+        state = _build_heartbeat_state(
+            existing, gap_detected=False, hours_since=1.0, alert_sent=False,
+            now_ts="ts",
+        )
+        self.assertEqual(state["last_alert_date"], "2026-06-10")
+        self.assertEqual(state["last_alert_ts"], "some-ts")
+
+    def test_build_heartbeat_state_does_not_mutate_existing(self):
+        """_build_heartbeat_state must not mutate the input dict."""
+        original = {"last_alert_date": "2026-06-10"}
+        _ = _build_heartbeat_state(
+            original, gap_detected=False, hours_since=1.0, alert_sent=False,
+            now_ts="ts",
+        )
+        self.assertNotIn("last_check_ts", original, "Input dict must not be mutated")
+
+    def test_build_heartbeat_state_hours_since_rounded(self):
+        """hours_since is stored rounded to 2 decimal places."""
+        state = _build_heartbeat_state(
+            {}, gap_detected=False, hours_since=3.14159, alert_sent=False,
+            now_ts="ts",
+        )
+        self.assertEqual(state["hours_since"], 3.14)
+
+    # ── Successive runs update last_check_ts ──────────────────────────────
+
+    def test_heartbeat_last_check_ts_updates_on_each_run(self):
+        """Successive runs with no gap each update last_check_ts."""
+        _write_json_file(self.ddir / STATUS_FILENAME, {"last_cycle_ts": self._recent_ts()})
+
+        now1 = _utc(2026, 6, 12, 10)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now1)
+        ts1 = _read_state(self.ddir)["last_check_ts"]
+
+        now2 = _utc(2026, 6, 12, 11)
+        run_cycle_gap_monitor(data_dir=self.ddir, now=now2)
+        ts2 = _read_state(self.ddir)["last_check_ts"]
+
+        self.assertNotEqual(ts1, ts2, "last_check_ts must advance on each run")
+        self.assertGreater(ts2, ts1)
 
 
 if __name__ == "__main__":
