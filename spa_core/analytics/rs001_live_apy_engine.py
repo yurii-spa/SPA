@@ -41,6 +41,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spa_core.base import BaseAnalytics
+
 logger = logging.getLogger(__name__)
 
 # ── Repository root (two levels up: spa_core/analytics/ → spa_core/ → repo) ──
@@ -107,7 +109,7 @@ _CLEAN_DOMINATED_THRESHOLD: float = 0.50  # if clean_pct_of_capital > 50%, CLEAN
 
 # ── RS001LiveAPYEngine ────────────────────────────────────────────────────────
 
-class RS001LiveAPYEngine:
+class RS001LiveAPYEngine(BaseAnalytics):
     """Assembles live APY composition for the RS-001 Anti-Crisis Research Strategy.
 
     Tries to load:
@@ -123,7 +125,10 @@ class RS001LiveAPYEngine:
         repo_root: Override repo root for save() path resolution.
     """
 
+    OUTPUT_PATH = "data/research/rs001_apy_breakdown.json"
+
     def __init__(self, repo_root: Optional[str] = None) -> None:
+        super().__init__()
         self._repo_root = Path(repo_root) if repo_root else _DEFAULT_REPO_ROOT
 
         # Try to load live adapters (fail silently)
@@ -372,6 +377,10 @@ class RS001LiveAPYEngine:
             "strategy_id":                "RS-001",
             "generated_at":               datetime.now(timezone.utc).isoformat(),
         }
+
+    def to_dict(self) -> dict:
+        """Returns APY breakdown report as JSON-serializable dict."""
+        return self.apy_breakdown_report()
 
     def save(self, path: Optional[str] = None) -> None:
         """Atomically write apy_breakdown_report() to disk (tmp + os.replace).
