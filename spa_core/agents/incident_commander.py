@@ -15,11 +15,12 @@ import enum
 import json
 import logging
 import os
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.incident_commander")
 
@@ -52,26 +53,6 @@ class IncidentSeverity(str, enum.Enum):
 
 # ─── Atomic IO helpers ────────────────────────────────────────────────────────
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Записывает JSON атомарно: tmpfile + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -402,7 +383,7 @@ def create_incident(
     # Сохраняем файл атомарно
     incidents_path = data_path / INCIDENTS_DIR
     filename = f"incident_{date_prefix}_{incident_id[:8]}.json"
-    _atomic_write_json(incidents_path / filename, incident)
+    atomic_save(incident, str(incidents_path / filename))
     log.warning(
         "Incident created: %s (severity=%s, type=%s)",
         incident_id[:8], severity.value, alert_type,
@@ -448,7 +429,7 @@ def resolve_incident(
                     return True
                 doc["status"] = "resolved"
                 doc["resolved_at"] = datetime.now(timezone.utc).isoformat()
-                _atomic_write_json(incident_file, doc)
+                atomic_save(doc, str(incident_file))
                 log.info(
                     "resolve_incident: %s resolved", incident_id[:8]
                 )
