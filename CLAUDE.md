@@ -38,7 +38,7 @@ AUM (third-party capital) после подтверждённого track record
 launchd com.spa.daily_cycle (ежедневно 08:00)
     └─► python3 -m spa_core.paper_trading.cycle_runner --verbose
           1. adapter orchestrator (read-only) → живой снимок APY/TVL
-          2. multi_strategy_runner → запуск стратегий S0–S10 (Tournament)
+          2. multi_strategy_runner → запуск стратегий S1–S21 (Tournament, 23 файла)
           2b. StrategyAllocator → целевая аллокация (USD по пулам)
           2c. RiskPolicy gate (детерминированный) — нарушение блокирует
               ребаланс → data/risk_policy_blocks.json (ring-buffer 100)
@@ -87,14 +87,14 @@ execution-домен (подписи, live-write адаптеры). `data/adapte
 
 ---
 
-## Стратегии (Tournament: S0–S10)
+## Стратегии (Tournament: S1–S21, 23 файла)
 
 Реестр: `spa_core/strategies/strategy_registry.py`. Оценка: `tournament_evaluator.py`
 (метрики: Sharpe / Calmar / Ulcer / Rachev). Dashboard: вкладка Tournament (index.html v3.0).
 
 | ID | Название | Файл | APY / Характеристика |
 |---|---|---|---|
-| S0–S7 | Базовые стратегии | *(ранние спринты)* | — |
+| S1–S7 | Базовые стратегии | *(ранние спринты)* | — |
 | S8 | Delta-Neutral sUSDe | `delta_neutral_susde.py` | ~27.5% (bull mode) |
 | S9 | E-Mode Looping | `emode_looping.py` | ~5.84% |
 | S10 | Pendle YT | `pendle_yt.py` | 14–42% (спекулятивный, T3-SPEC) |
@@ -190,7 +190,7 @@ READY 7+ дней подряд + gap_monitor без пробелов 30 дней
 | `spa_core/adapters/` | Read-only адаптеры протоколов + DeFiLlama feed + реестр |
 | `spa_core/allocator/` | `StrategyAllocator` — целевые веса с cap'ами и TVL floor |
 | `spa_core/paper_trading/` | `cycle_runner.py` (ядро), `engine.py`, `golive_checker.py`, `gap_monitor.py`, `multi_strategy_runner.py`, аналитика |
-| `spa_core/strategies/` | Tournament стратегии S0–S10, `strategy_registry.py`, `tournament_evaluator.py` |
+| `spa_core/strategies/` | Tournament стратегии S1–S21 (23 файла), `strategy_registry.py`, `tournament_evaluator.py` |
 | `spa_core/risk/` | `policy.py` (RiskConfig/RiskPolicy v1.0), `versions/` (snapshots) |
 | `spa_core/golive/` | `activate.py`, checklist, readiness reports |
 | `spa_core/execution/` | Execution-домен — **НЕ импортировать** из read-only кода |
@@ -224,7 +224,7 @@ READY 7+ дней подряд + gap_monitor без пробелов 30 дней
 | `paper_trading_status.json` | Сводный статус paper trading |
 | `risk_policy_blocks.json` | Блокировки RiskPolicy gate (ring-buffer 100) |
 | `adapter_status.json` | Принадлежит execution-домену — не трогать из read-only кода |
-| `tournament_results.json` | Tournament evaluator: Sharpe/Calmar/Ulcer/Rachev по S0–S10 |
+| `tournament_results.json` | Tournament evaluator: Sharpe/Calmar/Ulcer/Rachev по всем стратегиям |
 
 ---
 
@@ -310,4 +310,4 @@ python3 push_to_github.py --files /abs/path/a.py /abs/path/b.json --message "msg
 
 ---
 
-*Обновлено: 2026-06-20 (MP-367 v4.68 — стратегии S8/S9/S10, адаптеры Morpho Steakhouse/Compound V3/Aave Arbitrum/Pendle PT, Family Fund + http_server, GoLiveChecker 26 чеков 25/26 pass, ADR-019/020/021, Dashboard v3.0, promotion_engine, multi_strategy_runner, DR_PROCEDURE_v2; fix FORBIDDEN golive/readiness_score imports v1199).*
+*Обновлено: 2026-06-20 (v12.04 — KANBAN sprint обновлён, стратегии S1–S21 (23 файла), LLM_FORBIDDEN_AGENTS+monitoring, ADR_INDEX, audit drift fix).*
