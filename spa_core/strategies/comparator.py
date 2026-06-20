@@ -24,9 +24,10 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 from math import sqrt
 from pathlib import Path
+
+from spa_core.utils.atomic import atomic_save
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_DIR = _PROJECT_ROOT / "data" / "strategies"
@@ -59,21 +60,6 @@ def _load_json(path: Path) -> dict:
     except (OSError, ValueError):
         return {}
 
-
-def _atomic_write(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 def _returns(equity_curve: list[dict]) -> list[float]:
@@ -218,7 +204,7 @@ def _clean(value):
 
 def write_comparison(now_iso: str | None = None, output: Path = _OUTPUT) -> dict:
     doc = build_comparison(now_iso)
-    _atomic_write(output, doc)
+    atomic_save(doc, str(output))
     return doc
 
 
