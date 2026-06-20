@@ -8,8 +8,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 if ROOT not in sys.path:
