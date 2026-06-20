@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import json
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # ── Ensure repo root on sys.path ──────────────────────────────────────────────
