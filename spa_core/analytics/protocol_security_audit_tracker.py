@@ -12,10 +12,10 @@ Data log: data/security_audit_log.json (ring-buffer 100 entries, atomic write)
 import json
 import math
 import os
-import tempfile
 import time
 from datetime import date, datetime
 from pathlib import Path
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -380,21 +380,7 @@ def append_log(result: dict, log_path: Path = None) -> None:
     if len(existing) > LOG_MAX_ENTRIES:
         existing = existing[-LOG_MAX_ENTRIES:]
 
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=log_path.parent, prefix=".sec_audit_log_", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            json.dump(existing, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(existing, str(log_path))
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
