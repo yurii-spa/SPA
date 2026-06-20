@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
+import tempfile
 
 from spa_core.milestone.milestone_tracker import (
     MilestoneStatus,
