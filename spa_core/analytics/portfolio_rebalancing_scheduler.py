@@ -38,11 +38,11 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -87,25 +87,8 @@ def _now_iso() -> str:
 
 
 def _atomic_write_json(path: Path, payload: object) -> None:
-    """Atomic JSON write: tmp-file in same dir + os.replace. Creates parent dirs."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        if os.path.exists(tmp_name):
-            try:
-                os.unlink(tmp_name)
-            except OSError:
-                pass
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(payload, str(path))
 def _load_json_file(path: Path) -> object:
     """Load JSON tolerantly. Returns None on any error."""
     if not path.exists():
