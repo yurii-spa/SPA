@@ -18,8 +18,8 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-import tempfile
 import unittest
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 _HERE = pathlib.Path(__file__).resolve().parent
