@@ -1,9 +1,42 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-21** | Версия: **v12.05** | Done: **1286** задач
+> Последнее обновление: **2026-06-21** | Версия: **v12.26** | Done: **~1291** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+## GoLive Honest Status — 2026-06-21 (v12.26)
+
+GoLive-гейт пересчитан **честно**: 29-критериальный gate v6.0. Прежний показатель
+«25/26» подсчитывал фейковые demo-дни до teardown (до 2026-06-10). Реальный трек —
+**11 дней** с 2026-06-10. Источник: `python3 -m spa_core.golive.golive_checker`.
+
+| Поле | Значение |
+|------|----------|
+| **GoLive Status** | ✅ **27/29 pass** (NOT READY — 2 PENDING) |
+| **Track Days** | **11 реальных дней** (с 2026-06-10) → target **30** = **2026-07-09** |
+| **Paper APY** | **4.11%** (annualized, 11-day track) |
+| 2 PENDING | `gap_monitor_30d` + `min_track_days_30` (19 дней до target 2026-07-09) |
+| consecutive_ready_days | **0** |
+| **Strategies total** | **~45** (S0–S43) |
+| **Adapters total** | **~30** |
+| **KANBAN done** | **~1291** задач |
+| **Last sprint** | **v12.26** |
+| Go-live target | **2026-07-09** (30-day honest track complete) |
+
+**Что изменилось vs прежний «25/26»:** убраны pre-teardown demo-бары из подсчёта
+track-days; autopush_installed теперь PASS; гейт перешёл на 29 критериев v6.0.
+Честный verdict: **27/29 PASS**, оба оставшихся блокера — это просто ожидание
+30-дневного честного трека (нечего «чинить», нужно дождаться 2026-07-09).
+
+### NEXT STEPS
+
+1. 🗓 **9 июля 2026** — завершение 30-дневного честного трека → GoLive PASS **29/29**
+2. 🔑 **Ротация CF Tunnel Token** (находка security-аудита — оператор вручную в Cloudflare)
+3. 📊 **Ревью ADR-036** (Kelly T2_cap 20%→25%, +0.5% APY)
+4. 🌐 **Cloudflare Access gate** для earn-defi.com
 
 ---
 
@@ -539,3 +572,7 @@ See full detail: `docs/RETROSPECTIVE_100_SPRINTS.md`
 - LLM_FORBIDDEN_AGENTS: `monitoring` уже присутствовал в коде — синхронизация подтверждена
 
 *Обновлено: 2026-06-20 (v12.04 — docs drift fix, ADR index, audit notes)*
+
+---
+
+*Обновлено: 2026-06-21 (v12.26 — GoLive honest status **27/29** (29-criteria v6.0), 11 real track days (target 2026-07-09, 4.11% APY), ~45 strategies S0–S43, ~30 adapters, done ~1291)*
