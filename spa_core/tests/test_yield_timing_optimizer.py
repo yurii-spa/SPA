@@ -18,6 +18,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from spa_core.analytics.yield_timing_optimizer import YieldTimingOptimizer, RING_BUFFER_CAP
+from spa_core.utils.errors import SPAError
 
 
 # ---------------------------------------------------------------------------
@@ -70,12 +71,12 @@ class TestYieldTimingOptimizerInit(unittest.TestCase):
 
     def test_get_entry_signal_raises_before_optimize(self):
         opt = YieldTimingOptimizer()
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             opt.get_entry_signal()
 
     def test_get_timing_score_raises_before_optimize(self):
         opt = YieldTimingOptimizer()
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             opt.get_timing_score()
 
 
