@@ -64,6 +64,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 from spa_core.safety.safeguard import live_trading_forbidden
+from spa_core.utils.errors import ConfigError, SourceError, ValidationError
 
 log = logging.getLogger("spa.aave_v3_adapter")
 
@@ -258,10 +259,7 @@ class AaveV3Adapter:
             ValueError: If ``chain`` is not in SUPPORTED_CHAINS.
         """
         if chain not in self.SUPPORTED_CHAINS:
-            raise ValueError(
-                f"Unsupported chain '{chain}'. "
-                f"Must be one of: {self.SUPPORTED_CHAINS}"
-            )
+            raise ValidationError("chain", chain, f"must be one of {self.SUPPORTED_CHAINS}")
         self.chain = chain
         self.dry_run = dry_run
         self.rpc_endpoints: dict[str, list[str]] = (
@@ -284,14 +282,9 @@ class AaveV3Adapter:
                 is not strictly positive.
         """
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValueError(
-                f"Unsupported asset '{asset}'. "
-                f"Must be one of: {self.SUPPORTED_ASSETS}"
-            )
+            raise ValidationError("asset", asset, f"must be one of {self.SUPPORTED_ASSETS}")
         if amount is None or amount <= 0:
-            raise ValueError(
-                f"Invalid amount {amount!r}: must be a positive number"
-            )
+            raise ValidationError("amount", amount, "must be a strictly positive number")
 
     # ─── Phase 2: stdlib JSON-RPC helpers ─────────────────────────────────────
 
@@ -357,18 +350,18 @@ class AaveV3Adapter:
             ) as resp:
                 raw = resp.read()
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"eth_call HTTP failure: {exc}") from exc
+            raise SourceError("eth_call", f"HTTP failure: {exc}") from exc
 
         try:
             parsed = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
-            raise RuntimeError(f"eth_call malformed JSON: {exc}") from exc
+            raise SourceError("eth_call", f"malformed JSON: {exc}") from exc
 
         if "error" in parsed:
-            raise RuntimeError(f"eth_call RPC error: {parsed['error']}")
+            raise SourceError("eth_call", f"RPC error: {parsed['error']}")
         result = parsed.get("result")
         if not isinstance(result, str) or not result.startswith("0x"):
-            raise RuntimeError(f"eth_call missing/invalid result: {parsed!r}")
+            raise SourceError("eth_call", f"missing/invalid result: {parsed!r}")
         return result
 
     def _call_with_fallback(self, asset: str, data: str) -> str:
@@ -387,8 +380,9 @@ class AaveV3Adapter:
         """
         endpoints = self.rpc_endpoints.get(self.chain, [])
         if not endpoints:
-            raise RuntimeError(
-                f"No RPC endpoints configured for chain={self.chain}"
+            raise SourceError(
+                f"aave_v3:{self.chain}",
+                f"no RPC endpoints configured for chain={self.chain}",
             )
 
         failures: list[str] = []
@@ -402,9 +396,10 @@ class AaveV3Adapter:
                     asset, url, exc,
                 )
                 failures.append(f"{url} -> {exc}")
-        raise RuntimeError(
-            f"All {len(endpoints)} RPCs failed for {asset} on {self.chain}: "
-            + " | ".join(failures)
+        raise SourceError(
+            f"aave_v3:{self.chain}",
+            f"all {len(endpoints)} RPCs failed for {asset}: "
+            + " | ".join(failures),
         )
 
     def _eth_rpc(self, rpc_url: str, method: str, params: list) -> object:
@@ -446,17 +441,17 @@ class AaveV3Adapter:
             ) as resp:
                 raw = resp.read()
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"{method} HTTP failure: {exc}") from exc
+            raise SourceError(method, f"HTTP failure: {exc}") from exc
 
         try:
             parsed = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
-            raise RuntimeError(f"{method} malformed JSON: {exc}") from exc
+            raise SourceError(method, f"malformed JSON: {exc}") from exc
 
         if "error" in parsed:
-            raise RuntimeError(f"{method} RPC error: {parsed['error']}")
+            raise SourceError(method, f"RPC error: {parsed['error']}")
         if "result" not in parsed:
-            raise RuntimeError(f"{method} missing result: {parsed!r}")
+            raise SourceError(method, f"missing result: {parsed!r}")
         return parsed["result"]
 
     def _rpc_first(self, method: str, params: list) -> object:
@@ -470,8 +465,9 @@ class AaveV3Adapter:
         """
         endpoints = self.rpc_endpoints.get(self.chain, [])
         if not endpoints:
-            raise RuntimeError(
-                f"No RPC endpoints configured for chain={self.chain}"
+            raise SourceError(
+                f"aave_v3:{self.chain}",
+                f"no RPC endpoints configured for chain={self.chain}",
             )
         failures: list[str] = []
         for raw_url in endpoints:
@@ -481,9 +477,10 @@ class AaveV3Adapter:
             except Exception as exc:  # noqa: BLE001
                 log.debug("rpc %s failed url=%s err=%s", method, url, exc)
                 failures.append(f"{url} -> {exc}")
-        raise RuntimeError(
-            f"All {len(endpoints)} RPCs failed for {method} on "
-            f"{self.chain}: " + " | ".join(failures)
+        raise SourceError(
+            f"aave_v3:{self.chain}",
+            f"all {len(endpoints)} RPCs failed for {method}: "
+            + " | ".join(failures),
         )
 
     def _call_token(self, rpc_url: str, token: str, data: str) -> str:
@@ -497,8 +494,9 @@ class AaveV3Adapter:
         data = self.SELECTOR_BALANCE_OF + self._pad_address(wallet)
         endpoints = self.rpc_endpoints.get(self.chain, [])
         if not endpoints:
-            raise RuntimeError(
-                f"No RPC endpoints configured for chain={self.chain}"
+            raise SourceError(
+                f"aave_v3:{self.chain}",
+                f"no RPC endpoints configured for chain={self.chain}",
             )
         failures: list[str] = []
         for raw_url in endpoints:
@@ -511,9 +509,10 @@ class AaveV3Adapter:
                     asset, url, exc,
                 )
                 failures.append(f"{url} -> {exc}")
-        raise RuntimeError(
-            f"All {len(endpoints)} RPCs failed for balanceOf({wallet}) on "
-            f"{self.chain}: " + " | ".join(failures)
+        raise SourceError(
+            f"aave_v3:{self.chain}",
+            f"all {len(endpoints)} RPCs failed for balanceOf({wallet}): "
+            + " | ".join(failures),
         )
 
     # ─── Phase 3: live-write helpers ──────────────────────────────────────────
@@ -522,7 +521,7 @@ class AaveV3Adapter:
     def _pad_uint256(value: int) -> str:
         """Encode a non-negative int as 32-byte big-endian hex (no 0x)."""
         if value < 0:
-            raise ValueError(f"uint256 must be non-negative; got {value}")
+            raise ValidationError("value", value, "uint256 must be non-negative")
         return format(value, "064x")
 
     def _build_approve_calldata(self, spender: str, raw_amount: int) -> str:
@@ -608,7 +607,9 @@ class AaveV3Adapter:
             log.warning("MEV protection routing error, using public RPC: %s", exc)
         result = self._rpc_first("eth_sendRawTransaction", [signed_hex])
         if not isinstance(result, str) or not result.startswith("0x"):
-            raise RuntimeError(f"eth_sendRawTransaction bad result: {result!r}")
+            raise ValidationError(
+                "result", result, f"eth_sendRawTransaction bad result: {result!r}"
+            )
         return result
 
     def _wait_for_receipt(self, tx_hash: str) -> dict:
@@ -629,9 +630,9 @@ class AaveV3Adapter:
             if isinstance(result, dict):
                 return result
             time.sleep(self.RECEIPT_POLL_INTERVAL_SECONDS)
-        raise RuntimeError(
-            f"Receipt timeout after {self.RECEIPT_POLL_MAX_SECONDS}s for "
-            f"tx {tx_hash}"
+        raise SourceError(
+            "eth_getTransactionReceipt",
+            f"receipt timeout after {self.RECEIPT_POLL_MAX_SECONDS}s for tx {tx_hash}",
         )
 
     @staticmethod
@@ -658,19 +659,16 @@ class AaveV3Adapter:
 
     @staticmethod
     def _validate_private_key(pk: str) -> str:
-        """Normalise hex private key. Raises ValueError if malformed."""
+        """Normalise hex private key. Raises ConfigError/ValidationError if malformed."""
         if not pk:
-            raise ValueError("SPA_PRIVATE_KEY missing")
+            raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
         cleaned = pk[2:] if pk.lower().startswith("0x") else pk
         if len(cleaned) != 64:
-            raise ValueError(
-                f"SPA_PRIVATE_KEY must be 64 hex chars (0x-prefix optional); "
-                f"got {len(cleaned)}"
-            )
+            raise ValidationError("SPA_PRIVATE_KEY", cleaned, f"must be 64 hex chars (0x-prefix optional); got {len(cleaned)}")
         try:
             int(cleaned, 16)
         except ValueError as exc:
-            raise ValueError("SPA_PRIVATE_KEY is not valid hex") from exc
+            raise ValidationError("SPA_PRIVATE_KEY", "***", "not valid hex") from exc
         return "0x" + cleaned
 
     def _check_live_preconditions(self) -> dict | None:
@@ -701,16 +699,13 @@ class AaveV3Adapter:
         Account = _require_eth_account()
         pk = os.environ.get("SPA_PRIVATE_KEY", "")
         if not pk:
-            raise ValueError("SPA_PRIVATE_KEY missing")
+            raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
         normalised = self._validate_private_key(pk)
         acct = Account.from_key(normalised)
         derived = acct.address
         configured = os.environ.get("SPA_WALLET_ADDRESS")
         if configured and configured.lower() != derived.lower():
-            raise ValueError(
-                f"SPA_WALLET_ADDRESS ({configured}) does not match address "
-                f"derived from SPA_PRIVATE_KEY ({derived})"
-            )
+            raise ValidationError("SPA_WALLET_ADDRESS", configured, f"does not match derived address {derived}")
         return acct, derived
 
     @live_trading_forbidden
@@ -750,7 +745,9 @@ class AaveV3Adapter:
         if raw is None:
             raw = getattr(signed, "raw_transaction", None)  # newer eth_account
         if raw is None:
-            raise RuntimeError("Signed tx missing rawTransaction attribute")
+            raise ValidationError(
+                "rawTransaction", None, "missing attribute — unexpected eth_account version"
+            )
         # rawTransaction is bytes — convert to 0x-prefixed hex.
         if isinstance(raw, (bytes, bytearray)):
             signed_hex = "0x" + raw.hex()
@@ -1163,18 +1160,15 @@ class AaveV3Adapter:
                 BEFORE any RPC work; never wrapped by the fallback.
         """
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValueError(
-                f"Unsupported asset '{asset}'. "
-                f"Must be one of: {self.SUPPORTED_ASSETS}"
-            )
+            raise ValidationError("asset", asset, f"must be one of {self.SUPPORTED_ASSETS}")
         if self.dry_run:
             return self._MOCK_BALANCES[asset]
 
         try:
             wallet = os.environ.get("SPA_WALLET_ADDRESS")
             if not wallet:
-                raise RuntimeError(
-                    "SPA_WALLET_ADDRESS not configured for live mode"
+                raise ConfigError(
+                    "SPA_WALLET_ADDRESS", "not configured for live mode"
                 )
 
             reserve_hex = self._get_reserve_data_hex(asset)
@@ -1187,8 +1181,10 @@ class AaveV3Adapter:
             slot_start = 8 * 64
             slot_end = slot_start + 64
             if len(body) < slot_end:
-                raise RuntimeError(
-                    f"getReserveData return too short: {len(body)} hex chars"
+                raise ValidationError(
+                    "getReserveData",
+                    len(body),
+                    f"response too short: {len(body)} hex chars",
                 )
             atoken_slot = body[slot_start:slot_end]
             # An address is 20 bytes = last 40 hex chars of the 32-byte slot.
@@ -1237,10 +1233,7 @@ class AaveV3Adapter:
                 BEFORE any RPC work; never wrapped by the fallback.
         """
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValueError(
-                f"Unsupported asset '{asset}'. "
-                f"Must be one of: {self.SUPPORTED_ASSETS}"
-            )
+            raise ValidationError("asset", asset, f"must be one of {self.SUPPORTED_ASSETS}")
         if self.dry_run:
             return self._MOCK_APYS[asset]
 
@@ -1253,8 +1246,10 @@ class AaveV3Adapter:
             slot_start = 2 * 64
             slot_end = slot_start + 64
             if len(body) < slot_end:
-                raise RuntimeError(
-                    f"getReserveData return too short: {len(body)} hex chars"
+                raise ValidationError(
+                    "getReserveData",
+                    len(body),
+                    f"response too short: {len(body)} hex chars",
                 )
             rate_slot = body[slot_start:slot_end]
             rate_ray = int(rate_slot, 16)
