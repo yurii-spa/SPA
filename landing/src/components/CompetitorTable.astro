@@ -1,7 +1,6 @@
 ---
-// CompetitorTable.astro
-// Source: research/01_competitor_analysis.md + §3.4 of SPA_ARCHITECTURE_EVOLUTION_v2.md
-// Positioning: SPA vs Enzyme vs dHEDGE vs Yearn v3
+// CompetitorTable.astro — v2: no family office, no $25K-$250K tier, no 1%/15% fee
+// Блоки 3, 4
 ---
 
 <section id="compare" class="py-24 px-4 sm:px-6 lg:px-8">
@@ -9,15 +8,14 @@
 
     <!-- Header -->
     <div class="mb-12 max-w-2xl">
-      <p class="text-white/30 text-sm font-mono uppercase tracking-widest mb-3">Market Positioning</p>
+      <p class="text-white/30 text-sm font-mono uppercase tracking-widest mb-3">Landscape</p>
       <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
         Where SPA Fits
       </h2>
       <p class="text-white/50 leading-relaxed">
         The market has split between retail auto-compounders (Yearn, Morpho — zero fees,
-        no investor relations) and large institutional curated vaults ($1M+ minimums).
-        Family offices with $25K–$250K DeFi exposure have nowhere to go.
-        <strong class="text-white/70">That's the gap SPA fills.</strong>
+        fully permissionless) and large institutional curated vaults ($1M+ minimums).
+        SPA explores the systematic, deterministic-gate approach in paper mode first.
       </p>
     </div>
 
@@ -30,7 +28,7 @@
             <th class="text-left px-5 py-4 text-xs text-white/30 font-medium uppercase tracking-wider">Focus</th>
             <th class="text-left px-5 py-4 text-xs text-white/30 font-medium uppercase tracking-wider">Fee Structure</th>
             <th class="text-left px-5 py-4 text-xs text-white/30 font-medium uppercase tracking-wider">Track Record</th>
-            <th class="text-left px-5 py-4 text-xs text-white/30 font-medium uppercase tracking-wider">Family Office Ready</th>
+            <th class="text-left px-5 py-4 text-xs text-white/30 font-medium uppercase tracking-wider">Deterministic Risk Gate</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-white/5">
@@ -42,17 +40,17 @@
               <div class="text-xs text-white/30 mt-0.5">enzyme.finance</div>
             </td>
             <td class="px-5 py-4 text-white/50">
-              On-chain fund infrastructure. Manager-run vaults. Institutional shift via Canton Network.
+              On-chain fund infrastructure. Manager-run vaults.
             </td>
             <td class="px-5 py-4 text-white/50">
               Flexible: up to ~2% mgmt + performance fee + 0.25% protocol MLN burn
             </td>
             <td class="px-5 py-4">
-              <span class="text-white/50">Live since 2019. $184M TVL (declining).</span>
+              <span class="text-white/50">Live since 2019. $184M TVL.</span>
             </td>
             <td class="px-5 py-4">
               <span class="inline-flex items-center gap-1.5 text-amber-400 text-xs">
-                <span>⚠</span> Partial — requires active fund manager; no investor portal
+                <span>⚠</span> No hard-coded gate — manager discretion
               </span>
             </td>
           </tr>
@@ -67,14 +65,14 @@
               Community vaults + leveraged token products (Toros). Retail-leaning.
             </td>
             <td class="px-5 py-4 text-white/50">
-              ≤3% mgmt + performance fee (HWM). $2M/yr protocol revenue.
+              ≤3% mgmt + performance fee (HWM).
             </td>
             <td class="px-5 py-4 text-white/50">
-              Live. $33–50M TVL (volatile). Rebranding risk.
+              Live. $33–50M TVL (volatile).
             </td>
             <td class="px-5 py-4">
               <span class="inline-flex items-center gap-1.5 text-red-400/70 text-xs">
-                <span>✕</span> No deterministic risk policy; no investor portal
+                <span>✕</span> No deterministic risk policy
               </span>
             </td>
           </tr>
@@ -92,11 +90,11 @@
               ~2% mgmt + 20% performance. yvUSD vault: 0% (temp).
             </td>
             <td class="px-5 py-4 text-white/50">
-              Live since 2020. $270M TVL. Nov 2025 exploit on legacy pool.
+              Live since 2020. $270M TVL.
             </td>
             <td class="px-5 py-4">
               <span class="inline-flex items-center gap-1.5 text-red-400/70 text-xs">
-                <span>✕</span> No KYC, no investor portal, no custom risk policy
+                <span>✕</span> DAO-governed, not deterministic
               </span>
             </td>
           </tr>
@@ -118,7 +116,7 @@
             </td>
             <td class="px-5 py-4">
               <span class="inline-flex items-center gap-1.5 text-amber-400 text-xs">
-                <span>⚠</span> Minimum AUM $1M+. Not structured for family office onboarding
+                <span>⚠</span> Curator-driven, not fully deterministic
               </span>
             </td>
           </tr>
@@ -126,22 +124,22 @@
           <!-- SPA — highlighted -->
           <tr class="bg-accent-500/5 border-t border-accent-500/20">
             <td class="px-5 py-4">
-              <div class="font-semibold text-accent-400">SPA (target)</div>
+              <div class="font-semibold text-accent-400">SPA (paper research)</div>
               <div class="text-xs text-accent-400/40 mt-0.5">earn-defi.com</div>
             </td>
             <td class="px-5 py-4 text-white/70">
-              Autonomous algo optimizer for family offices. $25K–$250K tier. No human fund manager.
+              Systematic onchain stablecoin yield. Autonomous algo, no human fund manager. Paper validation phase.
             </td>
             <td class="px-5 py-4 text-white/70">
-              1% mgmt (Phase 1) + 15% performance + HWM. 0% during paper period.
+              0% during paper period. Future model: performance-aligned + HWM (illustrative, TBD).
             </td>
             <td class="px-5 py-4">
-              <span class="text-accent-400 font-medium">30-day public paper track record</span>
-              <div class="text-xs text-white/30 mt-0.5">First to build this before launch</div>
+              <span class="text-accent-400 font-medium">Public paper track from Jun 10, 2026</span>
+              <div class="text-xs text-white/30 mt-0.5">~3.9% paper APY, variable, not a forecast</div>
             </td>
             <td class="px-5 py-4">
               <span class="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                <span>✓</span> Built for it: investor portal, Telegram alerts, KYC onboarding
+                <span>✓</span> Hard-coded RiskPolicy v1.0 — non-overridable
               </span>
             </td>
           </tr>
@@ -153,9 +151,8 @@
     <!-- Positioning statement -->
     <div class="mt-8 text-center">
       <p class="text-white/30 text-sm max-w-xl mx-auto">
-        SPA is not competing with Morpho or Maple in the large-AUM institutional segment.
-        The target is the underserved middle: crypto-native family offices who want DeFi yield
-        without outsourcing discretion to a human fund manager.
+        The distinguishing feature: a hard-coded, deterministic risk gate that no agent, strategy, or human can override.
+        SPA is validating this approach in paper mode before any capital is involved.
       </p>
     </div>
 
