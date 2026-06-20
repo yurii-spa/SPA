@@ -1,6 +1,10 @@
-# Cloudflare Pages routing
+# Cloudflare Pages routing (MP-1537)
 # SPA fallback — not needed for Astro static, but good for future dynamic routes
 /risk-disclosure /risk-disclosure/index.html 200
+
+# App shortcut routes
+/app/* /dashboard 200
+/status /dashboard#golive 302
 
 # Redirect www to apex
 # (configure in Cloudflare DNS — this file handles app-level redirects only)
