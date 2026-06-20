@@ -8,8 +8,8 @@ Advisory/read-only. Pure stdlib. Atomic writes only.
 import json
 import os
 import time
-import tempfile
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 
 # ---------------------------------------------------------------------------
@@ -276,19 +276,7 @@ def _init_log(path: str) -> None:
 def _atomic_write(path: str, data) -> None:
     """Write JSON atomically via tmp + os.replace."""
     dir_ = os.path.dirname(path) or "."
-    fd, tmp = tempfile.mkstemp(dir=dir_)
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 def log_result(result: dict, log_path: str = LOG_PATH) -> None:
     """Append result to ring-buffer log (max 100 entries)."""
     _init_log(log_path)
