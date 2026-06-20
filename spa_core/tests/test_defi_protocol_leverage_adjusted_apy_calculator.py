@@ -7,8 +7,8 @@ import json
 import math
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 # Ensure repo root is on path
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
