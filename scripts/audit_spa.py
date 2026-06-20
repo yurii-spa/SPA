@@ -115,7 +115,11 @@ def main():
     if is_mac:
         score, fails = check_golive()
         if score:
-            if score == "26/26":
+            # Ready when passed == total (e.g. "29/29"), regardless of the
+            # criteria count — the gate grows over time (MP-1228).
+            parts = score.split("/")
+            all_pass = len(parts) == 2 and parts[0] == parts[1]
+            if all_pass:
                 print(f"✅ GoLive: {score}")
             else:
                 print(f"⚠  GoLive: {score}")
