@@ -12,8 +12,8 @@ import json
 import math
 import os
 import time
-import tempfile
 from typing import Any, Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -63,23 +63,8 @@ def _round2(value: float) -> float:
 
 
 def _atomic_write_json(path: str, data: Any) -> None:
-    """Write JSON atomically via tmp + os.replace."""
-    dir_path = os.path.dirname(path)
-    if dir_path:
-        os.makedirs(dir_path, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_path or ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(data, str(path))
 def _append_to_ring_buffer(path: str, entry: Any, cap: int = _RING_BUFFER_CAP) -> None:
     """Append entry to ring-buffer JSON file, keeping at most `cap` entries."""
     try:
