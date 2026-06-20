@@ -35,11 +35,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.alpha_agent")
 
@@ -111,26 +112,6 @@ def _read_json(path: Path, default: Any) -> Any:
         log.warning("_read_json %s unreadable (%s) — using default", path.name, exc)
         return default
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Atomic write: tmpfile in same dir + os.replace. Never leaves .tmp on failure."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, str(path))
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 # ─── Score component functions (deterministic, LLM-forbidden) ─────────────────
@@ -412,7 +393,7 @@ def run_alpha_scan(
     }
 
     try:
-        _atomic_write_json(ddir / ALPHA_CANDIDATES_FILENAME, doc)
+        atomic_save(doc, str(ddir / ALPHA_CANDIDATES_FILENAME))
         log.info(
             "Alpha scan complete: %d candidates scored, top %d written to %s",
             len(scored),
