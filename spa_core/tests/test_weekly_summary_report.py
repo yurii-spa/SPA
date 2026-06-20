@@ -6,8 +6,8 @@ python3 -m unittest spa_core.tests.test_weekly_summary_report -v
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
