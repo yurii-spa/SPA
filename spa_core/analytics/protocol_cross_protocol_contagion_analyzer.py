@@ -9,9 +9,9 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log (cap 100).
 
 import json
 import os
-import tempfile
 import time
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -74,21 +74,7 @@ def _save_log(path: str, entries: list) -> None:
     dir_path = os.path.dirname(path)
     if dir_path:
         os.makedirs(dir_path, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=dir_path or ".", prefix=".contagion_tmp_"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(capped, f, indent=2)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(capped, str(path))
 def _contagion_label(score: float) -> str:
     for threshold, label in _CONTAGION_LABEL_THRESHOLDS:
         if score >= threshold:
