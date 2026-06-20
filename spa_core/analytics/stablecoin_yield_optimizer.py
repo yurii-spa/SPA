@@ -27,6 +27,8 @@ import os
 import time
 from typing import Dict, Optional
 
+from spa_core.base import BaseAnalytics
+
 # ---------------------------------------------------------------------------
 # Protocol catalogue
 # ---------------------------------------------------------------------------
@@ -63,8 +65,10 @@ T1_PROTOCOLS: Dict[str, dict] = {
 # Optimizer
 # ---------------------------------------------------------------------------
 
-class StablecoinYieldOptimizer:
+class StablecoinYieldOptimizer(BaseAnalytics):
     """Greedy APY maximiser for T1 stablecoin slots in RS-001 / RS-002."""
+
+    OUTPUT_PATH = "data/research/stablecoin_optimizer.json"
 
     def __init__(self, capital_fraction: float = 0.15) -> None:
         """
@@ -74,6 +78,7 @@ class StablecoinYieldOptimizer:
             Fraction of total portfolio capital held in the stablecoin slot.
             RS-001 uses 0.15 (15%); RS-002 uses 0.16 (16%).
         """
+        super().__init__()
         if not (0.0 < capital_fraction <= 1.0):
             raise ValueError(
                 f"capital_fraction must be in (0, 1], got {capital_fraction}"
@@ -298,6 +303,14 @@ class StablecoinYieldOptimizer:
             "generated_at": _iso_now(),
             "schema_version": "1.0",
         }
+
+    # ------------------------------------------------------------------
+    # BaseAnalytics interface
+    # ------------------------------------------------------------------
+
+    def to_dict(self) -> dict:
+        """Returns current allocation report as JSON-serializable dict."""
+        return self.allocation_report()
 
     # ------------------------------------------------------------------
     # Persistence
