@@ -198,34 +198,75 @@ class APYAggregator:
         snapshots: list[AdapterSnapshot] = []
         seen_protocols: set[str] = set()  # дедупликация по ключу протокола
 
-        # ── 1. Основной массив адаптеров ──────────────────────────────────
-        for entry in raw.get("adapters", []):
-            protocol_key: str = entry.get("protocol_key", "")
-            if not protocol_key:
-                continue  # пропускаем запись без ключа
+        # ── 1. Основной массив / словарь адаптеров ────────────────────────
+        # MP-1195: поддерживает оба формата:
+        #   v1: adapters — список объектов с полем protocol_key
+        #   v2: adapters — словарь {snake_key: {display_name, apy, tier, ...}}
+        adapters_raw = raw.get("adapters", [])
 
-            tier: str = str(entry.get("tier", "T2"))
-            alloc_cap: float = float(entry.get("allocation_cap", 0.0))
+        if isinstance(adapters_raw, dict):
+            # ── v2 формат (schema_version 2) ──────────────────────────────
+            for proto_key, entry in adapters_raw.items():
+                if not isinstance(entry, dict):
+                    continue
+                if not entry.get("active", True):
+                    continue
+                tier_raw = entry.get("tier", 2)
+                tier_str: str = (
+                    f"T{tier_raw}" if isinstance(tier_raw, int) else str(tier_raw)
+                )
+                per_cap: float = float(entry.get("per_protocol_cap", 0.2))
+                # Пропускаем адаптеры без аллокации (sky_susds tier=0 и т.п.)
+                if per_cap <= 0.0:
+                    continue
+                # apy в v2 хранится в % (5.2 = 5.2%, не 0.052)
+                apy_pct_v2: float = float(
+                    entry.get("apy") or entry.get("fallback_apy") or 0.0
+                )
+                chain_v2: str = str(entry.get("chain", "ethereum"))
+                tvl_v2: float = float(entry.get("tvl_usd", 0.0) or 0.0)
+                updated_v2: str = str(entry.get("last_updated", generated_at))
+                if proto_key not in seen_protocols:
+                    snap = AdapterSnapshot(
+                        protocol=proto_key,
+                        tier=tier_str,
+                        apy_pct=apy_pct_v2,
+                        network=chain_v2,
+                        tvl_usd=tvl_v2,
+                        last_updated=updated_v2,
+                        risk_score=_TIER_RISK_SCORE.get(tier_str, 1.0),
+                    )
+                    snapshots.append(snap)
+                    seen_protocols.add(proto_key)
+        else:
+            # ── v1 формат (список объектов) ───────────────────────────────
+            for entry in adapters_raw:
+                protocol_key: str = entry.get("protocol_key", "")
+                if not protocol_key:
+                    continue  # пропускаем запись без ключа
 
-            # Sky/sUSDS и другие адаптеры с allocation_cap=0 пропускаем:
-            # они не участвуют в аллокации → не нужны в рейтинге
-            if alloc_cap <= 0.0:
-                continue
+                tier: str = str(entry.get("tier", "T2"))
+                alloc_cap: float = float(entry.get("allocation_cap", 0.0))
 
-            mock_apy: dict = entry.get("mock_apy", {})
-            chains: list = entry.get("chains", [])
+                # Sky/sUSDS и другие адаптеры с allocation_cap=0 пропускаем:
+                # они не участвуют в аллокации → не нужны в рейтинге
+                if alloc_cap <= 0.0:
+                    continue
 
-            snap = AdapterSnapshot(
-                protocol=protocol_key,
-                tier=tier,
-                apy_pct=_best_apy_from_mock(mock_apy),
-                network=_primary_network(chains),
-                tvl_usd=0.0,  # TVL не хранится в этой секции
-                last_updated=generated_at,
-                risk_score=_TIER_RISK_SCORE.get(tier, 1.0),
-            )
-            snapshots.append(snap)
-            seen_protocols.add(protocol_key)
+                mock_apy: dict = entry.get("mock_apy", {})
+                chains: list = entry.get("chains", [])
+
+                snap = AdapterSnapshot(
+                    protocol=protocol_key,
+                    tier=tier,
+                    apy_pct=_best_apy_from_mock(mock_apy),
+                    network=_primary_network(chains),
+                    tvl_usd=0.0,  # TVL не хранится в этой секции
+                    last_updated=generated_at,
+                    risk_score=_TIER_RISK_SCORE.get(tier, 1.0),
+                )
+                snapshots.append(snap)
+                seen_protocols.add(protocol_key)
 
         # ── 2. Morpho Blue Steakhouse vault ───────────────────────────────
         # Специальный T1-vault с фиксированным APY; не входит в основной массив
