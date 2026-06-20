@@ -1,0 +1,156 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+
+const post = {
+  title: "Paper Trading Phase Started",
+  date: "2026-06-20",
+  tag: "Milestone",
+  tagColor: "text-accent-400",
+  summary: "SPA officially entered paper trading with $100,000 USDC virtual capital across 20 DeFi adapters on Ethereum and Base.",
+};
+---
+
+<Layout
+  title="Paper Trading Phase Started — SPA Blog"
+  description="SPA officially entered paper trading with $100,000 USDC virtual capital across 20 DeFi adapters on Ethereum and Base."
+  canonical="https://earn-defi.com/blog/2026-06-20-paper-trading-started"
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors">Blog</a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/30 hidden sm:inline">Paper Trading Phase Started</span>
+    </div>
+    <a
+      href="/dashboard"
+      class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+    >
+      Dashboard ↗
+    </a>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <section class="pt-16 pb-10">
+      <div class="flex items-center gap-3 mb-4">
+        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>{post.tag}</span>
+        <span class="text-xs text-white/25 font-mono">{post.date}</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+        {post.title}
+      </h1>
+      <p class="text-white/50 text-lg leading-relaxed">{post.summary}</p>
+    </section>
+
+    <!-- Body -->
+    <article class="pb-16 space-y-8 text-white/60 leading-relaxed">
+
+      <section>
+        <p>
+          After completing our Backtest Gate and Pre-Paper Gate validations, SPA has officially entered the
+          <strong class="text-white">Paper Trading Phase</strong> as of June 10, 2026.
+          All cycles now run with <code class="font-mono text-accent-400 text-sm bg-white/5 px-1.5 py-0.5 rounded">is_demo: false</code> —
+          meaning every trade, rebalance, and yield accrual is part of the official 30-day evidence track.
+        </p>
+      </section>
+
+      <!-- Gate checklist -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Gate Status</p>
+        <div class="space-y-2">
+          {[
+            { label: 'Backtest Gate',   status: 'PASS', color: 'text-green-400' },
+            { label: 'Pre-Paper Gate',  status: 'PASS', color: 'text-green-400' },
+            { label: 'Paper Trading',   status: 'IN PROGRESS', color: 'text-accent-400' },
+            { label: 'Live Capital',    status: 'LOCKED',  color: 'text-white/30' },
+          ].map(g => (
+            <div class="flex items-center justify-between px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8">
+              <span class="text-sm text-white/60">{g.label}</span>
+              <span class={`text-xs font-mono ${g.color}`}>{g.status}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- What this means -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What Paper Trading Means</p>
+        <div class="space-y-3 text-sm">
+          <p>
+            Paper trading runs the full production cycle — adapter scans, RiskPolicy gates, strategy tournament,
+            and StrategyAllocator rebalancing — against live DeFi data. The only difference from live trading
+            is that no real capital moves on-chain.
+          </p>
+          <p>
+            Each clean daily cycle contributes <strong class="text-white">1.0 evidence point</strong> toward
+            the 30-point threshold required for GoLiveChecker to reach READY status.
+            Cycles during extreme-market conditions score 1.5 points.
+          </p>
+          <p>
+            The GoLiveChecker evaluates 26 criteria. Current status: <strong class="text-white">16/26 pass</strong>.
+            Target go-live: <strong class="text-white">August 1, 2026</strong> (ADR-002).
+          </p>
+        </div>
+      </section>
+
+      <!-- Adapters -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Active Adapters</p>
+        <div class="flex flex-wrap gap-2">
+          {[
+            'Aave V3 (ETH)', 'Aave V3 (Arbitrum)', 'Compound V3', 'Morpho Blue',
+            'Morpho Steakhouse', 'Yearn V3', 'Euler V2', 'Maple',
+            'Pendle PT', 'Sky/sUSDS',
+          ].map(a => (
+            <span class="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-white/45 font-mono text-xs">
+              {a}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <!-- What's next -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What's Next</p>
+        <div class="space-y-2 text-sm">
+          {[
+            'Accumulate 30 clean daily evidence cycles (ETA: ~July 10, 2026)',
+            'Reach 26/26 GoLiveChecker criteria',
+            'gap_monitor: 30 consecutive days without gaps',
+            'Owner manual review + ADR-002 sign-off',
+            'Go-live: estimated August 1, 2026',
+          ].map(item => (
+            <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+              <span class="text-accent-400 flex-shrink-0 mt-0.5">›</span>
+              <span class="text-white/50">{item}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+    </article>
+
+    <!-- Nav between posts -->
+    <div class="py-8 border-t border-white/5 flex items-center justify-between">
+      <a href="/blog" class="text-sm text-white/40 hover:text-white transition-colors">← All posts</a>
+      <a href="/blog/2026-06-19-architecture-audit" class="text-sm text-white/40 hover:text-white transition-colors">
+        Architecture Audit →
+      </a>
+    </div>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
