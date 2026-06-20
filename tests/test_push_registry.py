@@ -8,12 +8,12 @@ Run: python3 -m unittest tests/test_push_registry.py -v
 import json
 import os
 import sys
-import tempfile
 import unittest
 
 # Allow importing from scripts/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 import push_registry as pr
+import tempfile
 
 
 def _make_registry(**kwargs):
