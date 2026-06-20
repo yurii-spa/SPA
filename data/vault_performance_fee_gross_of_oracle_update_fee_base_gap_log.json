@@ -1,0 +1,67 @@
+[
+  {
+    "ts": "2026-06-18T17:15:51.368525+00:00",
+    "position_count": 5,
+    "aggregate": {
+      "cleanest_vault": "USDC-Pyth-Vault-CleanOracleUpdateFee",
+      "worst_oracle_update_fee_gap_vault": "BAL-Wormhole-Vault-SevereOracleUpdateFee",
+      "avg_score": 56.88,
+      "net_negative_count": 1,
+      "position_count": 5
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Pyth-Vault-CleanOracleUpdateFee",
+        "classification": "CLEAN_NET_OF_ORACLE_UPDATE_FEE_BASE",
+        "score": 100.0,
+        "recommendation": "TRUST_FEE_STRUCTURE",
+        "flags": [
+          "CLEAN_NET_OF_ORACLE_UPDATE_FEE_BASE",
+          "CLEAN_NET_BASE"
+        ]
+      },
+      {
+        "token": "CRV-Pyth-Vault-ModerateOracleUpdateFee",
+        "classification": "MODERATE_FEE_ON_ORACLE_UPDATE_FEE_GAP",
+        "score": 67.5,
+        "recommendation": "DEMAND_NET_OF_ORACLE_UPDATE_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_ORACLE_UPDATE_FEE_GAP",
+          "FEE_ON_ORACLE_UPDATE_FEE"
+        ]
+      },
+      {
+        "token": "BAL-Wormhole-Vault-SevereOracleUpdateFee",
+        "classification": "SEVERE_FEE_ON_ORACLE_UPDATE_FEE_GAP",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_ORACLE_UPDATE_FEE",
+        "flags": [
+          "SEVERE_FEE_ON_ORACLE_UPDATE_FEE_GAP",
+          "NET_NEGATIVE_AFTER_FEE",
+          "HIGH_ORACLE_UPDATE_FEE",
+          "FEE_ON_ORACLE_UPDATE_FEE",
+          "FULL_FEE_ON_ORACLE_UPDATE_FEE"
+        ]
+      },
+      {
+        "token": "UNI-Pyth-Vault-OverrideOracleUpdateFeeGap",
+        "classification": "MODERATE_FEE_ON_ORACLE_UPDATE_FEE_GAP",
+        "score": 60.0,
+        "recommendation": "DEMAND_NET_OF_ORACLE_UPDATE_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_ORACLE_UPDATE_FEE_GAP",
+          "GAP_FROM_OVERRIDE"
+        ]
+      },
+      {
+        "token": "MYSTERY-Vault-NoData",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_ORACLE_UPDATE_FEE",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
