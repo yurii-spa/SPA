@@ -29,6 +29,8 @@ from typing import Optional
 log = logging.getLogger("spa.wallet")
 
 
+from spa_core.utils.errors import ValidationError
+
 class WalletMode(Enum):
     """Operating mode for SPAWallet.
 
@@ -100,9 +102,7 @@ class SPAWallet:
             self.wallet_mode = WalletMode(mode.lower())
         except ValueError:
             valid = [m.value for m in WalletMode]
-            raise ValueError(
-                f"Invalid wallet mode '{mode}'. Must be one of: {valid}"
-            )
+            raise ValidationError("mode", mode, f"must be one of {valid}")
         self.mode = self.wallet_mode.value
         self._wallet_address: Optional[str] = os.environ.get("WALLET_ADDRESS")
         self._safe_address:   Optional[str] = os.environ.get("SAFE_ADDRESS")
