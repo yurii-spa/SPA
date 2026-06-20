@@ -53,12 +53,12 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ─── Source state constants ───────────────────────────────────────────────────
 
@@ -563,23 +563,7 @@ class ProtocolDataAudit(BaseAnalytics):
         target = Path(self._base_dir) / path if not Path(path).is_absolute() else Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
 
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(target.parent), prefix=".tmp_protocol_audit_"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(result, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, str(target))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-    # ── Markdown report ───────────────────────────────────────────────────────
-
-    def to_markdown(self) -> str:
+        atomic_save(result, str(target))
         """Formatted audit report as Markdown string."""
         result = self._audit_result or self.run_audit()
         summary = result["summary"]
