@@ -9,9 +9,9 @@ Ring buffer log, capped 100 entries, atomic write. stdlib only. LLM_FORBIDDEN.
 import json
 import os
 import time
-import tempfile
 import math
 from typing import List, Dict, Optional, Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -48,22 +48,8 @@ _RISK_RULES = [
 # ---------------------------------------------------------------------------
 
 def _atomic_write_json(path: str, data: Any) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=os.path.dirname(path), prefix=".tmp_", suffix=".json"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(data, str(path))
 def _load_log(path: str) -> List[Any]:
     if not os.path.exists(path):
         return []
