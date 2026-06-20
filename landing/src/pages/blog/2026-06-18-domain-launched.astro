@@ -1,0 +1,151 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import Footer from '../../components/Footer.astro';
+
+const post = {
+  title: "earn-defi.com Launched",
+  date: "2026-06-18",
+  tag: "Launch",
+  tagColor: "text-green-400",
+  summary: "The public landing site for SPA goes live on Cloudflare Pages. Institutional-grade presentation with live GoLive readiness tracking.",
+};
+---
+
+<Layout
+  title="earn-defi.com Launched — SPA Blog"
+  description="The public landing site for SPA goes live on Cloudflare Pages with institutional-grade presentation and live GoLive readiness tracking."
+  canonical="https://earn-defi.com/blog/2026-06-18-domain-launched"
+>
+
+  <!-- Nav -->
+  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+    <div class="flex items-center gap-2">
+      <a href="/" class="flex items-center gap-2">
+        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
+        <span class="font-semibold text-white tracking-tight">SPA</span>
+      </a>
+      <span class="text-white/15 mx-2">/</span>
+      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors">Blog</a>
+      <span class="text-white/15 mx-2">/</span>
+      <span class="text-sm text-white/30 hidden sm:inline">Domain Launch</span>
+    </div>
+    <a
+      href="/dashboard"
+      class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+    >
+      Dashboard ↗
+    </a>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <section class="pt-16 pb-10">
+      <div class="flex items-center gap-3 mb-4">
+        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>{post.tag}</span>
+        <span class="text-xs text-white/25 font-mono">{post.date}</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+        {post.title}
+      </h1>
+      <p class="text-white/50 text-lg leading-relaxed">{post.summary}</p>
+    </section>
+
+    <!-- Body -->
+    <article class="pb-16 space-y-8 text-white/60 leading-relaxed">
+
+      <section>
+        <p>
+          <a href="https://earn-defi.com" class="text-accent-400 hover:text-accent-300 underline underline-offset-2">earn-defi.com</a> is
+          now live — the public face of SPA (Stablecoin Portfolio Algorithm). The site is deployed
+          on <strong class="text-white">Cloudflare Pages</strong> with automatic deployments from the
+          main branch. Build time: ~45 seconds. Global CDN propagation: instant.
+        </p>
+      </section>
+
+      <!-- What's on the site -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Site Structure</p>
+        <div class="overflow-x-auto rounded-xl border border-white/10">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-white/10 bg-white/[0.03]">
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Page</th>
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Purpose</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+              {[
+                ['/', 'Hero — institutional pitch, GoLive widget, track record'],
+                ['/dashboard', 'Live paper trading metrics, equity curve, positions'],
+                ['/methodology', 'CPA approach, 4-state gate, evidence system'],
+                ['/strategies', 'Strategy profiles: Preserve, Core, Max Yield'],
+                ['/risk', 'Risk architecture, RiskPolicy v1.0 parameters'],
+                ['/security', 'Multisig, kill switch, execution isolation'],
+                ['/faq', 'Investor FAQ in Russian'],
+                ['/fees', 'Performance-aligned fee structure'],
+                ['/due-diligence', 'Full DD center for prospective investors'],
+                ['/status', 'System operational status'],
+                ['/blog', 'This page — public updates and changelog'],
+              ].map(([page, desc]) => (
+                <tr>
+                  <td class="px-5 py-3 font-mono text-xs text-accent-400">{page}</td>
+                  <td class="px-5 py-3 text-xs text-white/50">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tech stack -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Tech Stack</p>
+        <div class="flex flex-wrap gap-2">
+          {[
+            'Astro 4.x', 'Tailwind CSS', 'React (LiveStats widget)', 'TypeScript',
+            'Cloudflare Pages', 'Static output', 'Zero external JS deps in runtime',
+          ].map(tech => (
+            <span class="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-white/45 font-mono text-xs">
+              {tech}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <!-- Design principles -->
+      <section>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Design Principles</p>
+        <div class="space-y-2 text-sm">
+          {[
+            'Dark-first — matches institutional product aesthetics; no jarring light flash on load',
+            'Performance-first — static output, no SSR, Cloudflare CDN globally distributed',
+            'Evidence-first — every claim on the site is backed by on-chain verifiable data',
+            'Progressive disclosure — summary on homepage, deep detail on sub-pages',
+            'No marketing noise — no "revolutionary" language, no inflated APY projections',
+          ].map(item => (
+            <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+              <span class="text-green-400 flex-shrink-0 mt-0.5">›</span>
+              <span class="text-white/50">{item}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+    </article>
+
+    <!-- Nav between posts -->
+    <div class="py-8 border-t border-white/5 flex items-center justify-between">
+      <a href="/blog" class="text-sm text-white/40 hover:text-white transition-colors">← All posts</a>
+      <a href="/blog/2026-06-19-architecture-audit" class="text-sm text-white/40 hover:text-white transition-colors">
+        Architecture Audit →
+      </a>
+    </div>
+
+  </main>
+
+  <Disclaimer />
+  <Footer />
+
+</Layout>
