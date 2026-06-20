@@ -27,12 +27,11 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from spa_core.utils.atomic import atomic_save
-
 from spa_core.alerts.telegram_format_ru import (
     format_alert_detail_ru,
     parse_detail_callback,
 )
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.alerts.bot_commands")
 
@@ -108,10 +107,9 @@ def _read_json(path: Path, default):
         return default
 
 
-
-# ─── Telegram API helpers ─────────────────────────────────────────────────────
-
-
+def _atomic_write_json(path: Path, obj) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _api_post(token: str, method: str, payload: dict) -> dict:
     """POST to Telegram Bot API. Returns parsed JSON. Raises on network/HTTP error."""
     url = f"https://api.telegram.org/bot{token}/{method}"
@@ -602,12 +600,12 @@ def _read_offset() -> int:
 
 
 def _write_offset(offset: int) -> None:
-    atomic_save(
+    _atomic_write_json(
+        OFFSET_FILE,
         {
             "offset": offset,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         },
-        str(OFFSET_FILE),
     )
 
 
