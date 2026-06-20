@@ -7,8 +7,8 @@ Tempfile-based persistence — production data/ is never touched.
 import json
 import math
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # Make spa_core importable when run directly from spa_core/tests.
