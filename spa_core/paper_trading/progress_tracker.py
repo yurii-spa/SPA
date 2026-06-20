@@ -110,6 +110,9 @@ def _read_json(path: Path, default: Any) -> Any:
         return default
 
 
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _today_str() -> str:
     """UTC today as YYYY-MM-DD string."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -341,7 +344,7 @@ def run_progress_tracker(
 
     out_path = Path(output_path) if output_path is not None else ddir / OUTPUT_FILENAME
     try:
-        atomic_save(result, str(out_path))
+        _atomic_write_json(out_path, result)
     except Exception as exc:  # noqa: BLE001
         # Write failure is non-fatal; caller gets the result dict anyway
         result["write_error"] = f"{type(exc).__name__}: {exc}"
