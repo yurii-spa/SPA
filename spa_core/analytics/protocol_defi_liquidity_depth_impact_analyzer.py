@@ -66,12 +66,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -220,19 +218,7 @@ def _load_json_list(path: Path) -> List[Any]:
 def _atomic_write(path: Path, data: Any) -> None:
     """Atomically write JSON to *path* via tmp + os.replace."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(path))
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -368,7 +354,7 @@ def write_log(result: Dict[str, Any], data_dir: Optional[Path] = None) -> Path:
 # ---------------------------------------------------------------------------
 
 
-class ProtocolDeFiLiquidityDepthImpactAnalyzer(BaseAnalytics):
+class ProtocolDeFiLiquidityDepthImpactAnalyzer:
     """Advisory wrapper around :func:`analyze_liquidity_depth_impact`.
 
     Usage::
@@ -378,15 +364,8 @@ class ProtocolDeFiLiquidityDepthImpactAnalyzer(BaseAnalytics):
         analyzer.save(result)          # appends to ring-buffer log
     """
 
-    OUTPUT_PATH = "data/liquidity_depth_impact_log.json"
-
     def __init__(self, data_dir: Optional[Path] = None) -> None:
-        super().__init__()
         self._data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
-
-    def to_dict(self) -> dict:
-        """Returns empty dict — stateless analyzer; results returned from analyze()."""
-        return {}
 
     def analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Run liquidity depth impact analysis. Returns result dict."""
