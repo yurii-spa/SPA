@@ -17,6 +17,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+from spa_core.base import BaseAnalytics
 from spa_core.utils.errors import SPAError
 
 # ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ REGIME_SEVERELY_COMPRESSED = "SEVERELY_COMPRESSED"
 # ---------------------------------------------------------------------------
 
 
-class YieldCompressorScore:
+class YieldCompressorScore(BaseAnalytics):
     """Detects yield compression trends across the DeFi market.
 
     Parameters
@@ -46,9 +47,16 @@ class YieldCompressorScore:
         Directory where ``yield_compressor_log.json`` is written.
     """
 
+    OUTPUT_PATH = "data/yield_compressor_log.json"
+
     def __init__(self, data_dir: str = "") -> None:
+        super().__init__(base_dir=data_dir or ".")
         self._data_dir = data_dir
         self._last_result: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict:
+        """Return last compute() result as JSON-serializable dict."""
+        return self._last_result or {}
 
     # ------------------------------------------------------------------
     # Public API
