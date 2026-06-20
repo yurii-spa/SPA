@@ -36,7 +36,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_save
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -133,12 +132,17 @@ class GoLiveResult:
 # ─── IO helpers (stdlib only) ─────────────────────────────────────────────────
 
 
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _read_json(path: Path) -> Any:
-    """Read JSON from path; returns None on any error (missing / malformed)."""
+    """Read JSON defensively: missing/corrupt file → None (never raises)."""
+    path = Path(path)
+    if not path.exists():
+        return None
     try:
-        with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
-    except (OSError, json.JSONDecodeError, ValueError):
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
         return None
 
 
@@ -170,14 +174,12 @@ def _check_file_syntax(path: Path) -> tuple[bool, str]:
 # ─── Checker ─────────────────────────────────────────────────────────────────
 
 
-class GoLiveChecker(BaseAnalytics):
+class GoLiveChecker:
     """26-criteria go-live gate (MP-006 / MP-384 / MP-417).
 
     Run ``checker.check()`` for the full verdict; ``checker.check(write=False)``
     for a dry-run that never touches disk.
     """
-
-    OUTPUT_PATH = "data/golive_status.json"
 
     def __init__(
         self,
@@ -185,9 +187,7 @@ class GoLiveChecker(BaseAnalytics):
         repo_root: str | os.PathLike | None = None,
         now: datetime | None = None,
         home_dir: str | os.PathLike | None = None,
-        base_dir: str = ".",
     ) -> None:
-        super().__init__(base_dir)
         self.data_dir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
         self.repo_root = Path(repo_root) if repo_root is not None else _REPO_ROOT
         self.now = now or datetime.now(timezone.utc)
@@ -709,15 +709,8 @@ class GoLiveChecker(BaseAnalytics):
             consecutive_ready_days=consecutive_days,
         )
         if write:
-            atomic_save(result.to_dict(), str(self.data_dir / STATUS_OUT_FILENAME))
+            _atomic_write_json(self.data_dir / STATUS_OUT_FILENAME, result.to_dict())
         return result
-
-    def to_dict(self) -> dict:
-        """Returns go-live status as JSON-serializable dict (BaseAnalytics).
-
-        Runs check(write=False) — dry-run, never writes to disk.
-        """
-        return self.check(write=False).to_dict()
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
