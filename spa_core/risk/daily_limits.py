@@ -42,10 +42,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.risk.daily_limits")
 
@@ -200,21 +200,8 @@ class DailyLimitsChecker:
         data_dir = Path(data_dir)
         data_dir.mkdir(parents=True, exist_ok=True)
         target = data_dir / OUTPUT_FILENAME
-        payload = json.dumps(result, indent=2, ensure_ascii=False)
         try:
-            fd, tmp_path = tempfile.mkstemp(
-                dir=data_dir, prefix=".risk_limits_check_", suffix=".tmp"
-            )
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                    fh.write(payload)
-                os.replace(tmp_path, target)
-            except Exception:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-                raise
+            atomic_save(result, str(target))
         except Exception as exc:
             log.warning("DailyLimitsChecker.save_result failed: %s", exc)
 
