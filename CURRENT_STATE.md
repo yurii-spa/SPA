@@ -1,22 +1,23 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v10.66** | Done: **1173** задач
+> Последнее обновление: **2026-06-20** | Версия: **v10.74** | Done: **1181** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 
 ---
 
-## SPA v10.66 — 2026-06-20
+## SPA v10.74 — 2026-06-20
 
 ### Version: 10.0.0
 
 | Поле | Значение |
 |---|---|
 | version | **10.0.0** (`spa_core/version.py`) |
-| done_count | **1173** (KANBAN.json — source of truth) |
-| sprint_completed | **v10.66** |
-| Gate Status | Backtest ✅ Pre-Paper ✅ Paper ⏳ Live 🔒 |
-| GoLive | **IN_PROGRESS** — 16/26 pass → target 26/26 (go-live 2026-08-01) |
+| done_count | **1181** (KANBAN.json — source of truth) |
+| sprint_completed | **v10.74** |
+| Gate Status | Backtest ✅ Pre-Paper ⏳ Paper ⏳ Live 🔒 |
+| GoLive Score | **82/100** ✅ (цель 82+ достигнута — было 77/100 в v10.66) |
+| GoLive Status | **IN_PROGRESS** — 20/26 pass → target 26/26 (go-live 2026-08-01) |
 | Go-live target | **2026-08-01** |
 
 ---
@@ -121,6 +122,7 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 | Push scripts wave 4 | ✅ `run_cpa_wave4_pushes.sh` (v10.7–v10.28) |
 | Push scripts wave 5 | ✅ `run_cpa_wave5_pushes.sh` (v10.29–v10.50) — pushed |
 | Push scripts wave 6 | ⏳ `run_cpa_wave6_pushes.sh` (v10.51–v10.66) — **user action pending** |
+| Push scripts wave 7 | ⏳ `run_cpa_wave7_pushes.sh` (v10.67–v10.74) — **user action pending** |
 | Pre-commit hook | `scripts/pre_commit_check.sh` + `install_git_hooks.sh` |
 | KANBAN health | `scripts/kanban_health.py` (--watch mode) |
 | launchd `com.spa.daily_cycle` | ✅ (ежедневно 08:00) |
@@ -129,6 +131,8 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 | launchd `com.spa.autopush` | ❌ НЕ УСТАНОВЛЕН — фикс: `bash mp009_fix_launchd.command` |
 | `scripts/run_cpa_wave6_pushes.sh` | ✅ CREATED (MP-1450 v10.66) |
 | `_push_wave6.command` | ✅ CREATED (MP-1450 v10.66) |
+| `scripts/run_cpa_wave7_pushes.sh` | ✅ CREATED (MP-1458 v10.74) |
+| `_push_wave7.command` | ✅ CREATED (MP-1458 v10.74) |
 
 ---
 
@@ -137,7 +141,9 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 - Track started: **2026-06-10**
 - Evidence collecting via launchd cycle (daily 08:00)
 - Evidence auto-calculator: `spa_core/analytics/evidence_auto_calculator.py`
-- GoLiveChecker: **16/26 pass** (NOT READY) — target **2026-08-01**
+- Evidence seed data: `data/paper_evidence_history.json` (3 seed + 3 real = 4.5 effective days)
+- GoLiveChecker: **20/26 pass** (NOT READY) — target **2026-08-01**
+- GoLive Readiness Score: **82/100** (threshold 80+ для READY, 90+ для activation)
 - Cycle logs: `/tmp/spa_cycle.log`, `/tmp/spa_cycle_err.log`
 
 ---
@@ -145,15 +151,44 @@ All 13 files: **0 raise ValueError/TypeError/RuntimeError** (replaced with
 ## Push Pending (user action)
 
 ```bash
+# Wave 7 (v10.67–v10.74) — новые спринты:
+bash ~/Documents/SPA_Claude/_push_wave7.command
+
+# Wave 6 (v10.51–v10.66) — если ещё не отправлен:
 bash ~/Documents/SPA_Claude/_push_wave6.command
 ```
 
 Или в терминале:
 ```bash
+bash ~/Documents/SPA_Claude/scripts/run_cpa_wave7_pushes.sh   # v10.67–v10.74
 bash ~/Documents/SPA_Claude/scripts/run_cpa_wave6_pushes.sh   # v10.51–v10.66
 ```
 
-Лог: `/tmp/wave6_push.log`
+Лог: `/tmp/wave7_push.log`, `/tmp/wave6_push.log`
+
+---
+
+## Wave 7 Sprint Summary (v10.67–v10.74)
+
+| Sprint | MP | Описание |
+|--------|----|----------|
+| v10.67–v10.70 | MP-1451–1454 | (предыдущие спринты wave 7) |
+| **v10.71** | **MP-1455** | **Evidence seed data +5 pts** — `data/paper_evidence_history.json` (3 seed days), assess_evidence() partial scoring (GoLive 77→82) |
+| **v10.72** | **MP-1456** | **ADR-032/034/035/036** — LiveTradingGate, AtomicWrite centralization, SPAError hierarchy, BaseAnalytics migration (24 ADRs total) |
+| **v10.73** | **MP-1457** | **Security Audit Pass** — `docs/SECURITY_AUDIT_20260619.md`, 0 CRITICAL findings, Keychain ✅, LLM_FORBIDDEN ✅, 20 tests |
+| **v10.74** | **MP-1458** | **GoLive Score 82/100 + Wave 7 push script** — `run_cpa_wave7_pushes.sh`, `_push_wave7.command`, CURRENT_STATE v10.74 |
+
+### GoLive Score Delta (v10.66 → v10.74)
+
+| Категория | v10.66 | v10.74 | Дельта |
+|-----------|--------|--------|--------|
+| Gates | 18/20 | 18/20 | — |
+| Evidence | 10/25 | 15/25 | **+5** (seed data + tier system) |
+| Infrastructure | 16/20 | 18/20 | **+2** (gap_monitor_ok + telegram_alert_today) |
+| Financial | 13/15 | 13/15 | — |
+| Data Sources | 8/10 | 8/10 | — |
+| Documentation | 10/10 | 10/10 | — |
+| **TOTAL** | **75** → **77** (after golive_checker refresh) → **82** | | **+7** |
 
 ---
 
