@@ -133,7 +133,7 @@ def test_status_is_not_demo(tmp_path):
     _run(tmp_path, APY, TARGET)
     st = _load(tmp_path, "paper_trading_status.json")
     assert st["is_demo"] is False
-    assert st["paper_start_date"] == "2026-05-20"
+    assert st["paper_start_date"] == "2026-06-10"
     assert st["strategy_loop_active"] is False
     assert st["last_allocation_model"] == "risk_adjusted"
     assert st["current_positions"]["aave_v3"] == 40000.0
@@ -259,8 +259,8 @@ def test_days_running_counts_from_paper_start(tmp_path):
     res = _run(
         tmp_path, APY, TARGET, now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
     )
-    # 2026-05-20 .. 2026-06-10 inclusive = 22 days.
-    assert res.days_running == 22
+    # PAPER_START_DATE = 2026-06-10; now = 2026-06-10 → day 1.
+    assert res.days_running == 1
 
 
 # ─── Allocation diff threshold ────────────────────────────────────────────────
