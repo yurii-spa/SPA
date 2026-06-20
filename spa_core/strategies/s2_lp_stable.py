@@ -417,7 +417,7 @@ class LPStableStrategy:
 
 def _register() -> None:
     try:
-        from strategies.strategy_registry import REGISTRY, StrategyMeta
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta
         REGISTRY.register(StrategyMeta(
             id="s2_lp_stable",
             name="S2 — LP Stablecoin Pairs",
@@ -431,7 +431,7 @@ def _register() -> None:
                 "Fee APY + base lending APY. IL monitor with 1% stop-loss. "
                 "Max 30% per pool, rebalance every 7 days or at +2 pp APY gap."
             ),
-            module="strategies.s2_lp_stable",
+            module="spa_core.strategies.s2_lp_stable",
             handler_class="LPStableStrategy",
             tags=["lp", "curve", "uniswap", "stablecoin", "t2", "fees"],
         ))
