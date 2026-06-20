@@ -5,8 +5,8 @@ import Footer from '../components/Footer.astro';
 ---
 
 <Layout
-  title="Fee Structure — Performance-Aligned Fees | SPA earn-defi.com"
-  description="Performance-aligned fee model with high-water mark protection. Fees discussed individually during onboarding. Early participants receive preferential terms."
+  title="Fee Structure — Illustrative Model | SPA earn-defi.com"
+  description="Illustrative fee model for the planned live phase. No fees charged during paper testing. Performance-aligned with high-water mark protection."
   canonical="https://earn-defi.com/fees"
 >
 
@@ -22,7 +22,7 @@ import Footer from '../components/Footer.astro';
     </div>
     <div class="flex items-center gap-6 text-sm text-white/50">
       <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
-      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">Strategies</a>
+      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
       <a
         href="/dashboard"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
@@ -36,32 +36,37 @@ import Footer from '../components/Footer.astro';
 
     <!-- Hero -->
     <section class="pt-20 pb-12">
+      <div class="mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400/80">
+        ⚠ Paper testing phase — illustrative only, no fees charged
+      </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
         Fee Structure
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        Performance-aligned. No hidden charges.
+        Illustrative model for the planned live phase. Performance-aligned, no hidden charges.
       </p>
     </section>
 
-    <!-- 1. Private MVP Phase -->
+    <!-- 1. Paper Phase Notice -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Private Phase</p>
-      <div class="rounded-xl border border-accent-500/20 bg-accent-500/5 p-6 mb-6">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Current Phase</p>
+      <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 mb-6">
         <p class="text-white/70 leading-relaxed mb-4">
-          SPA is currently in a private invite-only phase. Fee terms are discussed individually
-          during onboarding &mdash; early participants receive preferential terms.
+          SPA is currently in <strong class="text-white/90">paper testing mode</strong>.
+          No fees are charged and no capital is being managed. This page documents the
+          illustrative fee model for the planned live phase only.
         </p>
         <p class="text-white/50 leading-relaxed">
-          Our model is performance-aligned: management fees cover operational costs,
+          The performance-aligned model: management fees cover operational costs,
           performance fees are only charged on profits above the high-water mark.
+          Specific terms for any future live phase are TBD.
         </p>
       </div>
     </section>
 
     <!-- 2. Fee Components -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Fee Components</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Fee Components (Illustrative)</p>
       <div class="space-y-3">
         <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
@@ -74,7 +79,7 @@ import Footer from '../components/Footer.astro';
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium">Performance Fee</p>
-            <p class="text-xs text-white/40">Charged only on net profits above the high-water mark. We earn when you earn.</p>
+            <p class="text-xs text-white/40">Charged only on net profits above the high-water mark. Aligns incentives.</p>
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
@@ -88,14 +93,14 @@ import Footer from '../components/Footer.astro';
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium">No Withdrawal Fee</p>
-            <p class="text-xs text-white/40">No fees charged on withdrawals.</p>
+            <p class="text-xs text-white/40">No fees charged on withdrawals (illustrative).</p>
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium">No Lock-Up</p>
-            <p class="text-xs text-white/40">No mandatory lock-up period for your capital.</p>
+            <p class="text-xs text-white/40">No mandatory lock-up period (illustrative).</p>
           </div>
         </div>
       </div>
@@ -109,7 +114,7 @@ import Footer from '../components/Footer.astro';
           The high-water mark is the previous peak value of the portfolio. Performance fee is only
           charged on profits above this mark. If the portfolio declines, no performance fee is
           collected until the previous peak is recovered. This aligns manager incentives with
-          investor outcomes &mdash; we only earn when you earn.
+          outcomes &mdash; earn only on real gains.
         </p>
       </div>
     </section>
@@ -137,7 +142,7 @@ import Footer from '../components/Footer.astro';
         </div>
         <p class="text-xs text-white/25 mt-6">
           Actual returns are variable and not guaranteed. This example is illustrative only.
-          Specific fee rates are discussed during onboarding.
+          No fee rates are currently set — this is the paper testing phase.
         </p>
       </div>
     </section>
@@ -149,8 +154,8 @@ import Footer from '../components/Footer.astro';
         <span class="text-amber-400 flex-shrink-0 mt-0.5">&#9888;</span>
         <div>
           <p class="text-sm text-white/60 leading-relaxed mb-2">
-            During the paper trading period (through August 1, 2026), <strong class="text-white/80">no fees are charged</strong>.
-            Fee structure applies from go-live date only.
+            During the paper trading period (through ~August 1, 2026), <strong class="text-white/80">no fees are charged</strong>.
+            Fee structure applies from go-live date only — and only to own capital first.
           </p>
           <p class="text-xs text-white/35">
             Paper trading uses virtual $100,000 USDC &mdash; no real capital, no fee accrual.
@@ -167,7 +172,7 @@ import Footer from '../components/Footer.astro';
         <div>
           <h4 class="text-sm font-semibold text-white mb-2">When do fees start?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            From the go-live date (August 1, 2026 target). No fees are charged during the paper
+            From the go-live date (~August 1, 2026 target, contingent on GoLiveChecker). No fees during paper
             trading period.
           </p>
         </div>
@@ -183,43 +188,17 @@ import Footer from '../components/Footer.astro';
         <div>
           <h4 class="text-sm font-semibold text-white mb-2">Are there withdrawal fees?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            No withdrawal fee is planned for the MVP.
-          </p>
-        </div>
-
-        <div>
-          <h4 class="text-sm font-semibold text-white mb-2">Will fees change?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
-            Fee terms are agreed individually during onboarding. Any changes to agreed terms
-            would come with advance notice.
+            No withdrawal fee is planned.
           </p>
         </div>
 
       </div>
     </section>
 
-    <!-- CTA -->
-    <section class="py-16 border-t border-white/5">
-      <div class="rounded-xl border border-accent-500/20 bg-accent-500/5 p-8 text-center">
-        <h3 class="text-lg font-semibold text-white mb-3">Interested in joining?</h3>
-        <p class="text-sm text-white/50 mb-6">
-          Fee terms are discussed individually during onboarding. Early participants receive preferential terms.
-        </p>
-        <div class="flex flex-wrap items-center justify-center gap-4">
-          <a href="/due-diligence" class="px-5 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-medium transition-colors">
-            Request Access
-          </a>
-          <a href="mailto:yuriycooleshov@gmail.com" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
-            yuriycooleshov@gmail.com
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- Continue DD links -->
-    <section class="pb-16">
+    <!-- Continue links -->
+    <section class="pb-16 border-t border-white/5 pt-10">
       <div class="text-center">
-        <p class="text-sm text-white/30 mb-6">Continue your due diligence</p>
+        <p class="text-sm text-white/30 mb-6">Continue reading</p>
         <div class="flex flex-wrap items-center justify-center gap-4">
           <a href="/methodology" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
             Methodology
@@ -227,8 +206,8 @@ import Footer from '../components/Footer.astro';
           <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
             Risk Disclosure
           </a>
-          <a href="/strategies" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
-            All Strategies
+          <a href="/dashboard" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+            Dashboard
           </a>
         </div>
       </div>
