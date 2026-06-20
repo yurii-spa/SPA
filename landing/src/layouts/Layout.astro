@@ -1,19 +1,29 @@
 ---
-export interface Props {
-  title?: string;
+interface Props {
+  title: string;
   description?: string;
   ogImage?: string;
   canonical?: string;
 }
 
 const {
-  title = 'SPA — Institutional-Grade DeFi Yield. Verified Daily.',
-  description = 'A systematic yield optimizer for family offices. Deterministic risk policy, verifiable paper track record, zero discretionary decisions. Built on Aave, Morpho, Compound.',
-  ogImage = 'https://earn-defi.com/og-image.png',
+  title,
+  description = "SPA — Stablecoin Portfolio Algorithm. Professional yield optimization for stablecoins.",
+  ogImage = "/og-image.png",
   canonical,
 } = Astro.props;
 
-const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
+const siteUrl = "https://earn-defi.com";
+const pageUrl = canonical || `${siteUrl}${Astro.url.pathname}`;
+const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${siteUrl}${ogImage}`;
+
+const schemaData = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "SPA — Stablecoin Portfolio Algorithm",
+  "url": siteUrl,
+  "description": description,
+});
 ---
 
 <!DOCTYPE html>
@@ -23,31 +33,34 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="canonical" href={canonicalURL} />
-
     <!-- Primary Meta -->
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0a0a0a" />
 
+    <!-- Canonical -->
+    <link rel="canonical" href={pageUrl} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:url" content={pageUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={ogImage} />
-    <meta property="og:site_name" content="SPA — earn-defi.com" />
+    <meta property="og:image" content={ogImageAbsolute} />
+    <meta property="og:site_name" content="SPA — Stablecoin Portfolio Algorithm" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image" content={ogImageAbsolute} />
 
-    <!-- Fonts: Inter via Google Fonts (self-hostable alternative: fontsource) -->
+    <!-- Fonts: Inter via Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -55,17 +68,8 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
       rel="stylesheet"
     />
 
-    <!-- Structured data: Organization -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "SPA — Smart Passive Aggregator",
-        "url": "https://earn-defi.com",
-        "description": "Autonomous DeFi yield optimizer with deterministic risk policy. Paper-trading track record since June 2026.",
-        "sameAs": []
-      }
-    </script>
+    <!-- Schema.org -->
+    <script type="application/ld+json" set:html={schemaData} />
 
     <!-- Prevent flash of unstyled dark content -->
     <style>
