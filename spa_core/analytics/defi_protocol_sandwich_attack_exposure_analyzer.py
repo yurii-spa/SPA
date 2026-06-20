@@ -30,9 +30,9 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -86,19 +86,7 @@ def _atomic_write(path: str, data: Any) -> None:
     dir_name = os.path.dirname(abs_path)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp_path, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(abs_path))
 def _load_ring_buffer(path: str, cap: int) -> list:
     """Load JSON array from *path* or return []. Always returns at most *cap* items."""
     try:
