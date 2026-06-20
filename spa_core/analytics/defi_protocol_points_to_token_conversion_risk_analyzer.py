@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -65,19 +65,7 @@ def _atomic_log(log_path: str, entry: dict) -> None:
         data = data[-_LOG_CAP:]
 
     dir_name = os.path.dirname(abs_path)
-    fd, tmp = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, abs_path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(data, str(abs_path))
 # ---------------------------------------------------------------------------
 # Sub-calculators
 # ---------------------------------------------------------------------------
