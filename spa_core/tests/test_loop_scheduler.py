@@ -184,7 +184,7 @@ class TestFastLoopAlerts(unittest.TestCase):
             self.assertEqual(result["alert_count"], 0)
 
     def test_failsafe_on_exception(self):
-        with patch("spa_core.scheduler.loop_scheduler._atomic_write_json", side_effect=OSError("disk")):
+        with patch("spa_core.scheduler.loop_scheduler.atomic_save", side_effect=OSError("disk")):
             result = run_fast_loop(_make_cycle_result())
             self.assertEqual(result["status"], "error")
             self.assertIn("error", result)
@@ -236,7 +236,7 @@ class TestSlowLoopLlmAvailable(unittest.TestCase):
             self.assertTrue((Path(d) / SLOW_LOOP_INSIGHTS_FILENAME).exists())
 
     def test_failsafe_on_exception(self):
-        with patch("spa_core.scheduler.loop_scheduler._atomic_write_json", side_effect=OSError("disk")):
+        with patch("spa_core.scheduler.loop_scheduler.atomic_save", side_effect=OSError("disk")):
             result = run_slow_loop("2026-06-11", llm_available=False)
             self.assertEqual(result["status"], "error")
 
@@ -283,7 +283,7 @@ class TestStrategicLoopLlmAvailable(unittest.TestCase):
             self.assertEqual(result["equity_bars_analyzed"], 30)
 
     def test_failsafe_on_exception(self):
-        with patch("spa_core.scheduler.loop_scheduler._atomic_write_json", side_effect=OSError("disk")):
+        with patch("spa_core.scheduler.loop_scheduler.atomic_save", side_effect=OSError("disk")):
             result = run_strategic_loop("2026-06-09", llm_available=False)
             self.assertEqual(result["status"], "error")
 
