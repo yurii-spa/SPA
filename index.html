@@ -162,6 +162,16 @@
   .gray  { color: #888; }
   .risk-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
   .risk-row span:first-child { color: #888; }
+  /* MP-1502: Risk Monitor panel */
+  .risk-monitor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 4px; }
+  @media(max-width:700px) { .risk-monitor-grid { grid-template-columns: repeat(2, 1fr); } }
+  .risk-monitor-card { background: var(--spa-surface-2, #f7f7f9); border: 1px solid var(--spa-border, #e5e7eb); border-radius: 8px; padding: 14px 16px; }
+  .risk-monitor-card h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--spa-text-3, #888); margin: 0 0 8px; }
+  .risk-monitor-value { font-size: 20px; font-weight: 600; font-family: var(--spa-mono, monospace); color: var(--spa-text, #1a1a2e); letter-spacing: -0.5px; }
+  .risk-monitor-value.rm-warn  { color: #B45309; }
+  .risk-monitor-value.rm-danger { color: #B91C1C; }
+  .risk-monitor-value.rm-ok    { color: #3B6D11; }
+  .risk-monitor-sub { font-size: 11px; color: var(--spa-text-3, #888); margin-top: 4px; }
   .clock-bg { background: #eee; border-radius: 4px; height: 6px; margin: 8px 0 6px; overflow: hidden; }
   .clock-fill { background: #1D9E75; height: 100%; transition: width 0.5s; }
   .status-ok  { display: inline-flex; align-items: center; gap: 5px; background: #eaf3de; color: #3B6D11; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
@@ -2006,6 +2016,83 @@ body > .main-wrap, #app, .app-container,
     </div>
   </div>
 
+  <!-- BLOCK 2b: Strategy Tournament Leaderboard (MP-1514, v11.30) -->
+  <div class="db-full" id="tournament-leaderboard-block" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="db-section" style="margin-bottom:0">🏆 Strategy Tournament Leaderboard</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="tournament-last-run" style="font-size:11px;color:#aaa"></span>
+        <button class="refresh-btn" onclick="loadTournamentLeaderboard()">↻ Refresh</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Rank</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Strategy</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">APY</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Sharpe</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Max DD</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Win Rate</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Status</th>
+          </tr>
+        </thead>
+        <tbody id="tournament-leaderboard-tbody">
+          <!-- Static seed data (S11, S7, S12 from known results — updated by loadTournamentLeaderboard()) -->
+          <tr style="background:rgba(52,211,153,0.06)">
+            <td style="padding:8px 10px;font-weight:700;color:#059669">#1</td>
+            <td style="padding:8px 10px"><span style="font-weight:700">S11</span> <span style="font-size:11px;color:#888">Hybrid Yield Max</span></td>
+            <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">15.6%</td>
+            <td style="padding:8px 10px;text-align:right">2.1</td>
+            <td style="padding:8px 10px;text-align:right;color:#dc2626">-1.8%</td>
+            <td style="padding:8px 10px;text-align:right">74%</td>
+            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">🏆 Production</span></td>
+          </tr>
+          <tr>
+            <td style="padding:8px 10px;font-weight:600;color:#185FA5">#2</td>
+            <td style="padding:8px 10px"><span style="font-weight:700">S7</span> <span style="font-size:11px;color:#888">Pendle YT Aggressive</span></td>
+            <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">10.1%</td>
+            <td style="padding:8px 10px;text-align:right">1.8</td>
+            <td style="padding:8px 10px;text-align:right;color:#dc2626">-2.3%</td>
+            <td style="padding:8px 10px;text-align:right">71%</td>
+            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px">✅ Production</span></td>
+          </tr>
+          <tr style="background:rgba(0,0,0,0.02)">
+            <td style="padding:8px 10px;font-weight:600;color:#185FA5">#3</td>
+            <td style="padding:8px 10px"><span style="font-weight:700">S12</span> <span style="font-size:11px;color:#888">Base Layer Yield</span></td>
+            <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">7.4%</td>
+            <td style="padding:8px 10px;text-align:right">1.5</td>
+            <td style="padding:8px 10px;text-align:right;color:#dc2626">-1.2%</td>
+            <td style="padding:8px 10px;text-align:right">68%</td>
+            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px">✅ Production</span></td>
+          </tr>
+          <tr>
+            <td style="padding:8px 10px;color:#777">#4</td>
+            <td style="padding:8px 10px"><span style="font-weight:600">S20_CRV</span> <span style="font-size:11px;color:#888">Curve/Convex Optimizer</span></td>
+            <td style="padding:8px 10px;text-align:right;color:#059669">9.0%</td>
+            <td style="padding:8px 10px;text-align:right">1.4</td>
+            <td style="padding:8px 10px;text-align:right;color:#dc2626">-3.0%</td>
+            <td style="padding:8px 10px;text-align:right">72%</td>
+            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span></td>
+          </tr>
+          <tr style="background:rgba(0,0,0,0.02)">
+            <td style="padding:8px 10px;color:#777">#5</td>
+            <td style="padding:8px 10px"><span style="font-weight:600">S21_LOOP</span> <span style="font-size:11px;color:#888">Aave V3 USDC Loop</span></td>
+            <td style="padding:8px 10px;text-align:right;color:#059669">7.5%</td>
+            <td style="padding:8px 10px;text-align:right">1.2</td>
+            <td style="padding:8px 10px;text-align:right;color:#dc2626">-2.0%</td>
+            <td style="padding:8px 10px;text-align:right">78%</td>
+            <td style="padding:8px 10px;text-align:center"><span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#aaa">
+      Live data from <code>data/tournament_runner_v2.json</code> · Ranked by Sharpe ratio · ADR-023 promotion policy
+    </div>
+  </div>
+
   <!-- BLOCK 3: Planned Strategies Roadmap -->
   <div class="db-full" style="margin-bottom:18px">
     <div class="db-section">🗺 Planned Strategies — Roadmap</div>
@@ -2340,6 +2427,33 @@ body > .main-wrap, #app, .app-container,
 
   <!-- APY Trends (7d) -->
   <div id="apy-trends-container"></div>
+
+  <!-- MP-1502 (v11.18): Real-Time Risk Monitor panel -->
+  <section id="risk-monitor" class="db-full">
+    <div class="db-section">🛡 Risk Monitor</div>
+    <div class="risk-monitor-grid">
+      <div class="risk-monitor-card">
+        <h3>VaR (95%)</h3>
+        <div id="var-95" class="risk-monitor-value">—</div>
+        <div class="risk-monitor-sub">Daily loss at 95% confidence</div>
+      </div>
+      <div class="risk-monitor-card">
+        <h3>Max Drawdown</h3>
+        <div id="max-dd" class="risk-monitor-value">—</div>
+        <div class="risk-monitor-sub">From peak NAV</div>
+      </div>
+      <div class="risk-monitor-card">
+        <h3>Circuit Breaker</h3>
+        <div id="cb-status" class="risk-monitor-value rm-ok">OK ✅</div>
+        <div class="risk-monitor-sub">Triggers at −5%</div>
+      </div>
+      <div class="risk-monitor-card">
+        <h3>Concentration</h3>
+        <div id="top-position" class="risk-monitor-value">—</div>
+        <div class="risk-monitor-sub">Limit: 40%</div>
+      </div>
+    </div>
+  </section>
 
   <div class="db-footer">SPA Paper Trading v0.4 · данные реальные, капитал виртуальный · обновляется каждые 4ч · <a href="https://yurii-spa.github.io/SPA/" style="color:#185FA5">yurii-spa.github.io/SPA</a></div>
 
@@ -3532,6 +3646,63 @@ body > .main-wrap, #app, .app-container,
 
   <div style="font-size:11px;color:#bbb;text-align:center;margin-top:8px" id="sys-last-refresh">Auto-refreshes every 60s while tab is active</div>
 
+  <!-- ══ System Metrics (MP-1534 v11.50) ══ -->
+  <section id="system-metrics" style="margin-top:28px">
+    <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#888;margin-bottom:14px">
+      📊 System Metrics
+    </div>
+    <div class="metrics-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="sys-card" style="text-align:center;padding:16px 12px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:8px">Daily Cycles</div>
+        <div id="daily-cycles" style="font-size:28px;font-weight:700;color:#185FA5">—</div>
+        <div style="font-size:10px;color:#bbb;margin-top:4px">total runs</div>
+      </div>
+      <div class="sys-card" style="text-align:center;padding:16px 12px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:8px">APY Fetches</div>
+        <div id="apy-fetches" style="font-size:28px;font-weight:700;color:#185FA5">—</div>
+        <div style="font-size:10px;color:#bbb;margin-top:4px">adapter calls</div>
+      </div>
+      <div class="sys-card" style="text-align:center;padding:16px 12px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:8px">Alerts Sent</div>
+        <div id="alerts-sent" style="font-size:28px;font-weight:700;color:#185FA5">—</div>
+        <div style="font-size:10px;color:#bbb;margin-top:4px">telegram / log</div>
+      </div>
+      <div class="sys-card" style="text-align:center;padding:16px 12px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:8px">Avg Cycle Time</div>
+        <div id="avg-cycle-ms" style="font-size:28px;font-weight:700;color:#185FA5">—</div>
+        <div style="font-size:10px;color:#bbb;margin-top:4px">ms per cycle</div>
+      </div>
+    </div>
+    <div id="metrics-last-updated" style="font-size:10px;color:#bbb;text-align:right;margin-top:6px"></div>
+  </section>
+
+  <script>
+  (function loadSystemMetrics() {
+    const BASE = './data';
+    fetch(BASE + '/metrics.json?_=' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(m) {
+        if (!m) return;
+        var c = m.counters || {};
+        var t = m.timers   || {};
+        function setText(id, val) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = val;
+        }
+        setText('daily-cycles', c['daily_cycle']           != null ? c['daily_cycle']           : '0');
+        setText('apy-fetches',  c['apy_fetch']             != null ? c['apy_fetch']             : '0');
+        setText('alerts-sent',  c['alert_sent']            != null ? c['alert_sent']            : '0');
+        var cycleTimer = t['cycle_duration_ms'] || t['cycle_ms'] || t['daily_cycle_ms'] || null;
+        setText('avg-cycle-ms', cycleTimer ? Math.round(cycleTimer.avg_ms) + ' ms' : '—');
+        var upd = document.getElementById('metrics-last-updated');
+        if (upd && m.timestamp) upd.textContent = 'Updated ' + m.timestamp.replace('T', ' ').slice(0, 19) + ' UTC';
+      })
+      .catch(function() {
+        // metrics.json not yet available — leave defaults
+      });
+  })();
+  </script>
+
 </div><!-- /tab-system -->
 
 <!-- ══════════════════ TAB: TOURNAMENT (MP-154) ══════════════════ -->
@@ -3905,7 +4076,7 @@ function showTab(id, btn) {
   if (tabEl) { tabEl.classList.add('active'); tabEl.style.display = ''; }
   btn.classList.add('active');
   if (id === 'overview')    loadPerformance();
-  if (id === 'strategies')  loadStrategies();
+  if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); }
   if (id === 'ops')         loadOps();
   if (id === 'decisions')   loadDecisions();
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
@@ -4717,6 +4888,75 @@ async function loadStrategies() {
   }
 }
 
+// ─── Tournament Leaderboard (MP-1514, v11.30) ────────────────────────────────
+async function loadTournamentLeaderboard() {
+  const tbody = document.getElementById('tournament-leaderboard-tbody');
+  const lastRunEl = document.getElementById('tournament-last-run');
+  if (!tbody) return;
+
+  let data = null;
+  // Try tournament_runner_v2.json first, fall back to tournament_results.json
+  for (const path of ['data/tournament_runner_v2.json', 'data/tournament_results.json']) {
+    try {
+      const res = await fetch(path + '?t=' + Date.now());
+      if (res.ok) { data = await res.json(); break; }
+    } catch (_) {}
+  }
+
+  if (!data) return; // Keep seed rows if no data file found
+
+  const leaderboard = data.leaderboard || data.results || [];
+  if (!leaderboard.length) return;
+
+  if (lastRunEl && data.last_run) {
+    lastRunEl.textContent = 'Updated: ' + data.last_run.replace('T', ' ').slice(0, 16) + ' UTC';
+  }
+
+  // Status badge helpers
+  const STATUS_PROD   = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">✅ Production</span>';
+  const STATUS_TOUR   = '<span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:10px">🔬 Tournament</span>';
+  const STATUS_DEMOTE = '<span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px">⚠️ Watch</span>';
+  const STATUS_LEAD   = '<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px">🏆 Production</span>';
+
+  const PRODUCTION_IDS = new Set(['S7', 'S11', 'S12']);
+
+  tbody.innerHTML = leaderboard.map((entry, i) => {
+    const sid    = entry.strategy_id || entry.id || '?';
+    const name   = entry.strategy_name || entry.name || sid;
+    const sharpe = entry.sharpe != null ? Number(entry.sharpe).toFixed(2) : '—';
+    const apy    = entry.annualized_return != null
+      ? (Number(entry.annualized_return) * 100).toFixed(1) + '%'
+      : (entry.annual_return != null ? (Number(entry.annual_return) * 100).toFixed(1) + '%' : '—');
+    const dd     = entry.max_drawdown != null
+      ? (Number(entry.max_drawdown) * 100).toFixed(1) + '%'
+      : '—';
+    const wr     = entry.win_rate != null
+      ? (Number(entry.win_rate) * 100).toFixed(0) + '%'
+      : '—';
+
+    const inProd = entry.in_production || PRODUCTION_IDS.has(sid);
+    let badge;
+    if (i === 0 && inProd) badge = STATUS_LEAD;
+    else if (inProd)        badge = STATUS_PROD;
+    else                    badge = STATUS_TOUR;
+
+    const rankColor = i === 0 ? '#059669' : (i < 3 ? '#185FA5' : '#777');
+    const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
+    const ddColor = entry.max_drawdown < 0 ? '#dc2626' : '#888';
+    const apyColor = '#059669';
+
+    return `<tr style="${rowBg}">
+      <td style="padding:8px 10px;font-weight:${i < 3 ? 700 : 500};color:${rankColor}">#${i+1}</td>
+      <td style="padding:8px 10px"><span style="font-weight:${i < 3 ? 700 : 600}">${sid}</span> <span style="font-size:11px;color:#888">${name}</span></td>
+      <td style="padding:8px 10px;text-align:right;color:${apyColor};font-weight:600">${apy}</td>
+      <td style="padding:8px 10px;text-align:right">${sharpe}</td>
+      <td style="padding:8px 10px;text-align:right;color:${ddColor}">${dd}</td>
+      <td style="padding:8px 10px;text-align:right">${wr}</td>
+      <td style="padding:8px 10px;text-align:center">${badge}</td>
+    </tr>`;
+  }).join('');
+}
+
 // ─── Ops Tab (internal operator view) ────────────────────────────────────────
 async function loadOps() {
   // Decisions: delegate to existing loadDecisions but also mirror into ops panel
@@ -5141,6 +5381,92 @@ function renderTrackDayCounter() {
   span.textContent = d >= 1 ? ' · День ' + d + ' реального трека (с ' + REAL_TRACK_START + ')' : '';
 }
 
+// ─── MP-1502 (v11.18): Risk Monitor panel ─────────────────────────────────────
+function renderRiskMonitor(varData, equityCurve, posData) {
+  const $ = id => document.getElementById(id);
+  if (!$('risk-monitor')) return;
+
+  // ── VaR (95%) ──
+  const varEl = $('var-95');
+  if (varEl) {
+    const varFrac = varData && varData.var && varData.var['95pct'];
+    if (varFrac != null) {
+      const varUsd = varFrac * 100_000;
+      varEl.textContent = '$' + varUsd.toLocaleString('en', {maximumFractionDigits: 0});
+      varEl.className = 'risk-monitor-value' + (varUsd > 5000 ? ' rm-warn' : ' rm-ok');
+    } else {
+      varEl.textContent = 'N/A';
+      varEl.className = 'risk-monitor-value gray';
+    }
+  }
+
+  // ── Max Drawdown ──
+  const ddEl = $('max-dd');
+  if (ddEl) {
+    let ddPct = null;
+    if (equityCurve && equityCurve.summary && equityCurve.summary.max_drawdown_pct != null) {
+      ddPct = Number(equityCurve.summary.max_drawdown_pct);
+    } else if (equityCurve) {
+      // compute from entries
+      const entries = Array.isArray(equityCurve) ? equityCurve : (equityCurve.curve || equityCurve.entries || []);
+      if (entries.length > 1) {
+        let peak = 0, maxDd = 0;
+        entries.forEach(e => {
+          const nav = Number(e.nav || e.equity || 0);
+          if (nav > peak) peak = nav;
+          const dd = peak > 0 ? (peak - nav) / peak * 100 : 0;
+          if (dd > maxDd) maxDd = dd;
+        });
+        ddPct = maxDd;
+      }
+    }
+    if (ddPct != null) {
+      ddEl.textContent = '-' + ddPct.toFixed(2) + '%';
+      ddEl.className = 'risk-monitor-value' + (ddPct >= 5 ? ' rm-danger' : ddPct >= 2 ? ' rm-warn' : ' rm-ok');
+    } else {
+      ddEl.textContent = '—';
+    }
+  }
+
+  // ── Circuit Breaker ──
+  const cbEl = $('cb-status');
+  if (cbEl) {
+    let ddForCB = 0;
+    if (equityCurve && equityCurve.summary && equityCurve.summary.max_drawdown_pct != null) {
+      ddForCB = Number(equityCurve.summary.max_drawdown_pct);
+    }
+    if (ddForCB >= 5) {
+      cbEl.textContent = 'TRIPPED ⛔';
+      cbEl.className = 'risk-monitor-value rm-danger';
+    } else if (ddForCB >= 3) {
+      cbEl.textContent = 'WATCH ⚠️';
+      cbEl.className = 'risk-monitor-value rm-warn';
+    } else {
+      cbEl.textContent = 'OK ✅';
+      cbEl.className = 'risk-monitor-value rm-ok';
+    }
+  }
+
+  // ── Top concentration ──
+  const topEl = $('top-position');
+  if (topEl) {
+    const posMap = (posData && posData.positions) || {};
+    const total = Object.values(posMap).reduce((s, v) => s + Number(v || 0), 0);
+    if (total > 0) {
+      const sorted = Object.entries(posMap)
+        .map(([k, v]) => [k, Number(v || 0)])
+        .sort((a, b) => b[1] - a[1]);
+      const [topKey, topAmt] = sorted[0] || ['—', 0];
+      const topPct = (topAmt / total * 100).toFixed(1);
+      const label = topKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      topEl.textContent = label + ': ' + topPct + '%';
+      topEl.className = 'risk-monitor-value' + (topAmt / total >= 0.40 ? ' rm-danger' : topAmt / total >= 0.30 ? ' rm-warn' : ' rm-ok');
+    } else {
+      topEl.textContent = '—';
+    }
+  }
+}
+
 async function loadDashboard() {
   const spinner = document.getElementById('load-spinner');
   if (spinner) spinner.style.display = 'inline-block';
@@ -5195,6 +5521,13 @@ async function loadDashboard() {
     renderApyGapTracker(status, null);            // weighted APY считается из живых позиций
     renderApyTrends();
     loadStrategyRace();
+    // MP-1502: Risk Monitor panel — loads var_analytics.json + reuses equityCurve + posData
+    (async () => {
+      const ts2 = Date.now();
+      let varData = null;
+      try { varData = await fetch(BASE + '/var_analytics.json?cb=' + ts2).then(r => r.ok ? r.json() : null); } catch(e) {}
+      renderRiskMonitor(varData, equityCurve, posData);
+    })();
   } catch(e) {
     document.getElementById('health-badge').className = 'status-err';
     document.getElementById('health-badge').textContent = '⚠ Нет данных';
