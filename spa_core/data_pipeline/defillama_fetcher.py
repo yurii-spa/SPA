@@ -6,7 +6,6 @@ DeFiLlama API Fetcher — SPA Data Pipeline
 Запуск планировщика: python defillama_fetcher.py --daemon
 """
 
-import requests
 import sqlite3
 import logging
 import time
@@ -420,9 +419,8 @@ class DeFiLlamaFetcher:
         if cached:
             data = json.loads(cached)
         else:
-            resp = requests.get(DEFILLAMA_POOLS_URL, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
+            with urllib.request.urlopen(DEFILLAMA_POOLS_URL, timeout=30) as _r:
+                data = json.loads(_r.read().decode("utf-8"))
             self._save_cache(cache_key, json.dumps(data).encode())
 
         all_pools = data.get("data", [])
@@ -475,9 +473,8 @@ class DeFiLlamaFetcher:
         if cached:
             data = json.loads(cached)
         else:
-            resp = requests.get(DEFILLAMA_POOLS_URL, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
+            with urllib.request.urlopen(DEFILLAMA_POOLS_URL, timeout=30) as _r:
+                data = json.loads(_r.read().decode("utf-8"))
             self._save_cache(cache_key, json.dumps(data).encode())
 
         all_pools = data.get("data", [])
