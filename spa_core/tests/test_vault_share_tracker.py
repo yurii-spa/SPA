@@ -7,8 +7,8 @@ Tests for MP-775: VaultShareTracker
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(_HERE))
