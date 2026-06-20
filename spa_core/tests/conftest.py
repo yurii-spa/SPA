@@ -14,8 +14,12 @@ from unittest.mock import MagicMock, patch
 
 # Make spa_core importable from this directory
 _SPA_CORE = Path(__file__).parent.parent
-if str(_SPA_CORE) not in sys.path:
-    sys.path.insert(0, str(_SPA_CORE))
+_ROOT = _SPA_CORE.parent          # ~/Documents/SPA_Claude
+_SCRIPTS = _ROOT / "scripts"
+
+for _p in [str(_ROOT), str(_SCRIPTS), str(_SPA_CORE)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 
 @pytest.fixture
