@@ -11,7 +11,7 @@ Pure stdlib. No external dependencies.
 import json
 import os
 import time
-import tempfile
+from spa_core.utils.atomic import atomic_save
 
 
 # ---------------------------------------------------------------------------
@@ -362,24 +362,7 @@ def log_result(result: dict, data_dir: str = None) -> None:
         log = log[-_LOG_CAP:]
 
     os.makedirs(data_dir, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-            json.dump(log, fh, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
+    atomic_save(log, str(log_path))
     import argparse
 
     parser = argparse.ArgumentParser(
