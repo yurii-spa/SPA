@@ -1,3 +1,10 @@
+# DEPRECATED — orphaned module. Canonical: spa_core.monitoring.cycle_health_monitor
+# No active imports point here. TODO: remove in next cleanup.
+# This file is kept for git history only.
+raise ImportError(
+    "DEPRECATED: use spa_core.monitoring.cycle_health_monitor instead"
+)
+
 """
 Cycle Runner Health Monitor (MP-631).
 ======================================
