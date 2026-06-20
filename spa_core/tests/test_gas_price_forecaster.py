@@ -7,9 +7,9 @@ tx cost, EMA, percentile, rolling averages, log persistence, edge cases.
 import json
 import math
 import os
-import tempfile
 import time
 import unittest
+import tempfile
 
 from spa_core.analytics.gas_price_forecaster import (
     GasPriceForecaster,
