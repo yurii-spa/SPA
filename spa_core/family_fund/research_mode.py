@@ -48,10 +48,11 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 __all__ = ["ResearchModeAPI"]
 
@@ -280,14 +281,4 @@ class ResearchModeAPI:
         payload = self.handle_research_status()
         payload["_generated_at"] = datetime.now(tz=timezone.utc).isoformat()
 
-        fd, tmp = tempfile.mkstemp(dir=out_path.parent, prefix=".rm_status_tmp_")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(payload, str(out_path))
