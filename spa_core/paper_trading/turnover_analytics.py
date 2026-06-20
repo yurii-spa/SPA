@@ -74,7 +74,6 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -82,6 +81,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # REUSE BY IMPORT — single source of truth for the idempotency fingerprint
 # (MP-501). We do NOT reimplement the content_fingerprint logic here.
 from spa_core.reporting.tear_sheet import content_fingerprint
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.turnover_analytics")
 
@@ -122,27 +122,8 @@ def _read_json(path: Path) -> Any:
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Atomic JSON write: tmp file in the same dir + os.replace."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _num(value: Any) -> Optional[float]:
     """Finite float or None (bool is not a number; NaN/inf are not data)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
