@@ -34,6 +34,7 @@ from spa_core.analytics.protocol_tvl_filter import (
     _load_log,
     filter_protocols,
 )
+from spa_core.utils.errors import SPAError
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +363,7 @@ class TestProtocolTVLFilterClass(unittest.TestCase):
         self.assertEqual(len(data), 2)
 
     def test_save_without_filter_raises(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             self.f.save()
 
     def test_run_and_save_combined(self):
