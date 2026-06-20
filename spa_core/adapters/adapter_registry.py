@@ -233,6 +233,15 @@ def refresh_all(
 
     results: Dict[str, Any] = {}
 
+    # MP-1195: detect schema_version to determine merge target.
+    # v2 format has adapters as a nested dict; v1 has protocol keys at top-level.
+    _schema_v2 = (
+        isinstance(status.get("schema_version"), int)
+        and status.get("schema_version", 1) >= 2
+        and isinstance(status.get("adapters"), dict)
+    )
+    _target: dict = status.get("adapters") if _schema_v2 else status  # type: ignore[assignment]
+
     for protocol, cls in list(REGISTRY.items()):
         try:
             instance = cls()
@@ -242,11 +251,11 @@ def refresh_all(
             results[protocol] = apy
             tier = _extract_tier(cls)
             ts = int(time.time())
-            if protocol in status and isinstance(status[protocol], dict):
-                status[protocol]["apy"] = apy
-                status[protocol]["last_refreshed"] = ts
+            if protocol in _target and isinstance(_target[protocol], dict):
+                _target[protocol]["apy"] = apy
+                _target[protocol]["last_refreshed"] = ts
             else:
-                status[protocol] = {
+                _target[protocol] = {
                     "apy": apy,
                     "tier": tier,
                     "last_refreshed": ts,
