@@ -32,10 +32,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.protocol_research_agent")
 
@@ -79,26 +80,6 @@ def _read_json(path: Path, default: Any) -> Any:
         log.warning("_read_json %s unreadable (%s) — using default", path.name, exc)
         return default
 
-
-def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Atomic write: tmpfile in same dir + os.replace. Never leaves .tmp on failure."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, str(path))
-    except Exception:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        finally:
-            raise
 
 
 # ─── Name normalisation ───────────────────────────────────────────────────────
@@ -433,7 +414,7 @@ def run_research_cycle(
             "skip_list": skip_list,
         }
         try:
-            _atomic_write_json(ddir / RESEARCH_FILENAME, research_doc)
+            atomic_save(research_doc, str(ddir / RESEARCH_FILENAME))
         except Exception as exc:
             log.warning("protocol_research.json write failed (%s)", exc)
 
@@ -450,7 +431,7 @@ def run_research_cycle(
             "total_candidates_in_registry": len(all_candidates),
         }
         try:
-            _atomic_write_json(ddir / RESEARCH_STATUS_FILENAME, status_doc)
+            atomic_save(status_doc, str(ddir / RESEARCH_STATUS_FILENAME))
         except Exception as exc:
             log.warning("protocol_research_status.json write failed (%s)", exc)
 
@@ -477,7 +458,7 @@ def run_research_cycle(
             "top_protocol": None,
         }
         try:
-            _atomic_write_json(ddir / RESEARCH_STATUS_FILENAME, err_status)
+            atomic_save(err_status, str(ddir / RESEARCH_STATUS_FILENAME))
         except Exception:
             pass
         return {
