@@ -26,6 +26,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from spa_core.utils.atomic import atomic_save
 from spa_core.alerts import telegram_client
 from spa_core.alerts.telegram_format_ru import (
     build_detail_keyboard,
@@ -55,17 +56,7 @@ def _save_alert_state(state: dict) -> None:
     """Atomically write the alert-state file. Silent on failure."""
     try:
         _DATA_DIR.mkdir(parents=True, exist_ok=True)
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=_DATA_DIR, suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
-                json.dump(state, fh, indent=2)
-            os.replace(tmp_path, _ALERT_STATE_FILE)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(state, str(_ALERT_STATE_FILE))
     except Exception as exc:  # noqa: BLE001
         log.warning("alert_state write failed (%s) — dedup state not persisted", exc)
 
