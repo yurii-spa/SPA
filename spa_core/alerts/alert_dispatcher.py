@@ -28,7 +28,6 @@ import json
 import logging
 import os
 import smtplib
-import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -37,6 +36,7 @@ from typing import Dict, List, Optional
 import urllib.request
 import urllib.error
 from email.message import EmailMessage
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.alerts.dispatcher")
 
@@ -144,25 +144,8 @@ class Alert:
 # Internal I/O helpers
 # ===========================================================================
 def _atomic_write_json(path: Path, payload: object) -> None:
-    """Write JSON atomically via tmp-file + os.replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        except OSError:
-            pass
-
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(payload, str(path))
 def _load_log_entries(path: Path) -> List[dict]:
     """Load ring-buffer entries from disk; tolerant of corruption."""
     try:
