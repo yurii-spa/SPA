@@ -1,0 +1,373 @@
+{
+  "generated_at": "2026-06-20T23:49:20.682193+00:00",
+  "data_source": "defillama_historical_real",
+  "data_dir": "/Users/yuriikulieshov/Documents/SPA_Claude/data/historical_apy",
+  "period": {
+    "from": "2025-06-21",
+    "to": "2026-06-20",
+    "days": 363
+  },
+  "initial_capital_usd": 100000.0,
+  "risk_free_rate": 0.04,
+  "note": "Allocation-weighted backtest on REAL 365-day DeFiLlama APY history. Stablecoin yield accrual is monotonic (no token price risk), so max-drawdown is ~0% and Sharpe/Calmar are structurally high or undefined \u2014 a property of the asset class, not an error. Sortino/Calmar are null when there is no downside/drawdown. Allocations are illustrative backtest weights; live weights are governed by spa_core/allocator + RiskPolicy (T2<=20%).",
+  "strategies": {
+    "S0_baseline": {
+      "final_capital_usd": 104766.17,
+      "total_interest_usd": 4766.17,
+      "total_return_pct": 4.7662,
+      "cagr_pct": 4.793,
+      "annualised_return_pct": 4.793,
+      "sharpe_ratio": 13.7811,
+      "sortino_ratio": 51.6788,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "Baseline (Equal Weight)",
+      "risk_tier": "T1/T2",
+      "weights": {
+        "aave_v3_usdc": 0.2,
+        "compound_v3_usdc": 0.2,
+        "yearn_v3_usdc": 0.2,
+        "sky_susds": 0.2,
+        "morpho_blue_usdc": 0.2
+      }
+    },
+    "S0_conservative": {
+      "final_capital_usd": 104003.0,
+      "total_interest_usd": 4003.0,
+      "total_return_pct": 4.003,
+      "cagr_pct": 4.0255,
+      "annualised_return_pct": 4.0255,
+      "sharpe_ratio": -1.5352,
+      "sortino_ratio": -2.1945,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "S0 Conservative (low-vol T1)",
+      "risk_tier": "T1",
+      "weights": {
+        "sky_susds": 0.5,
+        "aave_v3_usdc": 0.3,
+        "compound_v3_usdc": 0.2
+      }
+    },
+    "S1_conservative_lending": {
+      "final_capital_usd": 103859.29,
+      "total_interest_usd": 3859.29,
+      "total_return_pct": 3.8593,
+      "cagr_pct": 3.881,
+      "annualised_return_pct": 3.881,
+      "sharpe_ratio": -4.065,
+      "sortino_ratio": -5.4828,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "Conservative Lending (T1 core)",
+      "risk_tier": "T1",
+      "weights": {
+        "aave_v3_usdc": 0.4,
+        "compound_v3_usdc": 0.4,
+        "sky_susds": 0.2
+      }
+    },
+    "S2_balanced_yield": {
+      "final_capital_usd": 105111.49,
+      "total_interest_usd": 5111.49,
+      "total_return_pct": 5.1115,
+      "cagr_pct": 5.1404,
+      "annualised_return_pct": 5.1404,
+      "sharpe_ratio": 18.0129,
+      "sortino_ratio": 113.902,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "Balanced Yield (T1+T2 blend)",
+      "risk_tier": "T1/T2",
+      "weights": {
+        "morpho_blue_usdc": 0.3,
+        "yearn_v3_usdc": 0.25,
+        "compound_v3_usdc": 0.2,
+        "aave_v3_usdc": 0.15,
+        "sky_susds": 0.1
+      }
+    },
+    "S7_aggressive_yield": {
+      "final_capital_usd": 105721.41,
+      "total_interest_usd": 5721.41,
+      "total_return_pct": 5.7214,
+      "cagr_pct": 5.7538,
+      "annualised_return_pct": 5.7538,
+      "sharpe_ratio": 24.8514,
+      "sortino_ratio": 315.797,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "Aggressive Yield (T2-heavy, illustrative)",
+      "risk_tier": "T2",
+      "weights": {
+        "morpho_blue_usdc": 0.5,
+        "yearn_v3_usdc": 0.25,
+        "compound_v3_usdc": 0.15,
+        "aave_v3_usdc": 0.1
+      }
+    },
+    "S12_base_layer": {
+      "final_capital_usd": 103909.45,
+      "total_interest_usd": 3909.45,
+      "total_return_pct": 3.9094,
+      "cagr_pct": 3.9314,
+      "annualised_return_pct": 3.9314,
+      "sharpe_ratio": -3.3529,
+      "sortino_ratio": -4.6042,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "S12 Base Layer (T1 anchor)",
+      "risk_tier": "T1",
+      "weights": {
+        "aave_v3_usdc": 0.35,
+        "compound_v3_usdc": 0.35,
+        "sky_susds": 0.3
+      }
+    }
+  },
+  "benchmark": {
+    "final_capital_usd": 103690.96,
+    "total_interest_usd": 3690.96,
+    "total_return_pct": 3.691,
+    "cagr_pct": 3.7117,
+    "annualised_return_pct": 3.7117,
+    "sharpe_ratio": -4.8491,
+    "sortino_ratio": -7.4505,
+    "max_drawdown_pct": 0.0,
+    "calmar_ratio": null,
+    "backtest_days": 363,
+    "strategy_name": "Lazy HODL (100% Aave V3)",
+    "risk_tier": "T1",
+    "weights": {
+      "aave_v3_usdc": 1.0
+    }
+  },
+  "benchmark_comparison": [
+    {
+      "strategy": "S7_aggressive_yield",
+      "name": "Aggressive Yield (T2-heavy, illustrative)",
+      "total_return_pct": 5.7214,
+      "vs_lazy_aave_pct_pts": 2.0304,
+      "excess_usd": 2030.45,
+      "beats_benchmark": true
+    },
+    {
+      "strategy": "S2_balanced_yield",
+      "name": "Balanced Yield (T1+T2 blend)",
+      "total_return_pct": 5.1115,
+      "vs_lazy_aave_pct_pts": 1.4205,
+      "excess_usd": 1420.53,
+      "beats_benchmark": true
+    },
+    {
+      "strategy": "S0_baseline",
+      "name": "Baseline (Equal Weight)",
+      "total_return_pct": 4.7662,
+      "vs_lazy_aave_pct_pts": 1.0752,
+      "excess_usd": 1075.21,
+      "beats_benchmark": true
+    },
+    {
+      "strategy": "S0_conservative",
+      "name": "S0 Conservative (low-vol T1)",
+      "total_return_pct": 4.003,
+      "vs_lazy_aave_pct_pts": 0.312,
+      "excess_usd": 312.04,
+      "beats_benchmark": true
+    },
+    {
+      "strategy": "S12_base_layer",
+      "name": "S12 Base Layer (T1 anchor)",
+      "total_return_pct": 3.9094,
+      "vs_lazy_aave_pct_pts": 0.2184,
+      "excess_usd": 218.49,
+      "beats_benchmark": true
+    },
+    {
+      "strategy": "S1_conservative_lending",
+      "name": "Conservative Lending (T1 core)",
+      "total_return_pct": 3.8593,
+      "vs_lazy_aave_pct_pts": 0.1683,
+      "excess_usd": 168.33,
+      "beats_benchmark": true
+    }
+  ],
+  "leaderboard": [
+    {
+      "strategy": "S7_aggressive_yield",
+      "name": "Aggressive Yield (T2-heavy, illustrative)",
+      "risk_tier": "T2",
+      "annualised_return_pct": 5.7538,
+      "sharpe_ratio": 24.8514,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 5.7214
+    },
+    {
+      "strategy": "S2_balanced_yield",
+      "name": "Balanced Yield (T1+T2 blend)",
+      "risk_tier": "T1/T2",
+      "annualised_return_pct": 5.1404,
+      "sharpe_ratio": 18.0129,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 5.1115
+    },
+    {
+      "strategy": "S0_baseline",
+      "name": "Baseline (Equal Weight)",
+      "risk_tier": "T1/T2",
+      "annualised_return_pct": 4.793,
+      "sharpe_ratio": 13.7811,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 4.7662
+    },
+    {
+      "strategy": "S0_conservative",
+      "name": "S0 Conservative (low-vol T1)",
+      "risk_tier": "T1",
+      "annualised_return_pct": 4.0255,
+      "sharpe_ratio": -1.5352,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 4.003
+    },
+    {
+      "strategy": "S12_base_layer",
+      "name": "S12 Base Layer (T1 anchor)",
+      "risk_tier": "T1",
+      "annualised_return_pct": 3.9314,
+      "sharpe_ratio": -3.3529,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 3.9094
+    },
+    {
+      "strategy": "S1_conservative_lending",
+      "name": "Conservative Lending (T1 core)",
+      "risk_tier": "T1",
+      "annualised_return_pct": 3.881,
+      "sharpe_ratio": -4.065,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 3.8593
+    },
+    {
+      "strategy": "BENCHMARK_lazy_aave",
+      "name": "Lazy HODL (100% Aave V3)",
+      "risk_tier": "T1",
+      "annualised_return_pct": 3.7117,
+      "sharpe_ratio": -4.8491,
+      "max_drawdown_pct": 0.0,
+      "total_return_pct": 3.691
+    }
+  ],
+  "key_analysis": {
+    "rolling_window_days": 182,
+    "balanced_strategy_windows": {
+      "best": {
+        "start_date": "2025-06-21",
+        "end_date": "2025-12-21",
+        "window_days": 182,
+        "total_return_pct": 3.0012,
+        "annualised_return_pct": 6.1096
+      },
+      "worst": {
+        "start_date": "2025-12-21",
+        "end_date": "2026-06-20",
+        "window_days": 182,
+        "total_return_pct": 2.0637,
+        "annualised_return_pct": 4.1817
+      }
+    },
+    "lazy_aave_windows": {
+      "best": {
+        "start_date": "2025-06-21",
+        "end_date": "2025-12-21",
+        "window_days": 182,
+        "total_return_pct": 2.0102,
+        "annualised_return_pct": 4.0723
+      },
+      "worst": {
+        "start_date": "2025-10-19",
+        "end_date": "2026-04-18",
+        "window_days": 182,
+        "total_return_pct": 1.5509,
+        "annualised_return_pct": 3.1345
+      }
+    },
+    "protocol_volatility": {
+      "aave_v3_usdc": {
+        "label": "Aave V3",
+        "tier": "T1",
+        "mean_apy_pct": 3.6446,
+        "min_apy_pct": 1.5705,
+        "max_apy_pct": 12.5999,
+        "apy_stdev_pct": 1.4,
+        "annualised_return_vol_pct": 0.073282
+      },
+      "compound_v3_usdc": {
+        "label": "Compound V3",
+        "tier": "T1",
+        "mean_apy_pct": 3.7767,
+        "min_apy_pct": 2.336,
+        "max_apy_pct": 11.6954,
+        "apy_stdev_pct": 1.3451,
+        "annualised_return_vol_pct": 0.070404
+      },
+      "yearn_v3_usdc": {
+        "label": "Yearn V3",
+        "tier": "T2",
+        "mean_apy_pct": 4.93,
+        "min_apy_pct": 1.3657,
+        "max_apy_pct": 16.0491,
+        "apy_stdev_pct": 1.7713,
+        "annualised_return_vol_pct": 0.092713
+      },
+      "sky_susds": {
+        "label": "Sky / sUSDS",
+        "tier": "T1",
+        "mean_apy_pct": 4.1961,
+        "min_apy_pct": 3.6,
+        "max_apy_pct": 4.75,
+        "apy_stdev_pct": 0.4204,
+        "annualised_return_vol_pct": 0.022006
+      },
+      "morpho_blue_usdc": {
+        "label": "Morpho Blue",
+        "tier": "T2",
+        "mean_apy_pct": 6.8627,
+        "min_apy_pct": 3.5483,
+        "max_apy_pct": 9.5673,
+        "apy_stdev_pct": 1.4807,
+        "annualised_return_vol_pct": 0.077503
+      }
+    },
+    "current_portfolio_trailing_12mo": {
+      "final_capital_usd": 104553.18,
+      "total_interest_usd": 4553.18,
+      "total_return_pct": 4.5532,
+      "cagr_pct": 4.5788,
+      "annualised_return_pct": 4.5788,
+      "sharpe_ratio": 9.3189,
+      "sortino_ratio": 23.9745,
+      "max_drawdown_pct": 0.0,
+      "calmar_ratio": null,
+      "backtest_days": 363,
+      "strategy_name": "Current Live Portfolio (T1-anchored)",
+      "weights": {
+        "aave_v3_usdc": 0.4,
+        "compound_v3_usdc": 0.25,
+        "morpho_blue_usdc": 0.2,
+        "yearn_v3_usdc": 0.1,
+        "sky_susds": 0.05
+      },
+      "period": {
+        "from": "2025-06-21",
+        "to": "2026-06-20",
+        "days": 363
+      }
+    }
+  }
+}
