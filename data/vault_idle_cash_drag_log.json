@@ -1,0 +1,46 @@
+[
+  {
+    "ts": "2026-06-14T20:19:06.609883+00:00",
+    "position_count": 3,
+    "aggregate": {
+      "most_idle_vault": "DAI-Vault-MostlyIdle",
+      "least_idle_vault": "USDC-Vault-Efficient",
+      "avg_efficiency_score": 68.63,
+      "mostly_idle_count": 1,
+      "position_count": 3
+    },
+    "snapshots": [
+      {
+        "token": "USDC-Vault-Efficient",
+        "classification": "FULLY_DEPLOYED",
+        "efficiency_score": 97.9,
+        "recommendation": "DEPLOY",
+        "flags": [
+          "FULLY_DEPLOYED",
+          "CAPITAL_EFFICIENT"
+        ]
+      },
+      {
+        "token": "ETH-Vault-HeavyBuffer",
+        "classification": "HEAVY_BUFFER",
+        "efficiency_score": 76.5,
+        "recommendation": "DEPLOY_CAUTIOUSLY",
+        "flags": [
+          "EXCESS_IDLE_CASH",
+          "HEAVY_BUFFER"
+        ]
+      },
+      {
+        "token": "DAI-Vault-MostlyIdle",
+        "classification": "MOSTLY_IDLE",
+        "efficiency_score": 31.5,
+        "recommendation": "AVOID",
+        "flags": [
+          "EXCESS_IDLE_CASH",
+          "HEAVY_BUFFER",
+          "MOSTLY_IDLE"
+        ]
+      }
+    ]
+  }
+]
