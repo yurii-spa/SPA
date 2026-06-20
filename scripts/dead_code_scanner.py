@@ -30,7 +30,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Set
 
