@@ -63,6 +63,8 @@ log = logging.getLogger("spa.pendle_pt_adapter")
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
+from spa_core.utils.errors import SourceError, ValidationError
+
 @dataclass
 class TxRequest:
     to: str
@@ -186,7 +188,7 @@ def _eth_call(rpc_url: str, to: str, data: str, timeout: int = 8) -> str:
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         result = json.loads(resp.read())
     if "error" in result:
-        raise ValueError(f"eth_call error: {result['error']}")
+        raise SourceError(f"eth_call RPC error: {result['error']}")
     return result.get("result", "0x")
 
 
@@ -229,10 +231,7 @@ class PendlePTAdapter:
 
     def __init__(self, chain: str = "ethereum", dry_run: bool = True) -> None:
         if chain not in self.SUPPORTED_CHAINS:
-            raise ValueError(
-                f"PendlePTAdapter: unsupported chain '{chain}'. "
-                f"Supported: {self.SUPPORTED_CHAINS}"
-            )
+            raise ValidationError("chain", chain, f"must be one of {self.SUPPORTED_CHAINS}")
         self.chain = chain
         self.dry_run = dry_run
         self._endpoints = _RPC_ENDPOINTS[chain]
@@ -244,9 +243,7 @@ class PendlePTAdapter:
         asset = asset.upper()
         markets = _PT_MARKETS.get(self.chain, {})
         if asset not in markets:
-            raise ValueError(
-                f"PendlePTAdapter: unsupported asset '{asset}' on '{self.chain}'"
-            )
+            raise ValidationError("asset", asset, f"unsupported on {self.chain!r}")
         return markets[asset]
 
     def _pt_address(self, asset: str) -> str:
@@ -303,9 +300,9 @@ class PendlePTAdapter:
         decimals = 6  # USDC / USDT both 6 dp
 
         if amount <= 0:
-            raise ValueError(f"supply: amount must be positive, got {amount}")
+            raise ValidationError("amount", amount, "supply: must be positive")
         if amount > 10_000_000:
-            raise ValueError(f"supply: amount {amount} exceeds sanity cap 10M")
+            raise ValidationError("amount", amount, "supply: exceeds sanity cap 10M")
 
         log.info("PendlePTAdapter.supply: asset=%s amount=%s dry_run=%s", asset, amount, self.dry_run)
 
@@ -351,7 +348,7 @@ class PendlePTAdapter:
         market = self._market(asset)
 
         if amount <= 0:
-            raise ValueError(f"withdraw: amount must be positive, got {amount}")
+            raise ValidationError("amount", amount, "withdraw: must be positive")
 
         log.info("PendlePTAdapter.withdraw: asset=%s amount=%s dry_run=%s", asset, amount, self.dry_run)
 
