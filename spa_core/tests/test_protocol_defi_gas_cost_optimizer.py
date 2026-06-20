@@ -5,8 +5,8 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_gas_cost_optimizer
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.protocol_defi_gas_cost_optimizer import (
