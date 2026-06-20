@@ -1,5 +1,5 @@
 """
-SPA FastAPI server — real-time data API (v0.16).
+SPA FastAPI server — real-time data API (v0.17).
 Run: uvicorn spa_core.api.server:app --reload --port 8765
 
 Dashboard auto-detects: if http://localhost:8765/health returns 200,
@@ -17,6 +17,15 @@ Endpoints:
     GET  /api/status          → all of the above merged (single-fetch mode)
     POST /api/chat            → LLM agent chat (falls back to canned if no API key)
     WS   /ws/agents           → real-time agent activity stream
+
+    --- v1 versioned read-only API (MP-1527) ---
+    GET  /api/v1/status       → KANBAN sprint/done_count summary
+    GET  /api/v1/golive       → GoLive readiness report (26 criteria)
+    GET  /api/v1/adapters     → Adapter registry with live APY
+    GET  /api/v1/evidence     → Paper trading evidence history
+
+IMPORTANT: This server is READ-ONLY. No write operations allowed.
+All write operations go through normal file/CLI interface.
 """
 
 from __future__ import annotations
@@ -143,7 +152,7 @@ async def lifespan(app: FastAPI):
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     )
-    log.info(f"SPA API v0.16 starting — data dir: {_DATA_DIR}")
+    log.info(f"SPA API v0.17 starting — data dir: {_DATA_DIR}")
     broadcaster.start()
     yield
     broadcaster.stop()
@@ -153,7 +162,7 @@ async def lifespan(app: FastAPI):
 # ─── App ─────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="SPA — Smart Passive Aggregator",
-    version="v0.16",
+    version="v0.17",
     description=(
         "Real-time DeFi yield aggregation API. "
         "Dashboard auto-detects this server and switches from static JSON to live data."
@@ -679,6 +688,114 @@ async def get_protocol_history(protocol_key: str):
     from spa_core.analytics.apy_tracker import APYTracker
     tracker = APYTracker(history_file=str(_DATA_DIR / "apy_history.json"))
     return tracker.get_trend(protocol_key.replace("__", ":"), days=30)
+
+
+# ─── v1 Versioned Read-Only API (MP-1527) ────────────────────────────────────
+
+@app.get("/api/v1/status", tags=["v1"])
+def v1_status():
+    """
+    Sprint / KANBAN summary.
+    Reads done_count and sprint_completed from KANBAN.json.
+    """
+    try:
+        kanban_path = _PROJECT_ROOT / "KANBAN.json"
+        k = json.loads(kanban_path.read_text(encoding="utf-8"))
+        return {
+            "done_count": k.get("done_count"),
+            "sprint": k.get("sprint_completed"),
+            "version": k.get("version", "unknown"),
+            "timestamp": _now(),
+        }
+    except Exception as e:
+        log.warning(f"/api/v1/status error: {e}")
+        return {"error": str(e), "timestamp": _now()}
+
+
+@app.get("/api/v1/golive", tags=["v1"])
+def v1_golive():
+    """
+    GoLive readiness report — 26 criteria.
+    Reads from data/golive_status.json (written by GoLiveChecker each cycle).
+    Falls back to running GoLiveReadinessReport inline if file is missing.
+    """
+    # Fast path: serve from pre-computed file
+    golive_data = _load_json("golive_status.json", None)
+    if golive_data is not None:
+        golive_data["timestamp"] = _now()
+        golive_data["source"] = "file"
+        return golive_data
+
+    # Slow path: run the report inline
+    try:
+        from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport
+        report = GoLiveReadinessReport(base_dir=str(_PROJECT_ROOT))
+        result = report.generate_report()
+        result["timestamp"] = _now()
+        result["source"] = "inline"
+        return result
+    except Exception as e:
+        log.warning(f"/api/v1/golive inline report error: {e}")
+        return {"error": str(e), "timestamp": _now()}
+
+
+@app.get("/api/v1/adapters", tags=["v1"])
+def v1_adapters():
+    """
+    All registered adapters with tier and live APY.
+    Uses ADAPTER_REGISTRY from spa_core/adapters/adapter_registry.py.
+    """
+    try:
+        from spa_core.adapters.adapter_registry import REGISTRY
+        result = []
+        for name, cls in REGISTRY.items():
+            try:
+                instance = cls()
+                apy = None
+                if hasattr(instance, "safe_apy"):
+                    try:
+                        apy = instance.safe_apy()
+                    except Exception:
+                        apy = None
+                elif hasattr(instance, "get_apy"):
+                    try:
+                        apy = instance.get_apy()
+                    except Exception:
+                        apy = None
+                tier = getattr(instance, "TIER", getattr(cls, "TIER", "?"))
+                result.append({
+                    "name": name,
+                    "tier": tier,
+                    "apy": apy,
+                    "research_only": getattr(instance, "RESEARCH_ONLY", False),
+                })
+            except Exception as adapter_err:
+                log.debug(f"Adapter entry error for {name!r}: {adapter_err}")
+        return {"adapters": result, "count": len(result), "timestamp": _now()}
+    except Exception as e:
+        log.warning(f"/api/v1/adapters error: {e}")
+        # Fallback: serve adapter_status.json if available
+        fallback = _load_json("adapter_status.json", None)
+        if fallback is not None:
+            return {"adapters": fallback, "count": len(fallback) if isinstance(fallback, list) else 0,
+                    "source": "file_fallback", "timestamp": _now()}
+        return {"error": str(e), "adapters": [], "count": 0, "timestamp": _now()}
+
+
+@app.get("/api/v1/evidence", tags=["v1"])
+def v1_evidence():
+    """
+    Paper trading evidence history.
+    Reads from data/paper_evidence_history.json (ring-buffer written by cycle_runner).
+    """
+    evidence = _load_json("paper_evidence_history.json", None)
+    if evidence is not None:
+        return {"data": evidence, "timestamp": _now(), "source": "file"}
+    # Try equity curve as alternative evidence source
+    equity = _load_json("equity_curve_daily.json", None)
+    if equity is not None:
+        return {"data": equity, "timestamp": _now(), "source": "equity_curve"}
+    return {"error": "evidence file not found", "data": [], "timestamp": _now()}
 
 
 # ─── Dev entrypoint ──────────────────────────────────────────────────────────
