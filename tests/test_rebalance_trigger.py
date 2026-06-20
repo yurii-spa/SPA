@@ -25,11 +25,11 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import tempfile
 
 # Ensure spa_core is importable from the project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
