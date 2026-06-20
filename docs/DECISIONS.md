@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-06-21 (Session decisions — ADR-042…047)
+
+Шесть решений сессии задокументированы как ADR. Исходно черновики были
+пронумерованы 030–035, но эти номера заняты (ADR-030…041 уже существуют), поэтому
+перенумерованы в **ADR-042…047** для непрерывной последовательности.
+
+| ADR | Тема | Status | Ключевое |
+|-----|------|--------|----------|
+| [ADR-042](adr/ADR-042-backtest-harness-design.md) | Backtest Harness Design | Accepted | 35+ backtest-файлов наконец прогнаны; adapter-harness в `scripts/run_backtest.py` нормализует 3 несовместимых интерфейса в дневные equity curves. S7=11.08%, S2=8.98%, S0=5.72% (90д synthetic). **S7 bear = −14.28%** — risk-сигнал. |
+| [ADR-043](adr/ADR-043-new-protocol-adapters-ethena-fluid-usual.md) | New Protocol Adapters (Ethena/Fluid/Usual) | Accepted | 3 новых T2-адаптера, layered fallback (direct API → DeFiLlama → cache). Live APY: Ethena 3.50%, Fluid 6.22%, Usual 2.27%. Registry → 22 активных tuple. |
+| [ADR-044](adr/ADR-044-bear-market-hedge-strategy.md) | Bear-Market Hedge S31 + Market-Neutral S32 | **Proposed** | Мотивирован S7 −14.28%. Regime detection: Aave utilization + T2 APY trend. Target max DD <0.5% в bear. S31/S32 ещё не реализованы. |
+| [ADR-045](adr/ADR-045-kelly-criterion-allocation.md) | Kelly Criterion Allocation | Accepted | Half-Kelly (50% blend), tier-based hack prob: T1 0.5%/y, T2 2.0%, T3 5.0%. Реализован `spa_core/allocator/kelly_sizer.py`. Supersedes ADR_012 sizing rationale. |
+| [ADR-046](adr/ADR-046-multi-chain-expansion-strategy.md) | Multi-Chain Expansion | Accepted | Read-only адаптеры Arbitrum (Aave/Radiant/GMX) + Optimism (Aave/Velodrome). Bridge risk + gas monitoring. T2-until-proven per-chain. |
+| [ADR-047](adr/ADR-047-site-privacy-hardening.md) | Site Privacy Hardening (earn-defi.com) | Accepted | Reframe → «personal research project, paper validation». `noindex` все страницы, удалён mechanism of entry, переработан emergency-withdrawal. `scripts/cf_install_token.command` НЕ пушится (secrets policy). |
+
+**Что сделано:**
+- Прочитан формат существующих ADR (ADR-041, ADR_TEMPLATE) и `docs/DECISIONS.md`
+- Верифицированы артефакты сессии в репо: `scripts/run_backtest.py` ✓, адаптеры
+  ethena/fluid/usual ✓ (T2, MP-1227), `kelly_sizer.py` ✓ (half-Kelly, T1/T2/T3 = 0.5/2.0/5.0%),
+  arb/op адаптеры ✓. S31/S32 — **отсутствуют** → ADR-044 в статусе Proposed.
+- Написаны 6 ADR (042–047), обновлён `docs/adr/ADR_INDEX.md`
+
+**Заметки:**
+- Перенумерация 030–035 → 042–047 (коллизия номеров)
+- ADR-045 ссылается и supersede'ит sizing-обоснование `docs/ADR_012_dynamic_kelly_sizing.md`
+- SECURITY: `scripts/cf_install_token.command` исключён из всех пушей
+
+---
+
 ## 2026-06-12 (v4.64 Phase2 Roadmap)
 
 **Что сделано:**
