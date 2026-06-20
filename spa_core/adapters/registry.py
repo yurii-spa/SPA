@@ -200,6 +200,36 @@ ADAPTER_REGISTRY: Dict[str, Dict[str, Any]] = {
         "fallback_apy": 6.5,
     },
     # ------------------------------------------------------------------
+    # T2 — MP-1547: Fluid Protocol USDC/USDT + Notional V3 (research-only)
+    # ------------------------------------------------------------------
+    "fluid_usdc": {
+        "module": "spa_core.adapters.fluid_adapter",
+        "class": "FluidUSDCAdapter",
+        "tier": "T2",
+        "research_only": True,
+        "chain": "Ethereum",
+        "asset": "USDC",
+        "fallback_apy": 5.5,
+    },
+    "fluid_usdt": {
+        "module": "spa_core.adapters.fluid_adapter",
+        "class": "FluidUSDTAdapter",
+        "tier": "T2",
+        "research_only": True,
+        "chain": "Ethereum",
+        "asset": "USDT",
+        "fallback_apy": 5.4,
+    },
+    "notional_v3": {
+        "module": "spa_core.adapters.notional_v3_adapter",
+        "class": "NotionalV3Adapter",
+        "tier": "T2",
+        "research_only": True,
+        "chain": "Ethereum",
+        "asset": "USDC",
+        "fallback_apy": 5.0,
+    },
+    # ------------------------------------------------------------------
     # T3 — Speculative / advisory-only adapters
     # ------------------------------------------------------------------
     "susde": {
