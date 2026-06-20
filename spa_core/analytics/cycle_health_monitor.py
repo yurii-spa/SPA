@@ -38,7 +38,7 @@ CLI
   python3 -m spa_core.analytics.cycle_health_monitor --run     (+ atomic save)
   python3 -m spa_core.analytics.cycle_health_monitor --run --data-dir PATH
 """
-from __future__ import annotations
+# from __future__ import annotations  # MP-1233: neutralized — unreachable below DEPRECATED raise, broke py_compile
 
 import json
 import os
