@@ -5,9 +5,9 @@ Run with: python3 -m unittest spa_core.tests.test_defi_position_rebalancing_trig
 import json
 import os
 import sys
-import tempfile
 import time
 import unittest
+import tempfile
 
 # Allow running from repo root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
