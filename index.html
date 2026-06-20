@@ -5408,7 +5408,7 @@ function renderRiskMonitor(varData, equityCurve, posData) {
       ddPct = Number(equityCurve.summary.max_drawdown_pct);
     } else if (equityCurve) {
       // compute from entries
-      const entries = Array.isArray(equityCurve) ? equityCurve : (equityCurve.curve || equityCurve.entries || []);
+      const entries = Array.isArray(equityCurve) ? equityCurve : (equityCurve.daily || equityCurve.curve || equityCurve.entries || []);
       if (entries.length > 1) {
         let peak = 0, maxDd = 0;
         entries.forEach(e => {
@@ -5514,7 +5514,7 @@ async function loadDashboard() {
       }
       // hero-track-days: compute from gap_monitor / equity_curve length
       if (_heroEl('hero-track-days')) {
-        const _ec = equityCurve && (equityCurve.curve || equityCurve);
+        const _ec = equityCurve && (equityCurve.daily || equityCurve.curve || equityCurve);
         const _n = Array.isArray(_ec) ? _ec.filter(p => !p.is_demo).length : 0;
         _heroEl('hero-track-days').textContent = 'День ' + _n + '/' + (META_TRACK_DAYS || 30);
       } }
