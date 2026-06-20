@@ -11,9 +11,11 @@ Alerts НЕ могут блокировать сделки — они тольк
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, List
+
+from spa_core.base import BaseAnalytics
 
 log = logging.getLogger(__name__)
 
@@ -38,11 +40,18 @@ class Alert:
 
 # ─── Alert Rules ──────────────────────────────────────────────────────────────
 
-class AlertEngine:
+class AlertEngine(BaseAnalytics):
     """
     Проверяет снапшоты APY/TVL и генерирует alerts при аномалиях.
     Отдельно от Risk Policy — не блокирует сделки.
+
+    BaseAnalytics:
+        OUTPUT_PATH = "data/monitor/alerts_summary.json"
+        to_dict()   → сериализует последние alerts для dashboarding
+        save()      → атомарная запись в data/monitor/alerts_summary.json
     """
+
+    OUTPUT_PATH = "data/monitor/alerts_summary.json"
 
     # Пороги для alert-правил
     APY_DROP_THRESHOLD_PCT   = 20.0   # APY упал на >20% от предыдущего снапшота
@@ -51,10 +60,41 @@ class AlertEngine:
     STALE_DATA_HOURS         = 6.0    # данные старше 6 часов — pipeline мог упасть
     MIN_TVL_WARNING_USD      = 10_000_000  # TVL < $10M → предупреждение
 
+    def __init__(self, base_dir: str = ".") -> None:
+        super().__init__(base_dir)
+        self._last_alerts: List[Alert] = []
+        self._last_checked_ts: str = ""
+
+    def to_dict(self) -> dict:
+        """Сериализовать последний набор alerts в dict (BaseAnalytics API).
+
+        Результат пишется в OUTPUT_PATH через save().
+        Используется для dashboard и отладки.
+        """
+        return {
+            "last_checked_ts": self._last_checked_ts or datetime.now(timezone.utc).isoformat(),
+            "total_alerts": len(self._last_alerts),
+            "critical_count": sum(1 for a in self._last_alerts if a.severity == "CRITICAL"),
+            "warning_count": sum(1 for a in self._last_alerts if a.severity == "WARNING"),
+            "info_count": sum(1 for a in self._last_alerts if a.severity == "INFO"),
+            "alerts": [
+                {
+                    "severity": a.severity,
+                    "event_type": a.event_type,
+                    "protocol_key": a.protocol_key,
+                    "message": a.message,
+                    "timestamp": a.timestamp,
+                    "details": a.details,
+                }
+                for a in self._last_alerts
+            ],
+        }
+
     def check_snapshots(self, current: list[dict], previous: list[dict]) -> list[Alert]:
         """
         Сравнить текущие снапшоты с предыдущими.
         Вернуть список alerts.
+        Сохраняет результат в _last_alerts для to_dict()/save().
         """
         alerts: list[Alert] = []
 
@@ -83,6 +123,8 @@ class AlertEngine:
             # 5. Резкое падение TVL
             alerts.extend(self._check_tvl_drop(snap, prev))
 
+        self._last_alerts = alerts
+        self._last_checked_ts = datetime.now(timezone.utc).isoformat()
         return alerts
 
     def check_pipeline_health(self, snapshots: list[dict]) -> list[Alert]:
