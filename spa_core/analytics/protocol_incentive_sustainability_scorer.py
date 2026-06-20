@@ -7,9 +7,9 @@ Stdlib only, atomic writes, ring-buffer log cap 100.
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # Default log file
 DEFAULT_LOG_PATH = os.path.join(
@@ -239,19 +239,7 @@ class ProtocolIncentiveSustainabilityScorer:
             log = log[-LOG_CAP:]
 
         dir_name = os.path.dirname(log_path)
-        fd, tmp_path = tempfile.mkstemp(dir=dir_name)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(log, fh, indent=2)
-            os.replace(tmp_path, log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
-
+        atomic_save(log, str(log_path))
 # ------------------------------------------------------------------ #
 # CLI                                                                  #
 # ------------------------------------------------------------------ #
