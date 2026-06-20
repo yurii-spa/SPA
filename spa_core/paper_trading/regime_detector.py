@@ -69,10 +69,10 @@ import logging
 import math
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.regime_detector")
 
@@ -736,23 +736,7 @@ def write_status(doc: Dict[str, Any], data_dir: Path) -> str:
     doc_to_write = dict(doc)
     doc_to_write["_run_history"] = existing_history
 
-    serialised = json.dumps(doc_to_write, indent=2, ensure_ascii=False)
-    fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp")
-    try:
-        os.write(fd, serialised.encode("utf-8"))
-        os.close(fd)
-        os.replace(tmp_path, out_path)
-    except Exception:  # pragma: no cover
-        try:
-            os.close(fd)
-        except Exception:
-            pass
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        raise
-
+    atomic_save(doc_to_write, str(out_path))
     return "DATA_WRITTEN"
 
 
