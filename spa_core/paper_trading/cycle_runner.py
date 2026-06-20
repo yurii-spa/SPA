@@ -811,10 +811,13 @@ def _default_risk_scorer(data_dir: Path) -> None:
     score itself; the allocator then reads the refreshed JSON snapshot).
     The engine writes atomically (tmpfile + os.replace) and is itself
     offline-tolerant (network failure → bootstrap fallback, never raises for
-    that reason)."""
+    that reason).
+    AUDIT-011: risk-layer must not make live HTTP calls (prompt-injection
+    vector via DeFiLlama response). Pass offline=True so the engine uses
+    BOOTSTRAP_PROTOCOLS — stable, audited, no network dependency."""
     from spa_core.risk.scoring_engine import RiskScoringEngine
 
-    RiskScoringEngine().export(output_file=Path(data_dir) / RISK_SCORES_FILENAME)
+    RiskScoringEngine(offline=True).export(output_file=Path(data_dir) / RISK_SCORES_FILENAME)
 
 
 def _refresh_risk_scores(
