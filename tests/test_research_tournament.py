@@ -20,8 +20,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).parent.parent
