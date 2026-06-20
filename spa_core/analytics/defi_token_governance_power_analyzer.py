@@ -22,10 +22,10 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -48,29 +48,8 @@ _TOKEN_MODEL_BONUS: Dict[str, int] = {
 # ---------------------------------------------------------------------------
 
 def _atomic_write_json(path: Path, payload: object) -> None:
-    """Atomic JSON write: tmp-file + os.replace. Creates parent dirs."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        except OSError:
-            pass
-
-
-# ---------------------------------------------------------------------------
-# Core scoring helpers
-# ---------------------------------------------------------------------------
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(payload, str(path))
 def _compute_hhi_score(top10_holder_pct: float) -> int:
     """
     Herfindahl approximation for top-10 holders assuming equal shares.
