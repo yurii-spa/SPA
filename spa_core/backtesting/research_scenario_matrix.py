@@ -34,11 +34,12 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.utils.atomic import atomic_save
 
 
 # ─── RS-001 Anti-Crisis: allocation weights and component APYs ────────────────
@@ -556,18 +557,7 @@ class ResearchScenarioMatrix:
             "rs002":           self._rs002_results,
         }
 
-        # Atomic write: tmp in same directory → os.replace
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=dest.parent, prefix=".rsmatrix_tmp_")
-        try:
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, dest)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_save(payload, str(dest))
 
     # ── to_markdown_summary ───────────────────────────────────────────────────
 
