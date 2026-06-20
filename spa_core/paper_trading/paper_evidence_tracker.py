@@ -20,10 +20,10 @@ CLI:
 import json
 import os
 import sys
-import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from spa_core.utils.atomic import atomic_save
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -78,17 +78,7 @@ class PaperEvidenceTracker:
         """Атомарная запись через mkstemp + os.replace."""
         path = Path(self.evidence_file)
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(self._data, f, indent=2, default=str)
-            os.replace(tmp, self.evidence_file)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(self._data, str(self.evidence_file))
 
     # ── Recording ─────────────────────────────────────────────────────────────
 
@@ -306,17 +296,7 @@ class PaperEvidenceTracker:
         status = self.get_golive_status()
         path = Path(output_file)
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(status, f, indent=2, default=str)
-            os.replace(tmp, output_file)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(status, str(output_file))
         return status
 
 
