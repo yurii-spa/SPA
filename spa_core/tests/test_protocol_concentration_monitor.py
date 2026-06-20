@@ -4,8 +4,8 @@ Tests for MP-678: ProtocolConcentrationMonitor
 """
 
 import json
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.protocol_concentration_monitor import (
