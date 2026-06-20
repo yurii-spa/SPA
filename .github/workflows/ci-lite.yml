@@ -5,7 +5,8 @@ name: SPA CI-Lite (syntax + import)
 #   1. По расписанию каждые 6 часов (schedule не блокируется [skip ci])
 #   2. Вручную через workflow_dispatch
 #
-# Цель: быстрая (<2 мин) проверка синтаксиса и импортов без тяжёлых тестов.
+# Цель: быстрая (<3 мин) проверка синтаксиса, импортов, типов (mypy) и реестра
+# стратегий без тяжёлых тестов (MP-1233).
 # Тяжёлые тесты (pytest 800+ файлов) остаются в ci.yml по demand.
 
 on:
@@ -139,4 +140,76 @@ jobs:
               print(f'ERROR: expected >= 10 strategies, got {len(strategies)}')
               sys.exit(1)
           print(f'Registry completeness OK')
+          "
+
+      # ── MP-1233: type-check + import + registry (code-quality gate) ───────────
+      - name: Install type-check tooling
+        run: pip install mypy==2.1.0
+
+      - name: Type check — mypy on key modules
+        env:
+          SPA_ENV: ci
+        run: |
+          echo "=== Type check: mypy on key modules ==="
+          MYPYPATH=. python3 -m mypy \
+            spa_core/paper_trading/cycle_runner.py \
+            spa_core/allocator/allocator.py \
+            spa_core/risk/policy.py \
+            spa_core/utils/type_utils.py \
+            --ignore-missing-imports \
+            --no-strict-optional \
+            --explicit-package-bases \
+            --follow-imports=silent
+          echo "Type check PASSED"
+
+      - name: Import check — all spa_core modules import cleanly
+        env:
+          SPA_ENV: ci
+        run: |
+          echo "=== Import check: walk-import all spa_core modules ==="
+          python3 -c "
+          import importlib, pkgutil, sys, spa_core
+          # Optional/heavy deps are not installed in ci-lite — skip those import
+          # failures. Deprecated stubs intentionally raise ImportError('DEPRECATED').
+          OPTIONAL = (
+              'reportlab', 'numpy', 'pandas', 'requests', 'aiohttp',
+              'fastapi', 'uvicorn', 'jwt', 'bcrypt', 'anthropic', 'openai',
+          )
+          ok = depr = opt = 0
+          real = []
+          for m in pkgutil.walk_packages(spa_core.__path__, 'spa_core.'):
+              n = m.name
+              if '.tests' in n:
+                  continue
+              try:
+                  importlib.import_module(n)
+                  ok += 1
+              except ImportError as e:
+                  msg = str(e)
+                  if 'DEPRECATED' in msg:
+                      depr += 1
+                  elif any(o in msg for o in OPTIONAL):
+                      opt += 1
+                  else:
+                      real.append((n, type(e).__name__, msg[:80]))
+              except Exception as e:
+                  real.append((n, type(e).__name__, str(e)[:80]))
+          print(f'imported OK: {ok} | deprecated-stub skipped: {depr} | optional-dep skipped: {opt}')
+          if real:
+              print('IMPORT FAILURES:')
+              for n, t, e in real:
+                  print(f'  {n} -> {t}: {e}')
+              sys.exit(1)
+          print('Import check PASSED')
+          "
+
+      - name: Registry check — >= 20 strategies registered
+        env:
+          SPA_ENV: ci
+        run: |
+          echo "=== Registry check: >= 20 strategies ==="
+          python3 -c "
+          from spa_core.strategies.strategy_registry import REGISTRY
+          assert len(REGISTRY) >= 20, f'expected >= 20 strategies, got {len(REGISTRY)}'
+          print(f'Registry check PASSED — {len(REGISTRY)} strategies registered')
           "
