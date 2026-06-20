@@ -10,6 +10,8 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from spa_core.utils.errors import SPAError
+
 RING_BUFFER_CAP = 100
 _DEFAULT_LOG = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_timing_log.json"
@@ -108,13 +110,13 @@ class YieldTimingOptimizer:
     def get_entry_signal(self) -> str:
         """Return entry_signal from last optimize() call."""
         if self._result is None:
-            raise RuntimeError("Call optimize() before get_entry_signal()")
+            raise SPAError("Call optimize() before get_entry_signal()", code="NOT_INITIALIZED")
         return self._result["entry_signal"]
 
     def get_timing_score(self) -> float:
         """Return timing_score from last optimize() call."""
         if self._result is None:
-            raise RuntimeError("Call optimize() before get_timing_score()")
+            raise SPAError("Call optimize() before get_timing_score()", code="NOT_INITIALIZED")
         return self._result["timing_score"]
 
     def get_last_result(self) -> Optional[Dict[str, Any]]:
