@@ -1,69 +1,69 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-06-20T16:43:26.055016+00:00",
+  "generated_at": "2026-06-20T17:22:39.737943+00:00",
   "generated_by": "adapter_status_generator",
-  "live_apy_enabled": false,
-  "live_count": 0,
+  "live_apy_enabled": true,
+  "live_count": 14,
   "adapters": {
     "aave_v3": {
       "display_name": "Aave V3",
-      "apy": 3.5,
-      "live_apy": null,
+      "apy": 3.1218,
+      "live_apy": 3.1218,
       "fallback_apy": 3.5,
       "tvl_usd": 12000000000.0,
       "tier": 1,
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "compound_v3": {
       "display_name": "Compound V3 (Comet USDC)",
-      "apy": 5.2,
-      "live_apy": null,
+      "apy": 3.2696,
+      "live_apy": 3.2696,
       "fallback_apy": 5.2,
       "tvl_usd": 3000000000.0,
       "tier": 1,
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "spark_susds": {
       "display_name": "Spark sUSDS",
-      "apy": 5.5,
-      "live_apy": null,
+      "apy": 3.3816,
+      "live_apy": 3.3816,
       "fallback_apy": 5.5,
       "tvl_usd": 500000000.0,
       "tier": 1,
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "morpho_steakhouse": {
       "display_name": "Morpho Steakhouse USDC",
-      "apy": 6.5,
-      "live_apy": null,
+      "apy": 3.5678,
+      "live_apy": 3.5678,
       "fallback_apy": 6.5,
       "tvl_usd": 800000000.0,
       "tier": 1,
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "aave_arbitrum": {
       "display_name": "Aave V3 Arbitrum",
-      "apy": 4.1,
-      "live_apy": null,
+      "apy": 1.9756,
+      "live_apy": 1.9756,
       "fallback_apy": 4.1,
       "tvl_usd": 1200000000.0,
       "tier": 1,
       "chain": "arbitrum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "aave_v3_optimism": {
       "display_name": "Aave V3 Optimism",
@@ -75,67 +75,67 @@
       "chain": "optimism",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "aave_v3_polygon": {
       "display_name": "Aave V3 Polygon (USDC.e)",
-      "apy": 5.1,
-      "live_apy": null,
+      "apy": 2.848,
+      "live_apy": 2.848,
       "fallback_apy": 5.1,
       "tvl_usd": 600000000.0,
       "tier": 1,
       "chain": "polygon",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "morpho_blue": {
       "display_name": "Morpho Blue",
-      "apy": 4.1,
-      "live_apy": null,
+      "apy": 3.5678,
+      "live_apy": 3.5678,
       "fallback_apy": 4.1,
       "tvl_usd": 2000000000.0,
       "tier": 2,
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "yearn_v3": {
       "display_name": "Yearn V3",
-      "apy": 3.23,
-      "live_apy": null,
+      "apy": 3.2245,
+      "live_apy": 3.2245,
       "fallback_apy": 3.23,
       "tvl_usd": 300000000.0,
       "tier": 2,
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "euler_v2": {
       "display_name": "Euler V2",
-      "apy": 2.75,
-      "live_apy": null,
+      "apy": 2.7926,
+      "live_apy": 2.7926,
       "fallback_apy": 2.75,
       "tvl_usd": 150000000.0,
       "tier": 2,
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "maple": {
       "display_name": "Maple Finance",
-      "apy": 4.82,
-      "live_apy": null,
+      "apy": 4.9449,
+      "live_apy": 4.9449,
       "fallback_apy": 4.82,
       "tvl_usd": 200000000.0,
       "tier": 2,
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "pendle": {
       "display_name": "Pendle Finance (PT markets)",
@@ -147,19 +147,19 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "fluid_fusdc": {
       "display_name": "Fluid fUSDC",
-      "apy": 6.5,
-      "live_apy": null,
+      "apy": 6.48,
+      "live_apy": 6.48,
       "fallback_apy": 6.5,
       "tvl_usd": 100000000.0,
       "tier": 2,
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "sfrax": {
       "display_name": "Frax sFRAX",
@@ -171,7 +171,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "wusdm": {
       "display_name": "Mountain Protocol wUSDM (RWA T-bill)",
@@ -183,7 +183,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "scrvusd": {
       "display_name": "Curve Savings scrvUSD",
@@ -195,7 +195,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "stusd": {
       "display_name": "Angle Staked USDA (stUSD)",
@@ -207,7 +207,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "sdai": {
       "display_name": "MakerDAO Savings DAI (sDAI)",
@@ -219,7 +219,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "frax": {
       "display_name": "Frax FraxLend USDC",
@@ -231,43 +231,43 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "aave_v3_base": {
       "display_name": "Aave V3 Base",
-      "apy": 4.5,
-      "live_apy": null,
+      "apy": 3.0861,
+      "live_apy": 3.0861,
       "fallback_apy": 4.5,
       "tvl_usd": 250000000.0,
       "tier": 2,
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "morpho_blue_base": {
       "display_name": "Morpho Blue Base",
-      "apy": 6.2,
-      "live_apy": null,
+      "apy": 4.6258,
+      "live_apy": 4.6258,
       "fallback_apy": 6.2,
       "tvl_usd": 300000000.0,
       "tier": 2,
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "moonwell_base": {
       "display_name": "Moonwell Finance Base",
-      "apy": 5.5,
-      "live_apy": null,
+      "apy": 4.4402,
+      "live_apy": 4.4402,
       "fallback_apy": 5.5,
       "tvl_usd": 150000000.0,
       "tier": 2,
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "susde": {
       "display_name": "Ethena sUSDe",
@@ -279,7 +279,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.1,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "extra_finance_base": {
       "display_name": "Extra Finance XLend Base",
@@ -291,7 +291,7 @@
       "chain": "base",
       "per_protocol_cap": 0.1,
       "active": true,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "fluid_usdc": {
       "display_name": "Fluid Protocol USDC",
@@ -303,7 +303,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.0,
       "active": false,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "notional_v3": {
       "display_name": "Notional V3",
@@ -315,7 +315,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.0,
       "active": false,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "sky_susds": {
       "display_name": "Sky/sUSDS (MakerDAO)",
@@ -327,7 +327,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.0,
       "active": false,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     },
     "pendle_pt": {
       "display_name": "Pendle PT REST (fixed-rate)",
@@ -339,18 +339,18 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": false,
-      "last_updated": "2026-06-20T16:43:26.055016+00:00"
+      "last_updated": "2026-06-20T17:22:39.737943+00:00"
     }
   },
   "morpho_steakhouse": {
-    "apy": 6.5,
+    "apy": 3.5678,
     "protocol_key": "morpho-blue",
-    "bps_gain": 330.0,
+    "bps_gain": 36.8,
     "tier": "T1",
     "tvl_usd": 800000000.0
   },
   "aave_arbitrum": {
-    "apy": 4.1,
+    "apy": 1.9756,
     "tier": "T1",
     "network": "arbitrum",
     "tvl_usd": 1200000000.0
