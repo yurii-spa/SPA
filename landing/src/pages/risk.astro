@@ -79,7 +79,7 @@ import Footer from '../components/Footer.astro';
             <h3 class="text-sm font-semibold text-white">Protocol Insolvency Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2">Bad debt can socialise losses.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Per-protocol caps (25% max), TVL floor ($500M+).</p>
+          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Per-protocol caps (40% T1 / 20% T2), TVL floor ($5M+).</p>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
@@ -209,7 +209,7 @@ import Footer from '../components/Footer.astro';
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <h3 class="text-sm font-semibold text-white mb-3">Scenario 1: Major protocol exploit (e.g., $200M hack)</h3>
           <div class="space-y-2 text-sm text-white/55">
-            <p><span class="text-white/40 font-mono text-xs">TRIGGER:</span> TVL drops below $500M floor / protocol flagged in monitoring</p>
+            <p><span class="text-white/40 font-mono text-xs">TRIGGER:</span> TVL drops below $5M floor / protocol flagged in monitoring</p>
             <p><span class="text-white/40 font-mono text-xs">RESPONSE:</span> Adapter disabled &rarr; protocol removed from active allocation &rarr; rebalance out in next cycle</p>
           </div>
         </div>
