@@ -185,7 +185,14 @@ def generate_daily_report(
         "total_return_pct": total_return_pct,
         "days_running": status_doc.get("days_running"),
         "top_protocol": _top_protocol(positions),
-        "golive_status": "READY" if golive_doc.get("ready") is True else "PRE-LIVE",
+        "golive_status": (
+            "READY"
+            if golive_doc.get("ready") is True
+            else f"{golive_doc.get('passed', 0)}/{golive_doc.get('total', 26)} NOT_READY"
+        ),
+        "golive_passed": golive_doc.get("passed"),
+        "golive_total": golive_doc.get("total"),
+        "golive_blockers": golive_doc.get("blockers", []),
         "active_adapters": sorted(str(p) for p in positions),
         "risk_summary": _risk_summary(risk_doc),
     }
