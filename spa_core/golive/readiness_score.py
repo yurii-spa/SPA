@@ -148,12 +148,34 @@ def _feed_health_component() -> Dict[str, Any]:
     return record
 
 
+def _read_adapter_status_json() -> Dict[str, Any]:
+    """Read data/adapter_status.json directly (stdlib only, no execution import).
+
+    adapter_status.json belongs to the execution domain and is written by that
+    layer; governance/golive code must only CONSUME the already-emitted file,
+    never import from spa_core.execution (FORBIDDEN per architecture rules).
+    Returns an empty dict on any failure so callers degrade gracefully.
+    """
+    path = DEFAULT_DATA_DIR / "adapter_status.json"
+    try:
+        if not path.exists():
+            return {}
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+        return loaded if isinstance(loaded, dict) else {}
+    except Exception as exc:  # noqa: BLE001 -- never propagate
+        log.debug("adapter_status.json read failed: %s", exc)
+        return {}
+
+
 def _mev_coverage_component() -> Dict[str, Any]:
     """mev_coverage sub-score from the adapter-status MEV coverage block.
 
     Score = ``mev_protection.coverage.coverage_pct`` (already 0-100). Status:
     ok if >=80, warn if >=50, degraded otherwise. Never raises: any failure
     yields status="unknown", score=0 with an ``"error"`` note.
+
+    Reads data/adapter_status.json directly (stdlib json/pathlib) to avoid
+    importing from spa_core.execution (FORBIDDEN in read-only governance code).
     """
     record: Dict[str, Any] = {
         "key": "mev_coverage",
@@ -162,9 +184,7 @@ def _mev_coverage_component() -> Dict[str, Any]:
         "status": "unknown",
     }
     try:
-        from spa_core.execution import adapter_status
-
-        doc = adapter_status.build_status_document()
+        doc = _read_adapter_status_json()
         coverage = doc.get("mev_protection", {}).get("coverage", {})
         pct = float(coverage.get("coverage_pct", 0.0))
         record["score"] = pct
@@ -192,6 +212,9 @@ def _live_apy_component() -> Dict[str, Any]:
     ``False`` value is treated as warn-level (score 50), not a hard fail.
     Score = 100 if enabled else 50; status: ok if enabled else warn. Never
     raises: any failure yields status="unknown", score=0 with an ``"error"``.
+
+    Reads data/adapter_status.json directly (stdlib json/pathlib) to avoid
+    importing from spa_core.execution (FORBIDDEN in read-only governance code).
     """
     record: Dict[str, Any] = {
         "key": "live_apy",
@@ -200,9 +223,7 @@ def _live_apy_component() -> Dict[str, Any]:
         "status": "unknown",
     }
     try:
-        from spa_core.execution import adapter_status
-
-        doc = adapter_status.build_status_document()
+        doc = _read_adapter_status_json()
         enabled = bool(doc.get("live_apy_enabled", False))
         record["live_apy_enabled"] = enabled
         record["score"] = 100 if enabled else 50
