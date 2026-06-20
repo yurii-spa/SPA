@@ -1,9 +1,37 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-20** | Версия: **v12.01** | Done: **1211** задач
+> Последнее обновление: **2026-06-20** | Версия: **v12.02** | Done: **1211** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+## P0 Session Fixes — 2026-06-20 (v12.02)
+
+| Task | Статус | Результат |
+|------|--------|-----------|
+| MP-1173: DeFiLlama feed path fix | ✅ DONE | `spa_core/feeds/defi_llama_feed.py` — путь централизован |
+| MP-1174: cycle_gap_monitor heartbeat | ✅ DONE | Heartbeat пишется при каждом запуске цикла |
+| MP-1175: kill_switch rf=0% fix | ✅ DONE | Sharpe -4.99 → +1.67 (исправлен расчёт rf при kill_switch=False) |
+| MP-1176: uptime_monitor exit 256 regression | ✅ DONE | 29 регрессионных тестов добавлено |
+| MP-1177: cycle_health_monitor equity priority chain | ✅ DONE | Equity читается по цепи: equity_curve → paper_trading_status → fallback |
+| MP-1178: conftest/version/error_catalog/adapter_status | ✅ DONE | conftest.py, version.py, error_catalog.py, adapter_status фиксы |
+| MP-1180/v1190: RiskPolicy APY fallback from registry | ✅ DONE | **ТОРГОВЛЯ РАЗБЛОКИРОВАНА** после 32 дней блока — APY берётся из реестра |
+| MP-1191: red_flags bootstrap kill_switch fix | ✅ DONE | kill_switch=False при bootstrap; 29 тестов GREEN |
+
+**System Status (2026-06-20T15:51 UTC):**
+
+| Поле | Значение |
+|------|----------|
+| SYSTEM_STATUS | **OPERATIONAL** |
+| cycle_runner | `last_cycle_status=ok` (15:51 UTC) |
+| kill_switch | **False** |
+| risk_gate | **approved** (APY fallback from registry — MP-1180) |
+| equity | **$100,109.42** |
+| days_running | **32** |
+| apy_today | **0.48%** (compound_v3 active) |
+| LAST_PUSH | **push_v1191** (2026-06-20) |
 
 ---
 
@@ -347,7 +375,7 @@ bash ~/Documents/SPA_Claude/scripts/run_cpa_wave6_pushes.sh   # v10.51–v10.66
 com.spa.daily_cycle   ✅  python3 -m spa_core.paper_trading.cycle_runner --verbose
 com.spa.httpserver    ✅  http_server.py (port 8765)
 com.spa.cloudflared   ✅  tunnel
-com.spa.autopush      ❌  НЕ УСТАНОВЛЕН (PYTHON_PATH-заглушка; фикс: bash mp009_fix_launchd.command)
+com.spa.autopush      ✅  УСТАНОВЛЕН (2026-06-20, v12.01)
 ```
 
 ---
