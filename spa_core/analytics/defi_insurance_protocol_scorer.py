@@ -10,8 +10,8 @@ Pure stdlib only. LLM FORBIDDEN.
 import json
 import os
 import time
-import tempfile
 from typing import Any
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -155,18 +155,7 @@ def _append_log(entry: dict, log_path: str = _LOG_FILE) -> None:
 
     dir_name = os.path.dirname(log_path) or "."
     os.makedirs(dir_name, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=dir_name)
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-
-
+    atomic_save(data, str(log_path))
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
