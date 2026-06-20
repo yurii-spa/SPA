@@ -20,10 +20,9 @@ import os
 import sys
 from pathlib import Path
 
-from spa_core.utils.atomic import atomic_save
-
 from .base import apply_risk_policy, tier_map
 from .vportfolio import VirtualPortfolio
+from spa_core.utils.atomic import atomic_save
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_SNAPSHOT = _PROJECT_ROOT / "data" / "adapter_orchestrator_status.json"
@@ -43,7 +42,9 @@ def _load_json(path: Path) -> dict:
         return {}
 
 
-
+def _atomic_write(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_save(data, str(path))
 def _registry():
     # Imported lazily so importing the package never has a hard dependency on
     # every strategy module resolving at import time.
@@ -114,7 +115,7 @@ def _append_run_log(ts: str, results: dict) -> None:
         }
     )
     entries = entries[-RUN_LOG_MAX:]
-    atomic_save({"entries": entries, "max_entries": RUN_LOG_MAX}, str(_RUN_LOG))
+    _atomic_write(_RUN_LOG, {"entries": entries, "max_entries": RUN_LOG_MAX})
 
 
 def main(argv: list[str] | None = None) -> int:
