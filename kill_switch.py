@@ -162,7 +162,15 @@ class KillSwitchChecker:
     # ── Trigger 2: red flags ──────────────────────────────────────────────────
 
     def check_red_flags_trigger(self) -> tuple[bool, str]:
-        """Более RED_FLAGS_THRESHOLD красных флагов в data/red_flags.json.
+        """Более RED_FLAGS_THRESHOLD живых красных флагов в data/red_flags.json.
+
+        Bootstrap/fallback данные игнорируются:
+        - Если doc.fallback_used=true ИЛИ doc.sources=["bootstrap"] →
+          все флаги считаются ненастоящими и kill_switch НЕ срабатывает.
+        - Отдельные флаги с f["bootstrap"]=True также исключаются из счётчика.
+        Поведение настраивается через data/risk_policy.json:
+          RED_FLAGS_IGNORE_BOOTSTRAP (bool, default True)
+          RED_FLAGS_THRESHOLD        (int,  default 5)
 
         Returns
         -------
@@ -176,17 +184,49 @@ class KillSwitchChecker:
         if not isinstance(flags, list):
             return False, "no red_flags list in file"
 
-        count = len(flags)
+        # Читаем параметры из risk_policy.json (с fallback на compile-time defaults)
+        policy = _read_json(self.data_dir / "risk_policy.json", {})
+        if not isinstance(policy, dict):
+            policy = {}
+        ignore_bootstrap: bool = bool(policy.get("RED_FLAGS_IGNORE_BOOTSTRAP", True))
+        threshold: int = int(policy.get("RED_FLAGS_THRESHOLD", RED_FLAGS_THRESHOLD))
 
-        if count > RED_FLAGS_THRESHOLD:
+        if ignore_bootstrap:
+            # Документ-уровень: fallback_used=true или sources=["bootstrap"]
+            # означает, что все данные — дефолты/заглушки, а не живые.
+            doc_fallback = bool(doc.get("fallback_used", False))
+            doc_sources = doc.get("sources", [])
+            doc_is_bootstrap = (
+                isinstance(doc_sources, list) and doc_sources == ["bootstrap"]
+            )
+            if doc_fallback or doc_is_bootstrap:
+                log.warning(
+                    "red_flags: source=bootstrap / fallback_used=%s — "
+                    "ignoring all %d flags for kill_switch (non-live data)",
+                    doc_fallback,
+                    len(flags),
+                )
+                return False, (
+                    f"red_flags: {len(flags)} flags ignored "
+                    f"(fallback_used={doc_fallback}, sources={doc_sources})"
+                )
+
+            # Флаг-уровень: исключаем флаги с явным признаком bootstrap
+            live_flags = [f for f in flags if not f.get("bootstrap", False)]
+        else:
+            live_flags = flags
+
+        count = len(live_flags)
+
+        if count > threshold:
             reason = (
-                f"red_flags count {count} > {RED_FLAGS_THRESHOLD} threshold "
+                f"red_flags count {count} > {threshold} threshold "
                 f"(from {RED_FLAGS_FILENAME})"
             )
             log.warning("KILL SWITCH red_flags trigger: %s", reason)
             return True, reason
 
-        return False, f"red_flags count {count} ≤ {RED_FLAGS_THRESHOLD}"
+        return False, f"red_flags count {count} ≤ {threshold}"
 
     # ── Trigger 3: manual ────────────────────────────────────────────────────
 
