@@ -35,6 +35,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from spa_core.base import BaseAnalytics
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -124,7 +126,7 @@ def _fetch_apy_decimal(adapter_id: str) -> Optional[float]:
 # Public class
 # ---------------------------------------------------------------------------
 
-class T1DataVerifier:
+class T1DataVerifier(BaseAnalytics):
     """Verifies data quality for all T1 ('CLEAN') adapters.
 
     Parameters
@@ -133,7 +135,10 @@ class T1DataVerifier:
         Root directory of the SPA repo (used for atomic save path resolution).
     """
 
+    OUTPUT_PATH = _OUTPUT_PATH
+
     def __init__(self, base_dir: str = "."):
+        super().__init__(base_dir=base_dir)
         self.base_dir = base_dir
 
     # ------------------------------------------------------------------ #
@@ -201,6 +206,22 @@ class T1DataVerifier:
     def all_pass(self) -> bool:
         """Return True if every T1 adapter has verdict == "PASS"."""
         return all(r["verdict"] == "PASS" for r in self.verify_all_t1())
+
+    # ------------------------------------------------------------------ #
+    # BaseAnalytics interface                                              #
+    # ------------------------------------------------------------------ #
+
+    def to_dict(self) -> dict:
+        """Returns current T1 verification results as JSON-serializable dict."""
+        results = self.verify_all_t1()
+        return {
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+            "results": results,
+            "pass_count": sum(1 for r in results if r["verdict"] == "PASS"),
+            "fail_count": sum(1 for r in results if r["verdict"] == "FAIL"),
+            "warn_count": sum(1 for r in results if r["verdict"] == "WARN"),
+            "all_pass":   all(r["verdict"] == "PASS" for r in results),
+        }
 
     # ------------------------------------------------------------------ #
     # Persistence                                                          #
