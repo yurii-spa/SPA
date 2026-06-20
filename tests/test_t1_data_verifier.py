@@ -15,8 +15,8 @@ Test coverage:
 import json
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from unittest.mock import patch, MagicMock
 
 _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
