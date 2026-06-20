@@ -11,8 +11,8 @@ Pure stdlib, read-only advisory, atomic writes.
 import json
 import os
 import time
-import tempfile
 from datetime import date, datetime, timedelta
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -218,19 +218,7 @@ def log_result(result: dict, data_dir: str = "data") -> None:
 
     # Atomic write
     os.makedirs(data_dir, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=data_dir, prefix=".yield_calendar_log_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(log, fh, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
+    atomic_save(log, str(log_path))
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
