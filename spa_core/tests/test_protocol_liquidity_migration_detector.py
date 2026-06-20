@@ -5,13 +5,13 @@ Run: python3 -m unittest spa_core.tests.test_protocol_liquidity_migration_detect
 
 import json
 import os
-import tempfile
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 import spa_core.analytics.protocol_liquidity_migration_detector as _mod
+import tempfile
 
 
 # ---------------------------------------------------------------------------
