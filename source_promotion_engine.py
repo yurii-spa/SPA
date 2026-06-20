@@ -32,12 +32,13 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.source_pipeline import SourcePipeline, SourceState
+from spa_core.base import BaseAnalytics
+from spa_core.utils.atomic import atomic_save
 
 # ─── Valid state transition table ────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ class PromotionEvidence:
 # SourcePromotionEngine
 # ══════════════════════════════════════════════════════════════════════════════
 
-class SourcePromotionEngine:
+class SourcePromotionEngine(BaseAnalytics):
     """
     Formalises the source data promotion workflow.
 
@@ -181,15 +182,20 @@ class SourcePromotionEngine:
         The pipeline to mutate. Defaults to SourcePipeline().
     data_dir : str or Path, optional
         Directory for the promotion log. Defaults to data/backtest/.
+    base_dir : str, optional
+        Repo root for BaseAnalytics._path(). Defaults to ".".
     """
 
     LOG_PATH = "data/backtest/source_promotion_log.json"
+    OUTPUT_PATH = "data/backtest/source_promotion_log.json"
 
     def __init__(
         self,
         pipeline: Optional[SourcePipeline] = None,
         data_dir: Optional[str | Path] = None,
+        base_dir: str = ".",
     ) -> None:
+        super().__init__(base_dir)
         self._pipeline = pipeline if pipeline is not None else SourcePipeline()
         if data_dir is None:
             self._data_dir = _DEFAULT_DATA_DIR
@@ -370,6 +376,10 @@ class SourcePromotionEngine:
             "next_action": next_action,
         }
 
+    def to_dict(self) -> dict:
+        """Returns promotion roadmap as JSON-serializable dict (BaseAnalytics)."""
+        return self.promotion_roadmap()
+
     # ──────────────────────────────────────────────────────────────────────────
     # Log persistence (atomic)
     # ──────────────────────────────────────────────────────────────────────────
@@ -398,30 +408,14 @@ class SourcePromotionEngine:
         entries = self._load_log()
         entries.append(evidence.to_dict())
 
-        payload = json.dumps(
+        atomic_save(
             {
                 "schema_version": SCHEMA_VERSION,
                 "last_updated": datetime.now(timezone.utc).isoformat(),
                 "entries": entries,
             },
-            indent=2,
-            ensure_ascii=False,
+            str(self._log_path),
         )
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self._data_dir,
-            prefix=".source_promotion_log_tmp_",
-            suffix=".json",
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-            os.replace(tmp_path, self._log_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
