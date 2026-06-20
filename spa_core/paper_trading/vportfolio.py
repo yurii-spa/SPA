@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -32,6 +31,7 @@ from spa_core.paper_trading.strategy_registry import (
     StrategyConfig,
     active_strategies,
 )
+from spa_core.utils.atomic import atomic_save
 
 # ─── Константы ────────────────────────────────────────────────────────────────
 
@@ -469,22 +469,7 @@ class VPortfolioManager:
         }
 
         # Атомарная запись
-        fd, tmp_path = tempfile.mkstemp(
-            prefix=".tmp_vportfolios_",
-            dir=self._data_dir,
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(doc, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            os.replace(tmp_path, out_path)
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
-
+        atomic_save(doc, str(out_path))
         return out_path
 
     def summary(self) -> List[Dict]:
