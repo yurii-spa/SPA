@@ -1,0 +1,28 @@
+{
+  "available": false,
+  "reason": "only 0 daily returns (< 12 required)",
+  "is_demo": false,
+  "break_detected": false,
+  "break_index": null,
+  "break_date": null,
+  "n_observations": 0,
+  "cusum_max_abs": null,
+  "mean_before": null,
+  "mean_after": null,
+  "shift_direction": "none",
+  "t_stat": null,
+  "p_value": null,
+  "verdict": "ok",
+  "verdict_reason": "insufficient data: only 0 daily returns (< 12 required)",
+  "min_segment": 5,
+  "alpha": 0.05,
+  "notes": [],
+  "meta": {
+    "generated_at": "2026-06-18T20:03:16.735265+00:00",
+    "schema_version": 1,
+    "source": "structural_break",
+    "min_obs_required": 12
+  },
+  "_fingerprint": "{\"alpha\": 0.05, \"available\": false, \"break_date\": null, \"break_detected\": false, \"break_index\": null, \"cusum_max_abs\": null, \"is_demo\": false, \"mean_after\": null, \"mean_before\": null, \"meta\": {\"min_obs_required\": 12, \"schema_version\": 1, \"source\": \"structural_break\"}, \"min_segment\": 5, \"n_observations\": 0, \"notes\": [], \"p_value\": null, \"reason\": \"only 0 daily returns (< 12 required)\", \"shift_direction\": \"none\", \"t_stat\": null, \"verdict\": \"ok\", \"verdict_reason\": \"insufficient data: only 0 daily returns (< 12 required)\"}",
+  "history": []
+}
