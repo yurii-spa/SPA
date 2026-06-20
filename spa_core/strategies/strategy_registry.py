@@ -273,6 +273,11 @@ def _load_builtin_strategies() -> None:
         "spa_core.strategies.s35_gmx_carry",              # S35 GMX Stablecoin Carry (T2, GLP gate >8%)
         "spa_core.strategies.s36_cross_chain_optimizer",  # S36 Cross-Chain Optimizer (T2, weekly tilt)
         "spa_core.strategies.s37_radiant_concentrated",   # S37 Radiant Concentrated (T2, 50% Radiant)
+        # S38–S39: Morpho max-allocation (MP-1247, 2026-06-21)
+        "spa_core.strategies.s38_morpho_max",            # S38 Morpho Max (T2, policy-compliant, ~3.95%)
+        "spa_core.strategies.s39_morpho_max_plus",       # S39 Morpho Max+ (T2, RESEARCH-only, cap-raise)
+        # S41: Base+Op AMM stable-LP yield (MP v12.51, 2026-06-21)
+        "spa_core.strategies.s41_amm_stable_yield",      # S41 Base+Op AMM Stable Yield (T2, AMM LP)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
