@@ -4,8 +4,8 @@ Tests for MP-673: DEXRoutingRiskAnalyzer
 """
 
 import json
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.dex_routing_risk_analyzer import (
