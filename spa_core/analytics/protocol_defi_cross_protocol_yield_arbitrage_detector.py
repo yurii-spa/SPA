@@ -53,9 +53,9 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 import time
 from typing import List, Optional
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -386,16 +386,7 @@ class ProtocolDeFiCrossProtocolYieldArbitrageDetector:
 
     def _atomic_write(self, data: list) -> None:
         os.makedirs(self.data_dir, exist_ok=True)
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=self.data_dir, suffix=".tmp")
-        try:
-            with os.fdopen(tmp_fd, "w") as fh:
-                json.dump(data, fh, indent=2)
-            os.replace(tmp_path, self.log_path)
-        except Exception:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
-
+        atomic_save(data, str(self))
     def init_log(self) -> None:
         """Initialize log file as empty list if it does not exist."""
         if not os.path.exists(self.log_path):
