@@ -19,5 +19,8 @@
   "SHARPE_KILL_THRESHOLD": -1.0,
   "SHARPE_EARLY_PERIOD_DAYS": 60,
   "SHARPE_EARLY_THRESHOLD": -2.0,
-  "sharpe_notes": "rf=0.0: stablecoin DeFi portfolio — benchmark is holding USDC, not T-bills. Early-period grace for first 60 days uses softer threshold=-2.0 to avoid artefacts from low-vol tracks."
+  "sharpe_notes": "rf=0.0: stablecoin DeFi portfolio — benchmark is holding USDC, not T-bills. Early-period grace for first 60 days uses softer threshold=-2.0 to avoid artefacts from low-vol tracks.",
+  "RED_FLAGS_THRESHOLD": 5,
+  "RED_FLAGS_IGNORE_BOOTSTRAP": true,
+  "red_flags_notes": "Bootstrap/fallback данные (fallback_used=true или sources=[bootstrap]) не триггерят kill_switch. Только живые флаги считаются."
 }
