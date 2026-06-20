@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 from spa_core.analytics.conc_lp_il_model import ConcLPILModel
+from spa_core.base import BaseAnalytics
 
 
 # ── Slot registry ─────────────────────────────────────────────────────────────
@@ -90,14 +91,17 @@ class LPPosition:
 
 # ── Tracker ───────────────────────────────────────────────────────────────────
 
-class RS002PositionTracker:
+class RS002PositionTracker(BaseAnalytics):
     """Tracks RS-002 concentrated LP positions during paper trading."""
+
+    OUTPUT_PATH = "data/rs002/positions.json"
 
     def __init__(
         self,
         tracker_path: str = "data/rs002/positions.json",
         total_capital: float = 20_000.0,   # 20% of $100K SPA capital
     ) -> None:
+        super().__init__()
         self.tracker_path = tracker_path
         self.total_capital = total_capital
         self.positions: Dict[str, LPPosition] = {}
@@ -282,6 +286,32 @@ class RS002PositionTracker:
         if slot_id not in self.positions:
             raise KeyError(f"No open position for slot_id: {slot_id!r}")
         return self.positions[slot_id].consecutive_out_days > 3
+
+    # ── BaseAnalytics interface ───────────────────────────────────────────────
+
+    def to_dict(self) -> dict:
+        """Returns current tracker state as JSON-serializable dict."""
+        return {
+            "tracker_path": self.tracker_path,
+            "total_capital": self.total_capital,
+            "positions": {
+                slot_id: {
+                    "slot_id": pos.slot_id,
+                    "entry_price": pos.entry_price,
+                    "lower_tick": pos.lower_tick,
+                    "upper_tick": pos.upper_tick,
+                    "capital_usd": pos.capital_usd,
+                    "entry_date": pos.entry_date,
+                    "current_price": pos.current_price,
+                    "days_in_range": pos.days_in_range,
+                    "days_out_of_range": pos.days_out_of_range,
+                    "accumulated_fees_usd": pos.accumulated_fees_usd,
+                    "current_il_pct": pos.current_il_pct,
+                    "consecutive_out_days": pos.consecutive_out_days,
+                }
+                for slot_id, pos in self.positions.items()
+            },
+        }
 
     # ── persistence ──────────────────────────────────────────────────────────
 
