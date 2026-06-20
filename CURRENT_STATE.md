@@ -487,3 +487,29 @@ See full detail: `docs/RETROSPECTIVE_100_SPRINTS.md`
 ---
 
 *Обновлено: 2026-06-20 (MP-1554 v11.70 — 100-sprint series COMPLETE, done_count 1210, GoLive 82/100, 22 adapters, S0–S21 strategies, Wave 11 push script)*
+
+---
+
+## Audit 2026-06-20 — Findings
+
+### Infrastructure (AUDIT-INFRA)
+- CI disabled ([skip ci] на 15/15 коммитах последних пушей)
+- cloudflared нестабилен (последний лог 2026-06-18)
+- HTTP server port 8765 — 404 при обращении к /status
+- `com.spa.autopush` launchd-демон НЕ УСТАНОВЛЕН (PYTHON_PATH-заглушка); фикс: `bash mp009_fix_launchd.command`
+
+### Project (AUDIT-PROJECT)
+- Telegram tokens: требуют ручной установки в Keychain
+- Strategy REGISTRY: зарегистрировано только 2 из 23 стратегий (`s1_t1t2_balanced`, `S7`)
+- Tournament: `net_apy=0.0` у всех стратегий (нет реальных данных)
+- GoLive: 25/26 pass (NOT READY), 1 блокер, target 2026-08-01
+
+### Fixed in this session (drift-fix v12.04)
+- KANBAN.json: sprint_current `v11.74` → `v12.04`, sprint_completed → `v12.03`
+- CLAUDE.md: стратегии S0–S10 → S1–S21 (23 файла) во всех разделах
+- CLAUDE.md: версия обновлена до v12.04
+- docs/adr/ADR_INDEX.md: создан (30 записей docs/adr/ + 23 legacy docs/)
+- archive/autopush_reports/: перемещено 28 файлов AUTOPUSH_REPORT_*.md
+- LLM_FORBIDDEN_AGENTS: `monitoring` уже присутствовал в коде — синхронизация подтверждена
+
+*Обновлено: 2026-06-20 (v12.04 — docs drift fix, ADR index, audit notes)*
