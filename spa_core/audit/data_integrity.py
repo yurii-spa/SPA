@@ -78,7 +78,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.audit.data_integrity")
@@ -162,6 +161,9 @@ def _read_json(path: Path) -> Any:
         return None
 
 
+def _atomic_write_json(path: Path, obj: Any) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _num(value: Any) -> Optional[float]:
     """Число или None (bool — не число; NaN/inf — не данные)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -860,7 +862,7 @@ def write_status(
     })
     out = dict(doc)
     out["history"] = history[-HISTORY_MAX:]
-    atomic_save(out, str(path))
+    _atomic_write_json(path, out)
     log.info("data integrity status written: %s", path)
     return {"path": str(path), "changed": True}
 
