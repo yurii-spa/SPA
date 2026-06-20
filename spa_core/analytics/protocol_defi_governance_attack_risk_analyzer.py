@@ -77,10 +77,10 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -318,25 +318,8 @@ def _load_json_list(path: Path) -> List[Dict[str, Any]]:
 
 
 def _atomic_write_json(path: Path, data: Any) -> None:
-    """Write *data* as JSON to *path* using tmp + os.replace (atomic)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(data, str(path))
 def _build_sample_params() -> Dict[str, Any]:
     return {
         "protocol_name": "Compound",
