@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 from spa_core.analytics.position_sizing_engine import (
