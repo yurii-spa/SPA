@@ -25,11 +25,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.analytics.alert_threshold_manager")
 
@@ -150,29 +150,8 @@ def _build_summary(report: AlertReport) -> str:
 # ===========================================================================
 
 def _atomic_write_json(path: Path, payload: object) -> None:
-    """Атомарная запись JSON: tmp-файл + os.replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, ensure_ascii=False, indent=2)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        try:
-            if os.path.exists(tmp_name):
-                os.remove(tmp_name)
-        except OSError:
-            pass
-
-
-# ===========================================================================
-# AlertThresholdManager
-# ===========================================================================
-
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(payload, str(path))
 class AlertThresholdManager:
     """
     Централизованный менеджер порогов алертов.
