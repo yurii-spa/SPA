@@ -7,7 +7,6 @@ import os
 import sys
 import json
 import time
-import tempfile
 import unittest
 
 # Ensure repo root is on path
