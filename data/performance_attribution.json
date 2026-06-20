@@ -1,0 +1,264 @@
+{
+  "meta": {
+    "generated_at": "2026-06-20T23:48:37.999252+00:00",
+    "module": "performance_attributor",
+    "mp": "MP-1236",
+    "advisory_only": true,
+    "is_demo": false,
+    "track_days": 11,
+    "track_start": "2026-06-10",
+    "track_end": "2026-06-20",
+    "source_files": [
+      "equity_curve_daily.json",
+      "tournament_results.json"
+    ],
+    "disclaimer": "Advisory / read-only. Paper-trading track ($100k virtual USDC); not investment advice. Past simulated performance does not guarantee future results. Attribution uses capital-weighted decomposition over available daily bars \u2014 see per-field notes for approximations."
+  },
+  "protocol_attribution": {
+    "method": "capital_weighted",
+    "total_return_pct_additive": 0.110452,
+    "sum_of_contributions_pct": 0.110452,
+    "days_counted": 11,
+    "breakdown": [
+      {
+        "protocol": "compound_v3",
+        "contribution_pct": 0.039885,
+        "share_of_total_pct": 36.1107,
+        "avg_weight_pct": 37.0448
+      },
+      {
+        "protocol": "aave_v3",
+        "contribution_pct": 0.024976,
+        "share_of_total_pct": 22.6123,
+        "avg_weight_pct": 23.1858
+      },
+      {
+        "protocol": "maple",
+        "contribution_pct": 0.013059,
+        "share_of_total_pct": 11.8231,
+        "avg_weight_pct": 12.1324
+      },
+      {
+        "protocol": "yearn_v3",
+        "contribution_pct": 0.011703,
+        "share_of_total_pct": 10.5953,
+        "avg_weight_pct": 10.8898
+      },
+      {
+        "protocol": "euler_v2",
+        "contribution_pct": 0.009967,
+        "share_of_total_pct": 9.0237,
+        "avg_weight_pct": 9.2745
+      },
+      {
+        "protocol": "morpho_steakhouse",
+        "contribution_pct": 0.001238,
+        "share_of_total_pct": 1.1206,
+        "avg_weight_pct": 0.8515
+      },
+      {
+        "protocol": "spark_susds",
+        "contribution_pct": 0.001047,
+        "share_of_total_pct": 0.9482,
+        "avg_weight_pct": 0.7205
+      },
+      {
+        "protocol": "aave_v3_polygon",
+        "contribution_pct": 0.000971,
+        "share_of_total_pct": 0.8792,
+        "avg_weight_pct": 0.6681
+      },
+      {
+        "protocol": "aave_v3_optimism",
+        "contribution_pct": 0.000914,
+        "share_of_total_pct": 0.8275,
+        "avg_weight_pct": 0.6288
+      },
+      {
+        "protocol": "aave_arbitrum",
+        "contribution_pct": 0.000781,
+        "share_of_total_pct": 0.7068,
+        "avg_weight_pct": 0.5371
+      },
+      {
+        "protocol": "susde",
+        "contribution_pct": 0.000773,
+        "share_of_total_pct": 0.6997,
+        "avg_weight_pct": 0.5316
+      },
+      {
+        "protocol": "pendle",
+        "contribution_pct": 0.000515,
+        "share_of_total_pct": 0.4665,
+        "avg_weight_pct": 0.3544
+      },
+      {
+        "protocol": "extra_finance_base",
+        "contribution_pct": 0.000515,
+        "share_of_total_pct": 0.4665,
+        "avg_weight_pct": 0.3544
+      },
+      {
+        "protocol": "frax",
+        "contribution_pct": 0.000483,
+        "share_of_total_pct": 0.4373,
+        "avg_weight_pct": 0.3323
+      },
+      {
+        "protocol": "scrvusd",
+        "contribution_pct": 0.000451,
+        "share_of_total_pct": 0.4081,
+        "avg_weight_pct": 0.3101
+      },
+      {
+        "protocol": "fluid_fusdc",
+        "contribution_pct": 0.000419,
+        "share_of_total_pct": 0.379,
+        "avg_weight_pct": 0.288
+      },
+      {
+        "protocol": "morpho_blue_base",
+        "contribution_pct": 0.000399,
+        "share_of_total_pct": 0.3615,
+        "avg_weight_pct": 0.2747
+      },
+      {
+        "protocol": "sfrax",
+        "contribution_pct": 0.000386,
+        "share_of_total_pct": 0.3498,
+        "avg_weight_pct": 0.2658
+      },
+      {
+        "protocol": "stusd",
+        "contribution_pct": 0.000386,
+        "share_of_total_pct": 0.3498,
+        "avg_weight_pct": 0.2658
+      },
+      {
+        "protocol": "sdai",
+        "contribution_pct": 0.000354,
+        "share_of_total_pct": 0.3207,
+        "avg_weight_pct": 0.2437
+      },
+      {
+        "protocol": "moonwell_base",
+        "contribution_pct": 0.000354,
+        "share_of_total_pct": 0.3207,
+        "avg_weight_pct": 0.2437
+      },
+      {
+        "protocol": "wusdm",
+        "contribution_pct": 0.000322,
+        "share_of_total_pct": 0.2915,
+        "avg_weight_pct": 0.2215
+      },
+      {
+        "protocol": "aave_v3_base",
+        "contribution_pct": 0.00029,
+        "share_of_total_pct": 0.2624,
+        "avg_weight_pct": 0.1994
+      },
+      {
+        "protocol": "morpho_blue",
+        "contribution_pct": 0.000264,
+        "share_of_total_pct": 0.2391,
+        "avg_weight_pct": 0.1816
+      }
+    ]
+  },
+  "strategy_attribution": {
+    "available": true,
+    "strategies": [
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      },
+      {
+        "strategy": null,
+        "score": null,
+        "sharpe": null,
+        "apy_pct": null
+      }
+    ],
+    "note": "Advisory: paper track is allocator-driven; values reflect tournament evaluator scores, not realised per-strategy P&L."
+  },
+  "timing_effect": {
+    "available": true,
+    "actual_compounded_return_pct": 0.110508,
+    "twap_no_timing_return_pct": 0.110508,
+    "timing_effect_pct": -0.0,
+    "days": 10,
+    "note": "Timing effect = actual \u2212 TWAP counterfactual (same daily returns applied at their flat mean). ~0 means rebalances neither helped nor hurt over a steady yield curve; pure compounding/convexity residual."
+  },
+  "yield_vs_benchmark": {
+    "spa_annualized_return_pct": 4.1137,
+    "benchmark": "US T-Bills",
+    "benchmark_apy_pct": 5.0,
+    "excess_return_pct": -0.8863,
+    "days": 10
+  },
+  "cash_drag": {
+    "available": true,
+    "cash_buffer_pct": 5.0,
+    "deployed_apy_pct": 4.823,
+    "annual_cash_drag_pct": 0.2412,
+    "note": "Estimated annual yield forgone on the idle cash buffer (buffer_share \u00d7 deployed APY). The buffer is a policy liquidity requirement (RiskPolicy min cash \u2265 5%), not a free choice."
+  },
+  "notes": []
+}
