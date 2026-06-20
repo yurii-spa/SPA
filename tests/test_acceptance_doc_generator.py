@@ -7,8 +7,8 @@ MP-1359 (v9.75) — stdlib only, unittest.
 """
 import os
 import sys
-import tempfile
 import unittest
+import tempfile
 from pathlib import Path
 
 # Ensure repo root on sys.path
