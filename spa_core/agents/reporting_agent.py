@@ -28,7 +28,6 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.agents.reporting_agent")
@@ -62,7 +61,9 @@ def _read_json(path: Path, default):
         return default
 
 
-
+def _atomic_write_json(path: Path, obj) -> None:
+    """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    atomic_save(obj, str(path))
 def _safe_float(val, default: float = 0.0) -> Optional[float]:
     """Convert to float safely; return None (not default) if val is None."""
     if val is None:
@@ -395,7 +396,7 @@ def send_daily_report_telegram(
 
     # Write reporting_status.json atomically
     try:
-        atomic_save(result, str(ddir / "reporting_status.json"))
+        _atomic_write_json(ddir / "reporting_status.json", result)
     except Exception as exc:
         log.warning("reporting_status.json write failed (%s)", exc)
 
