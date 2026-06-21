@@ -1,0 +1,67 @@
+[
+  {
+    "ts": "2026-06-19T05:09:19.922912+00:00",
+    "position_count": 5,
+    "aggregate": {
+      "cleanest_vault": "CVX-VIF-Vault-CleanVoteIncentiveFee",
+      "worst_vote_incentive_fee_gap_vault": "BAL-VIF-Vault-SevereVoteIncentiveFee",
+      "avg_score": 56.88,
+      "net_negative_count": 1,
+      "position_count": 5
+    },
+    "snapshots": [
+      {
+        "token": "CVX-VIF-Vault-CleanVoteIncentiveFee",
+        "classification": "CLEAN_NET_OF_VOTE_INCENTIVE_FEE_BASE",
+        "score": 100.0,
+        "recommendation": "TRUST_FEE_STRUCTURE",
+        "flags": [
+          "CLEAN_NET_OF_VOTE_INCENTIVE_FEE_BASE",
+          "CLEAN_NET_BASE"
+        ]
+      },
+      {
+        "token": "CRV-VIF-Vault-ModerateVoteIncentiveFee",
+        "classification": "MODERATE_FEE_ON_VOTE_INCENTIVE_FEE_GAP",
+        "score": 67.5,
+        "recommendation": "DEMAND_NET_OF_VOTE_INCENTIVE_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_VOTE_INCENTIVE_FEE_GAP",
+          "FEE_ON_VOTE_INCENTIVE_FEE"
+        ]
+      },
+      {
+        "token": "BAL-VIF-Vault-SevereVoteIncentiveFee",
+        "classification": "SEVERE_FEE_ON_VOTE_INCENTIVE_FEE_GAP",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_VOTE_INCENTIVE_FEE",
+        "flags": [
+          "SEVERE_FEE_ON_VOTE_INCENTIVE_FEE_GAP",
+          "NET_NEGATIVE_AFTER_FEE",
+          "HIGH_VOTE_INCENTIVE_FEE",
+          "FEE_ON_VOTE_INCENTIVE_FEE",
+          "FULL_FEE_ON_VOTE_INCENTIVE_FEE"
+        ]
+      },
+      {
+        "token": "AURA-VIF-Vault-OverrideVoteIncentiveFeeGap",
+        "classification": "MODERATE_FEE_ON_VOTE_INCENTIVE_FEE_GAP",
+        "score": 60.0,
+        "recommendation": "DEMAND_NET_OF_VOTE_INCENTIVE_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_VOTE_INCENTIVE_FEE_GAP",
+          "GAP_FROM_OVERRIDE"
+        ]
+      },
+      {
+        "token": "MYSTERY-Vault-NoData",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_VOTE_INCENTIVE_FEE",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
