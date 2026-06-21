@@ -3,6 +3,9 @@
 SPA-V398: no mock APY. When the live DeFiLlama feed is unavailable this adapter
 reports ``status="error"`` / ``apy=None`` — an honest "no live data" signal — and
 never substitutes a hard-coded value.
+
+Feed: spa_core/feeds/defi_llama_feed.DefiLlamaFeed (1-hour cache, substring
+matching, liveness filters).  Injected via ``feed=`` kwarg for test isolation.
 """
 from __future__ import annotations
 
@@ -11,7 +14,7 @@ import time
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
-from .defillama_feed import DeFiLlamaFeed
+from spa_core.feeds.defi_llama_feed import DefiLlamaFeed
 from spa_core.utils.errors import safe_call
 
 logger = logging.getLogger(__name__)
@@ -29,10 +32,10 @@ class YearnV3Adapter(BaseAdapter):
     # value that still stays well under the 72h illiquidity threshold.
     EXIT_LATENCY_HOURS = 1.0
 
-    def __init__(self, asset: str = "USDC", feed: Optional[DeFiLlamaFeed] = None):
+    def __init__(self, asset: str = "USDC", feed: Optional[DefiLlamaFeed] = None):
         super().__init__(asset)
         self.tier = "T2"
-        self.feed = feed if feed is not None else DeFiLlamaFeed()
+        self.feed = feed if feed is not None else DefiLlamaFeed()
 
     def fetch(self) -> dict:
         """Return a flat status dict from the live feed. Never raises, never mocks.
