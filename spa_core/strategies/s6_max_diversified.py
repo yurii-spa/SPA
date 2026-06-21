@@ -302,6 +302,42 @@ def get_t2_exposure() -> float:
     return sum(ALLOCATION[p] for p in T2_PROTOCOLS if p in ALLOCATION)
 
 
+# ─── Класс-обёртка S6MaxDiversified (handler_class для реестра) ───────────────
+
+class S6MaxDiversified:
+    """Class wrapper around the functional S6 Max Diversified module.
+
+    Реестр (`StrategyMeta.handler_class`) и `multi_strategy_backtest.py`
+    инстанцируют стратегию через `getattr(module, handler_class)()` — поэтому
+    модулю нужен класс с этим именем. Логика остаётся в module-функциях;
+    класс лишь делегирует к ним, сохраняя read-only / advisory контракт.
+
+    Конструируется как `S6MaxDiversified()` (loader реестра) или
+    `S6MaxDiversified(capital)` (standalone-проверки).
+    """
+
+    strategy_id = STRATEGY_ID
+
+    def __init__(self, capital: float = 100_000.0) -> None:
+        self.capital = float(capital)
+
+    def get_allocation(self) -> Dict[str, float]:
+        """Целевые веса по протоколам (копия ALLOCATION)."""
+        return dict(ALLOCATION)
+
+    def compute_weighted_apy(self, apy_map: Optional[dict] = None) -> float:
+        """Взвешенный APY (делегирует module-функции)."""
+        return compute_weighted_apy(apy_map or {})
+
+    def simulate_day(self, apy_map: dict, capital: Optional[float] = None) -> dict:
+        """Дневной P&L snapshot (делегирует module-функции)."""
+        return simulate_day(apy_map, self.capital if capital is None else capital)
+
+    def analyze(self, apy_map: Optional[dict] = None) -> dict:
+        """Read-only сводка: strategy_id + целевая аллокация."""
+        return {"strategy_id": self.strategy_id, "allocation": self.get_allocation()}
+
+
 # ─── Авто-регистрация в реестре spa_core/strategies/ ─────────────────────────
 
 def _register() -> None:
@@ -329,7 +365,7 @@ def _register() -> None:
                 "Weighted APY ≈ 7.635%, Diversity Score = 0.60, Risk Score = 0.35."
             ),
             module="spa_core.strategies.s6_max_diversified",
-            handler_class="s6_max_diversified",
+            handler_class="S6MaxDiversified",
             tags=["pendle", "morpho", "fluid", "compound", "aave", "arbitrum",
                   "t1", "t2", "diversified", "max_diversified", "s6"],
         ))
