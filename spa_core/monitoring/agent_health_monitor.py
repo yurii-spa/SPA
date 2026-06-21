@@ -203,6 +203,9 @@ def _regex_plist_fallback(path: Path) -> dict:
     m = re.search(r"<key>StandardOutPath</key>\s*<string>([^<]+)</string>", raw)
     if m:
         out["StandardOutPath"] = m.group(1).strip()
+    m = re.search(r"<key>StandardErrorPath</key>\s*<string>([^<]+)</string>", raw)
+    if m:
+        out["StandardErrorPath"] = m.group(1).strip()
     m = re.search(r"<key>StartInterval</key>\s*<integer>(\d+)</integer>", raw)
     if m:
         out["StartInterval"] = int(m.group(1))
@@ -237,6 +240,23 @@ def plist_log_path(plist: Optional[dict]) -> Optional[str]:
     return plist.get("StandardOutPath") or None
 
 
+def plist_log_paths(plist: Optional[dict]) -> List[str]:
+    """Both log streams (stdout + stderr) configured for an agent.
+
+    A module that logs via Python's ``logging`` writes to stderr, so its
+    StandardOutPath stays empty/frozen while StandardErrorPath is live
+    (and vice-versa for ``print``-based agents). Returning both lets freshness
+    be judged by whichever stream the agent actually writes to."""
+    if not plist:
+        return []
+    paths: List[str] = []
+    for key in ("StandardOutPath", "StandardErrorPath"):
+        val = plist.get(key)
+        if val:
+            paths.append(val)
+    return paths
+
+
 # ===========================================================================
 # Time helpers (now & file age injectable for tests)
 # ===========================================================================
@@ -254,6 +274,16 @@ def file_age_minutes(path: Optional[str], now: datetime) -> Optional[float]:
         return None
     age_s = now.timestamp() - mtime
     return max(0.0, age_s / 60.0)
+
+
+def freshest_log_age_minutes(paths: List[str], now: datetime) -> Optional[float]:
+    """Minutes since the most-recently-written of ``paths`` was touched.
+
+    Ignores missing/unreadable paths; returns None only when none are
+    readable. Used so an agent that writes only stderr isn't judged stale by
+    its empty stdout log."""
+    ages = [a for a in (file_age_minutes(p, now) for p in paths) if a is not None]
+    return min(ages) if ages else None
 
 
 def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
@@ -317,12 +347,14 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             issues.append("PID=0 (server down)")
             health.status = _worst(health.status, CRITICAL)
     elif cat in _FRESHNESS_THRESHOLD_MIN:
-        # 5) Scheduled agents: log freshness
-        logp = plist_log_path(plist)
-        age = file_age_minutes(logp, now)
+        # 5) Scheduled agents: log freshness. Judge by the *freshest* of the
+        # stdout/stderr logs — modules that log via Python's `logging` write to
+        # stderr, leaving StandardOutPath empty/frozen (false "stale" otherwise).
+        logps = plist_log_paths(plist)
+        age = freshest_log_age_minutes(logps, now)
         health.log_age_min = age
         threshold = _FRESHNESS_THRESHOLD_MIN[cat]
-        if logp is None:
+        if not logps:
             # no log configured — can't assess freshness, leave as-is
             pass
         elif age is None:
