@@ -1,0 +1,28 @@
+{
+  "last_updated": "2026-06-21T04:00:03Z",
+  "recent_readings": [
+    {
+      "date": "2026-06-18",
+      "gwei": 0.005,
+      "above_threshold": false
+    },
+    {
+      "date": "2026-06-19",
+      "gwei": 0.005,
+      "above_threshold": false
+    },
+    {
+      "date": "2026-06-20",
+      "gwei": 0.005,
+      "above_threshold": false
+    },
+    {
+      "date": "2026-06-21",
+      "gwei": 0.005,
+      "above_threshold": false
+    }
+  ],
+  "consecutive_above": 0,
+  "kill_switch_active": false,
+  "kill_switch_activated_at": null
+}
