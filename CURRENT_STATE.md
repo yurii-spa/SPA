@@ -1,5 +1,5 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-21** | Версия: **v12.27** | Done: **~1310** задач
+> Последнее обновление: **2026-06-21** | Версия: **v12.29** | Done: **~1318** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
@@ -24,7 +24,7 @@ GoLive-гейт пересчитан **честно**: 29-критериальн
 | **Strategies total** | **~45** (S0–S43) |
 | **Adapters total** | **33** (T1=6, T2=25, T3=2) |
 | **KANBAN done** | **~1310** задач |
-| **Last sprint** | **v12.27** |
+| **Last sprint** | **v12.29** |
 | Go-live target | **2026-07-09** (30-day honest track complete) |
 
 **Что изменилось vs прежний «25/26»:** убраны pre-teardown demo-бары из подсчёта
@@ -32,7 +32,29 @@ track-days; autopush_installed теперь PASS; гейт перешёл на 2
 Честный verdict: **27/29 PASS**, оба оставшихся блокера — это просто ожидание
 30-дневного честного трека (нечего «чинить», нужно дождаться 2026-07-09).
 
-### Session IV Fixes — 2026-06-21 (v12.27)
+### Session VI Fixes — 2026-06-21 (v12.28)
+
+| Fix | Статус | Результат |
+|-----|--------|-----------|
+| CF Tunnel Token | ✅ CLEARED | Проверка git history → токен НИКОГДА не был в git (false alarm). Ротация НЕ нужна. |
+| sky_monitor stale | ✅ CLEARED | sky_status.json свежий (9h stale). Агент работает нормально. |
+| AGENT-P1-002 | ✅ CLEARED | analytics_tier_c уже в agent_status.sh + uptime_monitor (false alarm). |
+| AGENT-P1-003 | ✅ CLEARED | sky_monitor healthy (была ложная тревога из старой сессии). |
+| AGENT-P1-005 | ✅ DONE | Удалены 6 stale plist: 3 из GitHub (autopush, httpserver, auto_push) + 3 untracked локально (apiserver, cyclerunner, telegram_watcher). |
+| P2-FIX-002 | ✅ DONE | CURRENT_STATE.md обновлён до v12.28. |
+| KANBAN done | **767** | +4 задачи в done. Backlog: 10 (5 user_action, 5 autonomous). |
+
+### Session VI Fixes — 2026-06-21 (v12.29)
+
+| Fix | Статус | Результат |
+|-----|--------|-----------|
+| AGENT-P1-004 | ✅ DONE | 116 unit tests для portfolio_monitor — tests/test_portfolio_monitor.py; все PASS. |
+| AGENT-P1-006 | ✅ DONE | То же — PH01-PH12 покрывают portfolio_health.json write. |
+| P2-FIX-001 | ✅ DONE | com.spa.analytics_tier_b.plist создан (hourly advisory signals); добавлен в agent_status.sh + uptime_monitor.py. |
+| SITE-032 | ✅ DECIDED | Публичный status page до launch не нужен. /api/live/ping = health endpoint. Revisit post go-live. |
+| KANBAN done | **771** | +4 задачи в done. Backlog: 6 (4 user_action). |
+
+### Session IV+V Fixes — 2026-06-21 (v12.27)
 
 | Fix | Статус | Результат |
 |-----|--------|-----------|
@@ -45,7 +67,7 @@ track-days; autopush_installed теперь PASS; гейт перешёл на 2
 ### NEXT STEPS
 
 1. 🗓 **9 июля 2026** — завершение 30-дневного честного трека → GoLive PASS **29/29**
-2. 🔑 **Ротация CF Tunnel Token** (находка security-аудита — оператор вручную в Cloudflare)
+2. ✅ ~~Ротация CF Tunnel Token~~ — CLEARED (токен никогда не был в git, false alarm)
 3. 📊 **Ревью ADR-036** (Kelly T2_cap 20%→25%, +0.5% APY)
 4. 🌐 **Cloudflare Access gate** для earn-defi.com
 
