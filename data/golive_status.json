@@ -1,6 +1,6 @@
 {
   "ready": false,
-  "passed": 27,
+  "passed": 26,
   "total": 29,
   "checks": {
     "equity_curve_real": true,
@@ -24,7 +24,7 @@
     "gap_monitor_ok": true,
     "gap_monitor_30d": false,
     "autopush_installed": true,
-    "telegram_alert_today": true,
+    "telegram_alert_today": false,
     "min_track_days_30": false,
     "apy_above_floor": true,
     "drawdown_below_kill": true,
@@ -172,8 +172,8 @@
       "status": "PENDING",
       "blocking": true,
       "estimated_days_to_pass": 19,
-      "target_date": "2026-07-09",
-      "message": "11/30 honest track days \u2014 19 more needed (target 2026-07-09)"
+      "target_date": "2026-07-10",
+      "message": "11/30 honest track days \u2014 19 more needed (target 2026-07-10)"
     },
     {
       "name": "autopush_installed",
@@ -184,18 +184,18 @@
     },
     {
       "name": "telegram_alert_today",
-      "status": "PASS",
-      "blocking": false,
-      "estimated_days_to_pass": 0,
-      "message": "ok"
+      "status": "FAIL",
+      "blocking": true,
+      "estimated_days_to_pass": null,
+      "message": "telegram_alert_today: last daily alert was 2026-06-20 (today is 2026-06-21) \u2014 check com.spa.daily-paper-report launchd plist"
     },
     {
       "name": "min_track_days_30",
       "status": "PENDING",
       "blocking": true,
       "estimated_days_to_pass": 19,
-      "target_date": "2026-07-09",
-      "message": "11/30 honest track days \u2014 19 more needed (target 2026-07-09)"
+      "target_date": "2026-07-10",
+      "message": "11/30 honest track days \u2014 19 more needed (target 2026-07-10)"
     },
     {
       "name": "apy_above_floor",
@@ -241,11 +241,12 @@
     }
   ],
   "blockers": [
-    "gap_monitor_30d: 11/30 honest track days (since 2026-06-10; 19 more needed \u2014 target ~2026-07-09)",
-    "min_track_days_30: 11/30 honest paper-trading days (since 2026-06-10; 19 more needed \u2014 target go-live ~2026-07-09)"
+    "gap_monitor_30d: 11/30 honest track days (since 2026-06-10; 19 more needed \u2014 target ~2026-07-10)",
+    "telegram_alert_today: last daily alert was 2026-06-20 (today is 2026-06-21) \u2014 check com.spa.daily-paper-report launchd plist",
+    "min_track_days_30: 11/30 honest paper-trading days (since 2026-06-10; 19 more needed \u2014 target go-live ~2026-07-10)"
   ],
   "real_track_days": 11,
-  "timestamp": "2026-06-20T23:53:54.214161+00:00",
+  "timestamp": "2026-06-21T01:23:20.828924+00:00",
   "source": "golive_checker",
   "version": "v6.0-29criteria",
   "consecutive_ready_days": 0
