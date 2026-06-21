@@ -24,7 +24,7 @@ AUM (third-party capital) после подтверждённого track record
 | Капитал | $100,000 USDC (виртуальный) |
 | Go-live решение | план 2026-07-15 → **перенос на ~2026-08-01** (ADR-002 go-live transfer rule) |
 | 30 честных дней трека | истекают ~2026-07-10 |
-| GoLiveChecker | **NOT READY** — **26/29 pass** (v6.0; `ready: false`; 3 блокера: 2 time-gated track-days до ~2026-07-10 + telegram daily alert) |
+| GoLiveChecker | **NOT READY** — **27/29 pass** (v6.0; `ready: false`; 2 блокера: time-gated track-days → target 2026-07-09) |
 | Тесты | `spa_core/tests/` — **~800+ файлов**; `tests/` — 11 файлов |
 
 ⚠️ Старый CLAUDE.md (заморожен на «Sprint v1.6, День 2/56», 4h GitHub Actions cron)
@@ -168,8 +168,8 @@ LLM-вызовы запрещены (prompt injection в капитал — кр
 ## GoLiveChecker (spa_core/paper_trading/golive_checker.py)
 
 **29 критериев** (v6.0, расширен с 6 базовых); статус пишется в `data/golive_status.json`.
-Текущий статус: **26/29 pass** (NOT READY, 3 блокера — 2 time-gated track-days до ~2026-07-10
-+ telegram daily alert), target go-live **2026-08-01**.
+Текущий статус: **27/29 pass** (NOT READY, 2 блокера — time-gated: gap_monitor_30d + min_track_days_30,
+target go-live **2026-07-09**). Telegram daily alert ✅ теперь PASS.
 
 Ключевые группы критериев:
 
@@ -222,7 +222,7 @@ READY 7+ дней подряд + gap_monitor без пробелов 30 дней
 
 | Файл | Что |
 |---|---|
-| `golive_status.json` | 29 критериев GoLiveChecker + ready/blockers (26/29 pass, v6.0) |
+| `golive_status.json` | 29 критериев GoLiveChecker + ready/blockers (27/29 pass, v6.0) |
 | `gap_monitor.json` | Непрерывность трека (пробелы = перенос go-live) |
 | `trades.json` | Виртуальные трейды (ring-buffer 500), `is_demo: false` |
 | `equity_curve_daily.json` | Дневная equity curve (ring-buffer 365) |
