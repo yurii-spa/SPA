@@ -2350,6 +2350,20 @@ body > .main-wrap, #app, .app-container,
     </div>
   </div>
 
+  <!-- 🏥 System Health — End-to-End (data/system_health.json) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🏥 System Health — End-to-End
+        <span id="syh-badge" style="font-size:10px;border-radius:10px;padding:2px 8px;margin-left:6px;background:#eee;color:#888">…</span>
+      </span>
+      <span id="syh-updated" style="font-size:11px;color:#888">Loading system_health.json…</span>
+    </div>
+    <div id="syh-summary" style="font-size:12px;color:#666;margin:8px 0 6px"></div>
+    <div id="syh-domains" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:8px"></div>
+    <div id="syh-issues"></div>
+    <div id="syh-runinfo" style="font-size:11px;color:#999;margin-top:8px"></div>
+  </div>
+
   <!-- 📊 KANBAN Summary (data/kanban_summary.json) -->
   <div class="db-full" style="margin-bottom:18px">
     <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
@@ -5664,7 +5678,82 @@ async function loadAgentHealth() {
   body.innerHTML = rows + sysRows;
 }
 
+// ─── System Health (End-to-End) — data/system_health.json ──────────────────────
+async function loadSystemHealthMonitor() {
+  const badge = document.getElementById('syh-badge');
+  const upd   = document.getElementById('syh-updated');
+  const sum   = document.getElementById('syh-summary');
+  const dom   = document.getElementById('syh-domains');
+  const body  = document.getElementById('syh-issues');
+  const runEl = document.getElementById('syh-runinfo');
+  if (!dom) return;
+
+  let d = null;
+  try { d = await fetch(dataBase + '/system_health.json?_=' + Date.now()).then(r => r.ok ? r.json() : null); } catch(e) {}
+  if (!d) {
+    if (badge) { badge.textContent = 'N/A'; badge.style.background = '#eee'; badge.style.color = '#888'; }
+    if (upd) upd.textContent = 'system_health.json not found';
+    dom.innerHTML = '';
+    if (body) body.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;font-size:13px">No system_health.json — runs 06:00 + 18:00</div>';
+    return;
+  }
+
+  const colors = { OK:['#E7F4E7','#2E7D32'], INFO:['#E6F1FB','#185FA5'], WARNING:['#FAEEDA','#BA7517'], CRITICAL:['#FDE7E7','#C62828'], SKIPPED:['#eee','#888'] };
+  const st = d.overall_status || 'OK';
+  const c = colors[st] || colors.OK;
+  if (badge) { badge.textContent = st; badge.style.background = c[0]; badge.style.color = c[1]; }
+  if (upd) {
+    let ts = d.generated_at || '';
+    try { ts = new Date(d.generated_at).toISOString().replace('T',' ').slice(0,16) + ' UTC'; } catch(e) {}
+    upd.textContent = 'Last run: ' + ts;
+  }
+
+  if (sum) {
+    const k = d.counts || {};
+    sum.innerHTML = `🚨 ${k.CRITICAL||0} · ⚠️ ${k.WARNING||0} · ℹ️ ${k.INFO||0} · ⏭ ${k.SKIPPED||0} · ✅ ${k.OK||0}`
+      + (d.trend ? ` &nbsp;|&nbsp; 📈 7d ${d.trend.equity_7d_pct ?? '?'}% (${d.trend.equity_direction||'?'}) · GoLive ${d.trend.golive_passed ?? '?'}/${d.trend.golive_total ?? '?'}` : '');
+  }
+
+  // domain breakdown — one row per domain
+  const labels = {
+    d1_data_pipeline:'Data Pipeline', d2_connectivity:'Protocol Connectivity',
+    d3_strategy_quality:'Strategy Quality', d4_external:'External Services',
+    d5_code_integrity:'Code Integrity', d6_risk_gates:'Risk Gates', d7_hygiene:'Op. Hygiene'
+  };
+  dom.innerHTML = Object.entries(d.domains || {}).map(([key, info]) => {
+    const dc = colors[info.status] || colors.OK;
+    return `<div style="border:0.5px solid #eee;border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:#444">${labels[key] || key}</span>
+      <span style="font-size:10.5px;font-weight:600;background:${dc[0]};color:${dc[1]};border-radius:8px;padding:2px 7px">${info.status}</span>
+    </div>`;
+  }).join('');
+
+  // non-OK / non-SKIPPED checks
+  if (body) {
+    const sev = { CRITICAL:3, WARNING:2, INFO:1, OK:0, SKIPPED:0 };
+    const problems = (d.checks || []).filter(x => x.status === 'CRITICAL' || x.status === 'WARNING')
+      .sort((a,b) => (sev[b.status]||0)-(sev[a.status]||0));
+    if (problems.length === 0) {
+      body.innerHTML = '<div style="text-align:center;padding:12px;color:#2E7D32;font-size:13px">✅ No active warnings or criticals</div>';
+    } else {
+      body.innerHTML = problems.map(p => {
+        const icon = p.status === 'CRITICAL' ? '🚨' : '⚠️';
+        const col = p.status === 'CRITICAL' ? '#C62828' : '#BA7517';
+        return `<div style="display:flex;justify-content:space-between;padding:7px 10px;border-bottom:0.5px solid #f0f0f0">
+          <span style="font-size:12.5px"><span style="color:${col}">${icon}</span> <code style="font-size:11px">${p.id}</code></span>
+          <span style="font-size:11.5px;color:#888;text-align:right;max-width:60%">${p.title || p.status}</span></div>`;
+      }).join('');
+    }
+  }
+
+  if (runEl) {
+    runEl.textContent = `Runs twice daily (06:00 + 18:00 local) · ${(d.checks||[]).length} checks · ${d.duration_ms ?? '?'}ms · fingerprint ${d.fingerprint || '?'}`;
+  }
+}
+
 async function loadOps() {
+  // System health (end-to-end) heartbeat (data/system_health.json)
+  loadSystemHealthMonitor();
   // Agent health heartbeat (data/agent_health.json)
   loadAgentHealth();
   // KANBAN summary widget (data/kanban_summary.json)
