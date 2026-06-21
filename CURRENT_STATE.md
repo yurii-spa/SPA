@@ -1,5 +1,5 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-21** | Версия: **v12.26** | Done: **~1291** задач
+> Последнее обновление: **2026-06-21** | Версия: **v12.27** | Done: **~1310** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
@@ -7,29 +7,40 @@
 
 ---
 
-## GoLive Honest Status — 2026-06-21 (v12.26)
+## GoLive Honest Status — 2026-06-21 (v12.27)
 
 GoLive-гейт пересчитан **честно**: 29-критериальный gate v6.0. Прежний показатель
 «25/26» подсчитывал фейковые demo-дни до teardown (до 2026-06-10). Реальный трек —
-**11 дней** с 2026-06-10. Источник: `python3 -m spa_core.golive.golive_checker`.
+**12 дней** с 2026-06-10. Источник: `python3 -m spa_core.golive.golive_checker`.
 
 | Поле | Значение |
 |------|----------|
-| **GoLive Status** | ✅ **27/29 pass** (NOT READY — 2 PENDING) |
-| **Track Days** | **11 реальных дней** (с 2026-06-10) → target **30** = **2026-07-09** |
-| **Paper APY** | **4.11%** (annualized, 11-day track) |
-| 2 PENDING | `gap_monitor_30d` + `min_track_days_30` (19 дней до target 2026-07-09) |
+| **GoLive Status** | **27/29 pass** (NOT READY — 2 PENDING) |
+| **Track Days** | **12 реальных дней** (с 2026-06-10) → target **30** = **2026-07-09** |
+| **Paper APY** | **4.11%** (annualized, 12-day track) |
+| 2 PENDING | `gap_monitor_30d` + `min_track_days_30` (18 дней до target 2026-07-09) |
 | consecutive_ready_days | **0** |
+| portfolio_health_score | **63.3** (was null before portfolio_monitor fix) |
 | **Strategies total** | **~45** (S0–S43) |
-| **Adapters total** | **~30** |
-| **KANBAN done** | **~1291** задач |
-| **Last sprint** | **v12.26** |
+| **Adapters total** | **33** (T1=6, T2=25, T3=2) |
+| **KANBAN done** | **~1310** задач |
+| **Last sprint** | **v12.27** |
 | Go-live target | **2026-07-09** (30-day honest track complete) |
 
 **Что изменилось vs прежний «25/26»:** убраны pre-teardown demo-бары из подсчёта
 track-days; autopush_installed теперь PASS; гейт перешёл на 29 критериев v6.0.
 Честный verdict: **27/29 PASS**, оба оставшихся блокера — это просто ожидание
 30-дневного честного трека (нечего «чинить», нужно дождаться 2026-07-09).
+
+### Session IV Fixes — 2026-06-21 (v12.27)
+
+| Fix | Статус | Результат |
+|-----|--------|-----------|
+| portfolio_health.json write | ✅ DONE | portfolio_monitor.py writes `data/portfolio_health.json`; score **63.3** (was null) |
+| KANBAN user_action tags | ✅ DONE | 0 real P0/P1 in backlog (19 items tagged `user-action`/`user_action`) |
+| kanban_no_p0_p1_backlog | ✅ PASS | GoLive preflight kanban check now passes |
+| BTS feed + monitor | ✅ LIVE | `com.spa.bts-feed` + `com.spa.bts-monitor` launchd agents active since 18:59 |
+| Agent health | ✅ | 29 OK / 0 WARN / 0 CRIT; system CRITICAL on portfolio_health<70 (63.3) |
 
 ### NEXT STEPS
 
