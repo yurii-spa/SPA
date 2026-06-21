@@ -599,7 +599,11 @@ def _send_agent_alert(label: str, age_minutes: int, file_hint: str | None) -> bo
     )
     try:
         from spa_core.alerts.telegram_client import send_message
-        return bool(send_message(text))
+        # parse_mode="HTML": the default Markdown parser 400s on the underscores
+        # in labels/filenames (e.g. "com.spa.bot_commands",
+        # "paper_trading_status.json"). The alert text carries no HTML tags, so
+        # HTML mode renders it verbatim and stops the "API error 400" loop.
+        return bool(send_message(text, parse_mode="HTML"))
     except Exception as exc:  # noqa: BLE001 — alerts must never crash the monitor
         print(
             f"[uptime_monitor] WARNING: Telegram alert failed for {label}: {exc}",
