@@ -24,7 +24,7 @@ AUM (third-party capital) после подтверждённого track record
 | Капитал | $100,000 USDC (виртуальный) |
 | Go-live решение | план 2026-07-15 → **перенос на ~2026-08-01** (ADR-002 go-live transfer rule) |
 | 30 честных дней трека | истекают ~2026-07-10 |
-| GoLiveChecker | **NOT READY** — **25/26 pass** (`ready: false`; 1 блокер остался) |
+| GoLiveChecker | **NOT READY** — **26/29 pass** (v6.0; `ready: false`; 3 блокера: 2 time-gated track-days до ~2026-07-10 + telegram daily alert) |
 | Тесты | `spa_core/tests/` — **~800+ файлов**; `tests/` — 11 файлов |
 
 ⚠️ Старый CLAUDE.md (заморожен на «Sprint v1.6, День 2/56», 4h GitHub Actions cron)
@@ -46,7 +46,7 @@ launchd com.spa.daily_cycle (ежедневно 08:00)
           4. начисление дневного yield на позиции
           5. data/equity_curve_daily.json (ring-buffer 365 дней)
           6. data/current_positions.json, data/paper_trading_status.json (is_demo: false)
-          7. GoLiveChecker → data/golive_status.json (26 критериев)
+          7. GoLiveChecker → data/golive_status.json (29 критериев)
           8. promotion_engine.py → автопродвижение (advisory, read-only)
 
 launchd com.spa.autopush — ❌ НЕ УСТАНОВЛЕН (PYTHON_PATH-заглушка)
@@ -167,8 +167,9 @@ LLM-вызовы запрещены (prompt injection в капитал — кр
 
 ## GoLiveChecker (spa_core/paper_trading/golive_checker.py)
 
-**26 критериев** (расширен с 6 базовых); статус пишется в `data/golive_status.json`.
-Текущий статус: **25/26 pass** (NOT READY, 1 блокер), target go-live **2026-08-01**.
+**29 критериев** (v6.0, расширен с 6 базовых); статус пишется в `data/golive_status.json`.
+Текущий статус: **26/29 pass** (NOT READY, 3 блокера — 2 time-gated track-days до ~2026-07-10
++ telegram daily alert), target go-live **2026-08-01**.
 
 Ключевые группы критериев:
 
@@ -221,7 +222,7 @@ READY 7+ дней подряд + gap_monitor без пробелов 30 дней
 
 | Файл | Что |
 |---|---|
-| `golive_status.json` | 26 критериев GoLiveChecker + ready/blockers (25/26 pass) |
+| `golive_status.json` | 29 критериев GoLiveChecker + ready/blockers (26/29 pass, v6.0) |
 | `gap_monitor.json` | Непрерывность трека (пробелы = перенос go-live) |
 | `trades.json` | Виртуальные трейды (ring-buffer 500), `is_demo: false` |
 | `equity_curve_daily.json` | Дневная equity curve (ring-buffer 365) |
