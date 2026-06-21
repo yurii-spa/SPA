@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-06-21 (APY Expectation Recalibration)
+
+**APY Expectation Recalibration (2026-06-21):** Real blended T1/T2 APY ~4.1% (confirmed by
+11-day paper track). Historical DeFiLlama mean 3.5–5%. Previous estimates of 5–7% were optimistic.
+
+DeFiLlama live scan (2026-06) per protocol (USDC pools, mean / current):
+- Aave V3: 3.64% mean, ~3.1% current (range 1.57–12.60%)
+- Compound V3: 3.78% mean, ~3.27% current (range 2.34–11.70%)
+- Morpho Blue: 6.87% mean, ~4.65% current curated vaults (range 3.55–9.57%)
+- Yearn V3: 4.93% mean (range 1.37–16.05%)
+- Sky sUSDS: 4.20% mean, ~3.60% current (range 3.60–4.75%)
+- Fluid USDC: 6.22% current (new T2, added to adapter table)
+
+**Корректировки:** CLAUDE.md adapter-таблица обновлена (Compound ~4.8%→~3.3%, Morpho
+Steakhouse ~6.5%→~4.6% curated, Aave ~3.5%→~3.1% current); добавлена строка «T1 blended
+realistic yield: 3.5–5% (не 5–6.5%)». RULES.md: `apy_below_benchmark` benchmark
+зафиксирован на ~4% (T1-only не вытягивает 5% надёжно; жёсткого 5%-GoLive-гейта нет).
+
+---
+
 ## 2026-06-21 (Session decisions — ADR-042…047)
 
 Шесть решений сессии задокументированы как ADR. Исходно черновики были
