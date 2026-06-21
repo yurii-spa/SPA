@@ -18,7 +18,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from spa_core.base import BaseAnalytics
 
@@ -71,6 +71,7 @@ class RebalanceTrigger:
 class RebalanceTriggerEngine(BaseAnalytics):
     """Evaluate portfolio slots and decide whether rebalancing is needed."""
 
+    MODULE_NAME = "rebalance_trigger_engine"
     OUTPUT_PATH = "data/rebalance_triggers.json"
 
     def __init__(
@@ -80,7 +81,7 @@ class RebalanceTriggerEngine(BaseAnalytics):
         apy_threshold: float = APY_CHANGE_THRESHOLD,
         min_days: int = MIN_DAYS_BETWEEN_REBALANCE,
     ) -> None:
-        super().__init__()  # sets self.base_dir = "."
+        super().__init__()  # BaseAnalytics: ensures data/ dir exists
         self.data_file = data_file
         self.drift_threshold = drift_threshold
         self.apy_threshold = apy_threshold
@@ -89,6 +90,54 @@ class RebalanceTriggerEngine(BaseAnalytics):
     def to_dict(self) -> dict:
         """Returns rebalance trigger history as JSON-serializable dict."""
         return {"history": self.load_history()}
+
+    # ------------------------------------------------------------------
+    # BaseAnalytics contract
+    # ------------------------------------------------------------------
+
+    def analyze(
+        self, slots: Optional[List[AllocationSlot]] = None
+    ) -> Dict[str, object]:
+        """Concrete BaseAnalytics.analyze() implementation (MP-652).
+
+        Evaluates the portfolio's allocation slots and returns rebalance
+        signals (drift from target, APY change, trigger thresholds and
+        urgency) in a standard result envelope. When *slots* is None a small
+        representative slot set is used so the daily cycle can call
+        ``analyze()`` with no arguments; the production pipeline passes live
+        position-derived slots explicitly.
+
+        Returns:
+            {module_id, status, timestamp, result} where ``status`` reflects
+            the urgency ("IMMEDIATE"/"SOON"/"NONE") and ``result`` holds the
+            full trigger decision plus the active thresholds.
+        """
+        if slots is None:
+            slots = _build_demo_slots()
+
+        trigger = self.evaluate(slots)
+
+        return {
+            "module_id": self.MODULE_NAME,
+            "status": trigger.urgency,
+            "timestamp": trigger.timestamp,
+            "result": {
+                "triggered": trigger.triggered,
+                "reason": trigger.reason,
+                "drifted_slots": trigger.drifted_slots,
+                "apy_changed_slots": trigger.apy_changed_slots,
+                "max_drift": trigger.max_drift,
+                "total_drift": trigger.total_drift,
+                "urgency": trigger.urgency,
+                "actions": trigger.actions,
+                "thresholds": {
+                    "drift_threshold": self.drift_threshold,
+                    "apy_threshold": self.apy_threshold,
+                    "min_days_between_rebalance": self.min_days,
+                },
+                "slots_evaluated": len(slots),
+            },
+        }
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -261,3 +310,22 @@ class RebalanceTriggerEngine(BaseAnalytics):
             return json.loads(self.data_file.read_text())
         except Exception:
             return []
+
+
+# ---------------------------------------------------------------------------
+# Demo helpers
+# ---------------------------------------------------------------------------
+
+def _build_demo_slots() -> List[AllocationSlot]:
+    """Return a representative slot set for demo / no-arg ``analyze()`` calls.
+
+    Cooldown is satisfied (days_since_last >= MIN_DAYS_BETWEEN_REBALANCE) and
+    one slot has drifted past the threshold so the engine produces a non-trivial
+    signal rather than a COOLDOWN short-circuit.
+    """
+    return [
+        AllocationSlot("aave_v3",     0.40, 0.48, 0.031, 0.030, 30),  # +8% drift
+        AllocationSlot("compound_v3", 0.30, 0.28, 0.033, 0.033, 30),
+        AllocationSlot("morpho",      0.20, 0.19, 0.046, 0.045, 30),
+        AllocationSlot("euler_v2",    0.10, 0.05, 0.050, 0.049, 30),  # -5% drift
+    ]
