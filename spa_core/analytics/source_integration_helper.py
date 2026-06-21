@@ -15,6 +15,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from spa_core.utils.atomic import atomic_save
+
 # ---------------------------------------------------------------------------
 # Default paths (relative to repo root; override in tests)
 # ---------------------------------------------------------------------------
@@ -252,7 +254,7 @@ def fetch_{sanitized_name}_apy(timeout: int = 10) -> dict:
             dir_path = os.path.dirname(self._pipeline_path)
             os.makedirs(dir_path, exist_ok=True)
 
-            atomic_save(data, str(self))
+            atomic_save(data, self._pipeline_path)
             return True
         except Exception:
             return False
