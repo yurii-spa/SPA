@@ -3952,40 +3952,102 @@ function initTooltips() {
 let BASE = location.hostname === 'localhost' && location.port !== '8765'
   ? 'http://localhost:8000'
   : (location.pathname.startsWith('/SPA') ? '/SPA/data' : './data');
-const dataBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+// Immutable fallback for `BASE` (the main loadDashboard() file bundle uses it).
+// Both BASE and dataBase are redirected to the live tunnel when it is reachable.
+const STATIC_BASE = BASE;
+// `dataBase` is reassignable: when the live API is reachable it is redirected
+// to the Mac-mini tunnel (/api/live/data) so every existing panel refreshes
+// from fresh data with zero renderer changes. STATIC_DATA_BASE is the immutable
+// fallback used whenever the live API is down.
+const STATIC_DATA_BASE = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+let dataBase = STATIC_DATA_BASE;
 
 // FastAPI Live Mode
 let LIVE_MODE = false;
-const LIVE_BASE = 'http://localhost:8765/api';
-// P0-2: on GitHub Pages there is no local server — skip all localhost probes
+let LIVE_BASE = 'http://localhost:8765/api';
+// Live API base: localhost when developing locally, public CF tunnel otherwise.
+// The tunnel (api.earn-defi.com → Mac mini :8765) serves /api/live/* fresh data,
+// so the public dashboard polls it every 15s instead of waiting ~60min for the
+// GitHub-pushed JSON snapshot.
+const LIVE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8765'
+  : 'https://api.earn-defi.com';
+// P0-2: on GitHub Pages there is no local server — the live probe still runs
+// against the public tunnel (CORS-allowed), so github.io can also go live.
 const IS_PUBLIC = location.hostname.endsWith('github.io') || location.hostname.endsWith('github.com');
 if (IS_PUBLIC) document.body.classList.add('is-public'); // P1-1: hide internal tabs via CSS
 let _liveWs = null;
+let _livePollTimer = null;
+let _liveVerifyTimer = null;
+let _liveLastFetch = 0;
 
 async function detectLiveMode() {
-  if (IS_PUBLIC) { updateLiveIndicator(false); return; }  // P0-2: no server on GitHub Pages
   try {
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 500);
-    const r = await fetch('http://localhost:8765/health', { signal: ctrl.signal });
+    const tid = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch(LIVE_API + '/api/live/ping', { signal: ctrl.signal, cache: 'no-store' });
     clearTimeout(tid);
     if (r.ok) {
       LIVE_MODE = true;
-      BASE = LIVE_BASE;
+      // Redirect ALL file-style data fetches to the live passthrough (fresh ≤15s)
+      dataBase = LIVE_API + '/api/live/data';
+      BASE = LIVE_API + '/api/live/data';
+      // Redirect FastAPI /api/* calls (apy trends, backtest replay/compare) too
+      LIVE_BASE = LIVE_API + '/api';
       updateLiveIndicator(true);
-      connectLiveWs();
-      connectSSE();   // parallel SSE for structured agent thought events
-    } else { updateLiveIndicator(false); }
-  } catch(e) { updateLiveIndicator(false); }
+      // Local dev also gets the realtime WS + SSE agent streams
+      if (LIVE_API.startsWith('http://localhost')) { connectLiveWs(); connectSSE(); }
+      startLivePolling();
+      return;
+    }
+  } catch(e) { /* live API unreachable — stay on static JSON */ }
+  LIVE_MODE = false;
+  dataBase = STATIC_DATA_BASE;
+  BASE = STATIC_BASE;
+  updateLiveIndicator(false);
+}
+
+// 15s polling loop — refreshes the high-value live panels from the Mac mini.
+// Re-runs the EXISTING loaders (now pointed at the live tunnel via dataBase),
+// so this is purely additive: if the API drops, detectLiveMode falls back.
+function startLivePolling() {
+  if (_livePollTimer) return;
+  const tick = () => {
+    if (!LIVE_MODE || document.hidden) return;   // pause when tab is backgrounded
+    try { loadDashboard(); } catch(e) {}
+    try { loadAgentHealth(); } catch(e) {}
+    try { loadSystemHealthMonitor(); } catch(e) {}
+    _liveLastFetch = Date.now();
+    updateLiveIndicator(true);
+  };
+  tick();                                          // immediate first refresh
+  _livePollTimer = setInterval(tick, 15000);       // every 15s
+  // Re-verify the tunnel every 60s; if it goes down, revert to static cleanly.
+  if (!_liveVerifyTimer) _liveVerifyTimer = setInterval(reverifyLive, 60000);
+}
+
+async function reverifyLive() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch(LIVE_API + '/api/live/ping', { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(tid);
+    if (r.ok) { if (!LIVE_MODE) { LIVE_MODE = true; dataBase = LIVE_API + '/api/live/data'; BASE = LIVE_API + '/api/live/data'; LIVE_BASE = LIVE_API + '/api'; } updateLiveIndicator(true); return; }
+  } catch(e) { /* fall through to offline handling */ }
+  if (LIVE_MODE) { LIVE_MODE = false; dataBase = STATIC_DATA_BASE; BASE = STATIC_BASE; updateLiveIndicator(false); }
 }
 
 function updateLiveIndicator(live) {
   const dot = document.getElementById('live-indicator');
   if (!dot) return;
-  dot.innerHTML = live
-    ? '<span style="color:#16a34a">●</span> Live'
-    : '<span style="color:#9ca3af">●</span> Static';
-  dot.title = live ? 'Connected to FastAPI server at localhost:8765' : 'Using static JSON files';
+  if (live) {
+    const ageS = _liveLastFetch ? Math.round((Date.now() - _liveLastFetch) / 1000) : null;
+    dot.innerHTML = '<span style="color:#16a34a">●</span> Live';
+    dot.title = 'Live API: ' + LIVE_API + (ageS != null ? ' · updated ' + ageS + 's ago' : ' · connected');
+  } else {
+    dot.innerHTML = '<span style="color:#9ca3af">●</span> Static';
+    dot.title = 'Live API unreachable — using cached JSON snapshots';
+  }
 }
 
 // ─── Data freshness badge (P0-3: primary = paper_trading_status last_cycle_ts) ──
