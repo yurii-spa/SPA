@@ -1,0 +1,55 @@
+{
+  "status": "ok",
+  "ts": "2026-06-21T01:23:35.608310+00:00",
+  "adapters_checked": 7,
+  "adapters_unhealthy": 7,
+  "unhealthy_adapters": [
+    "aave_v3",
+    "compound_v3",
+    "morpho_blue",
+    "yearn_v3",
+    "euler_v2",
+    "maple",
+    "pendle"
+  ],
+  "restarts_attempted": 7,
+  "restarts_succeeded": 7,
+  "restarts_rate_limited": 0,
+  "restart_details": [
+    {
+      "adapter": "aave_v3",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    },
+    {
+      "adapter": "compound_v3",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    },
+    {
+      "adapter": "morpho_blue",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    },
+    {
+      "adapter": "yearn_v3",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    },
+    {
+      "adapter": "euler_v2",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    },
+    {
+      "adapter": "maple",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    },
+    {
+      "adapter": "pendle",
+      "restarted": true,
+      "reason": "restart_triggered: count 2/3"
+    }
+  ]
+}
