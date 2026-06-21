@@ -90,15 +90,91 @@ class StressResult:
 class LiquidityStressSimulator(BaseAnalytics):
     """Simulate portfolio liquidity under four crisis scenarios."""
 
+    MODULE_NAME = "liquidity_stress_simulator"
     OUTPUT_PATH = "data/liquidity_stress_log.json"
 
     def __init__(self, data_file: Path = DATA_FILE) -> None:
-        super().__init__()  # sets self.base_dir = "."
+        super().__init__()  # BaseAnalytics: ensures data/ dir exists
         self.data_file = data_file
 
     def to_dict(self) -> dict:
         """Returns liquidity stress log history as JSON-serializable dict."""
         return {"history": self.load_history()}
+
+    # ------------------------------------------------------------------
+    # BaseAnalytics contract
+    # ------------------------------------------------------------------
+
+    def analyze(
+        self,
+        adapters: Optional[List[AdapterLiquidity]] = None,
+        scenario: Optional[str] = None,
+    ) -> Dict[str, object]:
+        """Concrete BaseAnalytics.analyze() implementation (MP-649).
+
+        Runs the liquidity stress simulation and returns a standard result
+        envelope. When *adapters* is None a representative portfolio of the
+        registry's T1/T2 protocols (aave_v3, compound_v3, morpho, euler_v2,
+        maple) is used, so the daily cycle can call ``analyze()`` with no
+        arguments. The production pipeline passes live position-derived
+        adapters explicitly.
+
+        Args:
+            adapters: optional explicit list of AdapterLiquidity profiles.
+            scenario: optional single scenario name; when None all four
+                      scenarios are simulated.
+
+        Returns:
+            {module_id, status, timestamp, result} where ``result`` holds
+            per-scenario coverage ratios, slippage/withdrawal estimates and
+            the worst-case verdict across scenarios.
+        """
+        if adapters is None:
+            adapters = _build_demo_adapters()
+
+        if scenario is not None:
+            key = scenario if scenario in SCENARIOS else "MODERATE"
+            results = {key: self.simulate(adapters, key)}
+        else:
+            results = self.simulate_all(adapters)
+
+        scenarios: Dict[str, dict] = {}
+        for name, r in results.items():
+            scenarios[name] = {
+                "scenario": r.scenario,
+                "scenario_label": r.scenario_label,
+                "total_deployed": r.total_deployed,
+                "liquid_capital": r.liquid_capital,
+                "locked_capital": r.locked_capital,
+                "withdrawable_stress": r.withdrawable_stress,
+                "coverage_ratio": r.coverage_ratio,
+                "at_risk_adapters": r.at_risk_adapters,
+                "verdict": r.verdict,
+            }
+
+        # TVL ratio per adapter (capital / pool TVL) — concentration / slippage proxy
+        tvl_ratios = {
+            a.adapter_id: round(a.capital_deployed / a.tvl_usd, 6)
+            for a in adapters
+            if a.tvl_usd > 0
+        }
+
+        worst_coverage = min(
+            (r.coverage_ratio for r in results.values()), default=0.0
+        )
+        status = self._verdict(worst_coverage)
+
+        return {
+            "module_id": self.MODULE_NAME,
+            "status": status,
+            "timestamp": time.time(),
+            "result": {
+                "scenarios": scenarios,
+                "tvl_ratios": tvl_ratios,
+                "worst_coverage_ratio": round(worst_coverage, 6),
+                "adapters_analyzed": len(adapters),
+            },
+        }
 
     # ------------------------------------------------------------------
     # Private helpers
