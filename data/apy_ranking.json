@@ -1,0 +1,557 @@
+{
+  "generated_at": "2026-06-21T01:23:23.728229Z",
+  "count": 27,
+  "summary": {
+    "best_adapter": "susde",
+    "best_apy": 12.0,
+    "worst_apy": 1.984,
+    "spread": 10.016,
+    "count_adapters": 27,
+    "best_t1": "aave_v3_optimism",
+    "best_risk_adj": "pendle"
+  },
+  "by_apy": [
+    {
+      "protocol": "susde",
+      "tier": "T3",
+      "apy_pct": 12.0,
+      "risk_adjusted_apy": 6.0,
+      "network": "ethereum",
+      "tvl_usd": 800000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.9
+    },
+    {
+      "protocol": "pendle",
+      "tier": "T2",
+      "apy_pct": 8.0,
+      "risk_adjusted_apy": 6.1538,
+      "network": "ethereum",
+      "tvl_usd": 500000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "extra_finance_base",
+      "tier": "T3",
+      "apy_pct": 8.0,
+      "risk_adjusted_apy": 4.0,
+      "network": "base",
+      "tvl_usd": 50000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.9
+    },
+    {
+      "protocol": "pendle-pt",
+      "tier": "T2",
+      "apy_pct": 8.0,
+      "risk_adjusted_apy": 6.1538,
+      "network": "ethereum",
+      "tvl_usd": 0.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "frax",
+      "tier": "T2",
+      "apy_pct": 7.5,
+      "risk_adjusted_apy": 5.7692,
+      "network": "ethereum",
+      "tvl_usd": 100000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "scrvusd",
+      "tier": "T2",
+      "apy_pct": 7.0,
+      "risk_adjusted_apy": 5.3846,
+      "network": "ethereum",
+      "tvl_usd": 300000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "fluid_fusdc",
+      "tier": "T2",
+      "apy_pct": 6.24,
+      "risk_adjusted_apy": 4.8,
+      "network": "ethereum",
+      "tvl_usd": 100000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "sfrax",
+      "tier": "T2",
+      "apy_pct": 6.0,
+      "risk_adjusted_apy": 4.6154,
+      "network": "ethereum",
+      "tvl_usd": 800000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "stusd",
+      "tier": "T2",
+      "apy_pct": 6.0,
+      "risk_adjusted_apy": 4.6154,
+      "network": "ethereum",
+      "tvl_usd": 200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "sdai",
+      "tier": "T2",
+      "apy_pct": 5.5,
+      "risk_adjusted_apy": 4.2308,
+      "network": "ethereum",
+      "tvl_usd": 1200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "wusdm",
+      "tier": "T2",
+      "apy_pct": 5.0,
+      "risk_adjusted_apy": 3.8462,
+      "network": "ethereum",
+      "tvl_usd": 400000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "maple",
+      "tier": "T2",
+      "apy_pct": 4.9449,
+      "risk_adjusted_apy": 3.8038,
+      "network": "ethereum",
+      "tvl_usd": 200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_v3_optimism",
+      "tier": "T1",
+      "apy_pct": 4.8,
+      "risk_adjusted_apy": 4.8,
+      "network": "optimism",
+      "tvl_usd": 400000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "morpho_blue_base",
+      "tier": "T2",
+      "apy_pct": 4.657,
+      "risk_adjusted_apy": 3.5823,
+      "network": "base",
+      "tvl_usd": 300000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "moonwell_base",
+      "tier": "T2",
+      "apy_pct": 4.4152,
+      "risk_adjusted_apy": 3.3963,
+      "network": "base",
+      "tvl_usd": 150000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "morpho_steakhouse",
+      "tier": "T1",
+      "apy_pct": 3.5346,
+      "risk_adjusted_apy": 3.5346,
+      "network": "ethereum",
+      "tvl_usd": 800000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "morpho_blue",
+      "tier": "T2",
+      "apy_pct": 3.5346,
+      "risk_adjusted_apy": 2.7189,
+      "network": "ethereum",
+      "tvl_usd": 2000000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "morpho-blue-steakhouse",
+      "tier": "T1",
+      "apy_pct": 3.5346,
+      "risk_adjusted_apy": 3.5346,
+      "network": "ethereum",
+      "tvl_usd": 0.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "spark_susds",
+      "tier": "T1",
+      "apy_pct": 3.5033,
+      "risk_adjusted_apy": 3.5033,
+      "network": "ethereum",
+      "tvl_usd": 500000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "compound_v3",
+      "tier": "T1",
+      "apy_pct": 3.2709,
+      "risk_adjusted_apy": 3.2709,
+      "network": "ethereum",
+      "tvl_usd": 3000000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "yearn_v3",
+      "tier": "T2",
+      "apy_pct": 3.2211,
+      "risk_adjusted_apy": 2.4778,
+      "network": "ethereum",
+      "tvl_usd": 300000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_v3",
+      "tier": "T1",
+      "apy_pct": 3.1141,
+      "risk_adjusted_apy": 3.1141,
+      "network": "ethereum",
+      "tvl_usd": 12000000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "aave_v3_base",
+      "tier": "T2",
+      "apy_pct": 3.0813,
+      "risk_adjusted_apy": 2.3702,
+      "network": "base",
+      "tvl_usd": 250000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_v3_polygon",
+      "tier": "T1",
+      "apy_pct": 2.8422,
+      "risk_adjusted_apy": 2.8422,
+      "network": "polygon",
+      "tvl_usd": 600000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "euler_v2",
+      "tier": "T2",
+      "apy_pct": 2.7844,
+      "risk_adjusted_apy": 2.1418,
+      "network": "ethereum",
+      "tvl_usd": 150000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_arbitrum",
+      "tier": "T1",
+      "apy_pct": 1.984,
+      "risk_adjusted_apy": 1.984,
+      "network": "arbitrum",
+      "tvl_usd": 1200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "aave-v3-arbitrum",
+      "tier": "T1",
+      "apy_pct": 1.984,
+      "risk_adjusted_apy": 1.984,
+      "network": "arbitrum",
+      "tvl_usd": 1200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    }
+  ],
+  "by_risk_adjusted": [
+    {
+      "protocol": "pendle",
+      "tier": "T2",
+      "apy_pct": 8.0,
+      "risk_adjusted_apy": 6.1538,
+      "network": "ethereum",
+      "tvl_usd": 500000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "pendle-pt",
+      "tier": "T2",
+      "apy_pct": 8.0,
+      "risk_adjusted_apy": 6.1538,
+      "network": "ethereum",
+      "tvl_usd": 0.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "susde",
+      "tier": "T3",
+      "apy_pct": 12.0,
+      "risk_adjusted_apy": 6.0,
+      "network": "ethereum",
+      "tvl_usd": 800000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.9
+    },
+    {
+      "protocol": "frax",
+      "tier": "T2",
+      "apy_pct": 7.5,
+      "risk_adjusted_apy": 5.7692,
+      "network": "ethereum",
+      "tvl_usd": 100000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "scrvusd",
+      "tier": "T2",
+      "apy_pct": 7.0,
+      "risk_adjusted_apy": 5.3846,
+      "network": "ethereum",
+      "tvl_usd": 300000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_v3_optimism",
+      "tier": "T1",
+      "apy_pct": 4.8,
+      "risk_adjusted_apy": 4.8,
+      "network": "optimism",
+      "tvl_usd": 400000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "fluid_fusdc",
+      "tier": "T2",
+      "apy_pct": 6.24,
+      "risk_adjusted_apy": 4.8,
+      "network": "ethereum",
+      "tvl_usd": 100000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "sfrax",
+      "tier": "T2",
+      "apy_pct": 6.0,
+      "risk_adjusted_apy": 4.6154,
+      "network": "ethereum",
+      "tvl_usd": 800000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "stusd",
+      "tier": "T2",
+      "apy_pct": 6.0,
+      "risk_adjusted_apy": 4.6154,
+      "network": "ethereum",
+      "tvl_usd": 200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "sdai",
+      "tier": "T2",
+      "apy_pct": 5.5,
+      "risk_adjusted_apy": 4.2308,
+      "network": "ethereum",
+      "tvl_usd": 1200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "extra_finance_base",
+      "tier": "T3",
+      "apy_pct": 8.0,
+      "risk_adjusted_apy": 4.0,
+      "network": "base",
+      "tvl_usd": 50000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.9
+    },
+    {
+      "protocol": "wusdm",
+      "tier": "T2",
+      "apy_pct": 5.0,
+      "risk_adjusted_apy": 3.8462,
+      "network": "ethereum",
+      "tvl_usd": 400000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "maple",
+      "tier": "T2",
+      "apy_pct": 4.9449,
+      "risk_adjusted_apy": 3.8038,
+      "network": "ethereum",
+      "tvl_usd": 200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "morpho_blue_base",
+      "tier": "T2",
+      "apy_pct": 4.657,
+      "risk_adjusted_apy": 3.5823,
+      "network": "base",
+      "tvl_usd": 300000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "morpho_steakhouse",
+      "tier": "T1",
+      "apy_pct": 3.5346,
+      "risk_adjusted_apy": 3.5346,
+      "network": "ethereum",
+      "tvl_usd": 800000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "morpho-blue-steakhouse",
+      "tier": "T1",
+      "apy_pct": 3.5346,
+      "risk_adjusted_apy": 3.5346,
+      "network": "ethereum",
+      "tvl_usd": 0.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "spark_susds",
+      "tier": "T1",
+      "apy_pct": 3.5033,
+      "risk_adjusted_apy": 3.5033,
+      "network": "ethereum",
+      "tvl_usd": 500000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "moonwell_base",
+      "tier": "T2",
+      "apy_pct": 4.4152,
+      "risk_adjusted_apy": 3.3963,
+      "network": "base",
+      "tvl_usd": 150000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "compound_v3",
+      "tier": "T1",
+      "apy_pct": 3.2709,
+      "risk_adjusted_apy": 3.2709,
+      "network": "ethereum",
+      "tvl_usd": 3000000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "aave_v3",
+      "tier": "T1",
+      "apy_pct": 3.1141,
+      "risk_adjusted_apy": 3.1141,
+      "network": "ethereum",
+      "tvl_usd": 12000000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "aave_v3_polygon",
+      "tier": "T1",
+      "apy_pct": 2.8422,
+      "risk_adjusted_apy": 2.8422,
+      "network": "polygon",
+      "tvl_usd": 600000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "morpho_blue",
+      "tier": "T2",
+      "apy_pct": 3.5346,
+      "risk_adjusted_apy": 2.7189,
+      "network": "ethereum",
+      "tvl_usd": 2000000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "yearn_v3",
+      "tier": "T2",
+      "apy_pct": 3.2211,
+      "risk_adjusted_apy": 2.4778,
+      "network": "ethereum",
+      "tvl_usd": 300000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_v3_base",
+      "tier": "T2",
+      "apy_pct": 3.0813,
+      "risk_adjusted_apy": 2.3702,
+      "network": "base",
+      "tvl_usd": 250000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "euler_v2",
+      "tier": "T2",
+      "apy_pct": 2.7844,
+      "risk_adjusted_apy": 2.1418,
+      "network": "ethereum",
+      "tvl_usd": 150000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.5
+    },
+    {
+      "protocol": "aave_arbitrum",
+      "tier": "T1",
+      "apy_pct": 1.984,
+      "risk_adjusted_apy": 1.984,
+      "network": "arbitrum",
+      "tvl_usd": 1200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    },
+    {
+      "protocol": "aave-v3-arbitrum",
+      "tier": "T1",
+      "apy_pct": 1.984,
+      "risk_adjusted_apy": 1.984,
+      "network": "arbitrum",
+      "tvl_usd": 1200000000.0,
+      "last_updated": "2026-06-21T01:23:21.211040+00:00",
+      "risk_score": 0.2
+    }
+  ]
+}
