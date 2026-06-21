@@ -1,0 +1,67 @@
+[
+  {
+    "ts": "2026-06-19T05:06:46.416178+00:00",
+    "position_count": 5,
+    "aggregate": {
+      "cleanest_vault": "USDC-ROF-Vault-CleanRestakingOperatorFee",
+      "worst_restaking_operator_fee_gap_vault": "BAL-ROF-Vault-SevereRestakingOperatorFee",
+      "avg_score": 56.88,
+      "net_negative_count": 1,
+      "position_count": 5
+    },
+    "snapshots": [
+      {
+        "token": "USDC-ROF-Vault-CleanRestakingOperatorFee",
+        "classification": "CLEAN_NET_OF_RESTAKING_OPERATOR_FEE_BASE",
+        "score": 100.0,
+        "recommendation": "TRUST_FEE_STRUCTURE",
+        "flags": [
+          "CLEAN_NET_OF_RESTAKING_OPERATOR_FEE_BASE",
+          "CLEAN_NET_BASE"
+        ]
+      },
+      {
+        "token": "CRV-ROF-Vault-ModerateRestakingOperatorFee",
+        "classification": "MODERATE_FEE_ON_RESTAKING_OPERATOR_FEE_GAP",
+        "score": 67.5,
+        "recommendation": "DEMAND_NET_OF_RESTAKING_OPERATOR_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_RESTAKING_OPERATOR_FEE_GAP",
+          "FEE_ON_RESTAKING_OPERATOR_FEE"
+        ]
+      },
+      {
+        "token": "BAL-ROF-Vault-SevereRestakingOperatorFee",
+        "classification": "SEVERE_FEE_ON_RESTAKING_OPERATOR_FEE_GAP",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_RESTAKING_OPERATOR_FEE",
+        "flags": [
+          "SEVERE_FEE_ON_RESTAKING_OPERATOR_FEE_GAP",
+          "NET_NEGATIVE_AFTER_FEE",
+          "HIGH_RESTAKING_OPERATOR_FEE",
+          "FEE_ON_RESTAKING_OPERATOR_FEE",
+          "FULL_FEE_ON_RESTAKING_OPERATOR_FEE"
+        ]
+      },
+      {
+        "token": "UNI-ROF-Vault-OverrideRestakingOperatorFeeGap",
+        "classification": "MODERATE_FEE_ON_RESTAKING_OPERATOR_FEE_GAP",
+        "score": 60.0,
+        "recommendation": "DEMAND_NET_OF_RESTAKING_OPERATOR_FEE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_RESTAKING_OPERATOR_FEE_GAP",
+          "GAP_FROM_OVERRIDE"
+        ]
+      },
+      {
+        "token": "MYSTERY-Vault-NoData",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_RESTAKING_OPERATOR_FEE",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
