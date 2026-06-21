@@ -1,0 +1,63 @@
+{
+  "paper_days": 12,
+  "paper_start_date": "2026-06-10",
+  "current_equity": 100134.53,
+  "apy_today_pct": 4.8117,
+  "go_live_target_date": "2026-07-15",
+  "days_to_golive": 24,
+  "milestones": [
+    {
+      "id": "backtest_contour_min",
+      "label": "Backtest vs Paper: readable (Spearman \u22657d)",
+      "module": "backtest_vs_paper",
+      "required_days": 7,
+      "current_days": 12,
+      "days_remaining": 0,
+      "eta_date": "2026-06-21",
+      "reached": true
+    },
+    {
+      "id": "honest_metrics_low",
+      "label": "Honest Metrics: LOW_CONFIDENCE (\u22657d)",
+      "module": "honest_metrics",
+      "required_days": 7,
+      "current_days": 12,
+      "days_remaining": 0,
+      "eta_date": "2026-06-21",
+      "reached": true
+    },
+    {
+      "id": "structural_break_min",
+      "label": "Structural Break: sufficient data (\u226512d)",
+      "module": "structural_break",
+      "required_days": 12,
+      "current_days": 12,
+      "days_remaining": 0,
+      "eta_date": "2026-06-21",
+      "reached": true
+    },
+    {
+      "id": "honest_metrics_moderate",
+      "label": "Honest Metrics: MODERATE_CONFIDENCE (\u226530d)",
+      "module": "honest_metrics",
+      "required_days": 30,
+      "current_days": 12,
+      "days_remaining": 18,
+      "eta_date": "2026-07-09",
+      "reached": false
+    },
+    {
+      "id": "honest_metrics_high",
+      "label": "Honest Metrics: HIGH_CONFIDENCE (\u226590d)",
+      "module": "honest_metrics",
+      "required_days": 90,
+      "current_days": 12,
+      "days_remaining": 78,
+      "eta_date": "2026-09-07",
+      "reached": false
+    }
+  ],
+  "summary_verdict": "on_track",
+  "available": true,
+  "generated_at": "2026-06-21T01:23:24.365304+00:00"
+}
