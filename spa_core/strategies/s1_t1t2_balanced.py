@@ -201,6 +201,29 @@ class S1T1T2BalancedStrategy(BaseAnalytics):
             + TARGET_WEIGHTS["compound_v3"]  * compound_apy
         )
 
+    def get_allocation(self) -> Dict[str, float]:
+        """Целевые веса по протоколам (копия TARGET_WEIGHTS)."""
+        return dict(TARGET_WEIGHTS)
+
+    def analyze(self, apy_map: Optional[Dict[str, float]] = None) -> Dict:
+        """Реализация абстрактного контракта BaseAnalytics.analyze().
+
+        Read-only сводка стратегии: идентификатор, целевая аллокация и
+        взвешенный APY на переданных (или дефолтных) данных. Ничего не
+        мутирует и не пишет на диск.
+
+        Args:
+            apy_map: {protocol_key: annual_apy_pct}; None → DEFAULT_APY.
+
+        Returns:
+            dict: strategy_id, allocation, weighted_apy.
+        """
+        return {
+            "strategy_id":  self.strategy_id,
+            "allocation":   self.get_allocation(),
+            "weighted_apy": self.compute_weighted_apy(apy_map or {}),
+        }
+
     @property
     def current_equity(self) -> float:
         """Текущая совокупная стоимость позиций (USD). Не включает cash."""
