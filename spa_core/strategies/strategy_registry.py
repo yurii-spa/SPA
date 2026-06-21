@@ -280,6 +280,20 @@ def _load_builtin_strategies() -> None:
         "spa_core.strategies.s41_amm_stable_yield",      # S41 Base+Op AMM Stable Yield (T2, AMM LP)
         # S45: Mean-Reversion Yield (MP v12.62, 2026-06-21)
         "spa_core.strategies.s45_mean_reversion",        # S45 Mean-Reversion Yield (T2, contrarian deviation tilt)
+        # S46–S50: income-generation batch (2026-06-21)
+        "spa_core.strategies.s46_safe_harbor",           # S46 Stable-Only Safe Harbor (T1, 100% T1, lowest risk)
+        "spa_core.strategies.s47_monthly_income",        # S47 Monthly Income Optimizer (T1, predictability-weighted)
+        "spa_core.strategies.s48_utilization_aware",     # S48 Utilization-Aware (T2, Aave-APY regime proxy)
+        "spa_core.strategies.s49_diversified_max",       # S49 Diversified Maximum (T2, 7 venues, no single >20%)
+        "spa_core.strategies.s50_tournament_champion",   # S50 Tournament Champion (T2, meta — copies leader weights)
+        # S44: Yield Spike Harvester (MP v12.61, 2026-06-21)
+        "spa_core.strategies.s44_spike_harvester",       # S44 Yield Spike Harvester (T3, transient APY-spike concentration)
+        # S51–S55: advanced edge-case strategies (v1.267, 2026-06-21)
+        "spa_core.strategies.s51_protocol_lifecycle",      # S51 Protocol Lifecycle Manager (T1, age-discount + young-cap)
+        "spa_core.strategies.s52_tvl_momentum",            # S52 TVL Momentum (T2, ±5% tilt vs 6m avg TVL)
+        "spa_core.strategies.s53_correlated_risk_reducer", # S53 Correlated Risk Reducer (T2, collapse |corr|>0.9 pairs)
+        "spa_core.strategies.s54_daily_yield_maximizer",   # S54 Daily Yield Maximizer (T2, 80/20 chase of yesterday top-3)
+        "spa_core.strategies.s55_max_sharpe_portfolio",    # S55 Maximum Sharpe Portfolio (T1, optimizer fixed weights, sky-gated)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
