@@ -1,0 +1,12 @@
+[
+  {
+    "ts": "2026-06-21",
+    "severity": "info",
+    "protocol": "Seamless Protocol",
+    "chain": "Base",
+    "event": "protocol_shutdown",
+    "shutdown_date": "2026-06-30",
+    "note": "Seamless Protocol closes June 30, 2026 - confirmed no SPA exposure (no positions, no adapter, no registry entry)",
+    "action_required": false
+  }
+]
