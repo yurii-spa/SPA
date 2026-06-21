@@ -2113,6 +2113,38 @@ body > .main-wrap, #app, .app-container,
     </div>
   </div>
 
+  <!-- BLOCK 5: Basis Trade Opportunities (BTS Phase 4) -->
+  <div class="db-full" id="basis-trade-block" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="db-section" style="margin-bottom:0">⚡ Basis Trade Opportunities</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="basis-stale-badge" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:2px 8px">STALE</span>
+        <button class="refresh-btn" onclick="loadBasisOpportunities()">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="basis-summary-chips" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Asset</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Spot APY %</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Perp Funding %</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Net Spread (bps)</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Edge</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Action</th>
+          </tr>
+        </thead>
+        <tbody id="basis-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#888">No funding rate data yet — BTS feed starting up</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:#EFF6FF;border-left:3px solid #185FA5;border-radius:4px;font-size:11.5px;color:#1e3a5f">
+      ℹ️ <strong>Basis trades are advisory-only.</strong> Delta-neutral: long USDC lending + short perp funding harvest. Data from Hyperliquid perp funding rates. No positions opened automatically.
+    </div>
+  </div>
+
 </div><!-- /tab-strategies -->
 
 
@@ -4315,7 +4347,7 @@ function showTab(id, btn) {
   if (tabEl) { tabEl.classList.add('active'); tabEl.style.display = ''; }
   btn.classList.add('active');
   if (id === 'overview')    loadPerformance();
-  if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); loadOptimizer(); }
+  if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); loadOptimizer(); loadBasisOpportunities(); }
   if (id === 'backtest')    loadBacktest();
   if (id === 'protocols')   loadProtocols();
   if (id === 'risk')        loadRisk();
@@ -5127,6 +5159,58 @@ async function loadStrategies() {
     }).join('');
   } else if (posEl) {
     posEl.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:#aaa">No position data available</td></tr>';
+  }
+}
+
+// ─── Basis Trade Opportunities (BTS Phase 4) ─────────────────────────────────
+async function loadBasisOpportunities() {
+  const tbody = document.getElementById('basis-tbody');
+  const staleBadge = document.getElementById('basis-stale-badge');
+  const chipsEl = document.getElementById('basis-summary-chips');
+  if (!tbody) return;
+
+  let data = null;
+  try {
+    const res = await fetch(dataBase + '/basis_trade_opportunities.json?_=' + Date.now());
+    if (res.ok) data = await res.json();
+  } catch(_) {}
+
+  if (!data || !data.opportunities || data.opportunities.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888">No funding rate data yet — BTS feed starting up</td></tr>';
+    if (staleBadge) staleBadge.style.display = 'none';
+    if (chipsEl) chipsEl.innerHTML = '';
+    return;
+  }
+
+  const isStale = data.stale_feed || (data.generated_at && (Date.now()/1000 - data.generated_at) > 1800);
+  if (staleBadge) staleBadge.style.display = isStale ? 'inline' : 'none';
+
+  const EDGE_COLORS = { EXCELLENT: '#dcfce7', GOOD: '#fef9c3', MARGINAL: '#ffedd5', UNATTRACTIVE: '#f1f5f9' };
+  const EDGE_TEXT   = { EXCELLENT: '#166534', GOOD: '#854d0e', MARGINAL: '#9a3412', UNATTRACTIVE: '#64748b' };
+
+  tbody.innerHTML = data.opportunities.map(o => {
+    const bg = EDGE_COLORS[o.edge_quality] || '#f1f5f9';
+    const fg = EDGE_TEXT[o.edge_quality] || '#64748b';
+    const actionStyle = o.recommended_action === 'ENTER' ? 'color:#166534;font-weight:600' : 'color:#888';
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${o.asset}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${Number(o.spot_yield_pct).toFixed(1)}%</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${Number(o.perp_funding_pct).toFixed(1)}%</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${Math.round(o.net_spread_bps)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:center"><span style="font-size:11px;background:${bg};color:${fg};padding:2px 8px;border-radius:10px">${o.edge_quality}</span></td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:center;${actionStyle}">${o.recommended_action}</td>
+    </tr>`;
+  }).join('');
+
+  if (chipsEl && data.summary) {
+    const s = data.summary;
+    const best = data.opportunities[0];
+    chipsEl.innerHTML = [
+      best ? `<span style="font-size:11px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px">Best: ${best.asset} ${Math.round(best.net_spread_bps)}bps</span>` : '',
+      `<span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:12px">EXCELLENT: ${s.excellent_count || 0}</span>`,
+      `<span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:3px 10px;border-radius:12px">ENTER: ${s.enter_count || 0}</span>`,
+      `<span style="font-size:11px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:12px">Total: ${s.total_analyzed || 0}</span>`,
+    ].join('');
   }
 }
 
