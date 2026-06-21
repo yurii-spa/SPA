@@ -294,6 +294,12 @@ def _load_builtin_strategies() -> None:
         "spa_core.strategies.s53_correlated_risk_reducer", # S53 Correlated Risk Reducer (T2, collapse |corr|>0.9 pairs)
         "spa_core.strategies.s54_daily_yield_maximizer",   # S54 Daily Yield Maximizer (T2, 80/20 chase of yesterday top-3)
         "spa_core.strategies.s55_max_sharpe_portfolio",    # S55 Maximum Sharpe Portfolio (T1, optimizer fixed weights, sky-gated)
+        # S61–S65: final hybrid & meta-strategies (2026-06-21)
+        "spa_core.strategies.s61_hybrid_income_shield",    # S61 Hybrid Income Shield (T1, 50% Sky peg anchor, income-first <1% vol)
+        "spa_core.strategies.s62_yield_ladder_v2",         # S62 Yield Ladder v2 (T1, 3-week FOMO-free ramp, Sky-anchored wait)
+        "spa_core.strategies.s63_anti_correlation",        # S63 Anti-Correlation (T1, decorrelate Aave/Compound→Sky on corr>0.95)
+        "spa_core.strategies.s64_bayesian_updater",        # S64 Bayesian Updater (T2, equal-weight prior, weekly likelihood tilt)
+        "spa_core.strategies.s65_session_champion",        # S65 Session Champion (T2, curated best-of-session, policy-compliant ~4.77%)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
