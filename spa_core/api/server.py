@@ -54,7 +54,7 @@ for _p in [str(_SPA_CORE), str(_PROJECT_ROOT)]:
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from spa_core.api.agent_broadcaster import broadcaster
@@ -819,10 +819,19 @@ def _live_read(filename: str) -> Any:
     return json.loads((_DATA_DIR / filename).read_text(encoding="utf-8"))
 
 
+_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+}
+
+
 @app.get("/api/live/ping", tags=["live"])
 async def live_ping():
     """Health check — if this answers, the Mac mini is online and reachable."""
-    return {"ok": True, "ts": _time.time(), "version": "live-api-v1"}
+    return JSONResponse(
+        {"ok": True, "ts": _time.time(), "version": "live-api-v1"},
+        headers=_NO_CACHE_HEADERS,
+    )
 
 
 @app.get("/api/live/agents", tags=["live"])
@@ -831,14 +840,14 @@ async def live_agents():
     try:
         path = _DATA_DIR / "agent_health.json"
         if not path.exists():
-            return {"status": "no_data", "ts": _time.time()}
+            return JSONResponse({"status": "no_data", "ts": _time.time()}, headers=_NO_CACHE_HEADERS)
         data = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(data, dict):
             data["_fetched_at"] = _time.time()
-            return data
-        return {"data": data, "_fetched_at": _time.time()}
+            return JSONResponse(data, headers=_NO_CACHE_HEADERS)
+        return JSONResponse({"data": data, "_fetched_at": _time.time()}, headers=_NO_CACHE_HEADERS)
     except Exception as e:
-        return {"status": "error", "error": str(e), "ts": _time.time()}
+        return JSONResponse({"status": "error", "error": str(e), "ts": _time.time()}, headers=_NO_CACHE_HEADERS)
 
 
 @app.get("/api/live/portfolio", tags=["live"])
@@ -855,7 +864,7 @@ async def live_portfolio():
             except Exception as e:
                 result[fname[:-5]] = {"_error": str(e)}
     result["_fetched_at"] = _time.time()
-    return result
+    return JSONResponse(result, headers=_NO_CACHE_HEADERS)
 
 
 @app.get("/api/live/system", tags=["live"])
@@ -871,7 +880,7 @@ async def live_system():
             except Exception as e:
                 result[fname[:-5]] = {"_error": str(e)}
     result["_fetched_at"] = _time.time()
-    return result
+    return JSONResponse(result, headers=_NO_CACHE_HEADERS)
 
 
 # Generic read-only passthrough so the existing dashboard can refresh EVERY
@@ -894,7 +903,10 @@ async def live_data_file(filename: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail={"error": "not found"})
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return JSONResponse(
+            json.loads(path.read_text(encoding="utf-8")),
+            headers=_NO_CACHE_HEADERS,
+        )
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=502, detail={"error": f"corrupt json: {e}"})
 
