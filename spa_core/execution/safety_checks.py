@@ -403,8 +403,6 @@ class PreExecutionSafety:
         Returns:
             SafetyCheckResult (blocking=True)
         """
-        global _kill_switch_active
-
         if _kill_switch_active:
             return SafetyCheckResult(
                 passed=False,
