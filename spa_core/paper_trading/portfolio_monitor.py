@@ -525,6 +525,16 @@ class PortfolioMonitor:
 
         # Atomic write
         atomic_save(snapshots, str(snapshots_file))
+
+        # Write portfolio_health.json for agent_health_monitor / system_health_monitor
+        health_file = data_path / "portfolio_health.json"
+        health_payload = {
+            "generated_at": snapshot.get("generated_at"),
+            "health_score": snapshot.get("health_score"),
+            "summary_level": snapshot.get("summary_level"),
+        }
+        atomic_save(health_payload, str(health_file))
+
     def load_latest_snapshot(
         self,
         data_dir: Optional[str] = None,
