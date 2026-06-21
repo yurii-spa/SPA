@@ -3,22 +3,15 @@
 <plist version="1.0">
 <dict>
     <!--
-    L1 PERSISTENT DAEMON — Cloudflare Tunnel (spa → public HTTPS)
-    Бинарник: /usr/local/bin/cloudflared (стандартный путь macOS homebrew)
-    Функция: пробрасывает localhost:8765 через Cloudflare Zero Trust tunnel.
-             Название туннеля: spa (см. ~/.cloudflared/config.yml или
-             cloudflared tunnel list).
-    Установка:
+    L1 PERSISTENT DAEMON — Cloudflare Tunnel (token mode)
+    Token-based auth: run_cloudflared.sh reads CF_TUNNEL_TOKEN_SPA from Keychain.
+    Ingress config lives on Cloudflare edge, no local config.yml needed.
+    Install:
       cp scripts/com.spa.cloudflared.plist ~/Library/LaunchAgents/
       launchctl load ~/Library/LaunchAgents/com.spa.cloudflared.plist
-    Проверка:
+    Verify:
       launchctl list | grep com.spa.cloudflared
-      # Посмотреть tunnel URL в логе:
       tail -f /tmp/spa_cloudflared.log
-    Prereq:
-      cloudflared tunnel login        (один раз)
-      cloudflared tunnel create spa   (один раз)
-      cloudflared tunnel route dns spa <subdomain>.<domain>
     -->
 
     <key>Label</key>
@@ -35,10 +28,7 @@
     <key>WorkingDirectory</key>
     <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 
-    <!-- HOME нужен cloudflared, чтобы найти ~/.cloudflared/{config.yml,
-         credentials, cert.pem}. Без него launchd-контекст не имеет HOME
-         и tunnel падает (exit 19968 / cannot read credentials). PATH —
-         чтобы wrapper нашёл brew-бинарник. -->
+    <!-- HOME needed for Keychain access; PATH for brew-installed binary. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
