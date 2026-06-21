@@ -37,6 +37,9 @@ from .aave_v3_polygon_adapter import AaveV3PolygonAdapter  # MP-593
 from .ethena_susde_adapter import EthenaSusdeAdapter  # MP-1227
 # MP-1227: Fluid Protocol USDC lending T2 adapter (Fluid API + DeFiLlama fallback)
 from .fluid_usdc_adapter import FluidUSDCAdapter  # MP-1227
+# v1.276: Fluid USDC lending on Arbitrum T2 adapter (~4.96% APY, ~$36.6M TVL —
+# higher blended yield than mainnet Compound/Aave, well above $5M floor)
+from .fluid_arbitrum_usdc_adapter import FluidArbitrumUsdcAdapter  # v1.276
 # MP-1227: Usual Protocol USD0++ RWA-backed T2 adapter (Usual API + DeFiLlama fallback)
 from .usual_usd0pp_adapter import UsualUSD0PPAdapter  # MP-1227
 # MP-1250: Pendle PT fixed-rate adapters (T2, DeFiLlama feed + fallback, maturity-aware)
@@ -148,6 +151,7 @@ ADAPTER_REGISTRY = [
     ("aave_v3_polygon",  "T1", AaveV3PolygonAdapter),   # MP-593
     ("ethena_susde",     "T2", EthenaSusdeAdapter),     # MP-1227
     ("fluid_usdc",       "T2", FluidUSDCAdapter),       # MP-1227
+    ("fluid_arbitrum",   "T2", FluidArbitrumUsdcAdapter),  # v1.276 (Arbitrum L2)
     ("usual_usd0pp",     "T2", UsualUSD0PPAdapter),     # MP-1227
     ("pendle_pt_susde",  "T2", PendlePTSusdeAdapter),   # MP-1250
     ("pendle_pt_usdc",   "T2", PendlePTUsdcAdapter),    # MP-1250
@@ -208,6 +212,7 @@ __all__ = [
     "AaveV3PolygonAdapter",   # MP-593
     "EthenaSusdeAdapter",     # MP-1227
     "FluidUSDCAdapter",       # MP-1227
+    "FluidArbitrumUsdcAdapter",  # v1.276 (Fluid USDC on Arbitrum L2)
     "UsualUSD0PPAdapter",     # MP-1227
     "PendlePTSusdeAdapter",   # MP-1250
     "PendlePTUsdcAdapter",    # MP-1250
