@@ -1,0 +1,766 @@
+[
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.4046452
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.471595
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.491749
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.511287
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.530957
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.5504599
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.568758
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781845172.588733
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.285743
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.3286011
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.3462982
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.3657
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.384706
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.401508
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.4192882
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1781924402.43721
+  },
+  {
+    "name": "TestMarket",
+    "utilization_pct": 50.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 50000000.0,
+    "total_supplied_usd": 100000000.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 30.0,
+    "projected_borrow_apr_now_pct": 2.5,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 1.125,
+    "liquidity_buffer_pct": 50.0,
+    "kink_proximity_score": 33.75,
+    "classification": "COMFORTABLE",
+    "grade": "D",
+    "flags": [
+      "STEEP_SECOND_SLOPE",
+      "LARGE_RATE_SHOCK",
+      "AMPLE_HEADROOM"
+    ],
+    "recommendations": [
+      "Comfortable: utilization 50.00% sits a healthy ~30.00 points below the 80.00% kink.",
+      "Large embedded rate shock: crossing the kink would add ~60.00 points of borrow APR up to 100% utilization. Carry can deteriorate quickly if utilization rises.",
+      "Steep second slope: this market's rate model punishes over-utilization aggressively; suppliers benefit from spikes but borrowers (and looped positions) are exposed.",
+      "Ample headroom remains before the kink: borrow-rate stability is favourable for both suppliers and looped borrowers."
+    ],
+    "timestamp": 1781968363.2570229
+  },
+  {
+    "name": "TestMarket",
+    "utilization_pct": 50.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 50000000.0,
+    "total_supplied_usd": 100000000.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 30.0,
+    "projected_borrow_apr_now_pct": 2.5,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 1.125,
+    "liquidity_buffer_pct": 50.0,
+    "kink_proximity_score": 33.75,
+    "classification": "COMFORTABLE",
+    "grade": "D",
+    "flags": [
+      "STEEP_SECOND_SLOPE",
+      "LARGE_RATE_SHOCK",
+      "AMPLE_HEADROOM"
+    ],
+    "recommendations": [
+      "Comfortable: utilization 50.00% sits a healthy ~30.00 points below the 80.00% kink.",
+      "Large embedded rate shock: crossing the kink would add ~60.00 points of borrow APR up to 100% utilization. Carry can deteriorate quickly if utilization rises.",
+      "Steep second slope: this market's rate model punishes over-utilization aggressively; suppliers benefit from spikes but borrowers (and looped positions) are exposed.",
+      "Ample headroom remains before the kink: borrow-rate stability is favourable for both suppliers and looped borrowers."
+    ],
+    "timestamp": 1781968363.644108
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010804.858763
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010804.900668
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010804.9225202
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010804.9444108
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010804.964283
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010804.9847412
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010805.005993
+  },
+  {
+    "name": "UNKNOWN",
+    "utilization_pct": 0.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 0.0,
+    "total_supplied_usd": 0.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 80.0,
+    "projected_borrow_apr_now_pct": 0.0,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 0.0,
+    "liquidity_buffer_pct": 100.0,
+    "kink_proximity_score": 0.0,
+    "classification": "AMPLE_HEADROOM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
+    ],
+    "timestamp": 1782010805.028244
+  }
+]
