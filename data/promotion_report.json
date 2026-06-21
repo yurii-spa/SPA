@@ -1,0 +1,195 @@
+{
+  "generated_at": "2026-06-21T01:23:23.746441+00:00",
+  "source": "promotion_engine",
+  "is_demo": false,
+  "num_decisions": 15,
+  "thresholds": {
+    "PROMOTE_SHARPE": 0.8,
+    "DEMOTE_SHARPE": 0.0,
+    "KILL_DRAWDOWN": -0.1,
+    "KILL_CALMAR": -0.5,
+    "MIN_DAYS": 14
+  },
+  "decisions": [
+    {
+      "strategy_id": "S0",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746343+00:00"
+    },
+    {
+      "strategy_id": "S1",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746353+00:00"
+    },
+    {
+      "strategy_id": "S2",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746358+00:00"
+    },
+    {
+      "strategy_id": "S3",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746362+00:00"
+    },
+    {
+      "strategy_id": "S4",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746364+00:00"
+    },
+    {
+      "strategy_id": "S5",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746367+00:00"
+    },
+    {
+      "strategy_id": "S6",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746369+00:00"
+    },
+    {
+      "strategy_id": "S7",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746371+00:00"
+    },
+    {
+      "strategy_id": "S8",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746374+00:00"
+    },
+    {
+      "strategy_id": "S9",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746377+00:00"
+    },
+    {
+      "strategy_id": "S10",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 5 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 5
+      },
+      "ts": "2026-06-21T01:23:23.746379+00:00"
+    },
+    {
+      "strategy_id": "S22",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 1 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 1
+      },
+      "ts": "2026-06-21T01:23:23.746383+00:00"
+    },
+    {
+      "strategy_id": "S23",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 1 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 1
+      },
+      "ts": "2026-06-21T01:23:23.746386+00:00"
+    },
+    {
+      "strategy_id": "S24",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 1 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 1
+      },
+      "ts": "2026-06-21T01:23:23.746388+00:00"
+    },
+    {
+      "strategy_id": "S25",
+      "action": "hold",
+      "reason": "\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u0430\u043d\u043d\u044b\u0445: 1 \u0434\u043d. < MIN_DAYS=14. \u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u0442\u043b\u043e\u0436\u0435\u043d\u043e.",
+      "metrics": {
+        "sharpe_30d": null,
+        "calmar_30d": null,
+        "max_drawdown_pct": -0.0,
+        "days_active": 1
+      },
+      "ts": "2026-06-21T01:23:23.746391+00:00"
+    }
+  ]
+}
