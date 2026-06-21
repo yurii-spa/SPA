@@ -478,6 +478,30 @@ S25_YIELD_LADDER = StrategyConfig(
 
 # ─── Реестр стратегий ──────────────────────────────────────────────────────────
 
+S_BASIS_FUNDING_HARVEST = StrategyConfig(
+    id="S_BASIS",
+    name="Live Basis Trade (Funding Harvest)",
+    description=(
+        "S_BASIS: Delta-neutral basis trade — long USDC lending cash-carry + "
+        "short ETH/BTC perp on Hyperliquid, harvesting positive funding. "
+        "Live funding via perp_funding_feed. ENTER only when net spread >= 50bps "
+        "(GOOD+) AND funding positive AND perp OI >= $50M. Max 20% portfolio. "
+        "Inactive (0%) when funding negative or stale → capital to T1 safe harbor. "
+        "PAPER SIMULATION ONLY via SBasisStrategy."
+    ),
+    allocations={
+        "usdc_lend_leg":   0.50,
+        "perp_short_leg":  0.50,
+    },
+    tier="T2",
+    target_apy_min=0.0,
+    target_apy_max=24.0,
+    kill_drawdown_pct=0.05,
+    status="active",
+    gate_condition=lambda apy_map: apy_map.get("perp_funding_eth", 0.0) >= 0.0,
+    strategy_class="SBasisStrategy",
+)
+
 STRATEGY_REGISTRY: Dict[str, StrategyConfig] = {
     s.id: s for s in [
         S0_CONSERVATIVE_T1,
@@ -488,13 +512,14 @@ STRATEGY_REGISTRY: Dict[str, StrategyConfig] = {
         S5_RWA_FOCUS,
         S6_AGGRESSIVE_T2,
         S7_DIVERSIFIED_MAX,
-        S8_DELTA_NEUTRAL_SUSDE,  # S8 — Delta-Neutral sUSDe Funding Harvest (MP-157)
-        S9_EMODE_LOOPING,        # S9 — Aave E-Mode USDC Looping (MP-155)
-        S10_PENDLE_YT,           # S10 — Pendle YT Speculation (MP-160)
-        S22_ETHENA_YIELD_MAX,    # S22 — Ethena Yield Maximizer (high-APY expansion)
-        S23_PENDLE_PT_FIXED,     # S23 — Pendle PT Fixed Rate
-        S24_BASE_CHAIN_MAX,      # S24 — Base Chain Maximizer
-        S25_YIELD_LADDER,        # S25 — Yield Ladder barbell
+        S8_DELTA_NEUTRAL_SUSDE,      # S8 — Delta-Neutral sUSDe Funding Harvest (MP-157)
+        S9_EMODE_LOOPING,            # S9 — Aave E-Mode USDC Looping (MP-155)
+        S10_PENDLE_YT,               # S10 — Pendle YT Speculation (MP-160)
+        S22_ETHENA_YIELD_MAX,        # S22 — Ethena Yield Maximizer (high-APY expansion)
+        S23_PENDLE_PT_FIXED,         # S23 — Pendle PT Fixed Rate
+        S24_BASE_CHAIN_MAX,          # S24 — Base Chain Maximizer
+        S25_YIELD_LADDER,            # S25 — Yield Ladder barbell
+        S_BASIS_FUNDING_HARVEST,     # S_BASIS — Live Basis Trade (Funding Harvest)
     ]
 }
 
