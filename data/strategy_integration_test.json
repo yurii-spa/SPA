@@ -1,0 +1,803 @@
+{
+  "generated_at_note": "timestamp omitted (deterministic, offline)",
+  "total_strategies": 44,
+  "passed": 42,
+  "failed": 2,
+  "results": [
+    {
+      "id": "S17",
+      "name": "Polygon Yield",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 5.48,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "warn",
+        "apy_range": "pass"
+      },
+      "warnings": [
+        "top weight aave_v3_polygon=80.0% > 60% (raw strategy, pre-allocator caps)"
+      ]
+    },
+    {
+      "id": "S19",
+      "name": "Balanced L2",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 3.741,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S31",
+      "name": "Bear Market Hedge",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 4.3,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "s1_conservative_lending",
+      "name": "S1 \u2014 Conservative Lending",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 5.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S3",
+      "name": "Aave Arbitrum L2 + Morpho",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 5.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S15",
+      "name": "MultiChain L2 Yield",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 3.409,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S27",
+      "name": "Stablecoin Carry",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 5.0,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "warn",
+        "apy_range": "pass"
+      },
+      "warnings": [
+        "top weight sky_dai=100.0% > 60% (raw strategy, pre-allocator caps)"
+      ]
+    },
+    {
+      "id": "S5",
+      "name": "Pendle PT Enhanced",
+      "tier": "T1",
+      "status": "PASS",
+      "apy": 9.75,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "s8_delta_neutral_susde",
+      "name": "Delta-Neutral sUSDe Funding Harvest",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 12.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S38",
+      "name": "Morpho Max-Allocation",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 3.939,
+      "apy_source": "live",
+      "weight_sum": 0.95,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S41",
+      "name": "Base+Op AMM Stable Yield",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 3.305,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S34",
+      "name": "Arbitrum Yield",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 4.175,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S35",
+      "name": "GMX Stablecoin Carry",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 3.715,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "warn",
+        "apy_range": "pass"
+      },
+      "warnings": [
+        "top weight aave_v3=65.0% > 60% (raw strategy, pre-allocator caps)"
+      ]
+    },
+    {
+      "id": "S36",
+      "name": "Cross-Chain Optimizer",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 4.05,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S37",
+      "name": "Radiant Concentrated",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 4.27,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S39",
+      "name": "Morpho Max+ (cap-raise research)",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 4.084,
+      "apy_source": "live",
+      "weight_sum": 0.95,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S30",
+      "name": "All-Weather DeFi",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 4.4,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S16",
+      "name": "S16 Stablecoin Ladder",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.64,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S45",
+      "name": "Mean-Reversion Yield",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 4.454,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S4",
+      "name": "S4 Conservative Spark+Fluid",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 6.25,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S18",
+      "name": "High Yield T2",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.635,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S23",
+      "name": "Pendle PT Fixed Rate",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.99,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S25",
+      "name": "Yield Ladder",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 7.71,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S28",
+      "name": "Momentum Yield",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.66,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S29",
+      "name": "Barbell Plus",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.82,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S32",
+      "name": "Market Neutral",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.495,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S14",
+      "name": "S14 Arbitrum Radiant Max",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 7.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "s1_t1t2_balanced",
+      "name": "S1 T1+T2 Balanced",
+      "tier": "T2",
+      "status": "FAIL",
+      "apy": 7.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "fail"
+      }
+    },
+    {
+      "id": "s13_multi_chain_arb",
+      "name": "S13 Multi-Chain Yield Arbitrage",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 8.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S21_LOOP",
+      "name": "Aave V3 USDC Recursive Loop",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 7.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "warn",
+        "apy_range": "n/a"
+      },
+      "warnings": [
+        "top weight cash=100.0% > 60% (raw strategy, pre-allocator caps)"
+      ]
+    },
+    {
+      "id": "S26",
+      "name": "Volatility Harvester",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 5.775,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S2",
+      "name": "Pendle PT + Morpho Heavy",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 7.75,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S6",
+      "name": "Max Diversified",
+      "tier": "T2",
+      "status": "FAIL",
+      "apy": 7.75,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "fail"
+      }
+    },
+    {
+      "id": "s2_lp_stable",
+      "name": "S2 \u2014 LP Stablecoin Pairs",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 10.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S20_CRV",
+      "name": "Curve/Convex Yield Optimizer",
+      "tier": "T2",
+      "status": "PASS",
+      "apy": 10.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "warn",
+        "apy_range": "n/a"
+      },
+      "warnings": [
+        "top weight cash=100.0% > 60% (raw strategy, pre-allocator caps)"
+      ]
+    },
+    {
+      "id": "S24",
+      "name": "Base Chain Maximizer",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 4.73,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "s12_base_layer_yield",
+      "name": "S12: Base Layer Yield",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 6.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "s9_emode_looping",
+      "name": "S9 \u2014 Aave E-Mode USDC Looping",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 7.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S22",
+      "name": "Ethena Yield Maximizer",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 7.71,
+      "apy_source": "live",
+      "weight_sum": 1.0,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "pass",
+        "alloc_concentration": "pass",
+        "apy_range": "pass"
+      }
+    },
+    {
+      "id": "S7",
+      "name": "Pendle YT+PT Aggressive",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 13.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S20",
+      "name": "RS-001 Anti-Crisis (Research)",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 18.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "S11",
+      "name": "Hybrid Yield Maximizer",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 17.5,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "warn"
+      },
+      "warnings": [
+        "expected_apy 0.00% outside (0.0,30.0); using registry midpoint"
+      ]
+    },
+    {
+      "id": "s10_pendle_yt",
+      "name": "S10 \u2014 Pendle YT Speculation",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 28.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    },
+    {
+      "id": "s3_yield_loop",
+      "name": "S3 \u2014 Yield Loop (Borrow+Deposit)",
+      "tier": "T3",
+      "status": "PASS",
+      "apy": 20.0,
+      "apy_source": "registry_midpoint",
+      "weight_sum": null,
+      "checks": {
+        "import": "pass",
+        "meta_to_dict": "pass",
+        "meta_apy_sane": "pass",
+        "instantiate": "pass",
+        "alloc_sum": "n/a",
+        "apy_range": "n/a"
+      }
+    }
+  ],
+  "failures": [
+    {
+      "id": "s1_t1t2_balanced",
+      "error": "instantiate: TypeError: Can't instantiate abstract class S1T1T2BalancedStrategy without an implementation for abstract method 'analyze'"
+    },
+    {
+      "id": "S6",
+      "error": "import: AttributeError: module 'spa_core.strategies.s6_max_diversified' has no attribute 's6_max_diversified'"
+    }
+  ]
+}
