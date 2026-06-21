@@ -354,3 +354,42 @@ def make_strategy(capital: float, **config_overrides) -> PendleYTStrategy:
     """
     cfg = PendleYTConfig(**config_overrides) if config_overrides else PendleYTConfig()
     return PendleYTStrategy(capital=capital, config=cfg)
+
+
+# ─── Авто-регистрация в StrategyRegistry ─────────────────────────────────────
+
+def _register_s10() -> None:
+    """Авто-регистрация S10 в spa_core/strategies/strategy_registry.py REGISTRY.
+
+    ADR-021: Pendle YT T3-SPEC — advisory only, позиции не открываются автоматически.
+    """
+    try:
+        from spa_core.strategies.strategy_registry import REGISTRY, StrategyMeta, VALID_TYPES
+        # Pendle YT — leveraged yield speculation; closest valid type is yield_loop
+        if "yt_speculation" not in VALID_TYPES:
+            VALID_TYPES.add("yt_speculation")
+        REGISTRY.register(StrategyMeta(
+            id="s10_pendle_yt",
+            name="S10 — Pendle YT Speculation",
+            type="yt_speculation",
+            risk_tier="T3",
+            target_apy_min=14.0,
+            target_apy_max=42.0,
+            max_drawdown_pct=30.0,
+            description=(
+                "Leveraged yield speculation via Pendle YT tokens (T3, high-risk). "
+                "Entry: current_apy > implied_yield × 1.25 (default 10%). "
+                "Max allocation 30%; YT leverage ≈ 3.5×. "
+                "ADR-021: advisory only — paper trading until Owner approval."
+            ),
+            module="spa_core.strategies.pendle_yt",
+            handler_class="PendleYTStrategy",
+            tags=["pendle", "yt", "speculation", "leverage", "t3", "advisory", "paper_only"],
+            enabled=True,
+        ))
+    except Exception as _exc:
+        import logging
+        logging.getLogger(__name__).warning("S10 auto-registration failed: %s", _exc)
+
+
+_register_s10()
