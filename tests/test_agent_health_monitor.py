@@ -149,6 +149,35 @@ def test_classify_on_demand_and_none():
     assert ahm.classify_agent(None) == ahm.CAT_ON_DEMAND
 
 
+def test_classify_weekly():
+    # Weekday-based schedule → CAT_WEEKLY (Saturday backup, etc.)
+    assert ahm.classify_agent({"StartCalendarInterval": {"Weekday": 6, "Hour": 10}}) == ahm.CAT_WEEKLY
+    assert ahm.classify_agent({"StartCalendarInterval": {"Weekday": 0}}) == ahm.CAT_WEEKLY
+
+
+def test_classify_one_time():
+    # Month + Day = specific date → CAT_ONE_TIME (runs once, no freshness alarm)
+    assert ahm.classify_agent({"StartCalendarInterval": {"Month": 6, "Day": 19, "Hour": 10}}) == ahm.CAT_ONE_TIME
+    assert ahm.classify_agent({"StartCalendarInterval": {"Month": 12, "Day": 31}}) == ahm.CAT_ONE_TIME
+
+
+def test_classify_daily_by_calendar_hour_only():
+    # Hour/Minute only (no Weekday, no Month+Day) → CAT_DAILY
+    assert ahm.classify_agent({"StartCalendarInterval": {"Hour": 8, "Minute": 0}}) == ahm.CAT_DAILY
+    assert ahm.classify_agent({"StartCalendarInterval": {}}) == ahm.CAT_DAILY
+
+
+def test_weekly_threshold_in_map():
+    # CAT_WEEKLY must have a freshness threshold (7 days in minutes)
+    assert ahm.CAT_WEEKLY in ahm._FRESHNESS_THRESHOLD_MIN
+    assert ahm._FRESHNESS_THRESHOLD_MIN[ahm.CAT_WEEKLY] == 7 * 24 * 60
+
+
+def test_one_time_not_in_threshold_map():
+    # CAT_ONE_TIME is excluded from freshness checks — no alarms
+    assert ahm.CAT_ONE_TIME not in ahm._FRESHNESS_THRESHOLD_MIN
+
+
 # ===========================================================================
 # 4. file age + iso helpers
 # ===========================================================================
