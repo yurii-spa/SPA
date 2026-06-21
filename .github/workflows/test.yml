@@ -3,8 +3,20 @@ name: SPA Tests
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'data/**'
+      - '**.md'
+      - 'AUTOPUSH_REPORT_*'
+      - 'scripts/archive/**'
+      - 'scripts/push_*.sh'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'data/**'
+      - '**.md'
+      - 'AUTOPUSH_REPORT_*'
+      - 'scripts/archive/**'
+      - 'scripts/push_*.sh'
   workflow_dispatch:
 
 jobs:
@@ -81,7 +93,7 @@ jobs:
           "
 
       - name: Stdlib contract guard
-        run: python3 scripts/stdlib_contract_guard.py --check
+        run: python3 scripts/stdlib_contract_guard.py
 
       - name: KANBAN health check
         run: python3 scripts/kanban_health.py --check-only
