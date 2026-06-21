@@ -300,6 +300,12 @@ def _load_builtin_strategies() -> None:
         "spa_core.strategies.s63_anti_correlation",        # S63 Anti-Correlation (T1, decorrelate Aave/Compound→Sky on corr>0.95)
         "spa_core.strategies.s64_bayesian_updater",        # S64 Bayesian Updater (T2, equal-weight prior, weekly likelihood tilt)
         "spa_core.strategies.s65_session_champion",        # S65 Session Champion (T2, curated best-of-session, policy-compliant ~4.77%)
+        # S66–S70: multi-factor session-synthesis strategies (2026-06-21)
+        "spa_core.strategies.s66_real_data_optimal",         # S66 Real Data Optimal (T2, optimizer book Aave30/Sky30/Comp20/Morpho20 ~4.48%, weekly drift)
+        "spa_core.strategies.s67_anti_bear",                 # S67 Anti-Bear (T2, inverse of S31 regime signal — self-hedge companion)
+        "spa_core.strategies.s68_temporal_diversification",  # S68 Temporal Diversification (T2, 4 horizon-laddered 25% sleeves ~4.5%)
+        "spa_core.strategies.s69_governance_informed",       # S69 Governance-Informed (T2, ±10% tilt on governance proposals, S0 fallback)
+        "spa_core.strategies.s70_session_best",              # S70 Session Best (T2, curated low-vol Sky30/Morpho20/Aave20/Comp15/Fluid10 ~4.55%)
         # s21_cashflow_research is RESEARCH_ONLY (risk_tier="RESEARCH" not valid) — skipped
     ]
     for module_path in _modules:
