@@ -55,7 +55,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _PROJECT_ROOT / "data"
 _DEFAULT_LAUNCH_AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
 _OUTPUT_FILENAME = "agent_health.json"
-_AUTOPUSH_LOG = "/tmp/spa_autopush.log"
+_AUTOPUSH_LOG = str(_PROJECT_ROOT / "logs" / "auto_push.log")
 
 # ---------------------------------------------------------------------------
 # Status constants (ordered by severity)
@@ -358,7 +358,12 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         health.status = _worst(health.status, WARNING)
 
     # 3) Non-zero last exit status
-    if health.last_exit not in (None, 0):
+    # Skip this check for always-on servers that are currently running (PID != 0):
+    # launchctl retains the previous exit code even after a successful restart, so
+    # -15 (SIGTERM from a clean stop) would produce a false CRITICAL while the
+    # process is alive.
+    _server_alive = cat == CAT_ALWAYS_ON and health.pid != 0
+    if health.last_exit not in (None, 0) and not _server_alive:
         issues.append(f"last_exit={health.last_exit}")
         # always-on server: any nonzero exit means crash → CRITICAL.
         if cat == CAT_ALWAYS_ON:
@@ -507,7 +512,10 @@ def build_report(agents: List[AgentHealth], system_checks: dict,
                  now: datetime) -> dict:
     healthy = sum(1 for a in agents if a.status == OK)
     warning = sum(1 for a in agents if a.status == WARNING)
-    critical = sum(1 for a in agents if a.status == CRITICAL)
+    # agent-level criticals + system-level critical_flags — maintains invariant:
+    # critical_count == 0  ⟺  overall_status != CRITICAL
+    critical = (sum(1 for a in agents if a.status == CRITICAL)
+                + system_checks.get("critical_flags", 0))
 
     overall = _worst(system_status, *[a.status for a in agents]) if agents else system_status
 
