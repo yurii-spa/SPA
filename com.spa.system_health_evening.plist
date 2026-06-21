@@ -23,7 +23,7 @@
     </dict>
 
     <key>RunAtLoad</key>
-    <false/>
+    <true/>
 
     <key>StandardOutPath</key>
     <string>/tmp/spa_system_health_evening.log</string>
