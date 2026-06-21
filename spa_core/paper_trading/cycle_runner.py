@@ -59,6 +59,7 @@ fields on each daily bar. Top-level ``is_demo: false`` / ``source:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import math
@@ -2457,6 +2458,26 @@ def _run_daily_monitors(
 # ─── MP-016: Telegram alerts (fail-safe, advisory — never crash the cycle) ───
 
 
+def _should_send_alert(alert_type: str, content: str) -> bool:
+    """De-duplicate repeat alerts of the same ``alert_type``.
+
+    Returns ``True`` only when *content* differs from the last payload sent
+    for this ``alert_type``. Guards against the daily cycle re-blasting an
+    identical Telegram message every run (a standing red flag or persistent
+    gap would otherwise alert on every cycle). Best-effort: any I/O error
+    falls through to ``True`` so a genuinely new alert is never swallowed.
+    """
+    try:
+        hash_file = Path(f"/tmp/spa_cycle_alert_hash_{alert_type}")
+        new_hash = hashlib.sha1(content.encode("utf-8")).hexdigest()
+        if hash_file.exists() and hash_file.read_text().strip() == new_hash:
+            return False  # identical to the last alert — skip
+        hash_file.write_text(new_hash)
+        return True
+    except Exception:  # noqa: BLE001 — dedup must never block a real alert
+        return True
+
+
 def _run_cycle_alerts(
     data_dir: str | os.PathLike | None = None, *, date: str
 ) -> dict[str, bool]:
@@ -2486,7 +2507,11 @@ def _run_cycle_alerts(
     try:
         report = _read_json(ddir / f"daily_report_{date}.json", None)
         if isinstance(report, dict):
-            sent["daily_summary"] = alert_manager.send_daily_summary(report)
+            content = json.dumps(report, sort_keys=True, default=str)
+            if _should_send_alert("daily_summary", content):
+                sent["daily_summary"] = alert_manager.send_daily_summary(report)
+            else:
+                log.info("daily summary unchanged — alert skipped (dedup)")
     except Exception as exc:  # noqa: BLE001
         log.warning("daily summary alert failed (%s) — cycle continues", exc)
 
@@ -2500,16 +2525,24 @@ def _run_cycle_alerts(
             # Cap the digest at 10 items to stay within Telegram limits.
             if len(flags) > 10:
                 flags = flags[:10]
-            sent["red_flags"] = alert_manager.send_red_flag(flags)
+            content = json.dumps(flags, sort_keys=True, default=str)
+            if _should_send_alert("red_flags", content):
+                sent["red_flags"] = alert_manager.send_red_flag(flags)
+            else:
+                log.info("red flags unchanged — alert skipped (dedup)")
     except Exception as exc:  # noqa: BLE001
         log.warning("red-flag alert failed (%s) — cycle continues", exc)
 
     try:
         gm = _read_json(ddir / "gap_monitor.json", {})
         if isinstance(gm, dict) and gm.get("gap_detected"):
-            sent["gap"] = alert_manager.send_gap_alert(
-                float(gm.get("hours_since_last_entry", 0.0) or 0.0)
-            )
+            hours = float(gm.get("hours_since_last_entry", 0.0) or 0.0)
+            # Dedup on whole-hour buckets so a persistent gap doesn't
+            # re-alert every cycle, but a worsening gap still notifies.
+            if _should_send_alert("gap", f"{hours:.0f}"):
+                sent["gap"] = alert_manager.send_gap_alert(hours)
+            else:
+                log.info("gap unchanged — alert skipped (dedup)")
     except Exception as exc:  # noqa: BLE001
         log.warning("gap alert failed (%s) — cycle continues", exc)
 
