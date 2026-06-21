@@ -1,0 +1,606 @@
+{
+  "last_updated": "2026-06-20T03:00:02.430387+00:00",
+  "digest_count": 30,
+  "history": [
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "morpho_blue"
+      },
+      "generated_at": "2026-06-17T03:00:03.308749+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9204,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 28,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 8,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "yearn_v3"
+      },
+      "generated_at": "2026-06-17T03:00:03.329865+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9204,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 28,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 8,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "euler_v2"
+      },
+      "generated_at": "2026-06-17T03:00:03.350569+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9204,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 28,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 8,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "maple"
+      },
+      "generated_at": "2026-06-17T03:00:03.371420+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9204,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 28,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 8,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "pendle"
+      },
+      "generated_at": "2026-06-17T03:00:03.391965+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9204,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 28,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 8,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "spark_susds"
+      },
+      "generated_at": "2026-06-17T03:00:03.411834+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9204,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 28,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 8,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "aave_v3"
+      },
+      "generated_at": "2026-06-18T03:00:01.998855+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "compound_v3"
+      },
+      "generated_at": "2026-06-18T03:00:02.097932+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "morpho_blue"
+      },
+      "generated_at": "2026-06-18T03:00:02.119903+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "yearn_v3"
+      },
+      "generated_at": "2026-06-18T03:00:02.141118+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "euler_v2"
+      },
+      "generated_at": "2026-06-18T03:00:02.162207+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "maple"
+      },
+      "generated_at": "2026-06-18T03:00:02.184087+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "pendle"
+      },
+      "generated_at": "2026-06-18T03:00:02.204698+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "spark_susds"
+      },
+      "generated_at": "2026-06-18T03:00:02.226372+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9445,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 9,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "aave_v3"
+      },
+      "generated_at": "2026-06-19T04:59:32.358178+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "compound_v3"
+      },
+      "generated_at": "2026-06-19T04:59:32.462369+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "morpho_blue"
+      },
+      "generated_at": "2026-06-19T04:59:32.483663+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "yearn_v3"
+      },
+      "generated_at": "2026-06-19T04:59:32.504064+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "euler_v2"
+      },
+      "generated_at": "2026-06-19T04:59:32.523170+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "maple"
+      },
+      "generated_at": "2026-06-19T04:59:32.542805+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "pendle"
+      },
+      "generated_at": "2026-06-19T04:59:32.560993+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "spark_susds"
+      },
+      "generated_at": "2026-06-19T04:59:32.581828+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9609,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 27,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 1,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "aave_v3"
+      },
+      "generated_at": "2026-06-20T03:00:02.250282+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "compound_v3"
+      },
+      "generated_at": "2026-06-20T03:00:02.321140+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "morpho_blue"
+      },
+      "generated_at": "2026-06-20T03:00:02.339435+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "yearn_v3"
+      },
+      "generated_at": "2026-06-20T03:00:02.357764+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "euler_v2"
+      },
+      "generated_at": "2026-06-20T03:00:02.376096+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "maple"
+      },
+      "generated_at": "2026-06-20T03:00:02.395926+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "pendle"
+      },
+      "generated_at": "2026-06-20T03:00:02.413495+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "cli",
+        "protocol": "spark_susds"
+      },
+      "generated_at": "2026-06-20T03:00:02.430101+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 3.9568,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 26,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 2,
+      "summary_verdict": "on_track"
+    }
+  ]
+}
