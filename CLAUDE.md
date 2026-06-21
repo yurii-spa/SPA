@@ -65,18 +65,23 @@ launchd com.spa.autopush — ❌ НЕ УСТАНОВЛЕН (PYTHON_PATH-загл
 
 Реестр — `ADAPTER_REGISTRY` в `spa_core/adapters/__init__.py`:
 
-| Протокол | Tier | Адаптер | APY (ориент.) |
+| Протокол | Tier | Адаптер | APY (DeFiLlama 2026-06) |
 |---|---|---|---|
-| Aave V3 (Ethereum) | **T1** | `aave_v3.py` | ~3.5% |
-| Compound V3 (Comet USDC) | **T1** | `compound_v3.py` | ~4.8% |
-| Morpho Steakhouse | **T1** | `morpho_steakhouse_adapter.py` | ~6.5% |
-| Morpho Blue | T2 | `morpho_blue.py` | — |
-| Yearn V3 | T2 | `yearn_v3.py` (ERC-4626) | — |
+| Aave V3 (Ethereum) | **T1** | `aave_v3.py` | ~3.1% current, 3.64% mean (range 1.6–12.6%) |
+| Compound V3 (Comet USDC) | **T1** | `compound_v3.py` | ~3.3% base (mean 3.78%, range 2.3–11.7%) |
+| Morpho Steakhouse | **T1** | `morpho_steakhouse_adapter.py` | ~4.6% curated, 6.9% historical mean (range 3.6–9.6%) |
+| Morpho Blue | T2 | `morpho_blue.py` | ~4.65% curated vaults (mean 6.87%, range 3.6–9.6%) |
+| Yearn V3 | T2 | `yearn_v3.py` (ERC-4626) | 4.93% mean (range 1.4–16.1%) |
 | Euler V2 | T2 | `euler_v2.py` (ERC-4626) | — |
 | Maple | T2 | `maple.py` | — |
+| Fluid USDC | T2 | `fluid_adapter.py` | ~6.22% current |
 | Aave V3 Arbitrum | **T1** *(в разработке)* | `aave_v3_arbitrum.py` | ~4.6% |
 | Pendle PT REST | T3-SPEC *(в разработке)* | `pendle_pt_rest.py` | 8–18% |
-| Sky/sUSDS | watch list, **0%** | адаптера нет; `spa_core/data_pipeline/sky_monitor.py` ждёт GSM Pause Delay ≥ 48h | — |
+| Sky/sUSDS | watch list, **0%** | адаптера нет; `spa_core/data_pipeline/sky_monitor.py` ждёт GSM Pause Delay ≥ 48h | 4.20% mean (range 3.6–4.75%, current ~3.6%) |
+
+> **T1 blended realistic yield: 3.5–5%** (не 5–6.5%). Источник — DeFiLlama
+> историч. mean по USDC-пулам (2026-06). Одиночные споты могут спайкать до 12–16%,
+> но устойчивый blended T1/T2 трек ≈ 4% (подтверждено 11-дневным paper-треком, APY 4.11%).
 
 APY/TVL feed: `spa_core/adapters/defillama_feed.py` (DeFiLlama yields API,
 кэш TTL 300 c, конфиг через env в `spa_core/adapters/config.py`).
@@ -310,4 +315,4 @@ python3 push_to_github.py --files /abs/path/a.py /abs/path/b.json --message "msg
 
 ---
 
-*Обновлено: 2026-06-20 (v12.04 — KANBAN sprint обновлён, стратегии S1–S21 (23 файла), LLM_FORBIDDEN_AGENTS+monitoring, ADR_INDEX, audit drift fix).*
+*Обновлено: 2026-06-21 (v12.27 — APY-таблица рекалибрована по DeFiLlama 2026-06: Compound ~3.3%, Morpho ~4.6% curated, Aave ~3.1%; добавлен Fluid; T1 blended 3.5–5%).*
