@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-06-21T00:00:20.869216+00:00",
+  "data_source": "data/historical_apy/ (REAL, 365 days)",
+  "initial_capital_usd": 100000.0,
+  "protocols": [
+    "aave_v3",
+    "compound_v3",
+    "yearn_v3",
+    "sky_susds"
+  ],
+  "note": "S44 vs Static-Diversified control is the same-data, apples-to-apples comparison. S7 is a cross-reference on the Pendle-YT universe it was designed for (different data, labelled as such).",
+  "s44": {
+    "strategy_id": "S44",
+    "backtest_days": 362,
+    "initial_capital_usd": 100000.0,
+    "final_capital_usd": 103533.3,
+    "total_interest_usd": 3533.3,
+    "total_return_pct": 3.5333,
+    "annualised_return_pct": 3.5631,
+    "max_drawdown_pct": 0.0,
+    "spike_days": 11,
+    "normal_days": 351,
+    "spike_interest_usd": 237.26,
+    "normal_interest_usd": 3296.04
+  },
+  "control_static_diversified": {
+    "label": "Static-Diversified control (40/30/20/10, no spike logic)",
+    "final_capital_usd": 103460.27,
+    "total_interest_usd": 3460.27,
+    "total_return_pct": 3.4603,
+    "annualised_return_pct": 3.4894
+  },
+  "s7_reference": {
+    "label": "S7 Pendle YT+PT Aggressive (native harness, Pendle-YT universe)",
+    "universe": "pendle_yt (NOT the real lending data \u2014 cross-reference only)",
+    "annualised_return_pct": 10.9717,
+    "total_return_pct": 10.9717,
+    "final_capital_usd": 110971.7,
+    "sharpe_ratio": 61.4408,
+    "max_drawdown_pct": 0.0
+  },
+  "spike_window_breakdown": {
+    "spike_days": 11,
+    "spike_dates": [
+      "2025-07-17",
+      "2025-07-23",
+      "2025-07-24",
+      "2025-08-01",
+      "2025-11-08",
+      "2026-04-20",
+      "2026-04-21",
+      "2026-04-22",
+      "2026-04-23",
+      "2026-04-24",
+      "2026-04-27"
+    ],
+    "spike_interest_s44_usd": 237.26,
+    "spike_interest_control_usd": 165.55,
+    "spike_edge_usd": 71.71,
+    "calm_interest_s44_usd": 3296.04,
+    "calm_interest_control_usd": 3294.73,
+    "calm_edge_usd": 1.31
+  }
+}
