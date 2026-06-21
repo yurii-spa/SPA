@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-06-21T01:23:24.361617+00:00",
+  "paper_days": 4,
+  "confidence": "INSUFFICIENT — too few paper days",
+  "rank_correlation": {
+    "rho": null,
+    "n": 0,
+    "interpretation": "INSUFFICIENT — too few paper days"
+  },
+  "strategies": [
+    {
+      "name": "S0",
+      "backtest_rank": null,
+      "paper_rank": 1,
+      "backtest_sharpe": null,
+      "paper_pnl_pct": 0.058,
+      "rank_delta": null,
+      "note": "No backtest data"
+    },
+    {
+      "name": "S1",
+      "backtest_rank": null,
+      "paper_rank": 2,
+      "backtest_sharpe": null,
+      "paper_pnl_pct": 0.0525,
+      "rank_delta": null,
+      "note": "No backtest data"
+    },
+    {
+      "name": "S2",
+      "backtest_rank": null,
+      "paper_rank": 4,
+      "backtest_sharpe": null,
+      "paper_pnl_pct": 0.051,
+      "rank_delta": null,
+      "note": "No backtest data"
+    },
+    {
+      "name": "S3",
+      "backtest_rank": null,
+      "paper_rank": 3,
+      "backtest_sharpe": null,
+      "paper_pnl_pct": 0.0514,
+      "rank_delta": null,
+      "note": "No backtest data"
+    },
+    {
+      "name": "S4",
+      "backtest_rank": null,
+      "paper_rank": 5,
+      "backtest_sharpe": null,
+      "paper_pnl_pct": 0.0298,
+      "rank_delta": null,
+      "note": "No backtest data"
+    },
+    {
+      "name": "S5",
+      "backtest_rank": null,
+      "paper_rank": 6,
+      "backtest_sharpe": null,
+      "paper_pnl_pct": 0.0237,
+      "rank_delta": null,
+      "note": "No backtest data"
+    }
+  ],
+  "summary": "4 paper days (need ≥14 for meaningful correlation). Ranking: no matched strategies",
+  "advisory": "Wait for 14+ paper days before trusting rank correlation. Current data directional only."
+}
