@@ -1,0 +1,32 @@
+{
+  "adapters": {
+    "aave_v3": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    },
+    "compound_v3": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    },
+    "morpho_blue": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    },
+    "yearn_v3": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    },
+    "euler_v2": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    },
+    "maple": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    },
+    "pendle": {
+      "hour_key": "2026-06-21T01",
+      "count": 2
+    }
+  }
+}
