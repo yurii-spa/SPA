@@ -2097,6 +2097,36 @@ def run_cycle(
                 _ms_strategies.append(_ms_s19)
             except ImportError:
                 pass
+            # ── BTS: S_BASIS Live Basis Trade (Funding Harvest) ───────────────
+            try:
+                from spa_core.strategies.s_basis import (
+                    STRATEGY_ID as _sbasis_id,
+                    STRATEGY_NAME as _sbasis_name,
+                    TIER as _sbasis_tier,
+                    ALLOCATION as _sbasis_alloc,
+                    TARGET_APY_MIN as _sbasis_apy_min,
+                    TARGET_APY_MAX as _sbasis_apy_max,
+                )
+                _ms_sbasis = _MSStrategyConfig(
+                    id=_sbasis_id,
+                    name=_sbasis_name,
+                    description=(
+                        "S_BASIS Live Basis Trade: long USDC lending + "
+                        "short ETH/BTC perp (funding harvest, max 20%)"
+                    ),
+                    allocations=dict(_sbasis_alloc),
+                    tier=_sbasis_tier,
+                    target_apy_min=_sbasis_apy_min,
+                    target_apy_max=_sbasis_apy_max,
+                    kill_drawdown_pct=0.05,
+                )
+                _ms_strategies.append(_ms_sbasis)
+                log.info("S_BASIS registered in tournament")
+            except ImportError as _sbasis_exc:
+                log.warning(
+                    "S_BASIS unavailable (%s) — tournament continues without it",
+                    _sbasis_exc,
+                )
             _ms_runner = _MultiStrategyRunner(
                 strategies=_ms_strategies, capital=100_000
             )
