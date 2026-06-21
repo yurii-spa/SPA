@@ -1,0 +1,52 @@
+{
+  "sprint": "v12.80",
+  "done_count": 1310,
+  "done_total": 748,
+  "backlog_count": 31,
+  "in_progress_count": 0,
+  "review_count": 0,
+  "completion_pct": 96.0,
+  "recent_done": [
+    {
+      "id": "MP-1607",
+      "title": "DeFiLlama yield research report"
+    },
+    {
+      "id": "WEB-026",
+      "title": "Site: emergency-withdrawal page + trust.astro fixes"
+    },
+    {
+      "id": "WEB-027",
+      "title": "CURRENT_STATE.md honest GoLive update"
+    },
+    {
+      "id": "MP-1608",
+      "title": "APY spike monitor wiring (req MP-1581)"
+    },
+    {
+      "id": "MP-1609",
+      "title": "Governance watcher v2"
+    },
+    {
+      "id": "MP-1610",
+      "title": "Benchmark tracker (alpha vs Aave)"
+    },
+    {
+      "id": "MP-1555",
+      "title": "Ethena sUSDe adapter (req MP-1300) — being built; ethena_sus"
+    },
+    {
+      "id": "MP-1562",
+      "title": "S22-S25 strategies (req MP-1307) — s22/s23/s24 present, s25 "
+    },
+    {
+      "id": "MP-1563",
+      "title": "S26-S30 exotic strategies (req MP-1308) — not yet implemente"
+    },
+    {
+      "id": "SITE-030",
+      "title": "Описать emergency withdrawal процедуру"
+    }
+  ],
+  "generated_at": "2026-06-21T05:05:31.139382+00:00"
+}
