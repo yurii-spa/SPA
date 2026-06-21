@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "start_date": "2026-06-12",
+  "min_days_required": 30,
+  "golive_target": "2026-08-01",
+  "base_capital": 100000.0,
+  "days": [
+    {
+      "date": "2026-06-10",
+      "strategy_id": "S7",
+      "apy_pct": 3.9431,
+      "equity_value": 100226.8,
+      "day_return_pct": 0.010777,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-11",
+      "strategy_id": "S7",
+      "apy_pct": 3.9431,
+      "equity_value": 100237.6,
+      "day_return_pct": 0.010776,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-12",
+      "strategy_id": "S7",
+      "apy_pct": 3.9431,
+      "equity_value": 100248.4,
+      "day_return_pct": 0.010774,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-13",
+      "strategy_id": "S7",
+      "apy_pct": 3.9431,
+      "equity_value": 100259.2,
+      "day_return_pct": 0.010773,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-14",
+      "strategy_id": "S7",
+      "apy_pct": 3.9895,
+      "equity_value": 100010.93,
+      "day_return_pct": 0.01093,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-15",
+      "strategy_id": "S7",
+      "apy_pct": 3.9888,
+      "equity_value": 100021.87,
+      "day_return_pct": 0.010928,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-16",
+      "strategy_id": "S7",
+      "apy_pct": 3.9877,
+      "equity_value": 100032.82,
+      "day_return_pct": 0.010925,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-17",
+      "strategy_id": "S7",
+      "apy_pct": 3.9878,
+      "equity_value": 100043.78,
+      "day_return_pct": 0.010952,
+      "notes": "backfilled from equity_curve_daily \u2014 real paper track"
+    },
+    {
+      "date": "2026-06-18",
+      "strategy_id": "S7",
+      "apy_pct": 3.9819,
+      "equity_value": 100010.91,
+      "day_return_pct": 0.01091,
+      "notes": "auto-recorded by cycle_runner v4.73"
+    },
+    {
+      "date": "2026-06-19",
+      "strategy_id": "S7",
+      "apy_pct": 3.9568,
+      "equity_value": 100021.69,
+      "day_return_pct": 0.010779,
+      "notes": "auto-recorded by cycle_runner v4.73"
+    },
+    {
+      "date": "2026-06-20",
+      "strategy_id": "S7",
+      "apy_pct": 3.943,
+      "equity_value": 100032.5,
+      "day_return_pct": 0.010808,
+      "notes": "auto-recorded by cycle_runner v4.73"
+    },
+    {
+      "date": "2026-06-21",
+      "strategy_id": "S7",
+      "apy_pct": 4.8117,
+      "equity_value": 100134.53,
+      "day_return_pct": 0.101997,
+      "notes": "auto-recorded by cycle_runner v4.73"
+    }
+  ],
+  "strategies": {
+    "S7": {
+      "day_count": 12,
+      "total_apy": 48.4196,
+      "first_date": "2026-06-10",
+      "last_date": "2026-06-21"
+    }
+  }
+}
