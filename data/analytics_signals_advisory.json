@@ -1,0 +1,541 @@
+{
+  "_meta": {
+    "timestamp": "2026-06-21T01:23:22.064948Z",
+    "tier": "B",
+    "ttl_s": 3600,
+    "module_count": 519
+  },
+  "generated_at": "2026-06-21T01:23:22.064951Z",
+  "protocols": {
+    "aave_v3": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "compound_v3": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "morpho_blue": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "yearn_v3": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "euler_v2": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "maple": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "pendle": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "spark_susds": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    }
+  },
+  "signals": {
+    "aave_v3": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "compound_v3": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "morpho_blue": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "yearn_v3": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "euler_v2": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "maple": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "pendle": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    },
+    "spark_susds": {
+      "composite_risk_0_100": 13.84,
+      "risk_multiplier": 1.3616,
+      "confidence": 0.2177,
+      "modules_ok": 113,
+      "top_contributors": [
+        {
+          "module": "restaking_risk_analyzer",
+          "score": 20.0,
+          "weight": 0.4
+        },
+        {
+          "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+          "score": 2.0,
+          "weight": 0.85
+        },
+        {
+          "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        },
+        {
+          "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+          "score": 0.0,
+          "weight": 0.5
+        }
+      ]
+    }
+  }
+}
