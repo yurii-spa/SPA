@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "timestamp": "2026-06-21T21:56:28.297366Z",
+    "tier": "C",
+    "module_count": 180
+  },
+  "generated_at": "2026-06-21T21:56:28.297369Z",
+  "protocols": {
+    "aave_v3": {
+      "modules_ok": 12,
+      "avg_score": 18.75
+    },
+    "compound_v3": {
+      "modules_ok": 12,
+      "avg_score": 18.75
+    },
+    "morpho_blue": {
+      "modules_ok": 12,
+      "avg_score": 18.75
+    }
+  }
+}
