@@ -142,11 +142,19 @@ def _proto_label(key: str) -> str:
 class TelegramBot:
     """Stdlib long-polling Telegram bot. All public methods are fail-safe."""
 
+    # getUpdates failure backoff: when the Bot API is unreachable (502, SSL
+    # handshake/read timeout, connection reset) _api_call returns None and
+    # get_updates returns []. Without a pause run_polling spins and hammers the
+    # API hundreds of times a second. Back off 2**streak seconds, capped.
+    _MAX_BACKOFF_STEP = 6     # 2**6 = 64
+    _MAX_BACKOFF_S = 60
+
     def __init__(self, token: Optional[str] = None, chat_id: Optional[str] = None) -> None:
         self.token = token if token is not None else get_token()
         self.chat_id = chat_id if chat_id is not None else get_chat_id()
         self.api_base = "https://api.telegram.org/bot{}".format(self.token)
         self._offset = self._read_offset()
+        self._fail_streak = 0
 
     # ── Telegram API ──────────────────────────────────────────────────────
 
@@ -209,7 +217,16 @@ class TelegramBot:
         """Long-poll getUpdates with the persisted offset. Advances offset."""
         result = self._api_call("getUpdates", {"offset": self._offset, "timeout": 30})
         if not result or not result.get("ok"):
+            # Transient Telegram outage (502 / SSL / read timeout). Apply capped
+            # exponential backoff so a multi-second outage does not become a
+            # tight retry storm against the Bot API.
+            self._fail_streak = min(self._fail_streak + 1, self._MAX_BACKOFF_STEP)
+            backoff = min(2 ** self._fail_streak, self._MAX_BACKOFF_S)
+            log.warning("getUpdates failed (streak=%d) — backoff %ds",
+                        self._fail_streak, backoff)
+            time.sleep(backoff)
             return []
+        self._fail_streak = 0  # success → reset
         updates = result.get("result") or []
         if updates:
             try:
