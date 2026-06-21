@@ -1525,13 +1525,6 @@
         "added_by": "claude_agent_mp394"
       },
       {
-        "id": "MP-386",
-        "title": "Интеграция S2/S3 в cycle_runner + MultiStrategyRunner",
-        "description": "Добавлен fail-safe блок MP-386 в cycle_runner.py (S2/S3 → StrategyConfig). Создан test_cycle_s2s3_integration.py (42 теста, 42/42 pass).",
-        "status": "done",
-        "mp": "MP-386"
-      },
-      {
         "id": "MP-387",
         "title": "Chain concentration fix: диагностика + снизить ethereum alloc < 70%",
         "description": "Активный warn: CHAIN_LIMIT_WARN ethereum 73-85% > 70% лимита. AaveArbitrumAdapter в ADAPTER_REGISTRY (T1) но capital = 0 в current_positions — нет APY-истории для этого адаптера в data/apy_history.json. Фикс: засеять apy_history для aave_arbitrum из DeFiLlama API (исторические данные), запустить cycle_runner --verbose, убедиться аллокатор назначает вес > 10%. Target: ethereum < 65%, arbitrum > 10%, warnings очищаются.",
@@ -3807,15 +3800,6 @@
         "resolution": "Строго аддитивный read-only/advisory офлайн pure-stdlib модуль spa_core/paper_trading/turnover_analytics.py: дневной one-way turnover_t=0.5·Σ_i|w_i,t−w_i,t-1| из нормализованных весов развёрнутой книги (positions, кэш не входит). Headline: avg/median/max daily turnover (+дата), cumulative, annualized (avg×365), implied_avg_holding_days (1/avg, либо None=buy-and-hold при turnover 0), num_rebalance_days (>REBALANCE_EPS=0.005), most_churned_protocol + доля от общего движения + per_protocol_churn. Verdict: fail(annualized>12.0)/warn(>4.0)/ok. content_fingerprint ПЕРЕИСПОЛЬЗОВАН ИМПОРТОМ из tear_sheet (ноль дублирования). Атомарный персист data/turnover_analytics.json (tmp+os.replace), идемпотентность (без generated_at/history), ротация ≤500. CLI --check(дефолт)/--run/--data-dir, exit 0 always, junk→ERROR stderr без Traceback, --check+--run→конфликт. is_demo честно из источника. 98 тестов (unittest, без pytest, без сети, tempdir), import-гигиена через реальный find_forbidden_imports. Верификация: 98/98 OK; регрессия correlation_analyzer+drawdown_analytics 132/132 OK; lint exit 0; --run ×2 idempotent (md5 b1f2bf6b9a7144c18f8de208bca6ed87 byte-identical), нет *.tmp; junk→exit 0. Реальные данные: num_observations=1, avg_daily_turnover=0.020372, annualized_turnover=7.435843×, verdict=warn, most_churned=compound_v3, is_demo=false."
       },
       {
-        "id": "MP-122",
-        "title": "Dashboard v3.0 Sprint C — benchmark comparison, equity period selector, mobile-responsive nav",
-        "tags": [
-          "ui"
-        ],
-        "priority": "p2",
-        "assignee": "🤖"
-      },
-      {
         "id": "MP-411",
         "title": "Timelock + rate limits исполнения",
         "description": "Timelock 24-48ч на изменения whitelist/policy/fee; ≤X% AUM перемещается за 24ч без дополнительной подписи. Защита от компрометации hot-key.",
@@ -3952,18 +3936,6 @@
         "type": "reporting"
       },
       {
-        "id": "MP-129",
-        "title": "Protocol Onboarding Scorecard (read-only/advisory)",
-        "description": "Structured scorecard for evaluating protocol candidates before onboarding: TVL, audit, age, APY premium, diversification scorers. Weighted composite 0..1. Verdict: APPROVED/CONDITIONAL/REJECTED. Blocking flags (NO_AUDIT). save_scorecard atomic write.",
-        "priority": "P2",
-        "status": "done",
-        "assigned_to": "backend_developer",
-        "model": "sonnet",
-        "type": "analytics",
-        "resolution": "spa_core/paper_trading/protocol_scorecard.py + spa_core/tests/test_protocol_scorecard.py. 72/72 tests OK. STRICTLY READ-ONLY: no capital, no risk/execution/allocator touches. Pure stdlib. Atomic write for save_scorecard. CLI --check/--run/--data-dir. Exit 0 always.",
-        "completed": "2026-06-12"
-      },
-      {
         "id": "MP-139",
         "title": "Structural-Break / Change-Point Detector (read-only/advisory)",
         "description": "CUSUM стандартизованных отклонений → Welch t-test break-point detection. Verdicts: fail/warn/ok. Advisory only.",
@@ -4042,13 +4014,6 @@
           "spa_core/paper_trading/cycle_runner.py",
           "KANBAN.json"
         ]
-      },
-      {
-        "id": "MP-309",
-        "title": "CI-линт LLM FORBIDDEN в L2/L3",
-        "sprint": "v4.59",
-        "status": "done",
-        "completed": "2026-06-12"
       },
       {
         "id": "MP-144",
@@ -4771,39 +4736,6 @@
         "completed_at": "2026-06-12T17:14:21Z"
       },
       {
-        "id": "MP-354",
-        "title": "Pendle PT adapter via REST API (pendle_pt.py) — главный yield unlocker",
-        "description": "Создать spa_core/adapters/pendle_pt.py через api.pendle.finance/core/v1/1/markets REST API. RPC не нужен. PT-sUSDe Sep2026 = 10-12% фиксированный APY. Добавление 25-35% аллокации поднимает weighted APY с 3.2% до 7-9%. Тесты обязательны.",
-        "priority": "P1",
-        "category": "adapters",
-        "status": "backlog",
-        "delivery_status": "not_started",
-        "done_at": "2026-06-12T17:14Z",
-        "done_reason": "Adapter implemented and registered in ADAPTER_REGISTRY (MP-374 audit)"
-      },
-      {
-        "id": "MP-355",
-        "title": "Morpho Blue Steakhouse USDC vault — specific pool вместо generic",
-        "description": "Обновить morpho_blue.py или добавить morpho_steakhouse.py: pool_id=morpho-steakhouse-usdc, curator=Steakhouse Financial. APY 6-7% vs текущий generic ~4.5%. Немедленный +150-200 bps без изменения риск-профиля. Нет блокеров.",
-        "priority": "P1",
-        "category": "adapters",
-        "status": "backlog",
-        "delivery_status": "not_started",
-        "done_at": "2026-06-12T17:14Z",
-        "done_reason": "Adapter implemented and registered in ADAPTER_REGISTRY (MP-374 audit)"
-      },
-      {
-        "id": "MP-356",
-        "title": "Aave V3 Arbitrum USDC adapter — T1 anchor на L2",
-        "description": "Создать spa_core/adapters/aave_v3_arbitrum.py по образцу aave_v3.py (mainnet). DeFiLlama project=aave-v3, chain=Arbitrum. APY 4.8-6.5% vs mainnet 3.2-4.5%. +1.5% APY на T1 уровне. Tier=T1, T1_CAP=0.40. Тесты обязательны.",
-        "priority": "P1",
-        "category": "adapters",
-        "status": "backlog",
-        "delivery_status": "not_started",
-        "done_at": "2026-06-12T17:14Z",
-        "done_reason": "Adapter implemented and registered in ADAPTER_REGISTRY (MP-374 audit)"
-      },
-      {
         "id": "MP-374",
         "title": "QA: GoLiveChecker audit & auto-fixes (v4.69)",
         "description": "Run GoLiveChecker, analyse 26 criteria, apply auto-fixes, create GOLIVE_STATUS_v469.md",
@@ -4852,25 +4784,6 @@
         "description": "scripts/run_tournament_30d.py — симуляция 30 дней с MultiStrategyRunner. 50+ тестов в spa_core/tests/test_tournament_30d.py. Сохраняет data/tournament_30d_results.json.",
         "priority": "medium",
         "status": "done"
-      },
-      {
-        "id": "MP-376",
-        "title": "Spark Protocol sUSDS Adapter (T1)",
-        "status": "done",
-        "description": "spa_core/adapters/spark_susds_adapter.py, 82 tests, adapter_status.json updated"
-      },
-      {
-        "id": "MP-385",
-        "title": "Создать push_v470.sh со всеми файлами волн 12-13",
-        "status": "done",
-        "priority": "high",
-        "completed_at": "2026-06-12T17:27:53Z",
-        "tags": [
-          "push",
-          "scripts",
-          "wave12-13",
-          "v4.70"
-        ]
       },
       {
         "id": "MP-377",
@@ -5657,17 +5570,6 @@
         "notes": "SusdeAdapter (T3, risk 0.62, cap 10%, 168h/7d unstake cooldown, peg-gate 1%). 100 tests. Additive registry + adapter_status.json entry. Pure stdlib, advisory-only."
       },
       {
-        "id": "MP-383",
-        "title": "APY Milestone Daily Log — apy_milestone_tracker.py",
-        "type": "code",
-        "status": "done",
-        "priority": "P2",
-        "sprint": "v4.80",
-        "completed": "2026-06-12",
-        "completed_by": "claude (SPA-V480)",
-        "notes": "ApyMilestoneTracker: 5 milestones (5/7/10/12/15%), daily log, atomic writes (mkstemp+os.replace), dedup by date, rolling avg. 50 tests PASS. Day 0: 10.115% (S7) — L1/L2/L3 reached. data/apy_milestone_log.json initialized. Pure stdlib."
-      },
-      {
         "id": "MP-512",
         "title": "Подключить ApyMilestoneTracker к cycle_runner.py",
         "type": "code",
@@ -5698,31 +5600,6 @@
         "completed": "2026-06-12",
         "completed_by": "claude (SPA-V488)",
         "notes": "WusdmAdapter (T2, risk 0.45, cap 20%, RWA T-bill backed, atomic unwrap, peg-gate 0.5%, default APY 5.0). 100 tests; sfrax/spark/fluid regression 282 green. Additive registry + adapter_status.json entry. Pure stdlib, advisory-only."
-      },
-      {
-        "id": "MP-394",
-        "title": "S5 Multi-Chain Arbitrum strategy",
-        "description": "Создать стратегию S5: мульти-чейн подход с фокусом на Arbitrum L2. Aave V3 Arbitrum (основная позиция) + Radiant (Arbitrum-native) + Morpho Mainnet. Цель: APY > 6%, T1-dominant, gas efficiency advantage via Arbitrum.",
-        "priority": "P2",
-        "category": "strategies",
-        "sprint": "v4.89",
-        "owner": "claude",
-        "tags": [
-          "strategy",
-          "s5",
-          "arbitrum",
-          "multi-chain",
-          "l2"
-        ],
-        "estimate": "2h",
-        "added": "2026-06-12",
-        "depends_on": [
-          "MP-391"
-        ],
-        "wave": "10",
-        "status": "done",
-        "done_at": "2026-06-12",
-        "notes": "Implemented as S14 (S5 slot was taken by s5_pendle_enhanced.py). s14_arbitrum_radiant.py: Aave Arb 45% T1 + Radiant 35% T2 + Morpho 20% T1. APY=6.17%, T1-dominant 65%. 111 tests PASS."
       },
       {
         "id": "MP-562",
@@ -5832,14 +5709,6 @@
         "sprint": "v5.08",
         "completed": "2026-06-13",
         "completed_by": "claude (SPA-V508)"
-      },
-      {
-        "id": "MP-586",
-        "title": "ScenarioSimulator — run_scenario/get_builtin_scenarios(7)/run_all_scenarios/get_simulation_report/save_report; APY/TVL/peg-break shocks; wildcard keys *,T1,T2,T3,mainnet,usdc,l2; risk-limit checks; atomic ring-buffer 90; 161 tests",
-        "status": "done",
-        "sprint": "v5.09",
-        "completed": "2026-06-13",
-        "completed_by": "claude (SPA-V509)"
       },
       {
         "id": "MP-587",
@@ -6377,22 +6246,6 @@
           "analytics",
           "yield",
           "advisory"
-        ]
-      },
-      {
-        "id": "MP-663",
-        "type": "code",
-        "status": "done",
-        "priority": "MEDIUM",
-        "title": "AnalyticsPipeline — unified analytics runner, all MP-637–662 modules wired, cycle_runner integration",
-        "description": "analytics_pipeline.py: loads real data from data/*.json, runs 12 analytics modules (risk/yield/trade), writes data/analytics_report.json ring-buffer 30. cycle_runner._run_analytics_pipeline() added. 61 tests green.",
-        "sprint": "v5.68",
-        "completed": "2026-06-13",
-        "completed_by": "claude (SPA-V568)",
-        "tags": [
-          "analytics",
-          "pipeline",
-          "infrastructure"
         ]
       },
       {
@@ -12665,7 +12518,7 @@
       "notes": "generate_report() added; GOLIVE_PROGRESS_REPORT_20260619.md; 20/20 tests; total 77/100"
     }
   ],
-  "adapter_registry_count": 22,
+  "adapter_registry_count": 33,
   "done_count": 1310,
   "tasks": [
     {
@@ -13012,5 +12865,11 @@
       "sprint": "v10.87-v10.90",
       "done_at": "2026-06-20"
     }
-  ]
+  ],
+  "strategy_count": 65,
+  "adapter_tiers": {
+    "T1": 6,
+    "T2": 25,
+    "T3": 2
+  }
 }
