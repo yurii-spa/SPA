@@ -18,6 +18,7 @@ Two read surfaces, kept deliberately distinct (and individually tested):
 """
 from __future__ import annotations
 
+import gzip
 import json as _json
 import logging
 import time
@@ -82,6 +83,10 @@ class DeFiLlamaFeed:
             )
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 raw = resp.read()
+            # We pin Accept-Encoding: gzip; urllib does NOT auto-decompress, so
+            # decompress when the gzip magic bytes are present (SPA-V398 fix).
+            if raw[:2] == b"\x1f\x8b":
+                raw = gzip.decompress(raw)
             payload = _json.loads(raw.decode("utf-8"))
         except Exception as exc:  # noqa: BLE001 - log and fall back
             logger.warning("DeFiLlama fetch failed: %s", exc)
