@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-21T04:18:18.020121Z",
+  "generated_at": "2026-06-21T05:51:57.620952Z",
   "monitor_version": "1.0",
   "sources": [
     "defillama",
@@ -14,7 +14,7 @@
       "severity": "WARN",
       "message": "APY 18.40% is 2.56x baseline 7.20%",
       "source": "historical_apy",
-      "detected_at": "2026-06-21T04:18:16.131173Z",
+      "detected_at": "2026-06-21T05:51:55.745127Z",
       "evidence": {
         "baseline_apy": 7.2,
         "current_apy": 18.4,
@@ -28,7 +28,7 @@
       "severity": "CRITICAL",
       "message": "APY 24.60% is 4.03x baseline 6.10%",
       "source": "historical_apy",
-      "detected_at": "2026-06-21T04:18:16.131241Z",
+      "detected_at": "2026-06-21T05:51:55.745198Z",
       "evidence": {
         "baseline_apy": 6.1,
         "current_apy": 24.6,
@@ -42,7 +42,7 @@
       "severity": "WARN",
       "message": "Risk-sensitive proposal [treasury]: [SIGPROP] Treasury Management – AERO & Reward Token Conversion Framework",
       "source": "snapshot",
-      "detected_at": "2026-06-21T04:18:16.451648Z",
+      "detected_at": "2026-06-21T05:51:56.068921Z",
       "evidence": {
         "deadline": "2026-06-25T14:57:00Z",
         "grade": "B",
