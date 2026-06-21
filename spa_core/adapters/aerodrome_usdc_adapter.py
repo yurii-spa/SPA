@@ -63,6 +63,24 @@ APY_FALLBACK = 4.5
 T2_CAP_PCT = 20
 
 # ---------------------------------------------------------------------------
+# LP depth-protection floor (ADR-050 — Aerodrome thin-pool finding)
+# ---------------------------------------------------------------------------
+# AMM LP-позиции — это market-making: крупная позиция в тонком пуле двигает
+# цену и режется о slippage на входе/выходе. Lending-позиции достаточно
+# гейтить $5M floor RiskPolicy, но LP-позиции требуют значительно более
+# глубокого пула.
+#
+# Реальный Aerodrome USDC-USDT пул тонкий (~$2M на 2026-06) при APY 8.19%.
+# При портфеле $100k наша max T2-позиция ($20k) = 1% пула $2M — приемлемо.
+# Но при масштабировании до $1M портфеля $200k в пуле $2M = 10% —
+# market-moving. ADR-050 поэтому вводит $20M минимальный TVL floor для LP
+# и кэпит любую позицию в 1% от TVL пула.
+LP_TVL_FLOOR_USD = 20_000_000          # $20M минимальный TVL пула для LP-аллокации
+POOL_DEPTH_MULTIPLE = 20               # пул должен быть ≥ 20× нашей max позиции
+MAX_POOL_PARTICIPATION_PCT = 0.01      # никогда не превышать 1% TVL пула
+DEFAULT_PORTFOLIO_USD = 100_000.0      # виртуальный paper-trading капитал
+
+# ---------------------------------------------------------------------------
 # DeFiLlama API
 # ---------------------------------------------------------------------------
 
@@ -113,6 +131,9 @@ class AerodromeUsdcAdapter(BaseAdapter):
     RISK_SCORE = RISK_SCORE
     APY_FALLBACK = APY_FALLBACK
     T2_CAP_PCT = T2_CAP_PCT
+    LP_TVL_FLOOR_USD = LP_TVL_FLOOR_USD
+    POOL_DEPTH_MULTIPLE = POOL_DEPTH_MULTIPLE
+    MAX_POOL_PARTICIPATION_PCT = MAX_POOL_PARTICIPATION_PCT
 
     PROTOCOL = "aerodrome_base"
     EXIT_LATENCY_HOURS = 0.0  # LP burn same-block
@@ -207,12 +228,17 @@ class AerodromeUsdcAdapter(BaseAdapter):
             )
             return None
         apy = float(best.get("apy", 0.0))
+        tvl = float(best.get("tvlUsd", 0.0) or 0.0)
         logger.info(
             "aerodrome_base: live APY=%.3f%% из пула %s (TVL=%.0f)",
             apy,
             best.get("pool", "?"),
-            best.get("tvlUsd", 0),
+            tvl,
         )
+        # ADR-050: тонкий LP-пул → advisory THIN_POOL warning (не блокирует feed)
+        depth = self.pool_depth_check(tvl)
+        if depth["thin_pool"]:
+            logger.warning("aerodrome_base: %s", depth["warning"])
         return apy
 
     # ------------------------------------------------------------------ #
@@ -232,6 +258,59 @@ class AerodromeUsdcAdapter(BaseAdapter):
 
     def get_apy_pct(self) -> float:
         return self.get_apy()
+
+    # ------------------------------------------------------------------ #
+    # ADR-050: LP depth-protection gate                                    #
+    # ------------------------------------------------------------------ #
+
+    def pool_depth_check(
+        self,
+        pool_tvl_usd: float,
+        portfolio_usd: float = DEFAULT_PORTFOLIO_USD,
+    ) -> dict:
+        """ADR-050 depth-гейт для AMM LP-позиций.
+
+        AMM LP — это market-making: крупная позиция в тонком пуле искажает
+        цену и режется о slippage. Флагает THIN_POOL когда TVL пула ниже
+        $20M LP-floor ИЛИ ниже 20× нашей max T2-позиции, и кэпит позицию в
+        1% TVL пула.
+
+        Никогда не бросает исключений; чисто advisory (read-only).
+        """
+        max_t2_position_usd = (self.T2_CAP_PCT / 100.0) * portfolio_usd
+        depth_floor_required = self.POOL_DEPTH_MULTIPLE * max_t2_position_usd
+        capped_position_usd = min(
+            max_t2_position_usd,
+            self.MAX_POOL_PARTICIPATION_PCT * pool_tvl_usd,
+        )
+        participation_pct = (
+            max_t2_position_usd / pool_tvl_usd if pool_tvl_usd > 0 else float("inf")
+        )
+        thin_pool = (
+            pool_tvl_usd < self.LP_TVL_FLOOR_USD
+            or pool_tvl_usd < depth_floor_required
+        )
+        warning: Optional[str] = None
+        if thin_pool:
+            warning = (
+                f"Aerodrome pool TVL ${pool_tvl_usd / 1e6:.0f}M < "
+                f"${self.LP_TVL_FLOOR_USD / 1e6:.0f}M depth floor. "
+                f"Position limited to 1% of TVL (${capped_position_usd:,.0f})."
+            )
+        return {
+            "flag": "THIN_POOL" if thin_pool else "OK",
+            "thin_pool": thin_pool,
+            "pool_tvl_usd": float(pool_tvl_usd),
+            "lp_tvl_floor_usd": float(self.LP_TVL_FLOOR_USD),
+            "max_position_usd": round(max_t2_position_usd, 2),
+            "depth_floor_required_usd": round(depth_floor_required, 2),
+            "max_pool_participation_pct": (
+                round(participation_pct * 100.0, 4)
+                if participation_pct != float("inf") else None
+            ),
+            "capped_position_usd": round(capped_position_usd, 2),
+            "warning": warning,
+        }
 
     def get_yield_info(self) -> YieldInfo:
         apy_pct = self.get_apy()
@@ -273,6 +352,9 @@ class AerodromeUsdcAdapter(BaseAdapter):
             "apy_fallback_pct": self.APY_FALLBACK,
             "tvl_usd": self.TVL_USD,
             "tvl_floor_ok": self.TVL_USD >= 5_000_000,
+            # ADR-050: LP-позиции требуют $20M floor (market-making depth)
+            "lp_tvl_floor_usd": self.LP_TVL_FLOOR_USD,
+            "lp_tvl_floor_ok": self.TVL_USD >= self.LP_TVL_FLOOR_USD,
             "risk_score": self.RISK_SCORE,
             "t2_cap_pct": self.T2_CAP_PCT,
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,
