@@ -680,8 +680,12 @@ async def get_apy_trends():
     Reads from data/apy_trends.json (written by export_data.py each run).
     """
     try:
-        with open(str(_DATA_DIR / "apy_trends.json")) as f:
-            return json.load(f)
+        return await _aio_read_json(_DATA_DIR / "apy_trends.json")
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {"ok": False, "error": "data_unavailable", "reason": "read_timeout"},
+            status_code=503,
+        )
     except Exception:
         return {"trends": {}, "protocols_tracked": 0}
 
@@ -824,6 +828,34 @@ _NO_CACHE_HEADERS = {
     "Pragma": "no-cache",
 }
 
+_LIVE_READ_TIMEOUT: float = 3.0  # seconds; 503 is returned if exceeded
+
+
+async def _aio_read_json(path: Path, timeout: float = _LIVE_READ_TIMEOUT) -> Any:
+    """
+    Async non-blocking JSON file read with hard timeout.
+
+    Runs path.read_text() in the thread-pool so the asyncio event loop is
+    NEVER blocked by filesystem I/O — critical for high-concurrency /api/live/*
+    handlers where a blocking read would freeze every pending request.
+
+    Raises:
+        asyncio.TimeoutError   — read+parse took longer than `timeout` seconds
+        FileNotFoundError      — file does not exist
+        json.JSONDecodeError   — file is corrupt / not valid JSON
+        OSError                — other filesystem error
+    """
+    text: str = await asyncio.wait_for(
+        asyncio.to_thread(path.read_text, encoding="utf-8"),
+        timeout=timeout,
+    )
+    return json.loads(text)
+
+
+async def _aio_exists(path: Path) -> bool:
+    """Non-blocking path.exists() — runs in thread pool."""
+    return await asyncio.to_thread(path.exists)
+
 
 @app.get("/api/live/ping", tags=["live"])
 async def live_ping():
@@ -837,15 +869,20 @@ async def live_ping():
 @app.get("/api/live/agents", tags=["live"])
 async def live_agents():
     """Live agent heartbeat — reads data/agent_health.json directly."""
+    path = _DATA_DIR / "agent_health.json"
+    if not await _aio_exists(path):
+        return JSONResponse({"status": "no_data", "ts": _time.time()}, headers=_NO_CACHE_HEADERS)
     try:
-        path = _DATA_DIR / "agent_health.json"
-        if not path.exists():
-            return JSONResponse({"status": "no_data", "ts": _time.time()}, headers=_NO_CACHE_HEADERS)
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = await _aio_read_json(path)
         if isinstance(data, dict):
             data["_fetched_at"] = _time.time()
             return JSONResponse(data, headers=_NO_CACHE_HEADERS)
         return JSONResponse({"data": data, "_fetched_at": _time.time()}, headers=_NO_CACHE_HEADERS)
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {"ok": False, "error": "data_unavailable", "reason": "read_timeout", "ts": _time.time()},
+            status_code=503, headers=_NO_CACHE_HEADERS,
+        )
     except Exception as e:
         return JSONResponse({"status": "error", "error": str(e), "ts": _time.time()}, headers=_NO_CACHE_HEADERS)
 
@@ -858,11 +895,14 @@ async def live_portfolio():
                   "equity_curve_daily.json", "current_positions.json",
                   "paper_trading_status.json"]:
         p = _DATA_DIR / fname
-        if p.exists():
-            try:
-                result[fname[:-5]] = json.loads(p.read_text(encoding="utf-8"))
-            except Exception as e:
-                result[fname[:-5]] = {"_error": str(e)}
+        if not await _aio_exists(p):
+            continue
+        try:
+            result[fname[:-5]] = await _aio_read_json(p)
+        except asyncio.TimeoutError:
+            result[fname[:-5]] = {"_error": "read_timeout"}
+        except Exception as e:
+            result[fname[:-5]] = {"_error": str(e)}
     result["_fetched_at"] = _time.time()
     return JSONResponse(result, headers=_NO_CACHE_HEADERS)
 
@@ -874,13 +914,74 @@ async def live_system():
     for fname in ["system_health.json", "telegram_watcher_status.json",
                   "auto_fixer_log.json", "golive_status.json"]:
         p = _DATA_DIR / fname
-        if p.exists():
-            try:
-                result[fname[:-5]] = json.loads(p.read_text(encoding="utf-8"))
-            except Exception as e:
-                result[fname[:-5]] = {"_error": str(e)}
+        if not await _aio_exists(p):
+            continue
+        try:
+            result[fname[:-5]] = await _aio_read_json(p)
+        except asyncio.TimeoutError:
+            result[fname[:-5]] = {"_error": "read_timeout"}
+        except Exception as e:
+            result[fname[:-5]] = {"_error": str(e)}
     result["_fetched_at"] = _time.time()
     return JSONResponse(result, headers=_NO_CACHE_HEADERS)
+
+
+@app.get("/api/live/status", tags=["live"])
+async def live_status():
+    """
+    Live aggregate status — ключевые операционные метрики в одном вызове.
+    Мёрджит paper_trading_status.json, golive_status.json, current_positions.json.
+    Никогда не бросает исключение: отсутствие/повреждение файла → {"_error": ...}.
+    """
+    result: dict[str, Any] = {"_fetched_at": _time.time()}
+    for fname in ["paper_trading_status.json", "golive_status.json",
+                  "current_positions.json"]:
+        p = _DATA_DIR / fname
+        if not await _aio_exists(p):
+            continue
+        try:
+            result[fname[:-5]] = await _aio_read_json(p)
+        except asyncio.TimeoutError:
+            result[fname[:-5]] = {"_error": "read_timeout"}
+        except Exception as e:
+            result[fname[:-5]] = {"_error": str(e)}
+    return JSONResponse(result, headers=_NO_CACHE_HEADERS)
+
+
+@app.get("/api/live/health", tags=["live"])
+async def live_health():
+    """
+    Deep health check — подтверждает что сервер жив и data dir доступна.
+    Всегда 200. {"ok": true/false} + диагностика.
+    """
+    try:
+        data_dir_ok: bool = await asyncio.wait_for(
+            asyncio.to_thread(lambda: _DATA_DIR.exists() and _DATA_DIR.is_dir()),
+            timeout=2.0,
+        )
+    except asyncio.TimeoutError:
+        data_dir_ok = False
+
+    try:
+        json_count: int = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: sum(1 for f in _DATA_DIR.glob("*.json") if f.is_file())
+            ),
+            timeout=2.0,
+        )
+    except asyncio.TimeoutError:
+        json_count = -1
+
+    return JSONResponse(
+        {
+            "ok": data_dir_ok,
+            "ts": _time.time(),
+            "version": "live-api-v1",
+            "data_dir_ok": data_dir_ok,
+            "json_files": json_count,
+        },
+        headers=_NO_CACHE_HEADERS,
+    )
 
 
 # Generic read-only passthrough so the existing dashboard can refresh EVERY
@@ -900,11 +1001,15 @@ async def live_data_file(filename: str):
         path.relative_to(_DATA_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=400, detail={"error": "path escapes data dir"})
-    if not path.exists():
+    if not await _aio_exists(path):
         raise HTTPException(status_code=404, detail={"error": "not found"})
     try:
+        data = await _aio_read_json(path)
+        return JSONResponse(data, headers=_NO_CACHE_HEADERS)
+    except asyncio.TimeoutError:
         return JSONResponse(
-            json.loads(path.read_text(encoding="utf-8")),
+            {"ok": False, "error": "data_unavailable", "reason": "read_timeout"},
+            status_code=503,
             headers=_NO_CACHE_HEADERS,
         )
     except json.JSONDecodeError as e:
