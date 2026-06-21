@@ -3,14 +3,14 @@
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "paper_start_date": "2026-06-10",
-  "last_cycle_ts": "2026-06-20T21:23:06.104513+00:00",
+  "last_cycle_ts": "2026-06-21T01:23:20.828924+00:00",
   "last_cycle_status": "ok",
-  "days_running": 11,
-  "current_equity": 100121.33,
-  "total_return_pct": 0.1213,
-  "daily_return_pct": 0.013215,
-  "apy_today_pct": 4.823,
-  "daily_yield_usd": 13.2296,
+  "days_running": 12,
+  "current_equity": 100134.53,
+  "total_return_pct": 0.1345,
+  "daily_return_pct": 0.013183,
+  "apy_today_pct": 4.8117,
+  "daily_yield_usd": 13.1987,
   "num_adapters_live": 27,
   "current_positions": {
     "compound_v3": 7118.15,
@@ -45,7 +45,7 @@
     "ADR-033 strategy_loop_mode=shadow (advisory-only)",
     "emergency_breakers: status=CLEAR triggered=[]",
     "risk_policy: target trimmed to respect the min-cash buffer (deployed capped at $95,000).",
-    "rebalance T007: |\u0394|=$28,500 > $200 threshold."
+    "no rebalance: |\u0394|=$0 \u2264 $200 threshold."
   ],
   "risk_policy_checked": true,
   "risk_policy_approved": true,
@@ -55,5 +55,5 @@
   "kill_switch_active": false,
   "kill_switch_reason": "all triggers clear",
   "market_regime": "STABLE",
-  "regime_t1_avg_apy": 3.4062
+  "regime_t1_avg_apy": 3.4217
 }
