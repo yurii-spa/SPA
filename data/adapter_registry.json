@@ -1,0 +1,297 @@
+{
+  "version": "1.0",
+  "updated": "2026-06-20T13:15:30Z",
+  "generated_by": "p1_audit_fix",
+  "source": "spa_core/adapters/__init__.py + adapter files",
+  "adapters": {
+    "aave_v3": {
+      "tier": 1,
+      "protocol": "Aave V3",
+      "chain": "ethereum",
+      "fallback_apy": 0.035,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "SPA-V405"
+    },
+    "compound_v3": {
+      "tier": 1,
+      "protocol": "Compound V3 (Comet USDC)",
+      "chain": "ethereum",
+      "fallback_apy": 0.052,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "SPA-V411"
+    },
+    "spark_susds": {
+      "tier": 1,
+      "protocol": "Spark sUSDS",
+      "chain": "ethereum",
+      "fallback_apy": 0.055,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "MP-376"
+    },
+    "morpho_steakhouse": {
+      "tier": 1,
+      "protocol": "Morpho Steakhouse USDC",
+      "chain": "ethereum",
+      "fallback_apy": 0.065,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "CLAUDE.md-T1"
+    },
+    "aave_arbitrum": {
+      "tier": 1,
+      "protocol": "Aave V3 Arbitrum",
+      "chain": "arbitrum",
+      "fallback_apy": 0.041,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "MP-356"
+    },
+    "aave_v3_optimism": {
+      "tier": 1,
+      "protocol": "Aave V3 Optimism",
+      "chain": "optimism",
+      "fallback_apy": 0.048,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "MP-565"
+    },
+    "aave_v3_polygon": {
+      "tier": 1,
+      "protocol": "Aave V3 Polygon (USDC.e)",
+      "chain": "polygon",
+      "fallback_apy": 0.051,
+      "research_only": false,
+      "per_protocol_cap": 0.4,
+      "status": "active",
+      "mp": "MP-593"
+    },
+    "morpho_blue": {
+      "tier": 2,
+      "protocol": "Morpho Blue",
+      "chain": "ethereum",
+      "fallback_apy": 0.041,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": null,
+      "live_apy": 0.041
+    },
+    "yearn_v3": {
+      "tier": 2,
+      "protocol": "Yearn V3",
+      "chain": "ethereum",
+      "fallback_apy": 0.0323,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": null,
+      "live_apy": 0.0323
+    },
+    "euler_v2": {
+      "tier": 2,
+      "protocol": "Euler V2",
+      "chain": "ethereum",
+      "fallback_apy": 0.0275,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": null,
+      "live_apy": 0.0275
+    },
+    "maple": {
+      "tier": 2,
+      "protocol": "Maple Finance",
+      "chain": "ethereum",
+      "fallback_apy": 0.0482,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": null,
+      "live_apy": 0.0482
+    },
+    "pendle": {
+      "tier": 2,
+      "protocol": "Pendle Finance (PT markets)",
+      "chain": "ethereum",
+      "fallback_apy": 0.08,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-201",
+      "note": "Tier dynamic: T2 if TVL>=100M, T3 if >=20M"
+    },
+    "fluid_fusdc": {
+      "tier": 2,
+      "protocol": "Fluid fUSDC",
+      "chain": "ethereum",
+      "fallback_apy": 0.065,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-377"
+    },
+    "sfrax": {
+      "tier": 2,
+      "protocol": "Frax sFRAX",
+      "chain": "ethereum",
+      "fallback_apy": 0.06,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-430"
+    },
+    "wusdm": {
+      "tier": 2,
+      "protocol": "Mountain Protocol wUSDM (RWA T-bill)",
+      "chain": "ethereum",
+      "fallback_apy": 0.05,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-559"
+    },
+    "scrvusd": {
+      "tier": 2,
+      "protocol": "Curve Savings scrvUSD",
+      "chain": "ethereum",
+      "fallback_apy": 0.07,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-560"
+    },
+    "stusd": {
+      "tier": 2,
+      "protocol": "Angle Staked USDA (stUSD)",
+      "chain": "ethereum",
+      "fallback_apy": 0.06,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-561"
+    },
+    "sdai": {
+      "tier": 2,
+      "protocol": "MakerDAO Savings DAI (sDAI)",
+      "chain": "ethereum",
+      "fallback_apy": 0.055,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-562"
+    },
+    "frax": {
+      "tier": 2,
+      "protocol": "Frax FraxLend USDC",
+      "chain": "ethereum",
+      "fallback_apy": 0.075,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-563"
+    },
+    "aave_v3_base": {
+      "tier": 2,
+      "protocol": "Aave V3 Base",
+      "chain": "base",
+      "fallback_apy": 0.045,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-448"
+    },
+    "morpho_blue_base": {
+      "tier": 2,
+      "protocol": "Morpho Blue Base",
+      "chain": "base",
+      "fallback_apy": 0.062,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-450"
+    },
+    "moonwell_base": {
+      "tier": 2,
+      "protocol": "Moonwell Finance Base",
+      "chain": "base",
+      "fallback_apy": 0.055,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "MP-463"
+    },
+    "susde": {
+      "tier": 3,
+      "protocol": "Ethena sUSDe",
+      "chain": "ethereum",
+      "fallback_apy": 0.12,
+      "research_only": false,
+      "per_protocol_cap": 0.1,
+      "status": "active",
+      "mp": "MP-460",
+      "note": "7d unstake cooldown; peg gate"
+    },
+    "extra_finance_base": {
+      "tier": 3,
+      "protocol": "Extra Finance XLend Base",
+      "chain": "base",
+      "fallback_apy": 0.08,
+      "research_only": false,
+      "per_protocol_cap": 0.1,
+      "status": "active",
+      "mp": "MP-510",
+      "note": "ADR-026 Phase 1 \u2014 isolated lending vault"
+    },
+    "fluid_usdc": {
+      "tier": 2,
+      "protocol": "Fluid Protocol USDC",
+      "chain": "ethereum",
+      "fallback_apy": 0.055,
+      "research_only": true,
+      "per_protocol_cap": 0.0,
+      "status": "research",
+      "note": "RESEARCH_ONLY: paper-trading validation required"
+    },
+    "notional_v3": {
+      "tier": 2,
+      "protocol": "Notional V3",
+      "chain": "ethereum",
+      "fallback_apy": 0.05,
+      "research_only": true,
+      "per_protocol_cap": 0.0,
+      "status": "research",
+      "mp": "MP-notional",
+      "note": "RESEARCH_ONLY: paper-trading validation required"
+    },
+    "sky_susds": {
+      "tier": 0,
+      "protocol": "Sky/sUSDS (MakerDAO)",
+      "chain": "ethereum",
+      "fallback_apy": 0.0,
+      "research_only": true,
+      "per_protocol_cap": 0.0,
+      "status": "watchlist",
+      "note": "0% allocation until on-chain GSM Pause Delay >= 48h confirmed"
+    },
+    "pendle_pt": {
+      "tier": 2,
+      "protocol": "Pendle PT REST (fixed-rate)",
+      "chain": "ethereum",
+      "fallback_apy": 0.08,
+      "research_only": false,
+      "per_protocol_cap": 0.2,
+      "status": "in_development",
+      "mp": "T3-SPEC in dev",
+      "note": "pendle_pt_rest.py \u2014 in development; FALLBACK_APY=8.0%"
+    }
+  }
+}
