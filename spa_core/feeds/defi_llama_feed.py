@@ -34,6 +34,7 @@ Both return None — never a fallback value — when data is unavailable.
 """
 from __future__ import annotations
 
+import gzip
 import json as _json
 import logging
 import time
@@ -190,7 +191,12 @@ class DefiLlamaFeed:
             },
         )
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return resp.read()
+            raw = resp.read()
+        # We pin Accept-Encoding: gzip; urllib does NOT auto-decompress, so
+        # decompress when the gzip magic bytes are present (SPA-V398 fix).
+        if raw[:2] == b"\x1f\x8b":
+            raw = gzip.decompress(raw)
+        return raw
 
     def _fetch_with_retry(self, url: str) -> Optional[bytes]:
         """Fetch *url* with exponential backoff and rotating User-Agents.
@@ -394,6 +400,8 @@ class DefiLlamaFeed:
             )
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 raw = resp.read()
+            if raw[:2] == b"\x1f\x8b":
+                raw = gzip.decompress(raw)
             coins = _json.loads(raw.decode("utf-8"))
         except Exception as exc:  # noqa: BLE001
             logger.warning(
