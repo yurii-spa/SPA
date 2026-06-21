@@ -1,0 +1,1370 @@
+[
+  {
+    "ts": 1781968369.783227,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.783676,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "POINTS_SPECULATION"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "POINTS_SPECULATION"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 1,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.784105,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 63.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 63.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 63.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.784522,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.784947,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 34.12,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 34.12,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 1.25,
+      "avg_sustainability_score": 34.12,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 1,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.7853692,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.25,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.785804,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 3.0,
+      "avg_sustainability_score": 51.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.786288,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 17.62,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 17.62,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 1.75,
+      "avg_sustainability_score": 17.62,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 1,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.786765,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 34.12,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 34.12,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 1.5,
+      "avg_sustainability_score": 34.12,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 1,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.787245,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.787725,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 100.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 100.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "avg_real_yield_pct": 19.0,
+      "avg_sustainability_score": 100.0,
+      "fortress_count": 1,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.78823,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.788735,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.789247,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Minimal",
+        "sustainability_score": 26.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Minimal",
+        "sustainability_score": 26.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 5.0,
+      "avg_sustainability_score": 26.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.78979,
+    "source_count": 5,
+    "aggregates": {
+      "source_count": 5,
+      "highest_ranked": {
+        "name": "S0",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "S0",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 5
+    }
+  },
+  {
+    "ts": 1781968369.790318,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "AaveV3",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "AaveV3",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.7908769,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "POINTS_SPECULATION"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "POINTS_SPECULATION"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 1,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.791418,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.791988,
+    "source_count": 3,
+    "aggregates": {
+      "source_count": 3,
+      "highest_ranked": {
+        "name": "S0",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "S0",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 3
+    }
+  },
+  {
+    "ts": 1781968369.7925491,
+    "source_count": 2,
+    "aggregates": {
+      "source_count": 2,
+      "highest_ranked": {
+        "name": "Good",
+        "sustainability_score": 88.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "lowest_ranked": {
+        "name": "Bad",
+        "sustainability_score": 15.0,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 5.25,
+      "avg_sustainability_score": 51.5,
+      "fortress_count": 1,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.793525,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 63.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 63.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 8.0,
+      "avg_sustainability_score": 63.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.794395,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.7952,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 22.5,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 22.5,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 0.0,
+      "avg_sustainability_score": 22.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 1,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.795836,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 5.0,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.7964869,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.797148,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 62.0,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 62.0,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 62.0,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.797804,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 69.5,
+        "label": "SUSTAINABLE"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 69.5,
+        "label": "SUSTAINABLE"
+      },
+      "avg_real_yield_pct": 10.0,
+      "avg_sustainability_score": 69.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.7984982,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.799225,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.800319,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8010309,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.801745,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.802484,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 29.25,
+        "label": "UNSUSTAINABLE"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 29.25,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 10.0,
+      "avg_sustainability_score": 29.25,
+      "fortress_count": 0,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.803214,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 45.3,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 45.3,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 25.0,
+      "avg_sustainability_score": 45.3,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 1,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.8039548,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 2.7,
+      "avg_sustainability_score": 51.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.804872,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8057249,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 37.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 37.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 0.0,
+      "avg_sustainability_score": 37.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8066292,
+    "source_count": 2,
+    "aggregates": {
+      "source_count": 2,
+      "highest_ranked": {
+        "name": "S1",
+        "sustainability_score": 69.5,
+        "label": "SUSTAINABLE"
+      },
+      "lowest_ranked": {
+        "name": "S2",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 8.0,
+      "avg_sustainability_score": 63.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 2
+    }
+  },
+  {
+    "ts": 1781968369.8074582,
+    "source_count": 3,
+    "aggregates": {
+      "source_count": 3,
+      "highest_ranked": {
+        "name": "OK",
+        "sustainability_score": 62.0,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "E1",
+        "sustainability_score": 17.62,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 2.5833,
+      "avg_sustainability_score": 32.41,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 2,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8082821,
+    "source_count": 2,
+    "aggregates": {
+      "source_count": 2,
+      "highest_ranked": {
+        "name": "F1",
+        "sustainability_score": 100.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "lowest_ranked": {
+        "name": "OK",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 11.0,
+      "avg_sustainability_score": 75.75,
+      "fortress_count": 1,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.809098,
+    "source_count": 2,
+    "aggregates": {
+      "source_count": 2,
+      "highest_ranked": {
+        "name": "Good",
+        "sustainability_score": 88.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "lowest_ranked": {
+        "name": "Bad",
+        "sustainability_score": 9.0,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 5.25,
+      "avg_sustainability_score": 48.5,
+      "fortress_count": 1,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.80997,
+    "source_count": 2,
+    "aggregates": {
+      "source_count": 2,
+      "highest_ranked": {
+        "name": "Good",
+        "sustainability_score": 88.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "lowest_ranked": {
+        "name": "Bad",
+        "sustainability_score": 9.0,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 5.25,
+      "avg_sustainability_score": 48.5,
+      "fortress_count": 1,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8108401,
+    "source_count": 3,
+    "aggregates": {
+      "source_count": 3,
+      "highest_ranked": {
+        "name": "P1",
+        "sustainability_score": 57.5,
+        "label": "POINTS_SPECULATION"
+      },
+      "lowest_ranked": {
+        "name": "P1",
+        "sustainability_score": 57.5,
+        "label": "POINTS_SPECULATION"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 2,
+      "real_yield_dominant_count": 3
+    }
+  },
+  {
+    "ts": 1781968369.811727,
+    "source_count": 3,
+    "aggregates": {
+      "source_count": 3,
+      "highest_ranked": {
+        "name": "RY1",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "EM1",
+        "sustainability_score": 34.12,
+        "label": "EMISSION_DEPENDENT"
+      },
+      "avg_real_yield_pct": 3.4167,
+      "avg_sustainability_score": 49.71,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 1,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 2
+    }
+  },
+  {
+    "ts": 1781968369.813128,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.814202,
+    "source_count": 4,
+    "aggregates": {
+      "source_count": 4,
+      "highest_ranked": {
+        "name": "S0",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "S0",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 4
+    }
+  },
+  {
+    "ts": 1781968369.8151739,
+    "source_count": 2,
+    "aggregates": {
+      "source_count": 2,
+      "highest_ranked": {
+        "name": "OK",
+        "sustainability_score": 62.0,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "U1",
+        "sustainability_score": 11.25,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 2.75,
+      "avg_sustainability_score": 36.62,
+      "fortress_count": 0,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8235662,
+    "source_count": 10,
+    "aggregates": {
+      "source_count": 10,
+      "highest_ranked": {
+        "name": "S2",
+        "sustainability_score": 56.0,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "S9",
+        "sustainability_score": 17.4,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 2.2,
+      "avg_sustainability_score": 43.64,
+      "fortress_count": 0,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 2,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 2
+    }
+  },
+  {
+    "ts": 1781968369.824738,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 69.5,
+        "label": "SUSTAINABLE"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 69.5,
+        "label": "SUSTAINABLE"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 69.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.825788,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.826762,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 57.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 57.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8277261,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 100.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 100.0,
+        "label": "FORTRESS_YIELD"
+      },
+      "avg_real_yield_pct": 19.0,
+      "avg_sustainability_score": 100.0,
+      "fortress_count": 1,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.8286872,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 7.2,
+        "label": "UNSUSTAINABLE"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 7.2,
+        "label": "UNSUSTAINABLE"
+      },
+      "avg_real_yield_pct": 0.75,
+      "avg_sustainability_score": 7.2,
+      "fortress_count": 0,
+      "unsustainable_count": 1,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 0
+    }
+  },
+  {
+    "ts": 1781968369.829652,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 66.5,
+        "label": "SUSTAINABLE"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 66.5,
+        "label": "SUSTAINABLE"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 66.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.830637,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 61.0,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 61.0,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 61.0,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.831676,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 51.5,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 51.5,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  },
+  {
+    "ts": 1781968369.832727,
+    "source_count": 1,
+    "aggregates": {
+      "source_count": 1,
+      "highest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 38.0,
+        "label": "TRANSITIONAL"
+      },
+      "lowest_ranked": {
+        "name": "Test-Source",
+        "sustainability_score": 38.0,
+        "label": "TRANSITIONAL"
+      },
+      "avg_real_yield_pct": 4.5,
+      "avg_sustainability_score": 38.0,
+      "fortress_count": 0,
+      "unsustainable_count": 0,
+      "emission_dependent_count": 0,
+      "points_speculation_count": 0,
+      "real_yield_dominant_count": 1
+    }
+  }
+]
