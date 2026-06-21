@@ -23,6 +23,15 @@ Expected APY (fallback feeds):
   Upside: AERO/VELO emissions can push the AMM legs to 6-8%+ when token price
   is strong (Aerodrome USDC-USDT printed ~8% mid-2026), lifting blended APY.
 
+Thin-pool risk flag (ADR-050):
+  The real Aerodrome USDC-USDT pool is thin (~$2M on 2026-06) despite an
+  attractive 8.19% APY. AMM LP is market-making — a large position in a thin
+  pool distorts pricing. Per ADR-050, if the Aerodrome pool TVL is below the
+  $20M LP depth floor, the Aerodrome sleeve is reduced from 15% → 5% (the
+  freed weight renormalizes across the remaining legs). Pass the live pool TVL
+  to get_allocation(aerodrome_tvl_usd=...) to activate the reduction; with no
+  TVL supplied the static 15% spec weight is returned (back-compat).
+
 Rules:
   - stdlib only, read-only / advisory, LLM FORBIDDEN
   - approved=False from RiskPolicy is never overridden
@@ -85,6 +94,15 @@ TARGET_APY_MAX:   float = 8.0   # AERO/VELO emission upside
 RISK_SCORE:       float = 0.30
 MAX_DRAWDOWN_PCT: float = 3.0
 
+# ─── Thin-pool risk flag (ADR-050) ────────────────────────────────────────────
+# Aerodrome USDC-USDT pool is thin (~$2M). AMM LP is market-making → large
+# positions in shallow pools distort pricing. If the live pool TVL is below the
+# $20M LP depth floor, cut the Aerodrome sleeve 15% → 5% and renormalize.
+AERODROME_KEY                  = "aerodrome_base"
+AERODROME_LP_TVL_FLOOR_USD     = 20_000_000.0   # ADR-050 LP depth floor
+AERODROME_FULL_WEIGHT          = 0.15           # normal allocation
+AERODROME_THIN_POOL_WEIGHT     = 0.05           # reduced when pool < $20M
+
 
 def _drop_suspended_and_renorm(
     weights: Dict[str, float],
@@ -111,9 +129,22 @@ class S41AmmStableYield:
     def get_allocation(
         self,
         suspended: Optional[Set[str]] = None,
+        aerodrome_tvl_usd: Optional[float] = None,
     ) -> Dict[str, float]:
-        """Static target weights (sum 1.0). Suspended protocols renormalized out."""
-        return _drop_suspended_and_renorm(WEIGHTS, suspended)
+        """Target weights (sum 1.0). Suspended protocols renormalized out.
+
+        ADR-050 thin-pool flag: when aerodrome_tvl_usd is supplied and below the
+        $20M LP depth floor, the Aerodrome sleeve is cut 15% → 5% before
+        renormalizing (the freed 10% spreads across the remaining legs). With no
+        TVL supplied the static 15% spec weight is used (back-compat).
+        """
+        weights = dict(WEIGHTS)
+        if (
+            aerodrome_tvl_usd is not None
+            and aerodrome_tvl_usd < AERODROME_LP_TVL_FLOOR_USD
+        ):
+            weights[AERODROME_KEY] = AERODROME_THIN_POOL_WEIGHT
+        return _drop_suspended_and_renorm(weights, suspended)
 
     def get_expected_apy(
         self,
