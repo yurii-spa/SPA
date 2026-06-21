@@ -34,7 +34,9 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
+import time as _time
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -179,10 +181,15 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:8765",
         "https://yurii-spa.github.io",
+        # Public dashboard origins (live API via api.earn-defi.com tunnel)
+        "https://earn-defi.com",
+        "https://www.earn-defi.com",
+        "https://app.earn-defi.com",
         # Wildcard for any localhost port (development)
         "http://localhost:*",
     ],
-    allow_origin_regex=r"https?://localhost(:\d+)?",
+    # Allow localhost (any port) and *.earn-defi.com / *.pages.dev preview deploys
+    allow_origin_regex=r"https?://localhost(:\d+)?|https://([a-z0-9-]+\.)?earn-defi\.com|https://[a-z0-9-]+\.pages\.dev",
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -796,6 +803,100 @@ def v1_evidence():
     if equity is not None:
         return {"data": equity, "timestamp": _now(), "source": "equity_curve"}
     return {"error": "evidence file not found", "data": [], "timestamp": _now()}
+
+
+# ─── Live API (low-latency dashboard polling, MP-live-api) ───────────────────
+# Purpose: the public dashboard (earn-defi.com) polls these endpoints every
+# ~15s through the Cloudflare tunnel (api.earn-defi.com) for fresh Mac-mini
+# state, instead of waiting ~60 min for the GitHub-pushed JSON snapshot.
+#
+# Contract for ALL /api/live/* endpoints: read-only, never raise (always return
+# a JSON dict, never a 5xx), always stamp _fetched_at so the client can show
+# data age. A missing/corrupt file degrades to a status field, not an error.
+
+def _live_read(filename: str) -> Any:
+    """Read+parse data/<filename>; raise on missing/corrupt so callers decide."""
+    return json.loads((_DATA_DIR / filename).read_text(encoding="utf-8"))
+
+
+@app.get("/api/live/ping", tags=["live"])
+async def live_ping():
+    """Health check — if this answers, the Mac mini is online and reachable."""
+    return {"ok": True, "ts": _time.time(), "version": "live-api-v1"}
+
+
+@app.get("/api/live/agents", tags=["live"])
+async def live_agents():
+    """Live agent heartbeat — reads data/agent_health.json directly."""
+    try:
+        path = _DATA_DIR / "agent_health.json"
+        if not path.exists():
+            return {"status": "no_data", "ts": _time.time()}
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data["_fetched_at"] = _time.time()
+            return data
+        return {"data": data, "_fetched_at": _time.time()}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "ts": _time.time()}
+
+
+@app.get("/api/live/portfolio", tags=["live"])
+async def live_portfolio():
+    """Live portfolio bundle — merges available portfolio/pnl/equity files."""
+    result: dict[str, Any] = {}
+    for fname in ["portfolio_state.json", "pnl_history.json",
+                  "equity_curve_daily.json", "current_positions.json",
+                  "paper_trading_status.json"]:
+        p = _DATA_DIR / fname
+        if p.exists():
+            try:
+                result[fname[:-5]] = json.loads(p.read_text(encoding="utf-8"))
+            except Exception as e:
+                result[fname[:-5]] = {"_error": str(e)}
+    result["_fetched_at"] = _time.time()
+    return result
+
+
+@app.get("/api/live/system", tags=["live"])
+async def live_system():
+    """Live system-health bundle — merges available health/watcher/log files."""
+    result: dict[str, Any] = {}
+    for fname in ["system_health.json", "telegram_watcher_status.json",
+                  "auto_fixer_log.json", "golive_status.json"]:
+        p = _DATA_DIR / fname
+        if p.exists():
+            try:
+                result[fname[:-5]] = json.loads(p.read_text(encoding="utf-8"))
+            except Exception as e:
+                result[fname[:-5]] = {"_error": str(e)}
+    result["_fetched_at"] = _time.time()
+    return result
+
+
+# Generic read-only passthrough so the existing dashboard can refresh EVERY
+# panel from live data with zero renderer changes: the client simply points its
+# `dataBase` at /api/live/data instead of ./data. Hardened against traversal —
+# only flat *.json basenames that resolve inside _DATA_DIR are served.
+_LIVE_FILE_RE = re.compile(r"^[A-Za-z0-9_.-]+\.json$")
+
+
+@app.get("/api/live/data/{filename}", tags=["live"])
+async def live_data_file(filename: str):
+    """Serve a single data/*.json file verbatim (read-only, traversal-safe)."""
+    if not _LIVE_FILE_RE.match(filename):
+        raise HTTPException(status_code=400, detail={"error": "invalid filename"})
+    path = (_DATA_DIR / filename).resolve()
+    try:
+        path.relative_to(_DATA_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"error": "path escapes data dir"})
+    if not path.exists():
+        raise HTTPException(status_code=404, detail={"error": "not found"})
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=502, detail={"error": f"corrupt json: {e}"})
 
 
 # ─── Dev entrypoint ──────────────────────────────────────────────────────────
