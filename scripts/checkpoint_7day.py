@@ -44,8 +44,9 @@ SHARPE_S7_WARN    = 0.8   # S7 < this → warning
 SHARPE_T2_MIN     = 0.9   # S5 / S6 should reach this
 SHARPE_PROMOTE    = 1.0   # любая стратегия >= this → PROMOTE candidate
 
-# Telegram Keychain key
+# Telegram Keychain keys
 TELEGRAM_KEY      = "TELEGRAM_BOT_TOKEN_SPA"
+TELEGRAM_CHAT_KEY = "TELEGRAM_CHAT_ID_SPA"
 
 # Critical data files that must exist
 CRITICAL_FILES = [
@@ -106,11 +107,18 @@ def get_telegram_chat_id(token: str) -> str | None:
 
 
 def notify_telegram(msg: str) -> bool:
-    """Отправляет уведомление через Telegram, токен из Keychain."""
+    """Отправляет уведомление через Telegram, креды из Keychain.
+
+    chat_id берётся напрямую из Keychain (TELEGRAM_CHAT_ID_SPA). Раньше он
+    выводился из getUpdates, но постоянный long-poll бот (com.spa.bot_commands)
+    выгребает апдейты first → getUpdates почти всегда пуст → chat_id=None →
+    «token/chat_id unavailable» и отчёт не уходил. getUpdates оставлен лишь как
+    best-effort fallback, если ключа в Keychain нет.
+    """
     token = get_keychain(TELEGRAM_KEY)
     if not token:
         return False
-    chat_id = get_telegram_chat_id(token)
+    chat_id = get_keychain(TELEGRAM_CHAT_KEY) or get_telegram_chat_id(token)
     if not chat_id:
         return False
     return send_telegram(token, chat_id, msg)
