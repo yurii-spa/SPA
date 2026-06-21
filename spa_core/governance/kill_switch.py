@@ -33,11 +33,18 @@ log = logging.getLogger("spa.kill_switch")
 
 DRAWDOWN_THRESHOLD_PCT = 15.0   # % просадки от 30-дневного максимума
 RED_FLAGS_THRESHOLD = 5          # количество красных флагов для срабатывания
-SHARPE_THRESHOLD = -1.0          # порог Sharpe ratio
+SHARPE_THRESHOLD = -1.0          # порог Sharpe ratio (нормальный период, ≥60 дней)
 LOOKBACK_DAYS = 30               # окно для drawdown/Sharpe
 MIN_DAYS_FOR_SHARPE = 30         # минимум дней данных, чтобы Sharpe считался надёжным
                                  # сигналом для kill-switch (малая выборка → деление
                                  # на ~0 волатильность даёт артефактный Sharpe)
+
+# Early-period grace: в первые SHARPE_EARLY_PERIOD_DAYS дней трека Sharpe
+# может быть отрицательным из-за малой выборки или раскачки — используем
+# мягкий порог SHARPE_EARLY_THRESHOLD вместо SHARPE_THRESHOLD.
+# Значения читаются из risk_policy.json; ниже — compile-time дефолты.
+SHARPE_EARLY_PERIOD_DAYS = 60   # первые N дней → early period
+SHARPE_EARLY_THRESHOLD = -2.0   # мягкий порог в early period
 
 KILL_SWITCH_ACTIVE_FILENAME = "kill_switch_active.json"
 KILL_SWITCH_STATUS_FILENAME = "kill_switch_status.json"
@@ -50,6 +57,24 @@ _KNOWN_PROTOCOLS = ["aave_v3", "compound_v3", "morpho_blue", "yearn_v3", "euler_
 
 
 # ─── Atomic IO helpers ────────────────────────────────────────────────────────
+
+
+def _load_sharpe_policy(data_dir: Path) -> dict[str, float]:
+    """Читает Sharpe-параметры из data/risk_policy.json; fallback → compile-time дефолты.
+
+    Возвращает dict с ключами:
+        kill_threshold     — нормальный порог (≥ early_period_days)
+        early_period_days  — длина grace-периода (дней)
+        early_threshold    — мягкий порог в early period
+    """
+    policy = _read_json(data_dir / "risk_policy.json", {})
+    if not isinstance(policy, dict):
+        policy = {}
+    return {
+        "kill_threshold": float(policy.get("SHARPE_KILL_THRESHOLD", SHARPE_THRESHOLD)),
+        "early_period_days": float(policy.get("SHARPE_EARLY_PERIOD_DAYS", SHARPE_EARLY_PERIOD_DAYS)),
+        "early_threshold": float(policy.get("SHARPE_EARLY_THRESHOLD", SHARPE_EARLY_THRESHOLD)),
+    }
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
@@ -137,7 +162,15 @@ class KillSwitchChecker:
     # ── Trigger 2: red flags ──────────────────────────────────────────────────
 
     def check_red_flags_trigger(self) -> tuple[bool, str]:
-        """Более RED_FLAGS_THRESHOLD красных флагов в data/red_flags.json.
+        """Более RED_FLAGS_THRESHOLD живых красных флагов в data/red_flags.json.
+
+        Bootstrap/fallback данные игнорируются:
+        - Если doc.fallback_used=true ИЛИ doc.sources=["bootstrap"] →
+          все флаги считаются ненастоящими и kill_switch НЕ срабатывает.
+        - Отдельные флаги с f["bootstrap"]=True также исключаются из счётчика.
+        Поведение настраивается через data/risk_policy.json:
+          RED_FLAGS_IGNORE_BOOTSTRAP (bool, default True)
+          RED_FLAGS_THRESHOLD        (int,  default 5)
 
         Returns
         -------
@@ -151,17 +184,49 @@ class KillSwitchChecker:
         if not isinstance(flags, list):
             return False, "no red_flags list in file"
 
-        count = len(flags)
+        # Читаем параметры из risk_policy.json (с fallback на compile-time defaults)
+        policy = _read_json(self.data_dir / "risk_policy.json", {})
+        if not isinstance(policy, dict):
+            policy = {}
+        ignore_bootstrap: bool = bool(policy.get("RED_FLAGS_IGNORE_BOOTSTRAP", True))
+        threshold: int = int(policy.get("RED_FLAGS_THRESHOLD", RED_FLAGS_THRESHOLD))
 
-        if count > RED_FLAGS_THRESHOLD:
+        if ignore_bootstrap:
+            # Документ-уровень: fallback_used=true или sources=["bootstrap"]
+            # означает, что все данные — дефолты/заглушки, а не живые.
+            doc_fallback = bool(doc.get("fallback_used", False))
+            doc_sources = doc.get("sources", [])
+            doc_is_bootstrap = (
+                isinstance(doc_sources, list) and doc_sources == ["bootstrap"]
+            )
+            if doc_fallback or doc_is_bootstrap:
+                log.warning(
+                    "red_flags: source=bootstrap / fallback_used=%s — "
+                    "ignoring all %d flags for kill_switch (non-live data)",
+                    doc_fallback,
+                    len(flags),
+                )
+                return False, (
+                    f"red_flags: {len(flags)} flags ignored "
+                    f"(fallback_used={doc_fallback}, sources={doc_sources})"
+                )
+
+            # Флаг-уровень: исключаем флаги с явным признаком bootstrap
+            live_flags = [f for f in flags if not f.get("bootstrap", False)]
+        else:
+            live_flags = flags
+
+        count = len(live_flags)
+
+        if count > threshold:
             reason = (
-                f"red_flags count {count} > {RED_FLAGS_THRESHOLD} threshold "
+                f"red_flags count {count} > {threshold} threshold "
                 f"(from {RED_FLAGS_FILENAME})"
             )
             log.warning("KILL SWITCH red_flags trigger: %s", reason)
             return True, reason
 
-        return False, f"red_flags count {count} ≤ {RED_FLAGS_THRESHOLD}"
+        return False, f"red_flags count {count} ≤ {threshold}"
 
     # ── Trigger 3: manual ────────────────────────────────────────────────────
 
@@ -197,7 +262,14 @@ class KillSwitchChecker:
     # ── Trigger 4: Sharpe ────────────────────────────────────────────────────
 
     def check_sharpe_trigger(self) -> tuple[bool, str]:
-        """Sharpe < SHARPE_THRESHOLD за 30 дней из data/analytics_summary.json.
+        """Sharpe < threshold за 30+ дней из data/analytics_summary.json.
+
+        Логика порогов (Variant A + B, ADR-ref risk_policy.json):
+        - rf=0% (стейблкоин портфель): Sharpe рассчитывается в analytics_runner
+          с RISK_FREE_RATE=0.0 — benchmark «держать USDC», не Treasury bills.
+        - Early-period grace: если num_days < SHARPE_EARLY_PERIOD_DAYS (60),
+          используется мягкий порог SHARPE_EARLY_THRESHOLD (-2.0) вместо
+          нормального SHARPE_THRESHOLD (-1.0).
 
         Returns
         -------
@@ -236,15 +308,37 @@ class KillSwitchChecker:
                 f"({num_days:.0f} days < {MIN_DAYS_FOR_SHARPE} required)"
             )
 
-        if sharpe_val < SHARPE_THRESHOLD:
+        # Читаем Sharpe-параметры из risk_policy.json (Variant A+B).
+        sp = _load_sharpe_policy(self.data_dir)
+        kill_threshold = sp["kill_threshold"]
+        early_period_days = sp["early_period_days"]
+        early_threshold = sp["early_threshold"]
+
+        # Определяем применимый порог в зависимости от периода трека.
+        if num_days < early_period_days:
+            effective_threshold = early_threshold
+            period_label = (
+                f"early_period ({num_days:.0f}d < {early_period_days:.0f}d grace, "
+                f"threshold={early_threshold})"
+            )
+        else:
+            effective_threshold = kill_threshold
+            period_label = (
+                f"normal_period ({num_days:.0f}d ≥ {early_period_days:.0f}d, "
+                f"threshold={kill_threshold})"
+            )
+
+        if sharpe_val < effective_threshold:
             reason = (
-                f"sharpe {sharpe_val:.4f} < {SHARPE_THRESHOLD} threshold "
-                f"(from {ANALYTICS_FILENAME}, {num_days} days)"
+                f"sharpe {sharpe_val:.4f} < {effective_threshold} "
+                f"[{period_label}] (from {ANALYTICS_FILENAME})"
             )
             log.warning("KILL SWITCH sharpe trigger: %s", reason)
             return True, reason
 
-        return False, f"sharpe {sharpe_val:.4f} ≥ {SHARPE_THRESHOLD}"
+        return False, (
+            f"sharpe {sharpe_val:.4f} ≥ {effective_threshold} [{period_label}]"
+        )
 
     # ── Main check ────────────────────────────────────────────────────────────
 
