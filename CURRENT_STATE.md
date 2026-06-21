@@ -506,14 +506,73 @@ bash ~/Documents/SPA_Claude/scripts/run_cpa_wave6_pushes.sh   # v10.51–v10.66
 
 ---
 
-## launchd — Активные сервисы
+## Мониторинг — LaunchAgents & Health (2026-06-22)
 
-```
-com.spa.daily_cycle   ✅  python3 -m spa_core.paper_trading.cycle_runner --verbose
-com.spa.httpserver    ✅  http_server.py (port 8765)
-com.spa.cloudflared   ✅  tunnel
-com.spa.autopush      ✅  УСТАНОВЛЕН (2026-06-20, v12.01)
-```
+> Источник истины: `data/agent_health.json` (обновляется каждые 60 мин), `data/cycle_health.json` (каждые 5 мин).
+> Последняя проверка agent_health: **2026-06-21T21:50:18 UTC** — **30 OK / 1 WARN / 0 CRIT** (overall=CRITICAL из-за portfolio_health.score < 70).
+
+### Always-on демоны (persistent PID)
+
+| Агент | PID | exit | Статус | Назначение |
+|-------|-----|------|--------|-----------|
+| com.spa.httpserver | 70647 | 0 | ✅ | HTTP-сервер family fund, port 8765 |
+| com.spa.cloudflared | 49646 | 0 | ✅ | Cloudflare туннель earn-defi.com |
+| com.spa.dashboard | 49761 | 0 | ✅ | Dashboard backend |
+| com.spa.familyfund | 85420 | 0 | ✅ | Family fund HTTP API |
+| com.spa.bot_commands | 8417 | 0 | ✅ | Telegram bot команды |
+| com.spa.apiserver | 29014 | -15 | ✅ | REST API (exit -15 = SIGTERM при рестарте, ожидаемо) |
+
+### Периодические агенты (запуск → выход)
+
+| Агент | Расписание | Лог | Статус | Назначение |
+|-------|-----------|-----|--------|-----------|
+| com.spa.daily_cycle | 08:00 ежедн. | logs/launchd_stdout.log | ✅ OK (last: 2026-06-21 06:00 UTC) | cycle_runner → equity, rebalance, GoLive |
+| com.spa.system_health_morning | 08:00 ежедн. | /tmp/spa_system_health_morning.log | ✅ OK | system_health_check.py |
+| com.spa.daily-paper-report | 09:00 ежедн. | /tmp/spa_daily_paper_report.log | ⚠️ WARNING (лог устарел 1.6д) | daily PDF/JSON report |
+| com.spa.system_health_evening | 20:00 ежедн. | /tmp/spa_system_health_evening.log | ✅ OK | system_health_check.py |
+| com.spa.weekly_backup | Сб 10:00 | /tmp/spa_weekly_backup.log | ✅ OK | backup архив репо |
+| com.spa.autopush | каждые 90 мин | /tmp/spa_autopush.log | ✅ loaded, exit=0 (лог-файл не создан — push не запускался с перезагрузки?) | push_to_github.py очередь |
+| com.spa.agent_health | каждые 60 мин | /tmp/spa_agent_health.log | ✅ OK | audit 31 агента → data/agent_health.json |
+| com.spa.analytics_tier_b | каждые 60 мин | /tmp/spa_analytics_tier_b.log | ✅ OK | advisory analytics (hourly) |
+| com.spa.bts-feed | каждые 15 мин | /tmp/spa_bts_feed.log | ✅ OK | BTS price feed |
+| com.spa.bts-monitor | каждые 15 мин | /tmp/spa_bts_monitor.log | ✅ OK | BTS anomaly monitor |
+| com.spa.governance_watcher | каждые 15 мин | /tmp/spa_governance_watcher.log | ✅ OK | governance proposals |
+| com.spa.telegram_milestone | каждые 60 мин | /tmp/spa_telegram_milestone.log | ✅ OK | milestone alerts |
+| com.spa.cycle_health | каждые 5 мин | /tmp/spa_cycle_health.log | ⚠️ WARNING (market_regime.json stale 16h > 4h) | cycle gap / equity / data freshness |
+| com.spa.cycle_gap_monitor | каждые 5 мин | /tmp/spa_cycle_gap_monitor.log | ✅ OK | gap_monitor.json heartbeat |
+| com.spa.dashboard_watcher | каждые 5 мин | /tmp/spa_dashboard_watcher.log | ✅ OK | dashboard auto-refresh |
+| com.spa.peg_monitor | каждые 5 мин | /tmp/spa_peg_monitor.log | ✅ OK | USDC/USDT depeg |
+| com.spa.portfolio_monitor | каждые 5 мин | /tmp/spa_portfolio_monitor.log | ✅ OK | portfolio_health.json |
+| com.spa.red_flag_monitor | каждые 5 мин | /tmp/spa_red_flag_monitor.log | ✅ OK | red_flag alerts |
+| com.spa.uptime_monitor | каждые 5 мин | /tmp/spa_uptime_monitor.log | ✅ OK | uptime check |
+| com.spa.analytics_tier_c | ежедневно | /tmp/spa_analytics_tier_c.log | ✅ OK | tier-C analytics |
+| com.spa.base_gas_monitor | ежедневно | /tmp/spa_base_gas_monitor.log | ✅ OK | Base chain gas |
+| com.spa.sky_monitor | ежедневно | /tmp/spa_sky_monitor.log | ✅ OK | Sky/sUSDS GSM Pause Delay |
+| com.spa.telegram_daily | ежедневно | /tmp/spa_telegram_daily.log | ✅ OK | daily Telegram summary |
+| com.spa.telegram_weekly | еженедельно | /tmp/spa_telegram_weekly.log | ✅ OK | weekly Telegram report |
+| com.spa.weekly_backup | Сб 10:00 | /tmp/spa_weekly_backup.log | ✅ OK | weekly backup |
+| com.spa.checkpoint-7day | разовый | — | ✅ OK | 7-day milestone check |
+
+**Итого загружено:** 31 агент (**30 OK / 1 WARN / 0 CRIT** на 2026-06-21 21:50 UTC)
+
+### Health Metrics — сейчас (2026-06-22)
+
+| Метрика | Значение | Статус |
+|---------|----------|--------|
+| cycle_runner последний | 2026-06-21T06:00:02 UTC (22ч назад) | ✅ OK (порог 26ч) |
+| last_cycle_status | ok | ✅ |
+| equity | $100,136.10 (+0.015% от пред.) | ✅ растёт |
+| kill_switch | CLEAR (drawdown < 5%) | ✅ |
+| golive | 27/29 PASS — NOT READY | ⏳ 2 блокера (time-gated 12/30 дней, target 2026-07-09) |
+| cycle_health overall | WARNING | ⚠️ market_regime.json stale 16h |
+| agent_health overall | CRITICAL | ⚠️ portfolio_health.score = null (структура); 1 WARNING агент |
+
+### Известные проблемы (не-инциденты)
+
+1. **`/tmp/spa_autopush.log` отсутствует** — autopush загружен (exit=0), но лог-файл не создан. Вероятно не запускался с последней перезагрузки. Следующий прогон через <90 мин создаст файл.
+2. **`portfolio_health.json` — null поля** (ts/score/status) — portfolio_monitor.py пишет другую структуру, agent_health читает старые ключи → CRITICAL overall ложный.
+3. **`com.spa.daily-paper-report` WARNING** — лог устарел 1.6 дня. Агент загружен (exit=0), расписание 09:00. Возможно, скрипт выходит без записи в лог.
+4. **`market_regime.json` stale** — порог 4ч агрессивный. Обновляется только при запуске cycle_runner (08:00).
 
 ---
 
