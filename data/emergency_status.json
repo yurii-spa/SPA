@@ -1,0 +1,52 @@
+{
+  "status": "CLEAR",
+  "triggered": [],
+  "checks": {
+    "eb01": {
+      "id": "EB-01",
+      "name": "Protocol Exploit Alert",
+      "threshold": 100.0,
+      "status": "PASS",
+      "verdict": "CLEAR",
+      "message": "all APYs below 100.0% threshold"
+    },
+    "eb02": {
+      "id": "EB-02",
+      "name": "Oracle Divergence Cascade",
+      "threshold_bps": 500.0,
+      "min_adapters": 3,
+      "status": "PASS",
+      "verdict": "CLEAR",
+      "diverged_count": 0,
+      "message": "0 adapter(s) diverged (need \u2265 3 for cascade)"
+    },
+    "eb03": {
+      "id": "EB-03",
+      "name": "Gas Crisis",
+      "threshold": 50.0,
+      "status": "SKIP",
+      "verdict": "CLEAR",
+      "value": 0.0,
+      "message": "gas_gwei not provided (0) \u2014 skipped"
+    },
+    "eb04": {
+      "id": "EB-04",
+      "name": "Equity Flash Crash",
+      "threshold": 15.0,
+      "status": "PASS",
+      "verdict": "CLEAR",
+      "prev_eq": 100108.1,
+      "curr_eq": 100121.33,
+      "drop_pct": 0.0,
+      "message": "equity drop 0.00% within threshold"
+    },
+    "eb05": {
+      "id": "EB-05",
+      "name": "Data Corruption",
+      "status": "PASS",
+      "verdict": "CLEAR",
+      "message": "no data corruption detected in 31 bars"
+    }
+  },
+  "checked_at": "2026-06-21T01:23:23.331015+00:00"
+}
