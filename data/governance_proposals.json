@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-21T04:22:22Z",
+  "generated_at": "2026-06-21T05:52:37Z",
   "watcher_version": "1.1",
   "sources": [
     "snapshot"
@@ -10,7 +10,7 @@
   "tally_ok": false,
   "snapshot_spaces_ok": 8,
   "snapshot_spaces_failed": 0,
-  "last_live_fetch": "2026-06-21T04:22:22Z",
+  "last_live_fetch": "2026-06-21T05:52:37Z",
   "last_error": null,
   "proposals": [
     {
@@ -27,7 +27,7 @@
       "votes_for": 48284922.382560454,
       "votes_against": 17.066436626427944,
       "quorum_met": true,
-      "detected_at": "2026-06-21T04:22:21Z"
+      "detected_at": "2026-06-21T05:52:36Z"
     },
     {
       "id": "snapshot:0x7b07bc31f0b38b69a117473031bc126becc70b9fa37246b53d9fe5a841c814f5",
@@ -43,7 +43,7 @@
       "votes_for": 48284939.44899708,
       "votes_against": 0.0,
       "quorum_met": true,
-      "detected_at": "2026-06-21T04:22:21Z"
+      "detected_at": "2026-06-21T05:52:36Z"
     },
     {
       "id": "snapshot:0x3e74af3eb9119c60616c93d1ecccc3bcbd1af27e3895f2e354217872ae116e76",
@@ -59,7 +59,7 @@
       "votes_for": 45980954.52049858,
       "votes_against": 17.066436626427944,
       "quorum_met": true,
-      "detected_at": "2026-06-21T04:22:21Z"
+      "detected_at": "2026-06-21T05:52:36Z"
     },
     {
       "id": "snapshot:0x09880de4739dcef13c4aa5605f1dca23556fc7495d09ecc84561a10f26a59b5c",
@@ -75,7 +75,7 @@
       "votes_for": 48282538.982686356,
       "votes_against": 121.94,
       "quorum_met": true,
-      "detected_at": "2026-06-21T04:22:21Z"
+      "detected_at": "2026-06-21T05:52:36Z"
     },
     {
       "id": "snapshot:0x644ddd8079f1f802f3da16b11556412cec4f753a1b942fa8456c631a265a4083",
@@ -91,7 +91,7 @@
       "votes_for": 47896991.87357965,
       "votes_against": 385593.17011659814,
       "quorum_met": true,
-      "detected_at": "2026-06-21T04:22:21Z"
+      "detected_at": "2026-06-21T05:52:36Z"
     },
     {
       "id": "snapshot:0x6ab9651fba999ba29ba780fe61d68cc23e7aeb83c841181c5c1933dec9197f37",
@@ -107,7 +107,7 @@
       "votes_for": 48282660.92268636,
       "votes_against": 0.0,
       "quorum_met": true,
-      "detected_at": "2026-06-21T04:22:21Z"
+      "detected_at": "2026-06-21T05:52:36Z"
     }
   ],
   "summary": {
@@ -141,7 +141,7 @@
         "votes_for": 48284922.382560454,
         "votes_against": 17.066436626427944,
         "quorum_met": true,
-        "detected_at": "2026-06-21T04:22:21Z"
+        "detected_at": "2026-06-21T05:52:36Z"
       },
       {
         "id": "snapshot:0x7b07bc31f0b38b69a117473031bc126becc70b9fa37246b53d9fe5a841c814f5",
@@ -157,7 +157,7 @@
         "votes_for": 48284939.44899708,
         "votes_against": 0.0,
         "quorum_met": true,
-        "detected_at": "2026-06-21T04:22:21Z"
+        "detected_at": "2026-06-21T05:52:36Z"
       },
       {
         "id": "snapshot:0x3e74af3eb9119c60616c93d1ecccc3bcbd1af27e3895f2e354217872ae116e76",
@@ -173,7 +173,7 @@
         "votes_for": 45980954.52049858,
         "votes_against": 17.066436626427944,
         "quorum_met": true,
-        "detected_at": "2026-06-21T04:22:21Z"
+        "detected_at": "2026-06-21T05:52:36Z"
       },
       {
         "id": "snapshot:0x09880de4739dcef13c4aa5605f1dca23556fc7495d09ecc84561a10f26a59b5c",
@@ -189,7 +189,7 @@
         "votes_for": 48282538.982686356,
         "votes_against": 121.94,
         "quorum_met": true,
-        "detected_at": "2026-06-21T04:22:21Z"
+        "detected_at": "2026-06-21T05:52:36Z"
       },
       {
         "id": "snapshot:0x644ddd8079f1f802f3da16b11556412cec4f753a1b942fa8456c631a265a4083",
@@ -205,7 +205,7 @@
         "votes_for": 47896991.87357965,
         "votes_against": 385593.17011659814,
         "quorum_met": true,
-        "detected_at": "2026-06-21T04:22:21Z"
+        "detected_at": "2026-06-21T05:52:36Z"
       }
     ]
   }
