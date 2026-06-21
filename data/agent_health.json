@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-06-21T22:38:08.614495+00:00",
+  "overall_status": "CRITICAL",
+  "healthy_count": 0,
+  "warning_count": 0,
+  "critical_count": 1,
+  "total_agents": 0,
+  "agents": [],
+  "system_checks": {
+    "cycle_freshness_h": 16.64,
+    "equity_last_update_h": 16.64,
+    "portfolio_health_score": 67.2,
+    "critical_flags": 1,
+    "autopush_lag_h": 18.36
+  },
+  "system_issues": [
+    "portfolio_health 67.2/100 (<70)",
+    "1 CRITICAL red flag(s)",
+    "autopush lag 18.4h (>2h)"
+  ],
+  "alert_sent": false,
+  "new_issues": []
+}
