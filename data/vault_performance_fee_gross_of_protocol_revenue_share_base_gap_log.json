@@ -1,0 +1,67 @@
+[
+  {
+    "ts": "2026-06-19T05:09:21.931210+00:00",
+    "position_count": 5,
+    "aggregate": {
+      "cleanest_vault": "CVX-RevShare-Vault-Clean",
+      "worst_protocol_revenue_share_gap_vault": "YEARN-RevShare-Vault-Severe",
+      "avg_score": 56.88,
+      "net_negative_count": 1,
+      "position_count": 5
+    },
+    "snapshots": [
+      {
+        "token": "CVX-RevShare-Vault-Clean",
+        "classification": "CLEAN_NET_OF_PROTOCOL_REVENUE_SHARE_BASE",
+        "score": 100.0,
+        "recommendation": "TRUST_FEE_STRUCTURE",
+        "flags": [
+          "CLEAN_NET_OF_PROTOCOL_REVENUE_SHARE_BASE",
+          "CLEAN_NET_BASE"
+        ]
+      },
+      {
+        "token": "AURA-RevShare-Vault-Moderate",
+        "classification": "MODERATE_FEE_ON_PROTOCOL_REVENUE_SHARE_GAP",
+        "score": 67.5,
+        "recommendation": "DEMAND_NET_OF_PROTOCOL_REVENUE_SHARE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_PROTOCOL_REVENUE_SHARE_GAP",
+          "FEE_ON_PROTOCOL_REVENUE_SHARE"
+        ]
+      },
+      {
+        "token": "YEARN-RevShare-Vault-Severe",
+        "classification": "SEVERE_FEE_ON_PROTOCOL_REVENUE_SHARE_GAP",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_PROTOCOL_REVENUE_SHARE",
+        "flags": [
+          "SEVERE_FEE_ON_PROTOCOL_REVENUE_SHARE_GAP",
+          "NET_NEGATIVE_AFTER_FEE",
+          "HIGH_PROTOCOL_REVENUE_SHARE",
+          "FEE_ON_PROTOCOL_REVENUE_SHARE",
+          "FULL_FEE_ON_PROTOCOL_REVENUE_SHARE"
+        ]
+      },
+      {
+        "token": "CVX-RevShare-Vault-OverrideGap",
+        "classification": "MODERATE_FEE_ON_PROTOCOL_REVENUE_SHARE_GAP",
+        "score": 60.0,
+        "recommendation": "DEMAND_NET_OF_PROTOCOL_REVENUE_SHARE_BASE",
+        "flags": [
+          "MODERATE_FEE_ON_PROTOCOL_REVENUE_SHARE_GAP",
+          "GAP_FROM_OVERRIDE"
+        ]
+      },
+      {
+        "token": "MYSTERY-Vault-NoData",
+        "classification": "INSUFFICIENT_DATA",
+        "score": 0.0,
+        "recommendation": "AVOID_FEE_ON_PROTOCOL_REVENUE_SHARE",
+        "flags": [
+          "INSUFFICIENT_DATA"
+        ]
+      }
+    ]
+  }
+]
