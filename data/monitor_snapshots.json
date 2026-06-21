@@ -1,0 +1,4002 @@
+[
+  {
+    "generated_at": "2026-06-20T20:06:15.937373+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:11:16.097500+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:16:16.252027+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:21:16.436339+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:26:16.633930+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:31:16.894864+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:36:17.047641+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:41:17.210803+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:46:17.376443+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:51:17.517402+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T20:56:17.685186+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:01:17.866759+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:06:18.037139+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:11:18.298197+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:16:18.533701+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:21:18.673373+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:26:18.877332+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:31:19.030354+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:36:19.171011+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:41:19.333951+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:46:19.506952+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:51:19.662008+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T21:56:19.813926+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:01:20.007416+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:06:20.205405+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:11:20.491155+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:16:20.755865+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:21:20.985877+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:26:21.162193+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:31:21.380845+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:36:21.540052+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:41:21.748840+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:46:21.957003+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:51:22.175052+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T22:56:22.356198+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:01:22.506702+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:06:22.695232+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:11:22.842629+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:16:22.992744+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:21:23.232476+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:26:23.459942+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:31:23.648826+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:36:23.811164+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:41:23.989597+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:46:24.179250+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:51:24.328492+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-20T23:56:24.498596+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:01:24.683162+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:06:24.952453+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:11:25.169775+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:16:25.565310+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:21:25.946016+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:26:26.213526+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:31:26.477075+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:36:26.866699+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:41:27.222170+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:46:27.572680+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:51:27.919366+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T00:56:28.213540+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:01:28.511160+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:06:28.848843+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:11:29.152140+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:16:29.369725+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:21:29.638043+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:26:29.808926+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:31:30.198646+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:36:30.566425+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:41:30.991258+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:46:31.338131+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:51:31.734477+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T01:56:32.043217+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:01:32.401068+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:06:32.764714+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:11:33.171201+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:16:33.536088+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:21:33.876895+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:26:34.252353+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:31:34.619517+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:36:35.015082+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:41:35.320578+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:46:35.698458+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:51:36.026420+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T02:56:36.407890+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:01:36.713814+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:06:37.125417+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:11:37.491796+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:16:37.778345+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:21:38.125784+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "aave_v3": 7.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:26:38.359274+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:31:38.593029+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:36:39.022711+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:41:39.444211+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:46:39.810066+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:51:40.210151+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T03:56:40.570443+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T04:01:40.932710+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "morpho": -2.0,
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "cash": 0.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T04:06:41.317158+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0,
+      "compound_v3": -5.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T04:11:41.688254+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "aave_v3": 7.0,
+      "cash": 0.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T04:16:42.066582+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "cash": 0.0,
+      "compound_v3": -5.0,
+      "morpho": -2.0,
+      "aave_v3": 7.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  },
+  {
+    "generated_at": "2026-06-21T04:21:42.457483+00:00",
+    "equity": 100000.0,
+    "adapter_count": 4,
+    "current_weights": {
+      "aave_v3": 0.42,
+      "compound_v3": 0.3,
+      "morpho": 0.23,
+      "cash": 0.05
+    },
+    "target_weights": {
+      "aave_v3": 0.35,
+      "compound_v3": 0.35,
+      "morpho": 0.25,
+      "cash": 0.05
+    },
+    "drift_map": {
+      "compound_v3": -5.0,
+      "cash": 0.0,
+      "aave_v3": 7.0,
+      "morpho": -2.0
+    },
+    "alerts": [
+      {
+        "level": "WARNING",
+        "adapter_id": "aave_v3",
+        "message": "aave_v3: drift 7.00pp exceeds WARNING threshold (5.0pp)",
+        "drift": 7.0
+      },
+      {
+        "level": "INFO",
+        "adapter_id": "compound_v3",
+        "message": "compound_v3: drift 5.00pp exceeds INFO threshold (3.0pp)",
+        "drift": 5.0
+      }
+    ],
+    "health_score": 63.26,
+    "t2_total_weight": 0.23,
+    "summary_level": "WARNING"
+  }
+]
