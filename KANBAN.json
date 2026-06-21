@@ -222,16 +222,6 @@
         "added": "2026-06-10"
       },
       {
-        "id": "AGENT-P1-001",
-        "title": "Установить 4 не-загруженных агента (daily-report, weekly_backup, analytics_tier_c)",
-        "status": "ready",
-        "type": "agent_infra",
-        "priority": 1,
-        "description": "com.spa.daily-paper-report, com.spa.weekly_backup, com.spa.analytics_tier_c не найдены в launchd (exit 113). Запустить bash scripts/install_agents.sh или по-агентно.",
-        "acceptance_criteria": "bash scripts/agent_status.sh → Missing: 0 для всех 19 агентов",
-        "added_by": "AGENT_AUDIT_V2 2026-06-14"
-      },
-      {
         "id": "P1-FIX-004",
         "title": "Уточнить golive_checker: 6 чеков в коде vs 26 в CLAUDE.md [USER ACTION]",
         "description": "spa_core.paper_trading.golive_checker реализует 6 чеков (6/6 PASS, ready=true). CLAUDE.md говорит 26 чеков и 16/26 pass. Либо CLAUDE.md устарел, либо нужна реализация расширенного checker.",
@@ -11110,6 +11100,18 @@
         "created_by": "claude_agent_analysis_v11.74",
         "completed": "2026-06-21T18:40:47Z",
         "resolution": "116 unit tests written in tests/test_portfolio_monitor.py (v1298)"
+      },
+      {
+        "id": "AGENT-P1-001",
+        "title": "Установить 4 не-загруженных агента (daily-report, weekly_backup, analytics_tier_c)",
+        "status": "ready",
+        "type": "agent_infra",
+        "priority": 1,
+        "description": "com.spa.daily-paper-report, com.spa.weekly_backup, com.spa.analytics_tier_c не найдены в launchd (exit 113). Запустить bash scripts/install_agents.sh или по-агентно.",
+        "acceptance_criteria": "bash scripts/agent_status.sh → Missing: 0 для всех 19 агентов",
+        "added_by": "AGENT_AUDIT_V2 2026-06-14",
+        "completed_at": "2026-06-21T19:37:07Z",
+        "completed_by": "reload_missing_agents.command"
       }
     ]
   },
@@ -12907,7 +12909,8 @@
   "meta": {
     "done_count": 1310,
     "sprint_completed": "v12.80",
-    "last_updated": "2026-06-21"
+    "last_updated": "2026-06-21T19:37:07Z",
+    "updated_by": "AGENT_v1301_agent_p1_001_done"
   },
   "audit_status": {
     "crit_001": "FIXED",
