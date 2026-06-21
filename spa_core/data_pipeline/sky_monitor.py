@@ -358,3 +358,49 @@ def check_and_emit_upgrade_signal(status_dict: dict | None = None) -> dict:
         "signal_path": str(_UPGRADE_SIGNAL_FILE),
         "action": signal["action_required"],
     }
+
+
+# ─── CLI entry-point ──────────────────────────────────────────────────────────
+
+def main() -> int:
+    """Run a full Sky/sUSDS monitoring pass and persist results.
+
+    Invoked by launchd (``com.spa.sky_monitor``, daily 07:00) via
+    ``python3 -m spa_core.data_pipeline.sky_monitor``. Performs:
+
+      1. Live eligibility check (on-chain → governance API → manual fallback).
+      2. Write data/sky_status.json.
+      3. Emit / clear data/sky_upgrade_needed.json based on eligibility.
+
+    Always returns 0 — a monitor must never crash the launchd job; errors are
+    logged and surfaced on stdout so the (previously 0-byte) log is populated.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    try:
+        status = check_sky_status_live()
+        path = export_sky_status_json(status)
+        signal = check_and_emit_upgrade_signal(status)
+
+        print(
+            f"sky_monitor: status={status['status']} "
+            f"source={status['source']} "
+            f"gsm_hours={status.get('gsm_hours')} "
+            f"eligible={signal['eligible']} "
+            f"-> {path}"
+        )
+        if signal["eligible"]:
+            print(f"sky_monitor: ACTION REQUIRED — {signal['action']}")
+        return 0
+    except Exception as exc:  # never let the launchd job crash
+        log.exception("sky_monitor run failed")
+        print(f"sky_monitor: ERROR — {type(exc).__name__}: {exc}")
+        return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())
