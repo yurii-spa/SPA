@@ -119,13 +119,18 @@ shipped_local = промежуточный статус, не финальный
 
 ## 🟢 ИНФРАСТРУКТУРА (что и где)
 
-| Сервис | Файл | Расписание | Лог |
-|--------|------|------------|-----|
-| Дневной цикл | cycle_runner.py | launchd 08:00 | /tmp/spa_cycle.log |
-| Autopush | auto_push.py | launchd 90 мин | /tmp/spa_autopush.log |
-| HTTP сервер | — | launchd | — |
-| Cloudflare туннель | — | launchd | — |
-| Агент-команда (Dev) | team_loop.py | launchd 4ч | SPA_Dev/spa_agents/logs/ |
+> Актуальный полный список агентов: `CURRENT_STATE.md § Мониторинг — LaunchAgents & Health`
+> Источник истины в рантайме: `data/agent_health.json` (60 мин), `data/cycle_health.json` (5 мин)
+
+| Сервис | Расписание | Лог |
+|--------|-----------|-----|
+| com.spa.daily_cycle | 08:00 ежедн. | logs/launchd_stdout.log |
+| com.spa.autopush | каждые 90 мин | /tmp/spa_autopush.log |
+| com.spa.httpserver | always-on | — |
+| com.spa.cloudflared | always-on | — |
+| com.spa.agent_health | каждые 60 мин | /tmp/spa_agent_health.log |
+| com.spa.cycle_health | каждые 5 мин | /tmp/spa_cycle_health.log |
+| **Итого агентов** | **31** | data/agent_health.json |
 
 **PAT в Keychain:** `security find-generic-password -s GITHUB_PAT_SPA -w`
 **Ротация PAT:** `bash setup_pat.sh`
@@ -199,7 +204,73 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 
 ---
 
-*Обновлён: 2026-06-21. Следующее обновление — при любом изменении правил или инфраструктуры.*
+## 🔍 ПРАВИЛА МОНИТОРИНГА
+
+### ПРАВИЛО MON-001: Обязательные агенты
+
+Следующие LaunchAgents ДОЛЖНЫ быть загружены всегда (verified 2026-06-22):
+
+**Always-on (должны иметь активный PID):**
+- `com.spa.httpserver` — port 8765, family fund portal
+- `com.spa.cloudflared` — туннель earn-defi.com
+- `com.spa.dashboard` — dashboard backend
+- `com.spa.familyfund` — family fund HTTP API
+- `com.spa.bot_commands` — Telegram bot
+- `com.spa.apiserver` — REST API (exit=-15 при рестарте — ожидаемо)
+
+**Критические периодические (должны быть loaded, exit=0):**
+- `com.spa.daily_cycle` — 08:00 ежедн. (CORE: equity, rebalance, GoLive)
+- `com.spa.autopush` — каждые 90 мин (push в GitHub)
+- `com.spa.agent_health` — каждые 60 мин (мониторинг всех 31 агентов)
+- `com.spa.cycle_health` — каждые 5 мин (gap, equity anomaly, freshness)
+- `com.spa.cycle_gap_monitor` — каждые 5 мин (gap_monitor.json heartbeat)
+
+Если любой из этих агентов NOT LOADED → инцидент P1.
+Проверка: `launchctl list | grep com.spa | sort`
+Восстановление: перечитай `CURRENT_STATE.md § Мониторинг` → скопируй нужный plist из `scripts/` в `~/Library/LaunchAgents/` → `launchctl load`.
+
+### ПРАВИЛО MON-002: Пороги здоровья системы
+
+Система считается здоровой если ВСЕ условия выполнены:
+
+| Метрика | Порог OK | Источник |
+|---------|----------|----------|
+| `last_cycle_ts` | не старше **26 часов** | data/paper_trading_status.json |
+| `last_cycle_status` | `"ok"` | data/paper_trading_status.json |
+| `kill_switch` | `CLEAR` (drawdown < 5%) | data/golive_status.json: drawdown_below_kill |
+| `equity` | не падает >5% за сутки | data/cycle_health.json: equity_anomaly |
+| `golive.passed` | не регрессирует (≥ предыдущего) | data/golive_status.json |
+| `agent_health.warning_count` | ≤ 2 | data/agent_health.json |
+| `agent_health.critical_count` | 0 | data/agent_health.json |
+| `autopush` | exit=0, /tmp/spa_autopush.log существует | launchctl + лог |
+
+**Ложные CRITICAL:** `agent_health.overall_status=CRITICAL` может быть ложным если `portfolio_health.score=null` (структурный баг). Смотри `critical_count`, не `overall_status`.
+
+### ПРАВИЛО MON-003: Реакция на сбои
+
+| Инцидент | Приоритет | Действие |
+|---------|-----------|---------|
+| `last_cycle_ts` > 26ч | **P0** | Немедленно запустить вручную: `python3 -m spa_core.paper_trading.cycle_runner --verbose` |
+| `kill_switch` TRIGGERED | **P0** | НЕ трогать — это автоматическая защита. Прочитать DECISIONS.md, понять причину |
+| equity падает >5% | **P0** | kill_switch активируется сам. Проверить risk_policy_blocks.json |
+| Любой always-on агент NOT LOADED | **P1** | `launchctl load ~/Library/LaunchAgents/<label>.plist` |
+| `agent_health.critical_count` > 0 | **P1** | Прочитать data/agent_health.json, исправить конкретный агент |
+| `golive.passed` регрессировал | **P1** | Немедленно выяснить какой критерий упал, НЕ продолжать разработку |
+| `autopush` не работает >3ч | **P1** | Проверить `~/Library/LaunchAgents/com.spa.autopush.plist`, перезагрузить |
+| `cycle_health.overall=WARNING` | **P2** | Проверить data/cycle_health.json, исправить stale файлы |
+| Одиночный WARNING агент | **P2** | Логировать, исправить при следующей сессии |
+
+**Запрещено:** продолжать разработку аналитики при наличии P0/P1 инцидентов.
+
+**Известные non-issues (по состоянию 2026-06-22):**
+- `com.spa.apiserver` exit=-15 — SIGTERM при рестарте launchd, штатное поведение
+- `portfolio_health.json` null-поля → ложный CRITICAL в agent_health: смотри `critical_count=0`
+- `market_regime.json` stale (порог 4ч) — обновляется только в 08:00, WARNING ожидаем до 08:00+
+- `equity_curve_daily.json` содержит 20 синтетических warmup-записей (`is_warmup: true`) — не ошибка
+
+---
+
+*Обновлён: 2026-06-22 (MON-001/002/003 — правила мониторинга на основе аудита 31 агента). Следующее обновление — при любом изменении правил или инфраструктуры.*
 
 ---
 
