@@ -453,15 +453,44 @@ def _load_json_list(path: Path) -> list:
         return []
 
 
+def _load_last_cycle_ts(data_dir: Path) -> "str | None":
+    """Read ``last_cycle_ts`` from paper_trading_status.json.
+
+    Returns the ISO-8601 timestamp string or None on any error.
+
+    Used as a reliable fallback for cycle-time detection when
+    ``equity_curve_daily.json`` is absent or lacks a ``generated_at`` key
+    (P1-FIX-002: stale equity_history.json fallback fix).
+    """
+    try:
+        doc = json.loads(
+            (data_dir / "paper_trading_status.json").read_text(encoding="utf-8")
+        )
+        ts = doc.get("last_cycle_ts")
+        if ts and isinstance(ts, str):
+            return ts
+    except (FileNotFoundError, json.JSONDecodeError, OSError, KeyError):
+        pass
+    return None
+
+
 def _load_equity_history(data_dir: Path) -> list:
     """Return the equity history as a flat list of ``{date/timestamp, equity}``.
 
-    Source of truth is ``equity_curve_daily.json`` (written every cycle by
-    ``cycle_runner``); its ``daily`` array carries ``date`` + ``close_equity``,
-    which we normalise to the ``{date, equity}`` shape the health checks expect.
-    Falls back to the legacy flat ``equity_history.json`` when the curve file is
-    absent (older seeds / unit tests), so behaviour is unchanged when neither
-    exists (→ empty list → CRITICAL "equity_history is empty").
+    Source priority (P1-FIX-002 — stale-fallback fix):
+
+    1. ``equity_curve_daily.json`` + ``generated_at``
+       → most accurate: precise cycle write-time from cycle_runner.
+    2. ``equity_curve_daily.json`` + ``last_cycle_ts`` from
+       ``paper_trading_status.json``
+       → good: reliable when generated_at is absent.
+    3. ``equity_curve_daily.json`` with date-only bar
+       → midnight UTC timestamp (overstates gap by up to ~20 h at day-end).
+    4. ``paper_trading_status.json`` alone (equity_curve_daily.json missing)
+       → minimal single-entry list; cycle_gap check works, anomaly check
+       skips gracefully (insufficient history).
+    5. ``equity_history.json`` (legacy flat list)
+       → last resort; may be arbitrarily stale.
     """
     curve_path = data_dir / "equity_curve_daily.json"
     try:
@@ -477,15 +506,25 @@ def _load_equity_history(data_dir: Path) -> list:
                     continue
                 history.append({"date": bar.get("date"), "equity": equity})
             if history:
-                # Daily bars carry only a date (→ midnight UTC), which would
-                # overstate the gap. Stamp the latest entry with the doc's
-                # generated_at (the real cycle write-time) for an accurate gap.
                 generated_at = doc.get("generated_at")
                 if generated_at:
+                    # Best case: precise write-time stamped by cycle_runner.
                     history[-1] = {**history[-1], "timestamp": generated_at}
+                else:
+                    # generated_at absent — cross-check paper_trading_status
+                    # to avoid midnight-UTC overstatement (P1-FIX-002).
+                    pts_ts = _load_last_cycle_ts(data_dir)
+                    if pts_ts:
+                        history[-1] = {**history[-1], "timestamp": pts_ts}
                 return history
     except (FileNotFoundError, json.JSONDecodeError, OSError, AttributeError):
         pass
+
+    # equity_curve_daily.json fully missing —
+    # paper_trading_status.json as sole source (always fresh after a cycle).
+    pts_ts = _load_last_cycle_ts(data_dir)
+    if pts_ts:
+        return [{"timestamp": pts_ts, "equity": 0.0}]
 
     # Legacy fallback — flat list already in the expected shape.
     return _load_json_list(data_dir / "equity_history.json")
