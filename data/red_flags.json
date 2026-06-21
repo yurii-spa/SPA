@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-06-21T04:18:18.020121Z",
+  "monitor_version": "1.0",
+  "sources": [
+    "defillama",
+    "bootstrap",
+    "snapshot"
+  ],
+  "fallback_used": true,
+  "red_flags": [
+    {
+      "protocol": "ethena-susde",
+      "category": "apy_spike",
+      "severity": "WARN",
+      "message": "APY 18.40% is 2.56x baseline 7.20%",
+      "source": "historical_apy",
+      "detected_at": "2026-06-21T04:18:16.131173Z",
+      "evidence": {
+        "baseline_apy": 7.2,
+        "current_apy": 18.4,
+        "grade": "?",
+        "ratio": 2.5556
+      }
+    },
+    {
+      "protocol": "pendle-pt",
+      "category": "apy_spike",
+      "severity": "CRITICAL",
+      "message": "APY 24.60% is 4.03x baseline 6.10%",
+      "source": "historical_apy",
+      "detected_at": "2026-06-21T04:18:16.131241Z",
+      "evidence": {
+        "baseline_apy": 6.1,
+        "current_apy": 24.6,
+        "grade": "?",
+        "ratio": 4.0328
+      }
+    },
+    {
+      "protocol": "aave-v3",
+      "category": "governance_proposal",
+      "severity": "WARN",
+      "message": "Risk-sensitive proposal [treasury]: [SIGPROP] Treasury Management – AERO & Reward Token Conversion Framework",
+      "source": "snapshot",
+      "detected_at": "2026-06-21T04:18:16.451648Z",
+      "evidence": {
+        "deadline": "2026-06-25T14:57:00Z",
+        "grade": "B",
+        "proposal_id": "0x8b56e7befd383a99edc82671023f02ba1758e13ecdca959a39f257a2f91f4385",
+        "space": "aavegotchi.eth",
+        "tag": "treasury"
+      }
+    }
+  ],
+  "summary": {
+    "total_flags": 3,
+    "by_category": {
+      "apy_spike": 2,
+      "governance_proposal": 1,
+      "token_unlock": 0,
+      "tvl_drop": 0
+    },
+    "by_severity": {
+      "CRITICAL": 1,
+      "WARN": 2
+    },
+    "by_protocol": {
+      "aave-v3": 1,
+      "ethena-susde": 1,
+      "pendle-pt": 1
+    },
+    "protocols_clean": 7
+  }
+}
