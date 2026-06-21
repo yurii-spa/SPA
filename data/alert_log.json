@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "source": "alert_dispatcher",
+  "updated_at": "2026-06-20T17:35:59.465968+00:00",
+  "count": 4,
+  "max_entries": 100,
+  "entries": [
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-06-20T15:08:37.636715+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-20T15:08:37.636739+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-06-20T15:08:37.637491+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-20T15:08:37.637530+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-06-20T17:35:59.463417+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-20T17:35:59.463743+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-06-20T17:35:59.465674+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-06-20T17:35:59.465965+00:00",
+      "sent_via": "dry_run"
+    }
+  ]
+}
