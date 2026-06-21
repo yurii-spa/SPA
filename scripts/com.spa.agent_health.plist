@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    Agent Health Monitor — "heartbeat" over all com.spa.* launchd agents (hourly).
+    Module: spa_core/monitoring/agent_health_monitor.py
+    Function: checks every com.spa.*.plist (loaded? PID? LastExitStatus? log fresh?)
+              plus system-state files (equity curve, daily cycle, portfolio health,
+              red flags, autopush lag). Telegram alert ONLY on CRITICAL or new issues.
+    Writes:  data/agent_health.json (atomic)
+    CLI:     python3 -m spa_core.monitoring.agent_health_monitor (run flag)
+    Install:
+      cp scripts/com.spa.agent_health.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.agent_health.plist
+    -->
+
+    <key>Label</key>
+    <string>com.spa.agent_health</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.monitoring.agent_health_monitor</string>
+        <string>--run</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartInterval</key>
+    <integer>3600</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_agent_health.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_agent_health_err.log</string>
+</dict>
+</plist>
