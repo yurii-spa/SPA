@@ -96,6 +96,7 @@ PROTOCOL_RISK_SCORES: dict[str, dict[str, Any]] = {
     "scrvusd":          {"tier": "T2", "risk_score": 0.32, "note": "Curve scrvUSD — savings crvUSD, soft-peg gate"},
     "fluid_fusdc":      {"tier": "T2", "risk_score": 0.35, "note": "Fluid fUSDC — ERC-4626 vault, GSM gate"},
     "fluid_usdc":       {"tier": "T2", "risk_score": 0.35, "note": "Fluid USDC lending — relatively new, medium TVL"},
+    "fluid_arbitrum":   {"tier": "T2", "risk_score": 0.38, "note": "Fluid USDC lending on Arbitrum — same protocol +L2 sequencer/bridge risk; ~4.96% APY, ~$36.6M TVL"},
     "wusdm":            {"tier": "T2", "risk_score": 0.35, "note": "Mountain wUSDM — T-bill RWA backing, off-chain custody risk"},
     "stusd":            {"tier": "T2", "risk_score": 0.35, "note": "Angle stUSD — hard-peg gate, RWA-backed yield"},
     "frax":             {"tier": "T2", "risk_score": 0.35, "note": "FraxLend USDC — utilisation-based yield, peg gate"},
