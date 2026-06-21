@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-21T04:21:42.473614+00:00",
+  "generated_at": "2026-06-21T05:51:47.527342+00:00",
   "total_monitored": 3,
   "stable": 3,
   "caution": 0,
@@ -16,7 +16,7 @@
       "current_price": 1.0,
       "deviation_pct": 0.0,
       "status": "STABLE",
-      "last_checked": "2026-06-21T04:21:42.473810+00:00"
+      "last_checked": "2026-06-21T05:51:47.527512+00:00"
     },
     {
       "adapter_id": "aave_arbitrum",
@@ -25,7 +25,7 @@
       "current_price": 1.0,
       "deviation_pct": 0.0,
       "status": "STABLE",
-      "last_checked": "2026-06-21T04:21:42.473832+00:00"
+      "last_checked": "2026-06-21T05:51:47.527536+00:00"
     },
     {
       "adapter_id": "pendle_pt",
@@ -34,7 +34,7 @@
       "current_price": 1.0,
       "deviation_pct": 0.0,
       "status": "STABLE",
-      "last_checked": "2026-06-21T04:21:42.473839+00:00"
+      "last_checked": "2026-06-21T05:51:47.527543+00:00"
     }
   ]
 }
