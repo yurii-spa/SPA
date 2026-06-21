@@ -1,0 +1,1223 @@
+[
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.1621609
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.1626089
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.163073
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.163496
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.163915
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.164351
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.1648169
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 100,
+        "liquidity_score": 80,
+        "utilization_risk_score": 100,
+        "composite_score": 90,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 2.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 90.0,
+    "timestamp": 1781968193.165306
+  },
+  {
+    "borrow_markets": [],
+    "best_borrow_market": null,
+    "asset_summary": {},
+    "filtered_out_count": 1,
+    "average_composite_score": 0.0,
+    "timestamp": 1781968193.166134
+  },
+  {
+    "borrow_markets": [],
+    "best_borrow_market": null,
+    "asset_summary": {},
+    "filtered_out_count": 1,
+    "average_composite_score": 0.0,
+    "timestamp": 1781968193.166904
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 40,
+        "utilization_risk_score": 80,
+        "composite_score": 74,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 74.0,
+    "timestamp": 1781968193.167573
+  },
+  {
+    "borrow_markets": [],
+    "best_borrow_market": null,
+    "asset_summary": {},
+    "filtered_out_count": 1,
+    "average_composite_score": 0.0,
+    "timestamp": 1781968193.16817
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Good",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Good. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Good (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Good",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 1,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.168857
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "A",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 1.0,
+        "effective_cost_score": 100,
+        "rate_stability_score": 100,
+        "liquidity_score": 100,
+        "utilization_risk_score": 100,
+        "composite_score": 100,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Borrow USDC on A at 1.00%. Best available rate."
+      },
+      {
+        "protocol": "B",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 5.0,
+        "effective_cost_score": 70,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 72,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Good option on B. Rate 5.00%, stable (0.50% std)."
+      }
+    ],
+    "best_borrow_market": "A (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 2,
+        "best_protocol": "A",
+        "min_apy": 1.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 86.0,
+    "timestamp": 1781968193.169697
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "A",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 1.0,
+        "effective_cost_score": 100,
+        "rate_stability_score": 100,
+        "liquidity_score": 100,
+        "utilization_risk_score": 100,
+        "composite_score": 100,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Borrow USDC on A at 1.00%. Best available rate."
+      },
+      {
+        "protocol": "B",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 15.0,
+        "effective_cost_score": 20,
+        "rate_stability_score": 20,
+        "liquidity_score": 20,
+        "utilization_risk_score": 10,
+        "composite_score": 19,
+        "borrow_label": "AVOID",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Avoid B for borrowing. Poor composite score."
+      }
+    ],
+    "best_borrow_market": "A (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 2,
+        "best_protocol": "A",
+        "min_apy": 1.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 59.5,
+    "timestamp": 1781968193.170351
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "A",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on A. Rate 3.00%, stable (0.30% std)."
+      },
+      {
+        "protocol": "B",
+        "borrow_asset": "DAI",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on B. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "A (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "A",
+        "min_apy": 3.0
+      },
+      "DAI": {
+        "count": 1,
+        "best_protocol": "B",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.170936
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "A",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on A. Rate 3.00%, stable (0.30% std)."
+      },
+      {
+        "protocol": "B",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on B. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "A (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 2,
+        "best_protocol": "A",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.171642
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Better",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 1.0,
+        "effective_cost_score": 100,
+        "rate_stability_score": 100,
+        "liquidity_score": 100,
+        "utilization_risk_score": 100,
+        "composite_score": 100,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Borrow USDC on Better at 1.00%. Best available rate."
+      },
+      {
+        "protocol": "Worse",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 20.0,
+        "effective_cost_score": 20,
+        "rate_stability_score": 20,
+        "liquidity_score": 20,
+        "utilization_risk_score": 5,
+        "composite_score": 18,
+        "borrow_label": "AVOID",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Avoid Worse for borrowing. Poor composite score."
+      }
+    ],
+    "best_borrow_market": "Better (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 2,
+        "best_protocol": "Better",
+        "min_apy": 1.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 59.0,
+    "timestamp": 1781968193.1723578
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.173002
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "A",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on A. Rate 3.00%, stable (0.30% std)."
+      },
+      {
+        "protocol": "B",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 7.0,
+        "effective_cost_score": 55,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 66,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Good option on B. Rate 7.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "A (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 2,
+        "best_protocol": "A",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 72.0,
+    "timestamp": 1781968193.1736362
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 25.0,
+        "effective_cost_score": 5,
+        "rate_stability_score": 5,
+        "liquidity_score": 20,
+        "utilization_risk_score": 5,
+        "composite_score": 8,
+        "borrow_label": "AVOID",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Avoid Aave for borrowing. Poor composite score."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 25.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 8.0,
+    "timestamp": 1781968193.174337
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.175013
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 1.0,
+        "effective_cost_score": 100,
+        "rate_stability_score": 100,
+        "liquidity_score": 100,
+        "utilization_risk_score": 100,
+        "composite_score": 100,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Borrow USDC on Aave at 1.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 1.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 100.0,
+    "timestamp": 1781968193.175682
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 100,
+        "composite_score": 80,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Borrow USDC on Aave at 3.00%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 80.0,
+    "timestamp": 1781968193.1767612
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 60,
+        "composite_score": 76,
+        "borrow_label": "GOOD",
+        "is_near_kink": true,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 76.0,
+    "timestamp": 1781968193.177705
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 2.5,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Good option on Aave. Rate 2.50%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 2.5
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.178505
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.5,
+        "effective_cost_score": 70,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 72,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Good option on Aave. Rate 3.50%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.5
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 72.0,
+    "timestamp": 1781968193.179264
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.18012
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 60,
+        "composite_score": 76,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 76.0,
+    "timestamp": 1781968193.180856
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 100.0,
+        "effective_cost_score": 5,
+        "rate_stability_score": 5,
+        "liquidity_score": 20,
+        "utilization_risk_score": 5,
+        "composite_score": 8,
+        "borrow_label": "AVOID",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Avoid Aave for borrowing. Poor composite score."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 100.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 8.0,
+    "timestamp": 1781968193.181639
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 0.5,
+        "effective_cost_score": 100,
+        "rate_stability_score": 100,
+        "liquidity_score": 100,
+        "utilization_risk_score": 100,
+        "composite_score": 100,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Borrow USDC on Aave at 0.50%. Best available rate."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 0.5
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 100.0,
+    "timestamp": 1781968193.182393
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.183164
+  },
+  {
+    "borrow_markets": [],
+    "best_borrow_market": null,
+    "asset_summary": {},
+    "filtered_out_count": 0,
+    "average_composite_score": 0.0,
+    "timestamp": 1781968193.1839302
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.184708
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "P0",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 20,
+        "utilization_risk_score": 80,
+        "composite_score": 70,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on P0. Rate 3.00%, stable (0.30% std)."
+      },
+      {
+        "protocol": "P1",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 20,
+        "utilization_risk_score": 80,
+        "composite_score": 70,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on P1. Rate 3.00%, stable (0.30% std)."
+      },
+      {
+        "protocol": "P2",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 20,
+        "utilization_risk_score": 80,
+        "composite_score": 70,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on P2. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "P0 (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 3,
+        "best_protocol": "P0",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 3,
+    "average_composite_score": 70.0,
+    "timestamp": 1781968193.185505
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.1867719
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.187732
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "Aave",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on Aave. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "Aave (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 1,
+        "best_protocol": "Aave",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.188819
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "OnlyOne",
+        "borrow_asset": "ETH",
+        "borrow_apy_pct": 3.0,
+        "effective_cost_score": 85,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 78,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "STABLE",
+        "recommendation": "Good option on OnlyOne. Rate 3.00%, stable (0.30% std)."
+      }
+    ],
+    "best_borrow_market": "OnlyOne (ETH)",
+    "asset_summary": {
+      "ETH": {
+        "count": 1,
+        "best_protocol": "OnlyOne",
+        "min_apy": 3.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 78.0,
+    "timestamp": 1781968193.189742
+  },
+  {
+    "borrow_markets": [
+      {
+        "protocol": "A",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 25.0,
+        "effective_cost_score": 5,
+        "rate_stability_score": 5,
+        "liquidity_score": 20,
+        "utilization_risk_score": 5,
+        "composite_score": 8,
+        "borrow_label": "AVOID",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Avoid A for borrowing. Poor composite score."
+      },
+      {
+        "protocol": "B",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 1.0,
+        "effective_cost_score": 100,
+        "rate_stability_score": 100,
+        "liquidity_score": 100,
+        "utilization_risk_score": 100,
+        "composite_score": 100,
+        "borrow_label": "OPTIMAL",
+        "is_near_kink": false,
+        "rate_trend": "FALLING",
+        "recommendation": "Borrow USDC on B at 1.00%. Best available rate."
+      },
+      {
+        "protocol": "C",
+        "borrow_asset": "USDC",
+        "borrow_apy_pct": 5.0,
+        "effective_cost_score": 70,
+        "rate_stability_score": 80,
+        "liquidity_score": 60,
+        "utilization_risk_score": 80,
+        "composite_score": 72,
+        "borrow_label": "GOOD",
+        "is_near_kink": false,
+        "rate_trend": "RISING",
+        "recommendation": "Good option on C. Rate 5.00%, stable (0.50% std)."
+      }
+    ],
+    "best_borrow_market": "B (USDC)",
+    "asset_summary": {
+      "USDC": {
+        "count": 3,
+        "best_protocol": "B",
+        "min_apy": 1.0
+      }
+    },
+    "filtered_out_count": 0,
+    "average_composite_score": 60.0,
+    "timestamp": 1781968193.1915038
+  }
+]
