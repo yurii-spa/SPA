@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "timestamp": "2026-06-20T03:00:02.445070Z",
+    "tier": "C",
+    "module_count": 180
+  },
+  "generated_at": "2026-06-20T03:00:02.445072Z",
+  "protocols": {
+    "aave_v3": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "compound_v3": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "morpho_blue": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "yearn_v3": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "euler_v2": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "maple": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "pendle": {
+      "modules_ok": 0,
+      "avg_score": null
+    },
+    "spark_susds": {
+      "modules_ok": 0,
+      "avg_score": null
+    }
+  }
+}
