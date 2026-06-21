@@ -1,0 +1,51 @@
+{
+  "gate": "PASS",
+  "checks": [
+    {
+      "id": "DL-01",
+      "name": "Daily Loss",
+      "limit": 2.0,
+      "status": "PASS",
+      "value": -0.0132,
+      "message": "daily loss 0.00% within limit"
+    },
+    {
+      "id": "DL-02",
+      "name": "Peak Drawdown",
+      "limit": 10.0,
+      "status": "PASS",
+      "value": 0.2047,
+      "message": "peak drawdown 0.20% within limit"
+    },
+    {
+      "id": "DL-03",
+      "name": "Adapter Concentration",
+      "limit": 40.0,
+      "status": "PASS",
+      "value": 9.366,
+      "top_adapter": "morpho_steakhouse",
+      "message": "max adapter concentration 9.4% within limit"
+    },
+    {
+      "id": "DL-04",
+      "name": "APY Sanity Low",
+      "limit": 0.5,
+      "status": "PASS",
+      "value": 5.2,
+      "adapter": "compound_v3",
+      "message": "min APY 5.20% above sanity floor"
+    },
+    {
+      "id": "DL-05",
+      "name": "APY Sanity High",
+      "limit": 50.0,
+      "status": "PASS",
+      "value": 5.2,
+      "adapter": "compound_v3",
+      "message": "max APY 5.20% below sanity cap"
+    }
+  ],
+  "halt_reasons": [],
+  "warn_reasons": [],
+  "checked_at": "2026-06-21T01:23:23.330496+00:00"
+}
