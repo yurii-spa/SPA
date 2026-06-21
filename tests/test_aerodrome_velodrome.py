@@ -31,6 +31,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.adapters.aerodrome_usdc_adapter import (
     APY_FALLBACK as AERO_FALLBACK,
+    LP_TVL_FLOOR_USD as AERO_LP_FLOOR,
     AerodromeUsdcAdapter,
 )
 from spa_core.adapters.velodrome_optimism_adapter import (
@@ -208,6 +209,54 @@ class TestAerodromeBase(unittest.TestCase):
         self.assertEqual(ws["chain"], "base")
         self.assertTrue(ws["is_lp_position"])
 
+    # ── ADR-050: $20M LP depth floor + pool_depth_check ──────────────────
+
+    def test_17_lp_tvl_floor_is_20m(self):
+        # ADR-050: LP positions require a $20M floor (vs $5M for lending)
+        self.assertEqual(AERO_LP_FLOOR, 20_000_000)
+        self.assertEqual(AerodromeUsdcAdapter().LP_TVL_FLOOR_USD, 20_000_000)
+
+    def test_18_thin_pool_flagged_below_floor(self):
+        # $2M pool < $20M LP floor → THIN_POOL
+        a = AerodromeUsdcAdapter()
+        depth = a.pool_depth_check(2_000_000.0)
+        self.assertTrue(depth["thin_pool"])
+        self.assertEqual(depth["flag"], "THIN_POOL")
+        self.assertIsNotNone(depth["warning"])
+        self.assertIn("$20M depth floor", depth["warning"])
+        self.assertIn("1% of TVL", depth["warning"])
+
+    def test_19_thin_pool_caps_at_1pct_of_tvl(self):
+        # At $2M TVL the 1% cap = $20k; equals max T2 position at $100k portfolio
+        a = AerodromeUsdcAdapter()
+        depth = a.pool_depth_check(2_000_000.0, portfolio_usd=100_000.0)
+        self.assertAlmostEqual(depth["max_position_usd"], 20_000.0, places=2)
+        self.assertAlmostEqual(depth["capped_position_usd"], 20_000.0, places=2)
+        self.assertAlmostEqual(depth["max_pool_participation_pct"], 1.0, places=4)
+
+    def test_20_thin_pool_market_moving_when_scaled(self):
+        # At $1M portfolio, $200k in a $2M pool = 10% → still THIN_POOL, cap bites
+        a = AerodromeUsdcAdapter()
+        depth = a.pool_depth_check(2_000_000.0, portfolio_usd=1_000_000.0)
+        self.assertTrue(depth["thin_pool"])
+        self.assertAlmostEqual(depth["max_position_usd"], 200_000.0, places=2)
+        # capped at 1% of $2M = $20k, far below the $200k naive max
+        self.assertAlmostEqual(depth["capped_position_usd"], 20_000.0, places=2)
+
+    def test_21_deep_pool_passes(self):
+        # $50M pool ≥ $20M floor and ≥ 20× max position → OK
+        a = AerodromeUsdcAdapter()
+        depth = a.pool_depth_check(50_000_000.0)
+        self.assertFalse(depth["thin_pool"])
+        self.assertEqual(depth["flag"], "OK")
+        self.assertIsNone(depth["warning"])
+
+    def test_22_health_exposes_lp_floor(self):
+        h = AerodromeUsdcAdapter().health_check()
+        self.assertEqual(h["lp_tvl_floor_usd"], 20_000_000)
+        # headline protocol TVL ($50M) clears the LP floor
+        self.assertTrue(h["lp_tvl_floor_ok"])
+
 
 # ===========================================================================
 # Velodrome Optimism (reused adapter — 6 tests)
@@ -314,6 +363,25 @@ class TestS41AmmStableYield(unittest.TestCase):
         self.assertNotIn("velodrome_optimism", alloc)
         self.assertAlmostEqual(sum(alloc.values()), 1.0, places=8)
         self.assertIn("cash", alloc)
+
+    def test_10_thin_pool_reduces_aerodrome(self):
+        # ADR-050: pool TVL < $20M → Aerodrome sleeve cut 15% → 5%, renorm to 1.0
+        s = S41AmmStableYield()
+        alloc = s.get_allocation(aerodrome_tvl_usd=2_000_000.0)
+        # raw weight pre-renorm: aero 0.05, others 0.10/0.40/0.30/0.05 sum=0.90
+        self.assertAlmostEqual(alloc["aerodrome_base"], 0.05 / 0.90, places=6)
+        self.assertLess(alloc["aerodrome_base"], 0.15)
+        self.assertAlmostEqual(sum(alloc.values()), 1.0, places=8)
+
+    def test_11_deep_pool_keeps_full_aerodrome(self):
+        # Pool ≥ $20M → full 15% spec weight retained
+        s = S41AmmStableYield()
+        alloc = s.get_allocation(aerodrome_tvl_usd=50_000_000.0)
+        self.assertAlmostEqual(alloc["aerodrome_base"], 0.15, places=8)
+        # no TVL supplied → back-compat static weight
+        self.assertAlmostEqual(
+            s.get_allocation()["aerodrome_base"], 0.15, places=8
+        )
 
 
 # ===========================================================================
