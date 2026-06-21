@@ -187,19 +187,23 @@ def _parse_market(raw: dict) -> Optional[PendleMarketData]:
         maturity_date_str = maturity.isoformat() if maturity else ""
         days_left = _days_to_maturity(maturity)
 
-        # TVL — Pendle API returns nested {"usd": "25000000.0"} or plain float
-        tvl_raw = raw.get("tvl") or {}
-        if isinstance(tvl_raw, dict):
-            tvl_usd = _safe_float(tvl_raw.get("usd"))
-        else:
-            tvl_usd = _safe_float(tvl_raw)
-
-        # Liquidity
+        # Liquidity — Pendle API returns nested {"usd": ...} or plain float
         liq_raw = raw.get("liquidity") or {}
         if isinstance(liq_raw, dict):
             liquidity_usd = _safe_float(liq_raw.get("usd"))
         else:
             liquidity_usd = _safe_float(liq_raw)
+
+        # TVL — the v2 /markets endpoint returns ``tvl: null``; the pool's USD
+        # value lives in ``liquidity.usd`` (these are AMM pools, so AMM liquidity
+        # is the pool TVL). Use ``tvl`` when present, else fall back to liquidity.
+        tvl_raw = raw.get("tvl") or {}
+        if isinstance(tvl_raw, dict):
+            tvl_usd = _safe_float(tvl_raw.get("usd"))
+        else:
+            tvl_usd = _safe_float(tvl_raw)
+        if tvl_usd <= 0.0:
+            tvl_usd = liquidity_usd
 
         # APY values — Pendle returns decimals (0.089 = 8.9%); we store %
         implied_apy_dec = _safe_float(raw.get("impliedApy"))
