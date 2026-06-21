@@ -332,7 +332,6 @@ class TestRankByRiskAdj:
         ]
         agg = APYAggregator(snaps)
         ranked = agg.rank_by_risk_adjusted()
-        adjs = [s.apy_pct / _risk_weight(s.tier) for s in ranked]
 
         def _risk_weight(t):
             return RISK_WEIGHTS.get(t, RISK_WEIGHTS["T3"])
