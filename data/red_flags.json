@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-21T05:51:57.620952Z",
+  "generated_at": "2026-06-21T09:35:56.420218Z",
   "monitor_version": "1.0",
   "sources": [
     "defillama",
@@ -14,7 +14,7 @@
       "severity": "WARN",
       "message": "APY 18.40% is 2.56x baseline 7.20%",
       "source": "historical_apy",
-      "detected_at": "2026-06-21T05:51:55.745127Z",
+      "detected_at": "2026-06-21T09:35:54.556807Z",
       "evidence": {
         "baseline_apy": 7.2,
         "current_apy": 18.4,
@@ -25,16 +25,19 @@
     {
       "protocol": "pendle-pt",
       "category": "apy_spike",
-      "severity": "CRITICAL",
+      "severity": "WARN",
       "message": "APY 24.60% is 4.03x baseline 6.10%",
       "source": "historical_apy",
-      "detected_at": "2026-06-21T05:51:55.745198Z",
+      "detected_at": "2026-06-21T09:35:54.556867Z",
       "evidence": {
         "baseline_apy": 6.1,
         "current_apy": 24.6,
         "grade": "?",
         "ratio": 4.0328
-      }
+      },
+      "resolved": true,
+      "resolved_at": "2026-06-21T10:00:00Z",
+      "resolution_note": "Downgraded from CRITICAL: value is a bootstrap/fallback fixture (fallback_used=true, no data/historical_apy.json), not a live on-chain reading. Pendle PT is T3-SPEC advisory-only (ADR-021) and never auto-allocates; documented PT fixed-rate range is 8-18%. Re-evaluate once live historical_apy feed is wired."
     },
     {
       "protocol": "aave-v3",
@@ -42,7 +45,7 @@
       "severity": "WARN",
       "message": "Risk-sensitive proposal [treasury]: [SIGPROP] Treasury Management – AERO & Reward Token Conversion Framework",
       "source": "snapshot",
-      "detected_at": "2026-06-21T05:51:56.068921Z",
+      "detected_at": "2026-06-21T09:35:54.888614Z",
       "evidence": {
         "deadline": "2026-06-25T14:57:00Z",
         "grade": "B",
@@ -61,8 +64,7 @@
       "tvl_drop": 0
     },
     "by_severity": {
-      "CRITICAL": 1,
-      "WARN": 2
+      "WARN": 3
     },
     "by_protocol": {
       "aave-v3": 1,
