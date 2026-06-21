@@ -2337,6 +2337,17 @@ body > .main-wrap, #app, .app-container,
     </div>
   </div>
 
+  <!-- 📊 KANBAN Summary (data/kanban_summary.json) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📊 Sprint Progress — <span id="kbs-sprint">…</span></span>
+      <span id="kbs-updated" style="font-size:11px;color:#888"></span>
+    </div>
+    <div id="kbs-body">
+      <div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Loading kanban_summary.json…</div>
+    </div>
+  </div>
+
   <!-- Decisions Queue (re-uses tab-decisions render containers) -->
   <!-- P1-1 FIX-D: wrapped for is-public hiding -->
   <div class="decisions-in-ops">
@@ -5530,7 +5541,69 @@ async function loadRisk() {
 }
 
 // ─── Ops Tab (internal operator view) ────────────────────────────────────────
+// ─── KANBAN Summary widget (data/kanban_summary.json) ──────────────────────────
+async function loadKanbanSummary() {
+  const sprintEl  = document.getElementById('kbs-sprint');
+  const updatedEl = document.getElementById('kbs-updated');
+  const bodyEl    = document.getElementById('kbs-body');
+  if (!bodyEl) return;
+
+  let s = null;
+  try { s = await fetch(dataBase + '/kanban_summary.json?_=' + Date.now()).then(r => r.ok ? r.json() : null); } catch(e) {}
+
+  if (!s) {
+    bodyEl.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px">No kanban_summary.json data — or not found</div>';
+    return;
+  }
+
+  if (sprintEl)  sprintEl.textContent = s.sprint || '?';
+  if (updatedEl && s.generated_at) {
+    const d = new Date(s.generated_at);
+    updatedEl.textContent = isNaN(d) ? '' : 'updated ' + d.toISOString().slice(0,16).replace('T',' ') + ' UTC';
+  }
+
+  const done = s.done_total || 0;
+  const back = s.backlog_count || 0;
+  const prog = s.in_progress_count || 0;
+  const rev  = s.review_count || 0;
+  const pct  = (s.completion_pct != null) ? s.completion_pct : 0;
+  const recent = Array.isArray(s.recent_done) ? s.recent_done.slice(-5).reverse() : [];
+
+  const stat = (label, val, color) =>
+    `<div style="text-align:center;flex:1">
+       <div style="font-size:22px;font-weight:700;color:${color}">${val}</div>
+       <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em">${label}</div>
+     </div>`;
+
+  bodyEl.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      ${stat('Done', (s.done_count != null ? s.done_count : done), '#16a34a')}
+      ${stat('In&nbsp;Progress', prog, '#BA7517')}
+      ${stat('Backlog', back, '#185FA5')}
+      ${rev ? stat('Review', rev, '#7c3aed') : ''}
+    </div>
+    <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:11px;color:#888">
+      <span>Board completion (${done} done · ${back + prog + rev} open)</span>
+      <span style="font-weight:600;color:#16a34a">${pct}%</span>
+    </div>
+    <div style="height:8px;background:#eef0f2;border-radius:5px;overflow:hidden;margin-bottom:18px">
+      <div style="height:100%;width:${Math.max(0,Math.min(100,pct))}%;background:#16a34a;border-radius:5px"></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:#444;margin-bottom:8px">Recent completions</div>
+    ${recent.length === 0
+      ? '<div style="font-size:12px;color:#aaa">No recent items</div>'
+      : recent.map(t => `
+        <div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:.5px solid #f3f4f6;font-size:12px">
+          <span style="color:#16a34a">✓</span>
+          <span style="font-family:ui-monospace,monospace;color:#185FA5;font-size:11px;min-width:72px">${t.id || '—'}</span>
+          <span style="color:#444">${(t.title || '').replace(/</g,'&lt;')}</span>
+        </div>`).join('')}
+  `;
+}
+
 async function loadOps() {
+  // KANBAN summary widget (data/kanban_summary.json)
+  loadKanbanSummary();
   // Decisions: delegate to existing loadDecisions but also mirror into ops panel
   const ts = Date.now();
   const opsDecEl = document.getElementById('ops-dec-list-body');
