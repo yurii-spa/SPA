@@ -222,6 +222,13 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 ### Positions
 - `spark_susds` at ≤10% — approved. T1 adapter with inline GSM fallback (APY 4.6%). Legitimate position.
 
+### APY benchmark (recalibrated 2026-06-21)
+- `apy_below_benchmark` activation uses a **realistic** benchmark: blended T1/T2 APY ≈ **4%**
+  (paper track 4.11%). T1-only portfolio **cannot reliably hit 5%** — DeFiLlama 2026-06 means
+  are Aave 3.64% / Compound 3.78% / Morpho Blue 6.87% / Yearn 4.93% / sUSDS 4.20%. There is **no
+  hard «must achieve 5% APY» GoLive gate**; a sub-5% blended yield is by-design, not a defect.
+  Spikes to 12–16% are single-spot and transient. See CLAUDE.md adapter table + `docs/DECISIONS.md`.
+
 ### Old push scripts
 - `scripts/push_v*.sh` files with version ≤ `data/autopush_state.json:last_version` — dead/already-pushed. ~180 files are expected clutter.
 
