@@ -218,6 +218,33 @@ def test_agent_very_stale_high_freq_critical(tmp_path):
     assert h.status == ahm.CRITICAL
 
 
+def test_agent_fresh_stderr_only_ok(tmp_path):
+    """Regression: a module that logs via Python `logging` writes to stderr,
+    so StandardOutPath stays empty/frozen. Freshness must be judged by the
+    freshest of both streams (the red_flag_monitor false-stale bug)."""
+    out = tmp_path / "rf.log"
+    err = tmp_path / "rf_err.log"
+    _touch(out, 60 * 24 * 2.2)  # stdout frozen 2.2 days ago
+    _touch(err, 4)              # stderr written 4 min ago
+    plist = {"StartInterval": 300,
+             "StandardOutPath": str(out),
+             "StandardErrorPath": str(err)}
+    h = ahm.check_agent("com.spa.red_flag_monitor", plist, True,
+                        _lc("com.spa.red_flag_monitor"), NOW)
+    assert h.status == ahm.OK
+    assert h.issue == ""
+    assert h.log_age_min < 5
+
+
+def test_freshest_log_age_minutes_ignores_missing(tmp_path):
+    err = tmp_path / "e.log"
+    _touch(err, 7)
+    paths = ["/nonexistent/out.log", str(err)]
+    assert abs(ahm.freshest_log_age_minutes(paths, NOW) - 7) < 1
+    assert ahm.freshest_log_age_minutes([], NOW) is None
+    assert ahm.freshest_log_age_minutes(["/nope/a", "/nope/b"], NOW) is None
+
+
 def test_agent_daily_fresh_ok(tmp_path):
     logp = tmp_path / "d.log"
     _touch(logp, 60 * 10)  # 10h < 26h
