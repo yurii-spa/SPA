@@ -254,26 +254,6 @@
         "added": "2026-06-12"
       },
       {
-        "id": "AGENT-P0-004",
-        "title": "Починить bot_commands Telegram-бот (exit 256 + plist conflict)",
-        "status": "ready",
-        "type": "agent_infra",
-        "priority": 0,
-        "description": "bot_commands exit 256; конфликт 3 версий plist (корень/__PYTHON_PATH__, launchd//usr/bin/python3, scripts/miniconda). Удалить устаревшие, переустановить из scripts/ с spa_core.telegram.bot.",
-        "acceptance_criteria": "Telegram /status отвечает; uptime_status launchd_bot_commands.running=true",
-        "added_by": "AGENT_AUDIT_V2 2026-06-14"
-      },
-      {
-        "id": "AGENT-P0-005",
-        "title": "Починить cloudflared (exit 19968, public HTTPS down)",
-        "status": "ready",
-        "type": "agent_infra",
-        "priority": 0,
-        "description": "com.spa.cloudflared crash exit 19968, pid=null. Туннель недоступен. Обновить binary, проверить auth token, перезапустить.",
-        "acceptance_criteria": "cloudflared running=true; public URL отвечает 200",
-        "added_by": "AGENT_AUDIT_V2 2026-06-14"
-      },
-      {
         "id": "AGENT-P1-001",
         "title": "Установить 4 не-загруженных агента (daily-report, weekly_backup, analytics_tier_c)",
         "status": "ready",
@@ -331,7 +311,8 @@
         "created_at": "2026-06-14T20:20:45.466368Z",
         "source": "AGENT_AUDIT_V3",
         "tags": [
-          "user-action"
+          "user-action",
+          "user_action"
         ]
       },
       {
@@ -342,7 +323,8 @@
         "created_at": "2026-06-14T20:20:45.466368Z",
         "source": "AGENT_AUDIT_V3",
         "tags": [
-          "user-action"
+          "user-action",
+          "user_action"
         ]
       },
       {
@@ -367,14 +349,16 @@
         "type": "design",
         "priority": "P1",
         "agent": "designer",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "design",
-          "agent:designer"
-        ]
+          "agent:designer",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-020",
@@ -382,14 +366,16 @@
         "type": "product",
         "priority": "P0",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-021",
@@ -397,14 +383,16 @@
         "type": "product",
         "priority": "P0",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-022",
@@ -412,14 +400,16 @@
         "type": "product",
         "priority": "P0",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-023",
@@ -427,14 +417,16 @@
         "type": "product",
         "priority": "P0",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-024",
@@ -442,14 +434,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-025",
@@ -457,14 +451,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-026",
@@ -472,14 +468,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-027",
@@ -487,14 +485,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-028",
@@ -502,14 +502,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-029",
@@ -517,14 +519,16 @@
         "type": "product",
         "priority": "P0",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-031",
@@ -532,14 +536,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "SITE-032",
@@ -562,14 +568,16 @@
         "type": "product",
         "priority": "P1",
         "agent": "product",
-        "status": "backlog",
+        "status": "blocked_user_action",
         "source": "tz_v1",
         "added": "2026-06-19",
         "depends_on": [],
         "tags": [
           "product",
-          "agent:product"
-        ]
+          "agent:product",
+          "user_action"
+        ],
+        "note": "Product decision required — user must define strategy/fee/asset parameters"
       },
       {
         "id": "AGENT-P1-006",
@@ -12516,6 +12524,30 @@
       "sprint": "v10.58",
       "status": "done",
       "notes": "generate_report() added; GOLIVE_PROGRESS_REPORT_20260619.md; 20/20 tests; total 77/100"
+    },
+    {
+      "id": "AGENT-P0-004",
+      "title": "Починить bot_commands Telegram-бот (exit 256 + plist conflict)",
+      "status": "done",
+      "type": "agent_infra",
+      "priority": 0,
+      "description": "bot_commands exit 256; конфликт 3 версий plist (корень/__PYTHON_PATH__, launchd//usr/bin/python3, scripts/miniconda). Удалить устаревшие, переустановить из scripts/ с spa_core.telegram.bot.",
+      "acceptance_criteria": "Telegram /status отвечает; uptime_status launchd_bot_commands.running=true",
+      "added_by": "AGENT_AUDIT_V2 2026-06-14",
+      "resolved": "2026-06-21",
+      "resolution": "Already fixed: bot_commands uses miniconda python + spa_core.telegram.bot v2.1; cloudflared uses Keychain token + multi-path binary search. Stale root plist deleted, scripts/ synced."
+    },
+    {
+      "id": "AGENT-P0-005",
+      "title": "Починить cloudflared (exit 19968, public HTTPS down)",
+      "status": "done",
+      "type": "agent_infra",
+      "priority": 0,
+      "description": "com.spa.cloudflared crash exit 19968, pid=null. Туннель недоступен. Обновить binary, проверить auth token, перезапустить.",
+      "acceptance_criteria": "cloudflared running=true; public URL отвечает 200",
+      "added_by": "AGENT_AUDIT_V2 2026-06-14",
+      "resolved": "2026-06-21",
+      "resolution": "Already fixed: bot_commands uses miniconda python + spa_core.telegram.bot v2.1; cloudflared uses Keychain token + multi-path binary search. Stale root plist deleted, scripts/ synced."
     }
   ],
   "adapter_registry_count": 33,
