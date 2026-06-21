@@ -18,7 +18,7 @@
     <string>com.spa.morning_digest</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>-m</string>
         <string>spa_core.alerts.morning_digest</string>
     </array>
@@ -40,7 +40,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 </dict>
 </plist>
