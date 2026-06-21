@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-06-21T04:21:42.473614+00:00",
+  "total_monitored": 3,
+  "stable": 3,
+  "caution": 0,
+  "warning": 0,
+  "critical": 0,
+  "worst_adapter": "morpho_steakhouse",
+  "worst_deviation_pct": 0.0,
+  "overall_status": "GREEN",
+  "statuses": [
+    {
+      "adapter_id": "morpho_steakhouse",
+      "asset": "USDC",
+      "chain": "ethereum",
+      "current_price": 1.0,
+      "deviation_pct": 0.0,
+      "status": "STABLE",
+      "last_checked": "2026-06-21T04:21:42.473810+00:00"
+    },
+    {
+      "adapter_id": "aave_arbitrum",
+      "asset": "USDC",
+      "chain": "arbitrum",
+      "current_price": 1.0,
+      "deviation_pct": 0.0,
+      "status": "STABLE",
+      "last_checked": "2026-06-21T04:21:42.473832+00:00"
+    },
+    {
+      "adapter_id": "pendle_pt",
+      "asset": "USDC",
+      "chain": "ethereum",
+      "current_price": 1.0,
+      "deviation_pct": 0.0,
+      "status": "STABLE",
+      "last_checked": "2026-06-21T04:21:42.473839+00:00"
+    }
+  ]
+}
