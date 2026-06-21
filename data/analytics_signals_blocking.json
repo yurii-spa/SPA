@@ -1,0 +1,300 @@
+{
+  "_meta": {
+    "timestamp": "2026-06-21T01:23:23.378984Z",
+    "tier": "A",
+    "module_count": 12
+  },
+  "generated_at": "2026-06-21T01:23:23.378986Z",
+  "protocols": {
+    "compound_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "spark_susds": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "morpho_steakhouse": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_arbitrum": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3_optimism": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3_polygon": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "morpho_blue": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "yearn_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "euler_v2": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "maple": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "pendle": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "fluid_fusdc": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "sfrax": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "wusdm": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "scrvusd": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "stusd": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "sdai": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "frax": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "morpho_blue_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "moonwell_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "susde": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "extra_finance_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    }
+  },
+  "signals": {
+    "compound_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "spark_susds": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "morpho_steakhouse": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_arbitrum": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3_optimism": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3_polygon": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "morpho_blue": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "yearn_v3": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "euler_v2": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "maple": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "pendle": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "fluid_fusdc": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "sfrax": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "wusdm": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "scrvusd": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "stusd": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "sdai": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "frax": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "aave_v3_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "morpho_blue_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "moonwell_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "susde": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    },
+    "extra_finance_base": {
+      "signal": "OK",
+      "reason": "no_active_tier_a_signal",
+      "score": 0.0,
+      "triggered_by": []
+    }
+  }
+}
