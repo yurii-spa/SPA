@@ -45,7 +45,28 @@ EQUITY_FILENAME = "equity_curve_daily.json"
 SUMMARY_FILENAME = "analytics_summary.json"
 
 BENCHMARK_APY = 0.05  # simple-deposit benchmark (5% APY)
-RISK_FREE_RATE = 0.05
+# rf=0.0: SPA is a stablecoin DeFi portfolio — the opportunity cost of capital
+# is simply holding USDC (0%), NOT Treasury bills (5%). Using rf=5% produced
+# artefactual Sharpe ≈ -5 on a perfectly functioning 1.3% APY portfolio.
+# ADR-ref: risk_policy.json → SHARPE_RISK_FREE_RATE (default 0.0).
+RISK_FREE_RATE = 0.0
+
+
+def _load_risk_free_rate(data_dir: Path) -> float:
+    """Read SHARPE_RISK_FREE_RATE from data/risk_policy.json; fall back to RISK_FREE_RATE.
+
+    This allows the rf used in Sharpe to be adjusted without touching code:
+    just set ``"SHARPE_RISK_FREE_RATE": 0.0`` in risk_policy.json (already default).
+    """
+    policy_path = data_dir / "risk_policy.json"
+    if policy_path.exists():
+        try:
+            doc = json.loads(policy_path.read_text(encoding="utf-8"))
+            if isinstance(doc, dict) and "SHARPE_RISK_FREE_RATE" in doc:
+                return float(doc["SHARPE_RISK_FREE_RATE"])
+        except (ValueError, OSError, TypeError, KeyError) as exc:
+            log.warning("risk_policy.json unreadable (%s) — using RISK_FREE_RATE=%s", exc, RISK_FREE_RATE)
+    return RISK_FREE_RATE
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
@@ -120,6 +141,11 @@ def run_post_cycle_analytics(
     ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
     now_dt = now or datetime.now(timezone.utc)
 
+    # Risk-free rate: read from risk_policy.json so it can be tuned without
+    # a code change. Default is RISK_FREE_RATE (0.0 for stablecoin portfolio).
+    rf_rate = _load_risk_free_rate(ddir)
+    log.debug("Sharpe risk_free_rate=%.4f (from risk_policy or default)", rf_rate)
+
     try:
         doc = json.loads((ddir / EQUITY_FILENAME).read_text(encoding="utf-8"))
         if not isinstance(doc, dict):
@@ -143,7 +169,7 @@ def run_post_cycle_analytics(
             metrics[name] = None
             errors.append(f"{name}: {type(exc).__name__}: {exc}")
 
-    _safe("sharpe", lambda: calculate_sharpe(returns, RISK_FREE_RATE))
+    _safe("sharpe", lambda: calculate_sharpe(returns, rf_rate))
     _safe("drawdown", lambda: calculate_max_drawdown(equity, dates))
     _safe("volatility", lambda: calculate_volatility(returns))
     _safe(
