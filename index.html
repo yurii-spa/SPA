@@ -1674,7 +1674,7 @@ body > .main-wrap, #app, .app-container,
 <body>
 
 <div class="spa-header-wrap" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
-  <h1>Stable Portfolio Agent — SPA</h1>
+  <h1>Stable Portfolio Agent — SPA <span style="font-size:11px;font-weight:600;color:#185FA5;background:#E6F1FB;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle;font-family:var(--spa-mono,monospace)">v4.0 · Full Analytics Suite</span></h1>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <div id="data-mode-badge" title="Источник: data/paper_trading_status.json">⏳ mode…</div>
     <div id="data-freshness-badge" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default;color:#888" title="Checking data freshness…">⏳ Checking…</div>
@@ -1684,7 +1684,7 @@ body > .main-wrap, #app, .app-container,
     <span class="spa-paper-badge" id="spa-paper-badge">PAPER · VIRTUAL CAPITAL</span>
   </div>
 </div>
-<p class="subtitle" id="ts-subtitle">Project · Loading data... · Strategy v1.0</p>
+<p class="subtitle" id="ts-subtitle">Project · Loading data... · Full Analytics Suite v4.0</p>
 
 <!-- MP-007: Go-Live Status Bar — честный статус из data/golive_status.json
      (фолбэк: golive_combined_verdict.json). Автообновление каждые 5 минут. -->
@@ -1730,6 +1730,7 @@ body > .main-wrap, #app, .app-container,
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
   <button class="tab-btn"         onclick="showTab('backtest',  this)">📉 Backtest</button>
   <button class="tab-btn"         onclick="showTab('protocols', this)">🔌 Protocols</button>
+  <button class="tab-btn"         onclick="showTab('risk',      this)">🛡 Risk</button>
   <button class="tab-btn" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
@@ -2019,6 +2020,36 @@ body > .main-wrap, #app, .app-container,
     </div>
   </div>
 
+  <!-- BLOCK 2a: Portfolio Optimizer (v4.0) -->
+  <div class="db-full" id="optimizer-block" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="db-section" style="margin-bottom:0">🎯 Portfolio Optimizer — Optimal vs Live</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="optimizer-projected" style="font-size:12px;color:#185FA5;font-weight:600"></span>
+        <button class="refresh-btn" onclick="loadOptimizer()">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="optimizer-summary" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Protocol</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Optimal %</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Current Live %</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Δ</th>
+          </tr>
+        </thead>
+        <tbody id="optimizer-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:#888">Loading optimizer data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:#EFF6FF;border-left:3px solid #185FA5;border-radius:4px;font-size:11.5px;color:#1e3a5f">
+      ℹ️ <strong>Optimizer is advisory.</strong> The optimal allocation is a mean-variance / risk-adjusted target. Live weights are governed by <code>spa_core/allocator</code> + RiskPolicy caps (T1 ≤ 40%, T2 total ≤ 50%).
+    </div>
+  </div>
+
   <!-- BLOCK 2b: Strategy Tournament Leaderboard (MP-1514, v11.30) -->
   <div class="db-full" id="tournament-leaderboard-block" style="margin-bottom:18px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2090,8 +2121,8 @@ body > .main-wrap, #app, .app-container,
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:600">Backtest Results</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Historical risk/return metrics per strategy · source <code>data/backtest_results.json</code></div>
+      <div style="font-size:15px;font-weight:600">Backtest Results <span id="backtest-source-badge"></span></div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="backtest-subtitle">Historical risk/return metrics per strategy · source <code>data/backtest_results.json</code></div>
     </div>
     <button class="refresh-btn" onclick="loadBacktest()">↻ Refresh</button>
   </div>
@@ -2107,11 +2138,12 @@ body > .main-wrap, #app, .app-container,
             <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Sharpe Ratio</th>
             <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Max Drawdown</th>
             <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Annualized Return</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600" id="backtest-alpha-th">vs Lazy Aave</th>
             <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Period</th>
           </tr>
         </thead>
         <tbody id="backtest-tbody">
-          <tr><td colspan="5" style="text-align:center;padding:20px;color:#888">Loading backtest data…</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#888">Loading backtest data…</td></tr>
         </tbody>
       </table>
     </div>
@@ -2155,18 +2187,84 @@ body > .main-wrap, #app, .app-container,
             <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Chain</th>
             <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Tier</th>
             <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Live APY</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600" title="Max loss if this protocol is fully exploited (100% of current exposure)">Hack Loss</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600" title="Kelly-criterion optimal weight from the Kelly sizer">Kelly Weight</th>
             <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Status</th>
             <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Last Updated</th>
           </tr>
         </thead>
         <tbody id="protocols-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:20px;color:#888">Loading adapters…</td></tr>
+          <tr><td colspan="8" style="text-align:center;padding:20px;color:#888">Loading adapters…</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
 </div><!-- /tab-protocols -->
+
+
+<!-- ══════════════════ TAB: RISK (v4.0 — Stress Tests + VaR) ══════════════════ -->
+<div id="tab-risk" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600">🛡 Risk Analytics</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Scenario stress tests &amp; Value-at-Risk · source <code>data/stress_test_results.json</code>, <code>data/var_analytics_v2.json</code></div>
+    </div>
+    <button class="refresh-btn" onclick="loadRisk()">↻ Refresh</button>
+  </div>
+
+  <!-- BLOCK 1: Stress Test scenarios -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">💥 Stress Test Scenarios</div>
+    <div id="risk-stress-meta" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Scenario</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Description</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Loss (USD)</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">% NAV</th>
+          </tr>
+        </thead>
+        <tbody id="risk-stress-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:#888">Loading stress test data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#aaa">
+      Color: <span style="color:#16a34a;font-weight:600">■ &lt; 2% NAV</span> ·
+      <span style="color:#d97706;font-weight:600">■ 2–5% NAV</span> ·
+      <span style="color:#dc2626;font-weight:600">■ &gt; 5% NAV</span>
+    </div>
+  </div>
+
+  <!-- BLOCK 2: Value-at-Risk -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section">📉 Value-at-Risk (VaR)</div>
+    <div id="risk-var-meta" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Method</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Confidence</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">VaR (%)</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">VaR (USD)</th>
+          </tr>
+        </thead>
+        <tbody id="risk-var-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:#888">Loading VaR data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#aaa">
+      Loss thresholds (% NAV) color-coded as above. CVaR = Expected Shortfall (mean loss beyond VaR). Monte-Carlo = 30-day horizon, 1,000 sims.
+    </div>
+  </div>
+
+</div><!-- /tab-risk -->
 
 
 <!-- ══════════════════ TAB: DECISIONS (OWNER REVIEW) ══════════════════ -->
@@ -4117,9 +4215,10 @@ function showTab(id, btn) {
   if (tabEl) { tabEl.classList.add('active'); tabEl.style.display = ''; }
   btn.classList.add('active');
   if (id === 'overview')    loadPerformance();
-  if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); }
+  if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); loadOptimizer(); }
   if (id === 'backtest')    loadBacktest();
   if (id === 'protocols')   loadProtocols();
+  if (id === 'risk')        loadRisk();
   if (id === 'ops')         loadOps();
   if (id === 'decisions')   loadDecisions();
   if (id === 'dashboard' && !_loadedOnce) loadDashboard();
@@ -5015,17 +5114,55 @@ async function loadBacktest() {
   const chart = document.getElementById('backtest-sharpe-chart');
   if (!tbody) return;
 
-  let data = null;
+  // Prefer the REAL 365-day DeFiLlama backtest; fall back to synthetic results.
+  let data = null, isReal = false;
   try {
-    const res = await fetch(dataBase + '/backtest_results.json?_=' + Date.now());
-    if (res.ok) data = await res.json();
+    const res = await fetch(dataBase + '/backtest_results_real.json?_=' + Date.now());
+    if (res.ok) { data = await res.json(); isReal = true; }
   } catch (_) {}
+  if (!data) {
+    try {
+      const res = await fetch(dataBase + '/backtest_results.json?_=' + Date.now());
+      if (res.ok) data = await res.json();
+    } catch (_) {}
+  }
 
-  const rows = data ? (data.results || data.strategies || data.backtests || []) : [];
+  const badge = document.getElementById('backtest-source-badge');
+  const sub   = document.getElementById('backtest-subtitle');
+
+  // ── Normalise rows. Real file uses a {strategies:{id:{...}}} map. ──
+  let rows = [];
+  let benchmark = null, benchCmp = {};
+  if (isReal && data && data.strategies) {
+    rows = Object.entries(data.strategies).map(([id, s]) => Object.assign({ strategy_id: id }, s));
+    benchmark = data.benchmark || null;
+    (data.benchmark_comparison || []).forEach(b => { benchCmp[b.strategy] = b; });
+  } else if (data) {
+    rows = data.results || data.strategies || data.backtests || [];
+  }
+
+  if (badge) {
+    badge.innerHTML = isReal
+      ? '<span style="font-size:10px;font-weight:600;color:#166534;background:#dcfce7;border-radius:10px;padding:2px 8px;margin-left:6px">REAL 365-DAY</span>'
+      : '<span style="font-size:10px;font-weight:600;color:#854d0e;background:#fef9c3;border-radius:10px;padding:2px 8px;margin-left:6px">SYNTHETIC</span>';
+  }
+
+  // Lazy Aave benchmark return (pct points) — from the real file, else default 3.10%.
+  const lazyAaveRet = benchmark && benchmark.total_return_pct != null
+    ? Number(benchmark.total_return_pct) : 3.10;
+  if (sub) {
+    if (isReal) {
+      const p = data.period || {};
+      sub.innerHTML = `Allocation-weighted backtest on <strong>real ${p.days || 365}-day DeFiLlama APY history</strong> (${p.from || ''} → ${p.to || ''}) · benchmark <strong>Lazy HODL ${lazyAaveRet.toFixed(2)}%</strong> (100% Aave V3) · source <code>data/backtest_results_real.json</code>`;
+    } else {
+      sub.innerHTML = 'Historical risk/return metrics per strategy · source <code>data/backtest_results.json</code>';
+    }
+  }
+  const alphaTh = document.getElementById('backtest-alpha-th');
+  if (alphaTh) alphaTh.textContent = `vs Lazy Aave (${lazyAaveRet.toFixed(2)}%)`;
 
   if (!rows.length) {
-    const pending = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">⏳ Backtest pending… <span style="font-size:11px">(no <code>data/backtest_results.json</code> yet)</span></td></tr>';
-    tbody.innerHTML = pending;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:#94a3b8">⏳ Backtest pending… <span style="font-size:11px">(no backtest results yet)</span></td></tr>';
     if (chart) chart.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8">⏳ Backtest pending…</div>';
     return;
   }
@@ -5034,24 +5171,50 @@ async function loadBacktest() {
   const sharpeColor = (s) => s == null ? '#888' : (s > 1.0 ? '#16a34a' : (s >= 0.5 ? '#d97706' : '#dc2626'));
   const pct = (v) => v == null ? '—' : (Number(v) * (Math.abs(v) <= 1 ? 100 : 1)).toFixed(1) + '%';
 
+  // Sort by annualised return desc when real data is present.
+  if (isReal) rows.sort((a, b) => (b.annualised_return_pct || 0) - (a.annualised_return_pct || 0));
+
   tbody.innerHTML = rows.map((r, i) => {
     const sid    = r.strategy_id || r.id || r.strategy || '?';
     const name   = r.strategy_name || r.name || '';
     const sharpe = r.sharpe != null ? r.sharpe : (r.sharpe_ratio != null ? r.sharpe_ratio : null);
-    const mdd    = r.max_drawdown != null ? r.max_drawdown : (r.mdd != null ? r.mdd : null);
+    const mdd    = r.max_drawdown != null ? r.max_drawdown
+                 : (r.max_drawdown_pct != null ? r.max_drawdown_pct : (r.mdd != null ? r.mdd : null));
     const ann    = r.annualized_return != null ? r.annualized_return
-                 : (r.annual_return != null ? r.annual_return : (r.cagr != null ? r.cagr : null));
-    const period = r.period || r.window ||
-                   ((r.start && r.end) ? (r.start + ' → ' + r.end) : '—');
+                 : (r.annualised_return_pct != null ? r.annualised_return_pct
+                 : (r.annual_return != null ? r.annual_return : (r.cagr != null ? r.cagr : (r.cagr_pct != null ? r.cagr_pct : null))));
+    // Alpha vs Lazy Aave (pct points). Prefer precomputed benchmark_comparison.
+    let alpha = null;
+    if (benchCmp[sid] && benchCmp[sid].vs_lazy_aave_pct_pts != null) {
+      alpha = Number(benchCmp[sid].vs_lazy_aave_pct_pts);
+    } else if (r.total_return_pct != null) {
+      alpha = Number(r.total_return_pct) - lazyAaveRet;
+    }
+    const alphaColor = alpha == null ? '#888' : (alpha > 0 ? '#16a34a' : (alpha < 0 ? '#dc2626' : '#888'));
+    const period = r.period || r.window || (r.backtest_days != null ? r.backtest_days + ' days'
+                 : ((r.start && r.end) ? (r.start + ' → ' + r.end) : '—'));
     const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
     return `<tr style="${rowBg}">
       <td style="padding:8px 10px"><span style="font-weight:600">${sid}</span>${name ? ` <span style="font-size:11px;color:#888">${name}</span>` : ''}</td>
       <td style="padding:8px 10px;text-align:right;font-weight:600;color:${sharpeColor(sharpe)}">${sharpe != null ? Number(sharpe).toFixed(2) : '—'}</td>
       <td style="padding:8px 10px;text-align:right;color:#dc2626">${mdd != null ? '-' + pct(Math.abs(mdd)) : '—'}</td>
       <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">${ann != null ? pct(ann) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;color:${alphaColor}">${alpha != null ? (alpha > 0 ? '+' : '') + alpha.toFixed(2) + ' pp' : '—'}</td>
       <td style="padding:8px 10px;font-size:12px;color:#666">${period}</td>
     </tr>`;
   }).join('');
+
+  // Append the benchmark row for reference (real data only).
+  if (isReal && benchmark) {
+    tbody.innerHTML += `<tr style="border-top:2px solid var(--border,#ddd);background:rgba(24,95,165,0.04)">
+      <td style="padding:8px 10px"><span style="font-weight:600">BENCHMARK</span> <span style="font-size:11px;color:#888">${benchmark.strategy_name || 'Lazy HODL (100% Aave V3)'}</span></td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;color:${sharpeColor(benchmark.sharpe_ratio)}">${benchmark.sharpe_ratio != null ? Number(benchmark.sharpe_ratio).toFixed(2) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#dc2626">${benchmark.max_drawdown_pct != null ? '-' + pct(Math.abs(benchmark.max_drawdown_pct)) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#059669;font-weight:600">${benchmark.annualised_return_pct != null ? pct(benchmark.annualised_return_pct) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#888">—</td>
+      <td style="padding:8px 10px;font-size:12px;color:#666">${benchmark.backtest_days != null ? benchmark.backtest_days + ' days' : '—'}</td>
+    </tr>`;
+  }
 
   // Bar chart: one horizontal bar per strategy, length ∝ Sharpe, color-coded.
   if (chart) {
@@ -5091,10 +5254,43 @@ async function loadProtocols() {
   } catch (_) {}
 
   if (!data || !data.adapters) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#94a3b8">adapter_status.json not available.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8">adapter_status.json not available.</td></tr>';
     if (metaEl) metaEl.textContent = '';
     return;
   }
+
+  // v4.0: per-protocol exposure (for hack-scenario loss) + Kelly weights.
+  let positions = {}, navCapital = 100000;
+  try {
+    const res = await fetch(dataBase + '/current_positions.json?_=' + Date.now());
+    if (res.ok) {
+      const cp = await res.json();
+      positions = cp.positions || {};
+      navCapital = cp.capital_usd || navCapital;
+    }
+  } catch (_) {}
+  // Kelly weights — try optimizer_results.json (kelly_weights) then a standalone file.
+  let kelly = {};
+  try {
+    const res = await fetch(dataBase + '/optimizer_results.json?_=' + Date.now());
+    if (res.ok) {
+      const o = await res.json();
+      const kw = o.kelly_weights || o.kelly || (o.kelly_sizer && o.kelly_sizer.weights) || null;
+      if (kw) Object.entries(kw).forEach(([k, v]) => { kelly[k] = _toPct(v); });
+    }
+  } catch (_) {}
+  if (!Object.keys(kelly).length) {
+    try {
+      const res = await fetch(dataBase + '/kelly_sizing.json?_=' + Date.now());
+      if (res.ok) {
+        const k = await res.json();
+        const kw = k.weights || k.kelly_weights || k.positions || null;
+        if (kw) Object.entries(kw).forEach(([kk, v]) => { kelly[kk] = _toPct(v); });
+      }
+    } catch (_) {}
+  }
+  const navColor = (typeof _riskNavColor === 'function') ? _riskNavColor
+    : (p) => p == null ? '#888' : (p < 2 ? '#16a34a' : (p <= 5 ? '#d97706' : '#dc2626'));
 
   const adapters = data.adapters;
   const keys = Object.keys(adapters);
@@ -5120,16 +5316,217 @@ async function loadProtocols() {
     else if (live == null)  { status = 'PENDING';   scolor = '#854d0e'; sbg = '#fef9c3'; }
     else                    { status = 'ACTIVE';    scolor = '#166534'; sbg = '#dcfce7'; }
     const upd = a.last_updated ? String(a.last_updated).replace('T', ' ').slice(0, 16) : '—';
+    // Hack-scenario loss = full current exposure of this protocol (100% drawdown).
+    const exposure = positions[a.key] != null ? Number(positions[a.key]) : null;
+    const hackPct = exposure != null && navCapital ? exposure / navCapital * 100 : null;
+    const hackColor = navColor(hackPct);
+    const kw = kelly[a.key] != null ? kelly[a.key] : null;
     const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
     return `<tr style="${rowBg}">
       <td style="padding:7px 10px"><span style="font-weight:600">${a.display_name || a.key}</span> <span style="font-size:11px;color:#aaa;font-family:monospace">${a.key}</span></td>
       <td style="padding:7px 10px;color:#666">${a.chain || '—'}</td>
       <td style="padding:7px 10px;text-align:center;color:${tierColor(a.tier)};font-weight:600">${tierLabel(a.tier)}</td>
       <td style="padding:7px 10px;text-align:right;font-weight:600">${apy != null ? apy.toFixed(2) + '%' : '<span style=\"color:#bbb\">—</span>'}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:600;color:${hackColor}" title="${hackPct != null ? hackPct.toFixed(2) + '% NAV' : ''}">${exposure != null ? '-$' + exposure.toLocaleString(undefined,{maximumFractionDigits:0}) : '<span style=\"color:#bbb\">—</span>'}</td>
+      <td style="padding:7px 10px;text-align:right;color:#185FA5;font-weight:600">${kw != null ? kw.toFixed(1) + '%' : '<span style=\"color:#bbb\">—</span>'}</td>
       <td style="padding:7px 10px;text-align:center"><span style="font-size:11px;background:${sbg};color:${scolor};padding:2px 8px;border-radius:10px">${status}</span></td>
       <td style="padding:7px 10px;font-size:12px;color:#888">${upd}</td>
     </tr>`;
   }).join('');
+}
+
+// ─── Portfolio Optimizer (v4.0) ──────────────────────────────────────────────
+// Pretty protocol label from a raw key.
+function _protoLabel(k) {
+  return String(k).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                  .replace(/V(\d)/i, 'V$1').replace(/Usdc|Usds|Fusdc/i, m => m.toUpperCase());
+}
+// Normalise a weight value to a percentage (handles 0–1 fractions and 0–100 pct).
+function _toPct(v) {
+  if (v == null || isNaN(v)) return null;
+  v = Number(v);
+  return Math.abs(v) <= 1 ? v * 100 : v;
+}
+
+async function loadOptimizer() {
+  const tbody = document.getElementById('optimizer-tbody');
+  if (!tbody) return;
+  const summaryEl = document.getElementById('optimizer-summary');
+  const projEl = document.getElementById('optimizer-projected');
+
+  let opt = null;
+  try {
+    const res = await fetch(dataBase + '/optimizer_results.json?_=' + Date.now());
+    if (res.ok) opt = await res.json();
+  } catch (_) {}
+
+  // Current live allocation from current_positions.json (always try).
+  let live = {};
+  try {
+    const res = await fetch(dataBase + '/current_positions.json?_=' + Date.now());
+    if (res.ok) {
+      const cp = await res.json();
+      const pos = cp.positions || {};
+      const denom = cp.capital_usd || cp.deployed_usd ||
+                    Object.values(pos).reduce((a, b) => a + Number(b || 0), 0) || 1;
+      Object.entries(pos).forEach(([k, v]) => { live[k] = Number(v) / denom * 100; });
+    }
+  } catch (_) {}
+
+  if (!opt) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:#94a3b8">⏳ Optimizer pending… <span style="font-size:11px">(no <code>data/optimizer_results.json</code> yet)</span></td></tr>';
+    if (summaryEl) summaryEl.textContent = '';
+    if (projEl) projEl.textContent = '';
+    return;
+  }
+
+  // Flexible schema: optimal allocation can live under several keys.
+  const cmp  = opt.comparison_vs_current || {};
+  const best = opt.best_blended || opt.best_by_sharpe || opt.best_by_return || {};
+  const optAllocRaw = cmp.optimal_weights_pct || best.weights_pct || best.weights ||
+                      opt.optimal_allocation || opt.optimal_weights || opt.weights ||
+                      opt.allocation || opt.target_allocation || {};
+  const currAllocRaw = cmp.current_weights_pct || opt.current_allocation || opt.live_allocation || null;
+  const projApy = cmp.optimal_expected_apy_pct ?? (best.metrics && best.metrics.expected_apy_pct) ??
+                  opt.projected_apy_pct ?? opt.expected_apy_pct ?? opt.optimal_apy_pct ??
+                  opt.projected_apy ?? opt.apy_pct ?? null;
+
+  // Build current map: prefer optimizer-provided, else positions-derived.
+  let curr = {};
+  if (currAllocRaw) {
+    Object.entries(currAllocRaw).forEach(([k, v]) => { curr[k] = _toPct(v); });
+  } else {
+    curr = live;
+  }
+
+  const optKeys = Object.keys(optAllocRaw);
+  if (!optKeys.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:#94a3b8">Optimizer file present but no allocation weights found.</td></tr>';
+  } else {
+    if (projEl && projApy != null) {
+      projEl.textContent = 'Projected APY: ' + _toPct(projApy).toFixed(2) + '%';
+    }
+    if (summaryEl) {
+      // Compact one-liner like "Optimal: 5% Aave, 30% Compound, …"
+      const top = optKeys.map(k => ({ k, w: _toPct(optAllocRaw[k]) }))
+        .sort((a, b) => (b.w || 0) - (a.w || 0)).slice(0, 6);
+      summaryEl.innerHTML = 'Optimal: ' + top.map(t => `<strong>${t.w.toFixed(0)}%</strong> ${_protoLabel(t.k)}`).join(', ') +
+        (opt.method ? ` · method: ${opt.method}` : '') +
+        (opt.objective ? ` · objective: ${opt.objective}` : '');
+    }
+
+    // Union of optimal + current keys, ordered by optimal weight desc.
+    const allKeys = Array.from(new Set([...optKeys, ...Object.keys(curr)]));
+    allKeys.sort((a, b) => (_toPct(optAllocRaw[b]) || 0) - (_toPct(optAllocRaw[a]) || 0));
+
+    tbody.innerHTML = allKeys.map((k, i) => {
+      const o = optAllocRaw[k] != null ? _toPct(optAllocRaw[k]) : null;
+      const c = curr[k] != null ? curr[k] : null;
+      const delta = (o != null && c != null) ? o - c : (o != null ? o : (c != null ? -c : null));
+      const dColor = delta == null ? '#888' : (Math.abs(delta) < 0.5 ? '#888' : (delta > 0 ? '#16a34a' : '#dc2626'));
+      const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
+      return `<tr style="${rowBg}">
+        <td style="padding:8px 10px;font-weight:600">${_protoLabel(k)}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:600;color:#185FA5">${o != null ? o.toFixed(1) + '%' : '—'}</td>
+        <td style="padding:8px 10px;text-align:right;color:#666">${c != null ? c.toFixed(1) + '%' : '—'}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:600;color:${dColor}">${delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(1) + ' pp' : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// ─── Risk Tab (v4.0 — Stress Tests + VaR) ────────────────────────────────────
+// Color rule shared by both tables: loss <2% NAV green, 2–5% amber, >5% red.
+function _riskNavColor(pctNav) {
+  if (pctNav == null || isNaN(pctNav)) return '#888';
+  if (pctNav < 2)  return '#16a34a';
+  if (pctNav <= 5) return '#d97706';
+  return '#dc2626';
+}
+
+async function loadRisk() {
+  // ── Stress test scenarios ──────────────────────────────────────────
+  const stbody = document.getElementById('risk-stress-tbody');
+  const smeta  = document.getElementById('risk-stress-meta');
+  if (stbody) {
+    let s = null;
+    try {
+      const res = await fetch(dataBase + '/stress_test_results.json?_=' + Date.now());
+      if (res.ok) s = await res.json();
+    } catch (_) {}
+
+    const scenarios = s && Array.isArray(s.scenarios) ? s.scenarios : [];
+    if (!scenarios.length) {
+      stbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:#94a3b8">⏳ Stress test pending… <span style="font-size:11px">(no <code>data/stress_test_results.json</code>)</span></td></tr>';
+      if (smeta) smeta.textContent = '';
+    } else {
+      if (smeta) {
+        const cap = s.capital_usd != null ? '$' + Number(s.capital_usd).toLocaleString() : '';
+        const worst = s.worst_case_scenario ? ` · worst case: <strong>${s.worst_case_scenario}</strong> (${Number(s.worst_case_impact_pct).toFixed(2)}% NAV)` : '';
+        smeta.innerHTML = `${scenarios.length} scenarios · capital ${cap} · ${s.num_positions != null ? s.num_positions + ' positions' : ''}${worst}`;
+      }
+      // Sort worst-first by % NAV
+      const ordered = scenarios.slice().sort((a, b) => (b.impact_pct || 0) - (a.impact_pct || 0));
+      stbody.innerHTML = ordered.map((sc, i) => {
+        const pct = sc.impact_pct != null ? Number(sc.impact_pct) : null;
+        const c = _riskNavColor(pct);
+        const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
+        return `<tr style="${rowBg}">
+          <td style="padding:8px 10px;font-weight:600">${sc.scenario || '—'}</td>
+          <td style="padding:8px 10px;font-size:12px;color:#666;max-width:420px">${sc.description || ''}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c}">${sc.impact_usd != null ? '-$' + Number(sc.impact_usd).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c}">${pct != null ? pct.toFixed(2) + '%' : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // ── Value-at-Risk ───────────────────────────────────────────────────
+  const vtbody = document.getElementById('risk-var-tbody');
+  const vmeta  = document.getElementById('risk-var-meta');
+  if (vtbody) {
+    let v = null;
+    try {
+      const res = await fetch(dataBase + '/var_analytics_v2.json?_=' + Date.now());
+      if (res.ok) v = await res.json();
+    } catch (_) {}
+
+    if (!v) {
+      vtbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:#94a3b8">⏳ VaR pending… <span style="font-size:11px">(no <code>data/var_analytics_v2.json</code>)</span></td></tr>';
+      if (vmeta) vmeta.textContent = '';
+    } else {
+      const cap = v.capital_usd != null ? Number(v.capital_usd) : 100000;
+      if (vmeta) {
+        vmeta.innerHTML = `capital $${cap.toLocaleString()} · ${v.n_returns != null ? v.n_returns + ' return points' : ''} · daily vol ${v.daily_volatility_pct != null ? Number(v.daily_volatility_pct).toFixed(3) + '%' : '—'}`;
+      }
+      const h = v.historical || {};
+      const p = v.parametric || {};
+      const es = v.expected_shortfall || {};
+      const mc = v.monte_carlo || {};
+      // Each row: [method, confidence, pct, usd]
+      const rows = [
+        ['Historical', '95%', h.var95_pct, h.var95_usd],
+        ['Historical', '99%', h.var99_pct, h.var99_usd],
+        ['Parametric', '95%', p.var95_pct, p.var95_usd],
+        ['Parametric', '99%', p.var99_pct, p.var99_usd],
+        ['CVaR (Expected Shortfall)', '95%', es.cvar95_pct, es.cvar95_usd],
+        ['Monte Carlo (30d)', '95%', mc.var95_30d_pct, mc.var95_30d_usd],
+      ];
+      vtbody.innerHTML = rows.map((r, i) => {
+        const [method, conf, pct, usd] = r;
+        // VaR pct here is already a NAV-percentage figure.
+        const c = _riskNavColor(pct != null ? Number(pct) : null);
+        const usdVal = usd != null ? Number(usd) : (pct != null ? cap * Number(pct) / 100 : null);
+        const rowBg = i % 2 === 0 ? '' : 'background:rgba(0,0,0,0.02)';
+        return `<tr style="${rowBg}">
+          <td style="padding:8px 10px;font-weight:600">${method}</td>
+          <td style="padding:8px 10px;text-align:right;color:#666">${conf}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c}">${pct != null ? Number(pct).toFixed(3) + '%' : '—'}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c}">${usdVal != null ? '-$' + usdVal.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
 }
 
 // ─── Ops Tab (internal operator view) ────────────────────────────────────────
@@ -5818,7 +6215,7 @@ function renderDashboard(status, protocols, stratState, meta) {
   // Заголовок
   const updAt = meta.updated_at ? meta.updated_at.replace('T',' ').slice(0,16) + ' UTC' : new Date().toISOString().replace('T',' ').slice(0,16) + ' UTC';
   document.getElementById('dash-ts').textContent = 'Обновлено: ' + updAt + ' · ' + (meta.source || 'github-actions');
-  document.getElementById('ts-subtitle').textContent = 'Проект · ' + updAt + ' · Стратегия v1.0';
+  document.getElementById('ts-subtitle').textContent = 'Проект · ' + updAt + ' · Full Analytics Suite v4.0';
 
   // Метрики
   document.getElementById('m-capital').textContent = fmt(p.total_capital_usd);
@@ -8781,7 +9178,7 @@ async function loadBacklog() {
 
 // ─── Инициализация ─────────────────────────────────────────────────────────────
 const nowStr = new Date().toISOString().replace('T',' ').slice(0,16) + ' UTC';
-document.getElementById('ts-subtitle').textContent = 'Проект · ' + nowStr + ' · Стратегия v1.0';
+document.getElementById('ts-subtitle').textContent = 'Проект · ' + nowStr + ' · Full Analytics Suite v4.0';
 const _todEl = document.getElementById('today-date');
 if (_todEl) _todEl.textContent = new Date().toISOString().slice(0,10);
 detectLiveMode();
