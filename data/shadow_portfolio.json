@@ -1,0 +1,143 @@
+{
+  "date": "2026-06-21",
+  "generated_at": "2026-06-21T01:23:20.828924+00:00",
+  "source": "shadow_tracker",
+  "advisory_only": true,
+  "initial_capital": 100000.0,
+  "real_equity_usd": 100134.53,
+  "strategies": {
+    "S0": {
+      "name": "MaxYield",
+      "equity": 100057.96,
+      "daily_pnl": 14.2528,
+      "prev_equity": 100043.71,
+      "weighted_apy_pct": 5.2,
+      "total_return_pct": 0.058,
+      "weights": {
+        "compound_v3": 1.0
+      },
+      "cash_pct": 0.0
+    },
+    "S1": {
+      "name": "MaxSharpe",
+      "equity": 100052.54,
+      "daily_pnl": 14.252,
+      "prev_equity": 100038.29,
+      "weighted_apy_pct": 5.2,
+      "total_return_pct": 0.0525,
+      "weights": {
+        "compound_v3": 1.0
+      },
+      "cash_pct": 0.0
+    },
+    "S2": {
+      "name": "EqualWeight",
+      "equity": 100050.95,
+      "daily_pnl": 14.2518,
+      "prev_equity": 100036.7,
+      "weighted_apy_pct": 5.2,
+      "total_return_pct": 0.051,
+      "weights": {
+        "compound_v3": 1.0
+      },
+      "cash_pct": 0.0
+    },
+    "S3": {
+      "name": "T1Only",
+      "equity": 100051.44,
+      "daily_pnl": 14.2519,
+      "prev_equity": 100037.19,
+      "weighted_apy_pct": 5.2,
+      "total_return_pct": 0.0514,
+      "weights": {
+        "compound_v3": 1.0
+      },
+      "cash_pct": 0.0
+    },
+    "S4": {
+      "name": "Conservative",
+      "equity": 100029.75,
+      "daily_pnl": 5.7,
+      "prev_equity": 100024.05,
+      "weighted_apy_pct": 2.08,
+      "total_return_pct": 0.0298,
+      "weights": {
+        "compound_v3": 0.4
+      },
+      "cash_pct": 60.0
+    },
+    "S5": {
+      "name": "CurrentSPA",
+      "equity": 100023.71,
+      "daily_pnl": 1.013,
+      "prev_equity": 100022.7,
+      "weighted_apy_pct": 0.3696,
+      "total_return_pct": 0.0237,
+      "weights": {
+        "aave_arbitrum": 0.056048,
+        "aave_v3": 0.047846,
+        "aave_v3_base": 0.020805,
+        "aave_v3_optimism": 0.065618,
+        "aave_v3_polygon": 0.069719,
+        "compound_v3": 0.071086,
+        "euler_v2": 0.012714,
+        "extra_finance_base": 0.036987,
+        "fluid_fusdc": 0.030052,
+        "frax": 0.034676,
+        "maple": 0.022285,
+        "moonwell_base": 0.025429,
+        "morpho_blue": 0.018956,
+        "morpho_blue_base": 0.028665,
+        "morpho_steakhouse": 0.088857,
+        "pendle": 0.036987,
+        "scrvusd": 0.032364,
+        "sdai": 0.025429,
+        "sfrax": 0.02774,
+        "spark_susds": 0.075187,
+        "stusd": 0.02774,
+        "susde": 0.055481,
+        "wusdm": 0.023117,
+        "yearn_v3": 0.014934
+      },
+      "cash_pct": 5.13
+    }
+  },
+  "history": [
+    {
+      "date": "2026-06-18",
+      "S0": 100014.73,
+      "S1": 100012.02,
+      "S2": 100011.23,
+      "S3": 100011.48,
+      "S4": 100009.18,
+      "S5": 100010.85
+    },
+    {
+      "date": "2026-06-19",
+      "S0": 100029.46,
+      "S1": 100024.04,
+      "S2": 100022.45,
+      "S3": 100022.94,
+      "S4": 100018.35,
+      "S5": 100021.69
+    },
+    {
+      "date": "2026-06-20",
+      "S0": 100043.71,
+      "S1": 100038.29,
+      "S2": 100036.7,
+      "S3": 100037.19,
+      "S4": 100024.05,
+      "S5": 100022.7
+    },
+    {
+      "date": "2026-06-21",
+      "S0": 100057.96,
+      "S1": 100052.54,
+      "S2": 100050.95,
+      "S3": 100051.44,
+      "S4": 100029.75,
+      "S5": 100023.71
+    }
+  ]
+}
