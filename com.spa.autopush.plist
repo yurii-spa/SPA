@@ -1,57 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  com.spa.autopush — SPA Smart Autopush (API-based, no git conflicts)
-  Script:  scripts/smart_autopush.py
-  State:   data/autopush_state.json  (last_version, total_pushed)
-  Logs:    /tmp/spa_autopush.log  /tmp/spa_autopush_err.log
-  Interval: 3600s (60 min)
-
-  Install:
-    bash install_smart_autopush.command
-  Manual run:
-    /Users/yuriikulieshov/miniconda3/bin/python3 \
-      /Users/yuriikulieshov/Documents/SPA_Claude/scripts/smart_autopush.py
-  Check:
-    launchctl list | grep com.spa.autopush
-    tail -f /tmp/spa_autopush.log
-
-  SECRETS POLICY: PAT is NEVER stored in this file or any file.
-                  Read from macOS Keychain (GITHUB_PAT_SPA) at runtime.
--->
+<!-- Template: replace PYTHON_PATH with actual miniconda python3 path (same as daily_cycle) -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>com.spa.autopush</string>
-
     <key>ProgramArguments</key>
     <array>
         <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/smart_autopush.py</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/auto_push.py</string>
     </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-
-    <!-- Run every 60 minutes -->
     <key>StartInterval</key>
-    <integer>3600</integer>
-
-    <!-- Run once immediately after load -->
+    <integer>5400</integer>
     <key>RunAtLoad</key>
-    <true/>
-
+    <false/>
     <key>StandardOutPath</key>
     <string>/tmp/spa_autopush.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/spa_autopush_err.log</string>
-
+    <string>/tmp/spa_autopush.err</string>
     <key>EnvironmentVariables</key>
     <dict>
-        <key>HOME</key>
-        <string>/Users/yuriikulieshov</string>
         <key>PATH</key>
-        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 </dict>
 </plist>
