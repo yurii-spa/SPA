@@ -78,45 +78,41 @@
       "tier": 2,
       "protocol": "Morpho Blue",
       "chain": "ethereum",
-      "fallback_apy": 0.041,
+      "fallback_apy": null,
       "research_only": false,
       "per_protocol_cap": 0.2,
       "status": "active",
-      "mp": null,
-      "live_apy": 0.041
+      "mp": null
     },
     "yearn_v3": {
       "tier": 2,
       "protocol": "Yearn V3",
       "chain": "ethereum",
-      "fallback_apy": 0.0323,
+      "fallback_apy": null,
       "research_only": false,
       "per_protocol_cap": 0.2,
       "status": "active",
-      "mp": null,
-      "live_apy": 0.0323
+      "mp": null
     },
     "euler_v2": {
       "tier": 2,
       "protocol": "Euler V2",
       "chain": "ethereum",
-      "fallback_apy": 0.0275,
+      "fallback_apy": null,
       "research_only": false,
       "per_protocol_cap": 0.2,
       "status": "active",
-      "mp": null,
-      "live_apy": 0.0275
+      "mp": null
     },
     "maple": {
       "tier": 2,
       "protocol": "Maple Finance",
       "chain": "ethereum",
-      "fallback_apy": 0.0482,
+      "fallback_apy": null,
       "research_only": false,
       "per_protocol_cap": 0.2,
       "status": "active",
-      "mp": null,
-      "live_apy": 0.0482
+      "mp": null
     },
     "pendle": {
       "tier": 2,
