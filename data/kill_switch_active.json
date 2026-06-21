@@ -1,0 +1,8 @@
+{
+  "active": false,
+  "activated_at": "2026-06-20T14:33:11.969809+00:00",
+  "deactivated_at": "2026-06-20T15:00:00+00:00",
+  "reason": "deactivated: P0-1175 fix applied — Sharpe rf=0.0 (stablecoin benchmark); corrected Sharpe=+1.67 with rf=0%",
+  "original_reason": "sharpe -4.9885 < -1.0 threshold (from analytics_summary.json, 31.0 days)",
+  "source": "manual_deactivation"
+}
