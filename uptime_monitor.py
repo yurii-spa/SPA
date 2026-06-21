@@ -106,6 +106,9 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     "com.spa.checkpoint-7day":     ("logs/checkpoint_7day.log", 691200),  # weekly → 8 d
     "com.spa.weekly_backup":       (None, 0),   # backup target outside repo
     "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 129600),  # daily 05:00 → 86400*1.5 = 36h window
+    "com.spa.analytics_tier_b":    ("data/analytics_signals_advisory.json", 7200),  # hourly → 2h window
+    "com.spa.bts-feed":            ("data/perp_funding_rates.json", 3600),  # every 15 min → 1h window
+    "com.spa.bts-monitor":         ("data/basis_trade_opportunities.json", 3600),  # every 15 min → 1h window
     "com.spa.bot_commands":        (None, 0),  # KeepAlive long-poll → judged via launchctl
 }
 
@@ -599,7 +602,11 @@ def _send_agent_alert(label: str, age_minutes: int, file_hint: str | None) -> bo
     )
     try:
         from spa_core.alerts.telegram_client import send_message
-        return bool(send_message(text))
+        # parse_mode="HTML": the default Markdown parser 400s on the underscores
+        # in labels/filenames (e.g. "com.spa.bot_commands",
+        # "paper_trading_status.json"). The alert text carries no HTML tags, so
+        # HTML mode renders it verbatim and stops the "API error 400" loop.
+        return bool(send_message(text, parse_mode="HTML"))
     except Exception as exc:  # noqa: BLE001 — alerts must never crash the monitor
         print(
             f"[uptime_monitor] WARNING: Telegram alert failed for {label}: {exc}",
