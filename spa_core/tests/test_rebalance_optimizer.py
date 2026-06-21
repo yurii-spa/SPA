@@ -24,6 +24,7 @@ import unittest
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
+from typing import Optional
 
 from spa_core.analytics.rebalance_optimizer import (
     DISCLAIMER,
