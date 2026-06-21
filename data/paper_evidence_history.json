@@ -1,80 +1,16 @@
 {
   "schema_version": "1.0",
-  "seed_note": "Seed data for system validation. Replace with real paper trading data as daily cycles accumulate.",
-  "SEED_DATA": true,
-  "initialized_at": "2026-06-20",
-  "description": "Paper trading evidence history — tracks daily evidence for GoLive qualification",
-  "day_count": 7,
-  "days": [
-    {
-      "date": "2026-06-14",
-      "cycle_completed": true,
-      "apy_verified": true,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100000.0,
-      "is_seed": true,
-      "seed_reason": "System validation seed: pre-track bootstrap day T-4"
-    },
-    {
-      "date": "2026-06-15",
-      "cycle_completed": true,
-      "apy_verified": true,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100002.74,
-      "is_seed": true,
-      "seed_reason": "System validation seed: pre-track bootstrap day T-3"
-    },
-    {
-      "date": "2026-06-16",
-      "cycle_completed": true,
-      "apy_verified": true,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100005.48,
-      "is_seed": true,
-      "seed_reason": "System validation seed: pre-track bootstrap day T-2"
-    },
-    {
-      "date": "2026-06-17",
-      "cycle_completed": true,
-      "apy_verified": true,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100000.0,
-      "is_seed": true,
-      "seed_reason": "System validation seed: pre-track bootstrap day"
-    },
-    {
-      "date": "2026-06-18",
-      "cycle_completed": true,
-      "apy_verified": true,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100010.85,
-      "is_seed": true,
-      "seed_reason": "System validation seed: aligns with first real equity_curve_daily entry"
-    },
-    {
-      "date": "2026-06-19",
-      "cycle_completed": true,
-      "apy_verified": false,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100021.69,
-      "is_seed": true,
-      "seed_reason": "System validation seed: aligns with second real equity_curve_daily entry"
-    },
-    {
-      "date": "2026-06-20",
-      "cycle_completed": true,
-      "apy_verified": true,
-      "risk_policy_passed": true,
-      "equity_snapshot": 100032.5,
-      "is_seed": true,
-      "seed_reason": "System validation seed: aligns with third real equity_curve_daily entry"
-    }
-  ],
-  "total_evidence_points": 0.0,
-  "daily_cycles_pts": 0.0,
-  "apy_tracking_pts": 0.0,
-  "risk_policy_pts": 0.0,
-  "bonus_pts": 0.0,
+  "SEED_DATA": false,
+  "seed_note": "Seed data removed 2026-06-21. Real cycles accumulate from 2026-06-10.",
+  "initialized_at": "2026-06-10",
+  "description": "Paper trading evidence history \u2014 tracks daily evidence for GoLive qualification",
+  "day_count": 0,
+  "days": [],
+  "total_evidence_points": 0,
+  "daily_cycles_pts": 0,
+  "apy_tracking_pts": 0,
+  "risk_policy_pts": 0,
+  "bonus_pts": 0,
   "target_pts": 30.0,
-  "status": "seeded"
+  "status": "awaiting_real_cycles"
 }
