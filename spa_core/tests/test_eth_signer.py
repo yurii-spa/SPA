@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import pytest
 
+from spa_core.execution import eth_signer
+
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
