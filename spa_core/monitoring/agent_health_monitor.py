@@ -78,14 +78,17 @@ def _worst(*statuses: str) -> str:
 # ---------------------------------------------------------------------------
 CAT_HIGH_FREQ = "high_freq"      # StartInterval <= 600s  (~5 min agents)
 CAT_MID_FREQ = "mid_freq"        # 600 < StartInterval <= 7200s (15-120 min)
-CAT_DAILY = "daily"              # StartCalendarInterval or interval > 7200s
+CAT_DAILY = "daily"              # StartCalendarInterval (hourly/daily) or interval > 7200s
+CAT_WEEKLY = "weekly"            # StartCalendarInterval with Weekday key (repeating weekly)
+CAT_ONE_TIME = "one_time"        # StartCalendarInterval with specific Month+Day (runs once)
 CAT_ALWAYS_ON = "always_on"      # KeepAlive server — check PID, not log age
 CAT_ON_DEMAND = "on_demand"      # RunAtLoad-once, no schedule/keepalive
 
 _FRESHNESS_THRESHOLD_MIN = {
-    CAT_HIGH_FREQ: 30,      # alert if log > 30 min old
-    CAT_MID_FREQ: 180,      # alert if log > 3 h old
-    CAT_DAILY: 26 * 60,     # alert if log > 26 h old
+    CAT_HIGH_FREQ: 30,          # alert if log > 30 min old
+    CAT_MID_FREQ: 180,          # alert if log > 3 h old
+    CAT_DAILY: 26 * 60,         # alert if log > 26 h old
+    CAT_WEEKLY: 7 * 24 * 60,    # alert if log > 7 days old (CRIT at 14 days)
 }
 
 # System-check thresholds
@@ -210,7 +213,19 @@ def _regex_plist_fallback(path: Path) -> dict:
     if m:
         out["StartInterval"] = int(m.group(1))
     if re.search(r"<key>StartCalendarInterval</key>", raw):
-        out["StartCalendarInterval"] = {}
+        cal: dict = {}
+        # Detect weekly schedule (Weekday key present)
+        m = re.search(r"<key>Weekday</key>\s*<integer>(\d+)</integer>", raw)
+        if m:
+            cal["Weekday"] = int(m.group(1))
+        # Detect specific date (Month + Day = one-time run)
+        mm = re.search(r"<key>Month</key>\s*<integer>(\d+)</integer>", raw)
+        dm = re.search(r"<key>Day</key>\s*<integer>(\d+)</integer>", raw)
+        if mm:
+            cal["Month"] = int(mm.group(1))
+        if dm:
+            cal["Day"] = int(dm.group(1))
+        out["StartCalendarInterval"] = cal
     if re.search(r"<key>KeepAlive</key>\s*<true\s*/>", raw):
         out["KeepAlive"] = True
     return out
@@ -229,7 +244,15 @@ def classify_agent(plist: Optional[dict]) -> str:
         if si <= 7200:
             return CAT_MID_FREQ
         return CAT_DAILY
-    if plist.get("StartCalendarInterval") is not None:
+    cal = plist.get("StartCalendarInterval")
+    if cal is not None:
+        if isinstance(cal, dict):
+            # Specific date (Month + Day) → one-time job, no freshness alarm
+            if "Month" in cal and "Day" in cal:
+                return CAT_ONE_TIME
+            # Weekly schedule (Weekday key)
+            if "Weekday" in cal:
+                return CAT_WEEKLY
         return CAT_DAILY
     return CAT_ON_DEMAND
 
@@ -337,8 +360,11 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
     # 3) Non-zero last exit status
     if health.last_exit not in (None, 0):
         issues.append(f"last_exit={health.last_exit}")
-        # crash of an always-on server is critical; otherwise warning
-        sev = CRITICAL if cat == CAT_ALWAYS_ON else WARNING
+        # always-on server: any nonzero exit means crash → CRITICAL.
+        if cat == CAT_ALWAYS_ON:
+            sev = CRITICAL
+        else:
+            sev = WARNING
         health.status = _worst(health.status, sev)
 
     # 4) Always-on servers: must have a live PID
