@@ -71,6 +71,17 @@ TRACK_TARGET_DAYS = 30
 # remainder is collapsed into one summary line.
 MAX_POSITION_LINES = 8
 
+# Base chain monitoring registry (ADR-025 Phase 1 — merged from the former
+# scripts/daily_paper_report.py so this is the single 08:00 morning report).
+# ``suspended=True`` → rendered with a SUSPENDED label, no capital allocated.
+# ``apy_fallback`` is used only when adapter_status.json has no live datapoint.
+_BASE_ADAPTERS_REGISTRY: dict[str, dict] = {
+    "aave_v3_base": {"tier": "T2", "label": "Aave V3 Base", "apy_fallback": 4.5, "suspended": False},
+    "morpho_blue_base": {"tier": "T2", "label": "Morpho Blue Base", "apy_fallback": 6.2, "suspended": False},
+    "moonwell_base": {"tier": "T3", "label": "Moonwell Base", "apy_fallback": 0.0, "suspended": True},
+    "extra_finance_base": {"tier": "T3", "label": "Extra Finance XLend", "apy_fallback": 8.0, "suspended": False},
+}
+
 
 # ─── IO helpers ──────────────────────────────────────────────────────────────
 
@@ -191,6 +202,77 @@ def _days_to_track_target(day_number: int | None) -> int | None:
     return max(TRACK_TARGET_DAYS - day_number, 0)
 
 
+def _live_apy(info: dict, fallback: float) -> float:
+    """Live APY for a Base adapter, preferring apy_pct then apy then fallback.
+
+    adapter_status.json sometimes carries ``apy_pct: None`` alongside a populated
+    ``apy`` (percent units), so a plain ``.get("apy_pct", ...)`` would yield None.
+    """
+    apy = info.get("apy_pct")
+    if apy is None:
+        apy = info.get("apy")
+    if apy is None:
+        apy = fallback
+    return float(apy)
+
+
+def _collect_base_chain(adapter_doc: Any, data_dir: Path) -> dict:
+    """Gas status + Base adapter APYs for the report (ADR-025 Phase 1).
+
+    All read-only and optional — every failure degrades gracefully. Base adapters
+    live under ``adapter_status.json → adapters`` (chain == "base").
+    """
+    gas: dict = {"available": False, "error": None}
+    try:
+        from spa_core.monitoring.base_gas_monitor import BaseGasMonitor
+
+        status = BaseGasMonitor(data_dir=str(data_dir)).get_status()
+        gas = {
+            "available": True,
+            "gwei": status.get("gwei") or 0.0,
+            "consecutive": status.get("consecutive_above", 0),
+            "kill": bool(status.get("kill_switch_active", False)),
+        }
+    except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
+        gas = {"available": False, "error": str(exc)}
+
+    live: dict[str, dict] = {}
+    if isinstance(adapter_doc, dict):
+        adapters = adapter_doc.get("adapters")
+        if isinstance(adapters, dict):
+            live = {
+                k: v
+                for k, v in adapters.items()
+                if isinstance(v, dict) and v.get("chain") == "base"
+            }
+
+    rows: list[dict] = []
+    for adapter_id, meta in _BASE_ADAPTERS_REGISTRY.items():
+        if meta["suspended"]:
+            rows.append({"label": meta["label"], "tier": meta["tier"], "suspended": True})
+            continue
+        info = live.get(adapter_id, {})
+        rows.append({
+            "label": meta["label"],
+            "tier": meta["tier"],
+            "apy": _live_apy(info, meta["apy_fallback"]),
+            "suspended": False,
+        })
+
+    # Surface any Base adapter present live but not in the static registry.
+    known = set(_BASE_ADAPTERS_REGISTRY)
+    for adapter_id, info in live.items():
+        if adapter_id not in known:
+            rows.append({
+                "label": adapter_id,
+                "tier": f"T{info['tier']}" if isinstance(info.get("tier"), int) else info.get("tier", "?"),
+                "apy": _live_apy(info, 0.0),
+                "suspended": False,
+            })
+
+    return {"gas": gas, "adapters": rows}
+
+
 # ─── Report assembly ─────────────────────────────────────────────────────────
 
 
@@ -279,6 +361,8 @@ def build_report_data(
     risk_approved = status_doc.get("risk_policy_approved")
     risk_blocks = _risk_blocks_today(blocks_doc, date_str)
 
+    base_chain = _collect_base_chain(adapter_doc, ddir)
+
     return {
         "date": date_str,
         "generated_at": now_dt.isoformat(),
@@ -299,6 +383,7 @@ def build_report_data(
         "last_cycle_status": last_cycle_status,
         "risk_policy_approved": risk_approved,
         "risk_blocks_today": risk_blocks,
+        "base_chain": base_chain,
     }
 
 
@@ -400,6 +485,35 @@ def format_daily_message(data: dict) -> str:
         lines.append(f"🔒 Risk gate: {blocks} block event(s) today — see risk_policy_blocks.json")
     elif approved is True:
         lines.append("🔒 Risk gate: all positions within limits")
+
+    # Base chain monitoring (ADR-025 Phase 1 — merged from daily_paper_report).
+    bc = data.get("base_chain")
+    if isinstance(bc, dict):
+        lines.append("")
+        lines.append("🔵 <b>Base Chain (ADR-025 Phase 1)</b>")
+        gas = bc.get("gas") or {}
+        if not gas.get("available"):
+            lines.append("  ⚪ Gas: unavailable")
+        elif gas.get("kill"):
+            lines.append(
+                f"  ⛔ Gas Kill-Switch ACTIVE! {gas.get('gwei', 0.0):.2f} Gwei "
+                f"× {gas.get('consecutive', 0)} days"
+            )
+        elif gas.get("consecutive", 0) > 0:
+            lines.append(
+                f"  ⚠️ Gas above threshold: {gas.get('gwei', 0.0):.2f} Gwei "
+                f"({gas.get('consecutive', 0)}/3 days)"
+            )
+        else:
+            lines.append(f"  ✅ Gas: {gas.get('gwei', 0.0):.2f} Gwei (normal)")
+        for row in bc.get("adapters", []):
+            if row.get("suspended"):
+                lines.append(f"  🚫 {row['label']} [{row['tier']}]: SUSPENDED")
+            else:
+                lines.append(
+                    f"  📊 {row['label']} [{row['tier']}]: {row['apy']:.1f}% APY (monitoring)"
+                )
+        lines.append("  ℹ️ Phase 1: monitoring without capital → until 2026-07-12")
 
     return "\n".join(lines)
 
