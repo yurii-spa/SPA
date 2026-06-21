@@ -1,5 +1,5 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-21** | Версия: **v12.29** | Done: **~1318** задач
+> Последнее обновление: **2026-06-21** | Версия: **v12.30** | Done: **~1319** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
