@@ -37,10 +37,9 @@ Date: 2026-06-20 (MP-1513, Sprint v11.29)
 from __future__ import annotations
 
 import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from spa_core.base import BaseAnalytics
-from spa_core.utils.errors import GateError
 
 
 # ─── Demotion triggers (ADR-023) ──────────────────────────────────────────────

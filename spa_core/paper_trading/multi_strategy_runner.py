@@ -14,11 +14,9 @@ spa_core/paper_trading/multi_strategy_runner.py — MP-357 MultiStrategyRunner
 """
 from __future__ import annotations
 
-import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from spa_core.utils.atomic import atomic_save
 from spa_core.paper_trading.strategy_registry import StrategyConfig

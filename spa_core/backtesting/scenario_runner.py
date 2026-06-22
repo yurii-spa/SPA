@@ -27,13 +27,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backtesting.engine import BacktestEngine
 from backtesting.data_loader import generate_synthetic_history
-from backtesting.metrics import (
-    sharpe_ratio,
-    max_drawdown,
-    win_rate,
-    total_return_pct,
-    annualised_return_pct,
-)
 from risk.policy import RiskConfig
 
 

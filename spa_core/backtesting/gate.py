@@ -19,7 +19,6 @@ Reads only — never writes to any state file.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 

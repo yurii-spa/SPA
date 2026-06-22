@@ -31,7 +31,6 @@ MP-1410 (v10.26), MP-1542 (v11.58)
 from __future__ import annotations
 
 import datetime
-import os
 import sys
 from pathlib import Path
 from typing import List, Optional

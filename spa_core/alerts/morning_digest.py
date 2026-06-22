@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_load

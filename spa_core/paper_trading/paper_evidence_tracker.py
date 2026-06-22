@@ -18,11 +18,9 @@ CLI:
 """
 
 import json
-import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional
 from spa_core.utils.atomic import atomic_save
 
 # ─── Constants ───────────────────────────────────────────────────────────────

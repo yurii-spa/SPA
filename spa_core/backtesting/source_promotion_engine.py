@@ -31,10 +31,9 @@ Date: 2026-06-19 (MP-1319)
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from spa_core.backtesting.source_pipeline import SourcePipeline, SourceState
 from spa_core.base import BaseAnalytics

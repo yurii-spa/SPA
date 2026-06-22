@@ -23,10 +23,7 @@ Usage:
 from __future__ import annotations
 
 import json
-import math
-import statistics
 import sys
-from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -36,7 +33,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backtesting.metrics import (
     sharpe_ratio,
     max_drawdown,
-    win_rate,
     total_return_pct,
     annualised_return_pct,
 )

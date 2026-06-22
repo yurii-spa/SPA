@@ -334,7 +334,6 @@ class SourcePipeline:
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def _cli() -> None:  # pragma: no cover
-    import sys
     pipeline = SourcePipeline()
     summary = pipeline.source_summary()
     print(json.dumps({

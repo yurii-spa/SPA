@@ -16,7 +16,7 @@ STRICTLY READ-ONLY / paper trading only (SPA-BL-011): recovery лишь
 никаких реальных транзакций, execution/risk/wallet-код не импортируется.
 """
 import json, os, time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from spa_core.utils.atomic import atomic_save, atomic_load, file_lock  # noqa: F401 — required by atomic migration policy
 

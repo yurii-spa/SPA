@@ -4,7 +4,7 @@ Multi-Engine Investor Report v2.0.
 LLM_FORBIDDEN. fail-closed: нет данных → 0/pending.
 """
 # LLM_FORBIDDEN
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 from pathlib import Path
 from datetime import datetime

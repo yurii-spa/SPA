@@ -36,7 +36,7 @@ from __future__ import annotations
 import datetime
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict
 
 # ─── Константы ────────────────────────────────────────────────────────────────
 

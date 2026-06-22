@@ -37,7 +37,7 @@ Date: 2026-06-21
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 # ─── Identity ─────────────────────────────────────────────────────────────────
 

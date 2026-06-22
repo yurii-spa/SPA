@@ -50,7 +50,7 @@ Date: 2026-06-13 (MP-608)
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 # ─── Константы ────────────────────────────────────────────────────────────────
 

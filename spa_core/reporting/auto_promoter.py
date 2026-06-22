@@ -7,7 +7,6 @@ Domains: read-only analytics — never imports execution/, never calls LLM.
 All file writes are atomic (tmp + os.replace).
 """
 
-import os
 import json
 import datetime
 from pathlib import Path

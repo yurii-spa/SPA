@@ -20,9 +20,7 @@ stdlib only. No external dependencies.
 
 from __future__ import annotations
 
-import json
 import math
-import os
 import statistics
 from datetime import date, timedelta
 from pathlib import Path

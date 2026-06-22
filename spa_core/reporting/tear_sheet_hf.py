@@ -35,7 +35,6 @@ from spa_core.reporting._perf_common import (
     ANNUALIZATION_DAYS,
     DISCLAIMER,
     RISK_FREE_ANNUAL_PCT,
-    annualize_return_pct,
     atomic_write_json,
     compound_return_pct,
     compute_risk_metrics,

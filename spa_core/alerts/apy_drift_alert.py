@@ -142,7 +142,6 @@ class APYDriftAlert(BaseAnalytics):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import json
     import sys
 
     base = "." if len(sys.argv) < 2 else sys.argv[1]

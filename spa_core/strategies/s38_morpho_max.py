@@ -53,7 +53,7 @@ Date: 2026-06-21 (MP-1247)
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # ─── Strategy identity ────────────────────────────────────────────────────────
 

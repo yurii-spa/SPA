@@ -29,9 +29,7 @@ stdlib only. Atomic writes. No external dependencies.
 
 from __future__ import annotations
 
-import json
 import math
-import os
 from datetime import date, timedelta
 from pathlib import Path
 

@@ -5,7 +5,6 @@ Secrets expected: SPA_ALERT_EMAIL (sender), SPA_ALERT_PASSWORD (app password),
 """
 import os
 import smtplib
-import json
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart

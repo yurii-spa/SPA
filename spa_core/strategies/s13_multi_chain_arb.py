@@ -44,7 +44,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)

@@ -28,7 +28,6 @@ import time
 import urllib.request
 from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
-from typing import Optional
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _SPA_CORE = Path(__file__).parent.parent

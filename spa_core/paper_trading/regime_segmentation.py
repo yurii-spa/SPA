@@ -69,7 +69,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import math
 import os
 import statistics
 from datetime import datetime, timezone

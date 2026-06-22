@@ -31,7 +31,7 @@ ADR: ADR-021 (Pendle YT T3-SPEC — advisory only, позиции не откр�
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 # ─── Константы ────────────────────────────────────────────────────────────────
 
