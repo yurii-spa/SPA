@@ -276,6 +276,9 @@ def log_result(result: dict, data_dir: str = None) -> None:
     # Atomic write
     os.makedirs(data_dir, exist_ok=True)
     atomic_save(log, str(log_path))
+
+
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="MP-899 DeFiPositionPnLTracker")
