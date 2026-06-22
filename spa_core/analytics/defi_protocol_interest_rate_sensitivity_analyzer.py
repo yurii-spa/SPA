@@ -64,6 +64,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -372,7 +373,8 @@ def write_log(result: Dict[str, Any], data_dir: Optional[Path] = None) -> Path:
 # ---------------------------------------------------------------------------
 
 
-class DeFiProtocolInterestRateSensitivityAnalyzer:
+class DeFiProtocolInterestRateSensitivityAnalyzer(BaseAnalytics):
+    OUTPUT_PATH = "data/defi_interest_rate_sensitivity.json"
     """Advisory wrapper around :func:`analyze_interest_rate_sensitivity`.
 
     Usage::
@@ -404,6 +406,11 @@ class DeFiProtocolInterestRateSensitivityAnalyzer:
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 _DEMO_PARAMS: Dict[str, Any] = {
     "protocol_name": "Aave V3 (demo)",
