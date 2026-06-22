@@ -26,15 +26,16 @@ from spa_core.allocator.allocator import (
     DEFAULT_MODEL,
     StrategyAllocator,
 )
+from spa_core.utils.errors import AllocationError
 
 
 def make_adapters() -> list[dict]:
     """4 T2-адаптера как в реальном снимке оркестратора."""
     return [
-        {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 0.0, "tier": "T2"},
-        {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 0.0, "tier": "T2"},
-        {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 0.0, "tier": "T2"},
-        {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 0.0, "tier": "T2"},
+        {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 100_000_000.0, "tier": "T2"},
+        {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 100_000_000.0, "tier": "T2"},
+        {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 100_000_000.0, "tier": "T2"},
+        {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 100_000_000.0, "tier": "T2"},
     ]
 
 
@@ -74,8 +75,8 @@ class TestRiskAdjustedModel(unittest.TestCase):
     def test_grade_a_gets_higher_weight_than_b(self):
         # одинаковый APY, но A (×1.0) против B (×0.85) → A получает больший вес
         adapters = [
-            {"protocol": "alpha", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "beta", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "alpha", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "beta", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         scores = {"alpha": "A", "beta": "B"}
         w = m.risk_adjusted_weight(adapters, scores)
@@ -84,8 +85,8 @@ class TestRiskAdjustedModel(unittest.TestCase):
 
     def test_grade_d_excluded_from_allocation(self):
         adapters = [
-            {"protocol": "good", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "bad", "apy_pct": 9.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "good", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "bad", "apy_pct": 9.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         scores = {"good": "A", "bad": "D"}
         bd = m.risk_adjusted_breakdown(adapters, scores)
@@ -95,7 +96,7 @@ class TestRiskAdjustedModel(unittest.TestCase):
         self.assertAlmostEqual(bd["weights"]["good"], 1.0, places=9)
 
     def test_missing_score_defaults_to_b(self):
-        adapters = [{"protocol": "unknown_proto", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"}]
+        adapters = [{"protocol": "unknown_proto", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"}]
         bd = m.risk_adjusted_breakdown(adapters, {})  # пустые оценки
         self.assertEqual(bd["per_protocol"]["unknown_proto"]["risk_grade"], "B")
         self.assertAlmostEqual(
@@ -104,8 +105,8 @@ class TestRiskAdjustedModel(unittest.TestCase):
 
     def test_all_excluded_fallback_to_equal_weight(self):
         adapters = [
-            {"protocol": "d1", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "d2", "apy_pct": 9.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "d1", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "d2", "apy_pct": 9.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         scores = {"d1": "D", "d2": "D"}
         bd = m.risk_adjusted_breakdown(adapters, scores)
@@ -126,8 +127,8 @@ class TestRiskAdjustedModel(unittest.TestCase):
 
     def test_custom_grade_multipliers(self):
         adapters = [
-            {"protocol": "a", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "b", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "a", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "b", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         # перекрываем: C теперь множитель 0.0 (исключается)
         bd = m.risk_adjusted_breakdown(
@@ -138,14 +139,14 @@ class TestRiskAdjustedModel(unittest.TestCase):
 
     def test_normalization_underscore_vs_hyphen(self):
         # адаптер euler_v2 должен совпасть со slug euler-v2
-        adapters = [{"protocol": "euler_v2", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"}]
+        adapters = [{"protocol": "euler_v2", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"}]
         bd = m.risk_adjusted_breakdown(adapters, {"euler-v2": "A"})
         self.assertEqual(bd["per_protocol"]["euler_v2"]["risk_grade"], "A")
 
     def test_pre_and_post_risk_weights_present(self):
         adapters = [
-            {"protocol": "a", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "b", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "a", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "b", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         bd = m.risk_adjusted_breakdown(adapters, {"a": "A", "b": "B"})
         for p in ("a", "b"):
@@ -165,8 +166,8 @@ class TestRiskAdjustedModel(unittest.TestCase):
 
     def test_zero_apy_all_fallback_equal_weight(self):
         adapters = [
-            {"protocol": "a", "apy_pct": 0.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "b", "apy_pct": 0.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "a", "apy_pct": 0.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "b", "apy_pct": 0.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         bd = m.risk_adjusted_breakdown(adapters, {"a": "A", "b": "A"})
         self.assertTrue(bd["fallback_equal_weight"])
@@ -250,8 +251,8 @@ class TestRiskAwareAllocator(unittest.TestCase):
         # критично: grade D исключён и НЕ должен получить капитал через
         # _fill_remainder (SPA-V405), даже имея headroom.
         adapters = [
-            {"protocol": "good_a", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T1"},
-            {"protocol": "bad_d", "apy_pct": 12.0, "tvl_usd": 0.0, "tier": "T1"},
+            {"protocol": "good_a", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T1"},
+            {"protocol": "bad_d", "apy_pct": 12.0, "tvl_usd": 100_000_000.0, "tier": "T1"},
         ]
         alloc = self._allocator(adapters, {"good_a": "A", "bad_d": "D"})
         res = alloc.allocate(model="risk_adjusted")
@@ -261,8 +262,8 @@ class TestRiskAwareAllocator(unittest.TestCase):
 
     def test_excluded_by_risk_note_present(self):
         adapters = [
-            {"protocol": "good_a", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "bad_d", "apy_pct": 12.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "good_a", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "bad_d", "apy_pct": 12.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         alloc = self._allocator(adapters, {"good_a": "A", "bad_d": "D"})
         res = alloc.allocate(model="risk_adjusted")
@@ -270,8 +271,8 @@ class TestRiskAwareAllocator(unittest.TestCase):
 
     def test_all_grade_d_warning_and_fallback(self):
         adapters = [
-            {"protocol": "d1", "apy_pct": 5.0, "tvl_usd": 0.0, "tier": "T2"},
-            {"protocol": "d2", "apy_pct": 9.0, "tvl_usd": 0.0, "tier": "T2"},
+            {"protocol": "d1", "apy_pct": 5.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
+            {"protocol": "d2", "apy_pct": 9.0, "tvl_usd": 100_000_000.0, "tier": "T2"},
         ]
         alloc = self._allocator(adapters, {"d1": "D", "d2": "D"})
         res = alloc.allocate(model="risk_adjusted")
@@ -298,7 +299,8 @@ class TestRiskAwareAllocator(unittest.TestCase):
 
     def test_unknown_model_still_raises(self):
         alloc = self._allocator(make_adapters(), {"morpho_blue": "A"})
-        with self.assertRaises(ValueError):
+        # Allocator raises AllocationError (its error taxonomy) for an unknown model.
+        with self.assertRaises((ValueError, AllocationError)):
             alloc.allocate(model="moon_math")
 
     def test_weights_sum_le_one_after_caps(self):

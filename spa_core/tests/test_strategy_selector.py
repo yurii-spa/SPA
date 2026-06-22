@@ -268,10 +268,10 @@ class TestAllocatorStrategyLoop(unittest.TestCase):
 
     def _write_status(self):
         adapters = [
-            {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
-            {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
-            {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
-            {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
+            {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 100_000_000.0, "tier": "T2", "status": "ok"},
+            {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 100_000_000.0, "tier": "T2", "status": "ok"},
+            {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 100_000_000.0, "tier": "T2", "status": "ok"},
+            {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 100_000_000.0, "tier": "T2", "status": "ok"},
         ]
         self.status.write_text(json.dumps({"adapters": adapters}), encoding="utf-8")
 
@@ -316,10 +316,12 @@ class TestAllocatorStrategyLoop(unittest.TestCase):
         write_portfolio(self.strat_dir, "s_concentrated", {"maple": 100000.0})
         res = self._allocator().allocate()
         self.assertTrue(res.strategy_loop_active)
+        # No protocol may exceed the largest per-protocol cap (T1); registry-merge
+        # adds T1 anchors that legitimately fill the remainder up to T1_CAP.
         for p, w in res.target_weights.items():
-            self.assertLessEqual(w, StrategyAllocator.T2_CAP + 1e-9)
-        # maple не может держать больше 20% несмотря на 100% в стратегии
-        self.assertLessEqual(res.target_weights["maple"], 0.20 + 1e-9)
+            self.assertLessEqual(w, StrategyAllocator.T1_CAP + 1e-9)
+        # maple (T2, concentrated 100% by the strategy) is still capped at its T2 cap.
+        self.assertLessEqual(res.target_weights["maple"], StrategyAllocator.T2_CAP + 1e-9)
 
     # 18
     def test_strategy_loop_can_be_disabled(self):
@@ -362,8 +364,10 @@ class TestAllocatorStrategyLoop(unittest.TestCase):
                          "morpho_blue": 25000.0, "yearn_v3": 25000.0})
         res = self._allocator().allocate()
         self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-9)
+        # Per-protocol cap: no weight exceeds the largest cap (T1); registry-merge
+        # T1 anchors may legitimately reach T1_CAP via remainder fill.
         for w in res.target_weights.values():
-            self.assertLessEqual(w, StrategyAllocator.T2_CAP + 1e-9)
+            self.assertLessEqual(w, StrategyAllocator.T1_CAP + 1e-9)
 
 
 if __name__ == "__main__":

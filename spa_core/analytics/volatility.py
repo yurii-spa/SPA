@@ -13,6 +13,12 @@ def _sample_std(values: list[float]) -> float:
     n = len(values)
     if n < 2:
         return 0.0
+    # A constant series has exactly zero std. Compute this directly to avoid
+    # the ~1e-19 float residue that (v - mean)**2 leaves when all values are
+    # equal (which would otherwise fail strict == 0.0). Any real variation makes
+    # max != min and takes the normal path, so this never masks volatility.
+    if max(values) == min(values):
+        return 0.0
     mean = sum(values) / n
     variance = sum((v - mean) ** 2 for v in values) / (n - 1)
     return math.sqrt(variance)
