@@ -80,6 +80,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -384,7 +385,8 @@ def analyze(
 # ---------------------------------------------------------------------------
 
 
-class ProtocolDeFiSmartContractUpgradeRiskAnalyzer:
+class ProtocolDeFiSmartContractUpgradeRiskAnalyzer(BaseAnalytics):
+    OUTPUT_PATH = "data/protocol_smart_contract_upgrade_risk.json"
     """Stateful analyzer that accumulates results into a ring-buffer log.
 
     Usage
@@ -483,6 +485,11 @@ class ProtocolDeFiSmartContractUpgradeRiskAnalyzer:
 # I/O helpers
 # ---------------------------------------------------------------------------
 
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 def _load_json_list(path: Path) -> List[Any]:
     """Load a JSON list from *path*; return [] on any error."""
