@@ -29,10 +29,17 @@ from __future__ import annotations
 import json
 import sys
 import urllib.error
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+# Token-unlock checks skip unlocks > 24h in the past; use a future date so these
+# unit tests are not time-dependent (the hardcoded 2026-06 dates went stale).
+_FUTURE_UNLOCK = (datetime.now(timezone.utc) + timedelta(days=5)).strftime(
+    "%Y-%m-%dT00:00:00Z"
+)
 
 # Ensure spa_core is importable when pytest is run from the repo root.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -254,7 +261,7 @@ def test_token_unlock_critical_when_supply_above_threshold(monitor):
     flags = monitor._classify_unlocks([
         {
             "protocol":   "ethena-susde",
-            "unlock_at":  "2026-06-03T00:00:00Z",
+            "unlock_at":  _FUTURE_UNLOCK,
             "pct_supply": 8.0,
             "tokens":     420_000_000,
             "symbol":     "ENA",
@@ -268,7 +275,7 @@ def test_token_unlock_warn_for_low_supply_on_grade_a(monitor):
     flags = monitor._classify_unlocks([
         {
             "protocol":   "pendle-pt",
-            "unlock_at":  "2026-06-01T00:00:00Z",
+            "unlock_at":  _FUTURE_UNLOCK,
             "pct_supply": 1.0,
             "tokens":     5_400_000,
             "symbol":     "PENDLE",

@@ -257,17 +257,24 @@ BOOTSTRAP_GOVERNANCE_PROPOSALS: tuple[dict[str, Any], ...] = (
 )
 
 
+# Offline/bootstrap unlock dates are relative-to-now (future) so the demo data
+# never goes stale: _classify_unlocks skips unlocks > 24h in the past, which
+# would otherwise drop these sample flags once a hardcoded date passed.
+_BOOTSTRAP_UNLOCK_AT = (
+    datetime.now(timezone.utc) + timedelta(days=7)
+).strftime("%Y-%m-%dT00:00:00Z")
+
 BOOTSTRAP_TOKEN_UNLOCKS: tuple[dict[str, Any], ...] = (
     {
         "protocol":   "pendle-pt",
-        "unlock_at":  "2026-06-01T00:00:00Z",
+        "unlock_at":  _BOOTSTRAP_UNLOCK_AT,
         "pct_supply": 1.8,
         "tokens":     5_400_000,
         "symbol":     "PENDLE",
     },
     {
         "protocol":   "ethena-susde",
-        "unlock_at":  "2026-06-03T00:00:00Z",
+        "unlock_at":  _BOOTSTRAP_UNLOCK_AT,
         "pct_supply": 6.4,   # > 5 % → CRITICAL even on grade-A
         "tokens":     420_000_000,
         "symbol":     "ENA",
