@@ -51,6 +51,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -192,7 +193,8 @@ def compute_position_efficiency(
 # CapitalEfficiencyTracker class
 # ---------------------------------------------------------------------------
 
-class CapitalEfficiencyTracker:
+class CapitalEfficiencyTracker(BaseAnalytics):
+    OUTPUT_PATH = "data/capital_efficiency_tracker.json"
     """Stateful tracker that accumulates runs into a ring-buffer log.
 
     Usage
@@ -390,6 +392,11 @@ class CapitalEfficiencyTracker:
 # ---------------------------------------------------------------------------
 # I/O helpers
 # ---------------------------------------------------------------------------
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 def _load_json_list(path: Path) -> List[Any]:
     """Load a JSON list from *path*; return [] on any error."""
