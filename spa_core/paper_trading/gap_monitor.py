@@ -18,7 +18,7 @@ STRICTLY READ-ONLY / paper trading only (SPA-BL-011): recovery лишь
 import json, os, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from spa_core.utils.atomic import atomic_save, atomic_load  # noqa: F401 — required by atomic migration policy
+from spa_core.utils.atomic import atomic_save, atomic_load, file_lock  # noqa: F401 — required by atomic migration policy
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 EQUITY_FILE = DATA_DIR / "equity_curve_daily.json"
@@ -192,11 +192,14 @@ def _finalize(result: dict) -> dict:
     предыдущего снапшота (check_gaps перезаписывает файл целиком), и при
     gap_detected — синхронизировать CRITICAL-алерт. Никогда не бросает из-за
     алерта: детекция важнее побочного канала."""
-    prev = _read_status()
-    for k in ("recovery", "recovery_skip"):
-        if k in prev and k not in result:
-            result[k] = prev[k]
-    _write(result)
+    # AUD-10: read-merge-write under a cross-process lock so a concurrent
+    # attempt_recovery() writing the `recovery` key is not clobbered.
+    with file_lock(str(GAP_STATUS_FILE)):
+        prev = _read_status()
+        for k in ("recovery", "recovery_skip"):
+            if k in prev and k not in result:
+                result[k] = prev[k]
+        _write(result)
     if result.get("gap_detected"):
         try:
             _upsert_gap_alert(result)
@@ -368,10 +371,11 @@ def _default_cycle():
 def _log_skip(record: dict) -> dict:
     """Записать пропуск recovery в gap_monitor.json (recovery_skip) и в алерт."""
     try:
-        doc = _read_status()
-        doc["recovery_skip"] = record
-        if doc.get("checked_at"):
-            _write(doc)
+        with file_lock(str(GAP_STATUS_FILE)):  # AUD-10: locked read-modify-write
+            doc = _read_status()
+            doc["recovery_skip"] = record
+            if doc.get("checked_at"):
+                _write(doc)
         _attach_recovery_to_alert(record["date"], record)
     except Exception:
         pass
@@ -439,11 +443,12 @@ def attempt_recovery(cycle_fn=None, now=None) -> dict:
                 record["error"] = "cycle_ran_but_gap_persists"
         record["gap_after_recovery"] = bool(post.get("gap_detected"))
 
-        # Лог результата в gap_monitor.json …
-        doc = _read_status() or dict(post)
-        doc["recovery"] = record
-        doc.pop("recovery_skip", None)
-        _write(doc)
+        # Лог результата в gap_monitor.json … (AUD-10: locked read-modify-write)
+        with file_lock(str(GAP_STATUS_FILE)):
+            doc = _read_status() or dict(post)
+            doc["recovery"] = record
+            doc.pop("recovery_skip", None)
+            _write(doc)
         # … и в сегодняшний CRITICAL-алерт (создан при детекции gap).
         try:
             _attach_recovery_to_alert(today, record)

@@ -6,10 +6,84 @@ import contextlib
 import os
 import json
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 
 _MISSING = object()  # sentinel to distinguish "no default" from "default=None"
+
+
+@contextlib.contextmanager
+def file_lock(path: str, timeout: float = 5.0, poll: float = 0.05) -> Iterator[bool]:
+    """Best-effort cross-process advisory lock via ``fcntl.flock`` on a sidecar
+    ``<path>.lock`` file (AUD-10).
+
+    Why a sidecar: ring buffers are persisted with ``atomic_save`` (tmp +
+    ``os.replace``), which swaps the target inode — a lock held on the target
+    fd would not protect the replacement. The sidecar ``.lock`` has a stable
+    inode for the duration of the critical section.
+
+    Semantics:
+      - Auto-released on context exit AND on process death (flock semantics),
+        so there is no stale-lock to clean up.
+      - Degrades gracefully: if ``fcntl`` is unavailable (non-POSIX) or the lock
+        cannot be acquired within *timeout*, yields ``False`` and proceeds
+        WITHOUT the lock — it must never block or crash the caller (the cycle).
+
+    Yields ``True`` if the exclusive lock was acquired, else ``False``.
+    Stdlib only.
+    """
+    try:
+        import fcntl as _fcntl
+    except ImportError:  # non-POSIX — degrade, no locking available
+        yield False
+        return
+
+    lock_path = str(path) + ".lock"
+    os.makedirs(os.path.dirname(os.path.abspath(lock_path)) or ".", exist_ok=True)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    acquired = False
+    try:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                _fcntl.flock(fd, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+                acquired = True
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(poll)
+        yield acquired
+    finally:
+        try:
+            if acquired:
+                _fcntl.flock(fd, _fcntl.LOCK_UN)
+        except OSError:
+            pass
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+
+def locked_append_ring(
+    item: Any,
+    path: str,
+    *,
+    cap: int = 100,
+    list_key: Optional[str] = None,
+    timeout: float = 5.0,
+) -> int:
+    """``atomic_append_ring`` under a cross-process ``file_lock`` (AUD-10).
+
+    Closes the read-modify-write race where a concurrent process's append is
+    lost between the read and the write of a shared ring buffer. If the lock
+    cannot be acquired it still appends (best-effort, identical to the unlocked
+    path) — correctness is never worse than before, only the race window shrinks.
+    """
+    with file_lock(path, timeout=timeout):
+        return atomic_append_ring(item, path, cap=cap, list_key=list_key)
 
 
 def atomic_save(data: Any, path: str, indent: int = 2) -> None:

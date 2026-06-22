@@ -23,7 +23,7 @@
 | AUD-07 | ✅ MEDIUM | Закоммичен мусор: .command, *.bak, *.log, отчёты, junk-файлы | DONE |
 | AUD-08 | ✅ MEDIUM | Демо-бэкап под `data/` может навсегда заблокировать go-live | DONE |
 | AUD-09 | 🟡 MEDIUM | Дубликаты модулей в корне репо (7 орфанов удалено; ~16 — follow-up) | PARTIAL |
-| AUD-10 | 🔜 MEDIUM | Гонки read-modify-write на shared ring-buffer JSON | READY |
+| AUD-10 | ✅ MEDIUM | file_lock (fcntl) на read-modify-write shared JSON | DONE |
 | AUD-11 | ✅ LOW | `cycle_runner` shadow-day: `today.isoformat()` всегда падал | DONE |
 | AUD-12 | 🔜 LOW | Предсуществующие падения `test_sky_susds_adapter.py` | READY |
 | AUD-13 | 🟡 LOW | ruff: bare-except + F601 + F541 исправлены; F401/F841 — follow-up | PARTIAL |
@@ -131,12 +131,16 @@ Fail-closed: ошибка в ре-проверке блокирует трейд
 поштучный анализ + репойнт тестов и обновление plist/скриптов. Отложено как
 отдельная задача (не «безопасный» автономный шаг).
 
-### AUD-10 — Гонки read-modify-write 🔜 READY
-`risk_policy_blocks.json` (cycle_runner.py:709), `analytics_blocks.json` (1490),
-`gap_monitor.json` finalize (gap_monitor.py:195) — read→append→write не транзакционны;
-конкурентный часовой процесс может терять записи ring-buffer. Отдельные записи
-атомарны, но последовательность — нет. **Фикс:** lock вокруг read-modify-write
-shared ring-buffer (как `gap_recovery.lock`) либо задокументировать lossy-семантику.
+### AUD-10 — Гонки read-modify-write ✅ DONE
+`risk_policy_blocks.json`, `analytics_blocks.json`, `gap_monitor.json` —
+read→modify→write не были транзакционны (конкурентный часовой процесс мог терять
+записи). **Фикс:** добавлен stdlib-хелпер `file_lock` (`fcntl.flock` на sidecar
+`<path>.lock`, auto-release при выходе процесса, graceful fallback — никогда не
+блокирует/не падает) + `locked_append_ring` в `spa_core/utils/atomic.py`.
+Применён к обоим ring-buffer'ам cycle_runner (`_record_policy_block`,
+analytics_blocks) и к 3 read-modify-write на `gap_monitor.json` (`_finalize`,
+`_log_skip`, `attempt_recovery`). Тесты: `test_atomic_file_lock.py` (взаимное
+исключение + ring), gap_monitor 15/15. `*.lock` добавлен в `.gitignore`.
 
 ---
 

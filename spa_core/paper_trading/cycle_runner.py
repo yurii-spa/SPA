@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
-from spa_core.utils.atomic import atomic_save
+from spa_core.utils.atomic import atomic_save, locked_append_ring
 
 # ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)
 _BASE_GAS_MONITOR_CLASS: type[Any] | None
@@ -727,30 +727,30 @@ def _record_policy_block(
     current_positions: dict[str, float],
     capital_usd: float,
 ) -> None:
-    """Append one audit record to ``risk_policy_blocks.json`` (ring-buffer 100)."""
-    blocks = _read_json(ddir / RISK_BLOCKS_FILENAME, [])
-    if not isinstance(blocks, list):
-        blocks = []
-    blocks.append(
-        {
-            "ts": run_ts,
-            "date": date,
-            "source": "cycle_runner",
-            "policy_version": _policy_version(),
-            "violations": list(gate.get("violations") or []),
-            "warnings": list(gate.get("warnings") or []),
-            "blocked_target_usd": {
-                p: round(float(v), 2)
-                for p, v in (gate.get("target_usd") or {}).items()
-            },
-            "held_positions_usd": {
-                p: round(float(v), 2) for p, v in current_positions.items()
-            },
-            "capital_usd": capital_usd,
-        }
+    """Append one audit record to ``risk_policy_blocks.json`` (ring-buffer 100).
+
+    AUD-10: the read-modify-write runs under a cross-process file lock so a
+    concurrent writer's append is not lost between read and write.
+    """
+    record = {
+        "ts": run_ts,
+        "date": date,
+        "source": "cycle_runner",
+        "policy_version": _policy_version(),
+        "violations": list(gate.get("violations") or []),
+        "warnings": list(gate.get("warnings") or []),
+        "blocked_target_usd": {
+            p: round(float(v), 2)
+            for p, v in (gate.get("target_usd") or {}).items()
+        },
+        "held_positions_usd": {
+            p: round(float(v), 2) for p, v in current_positions.items()
+        },
+        "capital_usd": capital_usd,
+    }
+    locked_append_ring(
+        record, str(ddir / RISK_BLOCKS_FILENAME), cap=MAX_POLICY_BLOCKS
     )
-    blocks = blocks[-MAX_POLICY_BLOCKS:]  # ring-buffer
-    _atomic_write_json(ddir / RISK_BLOCKS_FILENAME, blocks)
 
 
 def _policy_version() -> str:
@@ -1505,20 +1505,21 @@ def run_cycle(
                 "analytics_blocking: blocked=" + ",".join(_blk_protos)
                 + f" freed=${_freed:,.0f}"
             )
-            # ring-buffer audit (data/analytics_blocks.json, max 100)
+            # ring-buffer audit (data/analytics_blocks.json, max 100).
+            # AUD-10: locked read-modify-write so concurrent appends aren't lost.
             if write:
                 try:
                     _ab_path = ddir / "analytics_blocks.json"
-                    _ab_hist = _read_json(_ab_path, [])
-                    if not isinstance(_ab_hist, list):
-                        _ab_hist = []
-                    _ab_hist.append({
-                        "ts": run_ts, "date": today,
-                        "blocked": _blk_protos, "freed_usd": round(_freed, 2),
-                        "correlation_id": _correlation_id,
-                        "signals": {p: _blk["protocols"][p] for p in _blk_protos},
-                    })
-                    _atomic_write_json(_ab_path, _ab_hist[-100:])
+                    locked_append_ring(
+                        {
+                            "ts": run_ts, "date": today,
+                            "blocked": _blk_protos, "freed_usd": round(_freed, 2),
+                            "correlation_id": _correlation_id,
+                            "signals": {p: _blk["protocols"][p] for p in _blk_protos},
+                        },
+                        str(_ab_path),
+                        cap=100,
+                    )
                 except Exception as _abw_exc:
                     log.warning("analytics_blocks write failed (%s)", _abw_exc)
     except Exception as _ag_exc:  # gate must never crash the cycle

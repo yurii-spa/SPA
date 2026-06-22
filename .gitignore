@@ -15,6 +15,9 @@ logs/*.log
 *.bak_*
 *.tmp
 
+# Runtime lock sidecars (AUD-10 file_lock)
+*.lock
+
 # Verification scratch output
 out_*.json
 
