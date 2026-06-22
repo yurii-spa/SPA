@@ -107,6 +107,10 @@ def evaluate_lp_position(
     violations: list[str] = []
 
     # ─── FAIL-CLOSED: критические параметры обязательны ────────────────────
+    if not pool_name:
+        violations.append("FAIL_CLOSED: pool_name missing")
+    if not protocol:
+        violations.append("FAIL_CLOSED: protocol missing")
     if fee_apy_24h is None:
         violations.append("FAIL_CLOSED: fee_apy_24h missing")
     if pool_tvl_usd is None:
