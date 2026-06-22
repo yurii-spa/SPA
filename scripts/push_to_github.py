@@ -78,10 +78,10 @@ def get_pat() -> str:
     )
 
 
-def get_file_sha(pat: str, repo: str, repo_path: str) -> Optional[str]:
-    """Возвращает SHA файла на GitHub."""
+def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> Optional[str]:
+    """Возвращает SHA файла на GitHub (на указанной ветке)."""
     import urllib.request
-    url = f"{API_BASE}/repos/{repo}/contents/{repo_path}"
+    url = f"{API_BASE}/repos/{repo}/contents/{repo_path}?ref={branch}"
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {pat}",
         "Accept": "application/vnd.github+json",
@@ -95,7 +95,8 @@ def get_file_sha(pat: str, repo: str, repo_path: str) -> Optional[str]:
         return None
 
 
-def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool = False) -> dict:
+def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool = False,
+              branch: str = "main") -> dict:
     """Пушит один файл через GitHub Contents API."""
     import urllib.request
     import urllib.error
@@ -114,17 +115,17 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         repo_path = local.name
 
     if dry_run:
-        sha = get_file_sha(pat, repo, repo_path)
+        sha = get_file_sha(pat, repo, repo_path, branch)
         action = "update" if sha else "create"
         return {"ok": True, "dry_run": True, "path": repo_path, "action": action}
 
     content_b64 = base64.b64encode(local.read_bytes()).decode()
-    sha = get_file_sha(pat, repo, repo_path)
+    sha = get_file_sha(pat, repo, repo_path, branch)
 
     payload: dict = {
         "message": message,
         "content": content_b64,
-        "branch": "main",
+        "branch": branch,
     }
     if sha:
         payload["sha"] = sha
@@ -147,7 +148,7 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         if e.code in (429, 403) and "rate limit" in body.lower():
             print(f"  Rate limit — ждём 60с...")
             time.sleep(60)
-            return push_file(pat, local_path, message, repo, dry_run)
+            return push_file(pat, local_path, message, repo, dry_run, branch)
         return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
     except Exception as e:
         return {"ok": False, "error": str(e), "path": repo_path}
@@ -166,6 +167,7 @@ def main():
     # Общие опции
     parser.add_argument("--message", "-m", default=None, help="Commit message (авто-генерируется если не указан)")
     parser.add_argument("--repo", default=REPO, help=f"Репо (default: {REPO})")
+    parser.add_argument("--branch", default="main", help="Целевая ветка (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="Проверить без пуша")
     parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
     args = parser.parse_args()
@@ -196,13 +198,13 @@ def main():
             sys.exit(2)
 
     if args.dry_run:
-        print(f"DRY RUN — репо: {args.repo}, файлов: {len(all_files)}")
+        print(f"DRY RUN — репо: {args.repo}, ветка: {args.branch}, файлов: {len(all_files)}")
     else:
-        print(f"Пушу {len(all_files)} файл(ов) в {args.repo}...")
+        print(f"Пушу {len(all_files)} файл(ов) в {args.repo} ({args.branch})...")
 
     results = []
     for f in all_files:
-        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run)
+        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch)
         results.append(r)
         if r.get("ok"):
             if r.get("dry_run"):
