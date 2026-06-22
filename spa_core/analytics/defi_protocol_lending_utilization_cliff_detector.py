@@ -50,6 +50,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -283,7 +284,8 @@ def _analyze_single(
 # ---------------------------------------------------------------------------
 
 
-class DeFiProtocolLendingUtilizationCliffDetector:
+class DeFiProtocolLendingUtilizationCliffDetector(BaseAnalytics):
+    OUTPUT_PATH = "data/defi_lending_utilization_cliff.json"
     """Detect lending protocol utilization cliff proximity.
 
     Usage
@@ -466,6 +468,11 @@ class DeFiProtocolLendingUtilizationCliffDetector:
 # I/O helpers
 # ---------------------------------------------------------------------------
 
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 def _load_json_list(path: Path) -> List[Any]:
     """Load a JSON list from *path*; return [] on any error."""
