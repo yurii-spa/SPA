@@ -78,7 +78,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 from spa_core.safety.safeguard import live_trading_forbidden
-from spa_core.utils.errors import ConfigError, SourceError, ValidationError
+from spa_core.utils.errors import ConfigError, SPAError, SourceError, ValidationError
 
 log = logging.getLogger("spa.compound_v3_adapter")
 
@@ -855,7 +855,7 @@ class CompoundV3Adapter:
 
         try:
             acct, wallet = self._resolve_signer()
-        except ValueError as exc:
+        except (ValueError, SPAError) as exc:
             log.warning("[FALLBACK] supply preconditions: %s", exc)
             return {
                 "status":    "ERROR",
@@ -1057,7 +1057,7 @@ class CompoundV3Adapter:
 
         try:
             acct, wallet = self._resolve_signer()
-        except ValueError as exc:
+        except (ValueError, SPAError) as exc:
             log.warning("[FALLBACK] withdraw preconditions: %s", exc)
             return {
                 "status":    "ERROR",
