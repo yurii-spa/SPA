@@ -2218,6 +2218,32 @@ def run_cycle(
         except Exception as _ms_exc:  # noqa: BLE001 — never crash the cycle
             log.warning("MultiStrategyRunner S2–S15 skipped: %s", _ms_exc)
 
+        # ── MP-1357: Shadow paper trading — top-5 mass-tournament strategies ──
+        # Simulates what each backtest-top-5 strategy would earn today using
+        # the live apy_map.  Appends to data/shadow_paper_trading.json.
+        # Advisory only: never modifies trades.json, equity_curve_daily.json,
+        # current_positions.json, or any risk state.  Fail-safe — any
+        # exception → WARNING only.
+        try:
+            from spa_core.backtesting.strategy_tournament_runner import (
+                run_shadow_day as _run_shadow_day,
+            )
+            _shadow_result = _run_shadow_day(
+                apy_map=apy_map,
+                data_dir=ddir,
+                date_str=today.isoformat(),
+            )
+            _shadow_best = _shadow_result.get("best_strategy")
+            _shadow_best_apy = _shadow_result.get("best_apy_pct", 0.0)
+            log.info(
+                "MP-1357 shadow_day: best=%s  apy=%.3f%%  strategies=%d",
+                _shadow_best,
+                _shadow_best_apy,
+                len(_shadow_result.get("strategies", [])),
+            )
+        except Exception as _shadow_exc:  # noqa: BLE001 — never crash the cycle
+            log.warning("MP-1357 shadow_day skipped: %s", _shadow_exc)
+
         from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
         try:
             _check_gaps()
