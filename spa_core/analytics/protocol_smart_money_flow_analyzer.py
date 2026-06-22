@@ -363,6 +363,9 @@ def log_result(result: dict, data_dir: str = None) -> None:
 
     os.makedirs(data_dir, exist_ok=True)
     atomic_save(log, str(log_path))
+
+
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
