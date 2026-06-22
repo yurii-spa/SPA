@@ -337,7 +337,7 @@ class KillSwitchChecker:
             return True, reason
 
         return False, (
-            f"sharpe {sharpe_val:.4f} ≥ {effective_threshold} [{period_label}]"
+            f"sharpe {sharpe_val:.4f} >= {effective_threshold} [{period_label}]"
         )
 
     # ── Main check ────────────────────────────────────────────────────────────
