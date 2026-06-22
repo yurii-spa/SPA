@@ -39,6 +39,7 @@ _SPA_CORE_ROOT = Path(__file__).resolve().parent.parent  # → spa_core/
 _EXCLUDED_FILES: frozenset[str] = frozenset(
     {
         "spa_core/database/connection.py",
+        "spa_core/database/sqlite_manager.py",  # abstraction layer — uses sqlite3 directly by design
         "spa_core/persistence/pg_migration.py",
         "spa_core/persistence/track_store.py",
     }
