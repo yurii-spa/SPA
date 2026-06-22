@@ -96,7 +96,7 @@ def _get_engine_a_report() -> EngineReport:
     else:
         # Берём из blocking criteria
         blocking = [c for c in golive.get("criteria", []) if c.get("blocking", False)]
-        max_days = max((c.get("estimated_days_to_pass", 0) for c in blocking), default=0)
+        max_days = max((c.get("estimated_days_to_pass") or 0 for c in blocking), default=0)
         gl_days_left = int(max_days)
         gl_status = "PENDING" if days < 14 else "READY"
 
