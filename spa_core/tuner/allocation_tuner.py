@@ -13,7 +13,7 @@ import logging
 import math
 import os
 import random
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -40,10 +40,11 @@ class TunerConstraints:
     """Ограничения для оптимизатора — зеркало RiskPolicy v1.0."""
     t1_min: float = 0.55          # Min T1 allocation (55%)
     t2_max: float = 0.35          # Max T2 total allocation (35%)
-    per_protocol_max: float = 0.40  # Max single protocol (40%)
+    per_protocol_max: float = 0.25  # Max single protocol (25%, снижен с 40%)
     tvl_floor_usd: float = 5_000_000.0  # Min TVL пула
-    min_protocols: int = 2        # Min активных протоколов
-    cash_min: float = 0.0         # Min cash (0% – 5%)
+    min_protocols: int = 3        # Min активных протоколов
+    max_protocols: int = 6        # Max активных протоколов (не index fund!)
+    cash_min: float = 0.05        # Min cash buffer (5%)
     apy_min: float = 1.0          # Min APY % для включения
     apy_max: float = 30.0         # Max APY % для включения
 
