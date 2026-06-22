@@ -6,7 +6,7 @@ percentage + liveness filters), cache TTL, network-error tolerance, the
 HARD allocation gate (weight always 0.0 / eligible always False until MP-017),
 atomic snapshot persistence with history rotation, and the CLI.
 
-No real network: ``requests.get`` is patched throughout; persistence goes to a
+No real network: ``urllib.request.urlopen`` is patched throughout; persistence goes to a
 tempdir only. pytest is not installed in this repo — plain ``unittest``.
 
 Run:  python3 -m unittest spa_core.tests.test_sky_susds_feed -v
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import json
 import subprocess
 import sys
 import unittest
@@ -50,24 +51,24 @@ def _pool(project="sky-lending", symbol="SUSDS", chain="Ethereum",
             "stablecoin": stablecoin}
 
 
-def _mock_get(pools, status="success"):
-    """Patch для requests.get, отдающего данный payload пулов."""
-    resp = mock.MagicMock()
-    resp.json.return_value = {"status": status, "data": pools}
-    resp.raise_for_status.return_value = None
+def _mock_urlopen(raw_bytes):
+    """Patch для urllib.request.urlopen, отдающего сырые байты как context manager."""
+    cm = mock.MagicMock()
+    cm.__enter__.return_value.read.return_value = raw_bytes
+    cm.__exit__.return_value = False
     return mock.patch(
-        "spa_core.adapters.sky_susds_feed.requests.get", return_value=resp
+        "spa_core.adapters.sky_susds_feed.urllib.request.urlopen", return_value=cm
     )
+
+
+def _mock_get(pools, status="success"):
+    """Patch для сетевого фетча, отдающего данный payload пулов."""
+    return _mock_urlopen(json.dumps({"status": status, "data": pools}).encode("utf-8"))
 
 
 def _mock_get_raw(payload):
-    """Patch для requests.get с произвольным (в т.ч. мусорным) payload."""
-    resp = mock.MagicMock()
-    resp.json.return_value = payload
-    resp.raise_for_status.return_value = None
-    return mock.patch(
-        "spa_core.adapters.sky_susds_feed.requests.get", return_value=resp
-    )
+    """Patch для сетевого фетча с произвольным (в т.ч. мусорным) payload."""
+    return _mock_urlopen(json.dumps(payload).encode("utf-8"))
 
 
 def _feed(**kw):
@@ -280,7 +281,7 @@ class TestCacheTTL(unittest.TestCase):
 class TestNetworkErrors(unittest.TestCase):
     def _raising(self, exc):
         return mock.patch(
-            "spa_core.adapters.sky_susds_feed.requests.get", side_effect=exc
+            "spa_core.adapters.sky_susds_feed.urllib.request.urlopen", side_effect=exc
         )
 
     def test_connection_error_returns_none(self):
@@ -295,20 +296,12 @@ class TestNetworkErrors(unittest.TestCase):
             self.assertIsNone(_feed().fetch_pool())
 
     def test_http_error_via_raise_for_status(self):
-        resp = mock.MagicMock()
-        resp.raise_for_status.side_effect = RuntimeError("503")
-        with mock.patch(
-            "spa_core.adapters.sky_susds_feed.requests.get", return_value=resp
-        ):
+        # urllib raises HTTPError directly from urlopen on a non-2xx response.
+        with self._raising(RuntimeError("503")):
             self.assertIsNone(_feed().fetch_apy())
 
     def test_json_decode_error_returns_none(self):
-        resp = mock.MagicMock()
-        resp.raise_for_status.return_value = None
-        resp.json.side_effect = ValueError("bad json")
-        with mock.patch(
-            "spa_core.adapters.sky_susds_feed.requests.get", return_value=resp
-        ):
+        with _mock_urlopen(b"not valid json"):
             self.assertIsNone(_feed().fetch_apy())
 
 
@@ -438,7 +431,7 @@ class TestPersistence(_TmpDirCase):
 
     def test_offline_snapshot_is_honest_unavailable(self):
         with mock.patch(
-            "spa_core.adapters.sky_susds_feed.requests.get",
+            "spa_core.adapters.sky_susds_feed.urllib.request.urlopen",
             side_effect=ConnectionError("offline"),
         ):
             snap = _feed(data_dir=self.data_dir).run(write=True)
@@ -496,7 +489,7 @@ class TestPersistence(_TmpDirCase):
         self.assertIn("allocation_weight: 0.0", ok)
         self.assertIn("6.5000%", ok)
         with mock.patch(
-            "spa_core.adapters.sky_susds_feed.requests.get",
+            "spa_core.adapters.sky_susds_feed.urllib.request.urlopen",
             side_effect=ConnectionError("offline"),
         ):
             f2 = _feed(data_dir=self.data_dir)
@@ -510,7 +503,7 @@ class TestPersistence(_TmpDirCase):
 class TestCLI(_TmpDirCase):
     def _offline(self):
         return mock.patch(
-            "spa_core.adapters.sky_susds_feed.requests.get",
+            "spa_core.adapters.sky_susds_feed.urllib.request.urlopen",
             side_effect=ConnectionError("offline"),
         )
 

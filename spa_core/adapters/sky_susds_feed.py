@@ -42,20 +42,21 @@ CLI:
     python3 -m spa_core.adapters.sky_susds_feed --run     # fetch + персист снапшота
 
 Scope / safety: LLM FORBIDDEN — детерминированная логика; зависимости — только
-stdlib + requests (уже используется defillama_feed). Все сетевые ошибки →
+stdlib (urllib, как в defillama_feed). Все сетевые ошибки →
 ``None`` + лог, никогда не raise наружу. Модуль ничего не исполняет on-chain.
 """
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import os
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
-
-import requests
 
 from . import config
 from spa_core.utils.atomic import atomic_save
@@ -171,14 +172,17 @@ class SkySUSDSFeed:
             return self._cache
 
         try:
-            # Pin Accept-Encoding to gzip (см. defillama_feed, SPA-V398).
-            resp = requests.get(
+            # Pin Accept-Encoding to gzip (см. defillama_feed, SPA-V398). urllib
+            # не распаковывает автоматически — делаем это по gzip-магии вручную.
+            req = urllib.request.Request(
                 self.api_url,
-                timeout=self.timeout,
                 headers={"Accept-Encoding": "gzip"},
             )
-            resp.raise_for_status()
-            payload = resp.json()
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                raw = resp.read()
+            if raw[:2] == b"\x1f\x8b":
+                raw = gzip.decompress(raw)
+            payload = json.loads(raw.decode("utf-8"))
         except Exception as exc:  # noqa: BLE001 — log and degrade honestly
             logger.warning("sky_susds: DeFiLlama fetch failed: %s", exc)
             return None

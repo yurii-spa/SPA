@@ -2231,7 +2231,7 @@ def run_cycle(
             _shadow_result = _run_shadow_day(
                 apy_map=apy_map,
                 data_dir=ddir,
-                date_str=today.isoformat(),
+                date_str=today,
             )
             _shadow_best = _shadow_result.get("best_strategy")
             _shadow_best_apy = _shadow_result.get("best_apy_pct", 0.0)

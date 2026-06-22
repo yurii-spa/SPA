@@ -37,6 +37,22 @@ scripts/cf_install_token.command
 # Executable helper scripts (no secrets but not needed in public repo)
 *.command
 
-# Node modules (landing, etc.)
+# Node modules (landing, cabinet, etc.)
 node_modules/
 landing/node_modules/
+cabinet/node_modules/
+
+# Test venv (committed by mistake, runtime-only)
+.venv_test/
+
+# Generated reports / scratch artifacts (not source)
+AUTOPUSH_REPORT_*.md
+cli_out*.json
+m1830.json
+m2830.json
+m1_out.json
+m2_out.json
+_m1.json
+_m2.json
+spa_cli_*.json
+*.log
