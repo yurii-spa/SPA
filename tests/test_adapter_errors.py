@@ -252,6 +252,8 @@ class TestAdapterRegistryErrors(unittest.TestCase):
 
     def test_23_refresh_all_records_adapter_error_as_error_dict(self):
         """refresh_all() records AdapterError as error dict, does not propagate."""
+        import tempfile
+        import os
         from spa_core.adapters.adapter_registry import refresh_all, REGISTRY
 
         # Build a registry with one stub adapter that returns None APY
@@ -261,13 +263,16 @@ class TestAdapterRegistryErrors(unittest.TestCase):
         })
         test_protocol = "_test_no_apy_xyz"
         REGISTRY[test_protocol] = stub_cls
-        try:
-            results = refresh_all(adapter_status_path="/tmp/_test_adapter_status.json")
-            # Should not propagate AdapterError — it should be in results as error
-            self.assertIn(test_protocol, results)
-            self.assertIn("error", results[test_protocol])
-        finally:
-            REGISTRY.pop(test_protocol, None)
+        # Use a unique temp file per run to avoid cross-session permission conflicts
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = os.path.join(tmpdir, "_test_adapter_status.json")
+            try:
+                results = refresh_all(adapter_status_path=status_path)
+                # Should not propagate AdapterError — it should be in results as error
+                self.assertIn(test_protocol, results)
+                self.assertIn("error", results[test_protocol])
+            finally:
+                REGISTRY.pop(test_protocol, None)
 
     def test_24_adapter_error_is_spa_error(self):
         """AdapterError is subclass of SPAError (not bare Exception)."""
