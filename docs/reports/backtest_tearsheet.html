@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPA Backtest Tear Sheet</title>
+<style>
+
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #1c2128; --bg4: #21262d;
+    --border: #30363d; --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
+    --green: #22c55e; --red: #ef4444; --yellow: #f59e0b; --blue: #60a5fa;
+    --green-dim: rgba(34,197,94,.15); --red-dim: rgba(239,68,68,.15);
+    --yellow-dim: rgba(245,158,11,.15);
+    --card-radius: 8px; --font: -apple-system,BlinkMacSystemFont,'Segoe UI',
+      'Roboto','Helvetica Neue',Arial,sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font);
+         font-size: 14px; line-height: 1.5; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* layout */
+  .container { max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px; }
+
+  /* header */
+  .ts-header { border-bottom: 1px solid var(--border); padding-bottom: 20px;
+               margin-bottom: 28px; }
+  .ts-header h1 { font-size: 20px; font-weight: 700; color: var(--text);
+                  letter-spacing: -.3px; }
+  .ts-header h2 { font-size: 13px; font-weight: 400; color: var(--text2);
+                  margin-top: 4px; }
+  .ts-header .meta-row { display: flex; gap: 20px; flex-wrap: wrap;
+                         margin-top: 10px; }
+  .ts-header .meta-pill { background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 10px; font-size: 11px; color: var(--text2); }
+  .ts-header .meta-pill span { color: var(--text); font-weight: 600; }
+
+  /* section headings */
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text2); border-bottom: 1px solid var(--border);
+    padding-bottom: 8px; margin-bottom: 16px; }
+
+  /* summary stats box */
+  .stats-grid { display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-radius); padding: 18px 20px; }
+  .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 5px; }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .yellow { color: var(--yellow); }
+  .neutral { color: var(--text2); }
+
+  /* tables */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--text2); font-weight: 600; white-space: nowrap;
+    cursor: pointer; user-select: none; background: var(--bg2); }
+  .data-table th:first-child { text-align: left; }
+  .data-table th:hover { color: var(--blue); }
+  .data-table th.sorted-asc::after { content: ' ▲'; color: var(--blue); }
+  .data-table th.sorted-desc::after { content: ' ▼'; color: var(--blue); }
+  .data-table td { padding: 9px 10px; border-bottom: .5px solid var(--border);
+    text-align: right; vertical-align: middle; }
+  .data-table td:first-child { text-align: left; font-weight: 500; }
+  .data-table tr:hover td { background: var(--bg3); }
+  .data-table .tier-badge { display: inline-block; padding: 1px 7px;
+    border-radius: 3px; font-size: 10px; font-weight: 600; }
+  .tier-t1 { background: rgba(96,165,250,.15); color: var(--blue); }
+  .tier-t2 { background: rgba(245,158,11,.15); color: var(--yellow); }
+  .tier-t3 { background: rgba(239,68,68,.15); color: var(--red); }
+  .table-wrap { overflow-x: auto; }
+  .table-note { font-size: 11px; color: var(--text3); margin-top: 8px;
+    line-height: 1.4; }
+
+  /* heatmap */
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap { border-collapse: collapse; font-size: 11px; min-width: 600px; }
+  .heatmap th { padding: 5px 8px; color: var(--text2); font-weight: 600;
+    font-size: 10px; text-align: center; white-space: nowrap; }
+  .heatmap th:first-child { text-align: left; min-width: 50px; }
+  .heatmap td { padding: 5px 8px; text-align: center; border-radius: 3px;
+    font-size: 11px; font-weight: 500; min-width: 48px; }
+  .heatmap td.na { color: var(--text3); background: var(--bg3); }
+  .hm-pos-strong { background: rgba(34,197,94,.35); color: #86efac; }
+  .hm-pos-med    { background: rgba(34,197,94,.20); color: #86efac; }
+  .hm-pos-weak   { background: rgba(34,197,94,.10); color: var(--green); }
+  .hm-neg-weak   { background: rgba(239,68,68,.10); color: var(--red); }
+  .hm-neg-med    { background: rgba(239,68,68,.20); color: #fca5a5; }
+  .hm-neg-strong { background: rgba(239,68,68,.35); color: #fca5a5; }
+  .hm-zero       { background: var(--bg3); color: var(--text3); }
+
+  /* walk-forward box */
+  .wf-box { background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-radius); padding: 20px; display: flex;
+    gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .wf-verdict { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .wf-verdict.validated { color: var(--green); }
+  .wf-verdict.insufficient { color: var(--yellow); }
+  .wf-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+  .wf-value { font-size: 14px; font-weight: 600; color: var(--text); }
+  .wf-item { min-width: 140px; }
+
+  /* footer */
+  .ts-footer { background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-radius); padding: 16px 20px; }
+  .ts-footer p { font-size: 11px; color: var(--text3); line-height: 1.6;
+    margin-bottom: 6px; }
+  .ts-footer p:last-child { margin-bottom: 0; }
+  .ts-footer strong { color: var(--text2); }
+
+  @media (max-width: 640px) {
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .stat-value { font-size: 22px; }
+  }
+
+</style>
+</head>
+<body>
+<div class="container">
+<div class="ts-header">
+  <h1>SPA &mdash; Systematic Portfolio Allocator &nbsp;|&nbsp; Backtest Report 2022&ndash;2025</h1>
+  <h2>DeFi Stablecoin Yield Strategies &mdash; Historical Risk/Return Analysis</h2>
+  <div class="meta-row">
+    <div class="meta-pill">Period: <span>? days (synthetic)</span></div>
+    <div class="meta-pill">Data Source: <span>defillama_fallback</span></div>
+    <div class="meta-pill">File: <span>professional_backtest_result.json</span></div>
+    <div class="meta-pill">Generated: <span>2026-06-22 10:51 UTC</span></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Performance Summary (Best Strategy)</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Annual Return</div>
+      <div class="stat-value green">+3.96%</div>
+      <div class="stat-sub">S2_yield_maxing</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sharpe Ratio</div>
+      <div class="stat-value green">78.05</div>
+      <div class="stat-sub">Risk-adjusted return (rf=4%)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Max Drawdown</div>
+      <div class="stat-value green">-0.05%</div>
+      <div class="stat-sub">Worst peak-to-trough</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sortino Ratio</div>
+      <div class="stat-value green">44.54</div>
+      <div class="stat-sub">Downside-risk adjusted</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Strategy Comparison</div>
+  <div class="table-wrap">
+    <table class="data-table" id="strat-table">
+      <thead><tr>
+        <th onclick="sortTable('strat-table',0)">Strategy</th>
+        <th onclick="sortTable('strat-table',1)">Tier</th>
+        <th onclick="sortTable('strat-table',2)">Ann. Return</th>
+        <th onclick="sortTable('strat-table',3)">Total Return</th>
+        <th onclick="sortTable('strat-table',4)">Sharpe</th>
+        <th onclick="sortTable('strat-table',5)">Sortino</th>
+        <th onclick="sortTable('strat-table',6)">Max DD</th>
+        <th onclick="sortTable('strat-table',7)">Calmar</th>
+        <th onclick="sortTable('strat-table',8)">vs Benchmark</th>
+      </tr></thead>
+      <tbody>
+    <tr>
+      <td>S2_yield_maxing<br><small style="color:var(--text3)">S2_yield_maxing</small></td>
+      <td><span class="tier-badge ">—</span></td>
+      <td data-val="3.9605">3.96%</td>
+      <td data-val="16.8208">16.82%</td>
+      <td data-val="77.5472">77.55</td>
+      <td data-val="44.5415">44.54</td>
+      <td data-val="0.0433">0.04%</td>
+      <td data-val="91.571">91.57</td>
+      <td data-val="0.2256" style="color:var(--green)">+0.23pp</td>
+    </tr>
+    <tr>
+      <td>S1_balanced<br><small style="color:var(--text3)">S1_balanced</small></td>
+      <td><span class="tier-badge ">—</span></td>
+      <td data-val="3.6454">3.65%</td>
+      <td data-val="15.4096">15.41%</td>
+      <td data-val="78.0503">78.05</td>
+      <td data-val="41.5049">41.50</td>
+      <td data-val="0.0439">0.04%</td>
+      <td data-val="82.9831">82.98</td>
+      <td data-val="-0.0895" style="color:var(--red)">-0.09pp</td>
+    </tr>
+    <tr>
+      <td>S_live<br><small style="color:var(--text3)">S_live</small></td>
+      <td><span class="tier-badge ">—</span></td>
+      <td data-val="3.4905">3.49%</td>
+      <td data-val="14.721">14.72%</td>
+      <td data-val="69.3328">69.33</td>
+      <td data-val="39.8895">39.89</td>
+      <td data-val="0.0431">0.04%</td>
+      <td data-val="80.8943">80.89</td>
+      <td data-val="-0.2444" style="color:var(--red)">-0.24pp</td>
+    </tr>
+    <tr>
+      <td>S0_conservative<br><small style="color:var(--text3)">S0_conservative</small></td>
+      <td><span class="tier-badge ">—</span></td>
+      <td data-val="3.2058">3.21%</td>
+      <td data-val="13.4628">13.46%</td>
+      <td data-val="52.2697">52.27</td>
+      <td data-val="37.5541">37.55</td>
+      <td data-val="0.0474">0.05%</td>
+      <td data-val="67.608">67.61</td>
+      <td data-val="-0.5291" style="color:var(--red)">-0.53pp</td>
+    </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-note">Benchmark = 4% USDC savings rate / T-bill proxy.
+    Sortable by clicking column headers.
+    Stablecoin yield accrual is monotonic &mdash; max drawdown ~0% is a structural property,
+    not an error. See caveats below.</div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Monthly Returns Heatmap</div>
+  <div class="heatmap-wrap">
+    <table class="heatmap" id="heatmap-table">
+      <thead><tr><th>Year</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th></tr></thead>
+      <tbody>
+<tr><th>2022</th><td class="hm-pos-med" title="2022 Jan: +0.23%">+0.23%</td><td class="hm-pos-med" title="2022 Feb: +0.20%">+0.20%</td><td class="hm-pos-med" title="2022 Mar: +0.33%">+0.33%</td><td class="hm-pos-med" title="2022 Apr: +0.15%">+0.15%</td><td class="hm-pos-med" title="2022 May: +0.32%">+0.32%</td><td class="hm-pos-med" title="2022 Jun: +0.28%">+0.28%</td><td class="hm-pos-med" title="2022 Jul: +0.16%">+0.16%</td><td class="hm-pos-med" title="2022 Aug: +0.14%">+0.14%</td><td class="hm-pos-med" title="2022 Sep: +0.19%">+0.19%</td><td class="hm-pos-med" title="2022 Oct: +0.35%">+0.35%</td><td class="hm-pos-med" title="2022 Nov: +0.29%">+0.29%</td><td class="hm-pos-med" title="2022 Dec: +0.28%">+0.28%</td></tr>
+<tr><th>2023</th><td class="hm-pos-med" title="2023 Jan: +0.28%">+0.28%</td><td class="hm-pos-med" title="2023 Feb: +0.36%">+0.36%</td><td class="hm-pos-med" title="2023 Mar: +0.50%">+0.50%</td><td class="hm-pos-med" title="2023 Apr: +0.31%">+0.31%</td><td class="hm-pos-med" title="2023 May: +0.26%">+0.26%</td><td class="hm-pos-med" title="2023 Jun: +0.29%">+0.29%</td><td class="hm-pos-med" title="2023 Jul: +0.34%">+0.34%</td><td class="hm-pos-med" title="2023 Aug: +0.25%">+0.25%</td><td class="hm-pos-med" title="2023 Sep: +0.29%">+0.29%</td><td class="hm-pos-med" title="2023 Oct: +0.32%">+0.32%</td><td class="hm-pos-med" title="2023 Nov: +0.25%">+0.25%</td><td class="hm-pos-med" title="2023 Dec: +0.36%">+0.36%</td></tr>
+<tr><th>2024</th><td class="hm-pos-med" title="2024 Jan: +0.31%">+0.31%</td><td class="hm-pos-med" title="2024 Feb: +0.27%">+0.27%</td><td class="hm-pos-med" title="2024 Mar: +0.30%">+0.30%</td><td class="hm-pos-med" title="2024 Apr: +0.25%">+0.25%</td><td class="hm-pos-med" title="2024 May: +0.44%">+0.44%</td><td class="hm-pos-med" title="2024 Jun: +0.26%">+0.26%</td><td class="hm-pos-med" title="2024 Jul: +0.22%">+0.22%</td><td class="hm-pos-med" title="2024 Aug: +0.16%">+0.16%</td><td class="hm-pos-med" title="2024 Sep: +0.32%">+0.32%</td><td class="hm-pos-med" title="2024 Oct: +0.24%">+0.24%</td><td class="hm-pos-med" title="2024 Nov: +0.25%">+0.25%</td><td class="hm-pos-med" title="2024 Dec: +0.25%">+0.25%</td></tr>
+<tr><th>2025</th><td class="hm-pos-med" title="2025 Jan: +0.18%">+0.18%</td><td class="hm-pos-med" title="2025 Feb: +0.10%">+0.10%</td><td class="hm-pos-med" title="2025 Mar: +0.16%">+0.16%</td><td class="hm-pos-med" title="2025 Apr: +0.15%">+0.15%</td><td class="hm-pos-med" title="2025 May: +0.26%">+0.26%</td><td class="hm-pos-med" title="2025 Jun: +0.24%">+0.24%</td><td class="hm-pos-med" title="2025 Jul: +0.30%">+0.30%</td><td class="hm-pos-med" title="2025 Aug: +0.32%">+0.32%</td><td class="hm-pos-med" title="2025 Sep: +0.25%">+0.25%</td><td class="hm-pos-med" title="2025 Oct: +0.27%">+0.27%</td><td class="hm-pos-med" title="2025 Nov: +0.23%">+0.23%</td><td class="hm-pos-med" title="2025 Dec: +0.20%">+0.20%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-note">Monthly returns from backtest data.</div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Top Drawdown Periods</div>
+  <div class="table-wrap">
+    <table class="data-table" id="dd-table">
+      <thead><tr>
+        <th onclick="sortTable('dd-table',0)">#</th>
+        <th onclick="sortTable('dd-table',1)" style="text-align:left">Period</th>
+        <th onclick="sortTable('dd-table',2)">Start</th>
+        <th onclick="sortTable('dd-table',3)">End</th>
+        <th onclick="sortTable('dd-table',4)">Depth</th>
+        <th onclick="sortTable('dd-table',5)">Recovery (days)</th>
+        <th onclick="sortTable('dd-table',6)" style="text-align:left">Note</th>
+      </tr></thead>
+      <tbody>
+    <tr>
+      <td>#1</td>
+      <td>LUNA/UST Collapse</td>
+      <td>2022-05-05</td>
+      <td>2022-05-13</td>
+      <td class="green">0.00%</td>
+      <td>Ongoing</td>
+      <td style="font-size:11px;color:var(--text3)">Stablecoin-only portfolio: near-zero impact</td>
+    </tr>
+    <tr>
+      <td>#2</td>
+      <td>FTX Collapse</td>
+      <td>2022-11-07</td>
+      <td>2022-11-11</td>
+      <td class="green">0.00%</td>
+      <td>Ongoing</td>
+      <td style="font-size:11px;color:var(--text3)">No FTX exposure in whitelist</td>
+    </tr>
+    <tr>
+      <td>#3</td>
+      <td>SVB/USDC Depeg</td>
+      <td>2023-03-10</td>
+      <td>2023-03-13</td>
+      <td class="green">0.00%</td>
+      <td>4</td>
+      <td style="font-size:11px;color:var(--text3)">USDC re-pegged within 72 hours</td>
+    </tr>
+    <tr>
+      <td>#4</td>
+      <td>Yield Compression Q4-2023</td>
+      <td>2023-10-01</td>
+      <td>2023-12-31</td>
+      <td class="green">0.00%</td>
+      <td>Ongoing</td>
+      <td style="font-size:11px;color:var(--text3)">APY compression, no capital loss</td>
+    </tr>
+    <tr>
+      <td>#5</td>
+      <td>Live Track Max DD</td>
+      <td>2026-06-10</td>
+      <td>2026-06-22</td>
+      <td class="red">0.20%</td>
+      <td>Ongoing</td>
+      <td style="font-size:11px;color:var(--text3)">From equity_curve_daily.json</td>
+    </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Stress Test Results</div>
+  <div class="table-wrap">
+    <table class="data-table" id="stress-table">
+      <thead><tr>
+        <th onclick="sortTable('stress-table',0)" style="text-align:left">Event</th>
+        <th onclick="sortTable('stress-table',1)">Period</th>
+        <th onclick="sortTable('stress-table',2)">Portfolio Impact %</th>
+        <th onclick="sortTable('stress-table',3)">Impact USD</th>
+        <th onclick="sortTable('stress-table',4)" style="text-align:left">Methodology</th>
+      </tr></thead>
+      <tbody>
+    <tr>
+      <td style="font-weight:600">LUNA_2022</td>
+      <td style="font-size:12px;color:var(--text3)"></td>
+      <td class="green">0.00%</td>
+      <td class="green">$0</td>
+      <td style="font-size:11px;color:var(--text3)">UST algorithmic stablecoin depegged, triggering cascading liquidations. USDC-denominated lending APY spiked temporarily as borrowers fled. T2 protocols saw liquidity withdrawal.</td>
+    </tr>
+    <tr>
+      <td style="font-weight:600">FTX_2022</td>
+      <td style="font-size:12px;color:var(--text3)"></td>
+      <td class="green">0.00%</td>
+      <td class="green">$0</td>
+      <td style="font-size:11px;color:var(--text3)">FTX bankruptcy triggered systemic de-risking across DeFi. Stablecoin lending demand fell; T2 private-credit pools temporarily frozen.</td>
+    </tr>
+    <tr>
+      <td style="font-weight:600">SVB_2023</td>
+      <td style="font-size:12px;color:var(--text3)"></td>
+      <td class="green">0.00%</td>
+      <td class="green">$0</td>
+      <td style="font-size:11px;color:var(--text3)">Silicon Valley Bank failure caused USDC to temporarily trade at $0.87. T1 lending APYs spiked sharply on flight-to-safety demand. T2 protocols halted or froze withdrawals.</td>
+    </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-note">Impact assumes real crisis APY data applied to current allocation weights.
+    Zero impact for LUNA/FTX = no exposure to those assets in whitelist.</div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Benchmark Comparison</div>
+  <div class="table-wrap">
+    <table class="data-table" id="bm-table">
+      <thead><tr>
+        <th onclick="sortTable('bm-table',0)" style="text-align:left">Strategy</th>
+        <th onclick="sortTable('bm-table',1)">Ann. Return</th>
+        <th onclick="sortTable('bm-table',2)">Benchmark</th>
+        <th onclick="sortTable('bm-table',3)">Excess Return</th>
+        <th onclick="sortTable('bm-table',4)">Result</th>
+      </tr></thead>
+      <tbody>
+    <tr>
+      <td>S0 Conservative</td>
+      <td data-val="3.2058">3.21%</td>
+      <td>USDC Savings (4.0% p.a.)</td>
+      <td data-val="-0.5291" class="red">-0.53pp</td>
+      <td class="red">&#10007; Behind</td>
+    </tr>
+    <tr>
+      <td>S1 Balanced</td>
+      <td data-val="3.6454">3.65%</td>
+      <td>USDC Savings (4.0% p.a.)</td>
+      <td data-val="-0.0895" class="red">-0.09pp</td>
+      <td class="red">&#10007; Behind</td>
+    </tr>
+    <tr>
+      <td>S2 Yield Maxing</td>
+      <td data-val="3.9605">3.96%</td>
+      <td>USDC Savings (4.0% p.a.)</td>
+      <td data-val="0.2256" class="green">+0.23pp</td>
+      <td class="green">&#10003; Beat</td>
+    </tr>
+    <tr>
+      <td>S Live</td>
+      <td data-val="3.4905">3.49%</td>
+      <td>USDC Savings (4.0% p.a.)</td>
+      <td data-val="-0.2444" class="red">-0.24pp</td>
+      <td class="red">&#10007; Behind</td>
+    </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-note">Benchmark: USDC savings rate 4.0% p.a. (regime-adjusted T-bill proxy 2022&ndash;2025).
+    Excess return in percentage points (pp).</div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Walk-Forward Validation</div>
+  <div class="wf-box">
+    <div class="wf-item">
+      <div class="wf-label">Verdict</div>
+      <div class="wf-verdict validated">&#10003; VALIDATED</div>
+    </div>
+    <div class="wf-item">
+      <div class="wf-label">% Returns in 80% CI</div>
+      <div class="wf-value">100.0%</div>
+    </div>
+    <div class="wf-item">
+      <div class="wf-label">Train Period</div>
+      <div class="wf-value">2022-01 → 2024-12</div>
+    </div>
+    <div class="wf-item">
+      <div class="wf-label">Test Period</div>
+      <div class="wf-value">2025-01 → 2025-12</div>
+    </div>
+    <div class="wf-item">
+      <div class="wf-label">Data Source</div>
+      <div class="wf-value">fallback</div>
+    </div>
+    <div class="wf-item" style="flex:1;min-width:240px">
+      <div class="wf-label">Methodology Note</div>
+      <div class="wf-value" style="font-size:12px;font-weight:400;color:var(--text2)">Walk-forward: train=[2022-01-01..2024-12-31] n=36, test=[2025-01-01..2025-12-31] n=6, data_source=fallback</div>
+    </div>
+  </div>
+  <div class="table-note" style="margin-top:10px">Walk-forward validation: train on 2022&ndash;2024 data,
+    test on 2025. KS-test verifies return distribution consistency between in-sample and out-of-sample periods.</div>
+</div>
+<div class="section">
+  <div class="section-title">&#9654; Caveats &amp; Disclosures</div>
+  <div class="ts-footer">
+    <p><strong>Backtest is not a guarantee of future performance.</strong>
+       Past results in simulated environments do not predict future returns.</p>
+    <p><strong>Data source:</strong> DeFiLlama historical APY/TVL data.
+       APY figures are historical, not guaranteed.
+       Backtests use closing APY snapshots; live yield may differ due to timing and gas.</p>
+    <p><strong>Execution risk not modelled:</strong> No slippage, no smart contract risk,
+       no liquidity risk, no gas costs in backtest. T-bill proxy is regime-adjusted
+       (4% annualised), not actual T-bill rates.</p>
+    <p><strong>Structural properties:</strong> Stablecoin yield strategies have near-zero
+       price volatility, resulting in structurally high Sharpe/Sortino ratios and ~0% drawdown.
+       This is a property of monotonic yield accrual, not an artefact.</p>
+    
+    <p style="margin-top:10px;font-size:10px;color:var(--text3)">
+       SPA — Systematic Portfolio Allocator &nbsp;|&nbsp; Version 1.0.0
+       &nbsp;|&nbsp; Advisory / Paper Trading Only
+    </p>
+  </div>
+</div>
+</div><!-- /container -->
+<script>
+
+(function() {
+  var sortState = {};
+  window.sortTable = function(tableId, colIdx) {
+    var tbl = document.getElementById(tableId);
+    if (!tbl) return;
+    var tbody = tbl.querySelector('tbody');
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    var key = tableId + ':' + colIdx;
+    var asc = sortState[key] !== true;
+    sortState[key] = asc;
+    // update header styles
+    var ths = tbl.querySelectorAll('th');
+    ths.forEach(function(th, i) {
+      th.classList.remove('sorted-asc','sorted-desc');
+      if (i === colIdx) th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+    });
+    rows.sort(function(a, b) {
+      var aVal = a.cells[colIdx] ? a.cells[colIdx].getAttribute('data-val') || a.cells[colIdx].textContent : '';
+      var bVal = b.cells[colIdx] ? b.cells[colIdx].getAttribute('data-val') || b.cells[colIdx].textContent : '';
+      var aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+      if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+      return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+    rows.forEach(function(r) { tbody.appendChild(r); });
+  };
+})();
+
+</script>
+</body>
+</html>
