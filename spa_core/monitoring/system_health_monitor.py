@@ -107,7 +107,7 @@ DEFILLAMA_POOLS = "https://yields.llama.fi/pools"
 EARNDEFI = "https://earn-defi.com/"
 GITHUB_RAW = "https://raw.githubusercontent.com/yurii-spa/SPA/main/data/adapter_status.json"
 GITHUB_API_RATE = "https://api.github.com/rate_limit"
-LOCAL_API = "http://127.0.0.1:8765/"
+LOCAL_API = "http://127.0.0.1:8765/health"
 
 _SECRET_RE = re.compile(r"(token|secret|key|password)", re.I)
 _SECRET_SAFE_SUFFIXES = (".lock",)
