@@ -123,7 +123,7 @@ def _classify_arb(annualized_return_on_capital_pct: float) -> str:
 
 def _atomic_write_json(data, path: str, data_dir: str) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
-    atomic_save(path, str(data))
+    atomic_save(data, str(path))
 def _read_log(log_path: str) -> list:
     """Read existing log or return empty list."""
     if not os.path.exists(log_path):
