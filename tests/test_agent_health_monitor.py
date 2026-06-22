@@ -320,9 +320,21 @@ def test_agent_nonzero_exit_warning(tmp_path):
 
 
 def test_agent_always_on_nonzero_exit_critical():
+    # pid=0 means server is DOWN (crashed, not restarted) + exit=1 → CRITICAL.
+    # When pid != 0, launchctl retains the old exit code after a clean restart,
+    # so nonzero exit is intentionally ignored while the process is alive (see
+    # agent_health_monitor.py _server_alive logic).
+    plist = {"KeepAlive": True, "StandardOutPath": "/tmp/x.log"}
+    h = ahm.check_agent("com.spa.srv", plist, True, _lc("com.spa.srv", pid=0, exit=1), NOW)
+    assert h.status == ahm.CRITICAL
+
+
+def test_agent_always_on_alive_with_stale_exit_ok():
+    # pid != 0 (server alive) + exit=1 (stale from prior restart) → OK.
+    # Avoids false CRITICAL when launchd auto-restarts the always-on server.
     plist = {"KeepAlive": True, "StandardOutPath": "/tmp/x.log"}
     h = ahm.check_agent("com.spa.srv", plist, True, _lc("com.spa.srv", pid=7, exit=1), NOW)
-    assert h.status == ahm.CRITICAL
+    assert h.status == ahm.OK
 
 
 def test_agent_malformed_plist_warning():
