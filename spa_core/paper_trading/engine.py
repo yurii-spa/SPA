@@ -99,6 +99,7 @@ class PaperTrader:
         strategy_id: str = STRATEGY_ID,
         decision_logger=None,
         live_execution: bool = False,
+        live_bridge_factory=None,
     ):
         self.db_path = db_path or get_db_path()
         self.policy = RiskPolicy(config=config)
@@ -108,6 +109,10 @@ class PaperTrader:
         # True AND SPA_EXECUTION_MODE=live at call time. Default False keeps
         # 100+ existing call-sites byte-identical to pre-v3.11 behaviour.
         self.live_execution: bool = bool(live_execution)
+        # AUD-04 (FORBIDDEN rule 1): paper_trading must NOT import the execution
+        # domain. The LiveExecutionBridge is injected by the execution domain as
+        # a zero-arg factory; paper code never imports execution itself.
+        self._live_bridge_factory = live_bridge_factory
         self._live_bridge = None  # lazy; see _get_live_bridge()
         # Accept an injected DecisionLogger, or create one automatically if
         # the class is available (backwards-compatible: stays None otherwise).
@@ -126,21 +131,27 @@ class PaperTrader:
     # ── Live execution bridge (Phase 4) ───────────────────────────────────────
 
     def _get_live_bridge(self):
-        """Lazy-construct the LiveExecutionBridge.
+        """Lazy-construct the LiveExecutionBridge via the injected factory.
 
         Returns ``None`` if ``self.live_execution`` is False — in which case
-        the caller should skip the bridge entirely. The import is performed
-        here (NOT at module top) so test runs that don't touch live exec
-        skip the import cost and avoid pulling adapter deps.
+        the caller should skip the bridge entirely.
+
+        AUD-04 / FORBIDDEN rule 1: paper_trading code does NOT import the
+        execution domain. The bridge must be supplied by the execution domain
+        as ``live_bridge_factory`` (a zero-arg callable). If live execution is
+        enabled without an injected factory we fail loudly rather than reaching
+        into ``execution/`` from paper code.
         """
         if not self.live_execution:
             return None
+        if self._live_bridge_factory is None:
+            raise RuntimeError(
+                "live_execution=True requires a live_bridge_factory injected by "
+                "the execution domain; paper_trading must not import execution/ "
+                "(FORBIDDEN rule 1)."
+            )
         if self._live_bridge is None:
-            try:
-                from execution.engine_bridge import LiveExecutionBridge
-            except ImportError:
-                from spa_core.execution.engine_bridge import LiveExecutionBridge
-            self._live_bridge = LiveExecutionBridge()
+            self._live_bridge = self._live_bridge_factory()
         return self._live_bridge
 
     # ── Основные операции ─────────────────────────────────────────────────────

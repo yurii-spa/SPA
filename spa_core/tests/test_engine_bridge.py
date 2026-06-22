@@ -379,7 +379,20 @@ class TestPaperTraderDefaultBehaviour:
 
         db_path = Path(_t.mktemp(suffix=".db"))
         init_database(db_path=db_path)
-        return PaperTrader(db_path=db_path, live_execution=True), db_path
+        # AUD-04: the execution domain injects the bridge factory; paper code
+        # never imports execution. Read the class at call time so monkeypatched
+        # replacements (e.g. _Capturing) are honoured.
+        def _factory():
+            from spa_core.execution.engine_bridge import LiveExecutionBridge as _B
+            return _B()
+        return (
+            PaperTrader(
+                db_path=db_path,
+                live_execution=True,
+                live_bridge_factory=_factory,
+            ),
+            db_path,
+        )
 
     def test_default_live_execution_flag_is_false(self):
         from paper_trading.engine import PaperTrader
@@ -542,7 +555,13 @@ class TestPaperBookSurvivesLiveFailure:
 
         db_path = Path(_t.mktemp(suffix=".db"))
         init_database(db_path=db_path)
-        trader = PaperTrader(db_path=db_path, live_execution=True)
+        # AUD-04: inject the bridge factory (execution domain's responsibility);
+        # reads the monkeypatched class at call time.
+        trader = PaperTrader(
+            db_path=db_path,
+            live_execution=True,
+            live_bridge_factory=lambda: eb_mod.LiveExecutionBridge(),
+        )
 
         # Open a position on a real whitelisted protocol — Aave V3 USDC eth.
         result = trader.open_position(
