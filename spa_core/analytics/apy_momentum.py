@@ -93,6 +93,9 @@ def _parse_ts_unix(ts_str: str) -> float:
 def _atomic_write_json(path: Path, payload: object) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
     atomic_save(payload, str(path))
+
+
+@dataclass
 class MomentumSignal:
     """Momentum signal for one adapter at one point in time."""
     adapter_id: str

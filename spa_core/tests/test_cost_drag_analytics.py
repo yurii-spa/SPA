@@ -448,8 +448,13 @@ class TestImportHygiene(unittest.TestCase):
         self.assertIn("build_turnover_analytics", self.source)
 
     def test_atomic_write_pattern(self):
-        self.assertIn("os.replace", self.source)
-        self.assertIn("tempfile.mkstemp", self.source)
+        # Atomic write contract: centralized atomic_save (tmp + os.replace) OR
+        # the legacy inline tempfile.mkstemp + os.replace pattern.
+        self.assertTrue(
+            "atomic_save" in self.source
+            or ("tempfile.mkstemp" in self.source and "os.replace" in self.source),
+            "module must write atomically (atomic_save or tempfile.mkstemp+os.replace)",
+        )
 
 
 if __name__ == "__main__":

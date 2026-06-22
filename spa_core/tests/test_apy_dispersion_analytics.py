@@ -1107,8 +1107,13 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_atomic_write_pattern_present(self):
         source = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("os.replace", source)
-        self.assertIn("tempfile.mkstemp", source)
+        # Atomic write contract: centralized atomic_save (tmp + os.replace) OR
+        # the legacy inline tempfile.mkstemp + os.replace pattern.
+        self.assertTrue(
+            "atomic_save" in source
+            or ("tempfile.mkstemp" in source and "os.replace" in source),
+            "module must write atomically (atomic_save or tempfile.mkstemp+os.replace)",
+        )
 
     def test_reuse_by_import_marker_present(self):
         source = _MODULE_PATH.read_text(encoding="utf-8")
