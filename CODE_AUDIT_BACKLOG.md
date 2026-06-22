@@ -8,14 +8,22 @@
 Легенда статуса: ✅ DONE (в этой сессии) · 🔜 READY (готово к работе) ·
 🟥 DECISION (нужно решение Owner / ADR).
 
-> **Test health (после сессии):** из ~58 предсуществующих падений в analytics/
-> strategies/allocator/alerts/risk-наборах → **0**. Найден и устранён **системный
-> баг `atomic_save(..., str(self))` в ~23 analytics-модулях** (персистенция писалась
-> в garbage-имена `<object at 0x…>` — источник junk-файлов в репо). Плюс реальные
-> баги: `MomentumSignal` без `@dataclass`, allocator weight-overshoot, argparse-внутри-
-> `log_result`, swapped `atomic_save`-args. Остаток (длинный хвост): сетевые тесты
-> (sandbox DeFiLlama 403, не реальные баги), точечный fragile-mock дрейф
-> (`daily_report`, `red_flag_monitor`), AUD-09/13/16.
+> **Test health (после сессии):** починено **~120 предсуществующих падений**.
+> analytics/strategies/allocator/alerts/risk-наборы: ~58 → **0**. Core-домены
+> (paper_trading/execution/governance/monitoring/golive/cycle): 25 fail + collection-
+> error → **7** (из них 5 — сетевые sandbox-тесты DeFiLlama 403, 2 — vportfolio
+> strategy-семантика, AUD-17). analytics-модули: **5140 passed**.
+>
+> **Системный реальный баг:** `atomic_save(..., str(self))` / swapped-args в **~23
+> analytics-модулях** — персистенция писалась в garbage-имена `<object at 0x…>`
+> (источник junk-файлов; модули были сломаны в проде). Прочие реальные баги:
+> `MomentumSignal` без `@dataclass`, allocator weight-overshoot, argparse-внутри-
+> `log_result` без `__main__`-гарда, висячий импорт `parse_alert_type`,
+> time-dependent unlock-даты в `red_flag_monitor`.
+>
+> **Остаток (длинный хвост):** сетевые интеграционные тесты (sandbox DeFiLlama 403 —
+> не баги, проходят на хосте с сетью), AUD-09 (корневые копии), AUD-13 (F401/F841),
+> AUD-16 (registry-sync), AUD-17 (vportfolio S8 cash/equity — strategy-семантика).
 
 ---
 
