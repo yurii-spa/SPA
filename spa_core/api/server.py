@@ -220,23 +220,43 @@ def health():
 @app.get("/api/portfolio", tags=["data"])
 def get_portfolio():
     """
-    Current portfolio state — live from PaperTrader, falling back to data/status.json.
-    Schema matches data/portfolio.json (portfolio sub-key of status).
+    Current portfolio state — live from PaperTrader, falling back to paper_trading_status.json.
+    Schema: total_capital_usd, deployed_usd, cash_usd, cash_pct, total_pnl_usd, apy_pct.
     """
     live = _get_live_portfolio()
     if live is not None:
         return live.get("portfolio", {})
 
+    # Primary fallback: paper_trading_status.json (written by cycle_runner every cycle)
+    pts = _load_json("paper_trading_status.json", None)
+    if pts:
+        positions = pts.get("current_positions", {})
+        deployed = sum(float(v) for v in positions.values()) if isinstance(positions, dict) else 0.0
+        equity = float(pts.get("current_equity", 100_000.0))
+        cash = max(0.0, equity - deployed)
+        capital = 100_000.0
+        return {
+            "total_capital_usd": capital,
+            "deployed_usd": round(deployed, 2),
+            "cash_usd": round(cash, 2),
+            "cash_pct": round(cash / capital, 4) if capital else 0.0,
+            "total_pnl_usd": round(equity - capital, 2),
+            "total_return_pct": round(pts.get("total_return_pct", 0.0), 4),
+            "apy_pct": round(pts.get("apy_today_pct", 0.0), 2),
+            "days_running": pts.get("days_running", 0),
+            "source": "paper_trading_status",
+        }
+
+    # Last-resort: status.json (legacy)
     status = _load_json("status.json", {})
-    portfolio = status.get("portfolio", {
-        "total_capital_usd": 100000.0,
+    return status.get("portfolio", {
+        "total_capital_usd": 100_000.0,
         "deployed_usd": 0,
-        "cash_usd": 100000.0,
+        "cash_usd": 100_000.0,
         "cash_pct": 1.0,
         "total_pnl_usd": 0.0,
         "total_drawdown_pct": 0.0,
     })
-    return portfolio
 
 
 @app.get("/api/positions", tags=["data"])
