@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Strategy Tournament — SPA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   SPA Design System v1.0 — matches index.html
+   ═══════════════════════════════════════════════════ */
+:root {
+  --spa-bg:         #0b0c10;
+  --spa-surface:    #13151c;
+  --spa-surface-2:  #1b1e28;
+  --spa-surface-3:  #242838;
+  --spa-border:     rgba(255,255,255,0.07);
+  --spa-border-2:   rgba(255,255,255,0.13);
+  --spa-text:       #e2e4ec;
+  --spa-text-2:     #9ca3af;
+  --spa-text-3:     #5c6370;
+  --spa-accent:     #1ed8a0;
+  --spa-accent-dim: rgba(30,216,160,0.10);
+  --spa-pos:        #1ed8a0;
+  --spa-neg:        #f16060;
+  --spa-warn:       #f59e0b;
+  --spa-mono:       'JetBrains Mono', 'Courier New', monospace;
+  --spa-sans:       'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --spa-r:          10px;
+  --spa-shadow:     0 1px 4px rgba(0,0,0,0.5), 0 6px 20px rgba(0,0,0,0.25);
+  --gold:   #f59e0b;
+  --silver: #94a3b8;
+  --bronze: #cd7c2e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--spa-bg);
+  color: var(--spa-text);
+  font-family: var(--spa-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.t-header {
+  background: var(--spa-surface);
+  border-bottom: 1px solid var(--spa-border-2);
+  padding: 0 28px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 0 var(--spa-border-2);
+}
+.t-logo {
+  font-family: var(--spa-mono);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--spa-accent);
+  text-decoration: none;
+  letter-spacing: -0.2px;
+  flex-shrink: 0;
+}
+.t-sep { color: var(--spa-text-3); font-size: 16px; line-height: 1; }
+.t-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--spa-text);
+}
+.t-paper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.30);
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-family: var(--spa-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--spa-warn);
+  letter-spacing: 0.5px;
+}
+.t-paper-badge::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--spa-warn);
+  animation: t-pulse 2s infinite;
+}
+.t-back {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--spa-text-2);
+  text-decoration: none;
+  padding: 5px 14px;
+  border: 1px solid var(--spa-border-2);
+  border-radius: 100px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.t-back:hover { color: var(--spa-accent); border-color: var(--spa-accent); }
+
+@keyframes t-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Main layout ── */
+.t-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+/* ── Sections ── */
+.t-section { margin-top: 40px; }
+.t-section-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.t-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--spa-text);
+}
+.t-section-sub {
+  font-size: 11px;
+  color: var(--spa-text-3);
+  margin-left: auto;
+}
+
+/* ── Hero ── */
+.t-hero {
+  background: linear-gradient(145deg, #0d1117 0%, #0f1620 55%, #0b1410 100%);
+  border: 1px solid var(--spa-border-2);
+  border-radius: 18px;
+  padding: 52px 40px 44px;
+  margin-top: 28px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+.t-hero::before {
+  content: '';
+  position: absolute;
+  top: -80px; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 360px;
+  background: radial-gradient(ellipse, rgba(30,216,160,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.t-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -40px; right: -80px;
+  width: 400px; height: 250px;
+  background: radial-gradient(ellipse, rgba(96,165,250,0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+.t-hero-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+  margin-bottom: 14px;
+  padding: 4px 12px;
+  border: 1px solid var(--spa-border-2);
+  border-radius: 100px;
+  background: var(--spa-surface-2);
+}
+.t-hero-title {
+  font-family: var(--spa-mono);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1.05;
+  background: linear-gradient(135deg, #1ed8a0 0%, #60a5fa 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.t-hero-sub {
+  font-size: 13px;
+  color: var(--spa-text-3);
+  margin-bottom: 40px;
+  font-family: var(--spa-mono);
+  letter-spacing: 0.2px;
+}
+.t-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--spa-border-2);
+  border: 1px solid var(--spa-border-2);
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.t-stat { background: var(--spa-surface); padding: 20px 20px; }
+.t-stat-val {
+  font-family: var(--spa-mono);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--spa-accent);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin-bottom: 7px;
+}
+.t-stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+}
+
+/* ── Pipeline ── */
+.pipe-card {
+  background: var(--spa-surface);
+  border: 1px solid var(--spa-border);
+  border-radius: var(--spa-r);
+  padding: 28px 32px;
+}
+.pipe-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin-bottom: 26px;
+}
+.pipe-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 110px;
+  flex-shrink: 0;
+}
+.pipe-dot {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border: 2px solid var(--spa-border-2);
+  background: var(--spa-surface-2);
+  transition: transform 0.2s;
+}
+.pipe-dot:hover { transform: scale(1.05); }
+.pipe-dot.done   { border-color: var(--spa-accent); background: rgba(30,216,160,0.08); }
+.pipe-dot.active { border-color: #60a5fa; background: rgba(96,165,250,0.08); }
+.pipe-dot.future { border-color: var(--spa-border); background: var(--spa-surface-3); opacity: 0.45; }
+.pipe-label { font-size: 12px; font-weight: 600; color: var(--spa-text); text-align: center; }
+.pipe-count { font-size: 11px; color: var(--spa-text-3); font-family: var(--spa-mono); text-align: center; }
+.pipe-arrow { font-size: 16px; color: var(--spa-text-3); padding: 0 2px; flex-shrink: 0; margin-bottom: 28px; }
+
+.paper-prog {
+  background: var(--spa-surface-2);
+  border-radius: 10px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.paper-prog-lbl { font-size: 12px; font-weight: 500; color: var(--spa-text-2); white-space: nowrap; }
+.paper-prog-bar { flex: 1; height: 6px; background: var(--spa-surface-3); border-radius: 3px; overflow: hidden; }
+.paper-prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1ed8a0 0%, #60a5fa 100%);
+  border-radius: 3px;
+  transition: width 1.2s cubic-bezier(.4,0,.2,1);
+}
+.paper-prog-pct {
+  font-size: 12px;
+  font-family: var(--spa-mono);
+  color: var(--spa-accent);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ── Tier badges ── */
+.tier-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+.tier-t1   { background: rgba(30,216,160,0.12);  color: #1ed8a0; border: 1px solid rgba(30,216,160,0.25); }
+.tier-t2   { background: rgba(96,165,250,0.12);  color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+.tier-t1t2 { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+.tier-t3   { background: rgba(245,158,11,0.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
+
+/* ── Phase badges ── */
+.phase-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 100px;
+  letter-spacing: 0.2px;
+}
+.phase-bt   { background: rgba(92,99,112,0.18); color: var(--spa-text-3); border: 1px solid var(--spa-border); }
+.phase-paper {
+  background: rgba(96,165,250,0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(96,165,250,0.25);
+}
+.phase-paper::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #60a5fa;
+  animation: t-pulse 2s infinite;
+}
+.phase-live { background: rgba(30,216,160,0.12); color: #1ed8a0; border: 1px solid rgba(30,216,160,0.25); }
+
+/* ── Medal cards ── */
+.medal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.medal-card {
+  background: var(--spa-surface);
+  border: 1px solid var(--spa-border);
+  border-radius: 14px;
+  padding: 26px 22px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.medal-card:hover { transform: translateY(-3px); box-shadow: var(--spa-shadow); }
+.medal-card::before {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.medal-card.gold   { border-color: rgba(245,158,11,0.28); }
+.medal-card.gold::before { background: radial-gradient(circle, rgba(245,158,11,0.1) 0%, transparent 70%); }
+.medal-card.silver { border-color: rgba(148,163,184,0.28); }
+.medal-card.silver::before { background: radial-gradient(circle, rgba(148,163,184,0.1) 0%, transparent 70%); }
+.medal-card.bronze { border-color: rgba(205,124,46,0.28); }
+.medal-card.bronze::before { background: radial-gradient(circle, rgba(205,124,46,0.1) 0%, transparent 70%); }
+
+.medal-icon { font-size: 36px; margin-bottom: 12px; display: block; }
+.medal-rank-lbl { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--spa-text-3); margin-bottom: 5px; }
+.medal-name { font-size: 16px; font-weight: 700; color: var(--spa-text); margin-bottom: 3px; line-height: 1.25; }
+.medal-id { font-family: var(--spa-mono); font-size: 10px; color: var(--spa-text-3); margin-bottom: 14px; }
+.medal-badges { margin-bottom: 18px; display: flex; align-items: center; gap: 6px; }
+.medal-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.medal-metric-val { font-family: var(--spa-mono); font-size: 20px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+.medal-metric-val.c-gold   { color: var(--gold); }
+.medal-metric-val.c-silver { color: var(--silver); }
+.medal-metric-val.c-bronze { color: var(--bronze); }
+.medal-metric-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--spa-text-3); }
+.medal-alloc { margin-top: 16px; font-size: 10px; color: var(--spa-text-3); line-height: 1.6; }
+.medal-alloc-title { font-weight: 600; margin-bottom: 3px; }
+
+/* ── Leaderboard ── */
+.lb-wrap {
+  background: var(--spa-surface);
+  border: 1px solid var(--spa-border);
+  border-radius: var(--spa-r);
+  overflow: hidden;
+}
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lb-table th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--spa-border-2);
+  background: var(--spa-surface-2);
+  white-space: nowrap;
+}
+.lb-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--spa-border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+.lb-table tr:last-child td { border-bottom: none; }
+.lb-table tr:hover td { background: rgba(255,255,255,0.015); }
+.lb-rank { font-family: var(--spa-mono); font-weight: 700; color: var(--spa-text-3); font-size: 12px; width: 36px; text-align: center; }
+.lb-name { font-weight: 600; color: var(--spa-text); display: block; }
+.lb-id   { font-family: var(--spa-mono); font-size: 9.5px; color: var(--spa-text-3); display: block; margin-top: 2px; }
+.lb-num  { font-family: var(--spa-mono); font-size: 12px; text-align: right; display: block; }
+.lb-pos  { color: var(--spa-pos); }
+.lb-neu  { color: var(--spa-text-2); }
+.lb-hi   { color: var(--spa-accent); }
+td.num-cell { text-align: right; }
+
+/* ── Shadow Paper Trading ── */
+.shadow-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+.shadow-card {
+  background: var(--spa-surface);
+  border: 1px solid var(--spa-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.shadow-card:hover { transform: translateY(-2px); box-shadow: var(--spa-shadow); }
+.shadow-chart { background: var(--spa-surface-3); line-height: 0; height: 60px; overflow: hidden; }
+.shadow-body { padding: 13px 13px 12px; }
+.shadow-rank-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--spa-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(30,216,160,0.12);
+  color: var(--spa-accent);
+  border: 1px solid rgba(30,216,160,0.2);
+  margin-bottom: 7px;
+}
+.shadow-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--spa-text);
+  margin-bottom: 11px;
+  line-height: 1.3;
+  min-height: 30px;
+}
+.shadow-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.shadow-row:last-of-type { margin-bottom: 0; }
+.shadow-lbl { font-size: 10px; color: var(--spa-text-3); }
+.shadow-val { font-size: 11px; font-family: var(--spa-mono); font-weight: 600; }
+.shadow-status {
+  margin-top: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(96,165,250,0.07);
+  border: 1px solid rgba(96,165,250,0.18);
+  font-size: 10px;
+  color: #60a5fa;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.shadow-alloc {
+  margin-top: 8px;
+  font-size: 9.5px;
+  color: var(--spa-text-3);
+  line-height: 1.55;
+}
+
+/* ── Methodology ── */
+.method-card {
+  background: var(--spa-surface);
+  border: 1px solid var(--spa-border);
+  border-radius: var(--spa-r);
+  padding: 28px 32px;
+}
+.method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.method-item-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+  margin-bottom: 7px;
+}
+.method-item-text {
+  font-size: 13px;
+  color: var(--spa-text-2);
+  line-height: 1.65;
+}
+.method-item-text code {
+  font-family: var(--spa-mono);
+  font-size: 11px;
+  color: var(--spa-accent);
+  background: var(--spa-surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.disclaimer {
+  margin-top: 22px;
+  padding: 13px 16px;
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #ca8d2e;
+  line-height: 1.65;
+}
+
+/* ── Footer ── */
+.t-footer {
+  border-top: 1px solid var(--spa-border);
+  padding: 30px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 60px;
+}
+.t-footer-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: 1px solid var(--spa-border-2);
+  border-radius: 8px;
+  color: var(--spa-text-2);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.t-footer-back:hover { border-color: var(--spa-accent); color: var(--spa-accent); }
+.t-footer-info { font-size: 11px; color: var(--spa-text-3); }
+
+/* ── Live Indicator ── */
+.live-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.live-dot.live    { background: #00e5a0; box-shadow: 0 0 6px rgba(0,229,160,0.4); animation: t-pulse 2s infinite; }
+.live-dot.offline { background: #555; box-shadow: none; }
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .t-hero-title { font-size: 30px; }
+  .t-hero-stats { grid-template-columns: repeat(2, 1fr); }
+  .medal-grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; }
+  .shadow-grid { grid-template-columns: repeat(2, 1fr); }
+  .method-grid { grid-template-columns: 1fr; }
+  .pipe-flow { gap: 4px; }
+  .pipe-node { min-width: 80px; }
+  .pipe-arrow { display: none; }
+}
+@media (max-width: 600px) {
+  .t-main { padding: 0 14px 40px; }
+  .t-hero { padding: 32px 18px 28px; }
+  .t-hero-title { font-size: 24px; }
+  .t-hero-stats { grid-template-columns: 1fr 1fr; }
+  .shadow-grid { grid-template-columns: 1fr; }
+  .pipe-card { padding: 18px 16px; }
+  .lb-table th:nth-child(3), .lb-table td:nth-child(3),
+  .lb-table th:nth-child(6), .lb-table td:nth-child(6) { display: none; }
+  .method-card { padding: 18px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="t-header">
+  <a href="../index.html" class="t-logo">SPA</a>
+  <span class="t-sep">/</span>
+  <span class="t-title">Strategy Tournament</span>
+  <span class="t-paper-badge">PAPER PHASE</span>
+  <span id="live-indicator" class="live-dot" title="Checking live API…"></span>
+  <a href="../index.html" class="t-back">← Dashboard</a>
+</div>
+
+<div class="t-main">
+
+  <!-- ── Hero ── -->
+  <div class="t-hero">
+    <div class="t-hero-tag">⚔️ Tournament v1.0 · 2026</div>
+    <div class="t-hero-title">Strategy Tournament</div>
+    <div class="t-hero-sub">
+      Deterministic backtest 2022–2025 · OU noise (seed=42, ρ=0.85) · Advisory only · LLM_FORBIDDEN
+    </div>
+    <div class="t-hero-stats">
+      <div class="t-stat">
+        <div class="t-stat-val" id="stat-tested">60</div>
+        <div class="t-stat-lbl">Strategies Tested</div>
+      </div>
+      <div class="t-stat">
+        <div class="t-stat-val">4</div>
+        <div class="t-stat-lbl">Years Simulated</div>
+      </div>
+      <div class="t-stat">
+        <div class="t-stat-val" id="stat-paper">5</div>
+        <div class="t-stat-lbl">In Paper Phase</div>
+      </div>
+      <div class="t-stat">
+        <div class="t-stat-val">0</div>
+        <div class="t-stat-lbl">Live Promotions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tournament Pipeline ── -->
+  <section class="t-section">
+    <div class="t-section-hdr">
+      <div class="t-section-title">Tournament Pipeline</div>
+      <div class="t-section-sub" id="pipe-updated"></div>
+    </div>
+    <div class="pipe-card">
+      <div class="pipe-flow">
+        <div class="pipe-node">
+          <div class="pipe-dot done">🔬</div>
+          <div class="pipe-label">Scan</div>
+          <div class="pipe-count" id="pipe-scan">74 files</div>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node">
+          <div class="pipe-dot done">✅</div>
+          <div class="pipe-label">Backtest</div>
+          <div class="pipe-count" id="pipe-bt">60 passed</div>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node">
+          <div class="pipe-dot done" style="font-size:18px">⚠️</div>
+          <div class="pipe-label">Skipped</div>
+          <div class="pipe-count" id="pipe-sk">14 excluded</div>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node">
+          <div class="pipe-dot active">🔄</div>
+          <div class="pipe-label">Paper Phase</div>
+          <div class="pipe-count" id="pipe-paper">5 · 30d</div>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node">
+          <div class="pipe-dot future">🚀</div>
+          <div class="pipe-label">Live</div>
+          <div class="pipe-count">0 promoted</div>
+        </div>
+      </div>
+      <!-- Paper phase progress bar -->
+      <div class="paper-prog">
+        <span class="paper-prog-lbl">📊 Paper Phase</span>
+        <div class="paper-prog-bar">
+          <div class="paper-prog-fill" id="prog-fill" style="width:0%"></div>
+        </div>
+        <span class="paper-prog-pct" id="prog-pct">Day 0 / 30</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Podium (top 3) ── -->
+  <section class="t-section">
+    <div class="t-section-hdr">
+      <div class="t-section-title">🏆 Podium — Top 3 by Sharpe</div>
+      <div class="t-section-sub">Backtest 2022–2025 · All in shadow paper phase</div>
+    </div>
+    <div class="medal-grid" id="medal-grid">
+      <div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--spa-text-3)">
+        <div style="font-size:24px;margin-bottom:10px">⏳</div>
+        Loading podium…
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Leaderboard ── -->
+  <section class="t-section">
+    <div class="t-section-hdr">
+      <div class="t-section-title">📊 Leaderboard — Top 20</div>
+      <div class="t-section-sub">Ranked by Sharpe ratio · 2022–2025 backtest · $100K USDC</div>
+    </div>
+    <div class="lb-wrap">
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th style="text-align:center">#</th>
+            <th>Strategy</th>
+            <th>Tier</th>
+            <th style="text-align:right">Sharpe</th>
+            <th style="text-align:right">APY %</th>
+            <th style="text-align:right">Max DD</th>
+            <th style="text-align:right">Phase</th>
+          </tr>
+        </thead>
+        <tbody id="lb-tbody">
+          <tr><td colspan="7" style="text-align:center;padding:28px;color:var(--spa-text-3)">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Shadow Paper Trading ── -->
+  <section class="t-section">
+    <div class="t-section-hdr">
+      <div class="t-section-title">🔄 Shadow Paper Trading — Live Top 5</div>
+      <div class="t-section-sub" id="shadow-sub">Simulating with live APY · Advisory only · Day 0</div>
+    </div>
+    <div class="shadow-grid" id="shadow-grid">
+      <!-- rendered by JS -->
+    </div>
+  </section>
+
+  <!-- ── Methodology ── -->
+  <section class="t-section">
+    <div class="t-section-hdr">
+      <div class="t-section-title">📋 Methodology</div>
+    </div>
+    <div class="method-card">
+      <div class="method-grid">
+        <div class="method-item">
+          <div class="method-item-title">Backtest Framework</div>
+          <div class="method-item-text">
+            60 strategies evaluated over a 4-year daily simulation spanning 2022-01-01 to 2025-12-31.
+            Each strategy starts with <code>$100,000 USDC</code>. APY data sourced from
+            DeFiLlama historical yields for whitelisted protocols (Aave V3, Compound V3, Morpho, Yearn, Euler V2, Maple).
+          </div>
+        </div>
+        <div class="method-item">
+          <div class="method-item-title">Noise Model</div>
+          <div class="method-item-text">
+            Ornstein-Uhlenbeck process with <code>seed=42</code>, mean-reversion parameter
+            <code>ρ=0.85</code>. This models realistic APY fluctuations around DeFiLlama
+            historical means without purely deterministic paths. Prevents look-ahead bias.
+          </div>
+        </div>
+        <div class="method-item">
+          <div class="method-item-title">Ranking Metric</div>
+          <div class="method-item-text">
+            Primary rank: <strong>Sharpe ratio</strong> (excess return / daily volatility).
+            Secondary: Sortino, Calmar. 100% win rate across all strategies reflects
+            the stablecoin yield nature — no directional risk generating negative return days.
+          </div>
+        </div>
+        <div class="method-item">
+          <div class="method-item-title">Promotion Policy (ADR-023)</div>
+          <div class="method-item-text">
+            Top-5 enter a 30-day shadow paper phase — strategies simulate allocations
+            alongside the live portfolio without modifying real trades or equity curves.
+            Promotion to live requires passing all 29 GoLive criteria including
+            30-day paper continuity and gap-monitor check.
+          </div>
+        </div>
+      </div>
+      <div class="disclaimer">
+        ⚠️ <strong>Advisory only. Backtested results do not guarantee future performance.</strong>
+        All results are simulated on historical data. The deterministic RiskPolicy gate (LLM_FORBIDDEN)
+        makes all actual allocation decisions — tournament ranking is advisory input only.
+        Virtual capital $100,000 USDC; no real funds are at risk during the paper trading phase.
+        Strategies classified as T3 or using experimental protocols are excluded from live promotion.
+      </div>
+    </div>
+  </section>
+
+</div><!-- /t-main -->
+
+<!-- ── Footer ── -->
+<div class="t-footer">
+  <a href="../index.html" class="t-footer-back">← Back to Dashboard</a>
+  <span class="t-footer-info" id="footer-ts">
+    SPA Strategy Tournament · Generated 2026-06-22 · Advisory only
+  </span>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   Embedded fallback data — real values from
+   data/mass_tournament_results.json (top-20) and
+   data/strategy_tournament.json (top-5 shadow)
+   ═══════════════════════════════════════════════════ */
+const FALLBACK_MASS = {
+  generated_at: "2026-06-22T11:28:11.595648+00:00",
+  simulation_period: "2022-01-01 to 2025-12-31",
+  strategies_tested: 60,
+  strategies_skipped: 14,
+  total_files_scanned: 74,
+  leaderboard: [
+    {rank:1,  id:"s7_pendle_yt_aggressive",     class:"S7PendleYTAggressive",      sharpe:196.6038, annual_return_pct:0.9926, max_dd_pct:0.0098, volatility_pct:0.005786, total_return_pct:4.0328,  allocation:{morpho_steakhouse:0.20, compound_v3:0.05}},
+    {rank:2,  id:"s12_base_layer_yield",        class:"S12BaseLayerYield",         sharpe:196.1727, annual_return_pct:4.095,  max_dd_pct:0.0392, volatility_pct:0.023517, total_return_pct:17.4267, allocation:{morpho_steakhouse:0.80, aave_v3:0.20}},
+    {rank:3,  id:"s5_pendle_enhanced",          class:"S5PendleEnhanced",          sharpe:185.4788, annual_return_pct:1.3362, max_dd_pct:0.0139, volatility_pct:0.008288, total_return_pct:5.4567,  allocation:{morpho_steakhouse:0.25, compound_v3:0.10}},
+    {rank:4,  id:"s2_pendle_morpho",            class:"S2PendleMorpho",            sharpe:183.3889, annual_return_pct:1.9008, max_dd_pct:0.0199, volatility_pct:0.011903, total_return_pct:7.8284,  allocation:{morpho_steakhouse:0.35, compound_v3:0.15}},
+    {rank:5,  id:"s53_correlated_risk_reducer", class:"S53CorrelatedRiskReducer",  sharpe:175.5289, annual_return_pct:4.1097, max_dd_pct:0.0394, volatility_pct:0.026364, total_return_pct:17.4933, allocation:{aave_v3:0.05, compound_v3:0.05, morpho_steakhouse:0.60, yearn_v3:0.30}},
+    {rank:6,  id:"s11_hybrid_yield_max",        class:"S11HybridYieldMax",         sharpe:166.196,  annual_return_pct:2.4863, max_dd_pct:0.0213, volatility_pct:0.016762, total_return_pct:10.3295, allocation:{morpho_steakhouse:0.30, euler_v2:0.15, maple:0.10}},
+    {rank:7,  id:"s29_barbell_plus",            class:"S29BarbellPlus",            sharpe:155.3193, annual_return_pct:3.594,  max_dd_pct:0.0405, volatility_pct:0.026596, total_return_pct:15.181,  allocation:{aave_v3:0.233, compound_v3:0.233, morpho_steakhouse:0.533}},
+    {rank:8,  id:"s6_max_diversified",          class:"S6MaxDiversified",          sharpe:150.829,  annual_return_pct:2.3145, max_dd_pct:0.0242, volatility_pct:0.017556, total_return_pct:9.5912,  allocation:{morpho_steakhouse:0.30, euler_v2:0.15, compound_v3:0.10, aave_v3:0.05}},
+    {rank:9,  id:"s28_momentum_yield",          class:"S28MomentumYield",          sharpe:147.5082, annual_return_pct:3.6255, max_dd_pct:0.0412, volatility_pct:0.028211, total_return_pct:15.3211, allocation:{aave_v3:0.20, compound_v3:0.20, morpho_steakhouse:0.40, yearn_v3:0.20}},
+    {rank:10, id:"s51_protocol_lifecycle",      class:"S51ProtocolLifecycle",      sharpe:147.5082, annual_return_pct:3.6255, max_dd_pct:0.0412, volatility_pct:0.028211, total_return_pct:15.3211, allocation:{aave_v3:0.20, compound_v3:0.20, morpho_steakhouse:0.40, yearn_v3:0.20}},
+    {rank:11, id:"s52_tvl_momentum",            class:"S52TvlMomentum",            sharpe:147.5082, annual_return_pct:3.6255, max_dd_pct:0.0412, volatility_pct:0.028211, total_return_pct:15.3211, allocation:{aave_v3:0.20, compound_v3:0.20, morpho_steakhouse:0.40, yearn_v3:0.20}},
+    {rank:12, id:"s24_base_chain_max",          class:"BaseChainMaxStrategy",      sharpe:138.5103, annual_return_pct:3.8469, max_dd_pct:0.0410, volatility_pct:0.031584, total_return_pct:16.3106, allocation:{morpho_steakhouse:0.40, aave_v3:0.30, euler_v2:0.30}},
+    {rank:13, id:"s1_t1t2_balanced",            class:"S1T1T2BalancedStrategy",    sharpe:130.9293, annual_return_pct:3.3931, max_dd_pct:0.0416, volatility_pct:0.030068, total_return_pct:14.2895, allocation:{aave_v3:0.40, morpho_steakhouse:0.40, compound_v3:0.20}},
+    {rank:14, id:"s54_daily_yield_maximizer",   class:"S54DailyYieldMaximizer",    sharpe:128.0695, annual_return_pct:3.3203, max_dd_pct:0.0420, volatility_pct:0.030190, total_return_pct:13.9678, allocation:{aave_v3:0.307, compound_v3:0.307, morpho_steakhouse:0.347, yearn_v3:0.04}},
+    {rank:15, id:"s39_morpho_max_plus",         class:"MorphoMaxPlusStrategy",     sharpe:119.7331, annual_return_pct:3.2698, max_dd_pct:0.0402, volatility_pct:0.031632, total_return_pct:13.7449, allocation:{morpho_steakhouse:0.25, euler_v2:0.20, aave_v3:0.30, compound_v3:0.20}},
+    {rank:16, id:"s30_all_weather",             class:"S30AllWeather",             sharpe:116.7407, annual_return_pct:2.7457, max_dd_pct:0.0364, volatility_pct:0.027570, total_return_pct:11.4517, allocation:{aave_v3:0.30, compound_v3:0.25, morpho_steakhouse:0.20, yearn_v3:0.10}},
+    {rank:17, id:"s55_max_sharpe_portfolio",    class:"S55MaxSharpePortfolio",     sharpe:113.8266, annual_return_pct:2.2185, max_dd_pct:0.0298, volatility_pct:0.022966, total_return_pct:9.1803,  allocation:{aave_v3:0.30, compound_v3:0.20, morpho_steakhouse:0.20}},
+    {rank:18, id:"s14_arbitrum_radiant",        class:"S14ArbitrumRadiantMax",     sharpe:112.7479, annual_return_pct:3.5935, max_dd_pct:0.0425, volatility_pct:0.036634, total_return_pct:15.1786, allocation:{aave_v3:0.45, euler_v2:0.35, morpho_steakhouse:0.20}},
+    {rank:19, id:"s38_morpho_max",              class:"MorphoMaxStrategy",         sharpe:112.6831, annual_return_pct:3.1906, max_dd_pct:0.0406, volatility_pct:0.032931, total_return_pct:13.3962, allocation:{morpho_steakhouse:0.20, euler_v2:0.20, aave_v3:0.35, compound_v3:0.20}},
+    {rank:20, id:"s3_aave_arb_morpho",          class:"S3AaveArbMorpho",           sharpe:110.7624, annual_return_pct:3.2994, max_dd_pct:0.0424, volatility_pct:0.034724, total_return_pct:13.8755, allocation:{aave_v3:0.70, morpho_steakhouse:0.30}}
+  ]
+};
+
+const FALLBACK_SHADOW = {
+  generated_at: "2026-06-22T11:28:18.000194+00:00",
+  shadow_active_strategies: [
+    {rank:1, strategy_key:"s7_pendle_yt_aggressive",     name:"S7PendleYTAggressive",     sharpe:196.6038, paper_apy:0.9926, max_dd_pct:0.0098, days_active:0, allocation:{morpho_steakhouse:0.20, compound_v3:0.05}},
+    {rank:2, strategy_key:"s12_base_layer_yield",        name:"S12BaseLayerYield",        sharpe:196.1727, paper_apy:4.095,  max_dd_pct:0.0392, days_active:0, allocation:{morpho_steakhouse:0.80, aave_v3:0.20}},
+    {rank:3, strategy_key:"s5_pendle_enhanced",          name:"S5PendleEnhanced",         sharpe:185.4788, paper_apy:1.3362, max_dd_pct:0.0139, days_active:0, allocation:{morpho_steakhouse:0.25, compound_v3:0.10}},
+    {rank:4, strategy_key:"s2_pendle_morpho",            name:"S2PendleMorpho",           sharpe:183.3889, paper_apy:1.9008, max_dd_pct:0.0199, days_active:0, allocation:{morpho_steakhouse:0.35, compound_v3:0.15}},
+    {rank:5, strategy_key:"s53_correlated_risk_reducer", name:"S53CorrelatedRiskReducer", sharpe:175.5289, paper_apy:4.1097, max_dd_pct:0.0394, days_active:0, allocation:{aave_v3:0.05, compound_v3:0.05, morpho_steakhouse:0.60, yearn_v3:0.30}}
+  ]
+};
+
+/* ═══════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════ */
+function stratName(id, cls) {
+  if (cls) {
+    return cls
+      .replace(/^S\d+/, '')
+      .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+      .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+      .replace(/\b(Strategy)\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  return id.replace(/^s\d+_/, '').split('_')
+    .map(p => p.length <= 3 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1))
+    .join(' ');
+}
+
+function getTier(alloc) {
+  const T2 = new Set(['yearn_v3','euler_v2','maple','morpho_blue','fluid']);
+  const T3 = new Set(['spark_susds']);
+  let t2w = 0, t3w = 0;
+  for (const [k, v] of Object.entries(alloc || {})) {
+    if (T2.has(k)) t2w += v;
+    else if (T3.has(k)) t3w += v;
+  }
+  if (t3w >= 0.4)  return {label:'T3',    cls:'tier-t3'};
+  if (t2w >= 0.35) return {label:'T2',    cls:'tier-t2'};
+  if (t2w > 0.08)  return {label:'T1/T2', cls:'tier-t1t2'};
+  return {label:'T1', cls:'tier-t1'};
+}
+
+function fmt(n, dec=2) {
+  if (n == null || isNaN(n)) return '—';
+  return Math.abs(n).toFixed(dec);
+}
+
+function allocText(alloc, maxItems=3) {
+  return Object.entries(alloc || {})
+    .slice(0, maxItems)
+    .map(([k,v]) => {
+      const label = k.replace('_steakhouse','').replace('_v3','').replace(/_/g,' ');
+      return `${label}: ${(v*100).toFixed(0)}%`;
+    }).join(' · ');
+}
+
+/* ── Deterministic equity curve generator ── */
+function lcg(seed) {
+  let s = (Math.abs(seed * 9301 + 49297) | 0) % 233280 || 1;
+  return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+}
+
+function genCurve(sharpe, annRetPct, volPct, n=60) {
+  const rng = lcg(sharpe * 100);
+  const daily_mu  = (annRetPct || 1) / 100 / 365;
+  const daily_vol = (volPct   || 0.02) / Math.sqrt(252);
+  const step = (4 * 365) / n;
+  let eq = 100;
+  const pts = [eq];
+  for (let i = 1; i < n; i++) {
+    const u1 = Math.max(rng(), 1e-9), u2 = rng();
+    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    eq *= Math.exp(daily_mu * step + daily_vol * Math.sqrt(step) * z);
+    pts.push(Math.max(eq, 80));
+  }
+  return pts;
+}
+
+function sparkSVG(pts, color, w=200, h=60) {
+  const mn = Math.min(...pts) * 0.997;
+  const mx = Math.max(...pts) * 1.003;
+  const rng = mx - mn || 0.01;
+  const gid = 'sg' + (Math.random()*99999|0);
+  const xy = pts.map((v,i) => {
+    const x = ((i/(pts.length-1))*w).toFixed(1);
+    const y = (h - ((v-mn)/rng)*(h-4) - 2).toFixed(1);
+    return `${x},${y}`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px;display:block">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <polygon points="${xy.join(' ')} ${w},${h} 0,${h}" fill="url(#${gid})"/>
+    <polyline points="${xy.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   Renderers
+   ═══════════════════════════════════════════════════ */
+function renderMedals(top3) {
+  const m = ['gold','silver','bronze'];
+  const ic = ['🥇','🥈','🥉'];
+  const vc = ['c-gold','c-silver','c-bronze'];
+  const labels = ['#1 Champion','#2 Runner-Up','#3 Third Place'];
+
+  document.getElementById('medal-grid').innerHTML = top3.slice(0,3).map((s,i) => {
+    const name = stratName(s.id, s.class);
+    const tier = getTier(s.allocation);
+    const alloc = allocText(s.allocation);
+    return `
+    <div class="medal-card ${m[i]}">
+      <span class="medal-icon">${ic[i]}</span>
+      <div class="medal-rank-lbl">${labels[i]}</div>
+      <div class="medal-name">${name}</div>
+      <div class="medal-id">${s.id}</div>
+      <div class="medal-badges">
+        <span class="tier-badge ${tier.cls}">${tier.label}</span>
+        <span class="phase-badge phase-paper">Paper 🔄</span>
+      </div>
+      <div class="medal-metrics">
+        <div>
+          <div class="medal-metric-val ${vc[i]}">${fmt(s.sharpe)}</div>
+          <div class="medal-metric-lbl">Sharpe</div>
+        </div>
+        <div>
+          <div class="medal-metric-val ${vc[i]}">${fmt(s.annual_return_pct)}%</div>
+          <div class="medal-metric-lbl">Ann. APY</div>
+        </div>
+        <div>
+          <div class="medal-metric-val ${vc[i]}">${fmt(s.total_return_pct)}%</div>
+          <div class="medal-metric-lbl">4yr Total</div>
+        </div>
+        <div>
+          <div class="medal-metric-val ${vc[i]}">${fmt(s.max_dd_pct)}%</div>
+          <div class="medal-metric-lbl">Max DD</div>
+        </div>
+      </div>
+      ${alloc ? `<div class="medal-alloc"><div class="medal-alloc-title">Allocation</div>${alloc}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderLeaderboard(lb, shadowSet) {
+  const medalEmoji = {1:'🥇',2:'🥈',3:'🥉'};
+  document.getElementById('lb-tbody').innerHTML = lb.slice(0,20).map(s => {
+    const name  = stratName(s.id, s.class);
+    const tier  = getTier(s.allocation);
+    const paper = shadowSet.has(s.id);
+    const phase = paper
+      ? `<span class="phase-badge phase-paper">Paper 🔄</span>`
+      : `<span class="phase-badge phase-bt">Backtest ✓</span>`;
+    const rankDisp = medalEmoji[s.rank] || `#${s.rank}`;
+    const sharpeClass = s.sharpe >= 150 ? 'lb-pos' : s.sharpe >= 100 ? 'lb-hi' : 'lb-neu';
+    return `<tr${paper ? ' style="background:rgba(96,165,250,0.04)"' : ''}>
+      <td class="lb-rank" style="text-align:center">${rankDisp}</td>
+      <td>
+        <span class="lb-name">${name}</span>
+        <span class="lb-id">${s.id}</span>
+      </td>
+      <td><span class="tier-badge ${tier.cls}">${tier.label}</span></td>
+      <td class="num-cell"><span class="lb-num ${sharpeClass}">${fmt(s.sharpe)}</span></td>
+      <td class="num-cell"><span class="lb-num lb-pos">+${fmt(s.annual_return_pct)}%</span></td>
+      <td class="num-cell"><span class="lb-num lb-neu">${fmt(s.max_dd_pct)}%</span></td>
+      <td style="text-align:right">${phase}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderShadow(strategies) {
+  document.getElementById('shadow-grid').innerHTML = strategies.map(s => {
+    const name  = stratName(s.strategy_key, s.name);
+    const pts   = genCurve(s.sharpe, s.paper_apy, 0.02, 60);
+    const final = pts[pts.length - 1];
+    const color = final >= pts[0] ? '#1ed8a0' : '#f16060';
+    const spark = sparkSVG(pts, color);
+    const alloc = allocText(s.allocation, 3);
+    const days  = s.days_active || 0;
+    return `
+    <div class="shadow-card">
+      <div class="shadow-chart">${spark}</div>
+      <div class="shadow-body">
+        <div class="shadow-rank-badge">Rank #${s.rank}</div>
+        <div class="shadow-name">${name}</div>
+        <div class="shadow-row">
+          <span class="shadow-lbl">Backtest APY</span>
+          <span class="shadow-val" style="color:var(--spa-pos)">+${fmt(s.paper_apy)}%</span>
+        </div>
+        <div class="shadow-row">
+          <span class="shadow-lbl">Sharpe</span>
+          <span class="shadow-val" style="color:var(--spa-accent)">${fmt(s.sharpe,1)}</span>
+        </div>
+        <div class="shadow-row">
+          <span class="shadow-lbl">Max DD</span>
+          <span class="shadow-val" style="color:var(--spa-text-2)">${fmt(s.max_dd_pct)}%</span>
+        </div>
+        <div class="shadow-row">
+          <span class="shadow-lbl">Live Days</span>
+          <span class="shadow-val" style="color:var(--spa-text-2)">${days} / 30</span>
+        </div>
+        <div class="shadow-status">🔄 Shadow Paper · Day ${days}</div>
+        ${alloc ? `<div class="shadow-alloc">${alloc}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPipeline(mass, shadow) {
+  // Paper phase countdown
+  const startDate = new Date('2026-06-22T00:00:00Z');
+  const now       = new Date();
+  const daysIn    = Math.max(0, Math.floor((now - startDate) / 86400000));
+  const totalDays = 30;
+  const pct       = Math.min(daysIn / totalDays * 100, 100);
+
+  setTimeout(() => {
+    document.getElementById('prog-fill').style.width = pct + '%';
+  }, 100);
+  document.getElementById('prog-pct').textContent = `Day ${daysIn} / ${totalDays}`;
+  document.getElementById('shadow-sub').textContent =
+    `Simulating with live APY · Advisory only · Day ${daysIn}`;
+
+  // Pipeline counts
+  if (mass) {
+    document.getElementById('pipe-scan').textContent = `${mass.total_files_scanned || 74} files`;
+    document.getElementById('pipe-bt').textContent   = `${mass.strategies_tested   || 60} passed`;
+    document.getElementById('pipe-sk').textContent   = `${mass.strategies_skipped  || 14} excluded`;
+
+    const n = (shadow?.shadow_active_strategies || shadow?.active_strategies || []).length;
+    if (n) document.getElementById('pipe-paper').textContent = `${n} active · 30d`;
+
+    if (mass.generated_at) {
+      const d = new Date(mass.generated_at).toLocaleDateString('en-US',
+        {month:'short', day:'numeric', year:'numeric'});
+      document.getElementById('pipe-updated').textContent = 'Generated ' + d;
+      document.getElementById('footer-ts').textContent =
+        `SPA Strategy Tournament · Updated ${d} · Advisory only`;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Tournament Live Mode — mirrors index.html live detection
+   ═══════════════════════════════════════════════════ */
+const LIVE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8765'
+  : 'https://api.earn-defi.com';
+
+let LIVE_MODE = false;
+let _pollTimer = null;
+let _liveLastFetch = 0;
+
+/* ── Shared render entry point ── */
+function renderAll(massData, tournamentData, shadowPaperData) {
+  const mass = massData || FALLBACK_MASS;
+
+  // Resolve active strategies from tournament data (strategy_tournament.json)
+  // or fall back to shadow_paper_trading.json, then hardcoded fallback
+  const sArr =
+    (tournamentData && (tournamentData.shadow_active_strategies || tournamentData.active_strategies)) ||
+    (shadowPaperData && (shadowPaperData.shadow_active_strategies || shadowPaperData.active_strategies)) ||
+    FALLBACK_SHADOW.shadow_active_strategies;
+
+  // Build shadow ID set for leaderboard highlight
+  const shadowSet = new Set(sArr.map(s => s.strategy_key || s.id));
+  if (!shadowSet.size) {
+    ['s7_pendle_yt_aggressive','s12_base_layer_yield','s5_pendle_enhanced',
+     's2_pendle_morpho','s53_correlated_risk_reducer'].forEach(id => shadowSet.add(id));
+  }
+
+  renderPipeline(mass, tournamentData || {});
+  renderMedals(mass.leaderboard.slice(0, 3));
+  renderLeaderboard(mass.leaderboard, shadowSet);
+  renderShadow(sArr.length ? sArr : FALLBACK_SHADOW.shadow_active_strategies);
+
+  if (mass.strategies_tested)
+    document.getElementById('stat-tested').textContent = mass.strategies_tested;
+  if (sArr.length)
+    document.getElementById('stat-paper').textContent = sArr.length;
+}
+
+/* ── Live indicator ── */
+function updateLiveIndicator(live) {
+  const dot = document.getElementById('live-indicator');
+  if (!dot) return;
+  dot.className = live ? 'live-dot live' : 'live-dot offline';
+  dot.title = live
+    ? 'Live · api.earn-defi.com · updates every 15s'
+    : 'Offline — static snapshot';
+}
+
+/* ── Static fallback (Cloudflare Pages JSON) ── */
+async function tryFetch(url) {
+  const r = await fetch(url + '?t=' + Date.now());
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function loadStaticData() {
+  let mass = null, shadow = null;
+  const bases = ['../data/', '/data/', 'data/'];
+  for (const base of bases) {
+    try {
+      [mass, shadow] = await Promise.all([
+        tryFetch(base + 'mass_tournament_results.json'),
+        tryFetch(base + 'strategy_tournament.json')
+      ]);
+      break;
+    } catch(_) { /* try next base */ }
+  }
+  renderAll(mass || FALLBACK_MASS, shadow || FALLBACK_SHADOW, null);
+}
+
+/* ── Live fetch ── */
+async function fetchTournamentData() {
+  if (LIVE_MODE) {
+    try {
+      const r = await fetch(LIVE_API + '/api/tournament', { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        _liveLastFetch = Date.now();
+        updateLiveIndicator(true);
+        renderAll(d.mass_results, d.tournament, d.shadow_paper);
+        return;
+      }
+    } catch(_) { /* fallthrough */ }
+    // Server unreachable mid-session → mark offline, serve static
+    LIVE_MODE = false;
+    updateLiveIndicator(false);
+  }
+  loadStaticData();
+}
+
+/* ── Poll loop ── */
+function startLivePolling() {
+  if (_pollTimer) return;
+  fetchTournamentData();                          // immediate first fetch
+  _pollTimer = setInterval(() => {
+    if (!document.hidden) fetchTournamentData();  // skip when tab is hidden
+  }, 15000);
+}
+
+/* ── Live detection (ping Mac mini) ── */
+async function detectLiveMode() {
+  try {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 3000);
+    const r    = await fetch(LIVE_API + '/api/live/ping', {
+      signal: ctrl.signal,
+      cache:  'no-store',
+    });
+    clearTimeout(tid);
+    if (r.ok) {
+      LIVE_MODE = true;
+      updateLiveIndicator(true);
+      startLivePolling();
+      return;
+    }
+  } catch(_) { /* server unreachable */ }
+  LIVE_MODE = false;
+  updateLiveIndicator(false);
+  loadStaticData();
+}
+
+// Bootstrap
+detectLiveMode();
+</script>
+</body>
+</html>
