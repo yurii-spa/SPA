@@ -8,6 +8,15 @@
 Легенда статуса: ✅ DONE (в этой сессии) · 🔜 READY (готово к работе) ·
 🟥 DECISION (нужно решение Owner / ADR).
 
+> **Test health (после сессии):** из ~58 предсуществующих падений в analytics/
+> strategies/allocator/alerts/risk-наборах → **0**. Найден и устранён **системный
+> баг `atomic_save(..., str(self))` в ~23 analytics-модулях** (персистенция писалась
+> в garbage-имена `<object at 0x…>` — источник junk-файлов в репо). Плюс реальные
+> баги: `MomentumSignal` без `@dataclass`, allocator weight-overshoot, argparse-внутри-
+> `log_result`, swapped `atomic_save`-args. Остаток (длинный хвост): сетевые тесты
+> (sandbox DeFiLlama 403, не реальные баги), точечный fragile-mock дрейф
+> (`daily_report`, `red_flag_monitor`), AUD-09/13/16.
+
 ---
 
 ## Сводка severity
@@ -25,9 +34,10 @@
 | AUD-09 | 🟡 MEDIUM | Дубликаты модулей в корне репо (7 орфанов удалено; ~16 — follow-up) | PARTIAL |
 | AUD-10 | ✅ MEDIUM | file_lock (fcntl) на read-modify-write shared JSON | DONE |
 | AUD-11 | ✅ LOW | `cycle_runner` shadow-day: `today.isoformat()` всегда падал | DONE |
-| AUD-12 | 🔜 LOW | Предсуществующие падения `test_sky_susds_adapter.py` | READY |
-| AUD-13 | 🟡 LOW | ruff: bare-except + F601 + F541 исправлены; F401/F841 — follow-up | PARTIAL |
-| AUD-15 | 🟡 MEDIUM | Предсущ. падения: apy_momentum (real bug) + 4 hygiene-drift почин.; ~16 неоднозначных | PARTIAL |
+| AUD-12 | ✅ LOW | `ValidationError` теперь `ValueError`; `test_sky_susds_adapter` 50/50 | DONE |
+| AUD-13 | 🟡 LOW | ruff: bare-except + F601 + F541 + F811 исправлены; F401/F841 — follow-up | PARTIAL |
+| AUD-15 | ✅ MEDIUM | ~80 предсущ. падений почин.; **системный atomic_save(str(self))-баг в ~23 модулях** | DONE |
+| AUD-16 | 🔜 LOW | Registry-sync: пакетный реестр на 26 адаптеров > оркестраторного | READY |
 | AUD-14 | 🔜 LOW | Near-duplicate подпакеты (backtest/backtesting, monitor/monitoring, …) | READY |
 
 ---
