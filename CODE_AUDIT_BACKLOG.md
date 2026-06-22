@@ -22,7 +22,7 @@
 | AUD-06 | ✅ HIGH | Закоммичены node_modules + venv (~8100 файлов, ~135M) | DONE |
 | AUD-07 | ✅ MEDIUM | Закоммичен мусор: .command, *.bak, *.log, отчёты, junk-файлы | DONE |
 | AUD-08 | ✅ MEDIUM | Демо-бэкап под `data/` может навсегда заблокировать go-live | DONE |
-| AUD-09 | 🔜 MEDIUM | Дубликаты модулей в корне репо (адаптеры, defillama, мониторы) | READY |
+| AUD-09 | 🟡 MEDIUM | Дубликаты модулей в корне репо (7 орфанов удалено; ~16 — follow-up) | PARTIAL |
 | AUD-10 | 🔜 MEDIUM | Гонки read-modify-write на shared ring-buffer JSON | READY |
 | AUD-11 | ✅ LOW | `cycle_runner` shadow-day: `today.isoformat()` всегда падал | DONE |
 | AUD-12 | 🔜 LOW | Предсуществующие падения `test_sky_susds_adapter.py` | READY |
@@ -114,8 +114,18 @@ defense-in-depth слабее, чем кажется. **Фикс:** строит
 - ~16 копий: `server.py`, `portfolio_monitor.py`, `kill_switch.py`, `uptime_monitor.py`,
   `signal_aggregator.py`, `atomic.py`, `errors.py`, `version.py` и т.д.
 
-**Осторожно:** корневые `test_*.py` ссылаются на корневые модули (через subprocess/
-относительный путь). Удаление требует перенаправления этих тестов на `spa_core/`.
+**Сделано (✅):** удалены 7 верифицированных орфанов — byte-identical адаптеры
+`euler_v2.py`, `maple.py`, `morpho_blue.py`, `yearn_v3.py` и 3 DeFiLlama-орфана
+`defi_llama_feed.py`, `defillama_feed.py`, `defillama_fetcher.py`. Подтверждено:
+ни одного bare-импорта, ссылки только в комментариях; spa_core-канон цел, тесты
+адаптеров/feed зелёные.
+
+**Follow-up (🔜, осторожно):** ~16 корневых копий (`server.py`, `kill_switch.py`,
+`portfolio_monitor.py`, `uptime_monitor.py`, `atomic.py`, `errors.py`, `base.py`
+и т.д.) **завязаны** на tracked-plist'ы `scripts/com.spa.*.plist`, deploy-скрипты
+и корневые `test_*.py`. Массовое удаление сломает демоны/тесты — требуется
+поштучный анализ + репойнт тестов и обновление plist/скриптов. Отложено как
+отдельная задача (не «безопасный» автономный шаг).
 
 ### AUD-10 — Гонки read-modify-write 🔜 READY
 `risk_policy_blocks.json` (cycle_runner.py:709), `analytics_blocks.json` (1490),
