@@ -73,10 +73,18 @@ _ENTRY_METHODS = (
     "evaluate", "monitor", "predict", "run",
 )
 # Ключи в dict-результате, где может лежать числовой риск 0-100.
+# Базовые ключи + ключи Tier-C модулей (fix MP-1305).
 _SCORE_KEYS = (
     "risk_score", "score", "composite_risk_0_100", "composite_score",
     "risk", "probability", "depeg_probability", "cascade_risk",
     "score_0_100", "value",
+    # Tier-C специфичные ключи (обнаружены при сканировании 180 модулей):
+    "attractiveness_score", "rate_sensitivity_score", "attack_feasibility_score",
+    "protection_score", "hhi_concentration_score", "average_composability_score",
+    "kink_proximity_score", "slashing_risk_score", "revenue_sustainability_score",
+    "value_accrual_score", "nim_efficiency_score", "reserve_adequacy_score",
+    "mev_bot_activity_score", "worst_cliff_score", "utilization_efficiency_score",
+    "capital_efficiency_score",
 )
 
 
@@ -140,15 +148,29 @@ class _ModuleAdapter:
                     if 0.0 <= v <= 1.0 and key in ("risk", "value"):
                         return max(0.0, min(100.0, v * 100.0))
                     return max(0.0, min(100.0, v))
-            # risk_label → числовая шкала
+            # risk_label → числовая шкала (расширена для Tier-C меток, fix MP-1305)
             label = str(result.get("risk_label") or result.get("label") or "").upper()
             label_map = {
                 "NEGLIGIBLE": 5.0, "LOW": 20.0, "MODERATE": 45.0,
                 "MEDIUM": 50.0, "ELEVATED": 60.0, "HIGH": 78.0,
                 "SEVERE": 88.0, "CRITICAL": 95.0,
+                # Tier-C метки
+                "AVOID": 10.0, "STRONG_AVOID": 5.0, "STRONG AVOID": 5.0,
+                "NEUTRAL": 50.0, "ACCEPTABLE": 30.0, "GOOD": 25.0,
+                "STRONG": 20.0, "EXCELLENT": 10.0,
+                "HEALTHY_ZONE": 15.0, "HEALTHY": 15.0,
+                "MINIMAL_OVERHANG": 10.0, "MODERATE_OVERHANG": 50.0,
+                "HIGH_OVERHANG": 75.0, "EXTREME_OVERHANG": 90.0,
+                "SAFE": 10.0, "UNSAFE": 75.0, "BORDERLINE": 55.0,
+                "PASS": 10.0, "FAIL": 80.0, "WARNING": 60.0,
             }
             if label in label_map:
                 return label_map[label]
+            # Fallback: сканируем dict на любой ключ вида *_score (fix MP-1305).
+            # Tier-C модули возвращают разнородные score-поля — берём первый найденный.
+            for k, v in result.items():
+                if k.endswith("_score") and isinstance(v, (int, float)):
+                    return max(0.0, min(100.0, float(v)))
         return None
 
     def _invoke(self, obj: Any, context: Dict[str, Any]) -> Any:
