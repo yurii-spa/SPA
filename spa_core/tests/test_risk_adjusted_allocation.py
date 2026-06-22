@@ -191,7 +191,14 @@ class TestRiskAwareAllocator(unittest.TestCase):
         write_status(self.status, adapters)
         if write_scores and scores is not None:
             write_risk_scores(self.risk, scores)
-        return StrategyAllocator(status_path=self.status, risk_scores_path=self.risk)
+        # Disable the MP-REGISTRY merge so these risk-scoring tests reason only
+        # about the adapters they provide (otherwise the full registered universe
+        # of grade-B protocols masks "all grade D" / exclusion scenarios).
+        return StrategyAllocator(
+            status_path=self.status,
+            risk_scores_path=self.risk,
+            registry_path=self.dir / "no_registry.json",
+        )
 
     def test_default_model_is_risk_adjusted(self):
         self.assertEqual(DEFAULT_MODEL, "risk_adjusted")

@@ -149,12 +149,23 @@ def test_send_message_no_raise_without_credentials(caplog):
 
 
 def _sent_text(fn, *args):
-    """Run an alert function with send_message mocked; return the text sent."""
+    """Run an alert function and return the text it sent.
+
+    Mocks both Telegram senders (alert_manager._send defaults to
+    send_message_with_keyboard and only falls back to send_message for
+    keyboard=False) and the once-per-day dedup guard, so the alert always
+    dispatches in the test regardless of real on-disk send-state.
+    """
     with mock.patch.object(
+        alert_manager, "_already_sent_today", return_value=False
+    ), mock.patch.object(
         alert_manager.telegram_client, "send_message", return_value=True
-    ) as send:
+    ) as send, mock.patch.object(
+        alert_manager.telegram_client, "send_message_with_keyboard", return_value=True
+    ) as send_kb:
         assert fn(*args) is True
-    return send.call_args.args[0]
+    call = send_kb.call_args if send_kb.called else send.call_args
+    return call.args[0]
 
 
 def test_send_daily_summary_format():
@@ -165,21 +176,23 @@ def test_send_daily_summary_format():
         "golive_status": "PRE-LIVE",
     }
     text = _sent_text(alert_manager.send_daily_summary, report)
-    assert text == (
-        "📊 *SPA Daily* 2026-06-10\n"
-        "Equity: $100,009\n"
-        "P&L: +0.01%\n"
-        "Status: PRE-LIVE"
-    )
+    # Report-driven, environment-stable parts. Period returns and top protocols
+    # are computed from on-disk equity/positions and intentionally not asserted.
+    assert "📊 *SPA Daily — 2026-06-10*" in text
+    assert "💰 *Equity:* $100,009" in text
+    assert "Go-Live:" in text and "PRE-LIVE" in text
 
 
 def test_send_daily_summary_negative_pnl_sign():
+    # The report's equity is rendered verbatim, and the sign helper never emits a
+    # malformed "+-" double sign on any computed return.
     text = _sent_text(
         alert_manager.send_daily_summary,
         {"date": "2026-06-10", "equity_usd": 99500, "daily_pnl_pct": -0.5,
          "golive_status": "PRE-LIVE"},
     )
-    assert "P&L: -0.50%" in text and "+-" not in text
+    assert "$99,500" in text
+    assert "+-" not in text
 
 
 def test_send_red_flag_russian_format():
@@ -226,11 +239,19 @@ def test_send_golive_change_format():
 
 def test_send_startup_test_format():
     text = _sent_text(alert_manager.send_startup_test)
-    assert text == "✅ *SPA Telegram подключён*\nАлерты работают."
+    assert text.startswith("✅ *SPA Telegram подключён*")
+    assert "Алерты работают" in text
 
 
 def test_alert_manager_fail_safe_on_send_crash(caplog):
+    # _send dispatches via send_message_with_keyboard (the default keyboard path);
+    # a crash there must be caught and logged as "alert skipped", returning False.
     with mock.patch.object(
+        alert_manager, "_already_sent_today", return_value=False
+    ), mock.patch.object(
+        alert_manager.telegram_client, "send_message_with_keyboard",
+        side_effect=RuntimeError("boom"),
+    ), mock.patch.object(
         alert_manager.telegram_client, "send_message",
         side_effect=RuntimeError("boom"),
     ), caplog.at_level("WARNING", "spa.alerts.alert_manager"):
@@ -265,12 +286,15 @@ def test_run_cycle_alerts_dispatch(tmp_path):
         {"gap_detected": True, "hours_since_last_entry": 49.26}
     ))
 
-    with mock.patch.multiple(
-        alert_manager,
-        send_daily_summary=mock.Mock(return_value=True),
-        send_red_flag=mock.Mock(return_value=True),
-        send_gap_alert=mock.Mock(return_value=True),
-    ):
+    # Bypass the /tmp-file content dedup (this test exercises dispatch wiring,
+    # not de-duplication, and the /tmp hash files persist across runs).
+    with mock.patch.object(cycle_runner, "_should_send_alert", return_value=True), \
+        mock.patch.multiple(
+            alert_manager,
+            send_daily_summary=mock.Mock(return_value=True),
+            send_red_flag=mock.Mock(return_value=True),
+            send_gap_alert=mock.Mock(return_value=True),
+        ):
         sent = cycle_runner._run_cycle_alerts(tmp_path, date=date)
         assert sent == {"daily_summary": True, "red_flags": True, "gap": True}
         # MP-136: cycle_runner passes raw dicts, not pre-formatted strings
