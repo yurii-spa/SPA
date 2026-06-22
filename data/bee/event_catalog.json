@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "created": "2026-06-22",
+  "description": "Crisis event catalog for BEE counterfactual replay (LLM_FORBIDDEN)",
+  "events": [
+    {
+      "event_id": "UST_LUNA_2022",
+      "name": "UST/Luna Depeg",
+      "window_start": "2022-05-07",
+      "window_end": "2022-05-15",
+      "affected_assets": ["UST", "LUNA", "USDC", "DAI"],
+      "stress_type": "algo_stablecoin_collapse",
+      "expected_gate_reaction": "EXIT from UST-exposed positions, rotate to USDC/DAI",
+      "severity": "catastrophic",
+      "notes": "Total algorithmic stablecoin collapse. UST depegged to near 0."
+    },
+    {
+      "event_id": "STETH_DISCOUNT_2022",
+      "name": "stETH Discount",
+      "window_start": "2022-06-01",
+      "window_end": "2022-06-30",
+      "affected_assets": ["stETH", "ETH", "WETH"],
+      "stress_type": "wrapper_depeg_liquidity",
+      "expected_gate_reaction": "EXIT stETH positions, monitor liquidity depth",
+      "severity": "moderate",
+      "notes": "stETH traded at discount to ETH due to liquidity drain post-Terra."
+    },
+    {
+      "event_id": "FTX_CONTAGION_2022",
+      "name": "FTX Collapse / Contagion",
+      "window_start": "2022-11-06",
+      "window_end": "2022-11-14",
+      "affected_assets": ["FTT", "SOL", "USDC", "USDT", "DAI"],
+      "stress_type": "systemic_risk_vol_spike",
+      "expected_gate_reaction": "DEFENSIVE mode, reduce exposure, monitor systemic risk flags",
+      "severity": "severe",
+      "notes": "FTX collapse caused contagion across DeFi. Vol spike, TVL drain."
+    },
+    {
+      "event_id": "USDC_SVB_2023",
+      "name": "USDC Depeg (SVB bank run)",
+      "window_start": "2023-03-10",
+      "window_end": "2023-03-13",
+      "affected_assets": ["USDC", "USDC.e"],
+      "stress_type": "blue_chip_stablecoin_depeg",
+      "expected_gate_reaction": "kill_switch or EXIT USDC positions within 4-8 hours of depeg crossing 0.5%",
+      "severity": "severe",
+      "notes": "USDC depegged to ~$0.87 due to SVB insolvency exposing Circle reserves."
+    },
+    {
+      "event_id": "USDE_DN_STRESS",
+      "name": "USDe/Delta-Neutral Funding Stress",
+      "window_start": "2024-04-01",
+      "window_end": "2024-04-15",
+      "affected_assets": ["USDe", "sUSDe", "USDT"],
+      "stress_type": "funding_flip_wrapper_depeg",
+      "expected_gate_reaction": "EXIT if funding_rate < threshold, rotate from sUSDe to safer assets",
+      "severity": "moderate",
+      "notes": "Funding rate flip stress test for delta-neutral stablecoin wrappers."
+    }
+  ]
+}
