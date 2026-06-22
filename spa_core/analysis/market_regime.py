@@ -270,29 +270,51 @@ class MarketRegimeDetector:
             with open(status_path, encoding="utf-8") as fh:
                 data = json.load(fh)
 
-            for adapter in data.get("adapters", []):
+            # adapter_status.json может быть dict {key→info} или list [{...}]
+            adapters_raw = data.get("adapters", {})
+            if isinstance(adapters_raw, dict):
+                adapters_iter = [
+                    {"protocol_key": k, **v}
+                    for k, v in adapters_raw.items()
+                ]
+            else:
+                adapters_iter = list(adapters_raw)
+
+            for adapter in adapters_iter:
+                if not isinstance(adapter, dict):
+                    continue
                 key: str = adapter.get("protocol_key", "")
                 if not key:
                     continue
-                mock_apy: dict = adapter.get("mock_apy", {})
+
+                # Сначала пробуем прямое поле apy/live_apy (реальный формат)
                 apy: Optional[float] = None
-
-                # Preference order: ethereum USDC → ethereum any → any chain any asset
-                eth = mock_apy.get("ethereum", {})
-                for asset in ("USDC", "USDT", "DAI"):
-                    if eth.get(asset) is not None:
-                        apy = float(eth[asset])
-                        break
-
-                if apy is None:
-                    for chain_data in mock_apy.values():
-                        if isinstance(chain_data, dict):
-                            for v in chain_data.values():
-                                if v is not None:
-                                    apy = float(v)
-                                    break
-                        if apy is not None:
+                for apy_field in ("live_apy", "apy", "fallback_apy"):
+                    raw = adapter.get(apy_field)
+                    if raw is not None:
+                        try:
+                            apy = float(raw)
                             break
+                        except (TypeError, ValueError):
+                            pass
+
+                # Fallback: mock_apy.ethereum.USDC → ethereum any → any chain any asset
+                if apy is None:
+                    mock_apy: dict = adapter.get("mock_apy", {})
+                    eth = mock_apy.get("ethereum", {})
+                    for asset in ("USDC", "USDT", "DAI"):
+                        if eth.get(asset) is not None:
+                            apy = float(eth[asset])
+                            break
+                    if apy is None:
+                        for chain_data in mock_apy.values():
+                            if isinstance(chain_data, dict):
+                                for v in chain_data.values():
+                                    if v is not None:
+                                        apy = float(v)
+                                        break
+                            if apy is not None:
+                                break
 
                 if apy is not None:
                     apy_map[key] = apy
