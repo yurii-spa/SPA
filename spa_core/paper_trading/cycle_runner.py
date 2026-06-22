@@ -361,6 +361,11 @@ def _rebuild_summary(daily: list[dict]) -> dict:
         mean = sum(vals) / len(vals)
         vol = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5
 
+    # S0.1: first_date = первая РЕАЛЬНАЯ запись (not is_warmup), не warmup.
+    # first_real_date — явный псевдоним для GoLive-чекеров.
+    real_daily = [d for d in daily if not d.get("is_warmup", False)]
+    first_real_date = real_daily[0].get("date") if real_daily else daily[0].get("date")
+
     return {
         "num_days": len(daily),
         "num_snapshots": len(daily),
@@ -379,7 +384,8 @@ def _rebuild_summary(daily: list[dict]) -> dict:
         "positive_days": positive,
         "negative_days": negative,
         "daily_volatility_pct": round(vol, 4),
-        "first_date": daily[0].get("date"),
+        "first_date": first_real_date,
+        "first_real_date": first_real_date,
         "last_date": daily[-1].get("date"),
     }
 
@@ -1102,6 +1108,74 @@ def run_cycle(
         k: float(v)
         for k, v in (_read_json(ddir / POSITIONS_FILENAME, {}).get("positions", {}) or {}).items()
     }
+
+    # ── ALLOC-001: validate current positions; trigger rebalancer on violations ──
+    # Fail-safe: any exception here must never block the cycle (advisory gate).
+    # Rebalancer runs ONLY when current positions violate policy — it is not run
+    # every cycle to avoid unnecessary churn in the positions file.
+    try:
+        from spa_core.risk.policy_enforcer import validate_positions as _pe_validate
+        _pos_cash = capital_usd - sum(current_positions.values())
+        _pos_check = _pe_validate(
+            positions=current_positions if current_positions else None,
+            capital_usd=capital_usd,
+            cash_usd=_pos_cash,
+        )
+        if not _pos_check.passed:
+            _alloc001_rules = [v.rule for v in _pos_check.violations]
+            log.warning(
+                "ALLOC-001: current positions violate policy (%s) — "
+                "triggering portfolio_rebalancer",
+                _alloc001_rules,
+            )
+            notes.append(
+                "ALLOC-001: policy violations detected {}; triggering rebalancer".format(
+                    _alloc001_rules
+                )
+            )
+            try:
+                from spa_core.tuner.portfolio_rebalancer import rebalance_portfolio as _rb
+                _rb_ok = _rb(
+                    capital_usd=capital_usd,
+                    data_dir=ddir,
+                    write=write,
+                    send_alert=True,
+                )
+                if _rb_ok:
+                    # Reload positions after successful rebalance
+                    current_positions = {
+                        k: float(v)
+                        for k, v in (
+                            _read_json(ddir / POSITIONS_FILENAME, {}).get("positions", {}) or {}
+                        ).items()
+                    }
+                    notes.append("ALLOC-001: rebalancer succeeded — positions reloaded")
+                    log.info("ALLOC-001: rebalancer applied new positions")
+                else:
+                    notes.append(
+                        "ALLOC-001: rebalancer rejected allocation — keeping existing positions"
+                    )
+                    log.warning("ALLOC-001: rebalancer returned False — positions unchanged")
+            except Exception as _rb_exc:
+                log.warning(
+                    "ALLOC-001: portfolio_rebalancer import/run failed (%s) — "
+                    "cycle continues with existing positions",
+                    _rb_exc,
+                )
+                notes.append(
+                    "ALLOC-001: rebalancer error: {}".format(type(_rb_exc).__name__)
+                )
+        else:
+            log.debug("ALLOC-001: current positions passed policy check — no rebalance needed")
+    except Exception as _alloc001_exc:
+        log.warning(
+            "ALLOC-001: policy check failed (%s) — skipping rebalancer, cycle continues",
+            _alloc001_exc,
+        )
+        notes.append(
+            "ALLOC-001: policy_check_error: {}".format(type(_alloc001_exc).__name__)
+        )
+
     # Continue the equity curve ONLY if it is our own real track record. A
     # legacy demo-derived equity_curve_daily.json (written by equity_curve.py
     # from is_demo pnl_history) must NOT seed the real curve — otherwise the
