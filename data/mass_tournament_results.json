@@ -1,0 +1,1424 @@
+{
+  "generated_at": "2026-06-22T12:22:50.966248+00:00",
+  "version": "v1.0",
+  "llm_forbidden": true,
+  "simulation_period": "2022-01-01 to 2025-12-31",
+  "initial_capital_usd": 100000.0,
+  "strategies_tested": 60,
+  "strategies_skipped": 14,
+  "total_files_scanned": 74,
+  "skip_reasons": {
+    "s13_multi_chain_arb": "no_get_allocation_method",
+    "s1_conservative_lending": "no_get_allocation_method",
+    "s20_anticrisis_research": "no_get_allocation_method",
+    "s20_curve_convex": "all_call_attempts_failed",
+    "s21_aave_loop": "leverage_detected",
+    "s21_cashflow_research": "empty_after_normalize",
+    "s2_lp_stable": "amm_lp_strategy",
+    "s3_yield_loop": "leverage_detected",
+    "s72_basis_trade": "no_get_allocation_method",
+    "s73_leverage_loop": "empty_after_normalize",
+    "s74_rwa_yield": "no_get_allocation_method",
+    "s75_pendle_yield_max": "no_get_allocation_method",
+    "s76_concentrated_lp": "no_get_allocation_method",
+    "s_basis": "empty_after_normalize"
+  },
+  "leaderboard": [
+    {
+      "id": "s7_pendle_yt_aggressive",
+      "class": "S7PendleYTAggressive",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 196.6038,
+      "sortino": 11.3765,
+      "calmar": 100.9989,
+      "annual_return_pct": 0.9926,
+      "total_return_pct": 4.0328,
+      "max_dd_pct": 0.0098,
+      "volatility_pct": 0.005786,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 104032.79,
+      "allocation": {
+        "morpho_steakhouse": 0.2,
+        "compound_v3": 0.05
+      },
+      "rank": 1
+    },
+    {
+      "id": "s12_base_layer_yield",
+      "class": "S12BaseLayerYield",
+      "method_used": "get_target_weights",
+      "sharpe": 196.1727,
+      "sortino": 46.1338,
+      "calmar": 104.4343,
+      "annual_return_pct": 4.095,
+      "total_return_pct": 17.4267,
+      "max_dd_pct": 0.0392,
+      "volatility_pct": 0.023517,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 117426.67,
+      "allocation": {
+        "morpho_steakhouse": 0.8,
+        "aave_v3": 0.2
+      },
+      "rank": 2
+    },
+    {
+      "id": "s5_pendle_enhanced",
+      "class": "S5PendleEnhanced",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 185.4788,
+      "sortino": 15.3725,
+      "calmar": 96.2189,
+      "annual_return_pct": 1.3362,
+      "total_return_pct": 5.4567,
+      "max_dd_pct": 0.0139,
+      "volatility_pct": 0.008288,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 105456.69,
+      "allocation": {
+        "morpho_steakhouse": 0.25,
+        "compound_v3": 0.1
+      },
+      "rank": 3
+    },
+    {
+      "id": "s2_pendle_morpho",
+      "class": "S2PendleMorpho",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 183.3889,
+      "sortino": 21.8287,
+      "calmar": 95.6672,
+      "annual_return_pct": 1.9008,
+      "total_return_pct": 7.8284,
+      "max_dd_pct": 0.0199,
+      "volatility_pct": 0.011903,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107828.36,
+      "allocation": {
+        "morpho_steakhouse": 0.35,
+        "compound_v3": 0.15
+      },
+      "rank": 4
+    },
+    {
+      "id": "s53_correlated_risk_reducer",
+      "class": "S53CorrelatedRiskReducer",
+      "method_used": "get_allocation()",
+      "sharpe": 175.5289,
+      "sortino": 46.2756,
+      "calmar": 104.2973,
+      "annual_return_pct": 4.1097,
+      "total_return_pct": 17.4933,
+      "max_dd_pct": 0.0394,
+      "volatility_pct": 0.026364,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 117493.33,
+      "allocation": {
+        "aave_v3": 0.05,
+        "compound_v3": 0.05,
+        "morpho_steakhouse": 0.6,
+        "yearn_v3": 0.3
+      },
+      "rank": 5
+    },
+    {
+      "id": "s11_hybrid_yield_max",
+      "class": "S11HybridYieldMax",
+      "method_used": "get_allocation(mode=bull)",
+      "sharpe": 166.196,
+      "sortino": 27.8577,
+      "calmar": 116.4575,
+      "annual_return_pct": 2.4863,
+      "total_return_pct": 10.3295,
+      "max_dd_pct": 0.0213,
+      "volatility_pct": 0.016762,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 110329.5,
+      "allocation": {
+        "morpho_steakhouse": 0.3,
+        "euler_v2": 0.15,
+        "maple": 0.1
+      },
+      "rank": 6
+    },
+    {
+      "id": "s29_barbell_plus",
+      "class": "S29BarbellPlus",
+      "method_used": "get_allocation()",
+      "sharpe": 155.3193,
+      "sortino": 41.3092,
+      "calmar": 88.6537,
+      "annual_return_pct": 3.594,
+      "total_return_pct": 15.181,
+      "max_dd_pct": 0.0405,
+      "volatility_pct": 0.026596,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 115180.98,
+      "allocation": {
+        "aave_v3": 0.23333333,
+        "compound_v3": 0.23333333,
+        "morpho_steakhouse": 0.53333333
+      },
+      "rank": 7
+    },
+    {
+      "id": "s6_max_diversified",
+      "class": "S6MaxDiversified",
+      "method_used": "get_allocation()",
+      "sharpe": 150.829,
+      "sortino": 26.4802,
+      "calmar": 95.7747,
+      "annual_return_pct": 2.3145,
+      "total_return_pct": 9.5912,
+      "max_dd_pct": 0.0242,
+      "volatility_pct": 0.017556,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 109591.23,
+      "allocation": {
+        "morpho_steakhouse": 0.3,
+        "euler_v2": 0.15,
+        "compound_v3": 0.1,
+        "aave_v3": 0.05
+      },
+      "rank": 8
+    },
+    {
+      "id": "s28_momentum_yield",
+      "class": "S28MomentumYield",
+      "method_used": "get_allocation()",
+      "sharpe": 147.5082,
+      "sortino": 41.613,
+      "calmar": 87.893,
+      "annual_return_pct": 3.6255,
+      "total_return_pct": 15.3211,
+      "max_dd_pct": 0.0412,
+      "volatility_pct": 0.028211,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 115321.13,
+      "allocation": {
+        "aave_v3": 0.2,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.4,
+        "yearn_v3": 0.2
+      },
+      "rank": 9
+    },
+    {
+      "id": "s51_protocol_lifecycle",
+      "class": "S51ProtocolLifecycle",
+      "method_used": "get_allocation()",
+      "sharpe": 147.5082,
+      "sortino": 41.613,
+      "calmar": 87.893,
+      "annual_return_pct": 3.6255,
+      "total_return_pct": 15.3211,
+      "max_dd_pct": 0.0412,
+      "volatility_pct": 0.028211,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 115321.13,
+      "allocation": {
+        "aave_v3": 0.2,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.4,
+        "yearn_v3": 0.2
+      },
+      "rank": 10
+    },
+    {
+      "id": "s52_tvl_momentum",
+      "class": "S52TvlMomentum",
+      "method_used": "get_allocation()",
+      "sharpe": 147.5082,
+      "sortino": 41.613,
+      "calmar": 87.893,
+      "annual_return_pct": 3.6255,
+      "total_return_pct": 15.3211,
+      "max_dd_pct": 0.0412,
+      "volatility_pct": 0.028211,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 115321.13,
+      "allocation": {
+        "aave_v3": 0.2,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.4,
+        "yearn_v3": 0.2
+      },
+      "rank": 11
+    },
+    {
+      "id": "s24_base_chain_max",
+      "class": "BaseChainMaxStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 138.5103,
+      "sortino": 43.7477,
+      "calmar": 93.9348,
+      "annual_return_pct": 3.8469,
+      "total_return_pct": 16.3106,
+      "max_dd_pct": 0.041,
+      "volatility_pct": 0.031584,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 116310.6,
+      "allocation": {
+        "morpho_steakhouse": 0.4,
+        "aave_v3": 0.3,
+        "euler_v2": 0.3
+      },
+      "rank": 12
+    },
+    {
+      "id": "s1_t1t2_balanced",
+      "class": "S1T1T2BalancedStrategy",
+      "method_used": "get_allocation()",
+      "sharpe": 130.9293,
+      "sortino": 39.3678,
+      "calmar": 81.5125,
+      "annual_return_pct": 3.3931,
+      "total_return_pct": 14.2895,
+      "max_dd_pct": 0.0416,
+      "volatility_pct": 0.030068,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 114289.49,
+      "allocation": {
+        "aave_v3": 0.4,
+        "morpho_steakhouse": 0.4,
+        "compound_v3": 0.2
+      },
+      "rank": 13
+    },
+    {
+      "id": "s54_daily_yield_maximizer",
+      "class": "S54DailyYieldMaximizer",
+      "method_used": "get_allocation()",
+      "sharpe": 128.0695,
+      "sortino": 38.6636,
+      "calmar": 79.02,
+      "annual_return_pct": 3.3203,
+      "total_return_pct": 13.9678,
+      "max_dd_pct": 0.042,
+      "volatility_pct": 0.03019,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113967.8,
+      "allocation": {
+        "aave_v3": 0.30666667,
+        "compound_v3": 0.30666667,
+        "morpho_steakhouse": 0.34666667,
+        "yearn_v3": 0.04
+      },
+      "rank": 14
+    },
+    {
+      "id": "s39_morpho_max_plus",
+      "class": "MorphoMaxPlusStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 119.7331,
+      "sortino": 37.8745,
+      "calmar": 81.3307,
+      "annual_return_pct": 3.2698,
+      "total_return_pct": 13.7449,
+      "max_dd_pct": 0.0402,
+      "volatility_pct": 0.031632,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113744.91,
+      "allocation": {
+        "morpho_steakhouse": 0.25,
+        "euler_v2": 0.2,
+        "aave_v3": 0.3,
+        "compound_v3": 0.2
+      },
+      "rank": 15
+    },
+    {
+      "id": "s30_all_weather",
+      "class": "S30AllWeather",
+      "method_used": "get_allocation()",
+      "sharpe": 116.7407,
+      "sortino": 32.1858,
+      "calmar": 75.4995,
+      "annual_return_pct": 2.7457,
+      "total_return_pct": 11.4517,
+      "max_dd_pct": 0.0364,
+      "volatility_pct": 0.02757,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111451.69,
+      "allocation": {
+        "aave_v3": 0.3,
+        "compound_v3": 0.25,
+        "morpho_steakhouse": 0.2,
+        "yearn_v3": 0.1
+      },
+      "rank": 16
+    },
+    {
+      "id": "s55_max_sharpe_portfolio",
+      "class": "S55MaxSharpePortfolio",
+      "method_used": "get_allocation()",
+      "sharpe": 113.8266,
+      "sortino": 26.1415,
+      "calmar": 74.4144,
+      "annual_return_pct": 2.2185,
+      "total_return_pct": 9.1803,
+      "max_dd_pct": 0.0298,
+      "volatility_pct": 0.022966,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 109180.33,
+      "allocation": {
+        "aave_v3": 0.3,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.2
+      },
+      "rank": 17
+    },
+    {
+      "id": "s14_arbitrum_radiant",
+      "class": "S14ArbitrumRadiantMax",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 112.7479,
+      "sortino": 41.304,
+      "calmar": 84.5644,
+      "annual_return_pct": 3.5935,
+      "total_return_pct": 15.1786,
+      "max_dd_pct": 0.0425,
+      "volatility_pct": 0.036634,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 115178.57,
+      "allocation": {
+        "aave_v3": 0.45,
+        "euler_v2": 0.35,
+        "morpho_steakhouse": 0.2
+      },
+      "rank": 18
+    },
+    {
+      "id": "s38_morpho_max",
+      "class": "MorphoMaxStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 112.6831,
+      "sortino": 37.1072,
+      "calmar": 78.5578,
+      "annual_return_pct": 3.1906,
+      "total_return_pct": 13.3962,
+      "max_dd_pct": 0.0406,
+      "volatility_pct": 0.032931,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113396.16,
+      "allocation": {
+        "morpho_steakhouse": 0.2,
+        "euler_v2": 0.2,
+        "aave_v3": 0.35,
+        "compound_v3": 0.2
+      },
+      "rank": 19
+    },
+    {
+      "id": "s3_aave_arb_morpho",
+      "class": "S3AaveArbMorpho",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 110.7624,
+      "sortino": 38.4612,
+      "calmar": 77.8243,
+      "annual_return_pct": 3.2994,
+      "total_return_pct": 13.8755,
+      "max_dd_pct": 0.0424,
+      "volatility_pct": 0.034724,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113875.55,
+      "allocation": {
+        "aave_v3": 0.7,
+        "morpho_steakhouse": 0.3
+      },
+      "rank": 20
+    },
+    {
+      "id": "s17_polygon_yield",
+      "class": "PolygonYieldStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 97.0822,
+      "sortino": 36.9267,
+      "calmar": 72.6778,
+      "annual_return_pct": 3.1411,
+      "total_return_pct": 13.1783,
+      "max_dd_pct": 0.0432,
+      "volatility_pct": 0.038037,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113178.3,
+      "allocation": {
+        "aave_v3": 0.8,
+        "morpho_steakhouse": 0.2
+      },
+      "rank": 21
+    },
+    {
+      "id": "s77_points_farming",
+      "class": "S77PointsFarming",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 93.5667,
+      "sortino": 26.9449,
+      "calmar": 95.8271,
+      "annual_return_pct": 2.362,
+      "total_return_pct": 9.7952,
+      "max_dd_pct": 0.0246,
+      "volatility_pct": 0.028798,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 109795.25,
+      "allocation": {
+        "morpho_steakhouse": 0.4,
+        "spark_susds": 0.2
+      },
+      "rank": 22
+    },
+    {
+      "id": "s48_utilization_aware",
+      "class": "UtilizationAwareStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 93.1099,
+      "sortino": 38.1685,
+      "calmar": 75.2372,
+      "annual_return_pct": 3.2692,
+      "total_return_pct": 13.7422,
+      "max_dd_pct": 0.0435,
+      "volatility_pct": 0.040993,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113742.2,
+      "allocation": {
+        "morpho_steakhouse": 0.3,
+        "aave_v3": 0.25,
+        "compound_v3": 0.25,
+        "spark_susds": 0.2
+      },
+      "rank": 23
+    },
+    {
+      "id": "s34_arbitrum_yield",
+      "class": "S34ArbitrumYield",
+      "method_used": "get_allocation()",
+      "sharpe": 90.0563,
+      "sortino": 35.9168,
+      "calmar": 73.0461,
+      "annual_return_pct": 3.0679,
+      "total_return_pct": 12.8571,
+      "max_dd_pct": 0.042,
+      "volatility_pct": 0.039883,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112857.14,
+      "allocation": {
+        "aave_v3": 0.65,
+        "euler_v2": 0.3
+      },
+      "rank": 24
+    },
+    {
+      "id": "s37_radiant_concentrated",
+      "class": "S37RadiantConcentrated",
+      "method_used": "get_allocation()",
+      "sharpe": 89.9023,
+      "sortino": 37.9471,
+      "calmar": 78.7344,
+      "annual_return_pct": 3.2773,
+      "total_return_pct": 13.778,
+      "max_dd_pct": 0.0416,
+      "volatility_pct": 0.042209,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113777.97,
+      "allocation": {
+        "euler_v2": 0.5,
+        "aave_v3": 0.3,
+        "compound_v3": 0.15
+      },
+      "rank": 25
+    },
+    {
+      "id": "s36_cross_chain_optimizer",
+      "class": "S36CrossChainOptimizer",
+      "method_used": "get_allocation()",
+      "sharpe": 88.6707,
+      "sortino": 37.9758,
+      "calmar": 84.6114,
+      "annual_return_pct": 3.3113,
+      "total_return_pct": 13.9277,
+      "max_dd_pct": 0.0391,
+      "volatility_pct": 0.042828,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113927.74,
+      "allocation": {
+        "aave_v3": 0.3,
+        "euler_v2": 0.6
+      },
+      "rank": 26
+    },
+    {
+      "id": "s49_diversified_max",
+      "class": "DiversifiedMaxStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 84.3788,
+      "sortino": 39.5246,
+      "calmar": 77.7994,
+      "annual_return_pct": 3.4093,
+      "total_return_pct": 14.3612,
+      "max_dd_pct": 0.0438,
+      "volatility_pct": 0.046842,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 114361.2,
+      "allocation": {
+        "aave_v3": 0.2,
+        "compound_v3": 0.2,
+        "spark_susds": 0.15,
+        "morpho_steakhouse": 0.15,
+        "euler_v2": 0.2,
+        "yearn_v3": 0.1
+      },
+      "rank": 27
+    },
+    {
+      "id": "s45_mean_reversion",
+      "class": "S45MeanReversion",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 83.2493,
+      "sortino": 37.0844,
+      "calmar": 76.4774,
+      "annual_return_pct": 3.1883,
+      "total_return_pct": 13.3858,
+      "max_dd_pct": 0.0417,
+      "volatility_pct": 0.044546,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113385.78,
+      "allocation": {
+        "aave_v3": 0.19,
+        "compound_v3": 0.19,
+        "morpho_steakhouse": 0.19,
+        "yearn_v3": 0.19,
+        "spark_susds": 0.19
+      },
+      "rank": 28
+    },
+    {
+      "id": "s64_bayesian_updater",
+      "class": "S64BayesianUpdater",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 83.2493,
+      "sortino": 39.0362,
+      "calmar": 76.5408,
+      "annual_return_pct": 3.3588,
+      "total_return_pct": 14.1379,
+      "max_dd_pct": 0.0439,
+      "volatility_pct": 0.046891,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 114137.87,
+      "allocation": {
+        "aave_v3": 0.2,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.2,
+        "yearn_v3": 0.2,
+        "spark_susds": 0.2
+      },
+      "rank": 29
+    },
+    {
+      "id": "s69_governance_informed",
+      "class": "S69GovernanceInformed",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 83.2493,
+      "sortino": 39.0362,
+      "calmar": 76.5408,
+      "annual_return_pct": 3.3588,
+      "total_return_pct": 14.1379,
+      "max_dd_pct": 0.0439,
+      "volatility_pct": 0.046891,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 114137.87,
+      "allocation": {
+        "aave_v3": 0.2,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.2,
+        "yearn_v3": 0.2,
+        "spark_susds": 0.2
+      },
+      "rank": 30
+    },
+    {
+      "id": "s32_market_neutral",
+      "class": "MarketNeutralStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 81.3036,
+      "sortino": 37.9134,
+      "calmar": 78.5826,
+      "annual_return_pct": 3.2738,
+      "total_return_pct": 13.7626,
+      "max_dd_pct": 0.0417,
+      "volatility_pct": 0.046632,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113762.59,
+      "allocation": {
+        "aave_v3": 0.16666667,
+        "compound_v3": 0.16666667,
+        "spark_susds": 0.16666667,
+        "euler_v2": 0.15,
+        "yearn_v3": 0.15,
+        "morpho_steakhouse": 0.15
+      },
+      "rank": 31
+    },
+    {
+      "id": "s18_high_yield_t2",
+      "class": "HighYieldT2Strategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 79.5088,
+      "sortino": 9.2154,
+      "calmar": 54.9815,
+      "annual_return_pct": 0.7444,
+      "total_return_pct": 3.0131,
+      "max_dd_pct": 0.0135,
+      "volatility_pct": 0.01159,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 103013.08,
+      "allocation": {
+        "compound_v3": 0.3
+      },
+      "rank": 32
+    },
+    {
+      "id": "s41_amm_stable_yield",
+      "class": "S41AmmStableYield",
+      "method_used": "get_allocation()",
+      "sharpe": 78.8436,
+      "sortino": 22.7585,
+      "calmar": 59.4987,
+      "annual_return_pct": 1.8733,
+      "total_return_pct": 7.7119,
+      "max_dd_pct": 0.0315,
+      "volatility_pct": 0.028865,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107711.95,
+      "allocation": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.3
+      },
+      "rank": 33
+    },
+    {
+      "id": "s26_volatility_harvester",
+      "class": "S26VolatilityHarvester",
+      "method_used": "get_allocation()",
+      "sharpe": 78.5449,
+      "sortino": 21.2226,
+      "calmar": 59.7882,
+      "annual_return_pct": 1.7475,
+      "total_return_pct": 7.1804,
+      "max_dd_pct": 0.0292,
+      "volatility_pct": 0.02702,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107180.41,
+      "allocation": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.25
+      },
+      "rank": 34
+    },
+    {
+      "id": "s35_gmx_carry",
+      "class": "S35GMXCarry",
+      "method_used": "get_allocation()",
+      "sharpe": 78.0235,
+      "sortino": 31.2229,
+      "calmar": 60.5432,
+      "annual_return_pct": 2.5853,
+      "total_return_pct": 10.7567,
+      "max_dd_pct": 0.0427,
+      "volatility_pct": 0.040017,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 110756.74,
+      "allocation": {
+        "aave_v3": 0.65,
+        "compound_v3": 0.3
+      },
+      "rank": 35
+    },
+    {
+      "id": "s40_pendle_pt_fixed",
+      "class": "PendlePTFixedRateStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 77.997,
+      "sortino": 26.3012,
+      "calmar": 60.4466,
+      "annual_return_pct": 2.1735,
+      "total_return_pct": 8.9882,
+      "max_dd_pct": 0.036,
+      "volatility_pct": 0.033721,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 108988.17,
+      "allocation": {
+        "aave_v3": 0.55,
+        "compound_v3": 0.25
+      },
+      "rank": 36
+    },
+    {
+      "id": "s15_multichain_l2",
+      "class": "MultiChainL2Strategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 74.9752,
+      "sortino": 33.8577,
+      "calmar": 62.9688,
+      "annual_return_pct": 2.825,
+      "total_return_pct": 11.7966,
+      "max_dd_pct": 0.0449,
+      "volatility_pct": 0.045159,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111796.58,
+      "allocation": {
+        "aave_v3": 1.0
+      },
+      "rank": 37
+    },
+    {
+      "id": "s19_balanced_l2",
+      "class": "BalancedL2Strategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 74.9752,
+      "sortino": 33.8577,
+      "calmar": 62.9688,
+      "annual_return_pct": 2.825,
+      "total_return_pct": 11.7966,
+      "max_dd_pct": 0.0449,
+      "volatility_pct": 0.045159,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111796.58,
+      "allocation": {
+        "aave_v3": 1.0
+      },
+      "rank": 38
+    },
+    {
+      "id": "s65_session_champion",
+      "class": "S65SessionChampion",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 74.8637,
+      "sortino": 38.0364,
+      "calmar": 78.5802,
+      "annual_return_pct": 3.2865,
+      "total_return_pct": 13.8186,
+      "max_dd_pct": 0.0418,
+      "volatility_pct": 0.050808,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113818.63,
+      "allocation": {
+        "spark_susds": 0.25,
+        "morpho_steakhouse": 0.2,
+        "euler_v2": 0.2,
+        "aave_v3": 0.2,
+        "compound_v3": 0.1
+      },
+      "rank": 39
+    },
+    {
+      "id": "s66_real_data_optimal",
+      "class": "S66RealDataOptimal",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 72.8737,
+      "sortino": 37.0371,
+      "calmar": 70.4361,
+      "annual_return_pct": 3.1524,
+      "total_return_pct": 13.2283,
+      "max_dd_pct": 0.0448,
+      "volatility_pct": 0.050824,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113228.28,
+      "allocation": {
+        "aave_v3": 0.3,
+        "spark_susds": 0.3,
+        "compound_v3": 0.2,
+        "morpho_steakhouse": 0.2
+      },
+      "rank": 40
+    },
+    {
+      "id": "s31_bear_market_hedge",
+      "class": "BearMarketHedgeStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 72.0784,
+      "sortino": 31.2781,
+      "calmar": 59.6024,
+      "annual_return_pct": 2.5909,
+      "total_return_pct": 10.7812,
+      "max_dd_pct": 0.0435,
+      "volatility_pct": 0.043395,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 110781.2,
+      "allocation": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.4,
+        "spark_susds": 0.15
+      },
+      "rank": 41
+    },
+    {
+      "id": "s16_stablecoin_ladder",
+      "class": "StablecoinLadderStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 70.2954,
+      "sortino": 22.0178,
+      "calmar": 73.7922,
+      "annual_return_pct": 1.8742,
+      "total_return_pct": 7.7159,
+      "max_dd_pct": 0.0254,
+      "volatility_pct": 0.031322,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107715.88,
+      "allocation": {
+        "compound_v3": 0.2,
+        "spark_susds": 0.2,
+        "morpho_steakhouse": 0.175
+      },
+      "rank": 42
+    },
+    {
+      "id": "s70_session_best",
+      "class": "S70SessionBest",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 70.1127,
+      "sortino": 36.7518,
+      "calmar": 74.5757,
+      "annual_return_pct": 3.154,
+      "total_return_pct": 13.2349,
+      "max_dd_pct": 0.0423,
+      "volatility_pct": 0.052418,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113234.95,
+      "allocation": {
+        "spark_susds": 0.3,
+        "morpho_steakhouse": 0.2,
+        "aave_v3": 0.2,
+        "compound_v3": 0.15,
+        "euler_v2": 0.1
+      },
+      "rank": 43
+    },
+    {
+      "id": "s67_anti_bear",
+      "class": "S67AntiBear",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 68.0949,
+      "sortino": 31.5581,
+      "calmar": 59.942,
+      "annual_return_pct": 2.6196,
+      "total_return_pct": 10.9054,
+      "max_dd_pct": 0.0437,
+      "volatility_pct": 0.046344,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 110905.43,
+      "allocation": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.35,
+        "spark_susds": 0.2
+      },
+      "rank": 44
+    },
+    {
+      "id": "s44_spike_harvester",
+      "class": "S44SpikeHarvester",
+      "method_used": "get_allocation(regime=normal)",
+      "sharpe": 67.3346,
+      "sortino": 30.0222,
+      "calmar": 60.1468,
+      "annual_return_pct": 2.4929,
+      "total_return_pct": 10.3582,
+      "max_dd_pct": 0.0414,
+      "volatility_pct": 0.044587,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 110358.16,
+      "allocation": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.3,
+        "spark_susds": 0.2
+      },
+      "rank": 45
+    },
+    {
+      "id": "s46_safe_harbor",
+      "class": "SafeHarborStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 64.8726,
+      "sortino": 33.3741,
+      "calmar": 60.0795,
+      "annual_return_pct": 2.7753,
+      "total_return_pct": 11.5804,
+      "max_dd_pct": 0.0462,
+      "volatility_pct": 0.051446,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111580.38,
+      "allocation": {
+        "aave_v3": 0.4,
+        "compound_v3": 0.35,
+        "spark_susds": 0.25
+      },
+      "rank": 46
+    },
+    {
+      "id": "s43_vol_adjusted",
+      "class": "S43VolAdjusted",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 60.5457,
+      "sortino": 35.6469,
+      "calmar": 70.6955,
+      "annual_return_pct": 3.04,
+      "total_return_pct": 12.7353,
+      "max_dd_pct": 0.043,
+      "volatility_pct": 0.058876,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112735.28,
+      "allocation": {
+        "spark_susds": 0.4,
+        "aave_v3": 0.16802954,
+        "compound_v3": 0.18197046,
+        "morpho_steakhouse": 0.2
+      },
+      "rank": 47
+    },
+    {
+      "id": "s68_temporal_diversification",
+      "class": "S68TemporalDiversification",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 58.8332,
+      "sortino": 27.3281,
+      "calmar": 74.4468,
+      "annual_return_pct": 2.3399,
+      "total_return_pct": 9.7001,
+      "max_dd_pct": 0.0314,
+      "volatility_pct": 0.04645,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 109700.06,
+      "allocation": {
+        "spark_susds": 0.333333,
+        "aave_v3": 0.083333,
+        "compound_v3": 0.083333,
+        "morpho_steakhouse": 0.2
+      },
+      "rank": 48
+    },
+    {
+      "id": "s50_tournament_champion",
+      "class": "TournamentChampionStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 58.0431,
+      "sortino": 33.6315,
+      "calmar": 60.1212,
+      "annual_return_pct": 2.8018,
+      "total_return_pct": 11.6954,
+      "max_dd_pct": 0.0466,
+      "volatility_pct": 0.057942,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111695.38,
+      "allocation": {
+        "aave_v3": 0.33333333,
+        "compound_v3": 0.33333333,
+        "spark_susds": 0.33333333
+      },
+      "rank": 49
+    },
+    {
+      "id": "s63_anti_correlation",
+      "class": "S63AntiCorrelation",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 54.6597,
+      "sortino": 35.3994,
+      "calmar": 69.6505,
+      "annual_return_pct": 3.0145,
+      "total_return_pct": 12.6236,
+      "max_dd_pct": 0.0433,
+      "volatility_pct": 0.064763,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112623.63,
+      "allocation": {
+        "compound_v3": 0.3,
+        "morpho_steakhouse": 0.2,
+        "spark_susds": 0.45
+      },
+      "rank": 50
+    },
+    {
+      "id": "s61_hybrid_income_shield",
+      "class": "S61HybridIncomeShield",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 53.1058,
+      "sortino": 36.3074,
+      "calmar": 71.5149,
+      "annual_return_pct": 3.1081,
+      "total_return_pct": 13.0336,
+      "max_dd_pct": 0.0435,
+      "volatility_pct": 0.068368,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 113033.64,
+      "allocation": {
+        "spark_susds": 0.5,
+        "morpho_steakhouse": 0.2,
+        "aave_v3": 0.2,
+        "compound_v3": 0.05
+      },
+      "rank": 51
+    },
+    {
+      "id": "s47_monthly_income",
+      "class": "MonthlyIncomeStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 52.7855,
+      "sortino": 33.7432,
+      "calmar": 59.938,
+      "annual_return_pct": 2.8132,
+      "total_return_pct": 11.7453,
+      "max_dd_pct": 0.0469,
+      "volatility_pct": 0.063925,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111745.32,
+      "allocation": {
+        "spark_susds": 0.4,
+        "compound_v3": 0.35,
+        "aave_v3": 0.25
+      },
+      "rank": 52
+    },
+    {
+      "id": "s22_ethena_yield_max",
+      "class": "EthenaYieldMaxStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 48.7808,
+      "sortino": 21.0529,
+      "calmar": 61.9955,
+      "annual_return_pct": 1.7607,
+      "total_return_pct": 7.2363,
+      "max_dd_pct": 0.0284,
+      "volatility_pct": 0.043158,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107236.27,
+      "allocation": {
+        "spark_susds": 0.3,
+        "aave_v3": 0.3
+      },
+      "rank": 53
+    },
+    {
+      "id": "s25_yield_ladder",
+      "class": "YieldLadderStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 48.7808,
+      "sortino": 21.0529,
+      "calmar": 61.9955,
+      "annual_return_pct": 1.7607,
+      "total_return_pct": 7.2363,
+      "max_dd_pct": 0.0284,
+      "volatility_pct": 0.043158,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107236.27,
+      "allocation": {
+        "spark_susds": 0.3,
+        "aave_v3": 0.3
+      },
+      "rank": 54
+    },
+    {
+      "id": "s42_crisis_refuge",
+      "class": "S42CrisisRefuge",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 46.0705,
+      "sortino": 32.9244,
+      "calmar": 61.1507,
+      "annual_return_pct": 2.7599,
+      "total_return_pct": 11.5135,
+      "max_dd_pct": 0.0451,
+      "volatility_pct": 0.071465,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 111513.47,
+      "allocation": {
+        "spark_susds": 0.5,
+        "aave_v3": 0.3,
+        "compound_v3": 0.15
+      },
+      "rank": 55
+    },
+    {
+      "id": "s4_spark_fluid_conservative",
+      "class": "S4ConservativeSparkFluid",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 44.9905,
+      "sortino": 40.7627,
+      "calmar": 76.7513,
+      "annual_return_pct": 3.5374,
+      "total_return_pct": 14.9292,
+      "max_dd_pct": 0.0461,
+      "volatility_pct": 0.090603,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 114929.15,
+      "allocation": {
+        "spark_susds": 0.6,
+        "euler_v2": 0.25,
+        "morpho_steakhouse": 0.15
+      },
+      "rank": 56
+    },
+    {
+      "id": "s23_pendle_pt_fixed",
+      "class": "PendlePTFixedStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 43.1574,
+      "sortino": 17.6671,
+      "calmar": 61.7872,
+      "annual_return_pct": 1.4776,
+      "total_return_pct": 6.0471,
+      "max_dd_pct": 0.0239,
+      "volatility_pct": 0.040936,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 106047.13,
+      "allocation": {
+        "spark_susds": 0.3,
+        "aave_v3": 0.2
+      },
+      "rank": 57
+    },
+    {
+      "id": "s27_stablecoin_carry",
+      "class": "S27StablecoinCarry",
+      "method_used": "get_allocation()",
+      "sharpe": 28.8684,
+      "sortino": 36.3187,
+      "calmar": 5.7056,
+      "annual_return_pct": 3.0783,
+      "total_return_pct": 12.9029,
+      "max_dd_pct": 0.5395,
+      "volatility_pct": 0.125808,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112902.89,
+      "allocation": {
+        "spark_susds": 1.0
+      },
+      "rank": 58
+    },
+    {
+      "id": "s62_yield_ladder_v2",
+      "class": "S62YieldLadderV2",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 28.8684,
+      "sortino": 36.3187,
+      "calmar": 5.7056,
+      "annual_return_pct": 3.0783,
+      "total_return_pct": 12.9029,
+      "max_dd_pct": 0.5395,
+      "volatility_pct": 0.125808,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112902.89,
+      "allocation": {
+        "spark_susds": 1.0
+      },
+      "rank": 59
+    },
+    {
+      "id": "s71_delta_neutral",
+      "class": "S71DeltaNeutral",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 28.8684,
+      "sortino": 9.0797,
+      "calmar": 5.6312,
+      "annual_return_pct": 0.7609,
+      "total_return_pct": 3.0808,
+      "max_dd_pct": 0.1351,
+      "volatility_pct": 0.031452,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 103080.76,
+      "allocation": {
+        "spark_susds": 0.25
+      },
+      "rank": 60
+    }
+  ],
+  "top_5": [
+    {
+      "id": "s7_pendle_yt_aggressive",
+      "class": "S7PendleYTAggressive",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 196.6038,
+      "sortino": 11.3765,
+      "calmar": 100.9989,
+      "annual_return_pct": 0.9926,
+      "total_return_pct": 4.0328,
+      "max_dd_pct": 0.0098,
+      "volatility_pct": 0.005786,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 104032.79,
+      "allocation": {
+        "morpho_steakhouse": 0.2,
+        "compound_v3": 0.05
+      },
+      "rank": 1
+    },
+    {
+      "id": "s12_base_layer_yield",
+      "class": "S12BaseLayerYield",
+      "method_used": "get_target_weights",
+      "sharpe": 196.1727,
+      "sortino": 46.1338,
+      "calmar": 104.4343,
+      "annual_return_pct": 4.095,
+      "total_return_pct": 17.4267,
+      "max_dd_pct": 0.0392,
+      "volatility_pct": 0.023517,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 117426.67,
+      "allocation": {
+        "morpho_steakhouse": 0.8,
+        "aave_v3": 0.2
+      },
+      "rank": 2
+    },
+    {
+      "id": "s5_pendle_enhanced",
+      "class": "S5PendleEnhanced",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 185.4788,
+      "sortino": 15.3725,
+      "calmar": 96.2189,
+      "annual_return_pct": 1.3362,
+      "total_return_pct": 5.4567,
+      "max_dd_pct": 0.0139,
+      "volatility_pct": 0.008288,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 105456.69,
+      "allocation": {
+        "morpho_steakhouse": 0.25,
+        "compound_v3": 0.1
+      },
+      "rank": 3
+    },
+    {
+      "id": "s2_pendle_morpho",
+      "class": "S2PendleMorpho",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 183.3889,
+      "sortino": 21.8287,
+      "calmar": 95.6672,
+      "annual_return_pct": 1.9008,
+      "total_return_pct": 7.8284,
+      "max_dd_pct": 0.0199,
+      "volatility_pct": 0.011903,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 107828.36,
+      "allocation": {
+        "morpho_steakhouse": 0.35,
+        "compound_v3": 0.15
+      },
+      "rank": 4
+    },
+    {
+      "id": "s53_correlated_risk_reducer",
+      "class": "S53CorrelatedRiskReducer",
+      "method_used": "get_allocation()",
+      "sharpe": 175.5289,
+      "sortino": 46.2756,
+      "calmar": 104.2973,
+      "annual_return_pct": 4.1097,
+      "total_return_pct": 17.4933,
+      "max_dd_pct": 0.0394,
+      "volatility_pct": 0.026364,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 117493.33,
+      "allocation": {
+        "aave_v3": 0.05,
+        "compound_v3": 0.05,
+        "morpho_steakhouse": 0.6,
+        "yearn_v3": 0.3
+      },
+      "rank": 5
+    }
+  ],
+  "bottom_5": [
+    {
+      "id": "s4_spark_fluid_conservative",
+      "class": "S4ConservativeSparkFluid",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 44.9905,
+      "sortino": 40.7627,
+      "calmar": 76.7513,
+      "annual_return_pct": 3.5374,
+      "total_return_pct": 14.9292,
+      "max_dd_pct": 0.0461,
+      "volatility_pct": 0.090603,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 114929.15,
+      "allocation": {
+        "spark_susds": 0.6,
+        "euler_v2": 0.25,
+        "morpho_steakhouse": 0.15
+      },
+      "rank": 56
+    },
+    {
+      "id": "s23_pendle_pt_fixed",
+      "class": "PendlePTFixedStrategy",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 43.1574,
+      "sortino": 17.6671,
+      "calmar": 61.7872,
+      "annual_return_pct": 1.4776,
+      "total_return_pct": 6.0471,
+      "max_dd_pct": 0.0239,
+      "volatility_pct": 0.040936,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 106047.13,
+      "allocation": {
+        "spark_susds": 0.3,
+        "aave_v3": 0.2
+      },
+      "rank": 57
+    },
+    {
+      "id": "s27_stablecoin_carry",
+      "class": "S27StablecoinCarry",
+      "method_used": "get_allocation()",
+      "sharpe": 28.8684,
+      "sortino": 36.3187,
+      "calmar": 5.7056,
+      "annual_return_pct": 3.0783,
+      "total_return_pct": 12.9029,
+      "max_dd_pct": 0.5395,
+      "volatility_pct": 0.125808,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112902.89,
+      "allocation": {
+        "spark_susds": 1.0
+      },
+      "rank": 58
+    },
+    {
+      "id": "s62_yield_ladder_v2",
+      "class": "S62YieldLadderV2",
+      "method_used": "get_allocation(capital_usd)",
+      "sharpe": 28.8684,
+      "sortino": 36.3187,
+      "calmar": 5.7056,
+      "annual_return_pct": 3.0783,
+      "total_return_pct": 12.9029,
+      "max_dd_pct": 0.5395,
+      "volatility_pct": 0.125808,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 112902.89,
+      "allocation": {
+        "spark_susds": 1.0
+      },
+      "rank": 59
+    },
+    {
+      "id": "s71_delta_neutral",
+      "class": "S71DeltaNeutral",
+      "method_used": "ALLOCATION_constant",
+      "sharpe": 28.8684,
+      "sortino": 9.0797,
+      "calmar": 5.6312,
+      "annual_return_pct": 0.7609,
+      "total_return_pct": 3.0808,
+      "max_dd_pct": 0.1351,
+      "volatility_pct": 0.031452,
+      "win_rate_pct": 100.0,
+      "final_equity_usd": 103080.76,
+      "allocation": {
+        "spark_susds": 0.25
+      },
+      "rank": 60
+    }
+  ]
+}
