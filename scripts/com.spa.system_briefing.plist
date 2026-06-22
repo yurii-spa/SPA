@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    System Briefing Updater (каждые 30 минут)
+    Module: scripts/update_system_briefing.py
+    Функция: читает реальное состояние системы (data/*.json, launchctl)
+             и пересоздаёт docs/SYSTEM_BRIEFING.md — «god document»
+             который Dispatch читает в начале каждого разговора.
+    Пишет:   docs/SYSTEM_BRIEFING.md  (atomic write)
+    Exit:    0 = успех, 1 = внутренняя ошибка скрипта.
+    CLI:     python3 ~/Documents/SPA_Claude/scripts/update_system_briefing.py
+    Установка:
+      cp scripts/com.spa.system_briefing.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.spa.system_briefing.plist
+    -->
+
+    <key>Label</key>
+    <string>com.spa.system_briefing</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/update_system_briefing.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Не запускать повторно если предыдущий ещё не завершился -->
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_system_briefing.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_system_briefing_err.log</string>
+</dict>
+</plist>
