@@ -397,7 +397,7 @@ def build_tearsheet(
 
 def _atomic_write_json(obj: dict, out_path: Path) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
-    atomic_save(out_path, str(obj))
+    atomic_save(obj, str(out_path))
 def generate_tearsheet_report(
     data_dir: os.PathLike | str = DEFAULT_DATA_DIR,
     out_path: os.PathLike | str = DEFAULT_OUT,
