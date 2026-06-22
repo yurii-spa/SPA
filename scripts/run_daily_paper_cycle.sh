@@ -17,6 +17,13 @@
 # NOTE: no `set -e` — we capture the cycle's exit code and still run the evidence
 # report even if the cycle returns non-zero, then exit with the cycle's code.
 #
+# HEARTBEAT: status lines go through `tee` so they reach BOTH the dated log and
+# this script's stdout. Under launchd, stdout is captured into the plist's
+# StandardOutPath (logs/launchd_stdout.log) — which is what agent_health checks
+# for freshness. The heavy cycle/evidence output stays in the dated log only.
+# Result: agent fired → fresh launchd_stdout.log; cycle failed → non-zero exit
+# (agent_health flags last_exit); never ran → stale/missing log → CRITICAL.
+#
 # PATH: launchd does not inherit the shell PATH, so PYTHON is hardcoded (miniconda).
 
 PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
@@ -27,12 +34,12 @@ LOG_DIR=~/Documents/SPA_Claude/logs
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/daily_cycle_$(date +%Y%m%d).log"
 
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)" >> "$LOG_FILE"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)" | tee -a "$LOG_FILE"
 
 # ── Step 1: real cycle engine — advances the paper track ───────────────────
 "$PYTHON" -m spa_core.paper_trading.cycle_runner --verbose >> "$LOG_FILE" 2>&1
 CYCLE_EXIT=$?
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] cycle_runner exit=$CYCLE_EXIT" >> "$LOG_FILE"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] cycle_runner exit=$CYCLE_EXIT" | tee -a "$LOG_FILE"
 
 # ── Step 2: evidence report on top of the fresh state (non-fatal) ──────────
 "$PYTHON" -c "
@@ -43,5 +50,5 @@ print(CPACycleWithEvidence(base_dir='.').run())
 " >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] evidence report failed (non-fatal)" >> "$LOG_FILE"
 
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT)" >> "$LOG_FILE"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT)" | tee -a "$LOG_FILE"
 exit $CYCLE_EXIT
