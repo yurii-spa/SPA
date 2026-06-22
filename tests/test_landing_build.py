@@ -111,6 +111,33 @@ def run():
     return results
 
 
+import unittest
+
+
+class TestLandingBuild(unittest.TestCase):
+    """Unittest wrapper so architecture audit recognises this as a proper test file."""
+
+    def test_landing_config_exists(self):
+        """astro.config.mjs must exist in landing/."""
+        self.assertTrue(
+            os.path.isfile(CONFIG_PATH),
+            f"Missing {CONFIG_PATH} — run from repo root",
+        )
+
+    def test_landing_build_smoke(self):
+        """Runs landing build checks; skips gracefully when dist/ is absent."""
+        if not os.path.isfile(CONFIG_PATH):
+            self.skipTest("landing/astro.config.mjs not found — skipping build smoke test")
+        if not os.path.isdir(DIST_ROOT):
+            self.skipTest("landing/dist/ not built — run 'cd landing && npm run build' first")
+        results = run()
+        hard_fails = [r for r in results if not r]
+        self.assertEqual(
+            hard_fails, [],
+            f"{len(hard_fails)} hard failures in landing build checks",
+        )
+
+
 if __name__ == "__main__":
     print("Landing build tests — MP-1546 (v11.62)\n")
     results = run()
