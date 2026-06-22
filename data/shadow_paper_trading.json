@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "description": "Shadow paper trading results for top-N tournament strategies. Each day the cycle runner simulates what each top strategy would have earned using today's live APY data (advisory only, never modifies trades.json or equity_curve_daily.json).",
+  "created_at": "2026-06-22T11:28:18.000194+00:00",
+  "active_strategies": [
+    {
+      "rank": 1,
+      "id": "s7_pendle_yt_aggressive",
+      "sharpe": 196.6038,
+      "annual_return_pct": 0.9926,
+      "max_dd_pct": 0.0098,
+      "allocation": {
+        "morpho_steakhouse": 0.2,
+        "compound_v3": 0.05
+      }
+    },
+    {
+      "rank": 2,
+      "id": "s12_base_layer_yield",
+      "sharpe": 196.1727,
+      "annual_return_pct": 4.095,
+      "max_dd_pct": 0.0392,
+      "allocation": {
+        "morpho_steakhouse": 0.8,
+        "aave_v3": 0.2
+      }
+    },
+    {
+      "rank": 3,
+      "id": "s5_pendle_enhanced",
+      "sharpe": 185.4788,
+      "annual_return_pct": 1.3362,
+      "max_dd_pct": 0.0139,
+      "allocation": {
+        "morpho_steakhouse": 0.25,
+        "compound_v3": 0.1
+      }
+    },
+    {
+      "rank": 4,
+      "id": "s2_pendle_morpho",
+      "sharpe": 183.3889,
+      "annual_return_pct": 1.9008,
+      "max_dd_pct": 0.0199,
+      "allocation": {
+        "morpho_steakhouse": 0.35,
+        "compound_v3": 0.15
+      }
+    },
+    {
+      "rank": 5,
+      "id": "s53_correlated_risk_reducer",
+      "sharpe": 175.5289,
+      "annual_return_pct": 4.1097,
+      "max_dd_pct": 0.0394,
+      "allocation": {
+        "aave_v3": 0.05,
+        "compound_v3": 0.05,
+        "morpho_steakhouse": 0.6,
+        "yearn_v3": 0.3
+      }
+    }
+  ],
+  "daily_results": []
+}
