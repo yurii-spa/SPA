@@ -536,6 +536,20 @@ def notify_no_api_key(token: str, chat_id: str) -> None:
 # Main fix orchestration
 # ---------------------------------------------------------------------------
 
+def _parse_alert_type(alert_text: str) -> str:
+    """Best-effort classification of an alert/traceback into an error type.
+
+    Returns the first Python exception-class-like token (e.g. ``AttributeError``)
+    found in the text, else ``"unknown"``. Self-contained — the former
+    ``spa_core.monitoring.telegram_watcher.parse_alert_type`` was removed, and
+    this is used only for human-facing log/notification context.
+    """
+    m = re.search(
+        r"\b([A-Z][A-Za-z0-9_]*(?:Error|Exception|Warning))\b", alert_text or ""
+    )
+    return m.group(1) if m else "unknown"
+
+
 def run_auto_fix(alert_text: str, token: Optional[str] = None,
                  chat_id: Optional[str] = None) -> bool:
     """
@@ -574,8 +588,7 @@ def run_auto_fix(alert_text: str, token: Optional[str] = None,
     if not affected_file:
         log.warning("Could not identify affected file from alert")
         if token and chat_id:
-            from spa_core.monitoring.telegram_watcher import parse_alert_type
-            error_type = parse_alert_type(alert_text)
+            error_type = _parse_alert_type(alert_text)
             notify_failure(token, chat_id, "unknown", error_type,
                            "Could not identify affected file from traceback")
         return False
@@ -586,9 +599,8 @@ def run_auto_fix(alert_text: str, token: Optional[str] = None,
         log.warning("Safety check failed for %s", affected_file)
         return False
 
-    # Parse error type
-    from spa_core.monitoring.telegram_watcher import parse_alert_type
-    error_type = parse_alert_type(alert_text)
+    # Parse error type (self-contained; see _parse_alert_type)
+    error_type = _parse_alert_type(alert_text)
     log.info("Auto-fix: file=%s error_type=%s", rel_path, error_type)
 
     # 5. Read file content

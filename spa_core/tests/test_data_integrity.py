@@ -769,8 +769,12 @@ class TestModuleHygiene(unittest.TestCase):
 
     def test_only_stdlib_imports(self):
         import ast
+        # "spa_core" permitted for the centralized stdlib-only atomic IO helper
+        # (spa_core.utils.atomic, MP-1453); heavy third-party deps remain barred,
+        # and the risk-policy import is guarded by test_module_never_imports_risk_policy.
         allowed = {"argparse", "json", "logging", "math", "os", "sys",
-                   "tempfile", "datetime", "pathlib", "typing", "__future__"}
+                   "tempfile", "datetime", "pathlib", "typing", "__future__",
+                   "spa_core"}
         tree = ast.parse(self.SOURCE)
         imported = set()
         for node in ast.walk(tree):
