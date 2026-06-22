@@ -72,10 +72,28 @@ import hashlib
 import json
 import os
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional
-from spa_core.utils.atomic import atomic_save
+
+
+def atomic_save(data: Any, path: str, indent: int = 2) -> None:
+    """Stdlib-only atomic JSON write (tmp + os.replace). No spa_core deps."""
+    abs_path = os.path.abspath(path)
+    dir_ = os.path.dirname(abs_path) or "."
+    os.makedirs(dir_, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=indent, default=str)
+        os.replace(tmp, abs_path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 ANCHORS_FILENAME = "proof_of_track_anchors.json"
 AUDIT_FILENAME = "audit_trail.jsonl"      # как в audit_trail.py (MP-310)
