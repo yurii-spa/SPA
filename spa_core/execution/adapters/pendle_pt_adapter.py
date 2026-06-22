@@ -231,7 +231,7 @@ class PendlePTAdapter:
 
     def __init__(self, chain: str = "ethereum", dry_run: bool = True) -> None:
         if chain not in self.SUPPORTED_CHAINS:
-            raise ValidationError("chain", chain, f"must be one of {self.SUPPORTED_CHAINS}")
+            raise ValidationError("chain", chain, f"unsupported chain — must be one of {self.SUPPORTED_CHAINS}")
         self.chain = chain
         self.dry_run = dry_run
         self._endpoints = _RPC_ENDPOINTS[chain]
@@ -243,7 +243,7 @@ class PendlePTAdapter:
         asset = asset.upper()
         markets = _PT_MARKETS.get(self.chain, {})
         if asset not in markets:
-            raise ValidationError("asset", asset, f"unsupported on {self.chain!r}")
+            raise ValidationError("asset", asset, f"unsupported asset on {self.chain!r}")
         return markets[asset]
 
     def _pt_address(self, asset: str) -> str:
