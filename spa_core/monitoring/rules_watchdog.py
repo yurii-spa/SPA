@@ -377,13 +377,11 @@ def check_llm_forbidden_violations() -> CheckResult:
     _self = Path(__file__).name  # skip this file (contains pattern strings)
 
     # Explicit exclusions: files that intentionally use LLM under controlled conditions.
-    # These are NOT in the capital-path (risk/execution) and use LLM for advisory tasks only.
     # Each exclusion must be justified here — do not add without ADR review.
-    _KNOWN_EXCEPTIONS = {
-        "auto_fixer.py",   # ADR-advisory: autonomous bug-fixer uses Claude for code repair,
-                           # NOT for risk/capital decisions. Rate-limited, sandboxed, never
-                           # touches risk/execution domains. Lazy import — stdlib-only at module level.
-    }
+    # NOTE (AUD-02 / ADR-026): auto_fixer.py was RELOCATED out of spa_core/monitoring/
+    # to spa_core/dev_agents/ so FORBIDDEN rule 4 holds literally — monitoring/ is now
+    # LLM-free with no carve-out required. Keep this set empty.
+    _KNOWN_EXCEPTIONS: set[str] = set()
 
     for module_dir in ["spa_core/risk", "spa_core/execution", "spa_core/monitoring"]:
         full_path = _REPO / module_dir

@@ -1,7 +1,7 @@
 """
 tests/test_auto_fixer.py
 ==========================
-25 unit tests for spa_core/monitoring/auto_fixer.py
+25 unit tests for spa_core/dev_agents/auto_fixer.py
 
 All network calls, subprocess calls, Claude API and file I/O are mocked
 where necessary. Tests run fully offline.
@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spa_core.monitoring.auto_fixer import (
+from spa_core.dev_agents.auto_fixer import (
     BASE_DIR,
     BACKUP_PREFIX,
     CLAUDE_MODEL,
@@ -84,7 +84,7 @@ class TestFindAffectedFile:
         fake_scripts.parent.mkdir(parents=True)
         fake_scripts.write_text("# fake\n")
         text = f'  File "{fake_scripts}", line 1\nImportError: bad'
-        with patch("spa_core.monitoring.auto_fixer.BASE_DIR", tmp_path):
+        with patch("spa_core.dev_agents.auto_fixer.BASE_DIR", tmp_path):
             result = find_affected_file(text)
         assert result is None
 
@@ -97,7 +97,7 @@ class TestFindAffectedFile:
         fake_file.write_text("# sample\n")
 
         text = '  File "spa_core/monitoring/sample_module.py", line 10\nAttributeError: x'
-        with patch("spa_core.monitoring.auto_fixer.BASE_DIR", tmp_path):
+        with patch("spa_core.dev_agents.auto_fixer.BASE_DIR", tmp_path):
             result = find_affected_file(text)
         assert result is not None
         assert result.name == "sample_module.py"
@@ -115,7 +115,7 @@ class TestFindAffectedFile:
             f'  File "{f2}", line 10\n'
             "AttributeError: bad"
         )
-        with patch("spa_core.monitoring.auto_fixer.BASE_DIR", tmp_path):
+        with patch("spa_core.dev_agents.auto_fixer.BASE_DIR", tmp_path):
             result = find_affected_file(text)
         assert result is not None
         assert result.name == "inner.py"
@@ -187,13 +187,13 @@ class TestBackupRollback:
 
 class TestRateLimit:
     def test_not_rate_limited_initially(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.RATE_LIMIT_PREFIX",
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.RATE_LIMIT_PREFIX",
                             str(tmp_path) + "/rl_")
         assert is_rate_limited() is False
 
     def test_rate_limited_after_max_fixes(self, tmp_path, monkeypatch):
         prefix = str(tmp_path) + "/rl_"
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.RATE_LIMIT_PREFIX", prefix)
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.RATE_LIMIT_PREFIX", prefix)
         # Create MAX_FIXES_PER_HOUR fresh files
         for i in range(MAX_FIXES_PER_HOUR):
             path = prefix + str(i)
@@ -203,7 +203,7 @@ class TestRateLimit:
 
     def test_expired_rate_limit_slots_ignored(self, tmp_path, monkeypatch):
         prefix = str(tmp_path) + "/rl_"
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.RATE_LIMIT_PREFIX", prefix)
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.RATE_LIMIT_PREFIX", prefix)
         # Create MAX_FIXES_PER_HOUR files with OLD timestamps (2 hours ago)
         old_time = time.time() - 7300
         for i in range(MAX_FIXES_PER_HOUR):
@@ -277,10 +277,10 @@ class TestCallClaudeApi:
 class TestRunAutoFix:
     def test_no_api_key_graceful_degradation(self, tmp_path, monkeypatch):
         """No API key → sends Telegram instruction, returns False."""
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.RATE_LIMIT_PREFIX",
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.RATE_LIMIT_PREFIX",
                             str(tmp_path) + "/rl_")
-        with patch("spa_core.monitoring.auto_fixer.get_anthropic_key", return_value=None):
-            with patch("spa_core.monitoring.auto_fixer._tg_request") as mock_tg:
+        with patch("spa_core.dev_agents.auto_fixer.get_anthropic_key", return_value=None):
+            with patch("spa_core.dev_agents.auto_fixer._tg_request") as mock_tg:
                 result = run_auto_fix(
                     "AttributeError: test",
                     token="TOKEN",
@@ -292,9 +292,9 @@ class TestRunAutoFix:
 
     def test_fix_applied_and_pushed_on_success(self, tmp_path, monkeypatch):
         """Happy path: find file → Claude fix → tests pass → push → True."""
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.RATE_LIMIT_PREFIX",
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.RATE_LIMIT_PREFIX",
                             str(tmp_path) + "/rl_")
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.BACKUP_PREFIX",
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.BACKUP_PREFIX",
                             str(tmp_path) + "/bak_")
 
         # Create a real target file in tmp_path under spa_core/monitoring/
@@ -308,24 +308,24 @@ class TestRunAutoFix:
             "AttributeError: 'NoneType' object has no attribute 'strip'"
         )
 
-        with patch("spa_core.monitoring.auto_fixer.BASE_DIR", tmp_path):
-            with patch("spa_core.monitoring.auto_fixer.get_anthropic_key", return_value="key"):
-                with patch("spa_core.monitoring.auto_fixer.call_claude_api",
+        with patch("spa_core.dev_agents.auto_fixer.BASE_DIR", tmp_path):
+            with patch("spa_core.dev_agents.auto_fixer.get_anthropic_key", return_value="key"):
+                with patch("spa_core.dev_agents.auto_fixer.call_claude_api",
                            return_value="def broken():\n    x = None\n    return x or ''\n"):
-                    with patch("spa_core.monitoring.auto_fixer.run_tests",
+                    with patch("spa_core.dev_agents.auto_fixer.run_tests",
                                return_value=(True, "3 passed")):
-                        with patch("spa_core.monitoring.auto_fixer.push_file",
+                        with patch("spa_core.dev_agents.auto_fixer.push_file",
                                    return_value="abc1234"):
-                            with patch("spa_core.monitoring.auto_fixer._tg_request"):
+                            with patch("spa_core.dev_agents.auto_fixer._tg_request"):
                                 result = run_auto_fix(traceback, token="TOK", chat_id="CID")
 
         assert result is True
 
     def test_rollback_on_test_failure(self, tmp_path, monkeypatch):
         """If tests fail after fix → file is rolled back to original."""
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.RATE_LIMIT_PREFIX",
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.RATE_LIMIT_PREFIX",
                             str(tmp_path) + "/rl_")
-        monkeypatch.setattr("spa_core.monitoring.auto_fixer.BACKUP_PREFIX",
+        monkeypatch.setattr("spa_core.dev_agents.auto_fixer.BACKUP_PREFIX",
                             str(tmp_path) + "/bak_")
 
         fake_dir = tmp_path / "spa_core" / "monitoring"
@@ -336,13 +336,13 @@ class TestRunAutoFix:
 
         traceback = f'File "{target}", line 1\nAttributeError: bad'
 
-        with patch("spa_core.monitoring.auto_fixer.BASE_DIR", tmp_path):
-            with patch("spa_core.monitoring.auto_fixer.get_anthropic_key", return_value="key"):
-                with patch("spa_core.monitoring.auto_fixer.call_claude_api",
+        with patch("spa_core.dev_agents.auto_fixer.BASE_DIR", tmp_path):
+            with patch("spa_core.dev_agents.auto_fixer.get_anthropic_key", return_value="key"):
+                with patch("spa_core.dev_agents.auto_fixer.call_claude_api",
                            return_value="def orig():\n    BROKEN_SYNTAX(((\n"):
-                    with patch("spa_core.monitoring.auto_fixer.run_tests",
+                    with patch("spa_core.dev_agents.auto_fixer.run_tests",
                                return_value=(False, "1 failed")):
-                        with patch("spa_core.monitoring.auto_fixer._tg_request"):
+                        with patch("spa_core.dev_agents.auto_fixer._tg_request"):
                             result = run_auto_fix(traceback, token="TOK", chat_id="CID")
 
         assert result is False

@@ -1,8 +1,15 @@
 """
-spa_core/monitoring/auto_fixer.py
+spa_core/dev_agents/auto_fixer.py
 ====================================
 SPA Autonomous Bug Fixer — receives alert text, finds the affected file,
 calls Claude API for a fix, runs tests, pushes, and confirms via Telegram.
+
+Domain: this is a DEV/REPAIR agent (Layer 1 development agents), NOT a
+capital-path monitoring component. It was relocated out of spa_core/monitoring/
+(AUD-02 / ADR-026) precisely so FORBIDDEN rule 4 (LLM_FORBIDDEN_AGENTS =
+{risk, execution, monitoring}) holds literally: it uses the Claude API to repair
+source code on alert, and never reads market data nor touches
+risk/execution/allocator/cycle decisions.
 
 Design constraints:
   - STDLIB ONLY (no anthropic SDK import at module level — imported lazily)
@@ -47,7 +54,7 @@ log = logging.getLogger("spa.monitoring.auto_fixer")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # repo root (spa_core/monitoring/→spa_core/→root)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # repo root (spa_core/dev_agents/→spa_core/→root)
 
 ALLOWED_PREFIXES = (
     "spa_core/",
