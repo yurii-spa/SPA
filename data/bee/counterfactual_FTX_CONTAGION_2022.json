@@ -1,0 +1,32 @@
+{
+  "event_id": "FTX_CONTAGION_2022",
+  "event_name": "FTX Collapse / Contagion",
+  "stress_type": "systemic_risk_vol_spike",
+  "severity": "severe",
+  "window_start": "2022-11-06",
+  "window_end": "2022-11-14",
+  "affected_assets": [
+    "FTT",
+    "SOL",
+    "USDC",
+    "USDT",
+    "DAI"
+  ],
+  "gate_reaction": {
+    "exit_triggered": true,
+    "exit_triggered_at": "2022-11-06T08:00:00",
+    "hours_after_depeg_start": 8.0,
+    "rotation_target": "USDC"
+  },
+  "counterfactual_metrics": {
+    "spa_drawdown_pct": -0.015,
+    "naive_drawdown_pct": -0.35,
+    "drawdown_saved_pct": -0.33499999999999996,
+    "capital_protected_pct": 0.33499999999999996
+  },
+  "false_positive": false,
+  "data_source": "modeled",
+  "caveat": "\u042d\u0442\u043e \u0440\u0435\u0430\u043a\u0446\u0438\u044f \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438 \u043d\u0430 \u0438\u0441\u0442\u043e\u0440\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u2014 \u0434\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0434\u0438\u0437\u0430\u0439\u043d \u0433\u0435\u0439\u0442\u0430, \u043d\u0435 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0440\u0443\u0435\u0442 \u0431\u0443\u0434\u0443\u0449\u0435\u0435. Counterfactual, \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u043d\u0438\u0435.",
+  "computed_at": "2026-06-21T23:43:26.981971Z",
+  "policy_version": "2.0"
+}
