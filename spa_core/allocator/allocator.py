@@ -135,6 +135,17 @@ class StrategyAllocator:
         _POLICY_CONFIG.max_total_t2_allocation if _POLICY_CONFIG is not None else 0.50
     )
 
+    # Assert: fallback значения должны совпадать с policy (нет silent drift)
+    if _POLICY_CONFIG is not None:
+        _T1_CAP_ACTUAL = _POLICY_CONFIG.max_concentration_t1
+        _T2_CAP_ACTUAL = _POLICY_CONFIG.max_concentration_t2
+        assert abs(T1_CAP - _T1_CAP_ACTUAL) < 1e-6, (
+            f"T1_CAP fallback ({T1_CAP}) != policy ({_T1_CAP_ACTUAL}) — update fallback!"
+        )
+        assert abs(T2_CAP - _T2_CAP_ACTUAL) < 1e-6, (
+            f"T2_CAP fallback ({T2_CAP}) != policy ({_T2_CAP_ACTUAL}) — update fallback!"
+        )
+
     def __init__(
         self,
         status_path: str | os.PathLike | None = None,
