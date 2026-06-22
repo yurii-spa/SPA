@@ -21,6 +21,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import unittest
 
 # ── repo root import ──────────────────────────────────────────────────────────
@@ -423,8 +424,11 @@ class TestGateAPI(unittest.TestCase):
     def test_40_get_gate_response_real_data_dir(self):
         """Smoke test against the real data/backtest directory (if present)."""
         real_dir = os.path.join(_REPO_ROOT, "data", "backtest")
-        if not os.path.isdir(real_dir):
-            self.skipTest("data/backtest directory not found — skipping smoke test")
+        gate_file = os.path.join(real_dir, "pre_paper_backtest_gate.json")
+        if not os.path.isdir(real_dir) or not os.path.exists(gate_file):
+            self.skipTest(
+                "data/backtest/pre_paper_backtest_gate.json not present — skipping smoke test"
+            )
         result = get_gate_response(backtest_dir=real_dir)
         self.assertIn("backtest", result)
         # pre_paper_backtest_gate.json is PASS in the real project
