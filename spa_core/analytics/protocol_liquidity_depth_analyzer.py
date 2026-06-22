@@ -15,6 +15,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -37,7 +38,8 @@ BAND_PCT = 0.01  # 1% of mid price
 # ---------------------------------------------------------------------------
 
 
-class ProtocolLiquidityDepthAnalyzer:
+class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
+    OUTPUT_PATH = "data/protocol_liquidity_depth.json"
     """Analyzes available liquidity depth for position entry/exit.
 
     Parameters
@@ -237,6 +239,11 @@ class ProtocolLiquidityDepthAnalyzer:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 def _atomic_append(path: str, entry: dict[str, Any], cap: int = 100) -> None:
     """Read existing log, append entry, cap to ``cap``, atomic write."""
