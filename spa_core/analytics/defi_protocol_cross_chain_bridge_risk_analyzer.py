@@ -241,7 +241,7 @@ class DeFiProtocolCrossChainBridgeRiskAnalyzer:
         if len(existing) > LOG_RING_BUFFER:
             existing = existing[-LOG_RING_BUFFER:]
 
-        atomic_save(existing, str(self))
+        atomic_save(existing, str(self._log_path))
     # ------------------------------------------------------------------
     # Convenience class-method for one-shot use
     # ------------------------------------------------------------------

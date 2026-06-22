@@ -386,7 +386,7 @@ class ProtocolDeFiCrossProtocolYieldArbitrageDetector:
 
     def _atomic_write(self, data: list) -> None:
         os.makedirs(self.data_dir, exist_ok=True)
-        atomic_save(data, str(self))
+        atomic_save(data, str(self.log_path))
     def init_log(self) -> None:
         """Initialize log file as empty list if it does not exist."""
         if not os.path.exists(self.log_path):

@@ -350,4 +350,4 @@ class ProtocolDeFiProtocolInsuranceCoverageAnalyzer:
         if len(log) > self.log_cap:
             log = log[-self.log_cap:]
 
-        atomic_save(log, str(self))
+        atomic_save(log, str(self.log_file))

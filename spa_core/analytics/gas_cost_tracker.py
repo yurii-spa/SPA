@@ -244,7 +244,7 @@ class GasCostTracker:
             "generated_at": _utc_now_iso(),
             "entries": [e.to_dict() for e in entries],
         }
-        atomic_save(doc, str(self))
+        atomic_save(doc, str(self._data_file))
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------

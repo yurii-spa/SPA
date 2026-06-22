@@ -258,4 +258,4 @@ class DeFiProtocolCollateralEfficiencyScorer:
         existing.append(result)
         existing = existing[-RING_BUFFER_CAP:]
 
-        atomic_save(existing, str(self))
+        atomic_save(existing, str(self._data_file))

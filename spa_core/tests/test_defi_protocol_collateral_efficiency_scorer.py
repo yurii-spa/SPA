@@ -799,6 +799,7 @@ class TestImportHygiene(unittest.TestCase):
             "json", "math", "os", "tempfile", "time",
             "typing", "__future__", "abc", "collections",
             "functools", "itertools", "re", "sys",
+            "spa_core",  # centralized stdlib-only atomic IO helper (MP-1453)
         }
         source = _MODULE_PATH.read_text(encoding="utf-8")
         tree = ast.parse(source)
