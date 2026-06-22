@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+    EPIC-8: Engine B (HY/Carry) hourly paper trading cycle.
+    Запускает run_hy_cycle(dry_run=False) каждый час.
+    Fail-closed: режим != ENTER = cycle_skipped=True, данные не пишутся.
+    Kill switch: drawdown over -8pct = EXIT, позиции не открываются.
+
+    Аргумент -run (см. ProgramArguments ниже) устанавливает dry_run=False
+    через __main__ блок hy_cycle.py (без -run = dry_run=True по умолчанию).
+
+    Логи:
+      stdout: logs/hy_cycle.log
+      stderr: logs/hy_cycle_error.log
+
+    Установка:
+      bash ~/Documents/SPA_Claude/scripts/install_engine_bc_launchd.sh
+    Ручная загрузка:
+      launchctl load ~/Library/LaunchAgents/com.spa.hy_cycle.plist
+-->
+<dict>
+    <key>Label</key>
+    <string>com.spa.hy_cycle</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.paper_trading.hy_cycle</string>
+        <string>--run</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Каждый час -->
+    <key>StartInterval</key>
+    <integer>3600</integer>
+
+    <!-- Не запускать при загрузке агента — ждать первого StartInterval -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/hy_cycle.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/hy_cycle_error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+        <key>SPA_ENV</key>
+        <string>production</string>
+    </dict>
+
+    <!-- Защита от краш-лупа: минимум 60 с между рестартами -->
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+</dict>
+</plist>
