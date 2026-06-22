@@ -18,7 +18,10 @@ def _load(tmp_path, name):
 
 def test_daily_monitors_offline_write_all_three_snapshots(tmp_path):
     results = _run_daily_monitors(tmp_path, offline=True)
-    assert results == {"red_flags": "ok", "governance": "ok", "incidents": "ok"}
+    assert results == {
+        "red_flags": "ok", "governance": "ok", "incidents": "ok",
+        "adapter_watchdog": "ok", "alpha_scan": "ok", "protocol_research": "ok",
+    }
 
     red_flags = _load(tmp_path, "red_flags.json")
     assert isinstance(red_flags, dict) and "red_flags" in red_flags
@@ -55,6 +58,9 @@ def test_daily_monitors_failsafe_all_broken(tmp_path, monkeypatch):
     import spa_core.alerts.governance_watcher as gw
     import spa_core.alerts.red_flag_monitor as rfm
     import spa_core.data_pipeline.incidents_fetcher as inf
+    import spa_core.scheduler.adapter_watchdog as awd
+    import spa_core.agents.alpha_agent as aa
+    import spa_core.agents.protocol_research_agent as pra
 
     def _boom(*a, **kw):
         raise RuntimeError("boom")
@@ -62,10 +68,16 @@ def test_daily_monitors_failsafe_all_broken(tmp_path, monkeypatch):
     monkeypatch.setattr(rfm, "RedFlagMonitor", _boom)
     monkeypatch.setattr(gw, "GovernanceWatcher", _boom)
     monkeypatch.setattr(inf, "build_incidents_snapshot", _boom)
+    monkeypatch.setattr(awd, "run_watchdog_cycle", _boom)
+    monkeypatch.setattr(aa, "run_alpha_scan", _boom)
+    monkeypatch.setattr(pra, "run_research_cycle", _boom)
 
     results = _run_daily_monitors(tmp_path, offline=True)
     assert all(v.startswith("error:") for v in results.values())
-    assert set(results) == {"red_flags", "governance", "incidents"}
+    assert set(results) == {
+        "red_flags", "governance", "incidents",
+        "adapter_watchdog", "alpha_scan", "protocol_research",
+    }
 
 
 def test_governance_export_error_is_not_persisted(tmp_path, monkeypatch):
