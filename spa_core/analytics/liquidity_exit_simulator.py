@@ -313,7 +313,7 @@ class LiquidityExitSimulator:
 
         # Atomic write
         dir_path = os.path.dirname(self._log_path) or "."
-        atomic_save(existing, str(self))
+        atomic_save(existing, self._log_path)
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
