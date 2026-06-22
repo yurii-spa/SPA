@@ -176,6 +176,11 @@ class TournamentRunnerV2(BaseAnalytics):
         """Returns current runner state as JSON-serialisable dict."""
         return dict(self._data)
 
+    def analyze(self, strategy_returns: Optional[Dict[str, List[float]]] = None,
+                *args, **kwargs) -> dict:
+        """BaseAnalytics contract — evaluates strategies and returns the result dict."""
+        return self.run_evaluation(strategy_returns or {}, *args, **kwargs)
+
     # ── Metrics computation ───────────────────────────────────────────────────
 
     def _calculate_metrics(self, strategy_id: str, returns: List[float]) -> dict:
