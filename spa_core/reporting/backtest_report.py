@@ -330,3 +330,37 @@ class BacktestReport(BaseReport):
             "positive_signals": signals,
             "rationale": "; ".join(notes) if notes else "Insufficient evidence",
         }
+
+    # ── persistence ───────────────────────────────────────────────────────────
+
+    def save(self) -> bool:
+        """Write ``self._report`` as JSON to ``OUTPUT_PATH`` under ``base_dir``.
+
+        Creates parent directories as needed. Returns True on success.
+        LLM FORBIDDEN — deterministic I/O only.
+        """
+        import json as _json
+        try:
+            full = self._path(self.OUTPUT_PATH)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                _json.dump(self._report, fh, indent=2, default=str)
+            return True
+        except Exception:
+            return False
+
+    def save_markdown(self) -> bool:
+        """Write Markdown version of the report to ``OUTPUT_PATH.replace('.json', '.md')``.
+
+        Returns True on success.
+        LLM FORBIDDEN — deterministic I/O only.
+        """
+        try:
+            md_rel = self.OUTPUT_PATH.replace(".json", ".md")
+            full = self._path(md_rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                fh.write(self.to_markdown())
+            return True
+        except Exception:
+            return False
