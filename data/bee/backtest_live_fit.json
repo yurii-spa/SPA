@@ -1,0 +1,72 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-06-21T23:43:26.987152Z",
+  "honest_start_date": "2026-06-10",
+  "live_days_since_honest_start": 12,
+  "current_apy": 0.053840000000000006,
+  "current_regime": "normal",
+  "regime_label": "normal",
+  "distribution": {
+    "expected_apy_band_80": [
+      0.035,
+      0.065
+    ],
+    "expected_apy_band_95": [
+      0.025,
+      0.085
+    ],
+    "expected_daily_return_bps_mean": 1.25,
+    "expected_daily_return_bps_std": 0.45,
+    "data_source": "modeled",
+    "notes": "Core stablecoin lending, normal market conditions (3.5\u20136.5% APY)",
+    "regime_label": "normal"
+  },
+  "expected_apy_band": [
+    0.035,
+    0.065
+  ],
+  "fit_80pct_ci": {
+    "regime_label": "normal",
+    "expected_apy_band": [
+      0.035,
+      0.065
+    ],
+    "ci_level": 0.8,
+    "live_apy_observed": 0.041364,
+    "live_apy_min": 0.03943,
+    "live_apy_max": 0.05384,
+    "pct_live_days_in_band": 1.0,
+    "days_in_band": 12,
+    "total_live_days": 12,
+    "drift_bps": -86,
+    "verdict": "in_distribution",
+    "needs_alert": false,
+    "alert_message": null,
+    "interpretation": "\u041c\u043e\u0434\u0435\u043b\u044c \u043f\u0440\u0435\u0434\u0441\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u044c \u2014 \u0441\u0438\u043b\u044c\u043d\u0435\u0439\u0448\u0438\u0439 credential."
+  },
+  "fit_95pct_ci": {
+    "regime_label": "normal",
+    "expected_apy_band": [
+      0.035,
+      0.065
+    ],
+    "ci_level": 0.95,
+    "live_apy_observed": 0.041364,
+    "live_apy_min": 0.03943,
+    "live_apy_max": 0.05384,
+    "pct_live_days_in_band": 1.0,
+    "days_in_band": 12,
+    "total_live_days": 12,
+    "drift_bps": -86,
+    "verdict": "in_distribution",
+    "needs_alert": false,
+    "alert_message": null,
+    "interpretation": "\u041c\u043e\u0434\u0435\u043b\u044c \u043f\u0440\u0435\u0434\u0441\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u044c \u2014 \u0441\u0438\u043b\u044c\u043d\u0435\u0439\u0448\u0438\u0439 credential."
+  },
+  "live_apy_observed": 0.041364,
+  "pct_live_days_in_band": 1.0,
+  "drift_bps": -86,
+  "verdict": "in_distribution",
+  "needs_alert": false,
+  "data_note": "\u0422\u0435\u043a\u0443\u0449\u0438\u0435 \u0434\u0430\u043d\u043d\u044b\u0435: live-paper \u0440\u044f\u0434 \u043e\u0442 2026-06-10 (12 \u0434\u043d\u0435\u0439). \u0420\u0430\u0441\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0438\u0435 \u0431\u044d\u043a\u0442\u0435\u0441\u0442\u0430 \u2014 modeled (\u043d\u0435 real-data). \u0414\u043b\u044f credential-grade \u043d\u0443\u0436\u043d\u044b \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0438\u0441\u0442\u043e\u0440\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0440\u044f\u0434\u044b Aave/Compound APY."
+}
