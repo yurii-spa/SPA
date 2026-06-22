@@ -70,6 +70,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -354,7 +355,8 @@ def write_log(result: Dict[str, Any], data_dir: Optional[Path] = None) -> Path:
 # ---------------------------------------------------------------------------
 
 
-class ProtocolDeFiLiquidityDepthImpactAnalyzer:
+class ProtocolDeFiLiquidityDepthImpactAnalyzer(BaseAnalytics):
+    OUTPUT_PATH = "data/protocol_liquidity_depth_impact.json"
     """Advisory wrapper around :func:`analyze_liquidity_depth_impact`.
 
     Usage::
@@ -385,6 +387,11 @@ class ProtocolDeFiLiquidityDepthImpactAnalyzer:
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 _DEMO_PARAMS: Dict[str, Any] = {
     "pool_name": "USDC/ETH 0.30% (demo)",
