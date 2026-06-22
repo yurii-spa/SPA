@@ -18,7 +18,6 @@ stdlib only. No external dependencies.
 """
 # LLM_FORBIDDEN
 import json
-import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -286,7 +285,6 @@ def run_counterfactual_for_all_events(output_dir: Optional[Path] = None) -> Dict
         safety_report dict
     """
     import os
-    import tempfile
 
     if output_dir is None:
         output_dir = _DATA_BEE

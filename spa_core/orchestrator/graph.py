@@ -16,10 +16,8 @@ Risk Policy:
 """
 from __future__ import annotations
 
-import json
 import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -28,7 +26,7 @@ from agents.ceo_agent import CEOAgent
 from agents.data_agent import DataAgent
 from agents.monitoring_agent import MonitoringAgent
 from agents.strategy_agent import StrategyAgent
-from database.init_db import get_connection, get_db_path
+from database.init_db import get_db_path
 from message_bus.bus import MessageBus
 from message_bus.topics import Topic
 from orchestrator.state import SPAState, initial_state
@@ -206,7 +204,7 @@ class SPAOrchestrator:
             if msg_ids:
                 # Данные из Strategy Agent через поле bus stats (не consume!)
                 # Просто используем его внутреннюю логику для state
-                from agents.strategy_agent import StrategyAgent as SA, MIN_APY_THRESHOLD
+                from agents.strategy_agent import StrategyAgent as SA
                 snaps = state.get("snapshots", [])
                 sa_temp = SA(self.bus, self.db_path)
                 recs = sa_temp._analyse(snaps)

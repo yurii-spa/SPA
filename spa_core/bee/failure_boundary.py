@@ -6,12 +6,11 @@ No APY promises в выводах.
 PIT-строгость: только переданные параметры.
 """
 # LLM_FORBIDDEN
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Dict, Optional
 from pathlib import Path
 import json
 from datetime import datetime
-import copy
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

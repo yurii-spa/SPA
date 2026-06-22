@@ -13,7 +13,7 @@ All error classes referenced here are importable from spa_core.utils.errors.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Catalog definition

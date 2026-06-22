@@ -29,7 +29,7 @@ from typing import Optional
 # Make sure spa_core sub-packages resolve whether called from spa_core/ or above
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from optimization.kelly import kelly_fraction, kelly_position_size
+from optimization.kelly import kelly_fraction
 from optimization.markowitz import PortfolioOptimizer
 from risk.policy import RiskPolicy, PortfolioState, Position
 

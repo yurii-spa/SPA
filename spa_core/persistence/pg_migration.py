@@ -40,7 +40,6 @@ import json
 import os
 import re
 import sqlite3
-from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple, Union

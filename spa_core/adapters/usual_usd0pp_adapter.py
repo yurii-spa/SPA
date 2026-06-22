@@ -26,7 +26,7 @@ import logging
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
 

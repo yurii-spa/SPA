@@ -40,7 +40,6 @@ from .pendle_pt import (
     PENDLE_MIN_TVL_USD,
     PendlePTAdapter as _PendlePTAdapter,
     PendleMarketData,
-    _is_stablecoin,
 )
 
 logger = logging.getLogger(__name__)

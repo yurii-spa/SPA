@@ -8,11 +8,9 @@ LLM_FORBIDDEN. fail-closed: PIT нарушение → raise/block.
         # Все данные автоматически >= 2026-06-10 — исключены
 """
 # LLM_FORBIDDEN
-from contextlib import contextmanager
 from datetime import datetime
-from typing import List, Dict, Optional, Any, Callable, Generator
+from typing import List, Dict, Callable
 from pathlib import Path
-import json
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

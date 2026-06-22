@@ -11,7 +11,7 @@ Alerts НЕ могут блокировать сделки — они тольк
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal, List
 

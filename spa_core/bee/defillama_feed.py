@@ -22,7 +22,6 @@ import os
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 

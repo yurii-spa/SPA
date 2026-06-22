@@ -21,7 +21,7 @@ import hashlib
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_BEE = _PROJECT_ROOT / "data" / "bee"

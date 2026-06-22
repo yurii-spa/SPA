@@ -30,12 +30,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from typing import Any, Dict, List, Optional, Type
 
 from spa_core.utils.atomic import atomic_save
-from spa_core.utils.errors import AdapterError, safe_call
+from spa_core.utils.errors import AdapterError
 
 logger = logging.getLogger(__name__)
 

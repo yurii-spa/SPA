@@ -222,7 +222,6 @@ def main() -> None:  # pragma: no cover — CLI thin wrapper
     """CLI: посчитать Kelly-веса по живому снимку адаптеров."""
     import argparse
     import json
-    from pathlib import Path
 
     parser = argparse.ArgumentParser(description="SPA Kelly Sizer (advisory)")
     parser.add_argument("--risk-free", type=float, default=DEFAULT_RISK_FREE_PCT)

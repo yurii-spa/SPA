@@ -33,7 +33,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from .base_adapter import BaseAdapter, YieldInfo
+from .base_adapter import BaseAdapter
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -30,9 +29,7 @@ from spa_core.persistence.db import (
     get_daily_report,
     init_db,
     upsert_equity_point,
-    upsert_daily_report,
     _REPO_ROOT,
-    DB_PATH,
 )
 
 log = logging.getLogger("spa.json_compat")

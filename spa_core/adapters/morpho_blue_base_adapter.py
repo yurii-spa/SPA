@@ -28,7 +28,6 @@ from __future__ import annotations
 import gzip
 import json
 import logging
-import os
 import time
 import urllib.error
 import urllib.request

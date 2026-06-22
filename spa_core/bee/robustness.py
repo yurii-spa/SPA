@@ -6,11 +6,10 @@ PIT-строгость: не использует данные после дат
 """
 # LLM_FORBIDDEN
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from pathlib import Path
 import json
 from datetime import datetime
-import copy
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

@@ -19,7 +19,7 @@ from typing import Sequence
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from message_bus.bus import MessageBus
-from message_bus.topics import Message, Priority, Topic
+from message_bus.topics import Message, Priority
 
 log = logging.getLogger(__name__)
 

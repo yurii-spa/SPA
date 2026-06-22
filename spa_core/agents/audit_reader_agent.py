@@ -82,7 +82,7 @@ import urllib.request
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 log = logging.getLogger("spa.audit_reader_agent")
 

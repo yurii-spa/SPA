@@ -19,11 +19,9 @@ Usage:
 from __future__ import annotations
 
 import fcntl
-import glob
 import importlib
 import json
 import os
-import re
 import subprocess
 import sys
 from datetime import datetime, timezone

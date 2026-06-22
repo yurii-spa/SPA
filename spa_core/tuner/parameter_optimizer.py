@@ -11,9 +11,9 @@ Stdlib only. Atomic writes. LLM FORBIDDEN.
 from __future__ import annotations
 
 import itertools, json, logging, math, os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.errors import SPAError

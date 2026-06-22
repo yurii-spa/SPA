@@ -29,7 +29,6 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path

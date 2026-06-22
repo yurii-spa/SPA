@@ -13,8 +13,7 @@ LLM_FORBIDDEN. fail-closed: OPEN → не пропускает.
 # LLM_FORBIDDEN
 from enum import Enum
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 import json
 import os
 import tempfile
