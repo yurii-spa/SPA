@@ -165,6 +165,12 @@ install_agent \
     "com.spa.morning_digest" \
     "1"
 
+# 13. System Briefing — auto-updates SYSTEM_BRIEFING.md every 30 min
+install_agent \
+    "$REPO/scripts/com.spa.system_briefing.plist" \
+    "com.spa.system_briefing" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
