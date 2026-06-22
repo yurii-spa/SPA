@@ -30,11 +30,14 @@
     <key>RunAtLoad</key>
     <false/>
 
+    <!-- Logs live in the repo (survive reboot; /tmp is cleared). agent_health
+         judges freshness by the freshest of these two streams; this module logs
+         via Python logging → stderr, so the _err log is the live heartbeat. -->
     <key>StandardOutPath</key>
-    <string>/tmp/spa_tournament_engine.log</string>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/tournament_engine.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/tmp/spa_tournament_engine_err.log</string>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/tournament_engine_err.log</string>
 
     <!-- Retry throttle: wait 60 s before re-launching on crash -->
     <key>ThrottleInterval</key>
