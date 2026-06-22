@@ -1,23 +1,347 @@
 {
-  "timestamp": "2026-06-21T22:38:08.614495+00:00",
+  "timestamp": "2026-06-21T23:50:19.389522+00:00",
   "overall_status": "CRITICAL",
-  "healthy_count": 0,
-  "warning_count": 0,
-  "critical_count": 1,
-  "total_agents": 0,
-  "agents": [],
+  "healthy_count": 30,
+  "warning_count": 1,
+  "critical_count": 2,
+  "total_agents": 32,
+  "agents": [
+    {
+      "label": "com.spa.agent_health",
+      "status": "OK",
+      "pid": 42612,
+      "last_exit": 0,
+      "log_age_min": 60.0,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.analytics_tier_b",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 14.4,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.analytics_tier_c",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1250.2,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.apiserver",
+      "status": "OK",
+      "pid": 29014,
+      "last_exit": -15,
+      "log_age_min": null,
+      "category": "always_on",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.autopush",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 85.0,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.base_gas_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1190.3,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.bot_commands",
+      "status": "OK",
+      "pid": 8417,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "always_on",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.bts-feed",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 5.6,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.bts-monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 5.9,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.checkpoint-7day",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "one_time",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.cloudflared",
+      "status": "OK",
+      "pid": 49646,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "always_on",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.cycle_gap_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1.9,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.cycle_health",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1.9,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.daily-paper-report",
+      "status": "WARNING",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 2450.3,
+      "category": "daily",
+      "loaded": true,
+      "issue": "log stale 1.7d (>26.0h)"
+    },
+    {
+      "label": "com.spa.daily_cycle",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1070.0,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.dashboard",
+      "status": "OK",
+      "pid": 49761,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "always_on",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.dashboard_watcher",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 3.1,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.familyfund",
+      "status": "OK",
+      "pid": 85420,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "always_on",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.governance_watcher",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 9.8,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.httpserver",
+      "status": "OK",
+      "pid": 70647,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "always_on",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.morning_digest",
+      "status": "CRITICAL",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": null,
+      "category": "daily",
+      "loaded": true,
+      "issue": "log missing (never ran?)"
+    },
+    {
+      "label": "com.spa.peg_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1.9,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.portfolio_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1.9,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.red_flag_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 2.3,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.sky_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 886.3,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.system_health_evening",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 350.1,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.system_health_morning",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 609.8,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.telegram_daily",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 1070.3,
+      "category": "daily",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.telegram_milestone",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 0.5,
+      "category": "mid_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.telegram_weekly",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 950.3,
+      "category": "weekly",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.uptime_monitor",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 2.4,
+      "category": "high_freq",
+      "loaded": true,
+      "issue": ""
+    },
+    {
+      "label": "com.spa.weekly_backup",
+      "status": "OK",
+      "pid": 0,
+      "last_exit": 0,
+      "log_age_min": 2390.0,
+      "category": "weekly",
+      "loaded": true,
+      "issue": ""
+    }
+  ],
   "system_checks": {
-    "cycle_freshness_h": 16.64,
-    "equity_last_update_h": 16.64,
+    "cycle_freshness_h": 17.84,
+    "equity_last_update_h": 17.84,
     "portfolio_health_score": 67.2,
     "critical_flags": 1,
-    "autopush_lag_h": 18.36
+    "autopush_lag_h": 19.56
   },
   "system_issues": [
     "portfolio_health 67.2/100 (<70)",
     "1 CRITICAL red flag(s)",
-    "autopush lag 18.4h (>2h)"
+    "autopush lag 19.6h (>2h)"
   ],
   "alert_sent": false,
-  "new_issues": []
+  "new_issues": [
+    "com.spa.morning_digest::log missing (never ran?)",
+    "system::autopush lag 19.6h (>2h)"
+  ]
 }
