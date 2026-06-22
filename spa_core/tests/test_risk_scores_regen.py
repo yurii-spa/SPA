@@ -81,7 +81,9 @@ def _run(tmp_path, *, risk_scorer_fn, write=True, allocator=None):
 
 
 def test_compound_v3_in_orchestrator_registry_as_t1():
-    from spa_core.adapters.compound_v3 import CompoundV3Adapter
+    # Canonical class is the one the registries actually use (compound_v3_adapter,
+    # MP-564); spa_core.adapters.compound_v3 is an older duplicate module.
+    from spa_core.adapters.compound_v3_adapter import CompoundV3Adapter
     from spa_core.orchestrator import adapter_orchestrator as orch
 
     entry = [r for r in orch.ADAPTER_REGISTRY if r[0] == "compound_v3"]
