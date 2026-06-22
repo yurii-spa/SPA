@@ -8,6 +8,12 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 LOG="$SCRIPT_DIR/.push_log"
 LOCK="$SCRIPT_DIR/.push.lock"
 
+# launchd does NOT inherit the shell PATH, so a bare `python3` in the push
+# scripts resolves to the system interpreter (which has no pytest) and their
+# `pytest` pre-push gate fails under `set -e` → every push aborts (pushed=0).
+# Put miniconda first so `python3` == the project interpreter (with pytest).
+export PATH="/Users/yuriikulieshov/miniconda3/bin:$PATH"
+
 # Singleton lock — prevent overlapping runs
 if [ -f "$LOCK" ]; then
     LOCK_PID=$(cat "$LOCK" 2>/dev/null || echo "")
@@ -22,6 +28,15 @@ cleanup() { rm -f "$LOCK"; }
 trap cleanup EXIT INT TERM
 
 touch "$LOG"
+
+# Heartbeat log that agent_health reads for autopush freshness (must be in the
+# repo, not /tmp, so it survives reboot). Append one summary line per run and
+# keep it bounded.
+RUN_LOG="$PROJECT_DIR/logs/auto_push.log"
+mkdir -p "$PROJECT_DIR/logs"
+if [ -f "$RUN_LOG" ] && [ "$(wc -l < "$RUN_LOG")" -gt 500 ]; then
+    tail -200 "$RUN_LOG" > "$RUN_LOG.tmp" && mv "$RUN_LOG.tmp" "$RUN_LOG"
+fi
 
 PUSHED=0
 SKIPPED=0
@@ -49,4 +64,5 @@ for f in $(ls "$SCRIPT_DIR"/push_v*.sh 2>/dev/null | sort -V); do
     fi
 done
 
-echo "$(date): auto_push complete — pushed=$PUSHED skipped=$SKIPPED failed=$FAILED"
+SUMMARY="$(date): auto_push complete — pushed=$PUSHED skipped=$SKIPPED failed=$FAILED"
+echo "$SUMMARY" | tee -a "$RUN_LOG"
