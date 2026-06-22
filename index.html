@@ -2217,7 +2217,116 @@ body:not(.night) .bee-disclaimer { color: #777; }
     </div>
   </div>
 
+  <!-- BLOCK 3: Tier-1 Tear Sheet Summary (MP-1356) -->
+  <div class="db-full" id="tearsheet-summary-block" style="margin-bottom:18px;display:none">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📄 Professional Tear Sheet</span>
+      <a id="tearsheet-link" href="docs/reports/backtest_tearsheet.html" target="_blank"
+         style="font-size:12px;font-weight:600;color:#185FA5;text-decoration:none">
+        View Full Tear Sheet →
+      </a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:4px 0 8px">
+      <!-- Best strategy -->
+      <div style="background:var(--bg2,#f8f9fa);border:1px solid var(--border,#eee);border-radius:6px;padding:12px 14px">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Best Strategy</div>
+        <div id="ts-best-strategy" style="font-size:13px;font-weight:700;color:var(--text,#111)">—</div>
+        <div id="ts-best-return" style="font-size:12px;color:#16a34a;font-weight:600;margin-top:2px">—</div>
+      </div>
+      <!-- Return range -->
+      <div style="background:var(--bg2,#f8f9fa);border:1px solid var(--border,#eee);border-radius:6px;padding:12px 14px">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Annual Return Range</div>
+        <div id="ts-return-range" style="font-size:13px;font-weight:700;color:var(--text,#111)">—</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">Min → Max across strategies</div>
+      </div>
+      <!-- Sharpe -->
+      <div style="background:var(--bg2,#f8f9fa);border:1px solid var(--border,#eee);border-radius:6px;padding:12px 14px">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Best Sharpe Ratio</div>
+        <div id="ts-best-sharpe" style="font-size:13px;font-weight:700;color:var(--text,#111)">—</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">Risk-adjusted (rf=4%)</div>
+      </div>
+      <!-- Walk-forward -->
+      <div style="background:var(--bg2,#f8f9fa);border:1px solid var(--border,#eee);border-radius:6px;padding:12px 14px">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Walk-Forward</div>
+        <div id="ts-walkforward" style="font-size:13px;font-weight:700">—</div>
+        <div id="ts-walkforward-ci" style="font-size:11px;color:#888;margin-top:2px">—</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#aaa;padding-top:4px">
+      Source: <code id="ts-source-file">data/tear_sheet_summary.json</code> ·
+      Generated: <span id="ts-generated-at">—</span>
+    </div>
+  </div>
+
 </div><!-- /tab-backtest -->
+
+<script>
+// ── Tear Sheet Summary loader (MP-1356) ──────────────────────────────────
+(function() {
+  function loadTearSheetSummary() {
+    fetch('data/tear_sheet_summary.json?_=' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (!d) return;
+        var block = document.getElementById('tearsheet-summary-block');
+        if (block) block.style.display = '';
+
+        var el = function(id) { return document.getElementById(id); };
+        var fmt = function(v, suffix) {
+          return (v == null) ? '—' : (+v).toFixed(2) + (suffix || '');
+        };
+
+        if (el('ts-best-strategy')) el('ts-best-strategy').textContent = d.best_strategy || '—';
+        if (el('ts-best-return'))
+          el('ts-best-return').textContent = d.best_annual_return != null
+            ? (d.best_annual_return > 0 ? '+' : '') + fmt(d.best_annual_return) + '% p.a.'
+            : '—';
+
+        if (el('ts-return-range')) {
+          var mn = d.return_range_min, mx = d.return_range_max;
+          el('ts-return-range').textContent = (mn != null && mx != null)
+            ? fmt(mn) + '% → ' + fmt(mx) + '%'
+            : '—';
+        }
+
+        if (el('ts-best-sharpe')) el('ts-best-sharpe').textContent = fmt(d.best_sharpe);
+
+        var wfEl = el('ts-walkforward');
+        if (wfEl) {
+          var verdict = (d.walk_forward_verdict || 'UNKNOWN');
+          var isValid = verdict === 'VALIDATED';
+          wfEl.textContent = (isValid ? '✅ ' : '⚠️ ') + verdict;
+          wfEl.style.color = isValid ? '#16a34a' : '#d97706';
+        }
+        var ciEl = el('ts-walkforward-ci');
+        if (ciEl) {
+          ciEl.textContent = d.walk_forward_pct_in_ci_80 != null
+            ? fmt(d.walk_forward_pct_in_ci_80 * 100) + '% returns in 80% CI'
+            : 'CI data pending';
+        }
+
+        if (el('ts-source-file')) el('ts-source-file').textContent = d.source_file || 'unknown';
+        if (el('ts-generated-at')) {
+          var ga = d.generated_at || '';
+          el('ts-generated-at').textContent = ga ? ga.slice(0, 16).replace('T', ' ') + ' UTC' : '—';
+        }
+      })
+      .catch(function() {});
+  }
+
+  // Auto-load when backtest tab becomes active
+  var origShowTab = window.showTab;
+  window.showTab = function(name, btn) {
+    if (typeof origShowTab === 'function') origShowTab(name, btn);
+    if (name === 'backtest') loadTearSheetSummary();
+  };
+  // Also load once on DOMContentLoaded if backtest tab is already active
+  document.addEventListener('DOMContentLoaded', function() {
+    var active = document.querySelector('.tab-pane.active');
+    if (active && active.id === 'tab-backtest') loadTearSheetSummary();
+  });
+})();
+</script>
 
 
 <!-- ══════════════════ TAB: PROTOCOLS MONITOR (MP-1229) ══════════════════ -->
