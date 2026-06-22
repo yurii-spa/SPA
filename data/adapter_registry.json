@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated": "2026-06-20T13:15:30Z",
+  "updated": "2026-06-22T12:00:00Z",
   "generated_by": "p1_audit_fix",
   "source": "spa_core/adapters/__init__.py + adapter files",
   "adapters": {
@@ -249,7 +249,7 @@
       "per_protocol_cap": 0.1,
       "status": "active",
       "mp": "MP-510",
-      "note": "ADR-026 Phase 1 \u2014 isolated lending vault"
+      "note": "ADR-026 Phase 1 — isolated lending vault"
     },
     "fluid_usdc": {
       "tier": 2,
@@ -276,11 +276,11 @@
       "tier": 0,
       "protocol": "Sky/sUSDS (MakerDAO)",
       "chain": "ethereum",
-      "fallback_apy": 0.0,
+      "fallback_apy": 0.0475,
       "research_only": true,
       "per_protocol_cap": 0.0,
       "status": "watchlist",
-      "note": "0% allocation until on-chain GSM Pause Delay >= 48h confirmed"
+      "note": "0% allocation until on-chain GSM Pause Delay >= 48h confirmed. fallback_apy=4.75% is real DSR rate (range 3.6-4.75%)."
     },
     "pendle_pt": {
       "tier": 2,
@@ -291,7 +291,74 @@
       "per_protocol_cap": 0.2,
       "status": "in_development",
       "mp": "T3-SPEC in dev",
-      "note": "pendle_pt_rest.py \u2014 in development; FALLBACK_APY=8.0%"
+      "note": "pendle_pt_rest.py — in development; FALLBACK_APY=8.0%"
+    },
+    "ethena_susde": {
+      "tier": 3,
+      "protocol": "Ethena sUSDe (delta-neutral synthetic dollar)",
+      "chain": "ethereum",
+      "fallback_apy": 0.12,
+      "research_only": true,
+      "advisory_only": true,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "v1358"
+    },
+    "ondo_usdy": {
+      "tier": 2,
+      "protocol": "Ondo Finance USDY (tokenised US T-bill)",
+      "chain": "ethereum",
+      "fallback_apy": 0.0535,
+      "research_only": true,
+      "advisory_only": true,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "v1358"
+    },
+    "aave_v3_wsteth": {
+      "tier": 2,
+      "protocol": "Aave V3 wstETH leverage loop (2x)",
+      "chain": "ethereum",
+      "fallback_apy": 0.075,
+      "research_only": true,
+      "advisory_only": true,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "v1358"
+    },
+    "pendle_yt_susde": {
+      "tier": 3,
+      "protocol": "Pendle YT sUSDe (yield token, leveraged APY)",
+      "chain": "ethereum",
+      "fallback_apy": 0.14,
+      "research_only": true,
+      "advisory_only": true,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "adr": "ADR-021",
+      "mp": "v1358"
+    },
+    "pendle_pt_susde": {
+      "tier": 2,
+      "protocol": "Pendle PT sUSDe (fixed-rate principal token)",
+      "chain": "ethereum",
+      "fallback_apy": 0.08,
+      "research_only": true,
+      "advisory_only": true,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "v1358"
+    },
+    "aerodrome_usdc_lp": {
+      "tier": 2,
+      "protocol": "Aerodrome Finance USDC/USDT LP (Base)",
+      "chain": "base",
+      "fallback_apy": 0.085,
+      "research_only": true,
+      "advisory_only": true,
+      "per_protocol_cap": 0.2,
+      "status": "active",
+      "mp": "v1358"
     }
   }
 }
