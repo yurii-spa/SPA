@@ -31,6 +31,9 @@ class MorningDigest(BaseAnalytics):
 
     OUTPUT_PATH = OUTPUT_PATH
 
+    # Real paper track started 2026-06-10; everything before is demo/teardown.
+    PAPER_REAL_START = "2026-06-10"
+
     def __init__(self, base_dir: str = ".") -> None:
         super().__init__(base_dir)
         import os as _os
@@ -120,18 +123,34 @@ class MorningDigest(BaseAnalytics):
         return 0
 
     def _get_evidence_progress(self) -> Dict:
-        """Return dict with effective_cycles and target."""
+        """Return dict with effective_cycles and target.
+
+        Counts only honest track days (>= PAPER_REAL_START); pre-teardown
+        demo bars in the equity curve are excluded.
+        """
         curve = atomic_load(
             self._path("data/equity_curve_daily.json"), default=[]
         )
         if isinstance(curve, dict):
-            curve = curve.get("entries", [])
+            # Live shape uses "daily"; older snapshots used "entries".
+            curve = curve.get("daily", curve.get("entries", []))
 
-        days = len(curve)
+        honest = [
+            e
+            for e in curve
+            if isinstance(e, dict) and e.get("date", "") >= self.PAPER_REAL_START
+        ]
+        days = len(honest) if honest else len(curve)
         return {"effective_cycles": float(days), "target": 30.0}
 
     def _get_best_apy(self) -> float:
-        """Return the highest APY among active positions."""
+        """Return the highest APY (as a fraction, e.g. 0.045) among positions.
+
+        Positions may be a list of dicts (with per-position ``current_apy``)
+        or a ``{protocol: amount}`` dict that carries no APY. When no
+        per-position APY is available, fall back to the portfolio's blended
+        expected APY, normalising percent values (e.g. 4.47) to a fraction.
+        """
         status = atomic_load(
             self._path("data/paper_trading_status.json"), default={}
         )
@@ -141,16 +160,39 @@ class MorningDigest(BaseAnalytics):
                 self._path("data/current_positions.json"), default={}
             )
             positions = pos_data.get("positions", [])
+        else:
+            pos_data = {}
 
-        if not positions:
-            return 0.0
+        # List-of-dicts shape carries per-position APY.
+        if isinstance(positions, list):
+            apys = [
+                p.get("current_apy", 0) or 0
+                for p in positions
+                if isinstance(p, dict)
+            ]
+            if apys:
+                return max(apys)
 
-        return max(
-            (p.get("current_apy", 0) or 0) for p in positions
+        # Dict-shaped positions ({protocol: amount}) have no APY → fall back
+        # to the blended expected/realised APY (stored as a percent).
+        if not pos_data:
+            pos_data = atomic_load(
+                self._path("data/current_positions.json"), default={}
+            )
+        blended = (
+            pos_data.get("tuner_expected_apy")
+            or status.get("apy_today_pct")
+            or 0.0
         )
+        # Normalise percent (e.g. 4.47) to fraction (0.0447).
+        return blended / 100.0 if blended > 1 else blended
 
     def _get_best_strategy(self) -> str:
-        """Return strategy ID with highest APY from tournament results."""
+        """Return strategy ID with highest APY from tournament results.
+
+        Handles both the list shape (``[{strategy_id, net_apy, ...}]``) and a
+        legacy ``{id: {apy}}`` dict shape.
+        """
         results = atomic_load(
             self._path("data/tournament_results.json"), default={}
         )
@@ -158,9 +200,25 @@ class MorningDigest(BaseAnalytics):
         if not strategies:
             return "—"
 
+        def _apy(entry: Dict) -> float:
+            return (
+                entry.get("net_apy")
+                or entry.get("apy")
+                or entry.get("composite_score")
+                or 0
+            )
+
+        if isinstance(strategies, list):
+            best = max(
+                (s for s in strategies if isinstance(s, dict)),
+                key=_apy,
+                default={},
+            )
+            return best.get("strategy_id") or best.get("id") or "—"
+
         best = max(
             strategies.items(),
-            key=lambda x: x[1].get("apy", 0) if isinstance(x[1], dict) else 0,
+            key=lambda x: _apy(x[1]) if isinstance(x[1], dict) else 0,
             default=(None, {}),
         )
         return best[0] or "—"
