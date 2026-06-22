@@ -1,0 +1,77 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-06-21T23:43:26.985159Z",
+  "total_events_analyzed": 5,
+  "events_where_gate_triggered": 5,
+  "false_positives": 0,
+  "avg_capital_protected_pct": 0.3024,
+  "data_source": "modeled",
+  "caveat": "\u0412\u0441\u0435 \u0440\u0430\u0441\u0447\u0451\u0442\u044b \u2014 counterfactual \u043d\u0430 \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u044b\u0445 \u0434\u0430\u043d\u043d\u044b\u0445 (\u043d\u0435 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0440\u044f\u0434\u044b). \u0414\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0434\u0438\u0437\u0430\u0439\u043d \u0433\u0435\u0439\u0442\u0430, \u043d\u0435 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0440\u0443\u0435\u0442 \u0431\u0443\u0434\u0443\u0449\u0443\u044e \u0434\u043e\u0445\u043e\u0434\u043d\u043e\u0441\u0442\u044c. \u0414\u043b\u044f credential-grade \u043d\u0443\u0436\u043d\u044b \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0438\u0441\u0442\u043e\u0440\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0440\u044f\u0434\u044b APY/TVL/price.",
+  "events": [
+    {
+      "event_id": "UST_LUNA_2022",
+      "event_name": "UST/Luna Depeg",
+      "stress_type": "algo_stablecoin_collapse",
+      "exit_triggered": true,
+      "hours_after_depeg_start": 3.0,
+      "spa_drawdown_pct": -0.001,
+      "naive_drawdown_pct": -0.95,
+      "drawdown_saved_pct": -0.949,
+      "capital_protected_pct": 0.949,
+      "false_positive": false,
+      "narrative": "\u0412 \u0441\u043e\u0431\u044b\u0442\u0438\u0438 UST/Luna Depeg: \u0433\u0435\u0439\u0442 \u0440\u043e\u0442\u0438\u0440\u043e\u0432\u0430\u043b \u0447\u0435\u0440\u0435\u0437 3.0\u0447; \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0430 \u0441\u043b\u043e\u044f -0.1% \u043f\u0440\u043e\u0442\u0438\u0432 -95.0% \u043d\u0430\u0438\u0432\u043d\u043e\u0433\u043e \u0445\u043e\u043b\u0434\u0430. Counterfactual, \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u043d\u0438\u0435."
+    },
+    {
+      "event_id": "STETH_DISCOUNT_2022",
+      "event_name": "stETH Discount",
+      "stress_type": "wrapper_depeg_liquidity",
+      "exit_triggered": true,
+      "hours_after_depeg_start": 12.0,
+      "spa_drawdown_pct": -0.008,
+      "naive_drawdown_pct": -0.075,
+      "drawdown_saved_pct": -0.067,
+      "capital_protected_pct": 0.067,
+      "false_positive": false,
+      "narrative": "\u0412 \u0441\u043e\u0431\u044b\u0442\u0438\u0438 stETH Discount: \u0433\u0435\u0439\u0442 \u0440\u043e\u0442\u0438\u0440\u043e\u0432\u0430\u043b \u0447\u0435\u0440\u0435\u0437 12.0\u0447; \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0430 \u0441\u043b\u043e\u044f -0.8% \u043f\u0440\u043e\u0442\u0438\u0432 -7.5% \u043d\u0430\u0438\u0432\u043d\u043e\u0433\u043e \u0445\u043e\u043b\u0434\u0430. Counterfactual, \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u043d\u0438\u0435."
+    },
+    {
+      "event_id": "FTX_CONTAGION_2022",
+      "event_name": "FTX Collapse / Contagion",
+      "stress_type": "systemic_risk_vol_spike",
+      "exit_triggered": true,
+      "hours_after_depeg_start": 8.0,
+      "spa_drawdown_pct": -0.015,
+      "naive_drawdown_pct": -0.35,
+      "drawdown_saved_pct": -0.33499999999999996,
+      "capital_protected_pct": 0.33499999999999996,
+      "false_positive": false,
+      "narrative": "\u0412 \u0441\u043e\u0431\u044b\u0442\u0438\u0438 FTX Collapse / Contagion: \u0433\u0435\u0439\u0442 \u0440\u043e\u0442\u0438\u0440\u043e\u0432\u0430\u043b \u0447\u0435\u0440\u0435\u0437 8.0\u0447; \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0430 \u0441\u043b\u043e\u044f -1.5% \u043f\u0440\u043e\u0442\u0438\u0432 -35.0% \u043d\u0430\u0438\u0432\u043d\u043e\u0433\u043e \u0445\u043e\u043b\u0434\u0430. Counterfactual, \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u043d\u0438\u0435."
+    },
+    {
+      "event_id": "USDC_SVB_2023",
+      "event_name": "USDC Depeg (SVB bank run)",
+      "stress_type": "blue_chip_stablecoin_depeg",
+      "exit_triggered": true,
+      "hours_after_depeg_start": 5.5,
+      "spa_drawdown_pct": -0.007,
+      "naive_drawdown_pct": -0.13,
+      "drawdown_saved_pct": -0.123,
+      "capital_protected_pct": 0.123,
+      "false_positive": false,
+      "narrative": "\u0412 \u0441\u043e\u0431\u044b\u0442\u0438\u0438 USDC Depeg (SVB bank run): \u0433\u0435\u0439\u0442 \u0440\u043e\u0442\u0438\u0440\u043e\u0432\u0430\u043b \u0447\u0435\u0440\u0435\u0437 5.5\u0447; \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0430 \u0441\u043b\u043e\u044f -0.7% \u043f\u0440\u043e\u0442\u0438\u0432 -13.0% \u043d\u0430\u0438\u0432\u043d\u043e\u0433\u043e \u0445\u043e\u043b\u0434\u0430. Counterfactual, \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u043d\u0438\u0435."
+    },
+    {
+      "event_id": "USDE_DN_STRESS",
+      "event_name": "USDe/Delta-Neutral Funding Stress",
+      "stress_type": "funding_flip_wrapper_depeg",
+      "exit_triggered": true,
+      "hours_after_depeg_start": 6.0,
+      "spa_drawdown_pct": -0.002,
+      "naive_drawdown_pct": -0.04,
+      "drawdown_saved_pct": -0.038,
+      "capital_protected_pct": 0.038,
+      "false_positive": false,
+      "narrative": "\u0412 \u0441\u043e\u0431\u044b\u0442\u0438\u0438 USDe/Delta-Neutral Funding Stress: \u0433\u0435\u0439\u0442 \u0440\u043e\u0442\u0438\u0440\u043e\u0432\u0430\u043b \u0447\u0435\u0440\u0435\u0437 6.0\u0447; \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0430 \u0441\u043b\u043e\u044f -0.2% \u043f\u0440\u043e\u0442\u0438\u0432 -4.0% \u043d\u0430\u0438\u0432\u043d\u043e\u0433\u043e \u0445\u043e\u043b\u0434\u0430. Counterfactual, \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u043d\u0438\u0435."
+    }
+  ]
+}
