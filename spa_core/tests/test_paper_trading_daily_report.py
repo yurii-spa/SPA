@@ -153,13 +153,14 @@ def _patch_builder(msg: str = _FAKE_MSG):
 
 
 def _patch_telegram(ok: bool = True):
-    """Patch telegram_client.send_message to return ok."""
-    mock_tc = MagicMock()
-    mock_tc.send_message.return_value = ok
-    return patch.dict(
-        "sys.modules",
-        {"spa_core.alerts.telegram_client": mock_tc},
-    )
+    """Patch telegram_client.send_message to return ok.
+
+    Patch the function on the real module rather than swapping the whole module
+    in sys.modules: _send_telegram does ``from spa_core.alerts import
+    telegram_client``, which binds the package attribute and bypasses a
+    sys.modules swap once the package is imported.
+    """
+    return patch("spa_core.alerts.telegram_client.send_message", return_value=ok)
 
 
 class TestRunDailyReport(unittest.TestCase):
@@ -196,7 +197,7 @@ class TestRunDailyReport(unittest.TestCase):
     def test_dry_run_no_telegram_call(self):
         import sys
         mock_tc = MagicMock()
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             run_daily_report(self.data_dir, dry_run=True)
         mock_tc.send_message.assert_not_called()
 
@@ -210,35 +211,35 @@ class TestRunDailyReport(unittest.TestCase):
     def test_normal_send_returns_dict(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             r = run_daily_report(self.data_dir, dry_run=False, force_send=True)
         self.assertIsInstance(r, dict)
 
     def test_normal_send_sent_true_on_success(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             r = run_daily_report(self.data_dir, dry_run=False, force_send=True)
         self.assertTrue(r["sent"])
 
     def test_normal_send_writes_sentinel_on_success(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             run_daily_report(self.data_dir, dry_run=False, force_send=True)
         self.assertTrue((self.data_dir / SENTINEL_FILENAME).exists())
 
     def test_normal_send_no_sentinel_on_failure(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = False
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             run_daily_report(self.data_dir, dry_run=False, force_send=True)
         self.assertFalse((self.data_dir / SENTINEL_FILENAME).exists())
 
     def test_normal_send_error_in_result_on_failure(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = False
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             r = run_daily_report(self.data_dir, dry_run=False, force_send=True)
         self.assertFalse(r["sent"])
         self.assertIsNotNone(r["error"])
@@ -248,7 +249,7 @@ class TestRunDailyReport(unittest.TestCase):
     def test_already_sent_today_skipped(self):
         _write(self.data_dir / SENTINEL_FILENAME, date.today().isoformat())
         mock_tc = MagicMock()
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             r = run_daily_report(self.data_dir, dry_run=False, force_send=False)
         self.assertTrue(r["skipped"])
         self.assertFalse(r["sent"])
@@ -258,7 +259,7 @@ class TestRunDailyReport(unittest.TestCase):
         _write(self.data_dir / SENTINEL_FILENAME, date.today().isoformat())
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             r = run_daily_report(self.data_dir, dry_run=False, force_send=True)
         self.assertFalse(r["skipped"])
         mock_tc.send_message.assert_called_once()
@@ -268,7 +269,7 @@ class TestRunDailyReport(unittest.TestCase):
     def test_telegram_exception_does_not_raise(self):
         mock_tc = MagicMock()
         mock_tc.send_message.side_effect = RuntimeError("network down")
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             try:
                 r = run_daily_report(self.data_dir, dry_run=False, force_send=True)
             except Exception as exc:
@@ -278,7 +279,7 @@ class TestRunDailyReport(unittest.TestCase):
     def test_empty_data_dir_does_not_raise(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             try:
                 r = run_daily_report(self.data_dir, dry_run=True)
             except Exception as exc:
@@ -322,11 +323,12 @@ class TestRunDailyReport(unittest.TestCase):
     def test_telegram_client_send_message_called_with_text(self):
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with _patch_builder(_FAKE_MSG), patch.dict(
-            "sys.modules", {"spa_core.alerts.telegram_client": mock_tc}
+        with _patch_builder(_FAKE_MSG), patch(
+            "spa_core.alerts.telegram_client.send_message", mock_tc.send_message
         ):
             run_daily_report(self.data_dir, dry_run=False, force_send=True)
-        mock_tc.send_message.assert_called_once_with(_FAKE_MSG)
+        # _send_telegram calls send_message(text, parse_mode="HTML")
+        mock_tc.send_message.assert_called_once_with(_FAKE_MSG, parse_mode="HTML")
 
     def test_no_token_in_source(self):
         """Убеждаемся что в исходнике нет хардкода токена."""
@@ -360,7 +362,7 @@ class TestCLI(unittest.TestCase):
         from spa_core.paper_trading.daily_report import main
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = True
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             rc = main(["--test-send", "--data-dir", str(self.data_dir)])
         self.assertEqual(rc, 0)
 
@@ -368,7 +370,7 @@ class TestCLI(unittest.TestCase):
         from spa_core.paper_trading.daily_report import main
         mock_tc = MagicMock()
         mock_tc.send_message.return_value = False
-        with _patch_builder(), patch.dict("sys.modules", {"spa_core.alerts.telegram_client": mock_tc}):
+        with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             rc = main(["--test-send", "--data-dir", str(self.data_dir)])
         self.assertNotEqual(rc, 0)
 
