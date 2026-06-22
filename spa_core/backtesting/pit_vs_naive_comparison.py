@@ -236,6 +236,10 @@ class PITvsNaiveComparison(BaseAnalytics):
         """Returns full comparison result as JSON-serializable dict (BaseAnalytics)."""
         return self.compare()
 
+    def analyze(self, *args, **kwargs) -> dict:
+        """BaseAnalytics contract — runs the full PIT-vs-naive comparison."""
+        return self.compare()
+
     def save(
         self, path: str = "data/backtest/pit_vs_naive_comparison.json"
     ) -> None:
