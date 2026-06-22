@@ -725,11 +725,14 @@ class GoLiveReadinessReport(BaseAnalytics):
         effective_days = real_days + seed_days * 0.5
 
         # Cumulative tier bonuses
+        # Values chosen so that N real days (no seed) gives N cycle pts:
+        #   5 days → 1+2+2 = 5, 10 days → 1+2+2+5 = 10, 15+ days → 15 (cap)
         CYCLE_TIERS = [
-            (1,  2.0, "≥1 effective cycle"),
-            (3,  3.0, "≥3 effective cycles"),
-            (5,  5.0, "≥5 effective cycles"),
+            (1,  1.0, "≥1 effective cycle"),
+            (3,  2.0, "≥3 effective cycles"),
+            (5,  2.0, "≥5 effective cycles"),
             (10, 5.0, "≥10 effective cycles"),
+            (15, 5.0, "≥15 effective cycles"),
         ]
         cycle_pts = 0.0
         for threshold, pts, label in CYCLE_TIERS:
