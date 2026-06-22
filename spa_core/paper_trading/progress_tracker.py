@@ -149,11 +149,8 @@ def _extract_paper_start(equity_doc: Any) -> Optional[str]:
     which returned "2026-05-21" (demo data, pre-teardown).  The canonical
     start is hardcoded as PAPER_START_DATE ("2026-06-10") — the single source
     of truth defined in CLAUDE.md and cycle_runner.py.  We still accept the
-    equity_doc parameter for API compatibility but ignore the first-bar date.
+    equity_doc parameter for API compatibility but always return the canonical date.
     """
-    if isinstance(equity_doc, dict) and equity_doc.get("source") == "cycle_runner":
-        return PAPER_START_DATE
-    # Fallback: if equity source is unknown, still return the canonical date
     return PAPER_START_DATE
 
 
@@ -294,12 +291,15 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
         today = _today_str()
 
         # Read source files (all fail-safe)
-        equity_doc = _read_json(ddir / "equity_curve_daily.json", {})
+        equity_path = ddir / "equity_curve_daily.json"
+        equity_doc = _read_json(equity_path, {})
         status_doc = _read_json(ddir / "paper_trading_status.json", {})
 
         # Derive core counters
         paper_days = _count_real_paper_days(equity_doc)
-        paper_start_date = _extract_paper_start(equity_doc)
+        # paper_start_date is None when the equity file doesn't exist yet
+        # (so callers can distinguish "no tracking started" from "tracking underway")
+        paper_start_date = _extract_paper_start(equity_doc) if equity_path.is_file() else None
         current_equity = _extract_current_equity(equity_doc, status_doc)
         apy_today_pct = _extract_apy_today(equity_doc, status_doc)
 
