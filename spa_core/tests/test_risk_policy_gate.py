@@ -269,3 +269,23 @@ def test_policy_exception_does_not_crash_cycle(tmp_path, monkeypatch):
     assert any("risk_policy_gate_error" in n for n in res.notes)
     assert res.traded is True                    # trade proceeds, gate skipped
     assert _load(tmp_path, "risk_policy_blocks.json") is None
+
+
+def test_portfolio_health_recheck_failclosed_blocks(tmp_path, monkeypatch):
+    # AUD-05: the gate re-validates the COMPLETE proposed portfolio via
+    # check_portfolio_health() after the per-position checks. If that whole-
+    # portfolio re-check raises, the gate must FAIL CLOSED (block the trade),
+    # never silently approve.
+    def _boom(self, *a, **k):
+        raise RuntimeError("health recheck boom")
+
+    monkeypatch.setattr(
+        "spa_core.risk.policy.RiskPolicy.check_portfolio_health", _boom
+    )
+    res = _run(tmp_path, CLEAN_TARGET)
+    assert res.policy_checked is True           # gate ran (per-position checks ok)
+    assert res.policy_approved is False         # but holistic re-check failed closed
+    assert res.traded is False                  # blocked → no trade
+    blocks = _load(tmp_path, "risk_policy_blocks.json")
+    assert blocks is not None
+    assert any("portfolio_health_check_error" in str(b) for b in blocks)

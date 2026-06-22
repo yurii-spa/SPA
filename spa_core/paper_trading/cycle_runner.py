@@ -675,6 +675,28 @@ def _apply_risk_policy_gate(
                 )
             )
 
+        # AUD-05: defense-in-depth — re-validate the COMPLETE proposed portfolio
+        # holistically once, after every position is in `state`. The per-position
+        # check_new_position() calls above are order-dependent (each sees only the
+        # positions appended before it); this whole-portfolio pass is
+        # order-independent and catches cumulative / duplicate-protocol-key
+        # concentration breaches they could miss. It uses the SAME deterministic
+        # thresholds, so it only ADDS violations — it never relaxes the gate.
+        # Fail-closed: an error in the re-check blocks the trade (consistent with
+        # the gate's security posture below).
+        try:
+            health = policy.check_portfolio_health(state)
+            for v in health.violations:
+                tagged = f"portfolio_health: {v}"
+                if tagged not in violations:
+                    violations.append(tagged)
+            warnings.extend(w for w in health.warnings if w not in warnings)
+        except Exception as _h_exc:  # noqa: BLE001 — fail-closed on re-check error
+            violations.append(
+                f"portfolio_health_check_error: {type(_h_exc).__name__}: {_h_exc}"
+            )
+            log.warning("FAIL-CLOSED: portfolio_health re-check raised: %s", _h_exc)
+
         out["violations"] = violations
         out["warnings"] = warnings
         out["approved"] = not violations

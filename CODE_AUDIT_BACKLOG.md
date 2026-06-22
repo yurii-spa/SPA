@@ -18,7 +18,7 @@
 | AUD-02 | ✅ CRITICAL | LLM в `monitoring/auto_fixer.py` → перенесён в `dev_agents/` (ADR-026) | DONE |
 | AUD-03 | ✅ HIGH | `sky_susds_feed.py` использовал `requests` (FORBIDDEN rule 2) | DONE |
 | AUD-04 | ✅ HIGH | `paper_trading/engine.py` импортирует `execution/` (rule 1) | DONE |
-| AUD-05 | 🔜 HIGH | Риск-гейт валидирует позиции по одной, а не портфель целиком | READY |
+| AUD-05 | ✅ HIGH | Риск-гейт: добавлена whole-portfolio holistic ре-валидация | DONE |
 | AUD-06 | ✅ HIGH | Закоммичены node_modules + venv (~8100 файлов, ~135M) | DONE |
 | AUD-07 | ✅ MEDIUM | Закоммичен мусор: .command, *.bak, *.log, отчёты, junk-файлы | DONE |
 | AUD-08 | ✅ MEDIUM | Демо-бэкап под `data/` может навсегда заблокировать go-live | DONE |
@@ -78,13 +78,15 @@ LiveExecutionBridge` (с fallback на `spa_core.execution...`). Lazy-импор
 `self.live_execution`, но rule 1 безусловен. **Фикс:** инвертировать зависимость —
 инжектить bridge из execution-домена, а не импортировать его внутри paper-кода.
 
-### AUD-05 — Риск-гейт проверяет позиции по одной 🔜 READY
-`cycle_runner.py:601-676` — `_apply_risk_policy_gate` валидирует каждый пул через
-`check_new_position` и лишь затем добавляет в `state.positions`. Кумулятивные
-cap'ы (cash buffer, T2-total, concentration) считаются на неполном портфеле.
-Дублирующиеся ключи протокола могли бы пройти cap. Низкая вероятность, но
-defense-in-depth слабее, чем кажется. **Фикс:** строить весь предлагаемый портфель,
-затем одним вызовом `check_portfolio_health`.
+### AUD-05 — Риск-гейт проверяет позиции по одной ✅ DONE
+`cycle_runner.py:_apply_risk_policy_gate` валидировал каждый пул через
+`check_new_position` инкрементально (order-dependent: каждая позиция видит только
+добавленные ДО неё). **Фикс:** после цикла (когда весь предлагаемый портфель в
+`state`) добавлен один holistic-вызов `check_portfolio_health(state)` — order-
+independent ре-валидация концентрации по всему портфелю, ловит кумулятив/дубль-
+ключи. Те же детерминированные пороги → только ДОБАВляет violations, не ослабляет.
+Fail-closed: ошибка в ре-проверке блокирует трейд. Добавлен тест
+`test_portfolio_health_recheck_failclosed_blocks`; 16/16 gate-тестов зелёные.
 
 ### AUD-06 — Закоммичены node_modules + venv ✅ DONE
 `cabinet/node_modules/` (6719 файлов, ~109M, с бинарниками), `.venv_test/`
