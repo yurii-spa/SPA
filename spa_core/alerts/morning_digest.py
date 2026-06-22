@@ -33,11 +33,18 @@ class MorningDigest(BaseAnalytics):
 
     def __init__(self, base_dir: str = ".") -> None:
         super().__init__(base_dir)
+        import os as _os
+        self._base_dir = _os.path.abspath(base_dir)
         self._data: Dict = {
             "last_sent": None,
             "last_digest": "",
             "send_count": 0,
         }
+
+    def _path(self, relative: str) -> str:
+        """Resolve relative path against repo root. Overrides BaseAnalytics._path for safety."""
+        import os as _os
+        return _os.path.join(self._base_dir, relative)
 
     # ------------------------------------------------------------------
     # Public API
