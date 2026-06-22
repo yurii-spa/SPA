@@ -39,6 +39,25 @@ _DEFAULT_OUT = _REPO_ROOT / "data" / "target_allocation.json"
 _REGISTRY_PATH = _REPO_ROOT / "data" / "adapter_registry.json"
 _EPS = 1e-12
 
+
+def _round_weights_sum_le_one(
+    weights: dict[str, float], ndigits: int = 6
+) -> dict[str, float]:
+    """Round weights to *ndigits* while guaranteeing ``sum <= 1.0``.
+
+    Independent per-weight ``round()`` can push the sum a few ULPs above 1.0
+    (each value rounding up), which violates the allocator invariant that
+    weights are fractions of capital. Any post-rounding excess over 1.0 is
+    subtracted from the largest weight — a strict REDUCTION, so per-protocol
+    caps (upper bounds) are never breached.
+    """
+    rounded = {p: round(w, ndigits) for p, w in weights.items()}
+    excess = round(sum(rounded.values()) - 1.0, ndigits)
+    if excess > 0 and rounded:
+        p_max = max(rounded, key=lambda k: rounded[k])
+        rounded[p_max] = round(rounded[p_max] - excess, ndigits)
+    return rounded
+
 # MP-REGISTRY: fallback TVL assumption for registry-only adapters (not in orchestrator).
 # These are all established protocols with TVL >> $5M TVL floor; $50M is conservative.
 _REGISTRY_FALLBACK_TVL_USD = 50_000_000.0
@@ -753,7 +772,7 @@ class StrategyAllocator:
         )
 
         return AllocationResult(
-            target_weights={p: round(w, 6) for p, w in capped.items()},
+            target_weights=_round_weights_sum_le_one(capped, 6),
             target_usd=target_usd,
             expected_apy_pct=round(expected_apy, 4),
             model_used=model,

@@ -237,5 +237,31 @@ class TestStrategyAllocator(unittest.TestCase):
         self.assertEqual(len(res.target_weights), 3)
 
 
+class TestRoundWeightsSumLeOne(unittest.TestCase):
+    """_round_weights_sum_le_one: per-weight rounding must never push sum > 1.0."""
+
+    def test_sum_never_exceeds_one(self):
+        from spa_core.allocator.allocator import _round_weights_sum_le_one
+        # Nine weights that each round UP at 6 decimals → naive sum = 1.000009.
+        w = {f"p{i}": 0.1111111 for i in range(9)}
+        out = _round_weights_sum_le_one(w, 6)
+        self.assertLessEqual(sum(out.values()), 1.0 + 1e-9)
+
+    def test_reduction_taken_from_largest(self):
+        from spa_core.allocator.allocator import _round_weights_sum_le_one
+        w = {"big": 0.6000005, "small": 0.4000005}  # naive rounded sum > 1.0
+        out = _round_weights_sum_le_one(w, 6)
+        self.assertLessEqual(sum(out.values()), 1.0 + 1e-9)
+        # excess comes off the largest weight; no weight is ever increased
+        self.assertLessEqual(out["big"], 0.600001)
+        self.assertEqual(out["small"], 0.4)
+
+    def test_under_one_left_untouched(self):
+        from spa_core.allocator.allocator import _round_weights_sum_le_one
+        w = {"a": 0.25, "b": 0.25}
+        out = _round_weights_sum_le_one(w, 6)
+        self.assertEqual(out, {"a": 0.25, "b": 0.25})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
