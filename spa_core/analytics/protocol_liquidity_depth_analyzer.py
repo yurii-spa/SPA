@@ -15,6 +15,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.errors import SPAError
 from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
@@ -146,7 +147,7 @@ class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
         Returns the path written.
         """
         if self._last_result is None:
-            raise RuntimeError("No result to save – call analyze() first.")
+            raise SPAError("No result to save – call analyze() first.", code="NO_RESULT")
 
         base = data_dir or self._data_dir or ""
         if base:
