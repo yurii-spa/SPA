@@ -58,7 +58,7 @@ jobs:
           SPA_ENV: ci
 
       - name: Pre-deploy checks (dry run)
-        run: python3 scripts/pre_deploy_check.py || true
+        run: python3 scripts/pre_deploy_check.py
         env:
           SPA_ENV: ci
 
