@@ -1,0 +1,130 @@
+[
+  {
+    "checked_at": "2026-06-22T08:11:24.807883+00:00",
+    "overall": "CRITICAL",
+    "critical_count": 2,
+    "warning_count": 1,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "CRITICAL",
+        "message": "Check raised exception: No module named 'spa_core'",
+        "detail": {}
+      },
+      {
+        "check": "adapter_status",
+        "status": "CRITICAL",
+        "message": "Check raised exception: No module named 'spa_core'",
+        "detail": {}
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "WARNING",
+        "message": "Top-APY protocols ['susde'] not in top-5 allocation",
+        "detail": {
+          "top_apy": [
+            "susde",
+            "frax",
+            "scrvusd"
+          ],
+          "top_alloc": [
+            "aave_v3_optimism",
+            "spark_susds",
+            "morpho_steakhouse",
+            "frax",
+            "scrvusd"
+          ],
+          "missing": [
+            "susde"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T08:11:33.566306+00:00",
+    "overall": "WARNING",
+    "critical_count": 0,
+    "warning_count": 1,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 60.0% >= 55%",
+        "detail": {
+          "t1_pct": 60.0
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "WARNING",
+        "message": "Top-APY protocols ['susde'] not in top-5 allocation",
+        "detail": {
+          "top_apy": [
+            "susde",
+            "frax",
+            "scrvusd"
+          ],
+          "top_alloc": [
+            "aave_v3_optimism",
+            "spark_susds",
+            "morpho_steakhouse",
+            "frax",
+            "scrvusd"
+          ],
+          "missing": [
+            "susde"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  }
+]
