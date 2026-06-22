@@ -7,9 +7,18 @@
   "peak_equity": 0.0,
   "il_drawdown_pct": 0.0,
   "positions": [],
-  "daily_history": [],
-  "last_cycle_at": null,
-  "cycles_completed": 0,
+  "daily_history": [
+    {
+      "date": "2026-06-22",
+      "equity": 0.0,
+      "peak_equity": 0.0,
+      "il_drawdown_pct": 0.0,
+      "positions_count": 0,
+      "delta_neutral_ok": true
+    }
+  ],
+  "last_cycle_at": "2026-06-22T10:14:04.158664Z",
+  "cycles_completed": 2,
   "note": "Engine C LP sleeve — no seed data. Start date 2026-06-22.",
   "LLM_FORBIDDEN": true
 }
