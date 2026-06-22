@@ -215,45 +215,4 @@ def _append_log(entry: Dict) -> None:
 
 
 def _atomic_write(path: str, obj) -> None:
-    dir_ = os.path.dirname(path) or "."
     atomic_save(obj, str(path))
-    import sys
-
-    req = {
-        "asset": "USDC",
-        "amount_usd": 50_000.0,
-        "collateral_usd": 100_000.0,
-        "max_rate": 10.0,
-    }
-    markets = [
-        {
-            "protocol": "Aave V3",
-            "asset": "USDC",
-            "borrow_rate_apy": 3.5,
-            "min_collateral_ratio": 1.5,
-            "origination_fee_pct": 0.0,
-            "max_borrow_usd": None,
-        },
-        {
-            "protocol": "Compound V3",
-            "asset": "USDC",
-            "borrow_rate_apy": 4.8,
-            "min_collateral_ratio": 1.33,
-            "origination_fee_pct": 0.1,
-            "max_borrow_usd": 1_000_000.0,
-        },
-        {
-            "protocol": "Maple",
-            "asset": "USDC",
-            "borrow_rate_apy": 6.0,
-            "min_collateral_ratio": 1.2,
-            "origination_fee_pct": 0.5,
-            "max_borrow_usd": None,
-        },
-    ]
-
-    r = analyze(req, markets)
-    compact = {k: v for k, v in r.items() if k != "viable_markets"}
-    compact["viable_markets"] = r["viable_markets"]
-    print(json.dumps(compact, indent=2))
-    sys.exit(0)
