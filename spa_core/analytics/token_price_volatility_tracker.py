@@ -245,20 +245,4 @@ def _append_log(entry: dict) -> None:
 
 
 def _atomic_write(path: str, obj) -> None:
-    dir_ = os.path.dirname(path) or "."
     atomic_save(obj, str(path))
-    import sys
-
-    # Quick smoke-test with synthetic data
-    import random
-    random.seed(42)
-    prices = [1.0]
-    for _ in range(60):
-        prices.append(prices[-1] * (1 + random.gauss(0.0005, 0.02)))
-
-    result = analyze("ETH", prices)
-    print(json.dumps(
-        {k: v for k, v in result.items() if k != "daily_returns"},
-        indent=2,
-    ))
-    sys.exit(0)
