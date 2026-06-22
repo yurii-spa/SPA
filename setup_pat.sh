@@ -32,17 +32,20 @@ if [[ ! "$PAT" =~ ^(ghp_|github_pat_)[A-Za-z0-9_]{10,}$ ]]; then
   exit 1
 fi
 
-# Сохраняем в Keychain (-U = update если уже существует)
+# Сохраняем в Keychain с account=$USER (нужно для -a "$USER" в push-скриптах)
+# Сначала удаляем старые записи с аккаунтом "spa" если они есть
+security delete-generic-password -s "GITHUB_PAT_SPA" -a "spa" 2>/dev/null || true
+
 security add-generic-password \
   -s "GITHUB_PAT_SPA" \
-  -a "spa" \
+  -a "$USER" \
   -w "$PAT" \
   -U
 
 echo ""
 echo "✅ PAT сохранён в macOS Keychain"
 echo "   Сервис: GITHUB_PAT_SPA"
-echo "   Аккаунт: spa"
+echo "   Аккаунт: $USER"
 echo ""
 echo "Теперь можно пушить:"
 echo "  python3 /Users/yuriikulieshov/Documents/SPA_Claude/push_to_github.py \\"
