@@ -85,6 +85,10 @@ class DeFiLlamaClient:
         self._cache: dict[str, Any] = {}
         self._cache_timestamps: dict[str, float] = {}
 
+        # Pool-specific cache (backward-compat: tests access these directly)
+        self._pools_cache: Optional[list] = None
+        self._pools_cache_time: float = 0.0
+
         # Rate-limit state
         self._last_request_time: float = 0.0
 
@@ -103,7 +107,13 @@ class DeFiLlamaClient:
         bypass the cache and always hit the network.
 
         Returns an empty list on any network / parse error — never raises.
+
+        Note: also maintains ``_pools_cache`` / ``_pools_cache_time`` for
+        backward-compatibility with callers that inspect these attributes directly.
         """
+        # Use the generic _cached_fetch so that cache hits/misses are tracked
+        # uniformly in cache_stats(). The pools-specific _pools_cache attributes
+        # are kept for backward-compatibility with callers that inspect them directly.
         raw = self._cached_fetch(POOL_URL, force=force)
         if raw is None:
             return []
@@ -121,6 +131,9 @@ class DeFiLlamaClient:
             logger.warning("DeFiLlamaClient: 'data' field is not a list")
             return []
 
+        # Update backward-compat attributes
+        self._pools_cache = pools
+        self._pools_cache_time = time.monotonic()
         return pools
 
     def get_yields(self, chain: Optional[str] = None) -> list:
@@ -259,6 +272,9 @@ class DeFiLlamaClient:
         """Invalidate the entire in-memory cache."""
         self._cache.clear()
         self._cache_timestamps.clear()
+        # Reset pool-specific backward-compat attributes too
+        self._pools_cache = None
+        self._pools_cache_time = 0.0
         logger.debug("DeFiLlamaClient: cache cleared")
 
     # ------------------------------------------------------------------
