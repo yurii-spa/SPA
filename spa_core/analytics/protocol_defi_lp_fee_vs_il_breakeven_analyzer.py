@@ -58,6 +58,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -279,7 +280,8 @@ def _analyze_single(
 # ---------------------------------------------------------------------------
 
 
-class ProtocolDeFiLPFeeVsILBreakevenAnalyzer:
+class ProtocolDeFiLPFeeVsILBreakevenAnalyzer(BaseAnalytics):
+    OUTPUT_PATH = "data/protocol_lp_fee_il_breakeven.json"
     """Calculate LP fee vs impermanent loss breakeven for DeFi pools.
 
     Usage
@@ -450,6 +452,11 @@ class ProtocolDeFiLPFeeVsILBreakevenAnalyzer:
 # I/O helpers
 # ---------------------------------------------------------------------------
 
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 def _load_json_list(path: Path) -> List[Any]:
     """Load a JSON list from *path*; return [] on any error."""
