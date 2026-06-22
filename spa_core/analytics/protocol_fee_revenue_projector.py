@@ -235,7 +235,7 @@ def _compute_protocol(p: dict, bear_mult: float, bull_mult: float) -> dict:
 
 def _atomic_write_json(obj, path: str, dir_path: str) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
-    atomic_save(path, str(obj))
+    atomic_save(obj, str(path))
 def _append_log(entry: dict, data_dir: str) -> None:
     """Atomically append entry to ring-buffer log (max 100 entries)."""
     os.makedirs(data_dir, exist_ok=True)
