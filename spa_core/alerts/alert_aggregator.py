@@ -41,6 +41,7 @@ class AlertAggregator(BaseAnalytics):
 
     def __init__(self, base_dir: str = ".") -> None:
         super().__init__(base_dir)
+        self._base_dir_path = base_dir
         self._data: Dict = {
             "sent":              {},    # dedup_key → ISO timestamp of last send
             "pending":           [],
