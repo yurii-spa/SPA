@@ -1,7 +1,7 @@
 # SPA Error Code Reference
 
 **Source:** `spa_core/utils/errors.py` · **Catalog:** `spa_core/utils/error_catalog.py`  
-**Updated:** 2026-06-20 (MP-1485 v11.01)
+**Version:** 11.01 (MP-1485) · **Updated:** 2026-06-20
 
 All SPA exceptions inherit from `SPAError`. Each instance carries:
 - `.code` — machine-readable string (e.g. `"GATE_BACKTEST_FAIL"`)
@@ -41,6 +41,12 @@ Prefer raising a specific subclass over bare `SPAError`.
 ```python
 raise SPAError("unexpected condition", code="MY_CODE", details={"context": "startup"})
 ```
+
+**Runtime codes on `SPAError`:** besides the per-subclass codes below, analytics
+modules raise a bare `SPAError` with the runtime code **`NOT_INITIALIZED`** when a
+module is queried before its state has been built (e.g. a scorer read before its
+first `--run`). Callers should treat `NOT_INITIALIZED` as "no data yet", not a hard
+failure.
 
 ---
 

@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.init_db import get_connection, get_db_path
 from risk.policy import RiskPolicy, RiskConfig, Position, PortfolioState, RiskCheckResult
-from spa_core.utils.errors import SPAError, RegistryError
+from spa_core.utils.errors import SPAError, RegistryError, ConfigError
 
 # Pendle PT strategy (imported lazily where needed to avoid heavy deps at startup)
 # from paper_trading.pendle_strategy import PendlePosition, pendle_allocation_size, build_pendle_position
@@ -145,10 +145,11 @@ class PaperTrader:
         if not self.live_execution:
             return None
         if self._live_bridge_factory is None:
-            raise RuntimeError(
+            raise ConfigError(
+                "live_bridge_factory",
                 "live_execution=True requires a live_bridge_factory injected by "
                 "the execution domain; paper_trading must not import execution/ "
-                "(FORBIDDEN rule 1)."
+                "(FORBIDDEN rule 1).",
             )
         if self._live_bridge is None:
             self._live_bridge = self._live_bridge_factory()
