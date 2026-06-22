@@ -57,10 +57,9 @@ Public API
   load_history()          → List[dict]
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
-import math
 import os
 import time
 from pathlib import Path

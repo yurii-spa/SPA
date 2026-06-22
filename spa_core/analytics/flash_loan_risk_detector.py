@@ -13,7 +13,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 # ---------------------------------------------------------------------------
 # Data directory (relative to repo root, two levels up from this file)

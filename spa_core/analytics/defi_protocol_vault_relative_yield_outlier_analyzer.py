@@ -27,7 +27,7 @@ import math
 import os
 import statistics
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.join(

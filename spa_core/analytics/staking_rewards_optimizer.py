@@ -5,12 +5,11 @@ and estimate net APY after gas costs.
 Pure stdlib only. Advisory/read-only. Atomic writes.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 import json
 import time
 import os
-import math
 from pathlib import Path
 
 DATA_FILE = Path("data/staking_rewards_log.json")
@@ -335,5 +334,4 @@ def _demo() -> None:
 
 
 if __name__ == "__main__":
-    import sys
     _demo()

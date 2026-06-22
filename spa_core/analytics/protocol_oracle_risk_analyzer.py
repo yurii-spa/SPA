@@ -330,7 +330,6 @@ def log_result(result: dict, log_path: str = "data/oracle_risk_log.json") -> Non
 # ---------------------------------------------------------------------------
 
 def _cli():
-    import sys
     import argparse
 
     parser = argparse.ArgumentParser(description="MP-888 ProtocolOracleRiskAnalyzer")

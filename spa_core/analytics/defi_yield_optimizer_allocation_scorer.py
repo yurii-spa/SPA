@@ -7,7 +7,7 @@ Atomic writes: tmp file + os.replace().
 """
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from spa_core.utils.atomic import atomic_save
 
 

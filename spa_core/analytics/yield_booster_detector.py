@@ -20,7 +20,6 @@ import json
 import os
 import time
 import argparse
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Constants

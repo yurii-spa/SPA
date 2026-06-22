@@ -355,7 +355,6 @@ class DeFiProtocolSandwichAttackExposureAnalyzer:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
 
     _DEMO_INPUTS = [
         {

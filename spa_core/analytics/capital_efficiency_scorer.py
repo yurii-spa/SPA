@@ -18,7 +18,7 @@ import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 # ---------------------------------------------------------------------------
 # Configuration

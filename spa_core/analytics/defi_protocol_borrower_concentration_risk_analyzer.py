@@ -6,10 +6,9 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log.
 """
 
 import json
-import math
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.join(

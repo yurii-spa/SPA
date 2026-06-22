@@ -61,7 +61,7 @@ If recommended_position_usd == 0 and current_position_usd > 0:  ratio = _INF_SEN
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

@@ -6,8 +6,8 @@ large sophisticated investors entering or exiting DeFi protocols.
 Advisory / read-only analytics. Pure stdlib. Atomic writes (os.replace).
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from dataclasses import dataclass
+from typing import List
 import json
 import os
 import time

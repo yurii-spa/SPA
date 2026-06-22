@@ -44,11 +44,10 @@ import argparse
 import json
 import logging
 import math
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
 from spa_core.base import BaseAnalytics
 

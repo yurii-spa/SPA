@@ -26,13 +26,11 @@ Date: 2026-06-19 (MP-1333, Sprint v9.49)
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_save

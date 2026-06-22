@@ -8,9 +8,9 @@ from __future__ import annotations
 import json
 import math
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

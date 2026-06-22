@@ -9,7 +9,6 @@ import json
 import math
 import os
 import statistics
-import time
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save

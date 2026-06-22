@@ -27,7 +27,6 @@ writes, ring-buffer 100 (`data/vault_fee_structure_breakeven_log.json`).
 """
 
 import json
-import math
 import os
 import time
 

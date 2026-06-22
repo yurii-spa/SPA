@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -730,7 +729,6 @@ def _build_arg_parser():
 
 
 def main(argv=None):
-    import sys
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
 

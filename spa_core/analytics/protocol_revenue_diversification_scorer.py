@@ -14,7 +14,6 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any
 
 DATA_FILE = Path("data/revenue_diversification_log.json")
 MAX_ENTRIES = 100

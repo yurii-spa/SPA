@@ -8,7 +8,6 @@ Pure stdlib, atomic writes, read-only advisory module.
 import json
 import os
 import time
-from typing import Any
 
 
 class DeFiLendingMarketUtilizationAnalyzer:

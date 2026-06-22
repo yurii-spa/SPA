@@ -21,8 +21,6 @@ Public API
 from __future__ import annotations
 
 import json
-import os
-from copy import copy as _shallow_copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path

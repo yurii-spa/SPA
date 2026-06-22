@@ -12,7 +12,6 @@ import json
 import math
 import os
 import time
-from typing import Any
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

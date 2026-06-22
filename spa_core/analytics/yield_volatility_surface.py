@@ -5,8 +5,8 @@ different protocols and time horizons. Detect anomalous yield spikes.
 
 Pure stdlib, read-only advisory module.
 """
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from dataclasses import dataclass
+from typing import List, Dict
 import json
 import time
 import os

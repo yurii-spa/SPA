@@ -11,7 +11,6 @@ Ring-buffer cap: 100 entries.
 from dataclasses import dataclass
 from typing import List
 import json
-import math
 import os
 import time
 from pathlib import Path
@@ -267,7 +266,6 @@ class DeFiProtocolYieldTokenizationRiskAnalyzer:
 
 
 if __name__ == "__main__":
-    import sys
 
     analyzer = DeFiProtocolYieldTokenizationRiskAnalyzer()
     sample = YieldTokenizationInput(

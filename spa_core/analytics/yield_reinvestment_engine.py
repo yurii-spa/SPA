@@ -13,7 +13,7 @@ import os
 import tempfile
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # ── Data directory ────────────────────────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))

@@ -7,11 +7,10 @@ Advisory / read-only. Pure stdlib. Atomic writes (os.replace).
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 import json
 import time
 import os
-import math
 from pathlib import Path
 
 DATA_FILE = Path("data/yield_farming_risk_log.json")

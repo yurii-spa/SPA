@@ -9,7 +9,6 @@ Pure stdlib, read-only advisory, atomic writes, ring-buffer 100.
 import json
 import os
 import time
-from typing import Optional
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

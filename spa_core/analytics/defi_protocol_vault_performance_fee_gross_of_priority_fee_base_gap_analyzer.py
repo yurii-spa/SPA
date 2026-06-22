@@ -114,7 +114,6 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log, sentinels (no inf/NaN).
 import json
 import math
 import os
-import statistics
 from datetime import datetime, timezone
 from typing import List, Optional
 

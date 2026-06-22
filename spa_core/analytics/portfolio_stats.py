@@ -14,7 +14,6 @@ Edge cases handled throughout:
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 
 # ─── Internal helpers ──────────────────────────────────────────────────────────

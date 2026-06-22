@@ -13,7 +13,6 @@ from typing import List, Optional
 import json
 import time
 import os
-import math
 from pathlib import Path
 
 DATA_FILE = Path("data/funding_rate_log.json")

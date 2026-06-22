@@ -11,7 +11,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 # ---------------------------------------------------------------------------
 # Data directory

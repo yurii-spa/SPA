@@ -6,8 +6,6 @@ Pure stdlib — no external dependencies.
 
 import json
 import os
-import math
-import time
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
@@ -314,7 +312,6 @@ class DeFiYieldSourceDiversificationScorer:
 # CLI convenience
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    import sys
 
     sample_portfolio = [
         {

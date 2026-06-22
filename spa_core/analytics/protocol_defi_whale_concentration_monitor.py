@@ -7,7 +7,6 @@ Read-only analytics. stdlib only. Atomic ring-buffer write.
 import json
 import os
 import datetime
-from typing import Any
 
 LOG_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "whale_concentration_log.json"

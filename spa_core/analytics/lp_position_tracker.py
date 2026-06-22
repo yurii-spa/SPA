@@ -2,8 +2,8 @@
 # MP-660 — LPPositionTracker (pure stdlib, advisory/read-only)
 # Track LP position performance over time: entry, current value, fee accumulation, age.
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from dataclasses import dataclass
+from typing import List, Optional
 import json
 import os
 import time

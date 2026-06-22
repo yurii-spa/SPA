@@ -11,7 +11,6 @@ the performance tier. Pure stdlib only. Advisory/read-only. Atomic writes.
 from dataclasses import dataclass, field
 from typing import List, Optional
 import json
-import math
 import time
 import os
 from pathlib import Path

@@ -5,7 +5,7 @@ and protocol capture risk.
 Pure stdlib only. Advisory/read-only. Atomic writes.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 import json
 import time
@@ -329,5 +329,4 @@ def _demo() -> None:
 
 
 if __name__ == "__main__":
-    import sys
     _demo()

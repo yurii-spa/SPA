@@ -27,7 +27,6 @@ MP-1371 (v9.87)
 from __future__ import annotations
 
 import json
-import math
 import os
 from dataclasses import dataclass
 from typing import Dict, Optional

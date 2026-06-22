@@ -9,7 +9,6 @@ Pure Python stdlib only. Atomic JSON writes via tmp+os.replace. Ring-buffer cap 
 """
 
 import json
-import math
 import os
 from datetime import datetime, timezone
 from typing import List, Optional

@@ -16,7 +16,7 @@ Outputs:
 
 Pure stdlib, read-only advisory module.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 import json
 import math

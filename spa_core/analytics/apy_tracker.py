@@ -6,7 +6,7 @@ Keeps 90 days of history. Used for trend analysis and go-live confidence.
 
 MP-1406: Migrated to BaseAnalytics (Phase 1 — inheritance + to_dict only).
 """
-import json, os, time
+import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 

@@ -13,10 +13,9 @@ Ring-buffer log capped at 100 entries.
 """
 
 import json
-import math
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 from spa_core.utils.atomic import atomic_save
 
 # ── Data file ────────────────────────────────────────────────────────────────

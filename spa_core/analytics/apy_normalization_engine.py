@@ -12,7 +12,7 @@ import json
 import math
 import os
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import List, Optional
 from spa_core.utils.atomic import atomic_save
 

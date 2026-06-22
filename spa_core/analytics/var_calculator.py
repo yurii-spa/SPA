@@ -19,7 +19,6 @@ import json
 import os
 import statistics
 import sys
-from typing import Optional
 
 from spa_core.base import BaseAnalytics
 

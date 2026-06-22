@@ -7,7 +7,6 @@ Stdlib only. Atomic ring-buffer log (cap 100).
 import json
 import os
 import time
-from typing import Any
 
 
 class DeFiCrossProtocolYieldOptimizer:

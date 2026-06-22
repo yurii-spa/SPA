@@ -7,7 +7,6 @@ Pure stdlib. Atomic writes via tmp + os.replace.
 import json
 import os
 import time
-from typing import Any
 
 _DEFAULT_CONFIG = {
     "drift_threshold_pct": 5.0,

@@ -9,7 +9,6 @@ Pure stdlib. No external dependencies.
 """
 
 import json
-import math
 import os
 import time
 
@@ -263,7 +262,6 @@ def log_result(result: dict, log_path: str = "data/gas_cost_log.json") -> None:
 # ---------------------------------------------------------------------------
 
 def _cli():
-    import sys
     import argparse
 
     parser = argparse.ArgumentParser(description="MP-887 DeFiGasCostTracker")

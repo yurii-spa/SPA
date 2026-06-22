@@ -5,7 +5,7 @@ moat strength, and competitive dynamics. Advisory/read-only, pure stdlib, atomic
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Tuple, Dict, Any
 import json
 import os
 import time

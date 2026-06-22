@@ -6,9 +6,7 @@ Read-only analytics. stdlib only. Atomic ring-buffer write.
 
 import json
 import os
-import time
 import datetime
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Category benchmark velocities (volume/TVL per day)

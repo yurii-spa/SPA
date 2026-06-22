@@ -45,7 +45,6 @@ from typing import Dict, Optional
 from spa_core.strategies.s21_cashflow_research import (
     CashflowResearchStrategy,
     STRATEGY_ID,
-    GROSS_APY_ASSUMPTIONS,
 )
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -267,7 +266,6 @@ class RS002ShadowTracker:
 # ─── CLI entry-point ──────────────────────────────────────────────────────────
 
 def _cli() -> None:  # pragma: no cover
-    import sys
     tracker = RS002ShadowTracker()
     stats = tracker.summary_stats()
     print(json.dumps({

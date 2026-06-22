@@ -16,7 +16,7 @@ import time
 from spa_core.utils.atomic import atomic_save
 from dataclasses import dataclass, asdict
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Constants

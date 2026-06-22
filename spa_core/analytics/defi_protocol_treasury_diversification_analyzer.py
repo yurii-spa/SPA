@@ -6,7 +6,6 @@ Atomic writes to data/treasury_diversification_log.json (ring-buffer 100).
 """
 
 import json
-import math
 import os
 from datetime import datetime, timezone
 from typing import Any

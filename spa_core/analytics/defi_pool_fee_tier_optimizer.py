@@ -9,7 +9,6 @@ Advisory / read-only. Pure stdlib. Atomic JSON writes.
 import json
 import os
 import time
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Constants

@@ -6,7 +6,7 @@ historical data. Provides confidence bands for planning purposes.
 Pure stdlib, read-only advisory module.
 """
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 import json
 import time
 import os

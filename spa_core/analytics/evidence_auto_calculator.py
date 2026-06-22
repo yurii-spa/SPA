@@ -28,11 +28,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from spa_core.base import BaseAnalytics
 

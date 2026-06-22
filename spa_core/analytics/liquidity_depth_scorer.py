@@ -15,8 +15,8 @@ import json
 import math
 import os
 import sys
-from dataclasses import dataclass, field, asdict
-from typing import List, Optional
+from dataclasses import dataclass, asdict
+from typing import List
 from spa_core.utils.atomic import atomic_save
 
 

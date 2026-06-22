@@ -57,7 +57,6 @@ Atomic writes: tmp + os.replace.
 from __future__ import annotations
 
 import json
-import math
 import os
 import time
 from typing import Any, Optional

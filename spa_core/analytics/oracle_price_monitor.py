@@ -4,7 +4,7 @@ Monitor oracle price feeds for staleness and manipulation risk.
 Advisory/read-only. Pure stdlib. Atomic JSON writes (os.replace).
 """
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 import json
 import time
 import os

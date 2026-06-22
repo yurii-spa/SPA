@@ -12,7 +12,6 @@ from typing import List
 import json
 import time
 import os
-import math
 from pathlib import Path
 
 DATA_FILE = Path("data/mev_risk_log.json")

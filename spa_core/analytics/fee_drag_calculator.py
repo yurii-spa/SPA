@@ -8,9 +8,8 @@ Pure stdlib only. Advisory/read-only. Atomic writes.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import List, Optional
 import json
-import math
 import os
 import time
 from pathlib import Path

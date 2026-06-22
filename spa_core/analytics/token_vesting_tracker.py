@@ -4,8 +4,8 @@ Track token vesting schedules and predict sell pressure from upcoming unlocks.
 Pure stdlib only. Advisory/read-only. Atomic writes.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 import json
 import time
 import os

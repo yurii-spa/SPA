@@ -9,7 +9,6 @@ Ring buffer log, capped 100 entries, atomic write. stdlib only. LLM_FORBIDDEN.
 import json
 import os
 import time
-import math
 from typing import List, Dict, Optional, Any
 from spa_core.utils.atomic import atomic_save
 

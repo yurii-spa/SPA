@@ -5,8 +5,8 @@ term premium changes, and compare against TradFi benchmarks.
 Pure stdlib, read-only analytics, atomic JSON writes.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Dict, Tuple
 import json
 import time
 import os

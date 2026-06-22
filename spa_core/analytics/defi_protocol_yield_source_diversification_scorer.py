@@ -12,7 +12,6 @@ Log file: data/yield_source_diversification_log.json (ring-buffer, cap 100).
 from __future__ import annotations
 
 import json
-import math
 import os
 import time
 import uuid
@@ -261,7 +260,6 @@ def score_diversification(
 # CLI entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    import sys
 
     sample = [
         {"protocol": "Aave", "chain": "Ethereum", "yield_type": "lending", "value_usd": 40000, "apy_pct": 3.5},

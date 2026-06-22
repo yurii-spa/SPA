@@ -6,7 +6,6 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log.
 
 import json
 import os
-import time
 import math
 from datetime import datetime, timezone
 

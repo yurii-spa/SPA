@@ -8,7 +8,6 @@ Stdlib only, atomic writes, ring-buffer log cap 100.
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any
 from spa_core.utils.atomic import atomic_save
 
 # Default log file

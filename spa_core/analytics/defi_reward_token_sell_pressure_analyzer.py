@@ -25,7 +25,6 @@ writes, ring-buffer 100 (`data/reward_token_sell_pressure_log.json`).
 """
 
 import json
-import math
 import os
 import time
 

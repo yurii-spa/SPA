@@ -4,7 +4,7 @@ Tracks short-term yield momentum across DeFi pools to identify trending vs
 fading opportunities. Advisory/read-only, pure stdlib, atomic JSON writes.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from typing import List, Dict, Any
 import json
 import os
@@ -272,7 +272,6 @@ def load_history(data_file: Path = DATA_FILE) -> List[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
 
     # Demo: generate a synthetic series and analyze it
     import math

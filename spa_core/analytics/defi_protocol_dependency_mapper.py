@@ -23,7 +23,7 @@ Levels:
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 _DEFAULT_LOG_PATH = "data/protocol_dependency_log.json"
 _MAX_LOG_ENTRIES = 100

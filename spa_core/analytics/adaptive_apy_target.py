@@ -39,7 +39,7 @@ Date: 2026-06-19
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # ─── Regime definitions ────────────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@ Atomic writes: tmp + os.replace.
 Ring-buffer cap: 100 entries.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
 import time

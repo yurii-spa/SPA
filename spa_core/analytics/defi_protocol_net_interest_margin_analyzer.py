@@ -33,7 +33,6 @@ Advisory / read-only.  Pure Python stdlib.  No external dependencies.
 from __future__ import annotations
 
 import json
-import math
 import os
 import time
 from typing import Any

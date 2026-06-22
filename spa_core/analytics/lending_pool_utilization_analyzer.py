@@ -12,7 +12,6 @@ Pure stdlib, read-only advisory, atomic writes.
 import json
 import os
 import time
-import math
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

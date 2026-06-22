@@ -11,7 +11,6 @@ Atomic writes: tmp + os.replace.
 """
 
 import json
-import math
 import os
 import time
 from typing import Optional

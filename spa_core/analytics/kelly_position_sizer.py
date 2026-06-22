@@ -18,7 +18,6 @@ Kelly criterion and fractional-Kelly risk management for a single bet/strategy.
 from dataclasses import dataclass, field
 from typing import List, Optional
 import json
-import math
 import time
 import os
 from pathlib import Path

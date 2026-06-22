@@ -3,7 +3,7 @@ MP-646: CapitalRotationAdvisor
 Advisory recommendations for rotating capital between adapters.
 Pure stdlib, read-only advisory module — never touches allocator/risk/execution.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
 import time

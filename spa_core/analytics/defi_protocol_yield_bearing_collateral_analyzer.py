@@ -13,7 +13,6 @@ Advisory / read-only.  Pure stdlib.  Atomic ring-buffer JSON log (cap=100).
 from __future__ import annotations
 
 import json
-import math
 import os
 import time
 from typing import Any

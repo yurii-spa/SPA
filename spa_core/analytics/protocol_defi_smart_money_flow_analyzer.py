@@ -12,11 +12,9 @@ Log file: data/smart_money_flow_log.json (ring-buffer, cap 100).
 from __future__ import annotations
 
 import json
-import math
 import os
 import time
 import uuid
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Constants

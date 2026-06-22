@@ -22,13 +22,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import math
 import os
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 

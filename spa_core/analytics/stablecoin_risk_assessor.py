@@ -4,11 +4,10 @@ Assess depeg risk for stablecoins used as collateral or yield sources.
 Advisory/read-only. Pure stdlib. Atomic JSON writes (os.replace).
 """
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 import json
 import time
 import os
-import math
 from pathlib import Path
 
 DATA_FILE = Path("data/stablecoin_risk_log.json")

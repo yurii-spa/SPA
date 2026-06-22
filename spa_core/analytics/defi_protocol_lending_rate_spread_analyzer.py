@@ -9,10 +9,8 @@ Data log: data/lending_rate_spread_log.json (ring-buffer 100, atomic write)
 """
 
 import json
-import math
 import os
 import time
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Constants

@@ -11,7 +11,6 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 DATA_FILE = Path("data/vault_strategy_log.json")
 MAX_ENTRIES = 100

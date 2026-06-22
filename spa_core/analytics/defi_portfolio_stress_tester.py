@@ -10,7 +10,6 @@ import json
 import os
 import time
 import tempfile
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Constants

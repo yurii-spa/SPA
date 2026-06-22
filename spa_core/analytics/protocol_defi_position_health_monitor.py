@@ -6,7 +6,6 @@ Atomic writes to data/position_health_monitor_log.json (ring-buffer 100).
 """
 
 import json
-import math
 import os
 from datetime import datetime, timezone
 from typing import Any

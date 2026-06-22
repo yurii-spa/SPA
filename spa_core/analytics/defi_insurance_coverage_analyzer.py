@@ -7,7 +7,6 @@ Pure stdlib, read-only/advisory, atomic writes.
 import json
 import os
 import time
-from typing import Any
 
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

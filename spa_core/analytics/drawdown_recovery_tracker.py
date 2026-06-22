@@ -6,12 +6,10 @@ Advisory / read-only analytics module.
 Pure stdlib. Atomic writes. Ring-buffer 100 entries.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
-import time
 import os
-import math
 from pathlib import Path
 
 DATA_FILE = Path("data/drawdown_recovery_log.json")

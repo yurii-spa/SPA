@@ -5,7 +5,7 @@ Allocates capital using target_allocation, computes blended APY,
 ladder_score (0-100), and tier-risk-adjusted yield.
 Pure stdlib, read-only advisory module.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 import json
 import time

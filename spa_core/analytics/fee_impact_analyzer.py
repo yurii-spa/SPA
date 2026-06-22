@@ -5,8 +5,8 @@ Analyze how protocol fees affect net yield.
 Advisory / read-only module. Pure stdlib. Atomic writes (tmp + os.replace).
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from dataclasses import dataclass
+from typing import List
 import json
 import time
 import os

@@ -11,11 +11,9 @@ Ring-buffer capped at 100 entries in data/vault_rebalancing_log.json.
 from __future__ import annotations
 
 import json
-import math
 import os
 import time
 from pathlib import Path
-from typing import Any
 
 DATA_FILE = Path("data/vault_rebalancing_log.json")
 MAX_ENTRIES = 100

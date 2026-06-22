@@ -33,7 +33,7 @@ import json
 import math
 import os
 import time
-from typing import Dict, List, Optional
+from typing import List, Optional
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

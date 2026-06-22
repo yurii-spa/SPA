@@ -4,7 +4,7 @@ Assess the risk of a DeFi protocol undergoing a smart contract upgrade.
 Pure stdlib, read-only analytics, atomic JSON writes.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 import json
 import time

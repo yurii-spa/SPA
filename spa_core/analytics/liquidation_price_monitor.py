@@ -4,7 +4,7 @@ Monitor positions that use collateral (Aave, Morpho, Compound-style lending)
 and track distance to liquidation price.
 Advisory/read-only. Pure stdlib. Atomic writes.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
 import time

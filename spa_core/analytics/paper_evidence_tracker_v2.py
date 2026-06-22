@@ -39,7 +39,7 @@ import math
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from spa_core.base import BaseAnalytics
 

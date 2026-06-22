@@ -11,7 +11,6 @@ Data log: data/security_audit_log.json (ring-buffer 100 entries, atomic write)
 
 import json
 import math
-import os
 import time
 from datetime import date, datetime
 from pathlib import Path

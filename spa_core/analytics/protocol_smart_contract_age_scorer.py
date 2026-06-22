@@ -7,7 +7,6 @@ and code upgrade frequency. Pure stdlib. Atomic writes via tmp + os.replace.
 import json
 import os
 import time
-from typing import Any
 
 _LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "smart_contract_age_log.json")
 _LOG_CAP = 100

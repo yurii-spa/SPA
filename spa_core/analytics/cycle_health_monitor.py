@@ -41,12 +41,11 @@ CLI
 # from __future__ import annotations  # MP-1233: neutralized — unreachable below DEPRECATED raise, broke py_compile
 
 import json
-import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # ---------------------------------------------------------------------------
 # Paths & constants

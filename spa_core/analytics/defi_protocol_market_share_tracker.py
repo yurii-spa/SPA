@@ -7,10 +7,7 @@ Stdlib only, atomic writes, ring-buffer log cap 100.
 
 import json
 import os
-import time
-import math
 from datetime import datetime, timezone
-from typing import Any
 from spa_core.utils.atomic import atomic_save
 
 # Default log file
@@ -307,7 +304,6 @@ class DeFiProtocolMarketShareTracker:
 # ------------------------------------------------------------------ #
 
 if __name__ == "__main__":
-    import sys
 
     sample_protocols = [
         {

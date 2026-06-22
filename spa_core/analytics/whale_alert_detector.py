@@ -6,7 +6,7 @@ or protocol-level risks.
 Advisory / read-only analytics. Pure stdlib. Atomic writes (os.replace).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
 import os

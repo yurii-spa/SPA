@@ -4,8 +4,8 @@ Composite health score per adapter combining 5 signals.
 Pure stdlib only. Advisory/read-only. Atomic writes.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import List
 import json, time, os
 from pathlib import Path
 

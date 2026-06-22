@@ -13,7 +13,7 @@ import json
 import math
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

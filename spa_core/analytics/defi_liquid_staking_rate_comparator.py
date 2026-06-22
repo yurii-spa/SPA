@@ -6,9 +6,7 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log.
 import json
 import math
 import os
-import time
 from datetime import datetime, timezone
-from typing import Any
 from spa_core.utils.atomic import atomic_save
 
 LOG_PATH = os.path.join(
@@ -246,7 +244,6 @@ class DeFiLiquidStakingRateComparator:
 # ---------- CLI ----------
 
 if __name__ == "__main__":
-    import sys
     sample_protocols = [
         {
             "name": "Lido",

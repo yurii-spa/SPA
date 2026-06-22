@@ -18,13 +18,10 @@ Output: data/chain_allocation_advisory.json
 """
 from __future__ import annotations
 
-import json
 import logging
-import os
 import sys
-import tempfile
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.errors import AllocationError

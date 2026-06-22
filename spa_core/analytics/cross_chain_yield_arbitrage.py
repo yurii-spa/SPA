@@ -12,7 +12,7 @@ import json
 import os
 import tempfile
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 # ---------------------------------------------------------------------------

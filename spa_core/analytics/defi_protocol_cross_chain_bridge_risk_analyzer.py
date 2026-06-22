@@ -10,7 +10,7 @@ Pure stdlib. No external deps. Atomic JSON writes.
 import json
 import os
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,6 @@ Python 3.9 compatible.
 """
 
 import json
-import math
 import os
 import time
 from typing import Optional

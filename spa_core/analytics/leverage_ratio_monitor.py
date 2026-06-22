@@ -6,7 +6,6 @@ Read-only analytics module — stdlib only, atomic writes, ring buffer 100.
 """
 
 import json
-import math
 import os
 import time
 from pathlib import Path

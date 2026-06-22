@@ -5,7 +5,6 @@ Pure stdlib, read-only analytics, atomic writes.
 """
 
 import json
-import math
 import os
 import time
 from typing import Any

@@ -9,7 +9,7 @@ Atomic writes (tmp + os.replace).  Ring-buffer cap: MAX_ENTRIES entries.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict
+from typing import List, Dict
 import json
 import time
 import os

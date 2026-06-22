@@ -8,9 +8,7 @@ Ring-buffer log (cap 100), atomic writes, stdlib only.
 """
 
 import json
-import math
 import os
-import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
@@ -287,7 +285,6 @@ class StakingRewardTracker:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
 
     sample = {
         "protocol": "Lido",

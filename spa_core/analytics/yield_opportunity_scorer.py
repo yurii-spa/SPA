@@ -32,7 +32,7 @@ rank: 1 = best; filtered items get rank=0.
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 _DEFAULT_LOG_PATH = "data/yield_opportunity_log.json"
 _MAX_LOG_ENTRIES = 100

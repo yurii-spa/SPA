@@ -323,7 +323,6 @@ class ProtocolDeFiCrossChainYieldNormalizer:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
 
     demo_opps = [
         {

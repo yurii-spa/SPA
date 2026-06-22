@@ -5,7 +5,7 @@ leverage risk and sustainability.
 Advisory/read-only. Pure stdlib. Atomic writes.
 """
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List
 import json
 import time
 import os

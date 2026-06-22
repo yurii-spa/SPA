@@ -6,7 +6,6 @@ Pure stdlib, read-only/advisory, atomic ring-buffer log.
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any
 from spa_core.utils.atomic import atomic_save
 
 LOG_PATH = os.path.join(
@@ -236,7 +235,6 @@ class ProtocolCrossChainYieldArbitrageDetector:
 # ---------- CLI ----------
 
 if __name__ == "__main__":
-    import sys
     sample = [
         {
             "protocol": "Aave",

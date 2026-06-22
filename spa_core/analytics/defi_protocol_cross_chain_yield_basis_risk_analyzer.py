@@ -10,7 +10,7 @@ import json
 import math
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.join(

@@ -3,7 +3,7 @@ MP-645: YieldCurveBuilder
 Build a yield curve across adapters sorted by maturity/lock-period.
 Pure stdlib, read-only advisory module.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 import json
 import time
@@ -173,7 +173,6 @@ def _demo_points() -> List[CurvePoint]:
 
 
 if __name__ == "__main__":
-    import sys
     import argparse
 
     parser = argparse.ArgumentParser(description="MP-645 YieldCurveBuilder")
