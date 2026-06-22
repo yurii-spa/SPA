@@ -327,6 +327,18 @@ def test_status_missing_or_demo(tmp_path):
     assert result.checks["no_demo_data"] is False
 
 
+def test_demo_backup_archive_does_not_block_no_demo_data(tmp_path):
+    """AUD-08: *.demo_backup.json (архив демо-кривой) не блокирует no_demo_data."""
+    ddir = _make_data_dir(tmp_path)
+    # cycle_runner архивирует старую демо-кривую под этим именем при teardown→real.
+    _write(ddir / "equity_curve_daily.demo_backup.json", _equity_doc(is_demo=True))
+    result = _check(ddir)
+    assert result.checks["no_demo_data"] is True
+    # Но «живой» демо-файл с другим именем по-прежнему должен блокировать.
+    _write(ddir / "some_live_demo.json", {"is_demo": True})
+    assert _check(ddir).checks["no_demo_data"] is False
+
+
 def test_cycle_runner_missing(tmp_path):
     result = GoLiveChecker(
         data_dir=_make_data_dir(tmp_path),

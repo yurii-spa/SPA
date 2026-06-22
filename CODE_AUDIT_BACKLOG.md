@@ -14,14 +14,14 @@
 
 | # | Severity | Тема | Статус |
 |---|---|---|---|
-| AUD-01 | 🟥 CRITICAL | Kill-switch порог 15% вместо документированных 5% | DECISION |
+| AUD-01 | ✅ CRITICAL | Kill-switch порог 15% → 5% main / до 15% alt (ADR-023) | DONE |
 | AUD-02 | 🟥 CRITICAL | LLM-вызов в `monitoring/auto_fixer.py` (FORBIDDEN rule 4) | DECISION |
 | AUD-03 | ✅ HIGH | `sky_susds_feed.py` использовал `requests` (FORBIDDEN rule 2) | DONE |
 | AUD-04 | 🔜 HIGH | `paper_trading/engine.py` импортирует `execution/` (rule 1) | READY |
 | AUD-05 | 🔜 HIGH | Риск-гейт валидирует позиции по одной, а не портфель целиком | READY |
 | AUD-06 | ✅ HIGH | Закоммичены node_modules + venv (~8100 файлов, ~135M) | DONE |
 | AUD-07 | ✅ MEDIUM | Закоммичен мусор: .command, *.bak, *.log, отчёты, junk-файлы | DONE |
-| AUD-08 | 🔜 MEDIUM | Демо-бэкап под `data/` может навсегда заблокировать go-live | READY |
+| AUD-08 | ✅ MEDIUM | Демо-бэкап под `data/` может навсегда заблокировать go-live | DONE |
 | AUD-09 | 🔜 MEDIUM | Дубликаты модулей в корне репо (адаптеры, defillama, мониторы) | READY |
 | AUD-10 | 🔜 MEDIUM | Гонки read-modify-write на shared ring-buffer JSON | READY |
 | AUD-11 | ✅ LOW | `cycle_runner` shadow-day: `today.isoformat()` всегда падал | DONE |

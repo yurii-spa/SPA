@@ -1,7 +1,7 @@
 """Tests for spa_core/governance/kill_switch.py (MP-108).
 
 10+ unit tests covering:
-- drawdown trigger (fires at 16%, doesn't fire at 14%)
+- drawdown trigger (fires at >=5% main track, doesn't fire at 4%)
 - manual trigger (file-based)
 - red_flags trigger (>5 flags)
 - sharpe trigger (< -1.0)
@@ -72,23 +72,23 @@ class TestDrawdownTrigger(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_drawdown_trigger_fires(self) -> None:
-        """Просадка 16% > 15% — должна сработать."""
-        curve = _make_equity_curve(peak=100_000.0, drawdown_pct=16.0)
+        """Просадка 6% > 5% (основной трек) — должна сработать."""
+        curve = _make_equity_curve(peak=100_000.0, drawdown_pct=6.0)
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertTrue(triggered, f"Expected trigger at 16%, got: reason={reason}")
+        self.assertTrue(triggered, f"Expected trigger at 6%, got: reason={reason}")
         self.assertIn("drawdown", reason.lower())
 
-    def test_drawdown_trigger_no_fire_14pct(self) -> None:
-        """Просадка 14% ≤ 15% — НЕ должна сработать."""
-        curve = _make_equity_curve(peak=100_000.0, drawdown_pct=14.0)
+    def test_drawdown_trigger_no_fire_4pct(self) -> None:
+        """Просадка 4% < 5% — НЕ должна сработать."""
+        curve = _make_equity_curve(peak=100_000.0, drawdown_pct=4.0)
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertFalse(triggered, f"Expected no trigger at 14%, got: reason={reason}")
+        self.assertFalse(triggered, f"Expected no trigger at 4%, got: reason={reason}")
 
-    def test_drawdown_trigger_no_fire_exact_threshold(self) -> None:
-        """Просадка ровно 15% — НЕ должна сработать (порог строгий >)."""
+    def test_drawdown_trigger_fires_exact_threshold(self) -> None:
+        """Просадка ровно 5% — должна сработать (порог >=, ADR-023)."""
         curve = _make_equity_curve(peak=100_000.0, drawdown_pct=DRAWDOWN_THRESHOLD_PCT)
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertFalse(triggered, f"Expected no trigger at exact threshold, got: {reason}")
+        self.assertTrue(triggered, f"Expected trigger at exact threshold (>=), got: {reason}")
 
     def test_drawdown_trigger_no_fire_empty_curve(self) -> None:
         """Пустая equity curve — не сработать."""
@@ -370,7 +370,7 @@ class TestNoTriggers(unittest.TestCase):
 
     def test_run_kill_switch_check_no_triggers(self) -> None:
         """run_kill_switch_check без триггеров → triggered=False."""
-        curve = _make_equity_curve(peak=100_000.0, drawdown_pct=5.0, days=10)
+        curve = _make_equity_curve(peak=100_000.0, drawdown_pct=2.0, days=10)
         status = run_kill_switch_check(equity_curve=curve, data_dir=self._tmp.name)
         self.assertFalse(status["triggered"])
         self.assertEqual(status["allocation"], {})

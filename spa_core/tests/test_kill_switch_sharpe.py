@@ -458,24 +458,49 @@ class TestDrawdownIndependent(unittest.TestCase):
 
     # E-2
     def test_current_drawdown_02pct_no_trigger(self) -> None:
-        """Текущий drawdown 0.2% << 15% → НЕ triggered."""
+        """Текущий drawdown 0.2% << 5% → НЕ triggered."""
         curve = self._make_curve(peak=100_200.0, current=100_000.0)  # -0.2%
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertFalse(triggered, f"0.2% drawdown << 15% threshold: ok, reason: {reason}")
+        self.assertFalse(triggered, f"0.2% drawdown << 5% threshold: ok, reason: {reason}")
 
-    # E-3
-    def test_drawdown_15pct_no_trigger(self) -> None:
-        """15% drawdown (ровно на пороге, строгое >) → НЕ triggered."""
-        curve = self._make_curve(peak=100_000.0, current=85_000.0)
+    # E-3: основной трек — порог 5%, сравнение >= (ADR-023)
+    def test_drawdown_just_below_5pct_no_trigger(self) -> None:
+        """4.9% drawdown (< 5% порога) → НЕ triggered."""
+        curve = self._make_curve(peak=100_000.0, current=95_100.0)  # -4.9%
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertFalse(triggered, f"15% ровно на пороге: НЕ triggered, reason: {reason}")
+        self.assertFalse(triggered, f"4.9% < 5% порога: НЕ triggered, reason: {reason}")
+
+    # E-3b: ровно на пороге 5% → triggered (semantics >=)
+    def test_drawdown_exactly_5pct_triggers(self) -> None:
+        """5% ровно на пороге (>=) → TRIGGERED."""
+        curve = self._make_curve(peak=100_000.0, current=95_000.0)  # -5.0%
+        triggered, reason = self.checker.check_drawdown_trigger(curve)
+        self.assertTrue(triggered, f"5% ровно на пороге (>=): triggered, reason: {reason}")
 
     # E-4
-    def test_drawdown_16pct_triggers(self) -> None:
-        """16% drawdown > 15% → TRIGGERED."""
-        curve = self._make_curve(peak=100_000.0, current=84_000.0)
+    def test_drawdown_6pct_triggers(self) -> None:
+        """6% drawdown > 5% → TRIGGERED на основном треке."""
+        curve = self._make_curve(peak=100_000.0, current=94_000.0)
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertTrue(triggered, f"16% drawdown > 15%: triggered, reason: {reason}")
+        self.assertTrue(triggered, f"6% drawdown > 5%: triggered, reason: {reason}")
+
+    # E-5: альт-стратегия может поднять порог до 15% (тестовый режим)
+    def test_alt_strategy_threshold_15pct(self) -> None:
+        """С drawdown_threshold_pct=15: 10% не триггерит, 16% триггерит."""
+        alt = KillSwitchChecker(data_dir=self.data_dir, drawdown_threshold_pct=15.0)
+        self.assertEqual(alt.drawdown_threshold_pct, 15.0)
+        curve_10 = self._make_curve(peak=100_000.0, current=90_000.0)  # -10%
+        triggered, _ = alt.check_drawdown_trigger(curve_10)
+        self.assertFalse(triggered, "10% < 15% (alt): НЕ triggered")
+        curve_16 = self._make_curve(peak=100_000.0, current=84_000.0)  # -16%
+        triggered, _ = alt.check_drawdown_trigger(curve_16)
+        self.assertTrue(triggered, "16% >= 15% (alt): triggered")
+
+    # E-6: порог нельзя поднять выше DRAWDOWN_ALT_MAX_PCT (clamp)
+    def test_threshold_clamped_to_alt_max(self) -> None:
+        """Запрос порога 50% клампится до 15% (DRAWDOWN_ALT_MAX_PCT)."""
+        clamped = KillSwitchChecker(data_dir=self.data_dir, drawdown_threshold_pct=50.0)
+        self.assertEqual(clamped.drawdown_threshold_pct, 15.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

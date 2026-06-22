@@ -317,6 +317,12 @@ class GoLiveChecker:
             for path in sorted(self.data_dir.rglob("*.json")):
                 if path.name == STATUS_OUT_FILENAME or path.name.startswith("."):
                     continue
+                # Намеренно архивированные демо-снапшоты (cycle_runner пишет
+                # *.demo_backup.json при переходе на реальный трек) — это
+                # сохранённая история демо, а не «живые» демо-данные; их наличие
+                # не должно вечно блокировать критерий no_demo_data (AUD-08).
+                if path.name.endswith(".demo_backup.json"):
+                    continue
                 doc = _read_json(path)
                 if doc is not None:
                     demo = _contains_demo_true(doc)

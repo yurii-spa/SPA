@@ -5,7 +5,9 @@
 переводит все позиции в Cash (allocation = {"cash": 1.0, все протоколы: 0.0}).
 
 Триггеры:
-1. drawdown_trigger  — просадка equity > 15% от максимума за последние 30 дней
+1. drawdown_trigger  — просадка equity ≥ 5% от максимума за последние 30 дней
+                       (основной трек; ADR-023). Для альтернативных более рисковых
+                       стратегий порог конфигурируется до 15% (DRAWDOWN_ALT_MAX_PCT).
 2. red_flags_trigger — более 5 активных красных флагов в data/red_flags.json
 3. manual_trigger    — файл data/kill_switch_active.json существует (создаётся вручную)
 4. sharpe_trigger    — Sharpe < -1.0 (из data/analytics_summary.json), но только
@@ -31,7 +33,10 @@ log = logging.getLogger("spa.kill_switch")
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-DRAWDOWN_THRESHOLD_PCT = 15.0   # % просадки от 30-дневного максимума
+DRAWDOWN_THRESHOLD_PCT = 5.0    # % просадки от 30-дневного максимума — основной трек
+                                # (ADR-023; единый источник = RiskConfig.max_drawdown_stop).
+DRAWDOWN_ALT_MAX_PCT = 15.0     # верхняя граница порога для альтернативных более
+                                # рисковых стратегий (тестовый режим, ADR-023).
 RED_FLAGS_THRESHOLD = 5          # количество красных флагов для срабатывания
 SHARPE_THRESHOLD = -1.0          # порог Sharpe ratio (нормальный период, ≥60 дней)
 LOOKBACK_DAYS = 30               # окно для drawdown/Sharpe
@@ -103,17 +108,36 @@ class KillSwitchChecker:
     data_dir : путь к папке data/ (по умолчанию <repo>/data)
     """
 
-    def __init__(self, data_dir: str | os.PathLike | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: str | os.PathLike | None = None,
+        drawdown_threshold_pct: float | None = None,
+    ) -> None:
         if data_dir is None:
             # По умолчанию: <repo>/data (два уровня вверх от этого файла)
             self.data_dir = Path(__file__).resolve().parents[2] / "data"
         else:
             self.data_dir = Path(data_dir)
 
+        # Drawdown-порог. Приоритет: явный аргумент → data/risk_policy.json
+        # (DRAWDOWN_KILL_THRESHOLD_PCT) → compile-time дефолт (5% основного трека).
+        # Клампится в [0, DRAWDOWN_ALT_MAX_PCT]: альт-стратегии могут поднять до 15%,
+        # но не выше. Никакой агент не может ослабить порог сверх этой границы.
+        if drawdown_threshold_pct is None:
+            policy = _read_json(self.data_dir / "risk_policy.json", {})
+            if not isinstance(policy, dict):
+                policy = {}
+            drawdown_threshold_pct = float(
+                policy.get("DRAWDOWN_KILL_THRESHOLD_PCT", DRAWDOWN_THRESHOLD_PCT)
+            )
+        self.drawdown_threshold_pct = max(
+            0.0, min(float(drawdown_threshold_pct), DRAWDOWN_ALT_MAX_PCT)
+        )
+
     # ── Trigger 1: drawdown ───────────────────────────────────────────────────
 
     def check_drawdown_trigger(self, equity_curve: list[dict]) -> tuple[bool, str]:
-        """Просадка equity > DRAWDOWN_THRESHOLD_PCT% от максимума за 30 дней.
+        """Просадка equity ≥ self.drawdown_threshold_pct% от максимума за 30 дней.
 
         Parameters
         ----------
@@ -148,16 +172,17 @@ class KillSwitchChecker:
             return False, "peak equity is zero"
 
         drawdown_pct = (peak - current) / peak * 100.0
+        threshold = self.drawdown_threshold_pct
 
-        if drawdown_pct > DRAWDOWN_THRESHOLD_PCT:
+        if drawdown_pct >= threshold:
             reason = (
-                f"drawdown {drawdown_pct:.2f}% > {DRAWDOWN_THRESHOLD_PCT}% threshold "
+                f"drawdown {drawdown_pct:.2f}% ≥ {threshold}% threshold "
                 f"(peak={peak:.2f}, current={current:.2f}, window={len(window)}d)"
             )
             log.warning("KILL SWITCH drawdown trigger: %s", reason)
             return True, reason
 
-        return False, f"drawdown {drawdown_pct:.2f}% ≤ {DRAWDOWN_THRESHOLD_PCT}%"
+        return False, f"drawdown {drawdown_pct:.2f}% < {threshold}%"
 
     # ── Trigger 2: red flags ──────────────────────────────────────────────────
 
@@ -466,6 +491,7 @@ class KillSwitchChecker:
 def run_kill_switch_check(
     equity_curve: list[dict] | None = None,
     data_dir: str | os.PathLike | None = None,
+    drawdown_threshold_pct: float | None = None,
 ) -> dict:
     """Точка входа для cycle_runner.
 
@@ -483,7 +509,9 @@ def run_kill_switch_check(
         allocation  : dict (all-cash при triggered=True, иначе {})
         ts          : str (ISO timestamp)
     """
-    checker = KillSwitchChecker(data_dir=data_dir)
+    checker = KillSwitchChecker(
+        data_dir=data_dir, drawdown_threshold_pct=drawdown_threshold_pct
+    )
     now_ts = datetime.now(timezone.utc).isoformat()
 
     triggered, reason = checker.is_kill_switch_active(equity_curve=equity_curve)
