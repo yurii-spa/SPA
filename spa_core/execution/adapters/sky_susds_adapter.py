@@ -207,7 +207,10 @@ class SkySUSDSAdapter:
 
     def __init__(self, chain: str = "ethereum", dry_run: bool = True) -> None:
         if chain not in self.SUPPORTED_CHAINS:
-            raise ValidationError("chain", chain, f"must be one of {self.SUPPORTED_CHAINS}")
+            raise ValidationError(
+                "chain", chain,
+                f"unsupported chain — must be one of {self.SUPPORTED_CHAINS}",
+            )
         self.chain = chain
         self.dry_run = dry_run
         self._endpoints = _RPC_ENDPOINTS[chain]
@@ -218,9 +221,9 @@ class SkySUSDSAdapter:
     def _validate_asset(self, asset: str) -> str:
         asset = asset.upper()
         if asset not in self.SUPPORTED_ASSETS:
-            raise ValidationError("asset", asset, f"unsupported on {self.chain!r}")
+            raise ValidationError("asset", asset, f"unsupported asset on {self.chain!r}")
         if asset not in _TOKEN_ADDRESSES.get(self.chain, {}):
-            raise ValidationError("asset", asset, f"unsupported on {self.chain!r}")
+            raise ValidationError("asset", asset, f"unsupported asset on {self.chain!r}")
         return asset
 
     def _vault_address(self, asset: str) -> str:

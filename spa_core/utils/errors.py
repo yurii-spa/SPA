@@ -177,9 +177,13 @@ class SourceError(SPAError):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class ValidationError(SPAError):
+class ValidationError(SPAError, ValueError):
     """
     Field-level validation failed.
+
+    Also a :class:`ValueError` — a failed field validation is conceptually an
+    invalid value, so ``except ValueError`` callers catch it too (existing
+    ``except ValidationError`` / ``except SPAError`` handlers are unaffected).
 
     Args:
         field:  Name of the field that failed validation.
