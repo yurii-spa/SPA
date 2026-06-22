@@ -200,12 +200,11 @@ class APYSpikeMonitor:
     def send_telegram_alert(self, spike: SpikeAlert) -> bool:
         """Send a yield-spike Telegram alert. Fail-safe (never raises)."""
         try:
-            from spa_core.alerts.telegram_client import send_message  # local import
-
+            import spa_core.alerts.telegram_client as _tc  # module ref — patchable in tests
             msg = self.format_alert(spike)
             # HTML parse_mode: protocol names contain '_' which Telegram's legacy
             # Markdown parser 400s on (see telegram_client docstring).
-            return send_message(msg, parse_mode="HTML")
+            return _tc.send_message(msg, parse_mode="HTML")
         except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
             log.warning("Telegram spike alert failed: %s", exc)
             return False
