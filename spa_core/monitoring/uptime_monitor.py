@@ -106,6 +106,9 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     "com.spa.checkpoint-7day":     ("logs/checkpoint_7day.log", 691200),  # weekly → 8 d
     "com.spa.weekly_backup":       (None, 0),   # backup target outside repo
     "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 129600),  # daily 05:00 → 86400*1.5 = 36h window
+    "com.spa.analytics_tier_b":    ("data/analytics_signals_advisory.json", 7200),  # hourly → 2h window
+    "com.spa.bts-feed":            ("data/perp_funding_rates.json", 3600),  # every 15 min → 1h window
+    "com.spa.bts-monitor":         ("data/basis_trade_opportunities.json", 3600),  # every 15 min → 1h window
     "com.spa.bot_commands":        (None, 0),  # KeepAlive long-poll → judged via launchctl
 }
 
