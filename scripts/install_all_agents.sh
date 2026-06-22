@@ -1,73 +1,207 @@
 #!/usr/bin/env bash
-# install_all_agents.sh — Install and load all SPA LaunchAgents
-# AGENT-001 fix (2026-06-22)
-#
-# Устанавливает:
-#   com.spa.rules_watchdog   — Policy Enforcer monitor (каждые 5 мин)
-#   com.spa.autopush         — Auto-push pending scripts (каждые 90 мин)
-#   com.spa.cycle_gap_monitor — Detect missed daily cycles (каждые 5 мин)
-#   com.spa.daily_cycle      — Daily paper trading at 08:00
+# install_all_agents.sh — Установка ВСЕХ критических SPA LaunchAgents
+# v1362 (2026-06-22) — полный список агентов, формат [OK]/[SKIP]/[FAIL]
 #
 # Запуск: bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh
+#
+# Агенты делятся на две группы:
+#   CRITICAL  — устанавливаются всегда, ошибка = сбой установки
+#   MONITORING — устанавливаются если plist существует, иначе [SKIP]
 
-set -euo pipefail
+set -uo pipefail  # -e убрано намеренно: каждый агент обрабатывается независимо
 
 LAUNCHD_DIR="$HOME/Library/LaunchAgents"
 REPO="/Users/yuriikulieshov/Documents/SPA_Claude"
 
-echo "=== SPA LaunchAgents Installer (AGENT-001) ==="
-echo ""
+# Счётчики и лог результатов
+declare -a RESULTS=()
+OK_COUNT=0
+SKIP_COUNT=0
+FAIL_COUNT=0
 
 mkdir -p "$LAUNCHD_DIR"
 
+# ---------------------------------------------------------------------------
+# install_agent <src_plist> <label> [optional]
+#   optional=1 → SKIP если файл не найден (вместо FAIL)
+# ---------------------------------------------------------------------------
 install_agent() {
     local src="$1"
     local label="$2"
-    local dst="$LAUNCHD_DIR/$label.plist"
+    local optional="${3:-0}"
+    local dst="$LAUNCHD_DIR/${label}.plist"
 
-    echo "--- $label ---"
+    # Файл не найден
+    if [[ ! -f "$src" ]]; then
+        if [[ "$optional" == "1" ]]; then
+            RESULTS+=("[SKIP] $label — plist not found: $src")
+            (( SKIP_COUNT++ )) || true
+        else
+            RESULTS+=("[FAIL] $label — plist not found (CRITICAL): $src")
+            (( FAIL_COUNT++ )) || true
+        fi
+        return
+    fi
 
-    # Unload if already loaded (ignore errors)
+    # Unload (игнорируем ошибки — агент мог быть не загружен)
     launchctl unload "$dst" 2>/dev/null || true
 
-    # Copy plist
-    cp "$src" "$dst"
-    echo "  Copied: $dst"
-
-    # Load
-    launchctl load "$dst"
-    echo "  Loaded ✓"
-
-    # Verify
-    if launchctl list | grep -q "$label"; then
-        PID=$(launchctl list | grep "$label" | awk '{print $1}')
-        echo "  Running: PID=$PID"
-    else
-        echo "  Loaded (not yet started — normal for calendar/interval triggers)"
+    # Копируем plist
+    if ! cp "$src" "$dst" 2>/tmp/_spa_install_err.tmp; then
+        local err
+        err=$(cat /tmp/_spa_install_err.tmp 2>/dev/null)
+        RESULTS+=("[FAIL] $label — cp failed: $err")
+        (( FAIL_COUNT++ )) || true
+        return
     fi
-    echo ""
+
+    # Загружаем
+    local load_err
+    if ! load_err=$(launchctl load "$dst" 2>&1); then
+        RESULTS+=("[FAIL] $label — load error: $load_err")
+        (( FAIL_COUNT++ )) || true
+        return
+    fi
+
+    # Небольшая пауза чтобы launchd успел обновить список
+    sleep 0.3
+
+    # Проверяем что агент появился в launchctl list
+    local entry
+    entry=$(launchctl list 2>/dev/null | grep -F "$label" || true)
+    if [[ -n "$entry" ]]; then
+        local pid
+        pid=$(echo "$entry" | awk '{print $1}')
+        if [[ "$pid" == "-" ]]; then
+            RESULTS+=("[OK] $label — loaded (no PID, waiting for trigger)")
+        else
+            RESULTS+=("[OK] $label — loaded (PID=$pid)")
+        fi
+        (( OK_COUNT++ )) || true
+    else
+        # Загрузился, но ещё не виден в list (редко, но возможно при calendar trigger)
+        RESULTS+=("[OK] $label — loaded (not yet in list — calendar/interval trigger normal)")
+        (( OK_COUNT++ )) || true
+    fi
 }
 
-# 1. Rules Watchdog — critical, runs every 5 min
-install_agent "$REPO/launchd/com.spa.rules_watchdog.plist" "com.spa.rules_watchdog"
+echo "=============================================="
+echo " SPA LaunchAgents Installer v1362 (2026-06-22)"
+echo "=============================================="
+echo ""
+echo "REPO:       $REPO"
+echo "LAUNCHD:    $LAUNCHD_DIR"
+echo ""
 
-# 2. Autopush — runs every 90 min, pushes pending scripts
-install_agent "$REPO/scripts/com.spa.autopush.plist" "com.spa.autopush"
+# ===========================================================================
+# ГРУППА 1: КРИТИЧЕСКИЕ (должны работать всегда)
+# ===========================================================================
+echo "--- CRITICAL agents ---"
 
-# 3. Cycle Gap Monitor — runs every 5 min, detects missed cycles
-install_agent "$REPO/scripts/com.spa.cycle_gap_monitor.plist" "com.spa.cycle_gap_monitor"
+# 1. Autopush — каждые 90 мин, пушит data-файлы в GitHub
+install_agent \
+    "$REPO/scripts/com.spa.autopush.plist" \
+    "com.spa.autopush"
 
-# 4. Daily Cycle — runs at 08:00, RunAtLoad=false so no immediate run
-install_agent "$REPO/scripts/com.spa.daily_cycle.plist" "com.spa.daily_cycle"
+# 2. Rules Watchdog — Policy Enforcer каждые 5 мин (plist в launchd/)
+install_agent \
+    "$REPO/launchd/com.spa.rules_watchdog.plist" \
+    "com.spa.rules_watchdog"
 
-echo "=== Status ==="
-launchctl list | grep "com.spa" || echo "No com.spa agents found"
+# 3. Cycle Gap Monitor — детект пропущенных циклов каждые 5 мин
+install_agent \
+    "$REPO/scripts/com.spa.cycle_gap_monitor.plist" \
+    "com.spa.cycle_gap_monitor"
+
+# 4. Daily Cycle — daily paper trading 08:00
+install_agent \
+    "$REPO/scripts/com.spa.daily_cycle.plist" \
+    "com.spa.daily_cycle"
+
+# 5. System Health Morning — health check утром 08:00
+install_agent \
+    "$REPO/scripts/com.spa.system_health_morning.plist" \
+    "com.spa.system_health_morning"
+
+# 6. System Health Evening — health check вечером 20:00
+install_agent \
+    "$REPO/scripts/com.spa.system_health_evening.plist" \
+    "com.spa.system_health_evening"
+
+# 7. Agent Health — мониторинг всех агентов (hourly)
+install_agent \
+    "$REPO/scripts/com.spa.agent_health.plist" \
+    "com.spa.agent_health"
+
+# 8. Tournament Engine — daily runner из launchd/ (09:00)
+install_agent \
+    "$REPO/launchd/com.spa.tournament_engine.plist" \
+    "com.spa.tournament_engine"
 
 echo ""
-echo "=== Logs ==="
-echo "  Watchdog:   tail -f /tmp/spa_watchdog.log"
-echo "  Autopush:   tail -f /tmp/spa_autopush.log"
-echo "  CycleGap:   tail -f /tmp/spa_cycle_gap_monitor.log"
-echo "  DailyCycle: tail -f $REPO/logs/launchd_stdout.log"
+echo "--- MONITORING agents (optional — skip if plist missing) ---"
+
+# 9. Cycle Health — мониторинг cycle_runner каждые 5 мин
+install_agent \
+    "$REPO/scripts/com.spa.cycle_health.plist" \
+    "com.spa.cycle_health" \
+    "1"
+
+# 10. Uptime Monitor — проверка launchd-сервисов и HTTP-сервера каждые 5 мин
+install_agent \
+    "$REPO/scripts/com.spa.uptime_monitor.plist" \
+    "com.spa.uptime_monitor" \
+    "1"
+
+# 11. Cloudflared — CF Tunnel (KeepAlive, если файл есть)
+install_agent \
+    "$REPO/scripts/com.spa.cloudflared.plist" \
+    "com.spa.cloudflared" \
+    "1"
+
+# 12. Morning Digest — Telegram digest 08:05 (после daily cycle)
+install_agent \
+    "$REPO/scripts/com.spa.morning_digest.plist" \
+    "com.spa.morning_digest" \
+    "1"
+
+# ===========================================================================
+# ИТОГОВАЯ ТАБЛИЦА
+# ===========================================================================
 echo ""
-echo "=== Done: all SPA agents installed and loaded ==="
+echo "=============================================="
+echo " РЕЗУЛЬТАТ УСТАНОВКИ"
+echo "=============================================="
+for line in "${RESULTS[@]}"; do
+    echo "  $line"
+done
+echo ""
+echo "  Итого: OK=$OK_COUNT  SKIP=$SKIP_COUNT  FAIL=$FAIL_COUNT"
+echo ""
+
+# Текущее состояние всех com.spa.* агентов
+echo "--- Текущий launchctl list (com.spa.*) ---"
+launchctl list 2>/dev/null | grep "com\.spa" | sort || echo "  (нет com.spa агентов)"
+echo ""
+
+echo "--- Логи ---"
+echo "  autopush:          tail -f /tmp/spa_autopush.log"
+echo "  rules_watchdog:    tail -f /tmp/spa_watchdog.log"
+echo "  cycle_gap_monitor: tail -f /tmp/spa_cycle_gap_monitor.log"
+echo "  daily_cycle:       tail -f $REPO/logs/launchd_stdout.log"
+echo "  system_health:     tail -f /tmp/spa_system_health_morning.log"
+echo "  agent_health:      tail -f /tmp/spa_agent_health.log"
+echo "  tournament_engine: tail -f /tmp/spa_tournament_engine.log"
+echo "  cycle_health:      tail -f /tmp/spa_cycle_health.log"
+echo "  uptime_monitor:    tail -f /tmp/spa_uptime_monitor.log"
+echo "  cloudflared:       tail -f /tmp/spa_cloudflared.log"
+echo "  morning_digest:    tail -f $REPO/logs/morning_digest_stdout.log"
+echo ""
+
+if [[ "$FAIL_COUNT" -gt 0 ]]; then
+    echo "⚠️  $FAIL_COUNT агент(ов) не установлено. Проверь plist-файлы выше."
+    exit 1
+else
+    echo "✅  Все агенты установлены успешно (FAIL=0)."
+    exit 0
+fi
