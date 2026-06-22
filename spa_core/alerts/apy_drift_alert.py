@@ -97,7 +97,7 @@ class APYDriftAlert(BaseAnalytics):
 
         self._data["alerts"] = alerts
         self._data["last_check"] = datetime.datetime.utcnow().isoformat()
-        self.save()
+        atomic_save(self._data, self._path(OUTPUT_PATH))
         return alerts
 
     # ------------------------------------------------------------------
