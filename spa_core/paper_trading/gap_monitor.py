@@ -18,6 +18,7 @@ STRICTLY READ-ONLY / paper trading only (SPA-BL-011): recovery лишь
 import json, os, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from spa_core.utils.atomic import atomic_save, atomic_load  # noqa: F401 — required by atomic migration policy
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 EQUITY_FILE = DATA_DIR / "equity_curve_daily.json"
@@ -32,6 +33,63 @@ ALERT_SOURCE = "gap_monitor"
 ALERT_TYPE = "cycle_gap"
 MAX_ALERTS = 200                # страховочный cap списка alerts
 
+def check_day_gaps(entries: list) -> dict:
+    """Проверить пропущенные дни в реальных (не warmup) записях equity curve.
+
+    Берёт все записи без is_warmup/is_seed, сортирует по дате и ищет
+    промежутки > 3 календарных дней (допускает пропуск выходных: Пт→Пн = 3 дня).
+
+    Args:
+        entries: список daily-баров из equity_curve_daily.json ["daily"].
+
+    Returns:
+        dict с ключами:
+            has_gaps     — True, если найден хотя бы один пропуск > 3 дней.
+            day_gaps     — список {"from": date, "to": date, "days_missed": int}.
+            start_date   — первая реальная дата (str ISO) или None.
+            days_count   — кол-во реальных дней.
+    """
+    from datetime import date as _date
+
+    real = [e for e in entries
+            if isinstance(e, dict)
+            and not e.get("is_warmup", False)
+            and not e.get("is_seed", False)]
+
+    dates: list[_date] = []
+    for e in real:
+        for k in ("date", "timestamp", "ts"):
+            v = e.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    dates.append(_date.fromisoformat(v[:10]))
+                    break
+                except ValueError:
+                    pass
+
+    dates = sorted(set(dates))
+
+    if not dates:
+        return {"has_gaps": False, "day_gaps": [], "start_date": None, "days_count": 0}
+
+    day_gaps = []
+    for i in range(1, len(dates)):
+        delta = (dates[i] - dates[i - 1]).days
+        if delta > 3:   # > 3 кал. дней — не укладывается в пропуск выходных
+            day_gaps.append({
+                "from": dates[i - 1].isoformat(),
+                "to": dates[i].isoformat(),
+                "days_missed": delta - 1,
+            })
+
+    return {
+        "has_gaps": bool(day_gaps),
+        "day_gaps": day_gaps,
+        "start_date": dates[0].isoformat(),
+        "days_count": len(dates),
+    }
+
+
 def check_gaps() -> dict:
     now = datetime.now(timezone.utc)
     result = {
@@ -40,7 +98,12 @@ def check_gaps() -> dict:
         "last_entry_date": None,
         "hours_since_last_entry": None,
         "status": "ok",
-        "message": ""
+        "message": "",
+        # --- поля детекции пропущенных дней (S0.1) ---
+        "has_gaps": False,
+        "day_gaps": [],
+        "start_date": None,
+        "days_count": 0,
     }
 
     if not EQUITY_FILE.exists():
@@ -64,12 +127,19 @@ def check_gaps() -> dict:
         entries = doc if isinstance(doc, list) else []
         default_demo = True
 
+    # Реальные записи: не demo И не warmup (S0.1: warmup исключены из трека)
     real = [e for e in entries
-            if isinstance(e, dict) and not e.get("is_demo", default_demo)]
+            if isinstance(e, dict)
+            and not e.get("is_demo", default_demo)
+            and not e.get("is_warmup", False)]
     if not real:
         result.update({"gap_detected": True, "status": "no_real_entries",
-                        "message": "Нет реальных (is_demo:false) записей"})
+                        "message": "Нет реальных (is_demo:false, is_warmup:false) записей"})
         return _finalize(result)
+
+    # --- S0.1: детекция пропущенных дней в истории трека ---
+    day_gap_info = check_day_gaps(real)
+    result.update(day_gap_info)
 
     # Последняя запись — по полю date или timestamp
     def parse_dt(e):
@@ -100,15 +170,22 @@ def check_gaps() -> dict:
             "status": "gap",
             "message": f"Последний бар {hours_ago:.1f}ч назад — цикл пропустил день"
         })
+    elif result["has_gaps"]:
+        # Исторические пропуски в треке — gap_detected=True (критически для GoLive)
+        n = len(result["day_gaps"])
+        result.update({
+            "gap_detected": True,
+            "status": "history_gap",
+            "message": f"Обнаружен(о) {n} пропуск(ов) в истории трека: {result['day_gaps']}",
+        })
     else:
         result.update({"status": "ok", "message": f"Последний бар {hours_ago:.1f}ч назад — норма"})
 
     return _finalize(result)
 
 def _write(data: dict):
-    tmp = GAP_STATUS_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2))
-    tmp.replace(GAP_STATUS_FILE)
+    # LLM FORBIDDEN — deterministic atomic write
+    atomic_save(data, str(GAP_STATUS_FILE))
 
 def _finalize(result: dict) -> dict:
     """MP-101: сохранить результат детекции, перенеся recovery-историю из
@@ -144,9 +221,8 @@ def _read_status() -> dict:
         return {}
 
 def _atomic_write_json(path: Path, obj) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2))
-    os.replace(tmp, path)
+    # LLM FORBIDDEN — delegate to canonical atomic_save
+    atomic_save(obj, str(path))
 
 def _load_alerts_doc() -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
