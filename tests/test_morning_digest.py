@@ -129,14 +129,16 @@ class TestGetEvidenceProgress(unittest.TestCase):
             self.assertIn("effective_cycles", result)
             self.assertIn("target", result)
 
-    def test_C2_counts_list_entries(self):
+    def test_C2_counts_only_honest_track_days(self):
+        # Dates 2026-06-01..06-14; only those >= PAPER_REAL_START (06-10) count
+        # as honest track days — pre-teardown demo bars are excluded.
         with tempfile.TemporaryDirectory() as tmp:
             tp = pathlib.Path(tmp)
             curve = [{"date": f"2026-06-{i:02d}", "equity": 100000} for i in range(1, 15)]
             _write_json(tp, "data/equity_curve_daily.json", curve)
             d = _make_digest(tp)
             result = d._get_evidence_progress()
-            self.assertEqual(result["effective_cycles"], 14.0)
+            self.assertEqual(result["effective_cycles"], 5.0)  # 06-10..06-14
 
     def test_C3_zero_when_no_file(self):
         with tempfile.TemporaryDirectory() as tmp:
