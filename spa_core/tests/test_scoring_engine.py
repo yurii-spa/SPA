@@ -497,7 +497,12 @@ def test_fetch_defillama_protocols_success(tmp_path):
         {"slug": "newcoin", "name": "NewCoin", "tvl": 100_000_000.0,
          "change_30d": 200.0, "audits": 1, "chain": "Solana"},
     ]
-    with patch("urllib.request.urlopen", return_value=_fake_urlopen(payload)):
+    # _fetch_defillama_protocols reads the local DeFiLlama cache snapshot (the
+    # adapter pipeline writes it) and merges it onto the bootstrap whitelist —
+    # it does not fetch live. Drive it by writing the payload to a temp cache.
+    cache = tmp_path / "defi_llama_cache.json"
+    cache.write_text(json.dumps(payload), encoding="utf-8")
+    with patch.object(se, "DEFILLAMA_CACHE_FILE", cache):
         out = eng._fetch_defillama_protocols(offline=False)
     assert "aave-v3" in out
     assert "newcoin" in out
@@ -552,7 +557,8 @@ def test_export_writes_file(offline_engine, tmp_path):
     assert "generated_at" in loaded
     assert loaded["engine_version"] == se.ENGINE_VERSION
     assert "weights" in loaded
-    assert len(loaded["weights"]) == 15
+    # 16 scoring dimensions (analytics_composite was added to the original 15).
+    assert len(loaded["weights"]) == 16
     assert "scores" in loaded
     assert len(loaded["scores"]) == len(se.SPA_WHITELIST)
     assert "summary_by_grade" in loaded

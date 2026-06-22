@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.init_db import init_database
 from paper_trading.engine import PaperTrader, RiskPolicyViolation, INITIAL_CAPITAL
 from risk.policy import RiskConfig
+from spa_core.utils.errors import SPAError
 
 
 # ─── Test helpers ─────────────────────────────────────────────────────────────
@@ -194,7 +195,7 @@ def test_open_blocked_unknown_protocol():
     raised = False
     try:
         trader.open_position("unknown-protocol-xyz", PCT_10, VALID_APY, VALID_TVL)
-    except ValueError:
+    except (ValueError, SPAError):  # engine raises RegistryError (a SPAError)
         raised = True
     assert raised
 run("Open::blocked_unknown_protocol", test_open_blocked_unknown_protocol)
@@ -235,7 +236,7 @@ def test_close_nonexistent_raises():
     raised = False
     try:
         trader.close_position(AAVE_USDC)
-    except ValueError:
+    except (ValueError, SPAError):  # engine raises SPAError("No open position ...")
         raised = True
     assert raised
 run("Close::nonexistent_raises_value_error", test_close_nonexistent_raises)
@@ -317,13 +318,13 @@ run("Status::var_positive_with_position", test_status_var_positive_with_position
 # ─── Tests: Risk policy integration ──────────────────────────────────────────
 
 def test_t2_total_limit_enforced():
-    """Суммарный лимит T2 (35%) должен блокировать новые T2 позиции."""
+    """Суммарный лимит T2 (50%, ADR-019) должен блокировать новые T2 позиции."""
     trader, _ = make_trader()
     trader.open_position(MAPLE_USDC, PCT_20, VALID_APY, VALID_TVL)   # 20% T2
-    trader.open_position(EULER_USDC, PCT_15, VALID_APY, VALID_TVL)   # 35% T2 (на лимите)
+    trader.open_position(EULER_USDC, PCT_15, VALID_APY, VALID_TVL)   # 35% T2
     raised = False
     try:
-        trader.open_position(YEARN_USDC, PCT_5, VALID_APY, VALID_TVL)  # +5% = 40% > 35% лимит
+        trader.open_position(YEARN_USDC, PCT_20, VALID_APY, VALID_TVL)  # +20% = 55% > 50% cap (ADR-019)
     except RiskPolicyViolation as e:
         raised = True
         assert any("T2 allocation" in v for v in e.result.violations)
