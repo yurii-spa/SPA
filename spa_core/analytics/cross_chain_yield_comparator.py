@@ -37,11 +37,11 @@ def _validate_opportunity(opp: Dict[str, Any]) -> None:
     if opp["apy"] < 0:
         raise ValueError(f"apy must be non-negative, got {opp['apy']}")
     if opp["bridge_cost_usd"] < 0:
-        raise ValueError(f"bridge_cost_usd must be non-negative")
+        raise ValueError("bridge_cost_usd must be non-negative")
     if opp["bridge_time_hours"] < 0:
-        raise ValueError(f"bridge_time_hours must be non-negative")
+        raise ValueError("bridge_time_hours must be non-negative")
     if opp["chain_gas_cost_daily_usd"] < 0:
-        raise ValueError(f"chain_gas_cost_daily_usd must be non-negative")
+        raise ValueError("chain_gas_cost_daily_usd must be non-negative")
 
 
 def _compute_net_apy(opp: Dict[str, Any], capital_usd: float) -> float:

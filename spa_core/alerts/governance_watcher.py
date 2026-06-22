@@ -892,7 +892,7 @@ if __name__ == "__main__":
 
     proposals = result.get("proposals", [])
     summary   = result.get("summary", {})
-    print(f"\n=== SPA Governance Watcher ===")
+    print("\n=== SPA Governance Watcher ===")
     print(f"Total proposals:  {summary.get('total_proposals', 0)}")
     print(f"Active:           {summary.get('active_count', 0)}")
     print(f"HIGH severity:    {summary.get('high_severity_count', 0)}")

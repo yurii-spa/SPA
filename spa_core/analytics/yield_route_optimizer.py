@@ -342,7 +342,7 @@ if __name__ == "__main__":
         risk_budget=args.risk_budget,
     )
 
-    print(f"\n=== YieldRouteOptimizer (MP-723) ===")
+    print("\n=== YieldRouteOptimizer (MP-723) ===")
     print(f"Capital:         ${route.total_capital_usd:,.0f}")
     print(f"Weighted APY:    {route.weighted_apy:.4f}%")
     print(f"Risk-Adj Return: {route.risk_adjusted_return:.4f}%")
@@ -351,7 +351,7 @@ if __name__ == "__main__":
     print(f"Improvement:     {route.improvement_vs_equal_pct:+.2f}%")
     print(f"Label:           {route.route_label}")
     print(f"Constraints met: {route.all_constraints_met}")
-    print(f"\nAllocations:")
+    print("\nAllocations:")
     for ra in route.allocations:
         print(f"  {ra.slot.name:20s}  {ra.allocated_pct:6.2f}%  ${ra.allocated_usd:>12,.0f}  yield ${ra.expected_yield_usd:,.0f}/yr")
 

@@ -616,4 +616,4 @@ if __name__ == "__main__":
     print(f"  Crisis survival:     {report['crisis_survival_rate']:.0%}")
 
     save_backtest_results(results)
-    print(f"\nResults saved to data/backtest_results_historical.json")
+    print("\nResults saved to data/backtest_results_historical.json")

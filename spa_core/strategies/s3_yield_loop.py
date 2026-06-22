@@ -217,7 +217,7 @@ class YieldLoopStrategy:
 
             lp = _LoopPosition(
                 loop_number=loop_num,
-                deposit_key=f"aave-v3-usdc-ethereum",
+                deposit_key="aave-v3-usdc-ethereum",
                 deposit_amount=current_deposit,
                 borrow_amount=borrow_amount,
                 deposit_apy=deposit_apy,

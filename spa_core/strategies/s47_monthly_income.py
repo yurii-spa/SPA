@@ -138,8 +138,8 @@ class MonthlyIncomeStrategy(AdapterAPYMixin):
             "adr_compliant":       t1_per_protocol_ok,
             "predictability_rank": dict(PREDICTABILITY),
             "risk_note": (
-                f"S47 Monthly Income: 100% T1, predictability-weighted "
-                f"(Sky 40% smoothest / Compound 35% / Aave 25%). Very low risk."
+                "S47 Monthly Income: 100% T1, predictability-weighted "
+                "(Sky 40% smoothest / Compound 35% / Aave 25%). Very low risk."
             ),
         }
 

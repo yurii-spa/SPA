@@ -612,18 +612,18 @@ def main() -> None:
     result = mt.run(data_dir=args.data_dir)
 
     print(f"\n{'='*60}")
-    print(f"Mass Tournament Results")
+    print("Mass Tournament Results")
     print(f"{'='*60}")
     print(f"Strategies tested : {result['strategies_tested']}")
     print(f"Strategies skipped: {result['strategies_skipped']}")
-    print(f"\nTop 5 by Sharpe ratio:")
+    print("\nTop 5 by Sharpe ratio:")
     for e in result["top_5"]:
         print(
             f"  #{e['rank']:2d}  {e['id']:<38s}  "
             f"Sharpe={e['sharpe']:7.3f}  APY={e['annual_return_pct']:5.2f}%  "
             f"MaxDD={e['max_dd_pct']:.4f}%"
         )
-    print(f"\nBottom 5 by Sharpe ratio:")
+    print("\nBottom 5 by Sharpe ratio:")
     for e in result["bottom_5"]:
         print(
             f"  #{e['rank']:2d}  {e['id']:<38s}  "
@@ -633,7 +633,7 @@ def main() -> None:
     print(f"\nSkipped strategies ({result['strategies_skipped']}):")
     for sid, reason in sorted(result["skip_reasons"].items()):
         print(f"  {sid:<38s}  {reason}")
-    print(f"\nSaved → data/mass_tournament_results.json")
+    print("\nSaved → data/mass_tournament_results.json")
 
 
 if __name__ == "__main__":

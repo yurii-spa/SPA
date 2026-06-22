@@ -396,7 +396,7 @@ def _demo_schedules() -> List[FarmingSchedule]:
 
 def _print_report(report: CalendarReport) -> None:
     print(f"\n{'='*60}")
-    print(f"  YieldFarmingCalendar — MP-725")
+    print("  YieldFarmingCalendar — MP-725")
     print(f"  Date: {report.today_iso}  Schedules: {len(report.schedules)}")
     print(f"{'='*60}")
     print(f"  Total events      : {len(report.events)}")
@@ -405,11 +405,11 @@ def _print_report(report: CalendarReport) -> None:
     print(f"  Total at-risk APY : {report.total_at_risk_apy:.2f}%")
     print(f"  Highest urgency   : {report.highest_urgency}")
     if report.recommendations:
-        print(f"\n  Recommendations:")
+        print("\n  Recommendations:")
         for r in report.recommendations:
             print(f"    ➜ {r}")
     if report.events:
-        print(f"\n  Upcoming events:")
+        print("\n  Upcoming events:")
         for e in report.events[:10]:
             print(f"    [{e.impact:8s}] D+{e.days_until:3d}  {e.event_type}  "
                   f"{e.protocol}/{e.pool}  APY Δ{e.apy_impact_pct:+.2f}%")

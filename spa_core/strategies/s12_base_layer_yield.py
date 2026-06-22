@@ -293,7 +293,7 @@ if __name__ == "__main__":
     print(f"APY (blended): {result['apy_pct']:.2f}%")
     print(f"Phase 2      : {result['phase2_active']}")
     print(f"Gas KS       : {result['gas_kill_switch']}")
-    print(f"Weights      :")
+    print("Weights      :")
     for adapter, w in result["weights"].items():
         print(f"  {adapter:<30} {w*100:.0f}%")
     print()

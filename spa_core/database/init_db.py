@@ -406,7 +406,7 @@ if __name__ == "__main__":
     else:
         init_database(reset=args.reset)
         stats = check_database()
-        print(f"\nDatabase stats:")
+        print("\nDatabase stats:")
         print(f"  Path:            {stats['path']}")
         print(f"  Size:            {stats.get('size_mb', '?')} MB")
         print(f"  Protocols:       {stats.get('protocols', 0)}")

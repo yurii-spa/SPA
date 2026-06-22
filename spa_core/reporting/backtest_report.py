@@ -103,8 +103,8 @@ class BacktestReport(BaseReport):
 
         summary = r.get("summary", {})
         lines += [
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| Annualised Return | {summary.get('annualized_return', 'N/A')} |",
             f"| Volatility (ann.) | {summary.get('volatility', 'N/A')} |",
             f"| Sharpe Ratio      | {summary.get('sharpe_ratio', 'N/A')} |",

@@ -228,7 +228,7 @@ class PreExecutionSafety:
         return SafetyCheckResult(
             passed=True,
             check_name="RiskPolicy",
-            details=f"Basic checks passed (RiskPolicy module not available — whitelist OK)",
+            details="Basic checks passed (RiskPolicy module not available — whitelist OK)",
             blocking=True,
             severity="WARN",
             value=amount_usd,

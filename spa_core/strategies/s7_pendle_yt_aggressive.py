@@ -383,7 +383,6 @@ class S7PendleYTAggressive:
             "cash_usd":        0.0,
             "weighted_apy":    round(weighted_apy, 6),
             "weighted_apy_expected": WEIGHTED_APY,
-            "risk_score":      round(RISK_SCORE, 6),
             "max_drawdown_pct": MAX_DRAWDOWN_PCT,
             "min_yt_apy_pct":  MIN_YT_APY_PCT,
             "max_yt_allocation": MAX_YT_ALLOCATION,

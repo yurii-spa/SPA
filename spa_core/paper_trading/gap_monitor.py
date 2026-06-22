@@ -147,7 +147,7 @@ def check_gaps() -> dict:
             if k in e:
                 try:
                     return datetime.fromisoformat(e[k].replace("Z", "+00:00"))
-                except:
+                except Exception:
                     pass
         return None
 

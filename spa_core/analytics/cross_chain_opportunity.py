@@ -618,7 +618,7 @@ def _main(argv: Optional[List[str]] = None) -> int:
 
     top = analyzer.get_top_opportunity()
     if top:
-        print(f"\nTop opportunity details:")
+        print("\nTop opportunity details:")
         print(f"  {top.from_chain} → {top.to_chain}")
         print(f"  from_adapter : {top.from_adapter} @ {top.from_apy_pct:.2f}%")
         print(f"  to_adapter   : {top.to_adapter} @ {top.to_apy_pct:.2f}%")

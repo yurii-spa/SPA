@@ -177,15 +177,15 @@ def _send_verdict_change_alert(
         curr_emoji = emoji_map.get(current_verdict, "❓")
 
         lines = [
-            f"<b>🔔 Go-Live Verdict Changed</b>",
+            "<b>🔔 Go-Live Verdict Changed</b>",
             f"{prev_emoji} {previous_verdict or 'UNKNOWN'} → {curr_emoji} {current_verdict}",
-            f"",
+            "",
             f"📊 Criteria: {passed}/{total} passing",
             f"📅 Days until target: {dr}",
         ]
         if blocking:
             lines += [
-                f"",
+                "",
                 f"⛔ Blocking: {', '.join(blocking)}",
             ]
         if current_verdict == "READY":

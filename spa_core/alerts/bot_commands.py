@@ -434,7 +434,7 @@ def _cmd_year_text() -> str:
 
     return "\n".join(
         [
-            f"🗓 *С начала года*",
+            "🗓 *С начала года*",
             f"Equity: ${eq_from:,.0f} → ${equity_now:,.0f}",
             ret_label,
             f"Annualized: {ann_sign}{ann_pct:.2f}%",

@@ -586,7 +586,7 @@ def _main(argv: Optional[List[str]] = None) -> int:
         "LAGGING": "⚠️",
     }.get(report.verdict, "📊")
 
-    print(f"=== BenchmarkTracker Report (MP-607) ===")
+    print("=== BenchmarkTracker Report (MP-607) ===")
     print(f"Generated:   {report.generated_at}")
     print(f"Portfolio:   APY={report.portfolio_apy_pct:.4f}%  "
           f"allocated=${report.portfolio_allocated_usd:,.2f}")

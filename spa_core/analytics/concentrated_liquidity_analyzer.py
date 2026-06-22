@@ -331,7 +331,7 @@ def _print_analysis(a: CLAnalysis) -> None:
     pos = a.position
     pr = pos.price_range
     print(f"\n{'='*60}")
-    print(f"  ConcentratedLiquidityAnalyzer — MP-724")
+    print("  ConcentratedLiquidityAnalyzer — MP-724")
     print(f"  Pair: {pos.token_a}/{pos.token_b}  Fee: {pos.fee_tier}%")
     print(f"  Range: [{pr.lower_tick_price:,.2f} – {pr.upper_tick_price:,.2f}]  "
           f"Current: {pr.current_price:,.2f}")

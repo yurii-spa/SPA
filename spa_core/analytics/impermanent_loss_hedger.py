@@ -341,7 +341,7 @@ if __name__ == "__main__":
         yield_apy=args.yield_apy,
     )
 
-    print(f"\n=== ImpermanentLossHedger (MP-722) ===")
+    print("\n=== ImpermanentLossHedger (MP-722) ===")
     print(f"Pair:          {result.il_calc.token_a}/{result.il_calc.token_b}")
     print(f"IL:            {result.il_calc.il_pct:.4f}% ({result.il_calc.severity})")
     print(f"IL (USD):      ${result.il_calc.il_usd:,.2f}")

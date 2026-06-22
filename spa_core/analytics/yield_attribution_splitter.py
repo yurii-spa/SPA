@@ -374,7 +374,7 @@ if __name__ == "__main__":
     ]
     summary = splitter.split(sample)
 
-    print(f"\n=== Yield Attribution Splitter (MP-773) ===")
+    print("\n=== Yield Attribution Splitter (MP-773) ===")
     print(f"Portfolio grade      : {summary.portfolio_attribution_grade}")
     print(f"Avg sustainability   : {summary.portfolio_avg_sustainability_score:.1f}%")
     print(f"Sustainable protocols: {summary.sustainable_protocols}")

@@ -281,7 +281,7 @@ def _cli() -> None:
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return
 
-    print(f"=== APY Milestone Tracker ===")
+    print("=== APY Milestone Tracker ===")
     print(f"Start date   : {report['start_date']}")
     print(f"Last updated : {report['last_updated']}")
     print(f"Days recorded: {report['days_recorded']}")

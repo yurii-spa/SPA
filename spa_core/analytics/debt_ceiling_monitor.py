@@ -301,7 +301,7 @@ if __name__ == "__main__":
     ]
     result = mon.monitor(sample)
 
-    print(f"\n=== Debt Ceiling Monitor (MP-772) ===")
+    print("\n=== Debt Ceiling Monitor (MP-772) ===")
     print(f"Portfolio headroom: {result.portfolio_headroom_pct:.1f}%")
     print(f"At-risk protocols : {result.at_risk_protocols or 'none'}")
     print()

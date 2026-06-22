@@ -507,7 +507,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"Recorded: {entry.tx_hash}, cost=${entry.cost_usd:.4f}")
 
     report = tracker.generate_report(days=30, gross_apy=5.0, capital_usd=100_000.0)
-    print(f"=== Gas Cost Tracker (MP-624) ===")
+    print("=== Gas Cost Tracker (MP-624) ===")
     print(f"  window_days      : {report['summary']['window_days']}")
     print(f"  total_cost_usd   : ${report['summary']['total_cost_usd']:.4f}")
     print(f"  tx_count         : {report['summary']['tx_count']}")

@@ -730,8 +730,8 @@ class ResearchSummaryReport(BaseAnalytics):
         lines += [
             "## 1. Executive Summary",
             "",
-            f"| KPI | Value |",
-            f"|-----|-------|",
+            "| KPI | Value |",
+            "|-----|-------|",
             f"| RS-001 Target APY (blended) | **{ex.get('rs001_target_apy', 'N/A')}%** |",
             f"| RS-002 Target Gross APY | **{ex.get('rs002_target_gross_apy', 'N/A')}%** |",
             f"| RS-002 Net APY Range (after IL) | **{ex.get('rs002_net_apy_range', 'N/A')}%** |",
@@ -884,8 +884,8 @@ class ResearchSummaryReport(BaseAnalytics):
         ]
         summary = sq.get("summary", {})
         lines += [
-            f"| Metric | Count |",
-            f"|--------|-------|",
+            "| Metric | Count |",
+            "|--------|-------|",
             f"| Total sources | {summary.get('total_sources', 0)} |",
             f"| CLEAN | {summary.get('clean_count', 0)} |",
             f"| RESEARCH | {summary.get('research_count', 0)} |",

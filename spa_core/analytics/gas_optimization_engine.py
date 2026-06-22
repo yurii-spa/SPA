@@ -247,7 +247,7 @@ class GasOptimizationEngine:
             )
         elif urgency == URGENCY_LOW and base_fee_gwei > THRESH_BATCH_LOW:
             reasons.append(
-                f"Low urgency + elevated gas: batch this transaction with upcoming operations"
+                "Low urgency + elevated gas: batch this transaction with upcoming operations"
             )
         return reasons
 

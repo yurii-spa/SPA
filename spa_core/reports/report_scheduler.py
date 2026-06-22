@@ -52,7 +52,7 @@ def generate_latest_report(data_dir: str, output_dir: str) -> str:
             status = json.loads(status_file.read_text())
             portfolio = status.get("portfolio", {}) or {}
             positions = status.get("positions", []) or []
-            log.info(f"Loaded portfolio from status.json")
+            log.info("Loaded portfolio from status.json")
         except Exception as e:
             log.warning(f"Could not read status.json: {e}")
     else:

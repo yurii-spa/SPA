@@ -584,7 +584,7 @@ def push_all(token: str, project_root: str) -> None:
     print(f"Commits: {pushed}  (one per file — GitHub API limitation)")
     print(f"Repo:      https://github.com/{REPO_OWNER}/{REPO_NAME}")
     print(f"Dashboard: https://{REPO_OWNER}.github.io/{REPO_NAME}/")
-    print(f"GitHub Actions: workflow will trigger on next cron (every 4h)")
+    print("GitHub Actions: workflow will trigger on next cron (every 4h)")
     print(f"{'═'*60}\n")
 
 

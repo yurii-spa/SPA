@@ -685,7 +685,7 @@ def _main(argv: Optional[List[str]] = None) -> int:
     reporter = CapitalEfficiencyReport(data_path=args.data_dir)
     report = reporter.generate_report()
 
-    print(f"=== Capital Efficiency Report (MP-616) ===")
+    print("=== Capital Efficiency Report (MP-616) ===")
     print(f"Generated:       {report.generated_at}")
     print(f"Total capital:   ${report.total_capital_usd:,.2f}")
     print(f"Deployed:        ${report.deployed_capital_usd:,.2f} ({report.deployment_rate_pct:.2f}%)")

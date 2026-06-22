@@ -574,7 +574,7 @@ class TestFingerprint(unittest.TestCase):
             "available": True,
             "verdict": "ok",
             "n_protocols": 2,
-            f"_tag": tag,
+            "_tag": tag,
             "meta": {"generated_at": "2026-01-01T00:00:00+00:00", "source": "test"},
         }
 

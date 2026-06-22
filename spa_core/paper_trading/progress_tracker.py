@@ -381,7 +381,7 @@ def run_progress_tracker(
 def _print_report(report: dict) -> None:
     """Pretty-print the progress report to stdout."""
     print("─" * 64)
-    print(f"SPA Analytics Confidence Progress Tracker  (MP-141)")
+    print("SPA Analytics Confidence Progress Tracker  (MP-141)")
     print("─" * 64)
     print(f"  available         : {report.get('available')}")
     print(f"  paper_days        : {report.get('paper_days')}")

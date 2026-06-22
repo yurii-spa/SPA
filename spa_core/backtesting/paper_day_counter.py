@@ -298,10 +298,10 @@ class PaperDayCounter(BaseAnalytics):
             lines.append("")
             lines.append("Evidence Points")
             lines.append("────────────────────")
-            lines.append(f"Accumulated:  0.0 pts")
+            lines.append("Accumulated:  0.0 pts")
             lines.append(f"Required:     {self.EVIDENCE_REQUIRED:.1f} pts")
-            lines.append(f"Progress:     0.0%")
-            lines.append(f"ETA:          N/A (not started)")
+            lines.append("Progress:     0.0%")
+            lines.append("ETA:          N/A (not started)")
             return "\n".join(lines)
 
         start_date = state.get("start_date", "?") if state else "?"  # type: ignore[union-attr]

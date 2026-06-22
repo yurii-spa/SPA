@@ -391,11 +391,11 @@ def load_history(data_dir: Optional[Path] = None) -> list:
 # ---------------------------------------------------------------------------
 
 def _print_report(report: SustainabilityReport) -> None:
-    print(f"\n=== YieldSustainabilityIndex ===")
+    print("\n=== YieldSustainabilityIndex ===")
     print(f"  Protocol  : {report.protocol} / {report.pool}")
     print(f"  Index     : {report.sustainability_index:.1f}/100  [{report.grade}] — {report.label}")
     print(f"  Confidence: {report.invest_confidence}")
-    print(f"  Sub-scores:")
+    print("  Sub-scores:")
     print(f"    Real yield   : {report.real_yield_score:.0f}/25")
     print(f"    Maturity     : {report.maturity_score:.0f}/25")
     print(f"    Security     : {report.security_score:.0f}/25")

@@ -825,7 +825,7 @@ def _cli_main(argv: Optional[List[str]] = None) -> int:
     reg = ProtocolRegistry(data_dir=args.data_dir)
     report = reg.get_registry_report()
 
-    print(f"=== SPA Protocol Registry (MP-583) ===")
+    print("=== SPA Protocol Registry (MP-583) ===")
     print(f"Reference date : {report['reference_date']}")
     print(f"Protocol count : {report['protocol_count']}")
     print()

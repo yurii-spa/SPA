@@ -234,7 +234,7 @@ run("Payload::nested_and_unicode_preserved", test_payload_preserved)
 # ─── Report ───────────────────────────────────────────────────────────────────
 
 print(f"\n{'═'*62}")
-print(f"  SPA Message Bus (M4) — Test Suite")
+print("  SPA Message Bus (M4) — Test Suite")
 print(f"{'═'*62}")
 for line in _log:
     print(line)

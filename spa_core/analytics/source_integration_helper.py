@@ -216,8 +216,8 @@ def fetch_{sanitized_name}_apy(timeout: int = 10) -> dict:
                 f"and record the Pool ID."
             ),
             (
-                f"[ ] Step 2 — VERIFY: Confirm the pool has live history via "
-                f"`https://yields.llama.fi/chart/<POOL_ID>` (expect ≥ 30 data points)."
+                "[ ] Step 2 — VERIFY: Confirm the pool has live history via "
+                "`https://yields.llama.fi/chart/<POOL_ID>` (expect ≥ 30 data points)."
             ),
             (
                 f"[ ] Step 3 — IMPLEMENT: Add `DEFILLAMA_POOL_ID` constant and "
@@ -225,9 +225,9 @@ def fetch_{sanitized_name}_apy(timeout: int = 10) -> dict:
                 f"`spa_core/adapters/`. Stdlib only, no external deps."
             ),
             (
-                f"[ ] Step 4 — REGISTER: Add the adapter to `ADAPTER_REGISTRY` in "
-                f"`spa_core/adapters/__init__.py` and run a dry-run cycle: "
-                f"`python3 -m spa_core.paper_trading.cycle_runner --verbose`."
+                "[ ] Step 4 — REGISTER: Add the adapter to `ADAPTER_REGISTRY` in "
+                "`spa_core/adapters/__init__.py` and run a dry-run cycle: "
+                "`python3 -m spa_core.paper_trading.cycle_runner --verbose`."
             ),
             (
                 f"[ ] Step 5 — TRACK: Call `update_source_pipeline('{source_id}', "

@@ -458,7 +458,7 @@ if __name__ == "__main__":
         b = result.get("depeg_failure_boundary", {})
         print(f"Depeg boundary  : {b.get('boundary_value', '?'):.4f} ({b.get('status')})")
         print(f"LLM_FORBIDDEN   : {result['LLM_FORBIDDEN']}")
-        print(f"Output          : data/bee/failure_boundary.json")
+        print("Output          : data/bee/failure_boundary.json")
     else:
         # --check (default): вычислить без записи
         import tempfile

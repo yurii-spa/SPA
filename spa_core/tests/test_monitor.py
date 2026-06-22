@@ -214,7 +214,7 @@ run("Alert::str_format_no_protocol", test_alert_str_no_protocol)
 # ─── Report ───────────────────────────────────────────────────────────────────
 
 print(f"\n{'═'*62}")
-print(f"  SPA Monitor (M3) — Test Suite")
+print("  SPA Monitor (M3) — Test Suite")
 print(f"{'═'*62}")
 for line in _log:
     print(line)

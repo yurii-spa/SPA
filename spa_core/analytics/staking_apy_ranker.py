@@ -285,5 +285,5 @@ if __name__ == "__main__":
 
     print(json.dumps(result, indent=2))
     if save_flag:
-        print(f"\n[MP-801] Logged to staking_apy_ranking_log.json", file=sys.stderr)
+        print("\n[MP-801] Logged to staking_apy_ranking_log.json", file=sys.stderr)
     sys.exit(0)

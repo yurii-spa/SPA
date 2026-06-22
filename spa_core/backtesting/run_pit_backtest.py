@@ -289,7 +289,7 @@ class PITBacktestRunner:
             "",
             f"**Period:** {period['start']} → {period['end']}",
             f"**Initial Capital:** ${self._initial_capital:,.0f}",
-            f"**Engine:** PITEngine (point-in-time filtered)",
+            "**Engine:** PITEngine (point-in-time filtered)",
             "",
             "## Performance Metrics",
             "",

@@ -948,7 +948,7 @@ class PaperTrader:
 
         # Positions
         if s["positions"]:
-            print(f"\n  📊 Positions:")
+            print("\n  📊 Positions:")
             print(f"     {'Protocol':<35} {'Tier':<4} {'$Amount':>9} {'APY':>6} {'PnL':>9}")
             print(f"     {'─'*68}")
             for pos in s["positions"]:
@@ -957,7 +957,7 @@ class PaperTrader:
                       f"${pos['amount_usd']:>8,.0f} {pos['current_apy']:>5.2f}% "
                       f"{sign}${pos['unrealized_pnl_usd']:>7.2f}")
         else:
-            print(f"\n  📊 Positions: none")
+            print("\n  📊 Positions: none")
 
         # Risk
         health_icon = "✅" if r["health_approved"] else "🚨"
@@ -975,7 +975,7 @@ class PaperTrader:
             weeks_left = pt["min_weeks_required"] - pt["weeks_elapsed"]
             print(f"     {weeks_left:.1f} weeks until Go-Live eligible")
         else:
-            print(f"     ✅ Go-Live eligible (ADR required)")
+            print("     ✅ Go-Live eligible (ADR required)")
 
         print(f"\n{'═'*60}\n")
 

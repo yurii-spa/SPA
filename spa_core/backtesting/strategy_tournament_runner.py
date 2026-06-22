@@ -375,7 +375,7 @@ def main() -> None:
     )
     result = runner.run(top_n=args.top_n)
 
-    print(f"\nStrategy Tournament written to data/strategy_tournament.json")
+    print("\nStrategy Tournament written to data/strategy_tournament.json")
     print(f"Total strategies ranked: {result['total_strategies']}")
     print(f"Shadow-active (top {args.top_n}):")
     for s in result["shadow_active_strategies"]:

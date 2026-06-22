@@ -260,7 +260,7 @@ def _build_recommendations(
 
     if emission_schedule_years_remaining > 0 and emission_schedule_years_remaining < 1.0:
         recs.append(
-            f"Emissions end in < 1 year; real yield importance increases soon."
+            "Emissions end in < 1 year; real yield importance increases soon."
         )
     elif emission_schedule_years_remaining > 8.0 and dilution_ratio > 2.0:
         recs.append(

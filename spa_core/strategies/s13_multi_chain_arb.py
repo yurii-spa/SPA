@@ -328,7 +328,7 @@ if __name__ == "__main__":
     print(f"APY (blended): {result['apy_pct']:.2f}%")
     print(f"Best chain   : {result['best_chain']}")
     print(f"Chain yields : {result['chain_spreads']}")
-    print(f"Allocation   :")
+    print("Allocation   :")
     for adapter, w in result["allocation_pct"].items():
         print(f"  {adapter:<30} {w*100:.1f}%")
     print()

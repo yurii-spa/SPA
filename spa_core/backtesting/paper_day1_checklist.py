@@ -197,7 +197,7 @@ class PaperDay1Checklist:
             missing.append(str(logs_dir))
         if missing:
             return _fail(f"Missing directories: {', '.join(missing)}")
-        return _ok(f"data/ ✓  logs/ ✓")
+        return _ok("data/ ✓  logs/ ✓")
 
     def check_kill_switch(self) -> Dict[str, Any]:
         """

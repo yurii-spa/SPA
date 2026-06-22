@@ -295,7 +295,7 @@ class T1DataVerifier(BaseAnalytics):
 
         lines = [
             "# T1 Clean Data Verification Report (MP-1394)",
-            f"",
+            "",
             f"**Generated:** {now}  ",
             f"**Total:** {len(results)}  |  ✅ PASS: {pass_count}  |  ⚠️ WARN: {warn_count}  |  ❌ FAIL: {fail_count}",
             "",

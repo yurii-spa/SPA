@@ -271,7 +271,7 @@ def build_exit_liquidity(
                 val = _num(usd)
                 slug = normalize_protocol(proto)
                 if not slug:
-                    notes.append(f"skipped position with empty protocol name")
+                    notes.append("skipped position with empty protocol name")
                     continue
                 if val is None:
                     notes.append(f"{slug}: non-numeric position value — skipped")

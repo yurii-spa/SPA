@@ -144,7 +144,7 @@ class HealthCheck:
 
         # ── Portfolio ──────────────────────────────────────────────────────────
         pnl_sign = "+" if p["total_pnl_usd"] >= 0 else ""
-        print(f"\n  💰 PORTFOLIO")
+        print("\n  💰 PORTFOLIO")
         print(f"     Capital:   ${p['total_capital_usd']:>10,.2f}")
         print(f"     Deployed:  ${p['deployed_usd']:>10,.2f}   ({1-p['cash_pct']:.0%})")
         print(f"     Cash:      ${p['cash_usd']:>10,.2f}   ({p['cash_pct']:.0%})")
@@ -159,7 +159,7 @@ class HealthCheck:
         # ── Positions ──────────────────────────────────────────────────────────
         positions = r["portfolio"]["positions"]
         if positions:
-            print(f"\n  📊 POSITIONS")
+            print("\n  📊 POSITIONS")
             print(f"     {'Protocol':<35} {'Tier':<4} {'$Amount':>9} {'APY':>6} {'PnL':>9} {'Days':>5}")
             print(f"     {'─'*72}")
             for pos in positions:
@@ -168,7 +168,7 @@ class HealthCheck:
                       f"${pos['amount_usd']:>8,.0f} {pos['current_apy']:>5.2f}% "
                       f"{sign}${pos['unrealized_pnl_usd']:>7.2f} {pos['days_held']:>5.1f}d")
         else:
-            print(f"\n  📊 POSITIONS: none")
+            print("\n  📊 POSITIONS: none")
 
         # ── Market Data ────────────────────────────────────────────────────────
         if mkt["snapshots"]:
@@ -190,14 +190,14 @@ class HealthCheck:
                 proto = f"[{a['protocol_key']}] " if a["protocol_key"] else ""
                 print(f"     {icon} {proto}{a['message']}")
         else:
-            print(f"\n  🔔 ALERTS: none — all clear")
+            print("\n  🔔 ALERTS: none — all clear")
 
         # ── Paper Trading Clock ────────────────────────────────────────────────
         clock_icon = "✅" if pt["go_live_ready"] else "⏳"
         print(f"\n  {clock_icon} PAPER TRADING CLOCK")
         print(f"     Week {pt['weeks_elapsed']:.1f} / {pt['min_weeks_required']} required")
         if pt["go_live_ready"]:
-            print(f"     ✅ Eligible for Go-Live (requires ADR + Owner approval)")
+            print("     ✅ Eligible for Go-Live (requires ADR + Owner approval)")
         else:
             weeks_left = pt["min_weeks_required"] - pt["weeks_elapsed"]
             print(f"     ⏳ {weeks_left:.1f} weeks remaining")

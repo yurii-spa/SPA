@@ -359,7 +359,7 @@ run("AutoAllocate::no_data_returns_no_op", test_auto_allocate_no_data_returns_no
 # ─── Report ───────────────────────────────────────────────────────────────────
 
 print(f"\n{'═'*62}")
-print(f"  SPA Paper Trading — Test Suite")
+print("  SPA Paper Trading — Test Suite")
 print(f"{'═'*62}")
 for line in _log:
     print(line)

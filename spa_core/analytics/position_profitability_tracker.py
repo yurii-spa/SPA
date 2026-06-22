@@ -300,7 +300,7 @@ def load_history(data_dir: Optional[Path] = None) -> list:
 # ---------------------------------------------------------------------------
 
 def _print_report(report: ProfitabilityReport) -> None:
-    print(f"\n=== PositionProfitabilityTracker ===")
+    print("\n=== PositionProfitabilityTracker ===")
     print(f"  Protocol    : {report.protocol} / {report.pool}")
     print(f"  Entry       : ${report.entry_value_usd:,.2f}  on {report.entry_timestamp_iso[:10]}")
     print(f"  Current     : ${report.current_position_value_usd:,.2f}  on {report.current_timestamp_iso[:10]}")

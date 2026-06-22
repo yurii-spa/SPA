@@ -257,7 +257,7 @@ class TestEtaDate(unittest.TestCase):
     def test_eta_date_is_today_when_reached(self):
         ms = self._ms(90)
         for m in ms.values():
-            self.assertEqual(m["eta_date"], self.today, f"reached milestone has wrong eta_date")
+            self.assertEqual(m["eta_date"], self.today, "reached milestone has wrong eta_date")
 
 
 # ---------------------------------------------------------------------------

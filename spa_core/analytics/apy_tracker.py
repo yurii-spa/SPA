@@ -31,7 +31,7 @@ class APYTracker(BaseAnalytics):
         if self.history_file.exists():
             try:
                 return json.loads(self.history_file.read_text())
-            except:
+            except Exception:
                 pass
         return {"protocol_history": {}, "last_updated": None}
 

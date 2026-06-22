@@ -216,7 +216,7 @@ def _main() -> int:  # pragma: no cover
     remaining = result["raw_connects_remaining"]
     files_checked = result["files_checked"]
 
-    print(f"BL-008 Phase 2 — call-site migration verification")
+    print("BL-008 Phase 2 — call-site migration verification")
     print(f"  Files checked : {files_checked}")
     print(f"  Raw connects  : {remaining}")
 

@@ -233,7 +233,7 @@ class TournamentChampionStrategy(AdapterAPYMixin):
             "t1_weight_pct":    round(t1 * 100.0, 2),
             "t2_weight_pct":    round(t2 * 100.0, 2),
             "risk_note": (
-                f"S50 Tournament Champion: "
+                "S50 Tournament Champion: "
                 + (f"copying leader '{leader_id}' weights (T1={t1*100:.0f}% T2={t2*100:.0f}%)."
                    if following else
                    "no resolvable leader → S0 equal-weight fallback (100% T1).")

@@ -79,7 +79,7 @@ class AllocationDecision:
     def summary(self) -> str:
         """Human-readable summary for logs."""
         lines = [
-            f"v3_pendle_focused allocation:",
+            "v3_pendle_focused allocation:",
             f"  Pendle PT: ${self.pendle_amount:,.0f} "
             f"({self.pendle_pool['symbol'] if self.pendle_pool else 'none'} "
             f"@ {self.pendle_pool['apy']:.2f}% APY)" if self.pendle_pool else "  Pendle PT: $0 (no eligible pool)",
