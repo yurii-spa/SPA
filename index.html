@@ -1759,7 +1759,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <button class="tab-btn"         onclick="showTab('evidence',   this)">🔬 Evidence</button>
   <button class="tab-btn" style="display:none" data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
   <button class="tab-btn" style="display:none" data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
-  <button class="tab-btn" style="display:none" data-tab="tournament"  onclick="showTab('tournament', this)">🏆 Tournament</button>
+  <a class="tab-btn" href="docs/tournament.html" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">🏆 Tournament <span style="font-size:9px;opacity:0.55">↗</span></a>
   <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
   <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
   <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
@@ -5444,12 +5444,7 @@ async function loadBacktest() {
     const res = await fetch(dataBase + '/backtest_results_real.json?_=' + Date.now());
     if (res.ok) { data = await res.json(); isReal = true; }
   } catch (_) {}
-  if (!data) {
-    try {
-      const res = await fetch(dataBase + '/backtest_results.json?_=' + Date.now());
-      if (res.ok) data = await res.json();
-    } catch (_) {}
-  }
+  // No fallback to demo data — show placeholder if real data unavailable.
 
   const badge = document.getElementById('backtest-source-badge');
   const sub   = document.getElementById('backtest-subtitle');
