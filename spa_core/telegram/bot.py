@@ -412,12 +412,51 @@ class TelegramBot:
                 self.send_message("📊 <b>Portfolio</b>\n\nНет открытых позиций.", chat_id)
                 return
 
+            # ── Policy validation before display ─────────────────────────────
+            try:
+                from spa_core.risk.policy_enforcer import validate_positions
+                val = validate_positions(
+                    positions=positions,
+                    capital_usd=capital,
+                    cash_usd=cash,
+                )
+                if not val.passed:
+                    alert = "⚠️ <b>Портфель нарушает правила политики!</b>\n"
+                    for v in val.violations:
+                        alert += "🔴 {rule}: {msg}\n".format(
+                            rule=v.rule, msg=v.message[:120])
+                    self.send_message(alert, chat_id)
+                elif val.warnings:
+                    alert = "🟡 <b>Предупреждения политики:</b>\n"
+                    for w in val.warnings:
+                        alert += "• {rule}: {msg}\n".format(
+                            rule=w.rule, msg=w.message[:120])
+                    self.send_message(alert, chat_id)
+            except Exception:
+                pass  # validation failure must not break portfolio display
+
+            # Build tier map for display
+            _tier_labels = {}
+            try:
+                from spa_core.risk.policy_enforcer import T1_ADAPTERS, T3_ADAPTERS
+                for proto in positions:
+                    if proto in T1_ADAPTERS:
+                        _tier_labels[proto] = "T1"
+                    elif proto in T3_ADAPTERS:
+                        _tier_labels[proto] = "T3"
+                    else:
+                        _tier_labels[proto] = "T2"
+            except Exception:
+                pass
+
             lines = ["📊 <b>Portfolio</b>\n"]
             for proto, usd in sorted(positions.items(), key=lambda kv: -float(kv[1] or 0.0)):
                 usd_f = float(usd or 0.0)
                 pct = usd_f / capital * 100.0 if capital else 0.0
-                lines.append("• {name}: {amt} ({pct:.1f}%)".format(
-                    name=_proto_label(proto), amt=_fmt_usd(usd_f), pct=pct))
+                tier_badge = "[{}]".format(_tier_labels[proto]) if proto in _tier_labels else ""
+                lines.append("• {name} {tier}: {amt} ({pct:.1f}%)".format(
+                    name=_proto_label(proto), tier=tier_badge,
+                    amt=_fmt_usd(usd_f), pct=pct))
             if cash:
                 lines.append("• Cash: {amt} ({pct:.1f}%)".format(
                     amt=_fmt_usd(cash), pct=cash / capital * 100.0 if capital else 0.0))
