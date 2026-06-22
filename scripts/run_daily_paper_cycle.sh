@@ -10,8 +10,8 @@
 
 set -e
 
-# System python3 (miniconda не установлен)
-PYTHON=/usr/bin/python3
+# miniconda python — AGENT-001 fix (2026-06-22): launchd не наследует PATH
+PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
 
 cd ~/Documents/SPA_Claude
 
