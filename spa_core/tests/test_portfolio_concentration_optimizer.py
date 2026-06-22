@@ -19,7 +19,6 @@ if _REPO_ROOT not in sys.path:
 
 from spa_core.analytics.portfolio_concentration_optimizer import (
     RING_BUFFER_CAP,
-    OptimizationResult,
     Position,
     calculate_hhi,
     calculate_weighted_avg,

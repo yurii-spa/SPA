@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_concentrated_liquidit
 
 import json
 import math
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +15,6 @@ from spa_core.analytics.protocol_defi_concentrated_liquidity_range_optimizer imp
     ConcentratedLiquidityResult,
     ProtocolDeFiConcentratedLiquidityRangeOptimizer,
     MAX_ENTRIES,
-    DATA_FILE,
 )
 
 

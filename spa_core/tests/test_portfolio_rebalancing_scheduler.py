@@ -22,9 +22,6 @@ Run:
 """
 from __future__ import annotations
 
-import json
-import math
-import os
 import sys
 import tempfile
 import unittest
@@ -47,11 +44,8 @@ from spa_core.analytics.portfolio_rebalancing_scheduler import (
     URGENCY_NONE,
     REBALANCE_IMMEDIATE,
     REBALANCE_THIS_WEEK,
-    REBALANCE_NEXT_MONTH,
     REBALANCE_HOLD,
     _RING_BUFFER_MAX,
-    _LOG_FILENAME,
-    _TRADE_COST_BPS,
 )
 
 TODAY = "2026-06-13"

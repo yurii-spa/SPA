@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 
 import spa_core.paper_trading.cycle_runner as cr
 from spa_core.paper_trading.cycle_runner import (

@@ -3,7 +3,6 @@ Tests for MP-751: ProtocolRiskScorecard
 Uses unittest only. ≥65 tests.
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -15,8 +14,6 @@ if _REPO not in sys.path:
 
 from spa_core.analytics.protocol_risk_scorecard import (
     WEIGHTS,
-    ProtocolRiskScore,
-    RiskDimension,
     ScorecardResult,
     _portfolio_risk_label,
     _recommendation,

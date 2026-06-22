@@ -11,7 +11,6 @@ import unittest
 
 from spa_core.analytics.protocol_reputation_scorer import (
     DEFAULT_MIN_AGE_MONTHS,
-    RING_BUFFER_MAX,
     _age_score,
     _backing_score,
     _bonus_score,

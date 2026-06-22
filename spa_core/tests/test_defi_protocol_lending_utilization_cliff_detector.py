@@ -8,7 +8,6 @@ All tests use stdlib unittest only — no pytest, no numpy.
 """
 import json
 import math
-import os
 import sys
 import tempfile
 import unittest

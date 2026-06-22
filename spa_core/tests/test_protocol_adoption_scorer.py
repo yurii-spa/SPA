@@ -7,7 +7,6 @@ import json
 import os
 import sys
 import tempfile
-import time
 import unittest
 
 # resolve project root so we can import spa_core

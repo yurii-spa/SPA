@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import tempfile
 import unittest
 import unittest.mock as mock

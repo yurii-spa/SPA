@@ -25,7 +25,7 @@ import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 # Make spa_core importable from the project root
 sys.path.insert(0, str(Path(__file__).parent.parent))

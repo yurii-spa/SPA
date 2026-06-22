@@ -4,7 +4,6 @@ Tests for MP-830: DeFiPositionSizeRecommender
 """
 
 import json
-import math
 import os
 import sys
 import time

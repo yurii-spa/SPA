@@ -20,8 +20,6 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from typing import Optional
-from unittest.mock import MagicMock, patch
 
 # ── Make sure the package root is on sys.path ────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parents[3]  # spa_core/tests → repo root

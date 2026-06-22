@@ -7,7 +7,6 @@ import json
 import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -57,7 +56,6 @@ from spa_core.analytics.defi_protocol_tvl_yield_elasticity_analyzer import (
     FLAG_STICKY_YIELD,
     FLAG_INSUFFICIENT_DATA,
     ELASTICITY_SENTINEL,
-    _EPS,
 )
 
 

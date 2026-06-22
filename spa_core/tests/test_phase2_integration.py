@@ -24,7 +24,6 @@ the original value automatically at test teardown.
 from __future__ import annotations
 
 import math
-import os
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -35,7 +34,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from analytics.covariance_estimator import (  # noqa: E402
     CovarianceEstimator,
-    MIN_OBSERVATIONS,
     SYNTHETIC_APY_CV,
 )
 from optimization.dynamic_kelly import dynamic_kelly_fraction  # noqa: E402

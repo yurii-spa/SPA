@@ -8,7 +8,6 @@ Pure stdlib unittest — no pytest, no numpy, no pandas.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -20,12 +19,9 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.analytics.portfolio_attribution_engine import (
-    AttributionResult,
     MAX_ENTRIES,
     PortfolioAttributionEngine,
-    PortfolioAttributionReport,
     Segment,
-    _atomic_write,
     _skill_assessment,
     compute_allocation_effect,
     compute_interaction_effect,

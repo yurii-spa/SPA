@@ -14,9 +14,7 @@
 from __future__ import annotations
 
 import ast
-import glob
 import json
-import os
 import subprocess
 import sys
 import tempfile

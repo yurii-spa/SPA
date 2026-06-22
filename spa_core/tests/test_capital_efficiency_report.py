@@ -16,7 +16,6 @@ Total: 90 tests
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

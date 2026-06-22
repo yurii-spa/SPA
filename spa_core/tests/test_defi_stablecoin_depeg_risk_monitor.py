@@ -4,12 +4,10 @@ Run: python3 -m unittest spa_core.tests.test_defi_stablecoin_depeg_risk_monitor 
 """
 
 import json
-import os
 import sys
 import unittest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -21,7 +19,6 @@ from spa_core.analytics.defi_stablecoin_depeg_risk_monitor import (
     _risk_label,
     _compute_flags,
     _append_log,
-    DATA_FILE,
     MAX_ENTRIES,
     PEG_TYPE_BASE_RISK,
     PEG_TYPE_RESILIENCE_BASE,

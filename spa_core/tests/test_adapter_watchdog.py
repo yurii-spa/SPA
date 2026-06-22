@@ -11,7 +11,6 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 from spa_core.monitoring.adapter_watchdog import (
     RING_BUFFER_MAX,

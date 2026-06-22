@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_liquidity_fragmentation_an
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -22,8 +21,6 @@ from spa_core.analytics.protocol_liquidity_fragmentation_analyzer import (
     _fragmentation_label,
     _PRICE_DEVIATION_THRESHOLD_PCT,
     _CHAIN_FRAGMENTED_THRESHOLD,
-    _DEX_MONOPOLY_SHARE_PCT,
-    _LOW_BRIDGE_TVL_SHARE_PCT,
 )
 
 

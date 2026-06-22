@@ -11,16 +11,12 @@ Minimum 25 tests covering:
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
-import pytest
 
 from spa_core.agents.protocol_research_agent import (
     _compute_security_score,
     _compute_risk_flags,
-    _deterministic_notes,
-    _existing_protocol_ids,
     _normalise,
     _recommendation,
     _suggested_tier,

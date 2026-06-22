@@ -17,13 +17,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.analytics.defi_gas_optimization_advisor import (
     BASE_TX_GAS_OVERHEAD,
-    BATCH_COST_THRESHOLD_USD,
     DEFAULT_ETH_PRICE_USD,
-    HIGH_PRIORITY_FEE_MULTIPLIER,
-    L2_COST_THRESHOLD_USD,
-    SMALL_TX_COST_USD,
-    SMALL_TX_VALUE_USD,
-    WAIT_SAVINGS_THRESHOLD_USD,
     DeFiGasOptimizationAdvisor,
     _batch_savings_usd,
     _compute_flags,

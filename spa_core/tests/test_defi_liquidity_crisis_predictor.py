@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_liquidity_crisis_predictor -v
 import json
 import os
 import tempfile
-import time
 import unittest
 
 from spa_core.analytics.defi_liquidity_crisis_predictor import (

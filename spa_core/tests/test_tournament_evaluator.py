@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import random
 import sys
 import tempfile
@@ -27,16 +26,8 @@ sys.path.insert(0, str(_REPO_ROOT))
 from spa_core.paper_trading.tournament_evaluator import (
     MIN_OBS,
     PROMOTE_MIN_OBS,
-    RACHEV_ALPHA,
-    RISK_FREE_RATE,
-    SHARPE_KILL_THRESHOLD,
-    PROMOTE_SHARPE,
-    PROMOTE_CALMAR,
-    PROMOTE_APY_PREMIUM,
-    BASELINE_STRATEGY_ID,
     TournamentEvaluator,
     StrategyMetrics,
-    StrategyResult,
     _annualize_return,
     _mean,
     _std,

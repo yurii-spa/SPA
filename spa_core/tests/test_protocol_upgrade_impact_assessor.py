@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_upgrade_impact_assessor
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

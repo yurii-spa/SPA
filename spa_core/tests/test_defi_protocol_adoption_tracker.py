@@ -4,7 +4,6 @@ Tests for MP-916: DeFiProtocolAdoptionTracker
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

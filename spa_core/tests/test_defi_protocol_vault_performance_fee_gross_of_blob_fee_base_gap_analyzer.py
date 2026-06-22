@@ -23,16 +23,9 @@ from spa_core.analytics.defi_protocol_vault_performance_fee_gross_of_blob_fee_ba
     _coerce_num,
     _coerce_signed,
     _coerce_count,
-    _build_default_cfg,
     _grade_from_score,
     _demo_positions,
-    CLEAN_FRACTION,
-    MILD_FRACTION,
-    MODERATE_FRACTION,
     HIGH_BLOB_FEE_PCT,
-    EPS,
-    LOG_PATH,
-    LOG_CAP,
 )
 
 

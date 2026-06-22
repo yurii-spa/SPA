@@ -7,7 +7,6 @@ Run:  python3 -m unittest spa_core/tests/test_borrowing_cost_optimizer.py
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

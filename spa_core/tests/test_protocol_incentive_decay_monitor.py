@@ -3,7 +3,6 @@ Tests for MP-821 ProtocolIncentiveDecayMonitor.
 Run: python3 -m unittest spa_core.tests.test_protocol_incentive_decay_monitor -v
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -18,7 +17,6 @@ from spa_core.analytics.protocol_incentive_decay_monitor import (
     analyze,
     log_result,
     _load_log,
-    _save_log,
     LOG_CAP,
 )
 

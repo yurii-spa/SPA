@@ -19,7 +19,6 @@ import unittest.mock as mock
 
 import pytest
 
-from spa_core.execution import mev_protection
 from spa_core.execution.mev_protection import (
     send_raw_transaction_auto,
     broadcast_protected_hash,

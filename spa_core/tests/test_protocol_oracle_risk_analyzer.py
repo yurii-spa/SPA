@@ -7,7 +7,6 @@ import json
 import os
 import sys
 import tempfile
-import time
 import unittest
 
 # ---------------------------------------------------------------------------
@@ -24,7 +23,6 @@ from spa_core.analytics.protocol_oracle_risk_analyzer import (
     _staleness_risk_score,
     _circuit_breaker_score,
     _diversification_score,
-    _overall_risk_score,
     _risk_label,
     _tvl_at_risk_label,
     _build_flags,
@@ -717,7 +715,6 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_overall_score_bounded(self):
         """overall_risk_score must always be in [0, 100]."""
-        import itertools
         for oracle_count in [0, 1, 2, 3]:
             for uses_spot in [True, False]:
                 for dev in [0.0, 2.0, 20.0]:

@@ -4,13 +4,11 @@ Tests for MP-746: BorrowRateOptimizer
 Uses unittest only (no pytest).
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.borrow_rate_optimizer import (
-    BorrowOpportunity,
     BorrowRateResult,
     _RING_BUFFER_CAP,
     analyze_market,

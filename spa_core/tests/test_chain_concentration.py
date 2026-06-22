@@ -15,9 +15,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-import time
 import unittest
-from pathlib import Path
 
 from spa_core.analytics.chain_concentration import (
     CHAIN_CONCENTRATION_LIMIT,

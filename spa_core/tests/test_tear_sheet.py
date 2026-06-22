@@ -9,7 +9,6 @@ import contextlib
 import io
 import json
 import math
-import os
 import statistics
 import subprocess
 import sys

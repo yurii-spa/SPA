@@ -594,7 +594,6 @@ class TestHHILabelBoundaries(unittest.TestCase):
         """Create 2-protocol positions targeting approximate HHI using concentration."""
         # HHI = s^2 + (100-s)^2 = 2s^2 - 200s + 10000
         # For target HHI: solve for s
-        import math
         # Use 10 protocols equal → HHI = 1000
         if target_hhi < 1000:
             return [_pos(protocol=f"P{i}", value=10000) for i in range(10)]

@@ -21,7 +21,6 @@ Total                            105
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -40,9 +39,6 @@ from spa_core.analytics.yield_attribution_tracker import (  # noqa: E402
     AttributionReport,
     YieldAttributionTracker,
     _extract_apy,
-    _extract_chain,
-    _extract_tier,
-    _safe_float,
     RING_BUFFER_MAX,
 )
 

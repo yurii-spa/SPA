@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_perpetual_funding_rate_analyze
 """
 
 import json
-import math
 import os
 import sys
 import unittest
@@ -25,11 +24,6 @@ from spa_core.analytics.defi_perpetual_funding_rate_analyzer import (
     _funding_label,
     _market_skew_score,
     _analyze_market,
-    EXTREME_FUNDING_THRESHOLD_8H_PCT,
-    CARRY_PREMIUM_THRESHOLD_PCT,
-    HIGH_LIQ_RATIO,
-    LOW_INSURANCE_RATIO,
-    VOLATILE_FUNDING_THRESHOLD,
 )
 
 NO_LOG = {"write_log": False}

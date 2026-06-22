@@ -12,7 +12,6 @@ spa_core/tests/test_s7_pendle_yt_aggressive.py — Тесты MP-399 S7 Pendle Y
 Все тесты: stdlib only, никаких внешних зависимостей.
 """
 
-import math
 import unittest
 
 

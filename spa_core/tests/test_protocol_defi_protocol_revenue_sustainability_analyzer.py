@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_protocol_revenue_sust
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -30,7 +29,6 @@ from spa_core.analytics.protocol_defi_protocol_revenue_sustainability_analyzer i
     _atomic_write,
     _append_log,
     LOG_CAP,
-    REVENUE_NEAR_ZERO_THRESHOLD_USD,
 )
 
 

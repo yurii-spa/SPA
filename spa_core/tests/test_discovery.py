@@ -9,14 +9,12 @@ atomic writes and the CLI exit codes via subprocess (offline --pools-file).
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import unittest
 import tempfile
 from pathlib import Path
 
-from spa_core.adapter_sdk import discovery
 from spa_core.adapter_sdk.discovery import (
     DiscoveryError,
     GateConfig,

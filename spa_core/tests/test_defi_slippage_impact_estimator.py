@@ -5,7 +5,6 @@ Run with:
     python3 -m unittest spa_core.tests.test_defi_slippage_impact_estimator -v
 """
 import json
-import os
 import sys
 import tempfile
 import time

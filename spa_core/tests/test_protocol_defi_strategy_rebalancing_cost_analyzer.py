@@ -32,10 +32,6 @@ from spa_core.analytics.protocol_defi_strategy_rebalancing_cost_analyzer import 
     _net_annual_gain_pct,
     _rebalance_label,
     _LOG_CAP,
-    _EFFICIENT_THRESHOLD,
-    _ACCEPTABLE_THRESHOLD,
-    _MARGINAL_THRESHOLD,
-    _COSTLY_THRESHOLD,
 )
 
 

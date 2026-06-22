@@ -5,7 +5,6 @@ tx cost, EMA, percentile, rolling averages, log persistence, edge cases.
 """
 
 import json
-import math
 import os
 import time
 import unittest
@@ -17,7 +16,6 @@ from spa_core.analytics.gas_price_forecaster import (
     GasRegime,
     TxUrgency,
     EMA_ALPHA,
-    EMA_LOOKBACK,
     GAS_LIMIT_SIMPLE_TRANSFER,
     LOG_CAP,
 )

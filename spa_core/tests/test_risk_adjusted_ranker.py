@@ -13,7 +13,6 @@ import json
 import os
 import unittest
 import tempfile
-from pathlib import Path
 
 from spa_core.analytics.risk_adjusted_ranker import (
     RISK_FREE_PCT,

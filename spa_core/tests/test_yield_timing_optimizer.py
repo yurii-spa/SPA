@@ -4,7 +4,6 @@ Tests for MP-788: YieldTimingOptimizer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

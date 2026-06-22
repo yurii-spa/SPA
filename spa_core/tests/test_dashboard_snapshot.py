@@ -11,7 +11,6 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 
 from spa_core.paper_trading.cycle_runner import (
     DASHBOARD_HISTORY_FILENAME,

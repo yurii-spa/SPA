@@ -54,14 +54,13 @@ from __future__ import annotations
 import ast
 import json
 import math
-import os
 import shutil
 import sys
 import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # ── ensure repo root on sys.path ─────────────────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parents[2]

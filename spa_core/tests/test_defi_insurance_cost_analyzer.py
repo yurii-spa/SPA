@@ -18,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from spa_core.analytics.defi_insurance_cost_analyzer import (
     analyze,
     _load_log,
-    _save_log,
     _MAX_ENTRIES,
     _DEFAULT_HACK_PROBABILITY_BASE,
 )

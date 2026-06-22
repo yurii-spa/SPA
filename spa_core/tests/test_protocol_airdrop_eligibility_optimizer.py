@@ -24,8 +24,6 @@ from spa_core.analytics.protocol_airdrop_eligibility_optimizer import (
     OG_USER_DAYS_AGO,
     POWER_USER_TX_MIN,
     POWER_USER_VOL_MIN,
-    MULTI_CHAIN_MIN,
-    GOVERNANCE_VOTES_MIN,
     SYBIL_TX_MAX,
 )
 

@@ -6,7 +6,6 @@ Run with: python3 -m unittest spa_core/tests/test_defi_staking_rewards_optimizer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

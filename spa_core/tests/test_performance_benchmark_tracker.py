@@ -8,7 +8,6 @@ Pure stdlib unittest — no pytest, no numpy, no pandas.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -22,11 +21,8 @@ if str(_REPO_ROOT) not in sys.path:
 from spa_core.analytics.performance_benchmark_tracker import (
     BENCHMARKS,
     MAX_ENTRIES,
-    BenchmarkComparison,
     PerformanceBenchmarkTracker,
     PerformancePeriod,
-    PerformanceTrackingReport,
-    _atomic_write,
     _performance_tier,
     annualized_return,
     benchmark_period_return,

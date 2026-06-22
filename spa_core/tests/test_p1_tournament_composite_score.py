@@ -14,7 +14,6 @@ Run:
 """
 from __future__ import annotations
 
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -25,12 +24,6 @@ from spa_core.paper_trading.tournament_evaluator import (
     MIN_OBS,
     StrategyMetrics,
     compute_composite_score,
-    compute_sharpe,
-    compute_calmar,
-    compute_ulcer_index,
-    compute_rachev_ratio,
-    compute_max_drawdown,
-    _annualize_return,
 )
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

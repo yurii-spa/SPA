@@ -20,7 +20,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 # Ensure no API key is active for fallback tests
 os.environ.pop("ANTHROPIC_API_KEY", None)
 
-from spa_core.agents.llm_agent import LLMAgent, DEFAULT_MODEL
+from spa_core.agents.llm_agent import LLMAgent
 
 
 class TestLLMAgentInit(unittest.TestCase):

@@ -4,7 +4,6 @@ Uses unittest only (no pytest).
 Run: python3 -m unittest spa_core.tests.test_gas_cost_profiler -v
 """
 
-import json
 import math
 import os
 import tempfile

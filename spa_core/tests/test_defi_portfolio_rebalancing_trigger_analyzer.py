@@ -3,7 +3,6 @@ Tests for MP-950 DeFiPortfolioRebalancingTriggerAnalyzer.
 Run: python3 -m unittest spa_core.tests.test_defi_portfolio_rebalancing_trigger_analyzer -v
 """
 import json
-import os
 import sys
 import tempfile
 import unittest

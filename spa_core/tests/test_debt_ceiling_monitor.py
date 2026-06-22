@@ -10,7 +10,6 @@ from pathlib import Path
 
 from spa_core.analytics.debt_ceiling_monitor import (
     ProtocolDebtInput,
-    ProtocolDebtReport,
     DebtCeilingMonitorResult,
     DebtCeilingMonitor,
     compute_utilization_pct,
@@ -19,7 +18,6 @@ from spa_core.analytics.debt_ceiling_monitor import (
     compute_breach_risk,
     analyze_protocol,
     load_history,
-    save_result,
     MAX_ENTRIES,
 )
 

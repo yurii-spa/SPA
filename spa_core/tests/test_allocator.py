@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.allocator import allocation_models as m
-from spa_core.allocator.allocator import AllocationResult, StrategyAllocator
+from spa_core.allocator.allocator import StrategyAllocator
 
 
 def make_adapters() -> list[dict]:

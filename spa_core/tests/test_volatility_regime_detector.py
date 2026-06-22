@@ -4,9 +4,7 @@ Run: python3 -m unittest spa_core.tests.test_volatility_regime_detector -v
 Pure stdlib / unittest only. No pytest.
 """
 
-import json
 import math
-import os
 import tempfile
 import time
 import unittest

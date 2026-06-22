@@ -27,7 +27,6 @@ from spa_core.analytics.liquidation_risk_heatmap import (
     RISK_WARNING,
     HeatmapResult,
     LiquidationRiskHeatmap,
-    PositionRisk,
     classify_risk,
     compute_health_factor,
     compute_heatmap,

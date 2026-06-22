@@ -3,7 +3,6 @@ Tests for MP-864 YieldVolatilitySurfaceAnalyzer.
 Run: python3 -m unittest spa_core.tests.test_yield_volatility_surface_analyzer -v
 """
 
-import math
 import os
 import sys
 import unittest

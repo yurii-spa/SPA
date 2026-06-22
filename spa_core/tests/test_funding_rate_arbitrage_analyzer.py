@@ -3,15 +3,12 @@ Tests for MP-730: FundingRateArbitrageAnalyzer
 stdlib unittest only. ≥65 tests.
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.funding_rate_arbitrage_analyzer import (
     FundingRateSnapshot,
-    FundingArbOpportunity,
-    FundingRateAnalysisResult,
     annualize_funding,
     assess_liquidation_risk,
     assess_basis_risk,

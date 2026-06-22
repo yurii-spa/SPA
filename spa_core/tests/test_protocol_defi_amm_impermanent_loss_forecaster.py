@@ -6,7 +6,6 @@ Run with: python3 -m unittest spa_core/tests/test_protocol_defi_amm_impermanent_
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -30,8 +29,6 @@ from spa_core.analytics.protocol_defi_amm_impermanent_loss_forecaster import (
     LABEL_MODERATE_IL,
     LABEL_HIGH_IL,
     LABEL_SEVERE_IL,
-    POOL_TYPE_CONSTANT_PRODUCT,
-    POOL_TYPE_STABLE_SWAP,
 )
 
 

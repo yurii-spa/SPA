@@ -3,8 +3,6 @@ Tests for MP-677: ProtocolInsuranceAssessor
 ≥60 test cases using unittest only (no pytest, no numpy, no pandas).
 """
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

@@ -4,7 +4,6 @@ Tests for MP-871 YieldSourceConcentrationRisk
 """
 
 import json
-import math
 import os
 import sys
 import time

@@ -4,7 +4,6 @@ MP-787 — unit tests for ProtocolInsuranceScorer.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

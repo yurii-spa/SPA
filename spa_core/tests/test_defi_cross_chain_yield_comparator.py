@@ -5,7 +5,6 @@ ring-buffer log, and all recommendation strings.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

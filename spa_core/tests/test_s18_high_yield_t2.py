@@ -21,7 +21,6 @@ spa_core/tests/test_s18_high_yield_t2.py — MP-604 тесты S18 HighYieldT2St
 import json
 import unittest
 from typing import TYPE_CHECKING, Optional
-from unittest.mock import MagicMock, patch
 
 if TYPE_CHECKING:
     from spa_core.strategies.s18_high_yield_t2 import HighYieldT2Strategy

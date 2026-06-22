@@ -3,7 +3,6 @@ Tests for MP-822 AutoCompounderAnalyzer.
 Run: python3 -m unittest spa_core.tests.test_auto_compounder_analyzer -v
 """
 
-import json
 import os
 import sys
 import math
@@ -17,11 +16,9 @@ from spa_core.analytics.auto_compounder_analyzer import (
     analyze,
     log_result,
     _load_log,
-    _save_log,
     _manual_effective_apy,
     _vault_effective_apy,
     LOG_CAP,
-    MAX_VAULT_FREQ,
 )
 
 

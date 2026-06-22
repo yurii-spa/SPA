@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_tvl_momentum_analyzer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

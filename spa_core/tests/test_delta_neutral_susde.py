@@ -33,7 +33,6 @@ Run:  python3 -m unittest spa_core.tests.test_delta_neutral_susde -v
 """
 from __future__ import annotations
 
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -48,10 +47,8 @@ from spa_core.strategies.delta_neutral_susde import (
     MAX_CAPITAL_PCT,
     PERP_BORROW_RATE_DEFAULT,
     STRATEGY_ID,
-    STRATEGY_VERSION,
     SUSDE_APY_GATE,
     DeltaNeutralSUSDeStrategy,
-    _SCENARIOS,
 )
 
 

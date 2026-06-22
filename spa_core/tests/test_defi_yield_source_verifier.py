@@ -20,8 +20,6 @@ from spa_core.analytics.defi_yield_source_verifier import (
     _emission_sustainability_score,
     _yield_authenticity,
     _sustainability_risk,
-    _build_flags,
-    _build_recommendation,
     _load_log,
     _atomic_write,
     _RING_BUFFER_CAP,

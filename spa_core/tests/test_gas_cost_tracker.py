@@ -23,7 +23,6 @@ All tests use tempfile.TemporaryDirectory — production data/ NOT touched.
 from __future__ import annotations
 
 import json
-import math
 import os
 import unittest
 import tempfile
@@ -31,8 +30,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from spa_core.analytics.gas_cost_tracker import (
-    ADVISORY,
-    GWEI_TO_ETH,
     RING_BUFFER,
     SCHEMA_VERSION,
     GasCostEntry,

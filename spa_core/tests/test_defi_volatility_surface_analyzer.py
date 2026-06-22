@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_volatility_surface_analyzer -v
 """
 
 import json
-import math
 import os
 import sys
 import unittest

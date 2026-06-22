@@ -7,7 +7,6 @@ Run:
 stdlib unittest only — no pytest, no numpy.
 """
 import json
-import math
 import os
 import sys
 import tempfile
@@ -32,10 +31,6 @@ from spa_core.analytics.protocol_defi_liquidity_depth_impact_analyzer import (
     write_log,
     RING_BUFFER_CAP,
     LOG_FILENAME,
-    THRESHOLD_AVOID,
-    THRESHOLD_HIGH,
-    THRESHOLD_MODERATE,
-    THRESHOLD_ADEQUATE,
     STABLE_AMPLIFICATION,
     VALID_POOL_TYPES,
 )

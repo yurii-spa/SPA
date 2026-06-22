@@ -8,7 +8,6 @@ Run: python3 -m unittest spa_core.tests.test_dashboard_bm_weekly -v
 
 import json
 import os
-import re
 import unittest
 
 # ── Paths ──────────────────────────────────────────────────────────────────

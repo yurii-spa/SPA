@@ -15,15 +15,11 @@ Covers:
 from __future__ import annotations
 
 import json
-import os
-import sys
 import tempfile
-import types
 import unittest
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -380,7 +376,7 @@ class TestPromotionEngineSaveReport(unittest.TestCase):
         self.assertEqual(doc["decisions"][0]["action"], "kill")
 
     def test_save_report_no_tmp_left(self):
-        from spa_core.paper_trading.promotion_engine import PromotionDecision, PromotionEngine
+        from spa_core.paper_trading.promotion_engine import PromotionEngine
         engine = PromotionEngine()
         engine.save_report([], self.data_dir)
         tmp_files = list(self.data_dir.glob(".tmp_promotion_report_*"))

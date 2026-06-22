@@ -18,8 +18,6 @@ if _PROJECT_ROOT not in sys.path:
 
 from spa_core.analytics.oracle_price_deviation_detector import (
     OraclePriceDeviationDetector,
-    _atomic_write,
-    _load_log,
     compute_deviation_pct,
     compute_manipulation_risk_score,
     compute_status,

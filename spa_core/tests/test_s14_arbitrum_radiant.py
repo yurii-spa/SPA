@@ -35,13 +35,9 @@ sys.path.insert(0, str(_REPO_ROOT))
 # ─── Импорты тестируемых модулей ──────────────────────────────────────────────
 from spa_core.strategies.s14_arbitrum_radiant import (
     S14ArbitrumRadiantMax,
-    STRATEGY_ID,
-    STRATEGY_NAME,
-    TIER,
     DESCRIPTION,
     ALLOCATION,
     FALLBACK_APY,
-    RISK_SCORES,
     WEIGHTED_APY_EXPECTED,
     RISK_BLENDED,
     RADIANT_SPIKE_THRESHOLD,
@@ -53,7 +49,6 @@ from spa_core.strategies.s14_arbitrum_radiant import (
     L2_ALLOCATION_TOTAL,
     TARGET_APY_MIN,
     TARGET_APY_MAX,
-    MAX_DRAWDOWN_PCT,
 )
 from spa_core.strategies.strategy_registry import REGISTRY
 

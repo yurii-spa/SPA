@@ -26,7 +26,6 @@ import os
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
 from pathlib import Path
 
 # Ensure spa_core is importable when running from the repo root

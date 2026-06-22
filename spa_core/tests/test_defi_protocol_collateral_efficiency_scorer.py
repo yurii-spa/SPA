@@ -21,12 +21,8 @@ Python 3.9 compatible. unittest only (NOT pytest). No network. All I/O in tempdi
 from __future__ import annotations
 
 import ast
-import importlib
-import inspect
 import json
-import math
 import os
-import sys
 import tempfile
 import time
 import unittest
@@ -43,10 +39,6 @@ from spa_core.analytics.defi_protocol_collateral_efficiency_scorer import (
     LABEL_MODERATE,
     LABEL_UNDERUTILIZED,
     LABEL_IDLE_COLLATERAL,
-    THRESHOLD_HIGHLY_EFFICIENT,
-    THRESHOLD_EFFICIENT,
-    THRESHOLD_MODERATE,
-    THRESHOLD_UNDERUTILIZED,
     compute_collateral_utilization_pct,
     compute_available_borrow_headroom_pct,
     compute_capital_efficiency_ratio,

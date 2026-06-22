@@ -14,7 +14,6 @@ spa_core/tests/test_protocol_tvl_filter.py
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

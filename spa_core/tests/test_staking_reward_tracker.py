@@ -4,7 +4,6 @@ MP-786 — unit tests for StakingRewardTracker.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

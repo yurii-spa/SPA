@@ -28,7 +28,6 @@ from spa_core.analytics.protocol_defi_yield_strip_pricing_analyzer import (
     _strip_label,
     _load_json_list,
     _atomic_write,
-    _append_log,
     LOG_FILENAME,
     RING_BUFFER_CAP,
     THRESHOLD_DEEP_DISCOUNT,

@@ -17,7 +17,6 @@ spa_core/tests/test_multi_strategy_and_s1.py — MP-357, MP-358
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 import unittest

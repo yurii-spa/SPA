@@ -18,7 +18,6 @@ spa_core/tests/test_s6_max_diversified.py — MP-397
 """
 from __future__ import annotations
 
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -30,16 +29,11 @@ sys.path.insert(0, str(_REPO_ROOT))
 # ─── Импорты тестируемого модуля ──────────────────────────────────────────────
 from spa_core.strategies.s6_max_diversified import (
     STRATEGY_ID,
-    STRATEGY_NAME,
     ALLOCATION,
-    FALLBACK_APY,
     APY_TARGET_PCT,
     PROTOCOL_COUNT,
-    MAX_SINGLE_PROTOCOL_PCT,
     RISK_SCORE,
-    T2_PROTOCOLS,
     MAX_T2_ALLOCATION,
-    WEIGHTED_APY_EXPECTED,
     compute_weighted_apy,
     simulate_day,
     check_concentration,

@@ -11,8 +11,6 @@ import unittest
 from pathlib import Path
 
 from spa_core.analytics.yield_farming_calendar import (
-    CalendarEvent,
-    CalendarReport,
     FarmingSchedule,
     MAX_ENTRIES,
     YieldFarmingCalendar,

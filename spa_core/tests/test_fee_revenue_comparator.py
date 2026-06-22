@@ -22,7 +22,6 @@ from spa_core.analytics.fee_revenue_comparator import (
     load_log,
     _efficiency_grade,
     _atomic_write,
-    _read_log,
     _sanitise_for_json,
 )
 

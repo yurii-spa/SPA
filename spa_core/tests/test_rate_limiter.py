@@ -22,13 +22,11 @@ import time
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from spa_core.execution.rate_limiter import (
     CIRCUIT_BREAKER_DRAWDOWN,
     CIRCUIT_BREAKER_FREEZE_SECONDS,
     COOLDOWN_SECONDS,
-    MAX_DAILY_REALLOC_FRACTION,
     MAX_PROTOCOLS_PER_OP,
     RateLimiter,
     _start_of_utc_day,

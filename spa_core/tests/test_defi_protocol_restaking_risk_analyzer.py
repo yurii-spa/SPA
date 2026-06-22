@@ -22,10 +22,6 @@ from spa_core.analytics.defi_protocol_restaking_risk_analyzer import (
     _compute_label,
     _atomic_append_log,
     _LOG_CAP,
-    _AVS_MAX_SCORE,
-    _CONDITIONS_MAX_SCORE,
-    _AUDIT_MAX_REDUCTION,
-    _AGE_MAX_SCORE,
     _W_SLASHING,
     _W_CONCENTRATION,
 )

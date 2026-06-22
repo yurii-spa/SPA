@@ -4,7 +4,6 @@ Tests for MP-735: YieldReinvestmentEngine
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

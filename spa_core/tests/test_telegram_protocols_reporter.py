@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import unittest
 import urllib.error
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -30,7 +29,6 @@ from spa_core.telegram_protocols_reporter import (
     _get_all_adapters,
     _get_best_apy,
     _get_tvl_str,
-    _group_by_tier,
     format_protocols_message,
     load_adapter_data,
     send_protocols_report,

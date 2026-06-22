@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_yield_opportunity_scorer -v
 
 import json
 import os
-import time
 import unittest
 import tempfile
 

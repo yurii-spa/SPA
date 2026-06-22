@@ -4,8 +4,6 @@ Tests for MP-711: ProtocolDominanceAnalyzer
 warnings, persistence, edge cases.
 """
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

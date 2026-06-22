@@ -4,7 +4,6 @@ Run with: python3 -m unittest spa_core/tests/test_defi_protocol_flash_loan_attac
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -19,7 +18,6 @@ from spa_core.analytics.defi_protocol_flash_loan_attack_surface_analyzer import 
     DeFiProtocolFlashLoanAttackSurfaceAnalyzer,
     _clamp,
     _append_log,
-    LOG_CAP,
 )
 
 

@@ -21,8 +21,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import patch, MagicMock
+from typing import Any
 
 # ── resolve project root ─────────────────────────────────────────────────────
 _HERE = Path(__file__).resolve()
@@ -35,9 +34,6 @@ from spa_core.analytics.benchmark_tracker import (
     BenchmarkReport,
     BenchmarkTracker,
     RING_BUFFER_MAX,
-    _ALPHA_PLUS_THRESHOLD,
-    _ALPHA_THRESHOLD,
-    _BENCHMARK_THRESHOLD,
     _DEFAULT_PORTFOLIO_APY,
     _DEFAULT_PORTFOLIO_USD,
     _extract_apy_from_adapter,
@@ -786,7 +782,6 @@ class TestSafeFloat(unittest.TestCase):
         self.assertAlmostEqual(_safe_float(False), 0.0)
 
     def test_nan_returns_zero(self):
-        import math
         self.assertAlmostEqual(_safe_float(float("nan")), 0.0)
 
     def test_inf_returns_zero(self):

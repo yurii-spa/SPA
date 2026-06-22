@@ -3,7 +3,6 @@ Tests for MP-672: LiquidityPoolDepthAnalyzer
 ≥65 test cases using unittest only (no pytest, no numpy, no pandas).
 """
 
-import json
 import unittest
 import tempfile
 from pathlib import Path

@@ -3,25 +3,18 @@ Tests for MP-691: APYPredictionInterval  (≥60 tests)
 Pure stdlib unittest — no pytest dependency.
 """
 import json
-import math
 import os
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.apy_prediction_interval import (
     APYHistoricalData,
-    APYPrediction,
     predict,
     predict_batch,
     compare_protocols,
     save_results,
     load_history,
-    _population_std,
-    _mean,
-    _trend,
-    _confidence,
     Z_80,
     Z_95,
     MAX_ENTRIES,

@@ -5,11 +5,9 @@ Run: python3 -m unittest spa_core.tests.test_protocol_security_audit_tracker -v
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
@@ -37,7 +35,6 @@ from spa_core.analytics.protocol_security_audit_tracker import (
     _score_to_grade,
     _grade_to_risk,
     _compute_flags,
-    _analyze_protocol,
     analyze,
     append_log,
 )

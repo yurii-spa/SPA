@@ -23,15 +23,11 @@ from spa_core.analytics.protocol_defi_cross_protocol_yield_arbitrage_detector im
     _gross_spread_bps,
     _net_arb_apy,
     _compute_execution_complexity,
-    _spread_bps_between,
-    _net_arb_apy_between,
     _classify_label,
-    _build_opportunity_pair,
     LOG_FILENAME,
     LOG_MAX_ENTRIES,
     DEFAULT_MIN_SPREAD_BPS,
     DEFAULT_POSITION_SIZE_USD,
-    BPS_PER_PCT,
 )
 
 

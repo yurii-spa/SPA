@@ -17,7 +17,6 @@ from spa_core.analytics.protocol_defi_real_world_asset_bridge_analyzer import (
     REDEMPTION_RISK_MAP,
     TRANSPARENCY_MAP,
     AUDIT_RISK_MAP,
-    _DEFAULT_CONFIG,
 )
 
 

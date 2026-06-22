@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_apy_persistence_scorer -v
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

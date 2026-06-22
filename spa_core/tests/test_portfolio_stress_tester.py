@@ -7,7 +7,6 @@ All file-IO tests use a temporary directory — no production data touched.
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import tempfile
 import unittest

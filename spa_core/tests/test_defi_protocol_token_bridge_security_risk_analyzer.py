@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_token_bridge_security
 """
 
 import json
-import os
 import tempfile
 import time
 import unittest
@@ -13,11 +12,7 @@ from pathlib import Path
 
 from spa_core.analytics.defi_protocol_token_bridge_security_risk_analyzer import (
     DeFiProtocolTokenBridgeSecurityRiskAnalyzer,
-    AUDIT_FRESHNESS_TABLE,
     AUDIT_STALE_SCORE,
-    LABEL_THRESHOLDS,
-    MAX_ENTRIES,
-    VALIDATION_STRENGTH,
     compute_audit_freshness_score,
     compute_bridge_risk_score,
     compute_finality_risk_penalty,

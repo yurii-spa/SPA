@@ -37,17 +37,11 @@ from spa_core.strategies.s4_spark_fluid_conservative import (
     STRATEGY_ID,
     STRATEGY_NAME,
     TIER,
-    DESCRIPTION,
     ALLOCATION,
     FALLBACK_APY,
-    RISK_SCORES,
     WEIGHTED_APY_EXPECTED,
     RISK_BLENDED,
-    GSM_PAUSE_DELAY_THRESHOLD_H,
-    FLUID_APY_SPIKE_THRESHOLD,
     FLUID_APY_NORMALIZED,
-    TARGET_APY_MIN,
-    TARGET_APY_MAX,
 )
 from spa_core.strategies.strategy_registry import REGISTRY
 

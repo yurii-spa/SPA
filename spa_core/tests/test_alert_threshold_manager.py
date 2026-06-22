@@ -23,7 +23,6 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from spa_core.analytics.alert_threshold_manager import (
     AlertEvent,
@@ -31,7 +30,6 @@ from spa_core.analytics.alert_threshold_manager import (
     AlertThresholdManager,
     ThresholdDefinition,
     _atomic_write_json,
-    _build_summary,
     RING_BUFFER_MAX,
 )
 

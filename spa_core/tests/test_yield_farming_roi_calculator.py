@@ -17,7 +17,6 @@ Run: python3 -m unittest spa_core.tests.test_yield_farming_roi_calculator -v
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import unittest
@@ -28,7 +27,6 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-import spa_core.analytics.yield_farming_roi_calculator as _mod
 import tempfile
 from spa_core.analytics.yield_farming_roi_calculator import (
     MAX_ENTRIES,

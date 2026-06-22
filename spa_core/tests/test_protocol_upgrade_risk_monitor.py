@@ -18,7 +18,6 @@ from spa_core.analytics.protocol_upgrade_risk_monitor import (
     _track_record_safety,
     _code_change_penalty,
     _risk_level,
-    _recommendation,
     _key_risk_factors,
     _append_log,
 )

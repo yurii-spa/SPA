@@ -3,7 +3,6 @@ Tests for MP-710: YieldMomentumTracker
 ≥65 unittest cases covering all helpers, signals, edge cases, persistence.
 """
 
-import json
 import os
 import tempfile
 import unittest

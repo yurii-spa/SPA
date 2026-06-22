@@ -3,7 +3,6 @@ Tests for MP-656: RateSensitivityAnalyzer
 ≥65 unittest tests. Pure stdlib (unittest only).
 """
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

@@ -32,7 +32,6 @@ from spa_core.stress.stress_engine import (
     SCENARIOS,
     StressResult,
     _effective_allocation,
-    _TVL_FLOOR_USD,
     generate_stress_report,
     run_all_scenarios,
     run_stress_test,

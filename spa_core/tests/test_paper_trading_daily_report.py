@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from datetime import date
@@ -195,7 +194,6 @@ class TestRunDailyReport(unittest.TestCase):
         self.assertFalse((self.data_dir / SENTINEL_FILENAME).exists())
 
     def test_dry_run_no_telegram_call(self):
-        import sys
         mock_tc = MagicMock()
         with _patch_builder(), patch("spa_core.alerts.telegram_client.send_message", mock_tc.send_message):
             run_daily_report(self.data_dir, dry_run=True)

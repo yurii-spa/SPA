@@ -22,14 +22,12 @@ Run:
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
-from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -43,7 +41,6 @@ from spa_core.analytics.performance_regression_detector import (
     RT_ALLOCATION_DRIFT,
     SEV_CRITICAL,
     SEV_WARNING,
-    SEV_INFO,
     _ALERTS_FILE,
     _RING_BUFFER_MAX,
     RegressionAlert,

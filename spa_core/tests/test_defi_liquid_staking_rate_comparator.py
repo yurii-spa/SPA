@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_liquid_staking_rate_comparator
 Target: ≥80 tests, stdlib unittest only.
 """
 import json
-import math
 import os
 import sys
 import unittest

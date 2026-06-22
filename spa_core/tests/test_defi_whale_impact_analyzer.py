@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_whale_impact_analyzer -v
 """
 
 import json
-import os
 import time
 import unittest
 from pathlib import Path

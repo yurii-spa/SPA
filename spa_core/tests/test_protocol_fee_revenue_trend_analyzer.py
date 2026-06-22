@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_fee_revenue_trend_analyzer
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

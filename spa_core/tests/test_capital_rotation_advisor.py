@@ -16,7 +16,6 @@ from spa_core.analytics.capital_rotation_advisor import (
     RotationAction,
     RotationReport,
     MAX_ENTRIES,
-    MIN_APY_GAIN_BPS,
     ROTATION_COST_BPS,
     MIN_DAYS_BEFORE_ROTATE,
 )

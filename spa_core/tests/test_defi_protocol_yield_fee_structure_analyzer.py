@@ -5,7 +5,6 @@ Total: ≥ 110 test methods.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -18,7 +17,6 @@ from spa_core.analytics.defi_protocol_yield_fee_structure_analyzer import (
     DeFiProtocolYieldFeeStructureAnalyzer,
     YieldFeeStructureReport,
     MAX_ENTRIES,
-    DATA_FILE,
 )
 
 # ---------------------------------------------------------------------------

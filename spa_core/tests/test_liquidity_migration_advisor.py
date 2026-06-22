@@ -2,8 +2,6 @@
 Tests for MP-714: LiquidityMigrationAdvisor
 ≥65 tests covering all logic paths.
 """
-import json
-import math
 import os
 import tempfile
 import unittest

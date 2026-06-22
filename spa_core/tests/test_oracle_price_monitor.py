@@ -2,8 +2,6 @@
 Tests for MP-667: OraclePriceMonitor
 Run: python3 -m unittest spa_core.tests.test_oracle_price_monitor -v
 """
-import json
-import os
 import sys
 import tempfile
 import unittest
@@ -15,8 +13,6 @@ from spa_core.analytics.oracle_price_monitor import (
     OracleFeed,
     OracleHealth,
     OraclePriceMonitor,
-    STALENESS_THRESHOLDS,
-    DEVIATION_THRESHOLDS,
     MAX_ENTRIES,
 )
 

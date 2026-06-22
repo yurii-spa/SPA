@@ -12,7 +12,6 @@ All tests are deterministic (no network, no real spa.db touched).
 """
 from __future__ import annotations
 
-import importlib
 import os
 import sqlite3
 import sys

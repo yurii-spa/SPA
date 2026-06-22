@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import spa_core.analytics.yield_opportunity_scanner as yos
 from spa_core.analytics.yield_opportunity_scanner import (

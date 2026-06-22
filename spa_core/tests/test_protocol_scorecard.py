@@ -33,7 +33,6 @@ import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any
 
 # ── project path ─────────────────────────────────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parents[2]

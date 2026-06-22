@@ -3,10 +3,7 @@ Tests for MEV Protection Layer (Sprint v3.26 / SPA-V326).
 
 All tests run without network — mock Flashbots endpoints.
 """
-import os
-import json
 import unittest.mock as mock
-import pytest
 from spa_core.execution.mev_protection import (
     is_mev_protection_enabled,
     get_protected_rpc,
@@ -16,7 +13,6 @@ from spa_core.execution.mev_protection import (
     FLASHBOTS_RPC_FAST,
     FLASHBOTS_RPC_STANDARD,
     MEV_BLOCKER_RPC_NOREV,
-    _send_to_endpoint,
 )
 
 

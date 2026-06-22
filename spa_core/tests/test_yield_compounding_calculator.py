@@ -3,7 +3,6 @@ Tests for MP-753: YieldCompoundingCalculator
 Uses unittest only (NOT pytest).
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -23,7 +22,6 @@ from spa_core.analytics.yield_compounding_calculator import (
     compute_all,
     save_results,
     load_history,
-    CompoundingScenario,
     CompoundingResult,
 )
 

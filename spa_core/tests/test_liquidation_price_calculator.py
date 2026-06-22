@@ -3,15 +3,11 @@ Tests for MP-756: LiquidationPriceCalculator
 Uses unittest only. 65+ test cases.
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.liquidation_price_calculator import (
-    DEFAULT_MAINTENANCE_MARGIN,
-    LiquidationResult,
-    LiquidationScenario,
     alert_level,
     analyze_portfolio,
     analyze_scenario,

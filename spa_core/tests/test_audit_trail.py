@@ -36,12 +36,10 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.audit.audit_trail import (
-    VALID_EVENT_TYPES,
     begin_cycle,
     export_signed_jsonl,
     get_cycle_chain,
     record_event,
-    _cycle_registry,
 )
 
 

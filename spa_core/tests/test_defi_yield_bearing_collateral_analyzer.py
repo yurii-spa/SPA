@@ -5,7 +5,6 @@ Run with:
     python3 -m unittest spa_core.tests.test_defi_yield_bearing_collateral_analyzer -v
 """
 import json
-import os
 import sys
 import unittest
 import tempfile

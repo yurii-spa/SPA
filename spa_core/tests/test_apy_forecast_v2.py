@@ -6,8 +6,6 @@ spa_core/tests/test_apy_forecast_v2.py
 from __future__ import annotations
 
 import json
-import math
-import os
 import sys
 import unittest
 import tempfile
@@ -17,7 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.analytics.apy_forecast_v2 import (
-    ALPHA,
     HORIZONS,
     APYForecastV2,
     ForecastModel,

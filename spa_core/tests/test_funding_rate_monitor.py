@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_funding_rate_monitor -v
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,7 +12,6 @@ from pathlib import Path
 from spa_core.analytics.funding_rate_monitor import (
     FundingRateMonitor,
     FundingRateSnapshot,
-    THRESHOLDS,
     MAX_ENTRIES,
 )
 

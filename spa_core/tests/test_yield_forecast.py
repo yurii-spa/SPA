@@ -19,11 +19,9 @@ Total: 96 tests
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 from spa_core.analytics.yield_forecast import (
     AdapterForecast,
@@ -652,7 +650,6 @@ class TestFormatTelegramMessage(unittest.TestCase):
         self.engine = _make_engine()
 
     def _forecast_with_adapters(self) -> PortfolioForecast:
-        from datetime import datetime, timezone
         adapters = [
             _make_adapter_forecast(
                 adapter_key="aave_v3",

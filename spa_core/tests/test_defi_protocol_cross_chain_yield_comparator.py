@@ -18,7 +18,6 @@ if _REPO not in sys.path:
 from spa_core.analytics.defi_protocol_cross_chain_yield_comparator import (
     DeFiProtocolCrossChainYieldComparator,
     _atomic_write_json,
-    _append_ring_log,
     _LOG_CAP,
     _REC_TOP_PICK,
     _REC_STRONG,

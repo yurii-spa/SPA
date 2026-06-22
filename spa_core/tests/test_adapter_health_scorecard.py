@@ -5,7 +5,6 @@ Target: ≥60 tests
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import time
@@ -17,10 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.analytics.adapter_health_scorecard import (
     MAX_ENTRIES,
-    WEIGHTS,
     AdapterHealthScorecard,
     AdapterSignals,
-    HealthScore,
 )
 
 

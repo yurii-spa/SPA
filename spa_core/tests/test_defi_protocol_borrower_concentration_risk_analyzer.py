@@ -20,7 +20,6 @@ from spa_core.analytics.defi_protocol_borrower_concentration_risk_analyzer impor
     _top_n_share,
     _clamp,
     _risk_label,
-    _build_default_cfg,
     HHI_COMPETITIVE,
     HHI_MODERATE,
     TOP1_CRITICAL,

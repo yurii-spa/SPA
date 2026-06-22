@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_composability_risk_an
 import json
 import os
 import tempfile
-import time
 import unittest
 
 from spa_core.analytics.defi_protocol_composability_risk_analyzer import (

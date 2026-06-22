@@ -33,12 +33,10 @@ import hashlib
 import io
 import json
 import math
-import os
 import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
 from pathlib import Path
 
 from spa_core.paper_trading import tail_risk as tr

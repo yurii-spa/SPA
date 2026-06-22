@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_cross_protocol_yield_optimizer -v
 import json
 import os
 import tempfile
-import time
 import unittest
 from unittest.mock import patch
 

@@ -6,7 +6,6 @@ Pure stdlib. No external dependencies. No real Telegram calls.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest

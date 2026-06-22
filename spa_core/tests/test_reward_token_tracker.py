@@ -3,16 +3,11 @@ Tests for MP-757: RewardTokenTracker
 Uses unittest only. 65+ test cases.
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.reward_token_tracker import (
-    HIGH_VALUE_THRESHOLD,
-    MODERATE_VALUE_THRESHOLD,
-    RewardToken,
-    RewardTrackingResult,
     compute_vesting_discount,
     compute_volatility_discount,
     load_history,

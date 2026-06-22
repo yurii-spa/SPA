@@ -3,7 +3,6 @@ Tests for MP-740: YieldAttributionAnalyzer
 ≥65 unittest tests. Pure stdlib.
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -18,11 +17,6 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from spa_core.analytics.yield_attribution_analyzer import (
-    SUSTAINABILITY_MAP,
-    SUSTAINABILITY_NOTES,
-    YieldComponent,
-    PositionAttribution,
-    YieldAttributionResult,
     build_component,
     compute_sustainability_label,
     attribute_position,

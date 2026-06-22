@@ -18,15 +18,12 @@ from __future__ import annotations
 
 import ast
 import json
-import math
-import os
 import shutil
-import sys
 import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # Module under test
 from spa_core.paper_trading import alpha_decay as ad

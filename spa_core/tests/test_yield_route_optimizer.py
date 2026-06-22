@@ -3,8 +3,6 @@
 # ≥65 tests covering: constraint validation, greedy allocation, metrics,
 # HHI, route labels, save/load, ring-buffer cap, edge cases.
 
-import json
-import os
 import sys
 import unittest
 import tempfile

@@ -22,8 +22,6 @@ from spa_core.analytics.defi_protocol_autocompound_keeper_reliability_analyzer i
     _safe_div,
     _build_default_cfg,
     _grade_from_score,
-    RATIO_SENTINEL_INF,
-    PCT_SENTINEL_CAP,
     STALE_RATIO,
     SEVERELY_STALE_RATIO,
     STALLED_RATIO,

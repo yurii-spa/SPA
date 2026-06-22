@@ -19,7 +19,6 @@ Covers ≥60 test cases:
 """
 
 import json
-import os
 import unittest
 import tempfile
 from pathlib import Path

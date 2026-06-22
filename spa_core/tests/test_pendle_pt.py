@@ -10,7 +10,6 @@ Run:
 from __future__ import annotations
 
 import datetime
-import io
 import json
 import urllib.error
 from unittest.mock import MagicMock, patch

@@ -18,7 +18,6 @@ from spa_core.analytics.protocol_defi_yield_aggregator_strategy_risk_analyzer im
     ProtocolDeFiYieldAggregatorStrategyRiskAnalyzer,
     _clamp,
     _append_log,
-    LOG_CAP,
 )
 
 

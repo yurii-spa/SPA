@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_governance_token_risk_analyzer -v
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

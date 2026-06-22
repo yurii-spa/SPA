@@ -4,10 +4,8 @@ Tests for spa_core/analytics/fee_impact_analyzer.py  (MP-642)
 """
 
 import json
-import os
 import sys
 import tempfile
-import time
 from pathlib import Path
 import unittest
 
@@ -18,7 +16,6 @@ if str(_ROOT) not in sys.path:
 
 from spa_core.analytics.fee_impact_analyzer import (
     FeeImpactAnalyzer,
-    FeeImpact,
     FeeStructure,
     MAX_ENTRIES,
 )

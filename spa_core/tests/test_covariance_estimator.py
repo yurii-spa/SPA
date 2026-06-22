@@ -7,10 +7,8 @@ exercised in CI.
 """
 from __future__ import annotations
 
-import math
 from datetime import datetime, timezone, timedelta
 
-import pytest
 
 import sys
 from pathlib import Path
@@ -18,9 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from analytics.covariance_estimator import (
     CovarianceEstimator,
-    DEFAULT_WINDOW_DAYS,
     MIN_OBSERVATIONS,
-    SYNTHETIC_APY_CV,
     SYNTHETIC_CROSS_TIER_CORR,
     SYNTHETIC_SAME_TIER_CORR,
     _parse_iso,

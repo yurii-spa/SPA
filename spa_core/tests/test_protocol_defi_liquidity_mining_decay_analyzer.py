@@ -5,7 +5,6 @@ Total: ≥ 110 test methods.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -18,7 +17,6 @@ from spa_core.analytics.protocol_defi_liquidity_mining_decay_analyzer import (
     ProtocolDeFiLiquidityMiningDecayAnalyzer,
     LiquidityMiningDecayReport,
     MAX_ENTRIES,
-    DATA_FILE,
 )
 
 # ---------------------------------------------------------------------------

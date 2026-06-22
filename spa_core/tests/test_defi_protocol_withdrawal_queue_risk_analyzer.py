@@ -9,15 +9,10 @@ import json
 import os
 import tempfile
 import unittest
-from typing import Optional
 
 from spa_core.analytics.defi_protocol_withdrawal_queue_risk_analyzer import (
     DAYS_PER_YEAR,
     HOURS_PER_DAY,
-    LABEL_FAST_MAX,
-    LABEL_INSTANT_MAX,
-    LABEL_LONG_MAX,
-    LABEL_MANAGEABLE_MAX,
     LOG_MAX_ENTRIES,
     SCORE_BREAKPOINTS,
     VALID_WITHDRAWAL_TYPES,

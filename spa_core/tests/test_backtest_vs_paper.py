@@ -11,8 +11,6 @@ Tests for spa_core.paper_trading.backtest_vs_paper (MP-139).
 from __future__ import annotations
 
 import json
-import math
-import os
 from pathlib import Path
 
 import pytest

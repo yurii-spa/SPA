@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Make spa_core importable from the project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -37,7 +37,7 @@ def _make_trader():
         from paper_trading.engine import PaperTrader
         trader = PaperTrader.__new__(PaperTrader)
         # Minimal attribute setup — methods under test don't need real DB
-        from risk.policy import RiskPolicy, RiskConfig
+        from risk.policy import RiskPolicy
         trader.policy = RiskPolicy()
         trader.strategy_id = "paper-v1"
         trader.db_path = ":memory:"

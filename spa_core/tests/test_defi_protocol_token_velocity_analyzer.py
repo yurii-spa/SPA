@@ -14,7 +14,6 @@ sys.path.insert(0, _SRC)
 
 from spa_core.analytics.defi_protocol_token_velocity_analyzer import (
     DeFiProtocolTokenVelocityAnalyzer,
-    DEFAULT_CONFIG,
     VALID_VELOCITY_LABELS,
     VALID_FLAGS,
 )

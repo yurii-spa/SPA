@@ -3,7 +3,6 @@ Tests for MP-685: DebtRatioAnalyzer
 ≥60 unittest tests. Pure stdlib (unittest only).
 """
 import json
-import os
 import tempfile
 import time
 import unittest
@@ -14,7 +13,6 @@ from spa_core.analytics.debt_ratio_analyzer import (
     DebtPosition,
     DebtRatioReport,
     PortfolioLeverageReport,
-    DATA_FILE,
     MAX_ENTRIES,
 )
 

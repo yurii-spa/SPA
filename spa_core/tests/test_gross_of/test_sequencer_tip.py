@@ -30,11 +30,6 @@ from spa_core.analytics.gross_of.sequencer_tip import (
     estimate_annual_tip_bps,
     compute_tip_drag,
     apply_gap,
-    CLEAN_FRACTION,
-    MILD_FRACTION,
-    MODERATE_FRACTION,
-    HIGH_TIP_BPS,
-    EPS,
     LOG_PATH,
     LOG_CAP,
 )

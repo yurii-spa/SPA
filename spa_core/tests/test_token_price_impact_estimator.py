@@ -18,8 +18,6 @@ Covers ≥65 test cases:
   - load_history() missing file returns []
 """
 
-import json
-import os
 import unittest
 import tempfile
 from pathlib import Path

@@ -5,7 +5,6 @@ Uses unittest only (no pytest).
 immediate_action, best_candidate, ring-buffer log.
 """
 import json
-import math
 import os
 import sys
 import tempfile

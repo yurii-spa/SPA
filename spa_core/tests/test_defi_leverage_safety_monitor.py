@@ -3,7 +3,6 @@ Tests for MP-883: DeFiLeverageSafetyMonitor
 Run: python3 -m unittest spa_core.tests.test_defi_leverage_safety_monitor -v
 """
 import json
-import math
 import os
 import sys
 import tempfile

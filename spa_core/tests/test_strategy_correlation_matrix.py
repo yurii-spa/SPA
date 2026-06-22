@@ -6,8 +6,6 @@ diversification score, correlated pairs, persistence, and advisory text.
 """
 
 import json
-import math
-import os
 import sys
 import tempfile
 import unittest

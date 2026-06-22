@@ -8,7 +8,6 @@ Run with: python3 -m unittest spa_core.tests.test_defi_protocol_yield_optimizer_
 import json
 import math
 import os
-import sys
 import tempfile
 import unittest
 
@@ -24,14 +23,11 @@ from spa_core.analytics.defi_protocol_yield_optimizer_fee_drag_analyzer import (
     LOW_FEE_VAULT,
     MODERATE_FEES,
     _NEVER_BREAKEVEN,
-    _append_log,
-    _atomic_write,
     _compute_breakeven_days,
     _compute_fee_drag,
     _compute_fee_drag_ratio,
     _compute_fee_efficiency_score,
     _compute_fee_label,
-    _load_log,
     __mp__,
     __version__,
 )

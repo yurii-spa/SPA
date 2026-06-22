@@ -20,7 +20,6 @@ call out to a real chain.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -28,7 +27,6 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from spa_core.execution import engine_bridge as eb
 from spa_core.execution.engine_bridge import (
     LiveExecutionBridge,
     LOG_MAX_ENTRIES,

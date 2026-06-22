@@ -3,8 +3,6 @@ Tests for MP-898 ProtocolEconomicAttackSimulator.
 Run: python3 -m unittest spa_core.tests.test_protocol_economic_attack_simulator -v
 """
 
-import json
-import os
 import time
 import unittest
 

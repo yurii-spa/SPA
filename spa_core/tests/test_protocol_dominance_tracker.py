@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core/tests/test_protocol_dominance_tracker.py
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -21,7 +20,6 @@ from spa_core.analytics.protocol_dominance_tracker import (
     save_snapshot,
     load_log,
     _atomic_write,
-    _read_log,
 )
 
 

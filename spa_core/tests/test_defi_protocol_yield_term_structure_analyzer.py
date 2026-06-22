@@ -4,10 +4,8 @@ Comprehensive pytest suite - pure stdlib, no third-party dependencies.
 """
 
 import json
-import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -56,7 +54,6 @@ from spa_core.analytics.defi_protocol_yield_term_structure_analyzer import (
     FLAG_OPTIMAL_IS_SHORT,
     FLAG_INSUFFICIENT_DATA,
     TENOR_SENTINEL_NONE,
-    _EPS,
 )
 
 

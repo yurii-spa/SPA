@@ -20,7 +20,6 @@ spa_core/tests/test_s3_aave_arb_morpho.py — MP-381
 """
 from __future__ import annotations
 
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -40,9 +39,6 @@ from spa_core.strategies.s3_aave_arb_morpho import (
     WEIGHTED_APY_EXPECTED,
     GAS_SAVINGS_PER_TX_USD,
     RISK_FLAGS,
-    TARGET_APY_MIN,
-    TARGET_APY_MAX,
-    KILL_DRAWDOWN_PCT,
 )
 
 # ─── Вспомогательные APY-карты ────────────────────────────────────────────────

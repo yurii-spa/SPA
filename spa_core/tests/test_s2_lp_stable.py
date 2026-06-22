@@ -22,18 +22,7 @@ from spa_core.strategies.s2_lp_stable import (
     _S2Position,
     LPStableStrategy,
     STRATEGY_ID,
-    LP_POOL_PREFIXES,
-    LENDING_PREFIXES,
     FEE_APY_PREMIUM,
-    MAX_CONCENTRATION,
-    MIN_APY,
-    MAX_APY,
-    MIN_TVL_USD,
-    CASH_BUFFER,
-    REBALANCE_DAYS,
-    REBALANCE_APY_GAP,
-    MAX_POSITIONS,
-    MAX_IL_PCT,
 )
 
 

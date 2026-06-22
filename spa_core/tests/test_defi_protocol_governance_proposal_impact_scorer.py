@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_governance_proposal_i
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -26,7 +25,6 @@ from spa_core.analytics.defi_protocol_governance_proposal_impact_scorer import (
     _compute_aggregates,
     _atomic_write,
     _append_log,
-    RISK_CATEGORY_SCORES,
     LOG_CAP,
 )
 

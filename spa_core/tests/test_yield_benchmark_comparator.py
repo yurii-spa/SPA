@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_yield_benchmark_comparator -v
 """
 
 import json
-import os
 import tempfile
 import time
 import unittest
@@ -16,7 +15,6 @@ from spa_core.analytics.yield_benchmark_comparator import (
     save_log,
     load_log,
     _compute_verdict,
-    DATA_FILE,
     MAX_ENTRIES,
     VERDICT_EXCELLENT,
     VERDICT_GOOD,

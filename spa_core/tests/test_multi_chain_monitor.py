@@ -12,8 +12,7 @@ import json
 import os
 import unittest
 import tempfile
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import datetime
 
 from spa_core.analytics.multi_chain_monitor import (
     SUPPORTED_CHAINS,
@@ -23,9 +22,6 @@ from spa_core.analytics.multi_chain_monitor import (
     MultiChainReport,
     _normalize_chain,
     _extract_apy,
-    _extract_risk_score,
-    _extract_tvl,
-    _extract_gas_savings,
     _extract_peg_healthy,
 )
 

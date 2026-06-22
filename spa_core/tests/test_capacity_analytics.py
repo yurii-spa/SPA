@@ -19,7 +19,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading import capacity_analytics as ca
 from spa_core.paper_trading.capacity_analytics import (
     DAILY_LIQUIDITY_FRACTION,
     MAX_DAILY_VOLUME_SHARE,

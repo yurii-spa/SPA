@@ -11,7 +11,6 @@ spa_core/tests/test_s5_pendle_enhanced.py — Тесты для MP-396 S5 Pendle
   TestS5Advantage          — get_pendle_advantage (8 тестов)
 """
 
-import math
 import unittest
 
 

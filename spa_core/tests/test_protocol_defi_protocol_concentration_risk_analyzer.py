@@ -6,11 +6,10 @@ Pure stdlib.  Python 3.9 compatible.
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from spa_core.analytics.protocol_defi_protocol_concentration_risk_analyzer import (
     LABEL_CONCENTRATED_MAX,
@@ -29,7 +28,6 @@ from spa_core.analytics.protocol_defi_protocol_concentration_risk_analyzer impor
     _concentration_score,
     _group_by,
     _hhi,
-    _largest,
     _load_log,
     _validate_positions,
     _validate_total,

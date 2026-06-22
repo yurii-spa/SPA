@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,7 +27,6 @@ from spa_core.analytics.tokenomics_risk_analyzer import (
     W_INFLATION,
     W_VESTING,
     TokenomicsRiskAnalyzer,
-    TokenomicsReport,
     VestingSchedule,
     _report_to_dict,
 )

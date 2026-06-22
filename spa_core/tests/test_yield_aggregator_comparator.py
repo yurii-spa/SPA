@@ -10,13 +10,11 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Resolve project root so imports work from any cwd

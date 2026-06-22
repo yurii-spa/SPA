@@ -21,7 +21,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Bootstrap: гарантируем что spa_core доступен
@@ -628,7 +627,6 @@ class TestFraxAdapterRegistry(unittest.TestCase):
 
     def test_109_no_stdlib_violation(self):
         """Проверяем что frax_adapter.py не импортирует запрещённые внешние модули."""
-        import importlib.util
         path = Path(__file__).resolve().parents[1] / "adapters" / "frax_adapter.py"
         source = path.read_text(encoding="utf-8")
         forbidden = ["requests", "web3", "numpy", "pandas", "scipy",

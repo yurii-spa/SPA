@@ -16,7 +16,7 @@ import sys
 import threading
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import patch
 
 import pytest
 
@@ -30,7 +30,6 @@ for _p in [str(SPA_CORE), str(ROOT)]:
 # ── Imports ───────────────────────────────────────────────────────────────────
 from database.init_db import init_database, get_connection
 from paper_trading.engine import PaperTrader, INITIAL_CAPITAL
-from risk.policy import RiskPolicy, RiskConfig, PortfolioState, Position
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -401,7 +400,7 @@ class TestGoLiveChecklistPaperDuration:
     """
 
     def test_paper_duration_pending_when_3_days(self):
-        from golive.checklist import check_paper_duration, _PENDING, MIN_PAPER_DAYS
+        from golive.checklist import check_paper_duration, _PENDING
 
         # Freeze time so that "today" is only 3 days after PAPER_START_DATE
         fake_today = datetime.fromisoformat("2026-05-20").replace(

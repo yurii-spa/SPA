@@ -4,7 +4,6 @@ Comprehensive pytest suite - pure stdlib, no third-party dependencies.
 """
 
 import json
-import math
 import os
 import sys
 

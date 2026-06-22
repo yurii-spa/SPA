@@ -7,7 +7,6 @@ Run:
 stdlib unittest only — no pytest, no numpy.
 """
 import json
-import math
 import os
 import sys
 import tempfile
@@ -31,16 +30,7 @@ from spa_core.analytics.defi_protocol_interest_rate_sensitivity_analyzer import 
     write_log,
     RING_BUFFER_CAP,
     LOG_FILENAME,
-    THRESHOLD_EXTREME,
-    THRESHOLD_HIGH,
-    THRESHOLD_MODERATE,
-    THRESHOLD_LOW,
     SCORE_NORMALISER,
-    UTIL_80,
-    UTIL_95,
-    UTIL_100,
-    VALID_RATE_MODELS,
-    VALID_POSITION_TYPES,
 )
 
 

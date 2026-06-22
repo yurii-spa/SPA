@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_yield_aggregator_fee_analyzer 
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

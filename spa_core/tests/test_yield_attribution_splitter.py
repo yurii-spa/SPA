@@ -10,7 +10,6 @@ from pathlib import Path
 
 from spa_core.analytics.yield_attribution_splitter import (
     YieldComponents,
-    YieldAttributionReport,
     YieldAttributionSummary,
     YieldAttributionSplitter,
     compute_component_share,
@@ -21,7 +20,6 @@ from spa_core.analytics.yield_attribution_splitter import (
     check_components_sum,
     split_one,
     load_history,
-    save_summary,
     MAX_ENTRIES,
 )
 

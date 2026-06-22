@@ -7,7 +7,6 @@ import json
 import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -57,7 +56,6 @@ from spa_core.analytics.defi_protocol_reward_claim_timing_optimizer import (
     FLAG_INSUFFICIENT_DATA,
     DAYS_SENTINEL_NEVER,
     GAS_RATIO_SENTINEL,
-    _EPS,
 )
 
 

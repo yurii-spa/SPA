@@ -4,8 +4,6 @@ Tests for MP-886 YieldStrategyBacktester
 Run: python3 -m unittest spa_core.tests.test_yield_strategy_backtester -v
 """
 import json
-import math
-import os
 import sys
 import tempfile
 import time

@@ -7,7 +7,6 @@ roll-up / worst-of / never-raise contract can be exercised deterministically.
 """
 import json
 
-import pytest
 
 from spa_core.golive import readiness_score as rs
 

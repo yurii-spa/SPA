@@ -27,7 +27,6 @@ import os
 import tempfile
 import unittest
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
 from spa_core.analytics.daily_operations_report import (
     DailyOperationsReport,

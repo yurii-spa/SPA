@@ -23,8 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from golive.checklist import (
     _FAIL, _PASS, _PENDING, _WARN,
-    APY_GAP_MAX, APY_TARGET, GO_LIVE_DATE, MIN_PAPER_DAYS, PAPER_START_DATE,
-    check_apy_gap,
+    APY_TARGET, GO_LIVE_DATE, check_apy_gap,
     check_tournament_winner,
     days_remaining,
     run_full_check,

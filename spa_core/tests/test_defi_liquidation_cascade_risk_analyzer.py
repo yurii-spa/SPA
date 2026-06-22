@@ -3,8 +3,6 @@ MP-909 — Unit tests for DeFiLiquidationCascadeRiskAnalyzer
 Run: python3 -m unittest spa_core.tests.test_defi_liquidation_cascade_risk_analyzer -v
 Target: ≥80 tests
 """
-import json
-import math
 import os
 import sys
 import unittest
@@ -574,7 +572,6 @@ class TestEdgeCases(unittest.TestCase):
 
 class TestLogDisabled(unittest.TestCase):
     def test_83_log_disabled_no_write(self):
-        import tempfile
         a = DeFiLiquidationCascadeRiskAnalyzer()
         # Should not raise even with log disabled
         r = a.analyze([_pos()], {"log_enabled": False})

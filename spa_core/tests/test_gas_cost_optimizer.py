@@ -5,8 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_gas_cost_optimizer -v
 """
 
 import json
-import math
-import os
 import sys
 import tempfile
 import unittest

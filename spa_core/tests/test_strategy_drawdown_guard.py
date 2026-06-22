@@ -3,15 +3,12 @@ Tests for MP-743: StrategyDrawdownGuard
 Pure stdlib unittest only. ≥65 tests.
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.strategy_drawdown_guard import (
     DrawdownSnapshot,
-    DrawdownState,
-    DrawdownGuardResult,
     alert_level,
     analyze_strategy,
     compute_drawdown,

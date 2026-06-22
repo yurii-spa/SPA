@@ -1034,7 +1034,6 @@ class TestScenarios(unittest.TestCase):
 
     def test_analyze_does_not_write_log(self):
         # analyze() alone should NOT write to default log
-        import os
         a = make_analyzer()
         # Just call analyze; no file should be created by that call alone
         a.analyze()

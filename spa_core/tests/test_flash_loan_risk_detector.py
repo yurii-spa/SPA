@@ -3,7 +3,6 @@ Tests for MP-752: FlashLoanRiskDetector
 Uses unittest only (NOT pytest).
 """
 
-import json
 import os
 import sys
 import tempfile

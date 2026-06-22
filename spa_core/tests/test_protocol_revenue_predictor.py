@@ -20,7 +20,6 @@ from spa_core.analytics.protocol_revenue_predictor import (
     _tvl_trend,
     _fee_rate_trend,
     _load_log,
-    _save_log,
     _MAX_ENTRIES,
     _MIN_HISTORY,
     _DEFAULT_FORECAST_DAYS,

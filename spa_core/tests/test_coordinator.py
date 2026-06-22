@@ -7,17 +7,13 @@ mocked or exercised against the real repo where safe.
 """
 from __future__ import annotations
 
-import fcntl
 import json
-import os
 import sys
 import threading
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 from unittest import mock
 
-import pytest
 
 # Make sure the repo root is importable regardless of how pytest is invoked
 _REPO = Path(__file__).resolve().parent.parent.parent
@@ -25,8 +21,6 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from spa_core.coordinator.sprint_coordinator import (
-    KANBAN_PATH,
-    REPO,
     GateResult,
     check_git_clean,
     check_imports,

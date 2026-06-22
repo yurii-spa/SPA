@@ -12,7 +12,6 @@ import unittest
 from pathlib import Path
 
 from spa_core.analytics.strategy_comparison_matrix import (
-    DimensionScore,
     StrategyComparison,
     StrategyProfile,
     _DIMENSIONS,

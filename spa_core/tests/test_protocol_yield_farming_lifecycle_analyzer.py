@@ -11,7 +11,6 @@ import unittest
 from spa_core.analytics.protocol_yield_farming_lifecycle_analyzer import (
     ProtocolYieldFarmingLifecycleAnalyzer,
     _analyze_farm,
-    _classify_lifecycle,
     LABEL_LAUNCH_PHASE,
     LABEL_GROWTH_PHASE,
     LABEL_MATURITY,

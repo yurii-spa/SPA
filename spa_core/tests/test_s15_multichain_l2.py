@@ -22,10 +22,8 @@ from unittest.mock import MagicMock, patch
 
 from spa_core.strategies.s15_multichain_l2 import (
     CHAIN_WEIGHTS,
-    DESCRIPTION,
     FALLBACK_APY,
     GAS_INFO,
-    MAX_DRAWDOWN_PCT,
     RISK_BLENDED,
     RISK_SCORES,
     STRATEGY_ID,

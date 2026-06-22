@@ -17,14 +17,11 @@ if _PROJECT_ROOT not in sys.path:
 
 from spa_core.analytics.vault_share_tracker import (
     VaultShareTracker,
-    _atomic_write,
-    _load_log,
     compute_dilution_risk,
     compute_nav_per_share,
     compute_price_change_pct,
     compute_vault_apy_from_share_price,
     detect_dilution_events,
-    DILUTION_DROP_THRESHOLD_PCT,
     DILUTION_RISK_HIGH,
     DILUTION_RISK_LOW,
     DILUTION_RISK_MEDIUM,

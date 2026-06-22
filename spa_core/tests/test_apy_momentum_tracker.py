@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_apy_momentum_tracker -v
 """
 
 import json
-import os
 import unittest
 import tempfile
 from pathlib import Path

@@ -3,7 +3,6 @@ Tests for MP-962: DeFiOracleManipulationRiskScorer
 Run: python3 -m unittest spa_core.tests.test_defi_oracle_manipulation_risk_scorer -v
 """
 import json
-import math
 import os
 import tempfile
 import unittest

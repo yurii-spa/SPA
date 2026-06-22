@@ -7,7 +7,6 @@ import json
 import os
 import tempfile
 import unittest
-from pathlib import Path
 
 from spa_core.analytics.defi_protocol_cdp_stability_fee_analyzer import (
     DeFiProtocolCdpStabilityFeeAnalyzer,

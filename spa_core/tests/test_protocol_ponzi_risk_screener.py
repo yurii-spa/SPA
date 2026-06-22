@@ -25,9 +25,6 @@ from spa_core.analytics.protocol_ponzi_risk_screener import (
     _classify,
     _warning_signals,
     _recommendation,
-    init_log,
-    LOG_PATH,
-    LOG_MAX_ENTRIES,
 )
 
 # ---------------------------------------------------------------------------

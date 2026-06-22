@@ -3,9 +3,7 @@
 # ≥65 tests covering: IL math, severity, strategies, recommendations,
 # compare_positions, save/load, ring-buffer cap, edge cases.
 
-import json
 import math
-import os
 import sys
 import unittest
 import tempfile

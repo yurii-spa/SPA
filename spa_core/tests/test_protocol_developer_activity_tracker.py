@@ -4,9 +4,7 @@ Run: python3 -m unittest spa_core.tests.test_protocol_developer_activity_tracker
 """
 
 import json
-import os
 import sys
-import time
 import unittest
 import tempfile
 from pathlib import Path
@@ -22,7 +20,6 @@ from spa_core.analytics.protocol_developer_activity_tracker import (
     _activity_level,
     _velocity_trend,
     _issue_resolution_rate,
-    DATA_FILE,
     MAX_ENTRIES,
 )
 

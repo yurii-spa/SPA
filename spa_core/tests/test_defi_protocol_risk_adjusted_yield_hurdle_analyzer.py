@@ -7,7 +7,6 @@ import json
 import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -54,7 +53,6 @@ from spa_core.analytics.defi_protocol_risk_adjusted_yield_hurdle_analyzer import
     FLAG_GENEROUS_PREMIUM,
     FLAG_INSUFFICIENT_DATA,
     RATIO_SENTINEL_INF,
-    _EPS,
 )
 
 

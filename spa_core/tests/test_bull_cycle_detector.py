@@ -14,9 +14,9 @@ import os
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone, date, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
@@ -33,10 +33,6 @@ from spa_core.strategies.bull_cycle_detector import (
     _compute_daily_market_medians,
     _count_consecutive_bull_days,
     _determine_cycle,
-    _load_apy_history,
-    _protocol_apy_summary,
-    BULL_APY_THRESHOLD,
-    MIN_BULL_DAYS,
     _CAPS,
 )
 

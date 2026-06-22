@@ -17,7 +17,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -163,7 +163,6 @@ class TestDecisionLoggerLog(unittest.TestCase):
             dl.log("ALLOCATE", "ok", data_snapshot=snapshot)
         params = conn.execute.call_args[0][1]
         # snapshot should be a JSON string in params
-        import json
         snapshot_param = [p for p in params if isinstance(p, str) and "aave" in p]
         self.assertGreater(len(snapshot_param), 0)
 

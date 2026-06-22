@@ -6,14 +6,11 @@ import json
 import math
 import os
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.yield_volatility_surface import (
     YieldObservation,
-    VolatilityNode,
-    VolatilitySurfaceReport,
     build_surface,
     save_results,
     load_history,

@@ -28,7 +28,6 @@ from spa_core.analytics.defi_protocol_token_vesting_overhang_analyzer import (
     _dilution_pct,
     _worst_cliff_score,
     _label,
-    _build_recommendations,
     _atomic_log,
 )
 

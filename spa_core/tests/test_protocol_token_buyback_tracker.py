@@ -8,7 +8,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_token_buyback_tracker -v
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import time

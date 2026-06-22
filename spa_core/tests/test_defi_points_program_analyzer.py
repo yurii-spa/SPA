@@ -14,8 +14,6 @@ from spa_core.analytics.defi_points_program_analyzer import (
     analyze_and_log,
     init_log,
     _airdrop_probability,
-    _compute_program,
-    _build_recommendation,
     _LOG_FILE,
     _RING_BUFFER_MAX,
 )

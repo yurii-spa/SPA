@@ -3,7 +3,6 @@ MP-910 — Unit tests for ProtocolFeeStructureAnalyzer
 Run: python3 -m unittest spa_core.tests.test_protocol_fee_structure_analyzer -v
 Target: ≥85 tests
 """
-import json
 import os
 import sys
 import unittest

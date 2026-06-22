@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sys
 import unittest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Import target module
@@ -28,18 +28,15 @@ from spa_core.strategies.s17_polygon_yield import (
     DESCRIPTION,
     FALLBACK_APY,
     GAS_L2_USD,
-    GAS_MAINNET_USD,
     GAS_SAVINGS_PCT,
     AVG_FINALITY_MINUTES,
     MAX_DRAWDOWN_PCT,
     RISK_BLENDED,
     RISK_SCORES,
     STRATEGY_ID,
-    STRATEGY_NAME,
     TARGET_APY_MAX,
     TARGET_APY_MIN,
     TARGET_APY_PCT,
-    TIER,
     WEIGHTED_APY_EXPECTED,
     PolygonYieldStrategy,
 )

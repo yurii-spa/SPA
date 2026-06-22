@@ -4,8 +4,6 @@
 Run with:
     python3 -m unittest spa_core.tests.test_protocol_liquidation_history_analyzer -v
 """
-import json
-import os
 import sys
 import tempfile
 import time

@@ -6,8 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_position_sizing_engine -v
 """
 from __future__ import annotations
 
-import json
-import os
 import unittest
 import tempfile
 from pathlib import Path
@@ -15,7 +13,6 @@ from pathlib import Path
 from spa_core.analytics.position_sizing_engine import (
     _FIXED_FRACTION_PCT,
     _KELLY_MAX,
-    _MAX_ALLOWED_LOSS_PCT,
     _RING_BUFFER_MAX,
     PortfolioSizingResult,
     SizingInput,

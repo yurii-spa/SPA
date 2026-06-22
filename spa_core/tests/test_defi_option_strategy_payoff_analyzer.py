@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_option_strategy_payoff_analyze
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest
@@ -17,7 +16,6 @@ from spa_core.analytics.defi_option_strategy_payoff_analyzer import (
     _strategy_payoff_at_price,
     _find_breakevens,
     _compute_net_premium,
-    _probability_of_profit_v2,
     _risk_reward_ratio,
     _compute_flags,
     _validate_strategy,

@@ -4,7 +4,6 @@ Tests for MP-924 DeFiPointsToTokenConversionAnalyzer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

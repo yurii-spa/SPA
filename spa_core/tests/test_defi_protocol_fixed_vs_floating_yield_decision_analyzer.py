@@ -7,7 +7,6 @@ import json
 import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -59,7 +58,6 @@ from spa_core.analytics.defi_protocol_fixed_vs_floating_yield_decision_analyzer 
     FLAG_FIXED_LIKELY_WINS,
     FLAG_NEAR_INDIFFERENT,
     FLAG_INSUFFICIENT_DATA,
-    _EPS,
 )
 
 

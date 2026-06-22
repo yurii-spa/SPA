@@ -13,7 +13,6 @@ Label decision tree (uses 30d-ago token ratio to measure original exposure):
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest
@@ -63,7 +62,7 @@ def _label_with_token_ratio_30d(base_apy: float, token_ratio_30d_target: float,
     Returns the label produced by the analyzer.
     emission & tvl determine token_apy_30d.
     """
-    import tempfile, os
+    import tempfile
     tmp = tempfile.mkdtemp()
     az = make_analyzer(tmp)
     token_apy_30d = emission * 1.0 * 365 / tvl * 100  # old_price=1.0

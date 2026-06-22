@@ -2,8 +2,6 @@
 Tests for MP-765: ProtocolHealthChecker  (≥65 tests)
 Pure stdlib unittest — no pytest dependency.
 """
-import json
-import math
 import os
 import tempfile
 import time

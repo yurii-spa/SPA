@@ -38,7 +38,7 @@ _SPA_CORE = Path(__file__).parent.parent
 if str(_SPA_CORE) not in sys.path:
     sys.path.insert(0, str(_SPA_CORE))
 
-from backtesting.replay import ReplayEngine, _load_pnl_history, _synthetic_equity_curve
+from backtesting.replay import ReplayEngine
 from backtesting.scenario_runner import run_scenario, compare_scenarios
 
 

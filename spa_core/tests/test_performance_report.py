@@ -6,7 +6,6 @@ All tests are pure stdlib / no external dependencies.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

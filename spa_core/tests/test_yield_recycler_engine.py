@@ -18,7 +18,6 @@ from pathlib import Path
 from spa_core.analytics.yield_recycler_engine import (
     MAX_ENTRIES,
     RecycleComparison,
-    RecycleResult,
     RecycleScenario,
     YieldRecyclerEngine,
 )

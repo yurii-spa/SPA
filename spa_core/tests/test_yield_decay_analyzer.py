@@ -8,18 +8,15 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.yield_decay_analyzer import (
-    DecayAnalysis,
     DecayResult,
     _decay_label_from_pct,
     _is_likely_inflated,
-    _mean,
     _recommendation_for_label,
     analyze,
     analyze_market,

@@ -3,8 +3,6 @@ Tests for MP-676: TokenVestingTracker
 ≥65 test cases using unittest only (no pytest, no numpy, no pandas).
 """
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

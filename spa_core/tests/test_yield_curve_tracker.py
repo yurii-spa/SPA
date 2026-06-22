@@ -5,7 +5,6 @@ Uses unittest only (pure stdlib).
 """
 
 import json
-import os
 import shutil
 import tempfile
 import unittest
@@ -14,7 +13,6 @@ from pathlib import Path
 from spa_core.analytics.yield_curve_tracker import (
     YieldPoint,
     YieldCurveReport,
-    TRADFI_BENCHMARKS,
     _sort_points,
     _is_inverted,
     _term_premium_bps,

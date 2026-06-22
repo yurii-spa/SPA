@@ -11,7 +11,6 @@ Run::
     python3 -m unittest spa_core.tests.test_llm_forbidden_lint
 """
 import json
-import os
 import subprocess
 import sys
 import unittest

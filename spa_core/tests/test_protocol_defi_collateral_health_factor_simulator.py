@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_collateral_health_fac
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

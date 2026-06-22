@@ -24,9 +24,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.strategies.strategy_registry import (
     REGISTRY,
-    StrategyMeta,
-    StrategyRegistry,
-    VALID_TYPES,
     VALID_RISK_TIERS,
 )
 

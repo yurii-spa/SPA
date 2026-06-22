@@ -15,18 +15,13 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
-import pytest
 
 from spa_core.adapters.apy_aggregator import (
     APYAggregator,
     AdapterSnapshot,
     RISK_WEIGHTS,
-    MIN_TVL_USD,
-    _best_apy_from_mock,
-    _primary_network,
 )
 
 

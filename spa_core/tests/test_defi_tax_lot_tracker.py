@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_tax_lot_tracker -v
 """
 
 import json
-import os
 import tempfile
 import time
 import unittest
@@ -16,7 +15,6 @@ from spa_core.analytics.defi_tax_lot_tracker import (
     analyze,
     save_log,
     load_log,
-    DATA_FILE,
     MAX_ENTRIES,
     _parse_date,
     _process_disposal,

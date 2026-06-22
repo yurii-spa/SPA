@@ -15,7 +15,6 @@ sys.path.insert(
 
 from spa_core.analytics.yield_source_diversifier import (
     DiversificationResult,
-    DiversificationScore,
     YieldSource,
     analyze,
     compute_diversification_score,

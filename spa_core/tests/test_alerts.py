@@ -36,7 +36,6 @@ from spa_core.alerts.alert_config import (  # noqa: E402
     SEVERITY_WARNING,
 )
 from spa_core.alerts.alert_dispatcher import (  # noqa: E402
-    RING_BUFFER_MAX,
     dispatch_alerts,
 )
 from spa_core.alerts.alert_rules import (  # noqa: E402

@@ -23,7 +23,6 @@ from spa_core.analytics.yield_farming_roi_tracker import (
     _ensure_log_exists,
     _LOG_CAP,
     _LOG_FILE,
-    _MIN_DAYS,
 )
 
 

@@ -23,7 +23,6 @@ import json
 import os
 import unittest
 import tempfile
-from pathlib import Path
 
 from spa_core.analytics.portfolio_heat_map import (
     HeatMapCell,
@@ -32,8 +31,6 @@ from spa_core.analytics.portfolio_heat_map import (
     PortfolioHeatMapGenerator,
     _normalize_chain,
     _normalize_id,
-    SUPPORTED_CHAINS,
-    CHAIN_ORDER,
 )
 
 

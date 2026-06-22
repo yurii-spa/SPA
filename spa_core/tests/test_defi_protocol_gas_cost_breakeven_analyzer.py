@@ -4,10 +4,8 @@ Comprehensive pytest suite - pure stdlib, no third-party dependencies.
 """
 
 import json
-import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -55,7 +53,6 @@ from spa_core.analytics.defi_protocol_gas_cost_breakeven_analyzer import (
     FLAG_NEGATIVE_NET_YIELD,
     FLAG_INSUFFICIENT_DATA,
     BREAKEVEN_SENTINEL_NEVER,
-    _EPS,
 )
 
 

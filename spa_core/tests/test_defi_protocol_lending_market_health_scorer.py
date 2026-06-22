@@ -34,7 +34,6 @@ from spa_core.analytics.defi_protocol_lending_market_health_scorer import (
     _compute_reserve_coverage,
     _load_json_list,
     _atomic_write,
-    _append_log,
     LOG_FILENAME,
     RING_BUFFER_CAP,
     LABEL_PRISTINE,
@@ -42,8 +41,6 @@ from spa_core.analytics.defi_protocol_lending_market_health_scorer import (
     LABEL_WATCH,
     LABEL_STRESSED,
     WEIGHTS,
-    ORACLE_SCORES,
-    MP_TAG,
     SOURCE_NAME,
     SCHEMA_VERSION,
 )

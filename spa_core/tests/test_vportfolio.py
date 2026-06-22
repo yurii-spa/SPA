@@ -12,8 +12,6 @@ spa_core/tests/test_vportfolio.py — Tests for VPortfolio and VPortfolioManager
 from __future__ import annotations
 
 import json
-import math
-import os
 import sys
 import tempfile
 import unittest
@@ -33,7 +31,6 @@ from spa_core.paper_trading.vportfolio import (
 )
 from spa_core.paper_trading.strategy_registry import (
     STRATEGY_REGISTRY,
-    StrategyConfig,
 )
 
 

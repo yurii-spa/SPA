@@ -3,13 +3,11 @@ Tests for MP-742: DeFiRevenueYieldCalculator
 Pure stdlib unittest only. ≥65 tests.
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.defi_revenue_yield_calculator import (
-    ProtocolRevenue,
     RevenueYieldResult,
     analyze_market,
     analyze_protocol,

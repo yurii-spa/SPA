@@ -4,7 +4,6 @@ Run: python3 -m pytest spa_core/tests/test_bridge_risk_assessor.py -v
 """
 
 import json
-import math
 import os
 import tempfile
 import time

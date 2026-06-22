@@ -4,7 +4,6 @@ Tests for MP-1050 DeFiProtocolYieldBearingCollateralAnalyzer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

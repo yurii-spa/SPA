@@ -2,8 +2,6 @@
 Tests for MP-666: StablecoinRiskAssessor
 Run: python3 -m unittest spa_core.tests.test_stablecoin_risk_assessor -v
 """
-import json
-import os
 import sys
 import tempfile
 import unittest
@@ -16,7 +14,6 @@ from spa_core.analytics.stablecoin_risk_assessor import (
     StablecoinInput,
     StablecoinRisk,
     StablecoinRiskAssessor,
-    PEG_THRESHOLDS,
     MAX_ENTRIES,
 )
 

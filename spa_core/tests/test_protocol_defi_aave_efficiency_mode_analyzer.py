@@ -4,7 +4,6 @@ Tests for MP-1051 ProtocolDeFiAaveEfficiencyModeAnalyzer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

@@ -22,14 +22,6 @@ if _REPO_ROOT not in sys.path:
 
 from spa_core.analytics.protocol_cross_chain_fee_comparator import (
     ProtocolCrossChainFeeComparator,
-    _ULTRA_CHEAP_THRESHOLD,
-    _CHEAP_THRESHOLD,
-    _MODERATE_THRESHOLD,
-    _EXPENSIVE_THRESHOLD,
-    _HIGH_THROUGHPUT_TPS,
-    _FAST_FINALITY_SECONDS,
-    _BRIDGE_EXPENSIVE_USD,
-    _L2_DISCOUNT_CYCLE_THRESHOLD,
 )
 
 

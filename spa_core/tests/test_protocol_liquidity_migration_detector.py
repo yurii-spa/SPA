@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_liquidity_migration_detect
 """
 
 import json
-import os
 import time
 import unittest
 from pathlib import Path

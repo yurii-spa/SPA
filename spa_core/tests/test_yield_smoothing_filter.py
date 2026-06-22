@@ -7,7 +7,7 @@ from pathlib import Path
 from spa_core.analytics.yield_smoothing_filter import (
     compute_sma, compute_ema, detect_outliers, compute_cv,
     smooth_protocol, smooth_all, save_results, load_history,
-    SmoothedYield, YieldSmoothingResult,
+    YieldSmoothingResult,
 )
 
 

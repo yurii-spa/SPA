@@ -11,7 +11,6 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from spa_core.analytics.defi_cycle_phase_detector import (
-    MarketSignal,
     CyclePhaseReport,
     classify_tvl_trend,
     classify_yield_trend,
@@ -421,9 +420,8 @@ class TestAllPhaseBehaviors(unittest.TestCase):
 
     def _phase_report(self, phase_name: str) -> CyclePhaseReport:
         """Force a specific phase by constructing a scenario that produces it."""
-        from spa_core.analytics.defi_cycle_phase_detector import detect_phase, score_phases
         from spa_core.analytics.defi_cycle_phase_detector import (
-            _strategy_bias, _risk_multiplier, _phase_confidence, _outlook_days
+            _strategy_bias, _risk_multiplier
         )
         phase_map = {
             "BULL": "AGGRESSIVE_DEPLOY",

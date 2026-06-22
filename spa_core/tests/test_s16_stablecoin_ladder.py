@@ -23,7 +23,6 @@ spa_core/tests/test_s16_stablecoin_ladder.py — MP-592
 from __future__ import annotations
 
 import json
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -38,16 +37,12 @@ from spa_core.strategies.s16_stablecoin_ladder import (
     STRATEGY_ID,
     STRATEGY_NAME,
     TIER,
-    DESCRIPTION,
     RUNGS,
     FALLBACK_APY,
     RISK_SCORES,
     TARGET_APY_PCT,
-    RISK_SCORE,
-    WEIGHTED_APY_TARGET,
     TARGET_APY_MIN,
     TARGET_APY_MAX,
-    MAX_DRAWDOWN_PCT,
     MIN_APY_ELIGIBLE,
     MAX_APY_ELIGIBLE,
     _FALLBACK_RUNG,

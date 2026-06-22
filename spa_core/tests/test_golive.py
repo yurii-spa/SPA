@@ -3,10 +3,8 @@ Tests for the go-live readiness checker.
 """
 
 import sys
-import json
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

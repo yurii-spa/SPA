@@ -21,14 +21,9 @@ from spa_core.strategies.s1_conservative_lending import (
     _S1Position,
     ConservativeLendingStrategy,
     STRATEGY_ID,
-    ALLOWED_PROTOCOL_PREFIXES,
-    MAX_CONCENTRATION,
     MIN_APY,
     MAX_APY,
     MIN_TVL_USD,
-    CASH_BUFFER,
-    REBALANCE_THRESHOLD,
-    MAX_POSITIONS,
 )
 
 

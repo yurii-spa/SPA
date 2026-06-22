@@ -21,11 +21,6 @@ from spa_core.analytics.protocol_user_incentive_analyzer import (
     _compute_flags,
     _analyze_single,
     MERCENARY_CAPITAL_RETENTION_THRESHOLD,
-    HIGH_COST_PER_USER_THRESHOLD,
-    TVL_FARMING_TVL_PER_USER_THRESHOLD,
-    TVL_FARMING_MAX_USERS,
-    TOKEN_DUMP_THRESHOLD,
-    EFFECTIVE_RETENTION_THRESHOLD,
     LOG_CAP,
     ROI_FULL_MULTIPLE,
 )

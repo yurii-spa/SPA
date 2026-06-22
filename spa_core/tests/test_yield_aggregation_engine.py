@@ -2,7 +2,6 @@
 Tests for MP-715: YieldAggregationEngine
 ≥65 tests covering all logic paths.
 """
-import json
 import os
 import tempfile
 import unittest

@@ -6,7 +6,6 @@ Tests for MP-816 ProtocolUpgradeImpactAnalyzer
 import json
 import os
 import tempfile
-import time
 import unittest
 
 from spa_core.analytics.protocol_upgrade_impact_analyzer import (

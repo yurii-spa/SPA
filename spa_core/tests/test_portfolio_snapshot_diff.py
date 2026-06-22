@@ -20,8 +20,7 @@ import json
 import os
 import tempfile
 import unittest
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import datetime
 
 from spa_core.analytics.portfolio_snapshot_diff import (
     AdapterChange,

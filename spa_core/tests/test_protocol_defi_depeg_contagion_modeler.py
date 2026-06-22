@@ -3,7 +3,6 @@ Tests for MP-963: ProtocolDeFiDepegContagionModeler
 Run: python3 -m unittest spa_core.tests.test_protocol_defi_depeg_contagion_modeler -v
 """
 import json
-import math
 import os
 import tempfile
 import unittest

@@ -4,7 +4,6 @@ Tests for MP-797: CollateralHealthMonitor
 Run: python3 -m unittest spa_core/tests/test_collateral_health_monitor.py
 """
 import json
-import math
 import os
 import sys
 import tempfile

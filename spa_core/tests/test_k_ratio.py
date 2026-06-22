@@ -31,7 +31,6 @@ from spa_core.paper_trading.k_ratio import (
     write_status,
     K_FAIL,
     K_WARN,
-    MIN_OBS,
 )
 
 _MODULE_PATH = Path(kr.__file__)

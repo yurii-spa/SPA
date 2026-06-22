@@ -16,8 +16,6 @@ spa_core/tests/test_emode_looping.py — тесты EModeLoopingStrategy (S9)
 56 тестов, stdlib unittest, без сети, без реальных денег.
 """
 
-import importlib
-import math
 import sys
 import unittest
 from pathlib import Path

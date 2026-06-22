@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_dependency_mapper -v
 
 import json
 import os
-import time
 import unittest
 import tempfile
 

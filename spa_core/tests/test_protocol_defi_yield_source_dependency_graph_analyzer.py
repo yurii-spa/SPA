@@ -4,7 +4,6 @@ Tests for MP-1043 ProtocolDeFiYieldSourceDependencyGraphAnalyzer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

@@ -3,15 +3,12 @@ Tests for MP-731: PortfolioStressScenarioRunner
 stdlib unittest only. ≥65 tests.
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.portfolio_stress_scenario_runner import (
     StressScenario,
-    PositionStressResult,
-    PortfolioStressResult,
     DEFAULT_SCENARIOS,
     apply_shock,
     stress_position,

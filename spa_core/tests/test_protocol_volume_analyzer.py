@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_volume_analyzer -v
 
 import json
 import math
-import os
 import unittest
 import tempfile
 from datetime import date, timedelta
@@ -14,7 +13,6 @@ from pathlib import Path
 
 from spa_core.analytics.protocol_volume_analyzer import (
     MAX_ENTRIES,
-    DEFAULT_CONFIG,
     _LOG10_1B_PLUS_1,
     _parse_date,
     _sma,

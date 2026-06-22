@@ -3,8 +3,6 @@ Tests for MP-897 YieldAggregatorStrategyScorer.
 Run: python3 -m unittest spa_core.tests.test_yield_aggregator_strategy_scorer -v
 """
 
-import json
-import os
 import time
 import unittest
 

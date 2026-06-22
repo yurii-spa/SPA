@@ -18,7 +18,6 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
-from typing import Dict, List
 
 # Ensure repo root on path for direct test runs
 _REPO = Path(__file__).resolve().parents[2]

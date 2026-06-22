@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_token_unlock_schedule_anal
 """
 
 import json
-import os
 import sys
 import unittest
 import tempfile
@@ -22,7 +21,6 @@ from spa_core.analytics.protocol_token_unlock_schedule_analyzer import (
     _compute_flags,
     _total_30d_unlock_usd,
     _append_log,
-    DATA_FILE,
     MAX_ENTRIES,
     RECIPIENT_RISK,
     _SELL_PRESSURE_BRACKETS,

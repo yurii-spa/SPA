@@ -3,7 +3,6 @@ Tests for PositionProfitabilityTracker (MP-718).
 Run: python3 -m pytest spa_core/tests/test_position_profitability_tracker.py -v
 """
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

@@ -2,7 +2,6 @@
 # MP-660 — Tests for LPPositionTracker (pure stdlib, unittest only)
 
 import json
-import os
 import tempfile
 import time
 import unittest

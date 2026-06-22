@@ -27,8 +27,6 @@ from spa_core.paper_trading.promotion_engine import (
     ALLOC_CAP,
     ALLOC_FLOOR,
     ALLOC_STEP,
-    DEMOTE_SHARPE,
-    KILL_CALMAR,
     KILL_DRAWDOWN,
     MIN_DAYS,
     PROMOTE_SHARPE,

@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 import tempfile
 import unittest
@@ -542,7 +541,6 @@ class TestLogSimulation(unittest.TestCase):
         self.assertIn("logged_at", data[0])
 
     def test_creates_data_dir_if_missing(self):
-        import shutil
         sub_dir = os.path.join(self._tmp, "new_data_subdir")
         sim2 = LiquidityExitSimulator(data_dir=sub_dir)
         sim2.log_simulation(self._sample_report("subdir_test"))

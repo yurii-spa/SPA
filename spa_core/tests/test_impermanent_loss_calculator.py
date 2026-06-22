@@ -1,9 +1,7 @@
 # spa_core/tests/test_impermanent_loss_calculator.py
 # MP-659 — Tests for ImpermanentLossCalculator (pure stdlib, unittest only)
 
-import json
 import math
-import os
 import tempfile
 import unittest
 from pathlib import Path

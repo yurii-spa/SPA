@@ -24,13 +24,10 @@ Test contract:
 from __future__ import annotations
 
 import json
-import math
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 
-import pytest
 
 import spa_core.paper_trading.cycle_runner as cr
 from spa_core.paper_trading.cycle_runner import _apply_risk_policy_gate

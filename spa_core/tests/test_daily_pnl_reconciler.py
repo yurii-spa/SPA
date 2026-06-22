@@ -18,7 +18,6 @@ if str(_ROOT) not in sys.path:
 
 from spa_core.analytics.daily_pnl_reconciler import (
     DailyPnLReconciler,
-    ReconciliationReport,
     StrategyPnL,
     MAX_ENTRIES,
 )

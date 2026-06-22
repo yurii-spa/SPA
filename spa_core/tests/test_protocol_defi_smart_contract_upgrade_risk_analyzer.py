@@ -7,7 +7,6 @@ Run:
 All tests use stdlib unittest only — no pytest, no numpy, no external deps.
 """
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -38,7 +37,6 @@ from spa_core.analytics.protocol_defi_smart_contract_upgrade_risk_analyzer impor
     GOV_AUDIT_MAX,
     GOV_AUDIT_PER_UNIT,
     GOV_STABILITY_BONUS,
-    GOV_STABILITY_MIN_DAYS,
     MULTISIG_RATIO_MIN,
     RISK_TIMELOCK_STRONG_REDUCTION,
     RISK_TIMELOCK_ADEQUATE_REDUCTION,

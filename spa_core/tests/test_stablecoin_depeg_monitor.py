@@ -6,7 +6,6 @@ Tempfile-based persistence — production data/ is never touched.
 
 import json
 import math
-import os
 import sys
 import unittest
 import tempfile

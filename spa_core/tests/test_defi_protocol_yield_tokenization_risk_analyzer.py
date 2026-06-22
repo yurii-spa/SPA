@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_yield_tokenization_ri
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,7 +14,6 @@ from spa_core.analytics.defi_protocol_yield_tokenization_risk_analyzer import (
     YieldTokenizationInput,
     YieldTokenizationResult,
     MAX_ENTRIES,
-    DATA_FILE,
 )
 
 

@@ -22,15 +22,12 @@ from spa_core.analytics.protocol_defi_borrow_rate_stability_analyzer import (
     ULTRA_STABLE,
     VOLATILE_RATE,
     ProtocolDeFiBorrowRateStabilityAnalyzer,
-    _append_log,
-    _atomic_write,
     _compute_above_optimal_flag,
     _compute_mean,
     _compute_rate_cv,
     _compute_stability_label,
     _compute_stability_score,
     _compute_std,
-    _load_log,
     __mp__,
     __version__,
 )
@@ -619,7 +616,6 @@ class TestAnalyzeEdgeCases(unittest.TestCase):
         self.assertAlmostEqual(r["rate_cv"], 0.0, places=6)
 
     def test_large_rate_series(self):
-        import random
         rates = [5.0 + i * 0.01 for i in range(100)]
         r = _analyze(self.tmp, borrow_rates_pct=rates)
         self.assertEqual(r["observations"], 100)

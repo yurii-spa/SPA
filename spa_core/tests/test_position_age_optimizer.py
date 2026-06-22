@@ -4,8 +4,6 @@ Tests for MP-709 PositionAgeOptimizer (spa_core/analytics/position_age_optimizer
 """
 from __future__ import annotations
 
-import json
-import math
 import unittest
 import tempfile
 from pathlib import Path

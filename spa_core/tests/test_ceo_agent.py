@@ -36,7 +36,6 @@ from spa_core.agents.ceo_agent_v2 import (
     TRIGGER_FORCED,
     TRIGGER_WEEKLY,
     VALID_DECISIONS,
-    CeoDecision,
     append_decision,
     compute_drawdown_pct,
     decide,

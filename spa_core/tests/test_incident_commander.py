@@ -25,7 +25,6 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.agents.incident_commander import (
-    IncidentSeverity,
     create_incident,
     list_open_incidents,
     resolve_incident,

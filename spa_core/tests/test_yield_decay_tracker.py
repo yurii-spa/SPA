@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core/tests/test_yield_decay_tracker.py
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 import tempfile

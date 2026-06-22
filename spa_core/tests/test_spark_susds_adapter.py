@@ -29,7 +29,7 @@ from pathlib import Path
 # Добавляем корень репо в sys.path для прямого запуска файла
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.adapters.base_adapter import BaseAdapter, YieldInfo
+from spa_core.adapters.base_adapter import BaseAdapter
 from spa_core.adapters.spark_susds_adapter import SparkSusdsAdapter
 
 

@@ -9,7 +9,6 @@ import unittest
 import tempfile
 
 from spa_core.backtest.historical_backtest import (
-    HistoricalScenario,
     BacktestResult,
     run_scenario,
     run_all_scenarios,

@@ -34,14 +34,13 @@ import hashlib
 import io
 import json
 import math
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # ── project path ─────────────────────────────────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parents[2]

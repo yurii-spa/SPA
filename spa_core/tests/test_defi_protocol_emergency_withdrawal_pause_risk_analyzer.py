@@ -24,11 +24,6 @@ from spa_core.analytics.defi_protocol_emergency_withdrawal_pause_risk_analyzer i
     _grade_from_safety,
     CONTROLLER_SAFETY,
     DEFAULT_CONTROLLER_SAFETY,
-    PAUSE_LONG_DAYS,
-    PAUSE_SEVERE_DAYS,
-    PROB_HIGH_PCT,
-    PROB_MODERATE_PCT,
-    DEFAULT_TRAPPED_APY_PCT,
     LOG_PATH,
     LOG_CAP,
 )

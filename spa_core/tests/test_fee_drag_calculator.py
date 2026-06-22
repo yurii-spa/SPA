@@ -5,8 +5,6 @@ break-even logic, advisory text, persistence, and FeeSpec defaults.
 """
 
 import json
-import math
-import os
 import sys
 import tempfile
 import unittest

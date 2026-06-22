@@ -3,7 +3,6 @@
 # Run: python3 -m unittest spa_core.tests.test_protocol_decay_risk_monitor -v
 
 import json
-import os
 import sys
 import tempfile
 import time

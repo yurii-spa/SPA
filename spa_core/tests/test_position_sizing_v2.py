@@ -17,9 +17,7 @@ Covers:
 from __future__ import annotations
 
 import ast
-import math
 import sys
-import os
 import unittest
 from pathlib import Path
 

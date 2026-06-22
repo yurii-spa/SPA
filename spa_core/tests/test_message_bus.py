@@ -4,7 +4,6 @@ Tests для Message Bus (M4) — publish/consume/ack/requeue/stats.
 from __future__ import annotations
 
 import sys
-import time
 import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path

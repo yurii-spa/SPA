@@ -27,8 +27,6 @@ from spa_core.analytics.defi_protocol_vault_headline_yield_honesty_composite_ana
     MILD_FRACTION,
     MODERATE_FRACTION,
     DOMINANT_SHARE_THRESHOLD,
-    MANY_SOURCES_THRESHOLD,
-    EPS,
     LOG_PATH,
     LOG_CAP,
 )

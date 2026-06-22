@@ -11,7 +11,6 @@ Label thresholds (by best_net_gain / position_size):
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_vetoken_bribe_market_analy
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

@@ -11,7 +11,6 @@ import unittest
 from pathlib import Path
 
 from spa_core.analytics.concentrated_liquidity_analyzer import (
-    CLAnalysis,
     CLPosition,
     ConcentratedLiquidityAnalyzer,
     MAX_ENTRIES,

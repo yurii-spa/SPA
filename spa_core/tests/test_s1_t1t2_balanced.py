@@ -10,7 +10,6 @@ Run:
 """
 from __future__ import annotations
 
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -22,7 +21,6 @@ from spa_core.strategies.s1_t1t2_balanced import (
     TARGET_WEIGHTS,
     DEFAULT_APY,
     STRATEGY_ID,
-    STRATEGY_NAME,
     STRATEGY_RISK_LEVEL,
     KILL_DRAWDOWN_PCT,
     TARGET_APY_MIN,

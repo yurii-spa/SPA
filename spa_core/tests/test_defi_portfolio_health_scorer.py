@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_portfolio_health_scorer -v
 import json
 import os
 import tempfile
-import time
 import unittest
 from unittest.mock import patch
 

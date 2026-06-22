@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_vault_failed_harvest_
 """
 
 import json
-import math
 import os
 import sys
 import unittest
@@ -27,8 +26,6 @@ from spa_core.analytics.defi_protocol_vault_failed_harvest_gas_drag_analyzer imp
     CLEAN_FRACTION,
     MILD_FRACTION,
     MODERATE_FRACTION,
-    HIGH_GAS_DRAG_PCT_OF_YIELD,
-    EPS,
     LOG_PATH,
     LOG_CAP,
 )

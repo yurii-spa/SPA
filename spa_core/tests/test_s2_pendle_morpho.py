@@ -40,8 +40,6 @@ from spa_core.strategies.s2_pendle_morpho import (
     FALLBACK_APY,
     WEIGHTED_APY_EXPECTED,
     RISK_FLAGS,
-    TARGET_APY_MIN,
-    TARGET_APY_MAX,
 )
 from spa_core.strategies.strategy_registry import REGISTRY
 

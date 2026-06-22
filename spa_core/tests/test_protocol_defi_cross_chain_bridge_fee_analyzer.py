@@ -30,7 +30,6 @@ from spa_core.analytics.protocol_defi_cross_chain_bridge_fee_analyzer import (
     LABEL_BRIDGE_NOT_WORTH_IT,
     _BREAKEVEN_INF,
     _MINUTES_PER_YEAR,
-    _DAYS_PER_YEAR,
 )
 
 # =========================================================================== #

@@ -18,7 +18,6 @@ from spa_core.analytics.defi_protocol_supply_cap_proximity_analyzer import (
     DeFiProtocolSupplyCapProximityAnalyzer,
     SupplyCapProximityReport,
     MAX_ENTRIES,
-    DATA_FILE,
     DAYS_SENTINEL_NEVER,
 )
 

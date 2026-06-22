@@ -7,8 +7,6 @@ Run:
 stdlib unittest only — no pytest, no numpy.
 """
 import json
-import math
-import os
 import sys
 import tempfile
 import unittest
@@ -36,9 +34,7 @@ from spa_core.analytics.protocol_defi_isolated_margin_risk_analyzer import (
     WARNING_HF,
     WARNING_DAYS,
     MONITOR_HF,
-    MONITOR_MARGIN,
     SAFE_HF,
-    SAFE_MARGIN,
 )
 
 

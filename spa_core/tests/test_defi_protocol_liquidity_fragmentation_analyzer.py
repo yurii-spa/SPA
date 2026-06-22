@@ -14,12 +14,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from spa_core.analytics.defi_protocol_liquidity_fragmentation_analyzer import (
     DeFiProtocolLiquidityFragmentationAnalyzer,
     LOG_CAP,
-    _HHI_UNIFIED,
-    _HHI_LOW_FRAG,
-    _HHI_HIGH,
-    _DEV_UNIFIED,
-    _DEV_HIGH,
-    _DEV_SEVERE,
 )
 
 

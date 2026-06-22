@@ -47,7 +47,6 @@ from spa_core.analytics.defi_protocol_yield_after_tax_drag_analyzer import (
     FLAG_SEVERE_TAX_DRAG,
     FLAG_NEGATIVE_AFTER_TAX,
     FLAG_INSUFFICIENT_DATA,
-    _EPS,
 )
 
 

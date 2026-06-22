@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_depeg_contagion_risk_
 """
 
 import json
-import os
 import sys
 import tempfile
 import unittest

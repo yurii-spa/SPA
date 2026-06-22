@@ -16,11 +16,9 @@ from pathlib import Path
 
 from spa_core.analytics.compounding_strategy_selector import (
     AUTO_COMPOUNDERS,
-    DATA_FILE,
     MAX_ENTRIES,
     CompoundingStrategySelector,
     StrategyInput,
-    StrategyOption,
     StrategySelection,
 )
 

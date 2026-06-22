@@ -4,13 +4,11 @@ Tests for MP-747: ProtocolFeeAnalyzer
 Uses unittest only (no pytest).
 """
 
-import json
 import os
 import tempfile
 import unittest
 
 from spa_core.analytics.protocol_fee_analyzer import (
-    FeeStructure,
     FeeAnalysisResult,
     _RING_BUFFER_CAP,
     analyze_market,

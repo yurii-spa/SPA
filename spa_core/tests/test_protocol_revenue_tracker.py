@@ -6,8 +6,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_revenue_tracker -v
 """
 from __future__ import annotations
 
-import json
-import os
 import unittest
 import tempfile
 from pathlib import Path

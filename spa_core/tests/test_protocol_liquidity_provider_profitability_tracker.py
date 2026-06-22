@@ -3,7 +3,6 @@ Tests for MP-951 ProtocolLiquidityProviderProfitabilityTracker.
 Run: python3 -m unittest spa_core.tests.test_protocol_liquidity_provider_profitability_tracker -v
 """
 import json
-import os
 import sys
 import tempfile
 import unittest

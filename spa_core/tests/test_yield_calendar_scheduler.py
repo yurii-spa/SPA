@@ -6,7 +6,6 @@ Run: python3 -m unittest spa_core/tests/test_yield_calendar_scheduler.py -v
 import json
 import os
 import tempfile
-import time
 import unittest
 from datetime import date, timedelta
 

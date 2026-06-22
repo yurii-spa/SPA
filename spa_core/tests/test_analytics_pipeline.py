@@ -18,13 +18,11 @@ Run:
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 # ---------------------------------------------------------------------------
 # Make repo root importable regardless of cwd
@@ -44,7 +42,6 @@ from spa_core.analytics.analytics_pipeline import (
     _build_adapter_liquidities,
     _build_protocol_inputs,
     _build_allocation_slots,
-    PROJECT_ROOT,
 )
 
 

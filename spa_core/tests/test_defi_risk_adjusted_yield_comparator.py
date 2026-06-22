@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_risk_adjusted_yield_comparator
 """
 
 import json
-import math
 import os
 import tempfile
 import unittest

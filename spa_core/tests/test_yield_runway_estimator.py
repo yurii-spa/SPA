@@ -3,7 +3,6 @@ Tests for MP-750: YieldRunwayEstimator
 Uses unittest only. ≥65 tests.
 """
 
-import json
 import math
 import os
 import sys
@@ -16,7 +15,6 @@ if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
 from spa_core.analytics.yield_runway_estimator import (
-    RunwayEstimate,
     RunwayResult,
     _alert_level,
     _recommendation,

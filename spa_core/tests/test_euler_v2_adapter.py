@@ -3,7 +3,6 @@ Tests for EulerV2Adapter (Sprint v3.25 / SPA-V325-002).
 
 All tests run in dry_run=True mode — no live RPC calls.
 """
-import os
 import pytest
 from spa_core.execution.adapters.euler_v2_adapter import EulerV2Adapter, PositionInfo
 

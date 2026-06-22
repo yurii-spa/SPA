@@ -4,7 +4,6 @@ Run: python3 -m pytest spa_core/tests/test_leverage_ratio_monitor.py -v
 """
 
 import json
-import math
 import os
 import tempfile
 import time

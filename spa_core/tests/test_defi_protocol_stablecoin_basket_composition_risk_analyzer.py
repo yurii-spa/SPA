@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_stablecoin_basket_com
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -30,10 +29,6 @@ from spa_core.analytics.defi_protocol_stablecoin_basket_composition_risk_analyze
     _append_log,
     analyze,
     ALGO_AVOID_THRESHOLD,
-    VALID_BACKING_TYPES,
-    VALID_REDEMPTION_MECHANISMS,
-    BACKING_TYPE_RISK,
-    REDEMPTION_RISK,
     INSURANCE_DISCOUNT,
     LOG_MAX_ENTRIES,
 )
@@ -619,7 +614,6 @@ class TestAnalyze(unittest.TestCase):
 
     def test_analyzed_at_format(self):
         r = self._run(_basket())
-        import re
         self.assertRegex(r["analyzed_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
     def test_fortress_basket_end_to_end(self):
@@ -699,7 +693,6 @@ class TestLogHelpers(unittest.TestCase):
         self.assertIsInstance(_iso_now(), str)
 
     def test_iso_now_format(self):
-        import re
         self.assertRegex(_iso_now(), r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
     def test_atomic_write_creates_file(self):

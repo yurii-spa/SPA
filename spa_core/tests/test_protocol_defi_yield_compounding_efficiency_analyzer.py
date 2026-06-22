@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_yield_compounding_eff
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

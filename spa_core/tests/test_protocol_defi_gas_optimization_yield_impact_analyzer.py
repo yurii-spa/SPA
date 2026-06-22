@@ -6,15 +6,12 @@ Run: python3 -m unittest spa_core.tests.test_protocol_defi_gas_optimization_yiel
 
 import json
 import math
-import os
 import tempfile
 import time
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.protocol_defi_gas_optimization_yield_impact_analyzer import (
-    MAX_ENTRIES,
-    RECOMMENDATION_NEGATIVE,
     ProtocolDeFiGasOptimizationYieldImpactAnalyzer,
     chain_gas_efficiency_factor,
     compute_annual_gas_cost_usd,

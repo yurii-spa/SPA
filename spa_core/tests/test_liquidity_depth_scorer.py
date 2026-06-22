@@ -4,7 +4,6 @@ Tests for MP-738: LiquidityDepthScorer
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

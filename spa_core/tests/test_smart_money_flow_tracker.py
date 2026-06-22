@@ -4,16 +4,12 @@ Tests for MP-694: SmartMoneyFlowTracker
 Uses unittest only (no pytest).
 """
 
-import json
-import os
-import time
 import unittest
 import tempfile
 from pathlib import Path
 
 from spa_core.analytics.smart_money_flow_tracker import (
     CapitalFlowEvent,
-    FlowAnalysis,
     analyze,
     analyze_all,
     load_history,

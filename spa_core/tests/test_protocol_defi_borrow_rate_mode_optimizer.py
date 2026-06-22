@@ -5,7 +5,6 @@ Total: >= 120 test methods.
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -18,7 +17,6 @@ from spa_core.analytics.protocol_defi_borrow_rate_mode_optimizer import (
     DeFiProtocolBorrowRateModeOptimizer,
     BorrowRateModeReport,
     MAX_ENTRIES,
-    DATA_FILE,
 )
 
 # ---------------------------------------------------------------------------

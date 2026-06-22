@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_liquidity_mining_roi_calculato
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

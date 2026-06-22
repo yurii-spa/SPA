@@ -576,7 +576,6 @@ class TestAnalyze(unittest.TestCase):
         self.assertEqual(r["protocol_name"], "Compound")
 
     def test_analyzed_at_format(self):
-        import re
         r = self._run(_pos())
         self.assertRegex(r["analyzed_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -653,7 +652,6 @@ class TestLogHelpers(unittest.TestCase):
         self.assertIsInstance(_iso_now(), str)
 
     def test_iso_now_format(self):
-        import re
         self.assertRegex(_iso_now(), r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
     def test_atomic_write_creates_file(self):

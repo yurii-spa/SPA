@@ -14,7 +14,7 @@ import sys
 import unittest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Path bootstrap
 _REPO_ROOT = Path(__file__).resolve().parents[2]

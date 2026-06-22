@@ -19,13 +19,11 @@ spa_core/tests/test_cycle_s2s3_integration.py — MP-386
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Dict
-from unittest.mock import MagicMock, patch, call
 
 
 # ─── TestS2S3Import ────────────────────────────────────────────────────────────
@@ -365,8 +363,7 @@ class TestCycleRunnerBlock(unittest.TestCase):
     def test_s2_constants_importable(self):
         """Константы S2 (STRATEGY_ID, ALLOCATION, TIER, …) должны импортироваться."""
         from spa_core.strategies.s2_pendle_morpho import (
-            STRATEGY_ID, STRATEGY_NAME, TIER, ALLOCATION,
-            TARGET_APY_MIN, TARGET_APY_MAX,
+            STRATEGY_ID, TIER,
         )
         self.assertEqual(STRATEGY_ID, "S2")
         self.assertEqual(TIER, "T2")
@@ -374,8 +371,7 @@ class TestCycleRunnerBlock(unittest.TestCase):
     def test_s3_constants_importable(self):
         """Константы S3 (STRATEGY_ID, ALLOCATION, TIER, …) должны импортироваться."""
         from spa_core.strategies.s3_aave_arb_morpho import (
-            STRATEGY_ID, STRATEGY_NAME, TIER, ALLOCATION,
-            TARGET_APY_MIN, TARGET_APY_MAX,
+            STRATEGY_ID, TIER,
         )
         self.assertEqual(STRATEGY_ID, "S3")
         self.assertEqual(TIER, "T1")

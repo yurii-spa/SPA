@@ -19,11 +19,10 @@ from __future__ import annotations
 import sys
 import datetime
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
 import tempfile
 
 from paper_trading.pendle_strategy import (

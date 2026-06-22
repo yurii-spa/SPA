@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from spa_core.analytics.defi_protocol_nft_collateral_risk_analyzer import (
     DeFiProtocolNFTCollateralRiskAnalyzer,
     ORACLE_RISK_MAP,
-    _DEFAULT_CONFIG,
 )
 
 

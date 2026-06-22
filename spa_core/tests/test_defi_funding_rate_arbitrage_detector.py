@@ -23,9 +23,6 @@ from spa_core.analytics.defi_funding_rate_arbitrage_detector import (
     _estimated_profit,
     _opportunity_type,
     _risk_note,
-    init_log,
-    LOG_PATH,
-    LOG_MAX_ENTRIES,
 )
 
 # ---------------------------------------------------------------------------

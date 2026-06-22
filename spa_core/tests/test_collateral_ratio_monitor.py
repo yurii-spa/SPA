@@ -15,8 +15,6 @@ sys.path.insert(
 )
 
 from spa_core.analytics.collateral_ratio_monitor import (
-    CollateralMonitorResult,
-    CollateralPosition,
     _INF_CAP,
     alert_level_from_hf,
     compute_collateral_ratio,

@@ -25,8 +25,6 @@ from spa_core.analytics.defi_protocol_cross_chain_yield_basis_risk_analyzer impo
     SPREAD_WIDE,
     SPREAD_VERY_WIDE,
     SPREAD_NARROW,
-    MIN_MIGRATION_BENEFIT_PP,
-    BRIDGE_COST_HIGH,
 )
 
 

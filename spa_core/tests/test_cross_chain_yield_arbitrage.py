@@ -19,7 +19,6 @@ if _REPO_ROOT not in sys.path:
 
 from spa_core.analytics.cross_chain_yield_arbitrage import (
     RING_BUFFER_CAP,
-    ArbitrageOpportunity,
     ChainYield,
     best_opportunity,
     calculate_net_apy,

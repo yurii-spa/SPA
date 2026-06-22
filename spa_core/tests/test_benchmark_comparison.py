@@ -17,8 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.paper_trading.benchmark_comparison import (
-    DEFAULT_BENCHMARK_APY,
-    DEFAULT_PERIODS_PER_YEAR,
     compute_benchmark_comparison,
     generate_benchmark_comparison_report,
     _flat_daily_return_pct,

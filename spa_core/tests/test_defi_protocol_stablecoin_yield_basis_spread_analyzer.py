@@ -48,7 +48,6 @@ from spa_core.analytics.defi_protocol_stablecoin_yield_basis_spread_analyzer imp
     FLAG_BELOW_RISK_FREE,
     FLAG_INSUFFICIENT_DATA,
     RATIO_SENTINEL_INF,
-    _EPS,
 )
 
 

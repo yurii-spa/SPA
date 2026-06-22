@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_chain_fee_tracker -v
 """
 
 import json
-import os
 import sys
 import tempfile
 import unittest

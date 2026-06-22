@@ -25,10 +25,9 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from spa_core.paper_trading.cycle_gap_monitor import (
-    GAP_ALERT_AFTER_UTC_HOUR,
     GAP_THRESHOLD_HOURS,
     GAP_STATE_FILENAME,
     STATUS_FILENAME,

@@ -39,7 +39,6 @@ from spa_core.agents.strategy_agent_v2 import (
     TRIGGER_FORCED,
     TRIGGER_WEEKLY,
     VALID_RECOMMENDATIONS,
-    StrategyRecommendation,
     _stdlib_kelly_fraction,
     annualized_volatility_pp,
     append_recommendation,

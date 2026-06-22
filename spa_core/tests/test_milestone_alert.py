@@ -12,12 +12,11 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import unittest
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Ensure repo root is on path
 _REPO_ROOT = Path(__file__).resolve().parents[2]

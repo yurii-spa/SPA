@@ -13,7 +13,6 @@ from spa_core.risk.risk_axes import (
     _matches,
     CREDIT_PROTOCOLS,
     PEG_PROTOCOLS,
-    BRIDGE_PROTOCOLS,
 )
 
 

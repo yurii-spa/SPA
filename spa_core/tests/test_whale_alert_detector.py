@@ -4,9 +4,6 @@ Tests for MP-695: WhaleAlertDetector
 Uses unittest only (no pytest).
 """
 
-import json
-import os
-import time
 import unittest
 import tempfile
 from pathlib import Path
@@ -14,7 +11,6 @@ from pathlib import Path
 from spa_core.analytics.whale_alert_detector import (
     Transaction,
     WhaleAlert,
-    THRESHOLDS,
     detect,
     detect_batch,
     filter_critical,

@@ -4,7 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_fee_revenue_projector -v
 """
 
 import json
-import math
 import os
 import tempfile
 import time
@@ -20,7 +19,6 @@ from spa_core.analytics.protocol_fee_revenue_projector import (
     _growth_trajectory,
     _sustainability_outlook,
     _projection_confidence,
-    _compute_protocol,
     _LOG_FILE,
     _RING_BUFFER_MAX,
 )

@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import sys
-import time
 import urllib.error
 import unittest
 from pathlib import Path

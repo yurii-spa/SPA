@@ -2,7 +2,6 @@
 Tests for MP-764: YieldLadderBuilder  (≥65 tests)
 Pure stdlib unittest — no pytest dependency.
 """
-import json
 import os
 import tempfile
 import time

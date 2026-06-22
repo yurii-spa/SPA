@@ -1,14 +1,13 @@
 """Tests for admin routes: user CRUD, system status, sessions, force-refresh."""
 from __future__ import annotations
 
-import json
 
 import pytest
 from fastapi.testclient import TestClient
 
 from spa_core.family_fund.api.routes import admin as admin_module
 
-from .conftest import TEST_PASSWORDS, auth_header
+from .conftest import auth_header
 
 
 @pytest.fixture(autouse=True)

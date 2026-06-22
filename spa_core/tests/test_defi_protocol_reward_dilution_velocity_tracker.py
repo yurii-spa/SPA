@@ -5,7 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_protocol_reward_dilution_veloc
 """
 
 import json
-import math
 import os
 import sys
 import tempfile

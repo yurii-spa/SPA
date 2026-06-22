@@ -5,7 +5,6 @@ Run with:
     python3 -m unittest spa_core.tests.test_protocol_governance_voter_apathy_analyzer -v
 """
 import json
-import os
 import sys
 import unittest
 import tempfile

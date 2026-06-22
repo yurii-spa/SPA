@@ -4,7 +4,6 @@ Run with:
     python3 -m unittest spa_core.tests.test_network_congestion_monitor -v
 """
 import json
-import os
 import tempfile
 import time
 import unittest

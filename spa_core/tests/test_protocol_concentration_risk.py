@@ -30,14 +30,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.analytics.protocol_concentration_risk import (
     PROTOCOL_MAP,
-    _SORTED_PROTOCOL_KEYS,
-    ConcentrationReport,
     ProtocolConcentrationRisk,
     ProtocolExposure,
-    _extract_apy,
-    _extract_chains,
-    _extract_tvl,
-    _safe_float,
 )
 
 

@@ -40,16 +40,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 # Total test count across both sections: 47 + 30 = 77
 # ===========================================================================
 
-import unittest.mock as mock
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 
 from spa_core.monitoring.cycle_health_monitor import (
     CycleHealthMonitor as MonCycleHealthMonitor,
     _load_equity_history,
     _load_last_cycle_ts,
-    _load_json_list,
     _parse_iso,
-    _now_epoch,
     HEALTH_FILE,
     OK as MON_OK,
     WARNING as MON_WARNING,
@@ -111,7 +108,6 @@ class TestParseIso(unittest.TestCase):
 
     def test_offset_aware_string(self):
         dt = _parse_iso("2026-06-20T14:33:10.479894+00:00")
-        from datetime import timezone
         self.assertIsNotNone(dt.tzinfo)
         self.assertEqual(dt.year, 2026)
 
@@ -340,7 +336,6 @@ class TestMonCheckDataFreshness(unittest.TestCase):
         self.m = MonCycleHealthMonitor()
 
     def test_fresh_files_ok(self):
-        import time
         data_dir = Path(self.tmp)
         for fname in ("market_regime.json", "adapter_status.json", "tournament_ranking.json"):
             (data_dir / fname).write_text("{}", encoding="utf-8")

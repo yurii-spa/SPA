@@ -13,7 +13,6 @@ sys.path.insert(0, _SRC)
 
 from spa_core.analytics.protocol_smart_contract_complexity_scorer import (
     ProtocolSmartContractComplexityScorer,
-    DEFAULT_CONFIG,
     VALID_RISK_LABELS,
     VALID_FLAGS,
 )

@@ -19,9 +19,6 @@ from spa_core.analytics.defi_collateral_quality_assessor import (
     _quality_label,
     _compute_flags,
     _assess_single,
-    LOW_LIQUIDITY_THRESHOLD,
-    HIGH_VOLATILITY_THRESHOLD,
-    CENTRALIZATION_RISK_THRESHOLD,
     LOG_CAP,
 )
 

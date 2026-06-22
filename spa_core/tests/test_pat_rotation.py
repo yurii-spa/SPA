@@ -4,11 +4,9 @@ Run: pytest spa_core/tests/test_pat_rotation.py -v
 """
 
 import json
-import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
-from unittest import mock
 
 import pytest
 

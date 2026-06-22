@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.adapters.base_adapter import BaseAdapter, YieldInfo
+from spa_core.adapters.base_adapter import YieldInfo
 from spa_core.adapters.aave_v3_polygon_adapter import AaveV3PolygonAdapter
 
 _POOL      = "0x794a61358D6845594F94dc1DB02A252b5b4814aD"

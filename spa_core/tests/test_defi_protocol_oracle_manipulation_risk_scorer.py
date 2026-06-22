@@ -47,7 +47,6 @@ from spa_core.analytics.defi_protocol_oracle_manipulation_risk_scorer import (
     LOG_MAX_ENTRIES,
     CIRCUIT_BREAKER_BONUS,
     MULTI_SOURCE_BONUS_PER_EXTRA,
-    MULTI_SOURCE_MAX_EXTRAS,
 )
 
 

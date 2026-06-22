@@ -14,8 +14,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from spa_core.analytics.apy_normalization_engine import (
     RawAPY,
-    NormalizedAPY,
-    NormalizationReport,
     to_ear,
     quality_score,
     normalize,

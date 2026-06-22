@@ -19,7 +19,6 @@ Run: python3 -m unittest spa_core.tests.test_protocol_insider_activity_monitor -
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import unittest
@@ -29,7 +28,6 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-import spa_core.analytics.protocol_insider_activity_monitor as _mod
 import tempfile
 from spa_core.analytics.protocol_insider_activity_monitor import (
     MAX_ENTRIES,

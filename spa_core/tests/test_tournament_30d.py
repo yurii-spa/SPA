@@ -15,10 +15,7 @@ spa_core/tests/test_tournament_30d.py — MP-382
   - Тесты изолированы: используют tmpdir, не меняют data/
 """
 
-import io
 import json
-import math
-import os
 import pathlib
 import sys
 import tempfile
@@ -36,8 +33,6 @@ from scripts.run_tournament_30d import (
     save_results,
     print_table,
     _compute_sharpe,
-    _DEFAULT_APY_MAP,
-    _load_strategies,
     _MockMultiStrategyRunner,
     _FallbackStrategyConfig,
 )

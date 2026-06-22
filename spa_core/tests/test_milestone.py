@@ -14,7 +14,6 @@ Plus bonus: test_calendar_gap_breaks_streak, test_update_golive_status_milestone
 from __future__ import annotations
 
 import json
-import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -22,7 +21,6 @@ import pytest
 import tempfile
 
 from spa_core.milestone.milestone_tracker import (
-    MilestoneStatus,
     TARGET_DAYS,
     check_milestone,
     generate_milestone_report,
@@ -192,7 +190,6 @@ def test_honest_metrics_not_inflated():
     # The compound figure must NOT equal the naïve one
     # (they can be close but not identical for any reasonable daily_ret)
     # Compound: (1 + total/100)^(365/7) - 1
-    import math
     expected_compound = round((1 + total_ret / 100) ** (365 / 7) * 100 - 100, 2)
     assert abs(annualized - expected_compound) < 0.01, (
         f"Annualized {annualized} doesn't match compound formula {expected_compound}"

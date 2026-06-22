@@ -6,15 +6,12 @@ positioning, persistence, ring-buffer, and edge cases.
 """
 from __future__ import annotations
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.yield_sentiment_scorer import (
     SentimentReport,
-    SentimentSignal,
     _SIGNAL_WEIGHTS,
     compute_signals,
     load_history,

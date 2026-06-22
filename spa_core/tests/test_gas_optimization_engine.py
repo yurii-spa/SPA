@@ -15,25 +15,19 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.gas_optimization_engine import (
-    BLOCK_FAST,
     BLOCK_SLOW,
-    COMPARE_GAS_UNITS,
     CONF_FAST,
-    CONF_NORMAL,
-    CONF_SLOW,
     MAX_ENTRIES,
     TIP_FAST,
     TIP_NORMAL,
     TIP_SLOW,
     GasOptimizationEngine,
     GasQuote,
-    OptimizationResult,
     _result_to_dict,
 )
 

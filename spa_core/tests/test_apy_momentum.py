@@ -18,12 +18,10 @@ Total: 90 tests.  Run:
 from __future__ import annotations
 
 import json
-import math
 import os
 import tempfile
 import unittest
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
 from spa_core.analytics.apy_momentum import (
     APYMomentumDetector,

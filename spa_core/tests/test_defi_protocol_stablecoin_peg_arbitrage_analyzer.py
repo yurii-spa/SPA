@@ -4,10 +4,8 @@ Comprehensive pytest suite - pure stdlib, no third-party dependencies.
 """
 
 import json
-import math
 import os
 import sys
-import time
 
 import pytest
 
@@ -61,7 +59,6 @@ from spa_core.analytics.defi_protocol_stablecoin_peg_arbitrage_analyzer import (
     FLAG_INSUFFICIENT_DATA,
     BREAKEVEN_SENTINEL,
     RATIO_SENTINEL_INF,
-    _EPS,
 )
 
 

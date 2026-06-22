@@ -5,8 +5,6 @@ Run: python3 -m unittest spa_core.tests.test_defi_borrow_cost_optimizer -v
 
 import os
 import sys
-import json
-import time
 import unittest
 
 # Ensure repo root is on path

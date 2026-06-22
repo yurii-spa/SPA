@@ -16,7 +16,6 @@ from spa_core.analytics.defi_position_rebalancing_trigger import (
     analyze,
     log_result,
     _merge_config,
-    _compute_position,
     _DEFAULT_CONFIG,
 )
 

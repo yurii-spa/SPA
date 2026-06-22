@@ -7,18 +7,12 @@ persistence, ring-buffer, and edge cases.
 """
 from __future__ import annotations
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from spa_core.analytics.portfolio_diversification_advisor import (
-    DiversificationAxis,
-    DiversificationReport,
     Holding,
-    _HHI_CONCENTRATION_THRESHOLD,
-    _TOP_CONCENTRATION_THRESHOLD,
     advise,
     analyze_axis,
     compare_portfolios,

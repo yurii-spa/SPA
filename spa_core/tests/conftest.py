@@ -7,7 +7,6 @@ pool/position/risk-config fixtures previously living in tests/.
 import sys
 import json
 import pytest
-import os
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, patch

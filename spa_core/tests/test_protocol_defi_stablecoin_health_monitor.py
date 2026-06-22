@@ -4,7 +4,6 @@ Tests for MP-993: ProtocolDeFiStablecoinHealthMonitor
 """
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -32,8 +31,6 @@ from spa_core.analytics.protocol_defi_stablecoin_health_monitor import (
     _max_depeg_30d,
     _redemption_pressure_ratio,
     _net_flow_7d,
-    _health_label,
-    _compute_flags,
     _monitor_coin,
 )
 

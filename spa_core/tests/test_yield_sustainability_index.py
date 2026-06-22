@@ -3,7 +3,6 @@ Tests for YieldSustainabilityIndex (MP-719).
 Run: python3 -m pytest spa_core/tests/test_yield_sustainability_index.py -v
 """
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

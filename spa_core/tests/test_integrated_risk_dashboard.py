@@ -22,20 +22,16 @@ Total: 100 tests
 from __future__ import annotations
 
 import json
-import os
 import tempfile
-import time
 import unittest
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 from spa_core.analytics.integrated_risk_dashboard import (
     IntegratedRiskDashboard,
     IntegratedRiskAssessment,
     RiskSignal,
     RING_BUFFER_MAX,
-    FRESHNESS_THRESHOLD_SECONDS,
 )
 
 

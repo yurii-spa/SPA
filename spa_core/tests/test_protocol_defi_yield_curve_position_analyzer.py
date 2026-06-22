@@ -15,11 +15,6 @@ from spa_core.analytics.protocol_defi_yield_curve_position_analyzer import (
     ProtocolDeFiYieldCurvePositionAnalyzer,
     LOG_CAP,
     _DEFAULT_BENCHMARK_RATE_PCT,
-    _DURATION_IMMUNE_DAYS,
-    _DURATION_SHORT_DAYS,
-    _DURATION_MEDIUM_DAYS,
-    _POSITIVE_CARRY_THRESHOLD,
-    _BENCHMARK_LAGGING_THRESHOLD,
     _ALL_LABELS,
     _ALL_FLAGS,
 )

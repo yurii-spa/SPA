@@ -4,8 +4,6 @@ Run: python3 -m unittest spa_core.tests.test_drawdown_recovery_tracker -v
 Pure stdlib / unittest only. No pytest.
 """
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

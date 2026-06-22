@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import ast
 import json
-import math
 import os
 import tempfile
 import time
@@ -42,14 +41,9 @@ from spa_core.analytics.protocol_defi_exit_liquidity_depth_analyzer import (
     LABEL_ADEQUATE_LIQUIDITY,
     LABEL_THIN_LIQUIDITY,
     LABEL_EXIT_TRAP,
-    THRESHOLD_DEEP,
-    THRESHOLD_GOOD,
-    THRESHOLD_ADEQUATE,
-    THRESHOLD_THIN,
     MAX_SLIPPAGE_PCT,
     URGENCY_FACTORS,
     DEFAULT_URGENCY_FACTOR,
-    VALID_PROTOCOL_TYPES,
     compute_position_to_tvl_pct,
     compute_position_to_daily_volume_pct,
     compute_estimated_slippage_pct,

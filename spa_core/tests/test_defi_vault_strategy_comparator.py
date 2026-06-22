@@ -6,11 +6,9 @@ python3 -m unittest spa_core/tests/test_defi_vault_strategy_comparator.py -v
 import json
 import os
 import sys
-import time
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # Ensure project root on path
 ROOT = Path(__file__).parent.parent.parent

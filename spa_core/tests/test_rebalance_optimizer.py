@@ -22,8 +22,6 @@ import json
 import os
 import unittest
 import tempfile
-from dataclasses import asdict
-from pathlib import Path
 from typing import Optional
 
 from spa_core.analytics.rebalance_optimizer import (
@@ -32,8 +30,6 @@ from spa_core.analytics.rebalance_optimizer import (
     RebalancePlan,
     RebalanceOptimizer,
     _classify_priority,
-    _safe_float,
-    _extract_apy,
     RING_BUFFER_MAX,
 )
 

@@ -3,7 +3,6 @@ Tests for MP-741: CapitalEfficiencyBenchmarker
 ≥65 unittest tests. Pure stdlib.
 """
 
-import json
 import os
 import sys
 import tempfile
@@ -19,10 +18,8 @@ if ROOT not in sys.path:
 
 from spa_core.analytics.capital_efficiency_benchmarker import (
     EfficiencyMetrics,
-    EfficiencyBenchmarkResult,
     compute_effective_yield,
     compute_yield_per_1000,
-    rank_strategies,
     compute_efficiency_score,
     efficiency_label_from_score,
     benchmark,

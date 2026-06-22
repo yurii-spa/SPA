@@ -4,7 +4,6 @@ Uses unittest only (no pytest).
 Run: python3 -m unittest spa_core.tests.test_liquidity_crisis_detector -v
 """
 
-import json
 import os
 import tempfile
 import unittest

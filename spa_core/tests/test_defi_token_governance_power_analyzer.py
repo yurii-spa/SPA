@@ -4,8 +4,6 @@ Tests for MP-885 DeFiTokenGovernancePowerAnalyzer
 Run: python3 -m unittest spa_core.tests.test_defi_token_governance_power_analyzer -v
 """
 import json
-import math
-import os
 import sys
 import tempfile
 import time
