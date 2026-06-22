@@ -163,15 +163,22 @@ class DataTrustValidator:
                 signal="exit",
             )
 
-        # 1. Проверка свежести
-        stale_points = []
-        fresh_points = []
-        for p in points:
-            age = (now - p.fetched_at).total_seconds()
-            if age > max_staleness:
-                stale_points.append((p, age))
-            else:
-                fresh_points.append(p)
+        # 1. Проверка свежести (только в live-режиме)
+        # PIT-режим (as_of задан): данные до as_of всегда считаются свежими для backtest.
+        # Staleness применяется только при live-запросе (as_of=None → текущее время).
+        if as_of is not None:
+            # PIT mode: skip staleness check — no look-ahead already enforced by PIT filter above
+            fresh_points = list(points)
+            stale_points: list = []
+        else:
+            stale_points = []
+            fresh_points = []
+            for p in points:
+                age = (now - p.fetched_at).total_seconds()
+                if age > max_staleness:
+                    stale_points.append((p, age))
+                else:
+                    fresh_points.append(p)
 
         if len(fresh_points) < min_sources:
             worst_age = max(age for _, age in stale_points) if stale_points else 0
