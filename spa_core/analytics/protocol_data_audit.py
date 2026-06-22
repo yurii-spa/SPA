@@ -564,6 +564,8 @@ class ProtocolDataAudit(BaseAnalytics):
         target.parent.mkdir(parents=True, exist_ok=True)
 
         atomic_save(result, str(target))
+
+    def to_markdown(self) -> str:
         """Formatted audit report as Markdown string."""
         result = self._audit_result or self.run_audit()
         summary = result["summary"]
