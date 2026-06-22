@@ -1036,6 +1036,83 @@ async def live_data_file(filename: str):
         raise HTTPException(status_code=502, detail={"error": f"corrupt json: {e}"})
 
 
+# ─── Tournament Endpoints ────────────────────────────────────────────────────
+# Read-only; never raises; always stamps server_time + live=True.
+# Sources: data/mass_tournament_results.json  (leaderboard, 60 strategies)
+#          data/strategy_tournament.json       (top-5 shadow traders)
+#          data/shadow_paper_trading.json      (paper tracking)
+
+@app.get("/api/tournament", tags=["tournament"])
+async def get_tournament():
+    """
+    Tournament leaderboard — top strategies ranked by Sharpe.
+    Merges mass_tournament_results.json + strategy_tournament.json + shadow_paper_trading.json.
+    """
+    result: dict[str, Any] = {}
+
+    _defaults: dict[str, Any] = {
+        "mass_results":  {"leaderboard": [], "strategies_tested": 0},
+        "tournament":    {"active_strategies": []},
+        "shadow_paper":  {},
+    }
+
+    for fname, key in [
+        ("mass_tournament_results.json", "mass_results"),
+        ("strategy_tournament.json",     "tournament"),
+        ("shadow_paper_trading.json",    "shadow_paper"),
+    ]:
+        p = _DATA_DIR / fname
+        if not await _aio_exists(p):
+            result[key] = _defaults[key]
+            continue
+        try:
+            result[key] = await _aio_read_json(p)
+        except asyncio.TimeoutError:
+            result[key] = {"_error": "read_timeout"}
+        except Exception as exc:
+            result[key] = {"_error": str(exc)}
+
+    result["server_time"] = _now()
+    result["live"] = True
+    return JSONResponse(result, headers=_NO_CACHE_HEADERS)
+
+
+@app.get("/api/tournament/status", tags=["tournament"])
+async def get_tournament_status():
+    """Quick status — phase counts and top-3 for the live indicator."""
+    mass: dict[str, Any] = {}
+    tournament: dict[str, Any] = {}
+
+    p = _DATA_DIR / "mass_tournament_results.json"
+    if await _aio_exists(p):
+        try:
+            mass = await _aio_read_json(p)
+        except Exception:
+            pass
+
+    p2 = _DATA_DIR / "strategy_tournament.json"
+    if await _aio_exists(p2):
+        try:
+            tournament = await _aio_read_json(p2)
+        except Exception:
+            pass
+
+    leaderboard = mass.get("leaderboard", [])
+    top3 = leaderboard[:3]
+
+    return JSONResponse(
+        {
+            "total_backtested":  mass.get("strategies_tested", 0),
+            "total_skipped":     mass.get("strategies_skipped", 0),
+            "paper_phase_count": len(tournament.get("active_strategies", [])),
+            "top3":              top3,
+            "server_time":       _now(),
+            "live":              True,
+        },
+        headers=_NO_CACHE_HEADERS,
+    )
+
+
 # ─── Dev entrypoint ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
