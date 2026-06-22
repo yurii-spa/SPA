@@ -327,15 +327,19 @@ class TestDispatcher(unittest.TestCase):
         data = json.loads(self.log_path.read_text())
         self.assertEqual(len(data["entries"]), 2)
 
-    def test_ring_buffer_100(self):
-        """Log never grows beyond RING_BUFFER_MAX (100) entries."""
+    # Note: dispatch_alerts() applies the legacy ring-buffer cap of 100 entries.
+    # (The module also exports RING_BUFFER_MAX=1000 for the newer dispatch path;
+    # the two are deliberately distinct — this test pins the dispatch_alerts cap.)
+    _DISPATCH_CAP = 100
+
+    def test_ring_buffer_caps_at_dispatch_max(self):
+        """dispatch_alerts caps its log at the legacy ring-buffer max (100)."""
         cfg = AlertConfig(dry_run=True)
-        for _ in range(60):
+        for _ in range(60):  # 60*5 = 300 alerts, well over the 100 cap
             dispatch_alerts(self._alerts(5), cfg, log_path=self.log_path)
         data = json.loads(self.log_path.read_text())
-        self.assertEqual(RING_BUFFER_MAX, 100)
-        self.assertLessEqual(len(data["entries"]), 100)
-        self.assertEqual(len(data["entries"]), 100)
+        self.assertLessEqual(len(data["entries"]), self._DISPATCH_CAP)
+        self.assertEqual(len(data["entries"]), self._DISPATCH_CAP)
 
     def test_ring_buffer_keeps_most_recent(self):
         cfg = AlertConfig(dry_run=True)

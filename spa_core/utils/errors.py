@@ -347,8 +347,13 @@ class RiskPolicyError(SPAError):
         super().__init__(message, code=code or "RISK_POLICY_ERROR", details=details or {})
 
 
-class AllocationError(SPAError):
-    """Raised when an allocation is invalid or violates constraints."""
+class AllocationError(SPAError, ValueError):
+    """Raised when an allocation is invalid or violates constraints.
+
+    Also a :class:`ValueError` — an invalid allocation model / weight is an
+    invalid value; ``except ValueError`` callers catch it (existing
+    ``except AllocationError`` / ``except SPAError`` handlers are unaffected).
+    """
 
     def __init__(
         self,

@@ -126,7 +126,12 @@ class TestStrategyAllocator(unittest.TestCase):
 
     def _allocator(self, adapters):
         write_status(self.status, adapters)
-        return StrategyAllocator(status_path=self.status)
+        # Disable the MP-REGISTRY merge (point at a nonexistent registry) so these
+        # unit tests exercise only the adapters they provide, not the full
+        # registered universe.
+        return StrategyAllocator(
+            status_path=self.status, registry_path=self.dir / "no_registry.json"
+        )
 
     def test_t2_cap_enforced(self):
         # 4×T2 equal weight = 0.25 каждый > 0.20 cap → каждый капается на 0.20.
@@ -224,7 +229,10 @@ class TestStrategyAllocator(unittest.TestCase):
         self.assertIn("expected_apy_pct", loaded)
 
     def test_missing_status_file_returns_empty(self):
-        alloc = StrategyAllocator(status_path=self.dir / "nope.json")
+        alloc = StrategyAllocator(
+            status_path=self.dir / "nope.json",
+            registry_path=self.dir / "no_registry.json",
+        )
         res = alloc.allocate(model="equal_weight")
         self.assertEqual(res.target_weights, {})
 

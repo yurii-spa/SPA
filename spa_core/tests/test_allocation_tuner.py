@@ -37,6 +37,9 @@ from spa_core.tuner.allocation_tuner import (
 _GOOD_ADAPTERS = [
     {"id": "aave_v3",    "apy": 3.13, "tvl_usd": 209_000_000.0, "tier": "T1"},
     {"id": "compound_v3","apy": 3.18, "tvl_usd": 48_000_000.0,  "tier": "T1"},
+    # 3rd T1 anchor: with per_protocol_max=0.25 two T1 adapters cap T1 at 50%,
+    # which cannot satisfy t1_min=0.55 — a third T1 makes the constraint feasible.
+    {"id": "morpho_steakhouse", "apy": 4.60, "tvl_usd": 120_000_000.0, "tier": "T1"},
     {"id": "yearn_v3",   "apy": 3.18, "tvl_usd": 26_000_000.0,  "tier": "T2"},
     {"id": "euler_v2",   "apy": 2.77, "tvl_usd": 16_000_000.0,  "tier": "T2"},
     {"id": "maple",      "apy": 4.72, "tvl_usd": 3_114_000_000.0, "tier": "T2"},
