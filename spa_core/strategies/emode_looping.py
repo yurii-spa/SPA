@@ -109,15 +109,27 @@ def _read_apy_from_adapter_status(
     try:
         with open(_ADAPTER_STATUS_PATH, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-        for adapter in data.get("adapters", []):
-            if adapter.get("protocol_key") == protocol_key:
-                mock_apy = adapter.get("mock_apy", {})
-                chain_apy = mock_apy.get(chain, {})
-                raw = chain_apy.get(asset)
+        adapters = data.get("adapters", {})
+        # Support both new dict format {"aave_v3": {"apy": 3.5, ...}}
+        # and old list format [{"protocol_key": "aave-v3", "mock_apy": {...}}]
+        if isinstance(adapters, dict):
+            # New format: key is protocol slug with underscores; protocol_key arg may use dashes
+            normalised_key = protocol_key.replace("-", "_")
+            entry = adapters.get(normalised_key) or adapters.get(protocol_key)
+            if entry and isinstance(entry, dict):
+                raw = entry.get("apy")
                 if raw is not None:
-                    return float(raw) / 100.0  # конвертация % → доли
+                    return float(raw) / 100.0
+        else:
+            for adapter in adapters:
+                if isinstance(adapter, dict) and adapter.get("protocol_key") == protocol_key:
+                    mock_apy = adapter.get("mock_apy", {})
+                    chain_apy = mock_apy.get(chain, {})
+                    raw = chain_apy.get(asset)
+                    if raw is not None:
+                        return float(raw) / 100.0
         return default
-    except (OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError, AttributeError):
         return default
 
 
