@@ -22,13 +22,11 @@ Total: 141 tests
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # Ensure repo root on path
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -36,26 +34,20 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.paper_trading.yield_optimizer import (
-    CONVERGENCE_EPS,
-    LAMBDA_MAX,
     MAX_ELIGIBLE_APY,
     MAX_ITER,
     MAX_SINGLE,
     MIN_ALLOCATION,
     MIN_CASH_BUFFER,
-    MIN_ELIGIBLE_APY,
-    MIN_ELIGIBLE_TVL,
     RESULTS_FILENAME,
     RESULTS_HISTORY_MAX,
     RISK_SCALE,
-    T1_CAP_PER_PROTOCOL,
     T2_CAP_PER_PROTOCOL,
     T2_CAP_TOTAL,
     T3_CAP_PER_PROTOCOL,
     T3_CAP_TOTAL,
     OptimizationResult,
     YieldOptimizer,
-    _clamp,
     _get_tier,
     _safe_float,
 )

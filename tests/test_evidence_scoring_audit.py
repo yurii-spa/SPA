@@ -32,12 +32,10 @@ if _REPO_ROOT not in sys.path:
 
 from spa_core.backtesting.evidence_scoring_audit import (
     EvidenceScoringAudit,
-    REQUIRED_POINTS,
     SCORE_CLEAN,
     SCORE_RESEARCH,
     MULTIPLIER_EXTREME,
     MULTIPLIER_HIGH_DRIFT,
-    TOTAL_SOURCES,
 )
 
 
@@ -184,7 +182,6 @@ class TestDaysToLiveAt(unittest.TestCase):
     def test_21_zero_clean_exact_ceiling(self):
         """days_to_live_at(0.0) == ceil(30 / 0.3) == 100."""
         a = EvidenceScoringAudit()
-        import math
         expected = math.ceil(30.0 / 0.3)  # = 100
         self.assertEqual(a.days_to_live_at(0.0), expected)
 

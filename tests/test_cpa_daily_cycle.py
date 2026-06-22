@@ -21,7 +21,6 @@ All tests use temporary directories for isolation.
 """
 
 import json
-import os
 import sys
 import tempfile
 import unittest

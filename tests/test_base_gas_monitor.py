@@ -41,7 +41,7 @@ import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Make sure the repo root is on sys.path so we can import spa_core

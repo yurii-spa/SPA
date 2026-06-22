@@ -25,10 +25,6 @@ from spa_core.analytics.yield_forecast_engine import (
     TREND_UP,
     TREND_STABLE,
     TREND_DOWN,
-    _linear_regression,
-    _r_squared,
-    _compute_ema_series,
-    classify_trend,
 )
 
 

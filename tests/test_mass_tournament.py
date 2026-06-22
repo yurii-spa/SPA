@@ -26,14 +26,11 @@ LLM_FORBIDDEN: no LLM calls in this module.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
-from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import Any, Dict, List
 
 # ── project path ──────────────────────────────────────────────────────────────
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -755,7 +752,6 @@ class TestRunShadowDay(unittest.TestCase):
 
     def test_shadow_day_ring_buffer_365(self):
         """Ring buffer should keep at most 365 records."""
-        from spa_core.backtesting.strategy_tournament_runner import _atomic_write_json as aw
         # Pre-fill with 370 records
         records = [{"date": f"2025-01-{i:02d}", "strategies": []} for i in range(1, 31)]
         records += [{"date": f"2025-02-{i:02d}", "strategies": []} for i in range(1, 29)]

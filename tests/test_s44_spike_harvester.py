@@ -26,10 +26,7 @@ from spa_core.strategies.s44_spike_harvester import (
     REGIME_NORMAL,
     STABLE_REFUGE,
     MONITORED_PROTOCOLS,
-    SPIKE_MULTIPLE,
-    SPIKE_ABS_FLOOR_PCT,
     SPIKE_CONCENTRATION_PCT,
-    SPIKE_REFUGE_PCT,
     NORMAL_WEIGHTS,
 )
 

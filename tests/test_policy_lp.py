@@ -13,7 +13,6 @@
 LLM_FORBIDDEN.
 """
 # LLM_FORBIDDEN
-import math
 import pytest
 from pathlib import Path
 

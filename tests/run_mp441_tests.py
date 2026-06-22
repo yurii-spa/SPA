@@ -4,7 +4,6 @@ Standalone test runner for test_evidence_report.py — no pytest required.
 Runs with: python3 tests/run_mp441_tests.py
 """
 
-import importlib
 import json
 import os
 import sys

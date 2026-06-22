@@ -12,7 +12,6 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
-from datetime import date
 
 # Убеждаемся, что корень проекта в sys.path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -23,13 +22,6 @@ from scripts.module_health_report import (
     generate_report,
     save_report,
     render_markdown,
-    _build_summary,
-    _build_critical_issues,
-    _build_test_coverage,
-    _build_dead_code,
-    _build_architecture,
-    _build_kanban_status,
-    _build_recommendations,
 )
 
 

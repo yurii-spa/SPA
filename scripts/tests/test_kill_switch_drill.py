@@ -6,7 +6,6 @@ Tests for Kill-Switch Drill — MP-312
 from __future__ import annotations
 
 import json
-import os
 import sys
 import unittest
 import tempfile

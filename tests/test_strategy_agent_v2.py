@@ -27,14 +27,12 @@ _REPO = _HERE.parent
 sys.path.insert(0, str(_REPO))
 
 from spa_core.agents.strategy_agent_v2 import (
-    StrategyRecommendation,
     annualized_volatility_pp,
     gather_context,
     kelly_sizing,
     rank_shadow_strategies,
     should_run,
     MIN_DAYS_FOR_CANDIDATE,
-    WEEKLY_PERIOD_DAYS,
 )
 
 

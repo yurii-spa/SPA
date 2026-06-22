@@ -14,7 +14,6 @@ TestGetAdapterApy         — get_adapter_apy: single-adapter (3 теста)
 """
 from __future__ import annotations
 
-import io
 import json
 import sys
 import os
@@ -29,10 +28,7 @@ if _ROOT not in sys.path:
 
 from spa_core.price_feeds.defi_llama_apy_feed import (
     PROTOCOL_POOL_MAP,
-    DEFILLAMA_POOLS_URL,
     MIN_TVL_USD,
-    APY_MIN_PCT,
-    APY_MAX_PCT,
     fetch_apy_map,
     get_adapter_apy,
     _fetch_all_pools,

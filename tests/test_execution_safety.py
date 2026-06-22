@@ -15,7 +15,6 @@ Sprint v10.24 — MP-1408: Execution Safety Audit.
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 

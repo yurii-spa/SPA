@@ -20,7 +20,6 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.adapters.moonwell_base_adapter import (
     ADAPTER_ID,
-    ADAPTER_NAME,
     ADAPTER_STATUS,
     APY_FALLBACK,
     BAD_DEBT_USD,

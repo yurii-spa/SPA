@@ -6,10 +6,6 @@ edge cases, custom threshold overrides, and atomic save.
 from __future__ import annotations
 
 import json
-import math
-import os
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 

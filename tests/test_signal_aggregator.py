@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import pytest
 

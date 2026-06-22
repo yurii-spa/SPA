@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 
 import pytest
 
@@ -24,7 +23,6 @@ from scripts.migrate_json_to_sqlite import (
     migrate_equity_curve,
     migrate_paper_evidence,
     main,
-    verify,
 )
 from spa_core.database.sqlite_manager import SQLiteManager
 

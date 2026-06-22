@@ -15,7 +15,6 @@ CPA-methodology coverage:
 """
 
 import json
-import math
 import os
 import shutil
 import tempfile
@@ -366,7 +365,7 @@ class TestRingBuffer(unittest.TestCase):
         """The retained records are the most recent ones (highest days_elapsed)."""
         t = _make_tracker()
         for i in range(110):
-            t.record_paper_day(f"2026-01-01", 100_000.0 + i, {}, [])
+            t.record_paper_day("2026-01-01", 100_000.0 + i, {}, [])
         # The last record should have paper_nav = 100_000 + 109
         self.assertAlmostEqual(t._records[-1]["paper_nav"], 100_109.0, places=2)
         # The first retained record: day 11 (index 10), paper_nav = 100_010

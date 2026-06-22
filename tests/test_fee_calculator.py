@@ -26,7 +26,6 @@ from __future__ import annotations
 import math
 import os
 import sys
-import types
 import unittest
 
 # Make spa_core importable from the repo root (tests/ lives one level up).

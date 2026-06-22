@@ -23,8 +23,6 @@ LLM_FORBIDDEN: no LLM calls in this module.
 # LLM_FORBIDDEN
 
 import json
-import math
-import os
 import tempfile
 import unittest
 from datetime import date, timedelta
@@ -34,7 +32,6 @@ from pathlib import Path
 from spa_core.backtesting.professional_backtest import (
     # constants
     INITIAL_CAPITAL,
-    ANNUALISE,
     SIM_START,
     SIM_END,
     STRATEGIES,

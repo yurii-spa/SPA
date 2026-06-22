@@ -23,8 +23,6 @@ from spa_core.paper_trading.risk_contribution import (
     normalize_protocol,
     _classify_risk,
     _build_cov_index,
-    _match_instrument,
-    content_fingerprint,
 )
 
 

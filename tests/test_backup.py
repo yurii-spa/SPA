@@ -15,7 +15,6 @@ Pure stdlib. No network. Offline.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import pathlib
@@ -36,7 +35,6 @@ from spa_core.persistence.backup import (
     run_backup,
     KEEP_LAST,
     MANIFEST_FILENAME,
-    TRACK_FILES,
 )
 
 
@@ -167,7 +165,6 @@ class TestRunBackup(unittest.TestCase):
         run_backup(data_dir=data_dir, backup_dir=backup_dir)
         dated_dirs = [d for d in backup_dir.iterdir() if d.is_dir()]
         self.assertEqual(len(dated_dirs), 1)
-        import re
         self.assertRegex(dated_dirs[0].name, r"^\d{4}-\d{2}-\d{2}$")
 
     def test_D3_manifest_json_written(self):

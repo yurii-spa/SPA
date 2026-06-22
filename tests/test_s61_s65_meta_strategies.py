@@ -17,10 +17,10 @@ import tempfile
 import unittest
 
 from spa_core.strategies.s61_hybrid_income_shield import (
-    S61HybridIncomeShield, TARGET_WEIGHTS as S61_W, CASH_KEY as S61_CASH,
+    S61HybridIncomeShield,
 )
 from spa_core.strategies.s62_yield_ladder_v2 import (
-    S62YieldLadderV2, PHASE_WEIGHTS, WEEK1_END_DAY, WEEK2_END_DAY,
+    S62YieldLadderV2, WEEK1_END_DAY, WEEK2_END_DAY,
 )
 from spa_core.strategies.s63_anti_correlation import (
     S63AntiCorrelation, STANDARD_WEIGHTS, STATE_NORMAL, STATE_DECORRELATED,

@@ -4,7 +4,6 @@ MP-1515 (v11.31): 25 tests verifying ADR-037/038/039/040 existence and format.
 """
 
 import os
-import re
 import unittest
 
 DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "adr")

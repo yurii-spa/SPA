@@ -45,7 +45,6 @@ def _start_server(data_dir: str, port: int):
     return t
 
 
-import http.server as _http_server
 import tempfile
 
 

@@ -15,15 +15,13 @@ from __future__ import annotations
 import json
 import re
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 # Make scripts importable
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from stale_todo_finder import find_todos, filter_stale, annotate_ages, DEFAULT_TAGS
+from stale_todo_finder import find_todos, filter_stale, DEFAULT_TAGS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -153,7 +151,7 @@ def test_no_bare_exceptions_in_utils() -> None:
         for i, line in enumerate(text.splitlines(), 1):
             if bare_exc_pattern.search(line):
                 violations.append(f"{py}:{i}: {line.strip()[:60]}")
-    assert not violations, f"Bare exceptions in utils/:\n" + "\n".join(violations)
+    assert not violations, "Bare exceptions in utils/:\n" + "\n".join(violations)
 
 
 def test_no_bare_exceptions_in_safety() -> None:
@@ -166,7 +164,7 @@ def test_no_bare_exceptions_in_safety() -> None:
         for i, line in enumerate(text.splitlines(), 1):
             if bare_exc_pattern.search(line):
                 violations.append(f"{py}:{i}: {line.strip()[:60]}")
-    assert not violations, f"Bare exceptions in safety/:\n" + "\n".join(violations)
+    assert not violations, "Bare exceptions in safety/:\n" + "\n".join(violations)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

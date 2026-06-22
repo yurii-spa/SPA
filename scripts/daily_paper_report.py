@@ -7,7 +7,6 @@ Stdlib only: json, os, sys, subprocess, urllib.request, urllib.parse, datetime, 
 """
 import json
 import math
-import os
 import re
 import sys
 import subprocess

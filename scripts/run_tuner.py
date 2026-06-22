@@ -16,7 +16,7 @@ _REPO = Path(__file__).resolve().parents[1]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
-from spa_core.tuner.allocation_tuner import run_allocation_tuner, TunerConstraints
+from spa_core.tuner.allocation_tuner import run_allocation_tuner
 
 
 def main() -> int:

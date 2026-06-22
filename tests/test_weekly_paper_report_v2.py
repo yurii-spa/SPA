@@ -251,7 +251,6 @@ class TestResearchShadowSection(unittest.TestCase):
 
             # Monkey-patch the research base dir
             reporter = _make_reporter()
-            import unittest.mock as mock
             original_load = reporter.research_shadow_section.__func__
 
             # Directly test by calling with modified path via monkeypatching _load_json

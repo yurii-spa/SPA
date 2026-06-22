@@ -16,7 +16,6 @@ Pure stdlib. No network. Offline.
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import sys
 import unittest
@@ -26,7 +25,7 @@ _HERE = pathlib.Path(__file__).resolve().parent
 _REPO = _HERE.parent
 sys.path.insert(0, str(_REPO))
 
-from spa_core.paper_trading.multi_strategy_runner import MultiStrategyRunner, RANKING_FILENAME
+from spa_core.paper_trading.multi_strategy_runner import MultiStrategyRunner
 from spa_core.paper_trading.strategy_registry import S0_CONSERVATIVE_T1, S1_BALANCED
 
 

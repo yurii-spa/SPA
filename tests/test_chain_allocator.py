@@ -30,7 +30,6 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from spa_core.analytics.chain_allocator import (
-    BASE_ADVANTAGE_THRESHOLD,
     BRIDGE_COST_USD,
     MIN_ALLOCATION_USD,
     OUTPUT_PATH,

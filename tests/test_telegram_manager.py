@@ -10,13 +10,11 @@ Run:
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 # ---------------------------------------------------------------------------
 # Ensure project root is importable
@@ -29,7 +27,6 @@ if str(_REPO_ROOT) not in sys.path:
 from spa_core.alerts.telegram_manager import (
     TelegramManager,
     _dedup_key,
-    _load_cooldown_state,
     _save_cooldown_state,
     CATEGORY_COOLDOWNS,
 )

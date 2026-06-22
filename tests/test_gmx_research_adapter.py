@@ -18,7 +18,6 @@ import json
 import sys
 import unittest
 import unittest.mock
-import urllib.error
 from pathlib import Path
 
 # Настройка пути

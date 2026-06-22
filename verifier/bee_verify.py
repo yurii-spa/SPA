@@ -436,7 +436,7 @@ def main() -> int:
         ok_count = sum(1 for r in results if r.get("ok"))
         fail_count = len(results) - ok_count
 
-        print(f"\n=== BEE Verification Report (S9.6) ===")
+        print("\n=== BEE Verification Report (S9.6) ===")
         print(f"Files verified: {len(results)}")
         print(f"  OK:      {ok_count}")
         print(f"  FAILED:  {fail_count}")
@@ -486,7 +486,7 @@ def main() -> int:
         if r.get("ok") is True:
             print(f"✅ OK    event_catalog.json ({r.get('events_count', 0)} events)")
         elif r.get("ok") is False:
-            print(f"❌ FAIL  event_catalog.json")
+            print("❌ FAIL  event_catalog.json")
             for issue in r.get("issues", []):
                 print(f"         - {issue}")
             if r.get("error"):
@@ -507,7 +507,7 @@ def main() -> int:
         elif ok is None:
             print(f"⚠️  N/A   safety_report.json: {r.get('note', '')}")
         else:
-            print(f"❌ FAIL  safety_report.json")
+            print("❌ FAIL  safety_report.json")
             for issue in r.get("issues", []):
                 print(f"         - {issue}")
             all_ok = False

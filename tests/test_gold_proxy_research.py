@@ -17,9 +17,8 @@ import json
 import sys
 import unittest
 import urllib.error
-from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Path setup

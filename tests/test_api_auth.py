@@ -24,7 +24,7 @@ _ROOT = _HERE.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from spa_core.api.auth import APIAuth, get_auth, PROTECTED_PREFIXES, PUBLIC_PREFIXES
+from spa_core.api.auth import APIAuth, get_auth
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────

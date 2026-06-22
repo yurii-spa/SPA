@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import os
 import sys
-import importlib
 import unittest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Path setup — ensure project root is on sys.path
@@ -22,7 +21,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from spa_core.reporting.promotion_notifier import (
     PromotionNotifier,
-    _get_secret,
     _read_keychain,
     _TOKEN_SERVICE,
     _CHAT_ID_SERVICE,

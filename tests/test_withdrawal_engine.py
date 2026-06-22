@@ -15,8 +15,6 @@ Pure stdlib. No external dependencies. Each test uses an isolated tmpdir.
 """
 from __future__ import annotations
 
-import json
-import os
 import shutil
 import sys
 import tempfile

@@ -106,7 +106,7 @@ def main() -> int:
     else:
         # Full text output
         phase_note = "ENABLED" if auto_enabled else "DISABLED"
-        print(f"=== Promotion Evaluator (ADR-029) ===")
+        print("=== Promotion Evaluator (ADR-029) ===")
         print(f"Auto-promote: {phase_note}")
         if args.dry_run:
             print("Mode: DRY-RUN (no writes, no Telegram)")

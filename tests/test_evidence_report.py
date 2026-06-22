@@ -2,7 +2,6 @@
 MP-441: Tests for scripts/generate_evidence_report.py
 """
 
-import importlib
 import json
 import os
 import sys

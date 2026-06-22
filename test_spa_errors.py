@@ -273,7 +273,6 @@ class TestSafeCall(unittest.TestCase):
 
     def test_27e_safe_call_logs_warning_by_default(self):
         """safe_call emits at least one log record when log_error=True."""
-        import logging
 
         records = []
 

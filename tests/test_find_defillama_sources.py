@@ -11,7 +11,6 @@ import sys
 import unittest
 import tempfile
 from unittest.mock import patch, MagicMock
-from io import BytesIO
 
 # Make scripts/ importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

@@ -15,11 +15,8 @@ Coverage:
 from __future__ import annotations
 
 import json
-import math
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
 
 import pytest
 
@@ -38,8 +35,6 @@ from spa_core.paper_trading.liquidity_depth_analyzer import (
     PROTOCOL_LIQUIDITY_TIER,
     WARN_THRESHOLD_BPS,
     _compute_slippage_bps,
-    _get_liquidity_tier,
-    _get_tvl,
     _normalize_slug,
     _num,
     analyze_portfolio_liquidity,

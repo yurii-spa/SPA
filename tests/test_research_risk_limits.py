@@ -35,11 +35,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from spa_core.analytics.research_risk_limits import (
-    BEAR_REGIMES,
-    RS001_CRYPTO_SLOTS,
-    RS001_STABLECOIN_SLOTS,
     RS002_CONC_LP_SLOTS,
-    RS002_STABLECOIN_SLOTS,
     ResearchRiskLimits,
     RiskLimitViolation,
 )

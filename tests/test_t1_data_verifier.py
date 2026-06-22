@@ -17,7 +17,6 @@ import os
 import sys
 import unittest
 import tempfile
-from unittest.mock import patch, MagicMock
 
 _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _REPO not in sys.path:

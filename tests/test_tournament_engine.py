@@ -14,11 +14,9 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from unittest import mock
 
 import pytest
@@ -167,7 +165,7 @@ class TestImports:
         assert TournamentTelegram is not None
 
     def test_package_imports(self):
-        from spa_core.tournament import TournamentEngine, TournamentTelegram, PHASES, PROMOTION_CRITERIA
+        from spa_core.tournament import PHASES
         assert "backtest" in PHASES
         assert "paper_30d" in PHASES
         assert "live" in PHASES

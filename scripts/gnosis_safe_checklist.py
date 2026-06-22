@@ -11,7 +11,6 @@ Usage: python3 scripts/gnosis_safe_checklist.py
 import subprocess
 import json
 import datetime
-import os
 import sys
 
 # ---------------------------------------------------------------------------
@@ -281,9 +280,9 @@ def print_report(checks: list[dict], blockers_only: bool = False) -> None:
     print(f"  Gnosis Safe Deployment Checklist  ({ADR_REFERENCE})")
     print("=" * 60)
     print(f"  Deploy target : {DEPLOY_TARGET}  ({days_to_deploy} days)")
-    print(f"  Go-live       : 2026-08-01")
-    print(f"  Network       : Ethereum mainnet + Arbitrum One L2")
-    print(f"  Config        : 2-of-3 multisig, Zodiac Roles, Guard 10%/day")
+    print("  Go-live       : 2026-08-01")
+    print("  Network       : Ethereum mainnet + Arbitrum One L2")
+    print("  Config        : 2-of-3 multisig, Zodiac Roles, Guard 10%/day")
     print("=" * 60)
     print()
 

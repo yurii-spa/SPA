@@ -29,7 +29,6 @@ from spa_core.family_fund.investor_registration import (
     InvestorRecord,
     InvestorRegistry,
     MIN_INVESTMENT_USD,
-    LOCK_UP_DAYS,
 )
 
 

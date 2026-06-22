@@ -22,10 +22,8 @@ Run:
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
-import tempfile
 import unittest
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
@@ -43,7 +41,6 @@ from spa_core.analytics.cross_chain_yield import (
     CrossChainYieldComparator,
     _BASE_CHAIN_SUPPLEMENTARY,
     _CHAIN_CANONICAL,
-    _instantiate,
     _safe_apy,
 )
 from spa_core.utils.errors import SPAError

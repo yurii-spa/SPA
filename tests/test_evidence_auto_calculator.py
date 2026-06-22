@@ -30,7 +30,6 @@ import os
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -45,7 +44,6 @@ from spa_core.analytics.evidence_auto_calculator import (
     TARGET_PTS,
     EvidenceAutoCalculator,
     EvidenceDay,
-    EvidenceScore,
 )
 
 

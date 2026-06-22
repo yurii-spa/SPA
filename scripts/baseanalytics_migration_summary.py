@@ -135,8 +135,8 @@ def summary() -> int:
         print("  ✅ All modules verified — BaseAnalytics in MRO confirmed")
     print("=" * 65)
 
-    print(f"\nPhase 3 complete: 12/12 modules (Batch A: 6, Batch B: 3, Batch C: 3)")
-    print(f"Grand total: Phase 1 (5) + Phase 2 (20) + Phase 3 (12) = 37 modules")
+    print("\nPhase 3 complete: 12/12 modules (Batch A: 6, Batch B: 3, Batch C: 3)")
+    print("Grand total: Phase 1 (5) + Phase 2 (20) + Phase 3 (12) = 37 modules")
 
     # ── Phase 4 summary (backtesting/ + paper_trading/ + family_fund/) ─────────
     PHASE_4 = [
@@ -152,7 +152,7 @@ def summary() -> int:
     ]
 
     print(f"\n{'=' * 65}")
-    print(f"  Phase 4 — backtesting/ + paper_trading/ + family_fund/")
+    print("  Phase 4 — backtesting/ + paper_trading/ + family_fund/")
     print(f"{'=' * 65}")
     p4_pass = 0
     for mod_path, cls_name in PHASE_4:

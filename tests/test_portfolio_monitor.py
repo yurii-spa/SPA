@@ -134,7 +134,6 @@ TestImportHygiene (4):
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -677,7 +676,7 @@ class TestGetSnapshot(unittest.TestCase):
         snap = self._snap()
         ga = snap["generated_at"]
         self.assertIsInstance(ga, str)
-        from datetime import datetime, timezone
+        from datetime import datetime
         dt = datetime.fromisoformat(ga)
         self.assertIsNotNone(dt.tzinfo)
 

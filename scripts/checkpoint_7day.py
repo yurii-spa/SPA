@@ -17,12 +17,11 @@ Stdlib only: json, subprocess, urllib.request, os, datetime, pathlib, sys
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import urllib.request
 import urllib.error
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 

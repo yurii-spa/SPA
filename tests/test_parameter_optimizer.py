@@ -8,9 +8,7 @@ and best_result selection.
 Stdlib only. No external deps.
 """
 import sys
-import json
 import math
-import os
 import tempfile
 import unittest
 from pathlib import Path

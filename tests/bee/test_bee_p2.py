@@ -16,7 +16,6 @@ Runs offline (all network calls are mocked).
 import json
 import sys
 import time
-import unittest.mock as mock
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -222,7 +221,6 @@ class TestDeFiLlamaFeed:
         After a 'successful' fetch (mocked response), cache file should be created.
         We mock urlopen to return fake JSON pool data.
         """
-        import urllib.request
         # Mock a minimal DeFiLlama response: one pool, no matching criteria
         fake_pools_resp = json.dumps({"data": []}).encode("utf-8")
         # Mock urlopen to return empty pools → triggers per-pool fallback

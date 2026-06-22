@@ -29,9 +29,6 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 
 from spa_core.backtesting.research_tournament import (
     ResearchTournament,
-    PRODUCTION_LEADER_APY,
-    PRODUCTION_LEADER_STRATEGY,
-    RESEARCH_STRATEGIES,
 )
 
 

@@ -31,11 +31,10 @@ import json
 import os
 import sys
 import tempfile
-import time
 import unittest
 import uuid
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Ensure project root is on sys.path
@@ -53,8 +52,6 @@ from spa_core.alerts.alert_dispatcher import (
     _format_telegram_message,
     _html_escape,
     _load_log_entries,
-    _now_iso,
-    _utc_timestamp,
 )
 
 

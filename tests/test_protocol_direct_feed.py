@@ -16,9 +16,7 @@ Total: 34 tests
 """
 from __future__ import annotations
 
-import io
 import json
-import logging
 import math
 import os
 import sys

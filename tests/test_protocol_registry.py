@@ -24,7 +24,6 @@ import json
 import os
 import sys
 import tempfile
-import types
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -40,14 +39,9 @@ from spa_core.analytics.protocol_registry import (
     _audit_recency_factor,
     _firm_tier_pts,
     _SEED_PROTOCOLS,
-    _HACK_RISK_WINDOW_DAYS,
     _W_AUDIT,
     _W_AGE,
     _W_TVL,
-    _AGE_BREAKPOINTS,
-    _TVL_BREAKPOINTS,
-    _FIRMS_TOP,
-    _FIRMS_MID,
     REGISTRY_FILENAME,
 )
 

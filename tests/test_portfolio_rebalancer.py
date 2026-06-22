@@ -17,12 +17,11 @@ Tests: 35 total
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

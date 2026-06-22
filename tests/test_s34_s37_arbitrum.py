@@ -12,20 +12,18 @@ Rules: stdlib only, unittest, no network / filesystem access.
 import unittest
 
 from spa_core.strategies.s34_arbitrum_yield import (
-    S34ArbitrumYield, BASE_ALLOCATION as S34_ALLOC, ARBITRUM_POOLS,
+    S34ArbitrumYield, ARBITRUM_POOLS,
     MAINNET_ANCHOR as S34_ANCHOR, CASH_KEY as S34_CASH,
 )
 from spa_core.strategies.s35_gmx_carry import (
-    S35GMXCarry, GLP_ACTIVATION_THRESHOLD_PCT, ACTIVE_ALLOCATION,
-    INACTIVE_ALLOCATION, CASH_KEY as S35_CASH,
+    S35GMXCarry, GLP_ACTIVATION_THRESHOLD_PCT,
 )
 from spa_core.strategies.s36_cross_chain_optimizer import (
     S36CrossChainOptimizer, TILT_WEIGHT, ANCHOR_WEIGHT, CASH_WEIGHT,
     CHAIN_VENUES, MAINNET_ANCHOR as S36_ANCHOR, CASH_KEY as S36_CASH,
 )
 from spa_core.strategies.s37_radiant_concentrated import (
-    S37RadiantConcentrated, BASE_ALLOCATION as S37_ALLOC,
-    MAINNET_FALLBACK, CASH_KEY as S37_CASH,
+    S37RadiantConcentrated, MAINNET_FALLBACK, CASH_KEY as S37_CASH,
 )
 
 

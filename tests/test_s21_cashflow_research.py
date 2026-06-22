@@ -19,7 +19,6 @@ tests/test_s21_cashflow_research.py — MP-1303 тесты RS-002 Cashflow Resea
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 import tempfile
@@ -39,7 +38,6 @@ from spa_core.strategies.s21_cashflow_research import (
     ALLOCATION,
     GROSS_APY_ASSUMPTIONS,
     STRICT_ELIGIBLE,
-    NET_APY_BY_REGIME,
     CashflowResearchStrategy,
 )
 from spa_core.analytics.strategy_rs002_tracker import (

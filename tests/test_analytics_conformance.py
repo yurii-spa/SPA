@@ -3,13 +3,10 @@ tests/test_analytics_conformance.py
 
 30 tests for MP-1403: analytics_conformance.py
 """
-import ast
-import json
 import os
 import sys
 import tempfile
 import textwrap
-import pytest
 
 # Ensure repo root is in path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

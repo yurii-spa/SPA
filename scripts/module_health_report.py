@@ -30,7 +30,7 @@ import sys
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Tuple
 from spa_core.utils.atomic import atomic_save
 
 # ── Repo root ─────────────────────────────────────────────────────────────────
@@ -636,16 +636,16 @@ def render_markdown(report: dict) -> str:
     version = report.get("version", "")
 
     lines.append(f"# 🏥 Module Health Report {version}")
-    lines.append(f"")
+    lines.append("")
     lines.append(f"**Generated:** {gen_at}")
-    lines.append(f"")
+    lines.append("")
 
     # ── Summary ───────────────────────────────────────────────────────────────
     s = report.get("summary", {})
     lines.append("## 📊 Summary")
     lines.append("")
-    lines.append(f"| Metric | Value |")
-    lines.append(f"|--------|-------|")
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
     lines.append(f"| Total modules | {s.get('total_modules', 0)} |")
     lines.append(f"| Total lines | {s.get('total_lines', 0):,} |")
     lines.append(f"| Test files | {s.get('test_files', 0)} |")
@@ -667,7 +667,7 @@ def render_markdown(report: dict) -> str:
         lines.append(f"- **Status:** {st}")
         lines.append(f"- **Count:** {check.get('count', 0)}")
         if check.get("sample_files"):
-            lines.append(f"- **Sample files:**")
+            lines.append("- **Sample files:**")
             for f in check["sample_files"][:3]:
                 lines.append(f"  - `{f}`")
         if check.get("violations"):
@@ -685,7 +685,7 @@ def render_markdown(report: dict) -> str:
     lines.append(f"- **Covered:** {tc.get('covered', 0)}")
     lines.append(f"- **Missing tests:** {tc.get('missing_tests', 0)}")
     if tc.get("sample_missing"):
-        lines.append(f"- **Sample uncovered (first 5):**")
+        lines.append("- **Sample uncovered (first 5):**")
         for f in tc["sample_missing"][:5]:
             lines.append(f"  - `{f}`")
     lines.append("")

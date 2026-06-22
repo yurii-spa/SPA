@@ -15,7 +15,6 @@ Tests for spa_core/backtesting/source_promotion_engine.py
 MP-1319 / Sprint v9.35
 """
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -30,9 +29,6 @@ from spa_core.backtesting.source_pipeline import SourcePipeline, SourceState
 from spa_core.backtesting.source_promotion_engine import (
     PromotionEvidence,
     SourcePromotionEngine,
-    VALID_TRANSITIONS,
-    RS001_SOURCES,
-    RS002_SOURCES,
 )
 
 

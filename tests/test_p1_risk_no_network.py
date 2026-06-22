@@ -14,18 +14,15 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from spa_core.risk.scoring_engine import (
     RiskScoringEngine,
-    BOOTSTRAP_PROTOCOLS,
     DEFILLAMA_CACHE_FILE,
-    DEFILLAMA_PROTOCOLS_URL,
 )
 
 

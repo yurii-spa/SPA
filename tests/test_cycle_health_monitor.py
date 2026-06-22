@@ -78,7 +78,6 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 # -----------------------------------------------------------------------
@@ -101,7 +100,6 @@ from spa_core.monitoring.cycle_health_monitor import (
     STALE_TOURNAMENT_HOURS,
     WARNING,
     CycleHealthMonitor,
-    _now_epoch,
 )
 
 

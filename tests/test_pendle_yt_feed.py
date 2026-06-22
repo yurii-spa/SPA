@@ -34,7 +34,6 @@ from spa_core.price_feeds.pendle_yt_feed import (
     MIN_TVL_USD,
     _fetch_defillama_pools,
     _extract_apy_from_defillama,
-    _fetch_pendle_v2_markets,
     _compute_yt_apy_from_market,
     _extract_apy_from_pendle_v2,
     get_pendle_yt_apy,

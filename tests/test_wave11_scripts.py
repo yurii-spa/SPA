@@ -5,7 +5,6 @@ MP-1552 (v11.68) — Wave 11 push scripts validation
 """
 import os
 import stat
-import subprocess
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,22 +33,22 @@ def test_command_file_exists():
 
 def test_push_v1167_exists():
     p = os.path.join(SCRIPTS_DIR, "push_v1167.sh")
-    assert os.path.isfile(p), f"Missing push_v1167.sh"
+    assert os.path.isfile(p), "Missing push_v1167.sh"
 
 
 def test_push_v1168_exists():
     p = os.path.join(SCRIPTS_DIR, "push_v1168.sh")
-    assert os.path.isfile(p), f"Missing push_v1168.sh"
+    assert os.path.isfile(p), "Missing push_v1168.sh"
 
 
 def test_push_v1169_exists():
     p = os.path.join(SCRIPTS_DIR, "push_v1169.sh")
-    assert os.path.isfile(p), f"Missing push_v1169.sh"
+    assert os.path.isfile(p), "Missing push_v1169.sh"
 
 
 def test_push_v1170_exists():
     p = os.path.join(SCRIPTS_DIR, "push_v1170.sh")
-    assert os.path.isfile(p), f"Missing push_v1170.sh"
+    assert os.path.isfile(p), "Missing push_v1170.sh"
 
 
 # ── Executable permissions ────────────────────────────────────────────────────

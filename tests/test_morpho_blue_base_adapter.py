@@ -23,11 +23,8 @@ if str(_REPO_ROOT) not in sys.path:
 from spa_core.adapters.morpho_blue_base_adapter import (
     APY_FALLBACK,
     CHAIN,
-    GAS_ADVANTAGE_USD,
-    GAS_BASE_USD,
     PROTOCOL_ID,
     RISK_SCORE,
-    T2_CAP_PCT,
     TIER,
     TVL_USD,
     MorphoBlueBaseAdapter,

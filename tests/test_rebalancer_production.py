@@ -41,8 +41,6 @@ Run:
 from __future__ import annotations
 
 import json
-import math
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -55,7 +53,6 @@ from spa_core.paper_trading.rebalancer import (
     ACTION_DECREASE,
     ACTION_ENTER,
     ACTION_EXIT,
-    ACTION_HOLD,
     ACTION_INCREASE,
     HISTORY_FILENAME,
     HISTORY_MAX,

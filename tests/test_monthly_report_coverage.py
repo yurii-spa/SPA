@@ -21,7 +21,6 @@ from spa_core.paper_trading.monthly_report import (
     _fmt_pct,
     _extract_close,
     compute_month_metrics,
-    generate_executive_summary,
 )
 
 

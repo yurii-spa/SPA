@@ -17,7 +17,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
@@ -90,7 +90,7 @@ def adapters_ok() -> str:
             except Exception:
                 pass
     count = len(REGISTRY)
-    assert count >= 1, f"REGISTRY empty after attempted registration"
+    assert count >= 1, "REGISTRY empty after attempted registration"
     return f"{count} adapters registered"
 
 

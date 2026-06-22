@@ -13,7 +13,7 @@ Sprint v11.20 — MP-1504: Yield Aggregator v2 — 25 tests covering:
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import sys
 import os

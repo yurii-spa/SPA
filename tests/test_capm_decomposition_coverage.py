@@ -23,7 +23,6 @@ from spa_core.paper_trading.capm_decomposition import (
     flat_daily_return,
     covariance,
     ols_capm,
-    _compound,
 )
 
 

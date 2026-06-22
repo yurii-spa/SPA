@@ -9,13 +9,11 @@ Standalone тесты для AaveV3BaseAdapter (MP-448).
 from __future__ import annotations
 
 import json
-import os
 import sys
 import unittest
 import urllib.error
-from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Добавляем корень репо в sys.path
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -25,11 +23,8 @@ if str(_REPO_ROOT) not in sys.path:
 from spa_core.adapters.aave_v3_base_adapter import (
     APY_FALLBACK,
     CHAIN,
-    GAS_ADVANTAGE_USD,
-    GAS_BASE_USD,
     PROTOCOL_ID,
     RISK_SCORE,
-    T2_CAP_PCT,
     TIER,
     TVL_USD,
     AaveV3BaseAdapter,

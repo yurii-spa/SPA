@@ -18,7 +18,6 @@ Tests cover:
 import json
 import os
 import sys
-import shutil
 import unittest
 from pathlib import Path
 

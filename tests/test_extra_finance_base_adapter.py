@@ -29,7 +29,6 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.adapters.extra_finance_base_adapter import (
     ADAPTER_ID,
-    ADAPTER_NAME,
     APY_FALLBACK,
     CHAIN,
     DEFILLAMA_CHAIN,

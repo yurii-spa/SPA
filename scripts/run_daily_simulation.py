@@ -62,7 +62,7 @@ def main():
         weekly_cmd = [python, str(ROOT / "scripts/weekly_evidence_report.py")]
         results["weekly"] = run_step("weekly_report", weekly_cmd, args.dry_run)
     else:
-        print(f"⏭ weekly_report: skipped (not Friday)")
+        print("⏭ weekly_report: skipped (not Friday)")
         results["weekly"] = None
 
     # Summary
@@ -70,7 +70,7 @@ def main():
     if failed:
         print(f"\n❌ Failed steps: {', '.join(failed)}")
         return 1
-    print(f"\n✅ All steps completed")
+    print("\n✅ All steps completed")
     return 0
 
 if __name__ == "__main__":

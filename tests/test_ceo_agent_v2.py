@@ -35,7 +35,6 @@ from spa_core.agents.ceo_agent_v2 import (
     TRIGGER_DRAWDOWN,
     TRIGGER_WEEKLY,
     DRAWDOWN_TRIGGER_PCT,
-    WEEKLY_PERIOD_DAYS,
 )
 
 

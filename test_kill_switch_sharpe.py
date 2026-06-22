@@ -257,7 +257,7 @@ class TestEarlyPeriodGrace(unittest.TestCase):
         _make_analytics(sharpe=-1.5, num_days=60, data_dir=self.data_dir)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertTrue(triggered,
-                        f"60 дней ≥ 60 → нормальный порог, sharpe=-1.5 < -1.0: triggered")
+                        "60 дней ≥ 60 → нормальный порог, sharpe=-1.5 < -1.0: triggered")
         self.assertIn("normal_period", reason)
 
     # B-7

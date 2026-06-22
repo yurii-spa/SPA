@@ -13,7 +13,6 @@ stdlib only — unittest, no external dependencies.
 """
 
 import json
-import os
 import sys
 import tempfile
 import unittest

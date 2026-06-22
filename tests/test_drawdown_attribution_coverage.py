@@ -20,7 +20,6 @@ from spa_core.paper_trading.drawdown_attribution import (
     drawdown_summary,
     attribute_drawdown,
     get_worst_drawdown,
-    protocol_drawdown_contribution_history,
 )
 
 

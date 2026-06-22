@@ -17,7 +17,6 @@ Covers:
 Total: 40 tests
 """
 
-import io
 import json
 import os
 import sys
@@ -30,7 +29,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from spa_core.backtesting.gate import BacktestGate
-from spa_core.backtesting.gate_api import get_gate_response, GateAPIHandler
+from spa_core.backtesting.gate_api import get_gate_response
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

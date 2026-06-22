@@ -17,7 +17,6 @@ import json
 import time
 from pathlib import Path
 
-import pytest
 
 from spa_core.monitoring import uptime_monitor as um
 

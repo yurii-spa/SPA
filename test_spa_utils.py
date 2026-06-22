@@ -3,7 +3,6 @@ tests/test_spa_utils.py
 Unit tests for spa_core/utils — atomic, keychain, kanban, base classes.
 65 tests covering all public functions. (AUDIT-001/002/003 — 2026-06-19)
 """
-import fcntl
 import json
 import os
 import sys

@@ -15,9 +15,7 @@ Verifies:
 
 Total: 10 tests
 """
-import importlib
 import json
-import re
 from pathlib import Path
 
 import pytest

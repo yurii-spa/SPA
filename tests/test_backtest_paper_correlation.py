@@ -27,7 +27,6 @@ if _REPO_ROOT not in sys.path:
 
 from spa_core.backtesting.backtest_paper_correlation import (
     BacktestPaperCorrelation,
-    MIN_CORRELATION_FOR_GOLIVE,
     MIN_DAYS_FOR_VALIDATION,
     GOLIVE_DAYS_REQUIRED,
 )

@@ -6,7 +6,6 @@ Sprint v10.5 — MP-1389 AUDIT-001
 """
 import os
 import sys
-import json
 import shutil
 import tempfile
 import textwrap
@@ -23,8 +22,6 @@ from scripts.migrate_atomic_writes import (
     generate_migration,
     apply_migration,
     migration_report,
-    PATTERNS,
-    IMPORT_LINE,
 )
 
 

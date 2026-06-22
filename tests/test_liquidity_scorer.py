@@ -34,8 +34,6 @@ from spa_core.analytics.liquidity_scorer import (
     _normalise_redemption,
     _tiered_score,
     _TVL_TIERS,
-    _AGE_TIERS,
-    _AUDIT_TIERS,
 )
 
 

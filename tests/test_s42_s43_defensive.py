@@ -23,7 +23,6 @@ from spa_core.strategies.s42_crisis_refuge import (
     S42CrisisRefuge,
     TARGET_WEIGHTS,
     PROTOCOL_TIERS as S42_TIERS,
-    APY_DEFAULTS as S42_APY,
     DAILY_VOL as S42_VOL,
     T2_APY_COLLAPSE_THRESHOLD,
     TVL_CRASH_THRESHOLD_PCT,

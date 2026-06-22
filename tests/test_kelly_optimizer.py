@@ -20,7 +20,6 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from spa_core.allocator.kelly_sizer import (
-    DEFAULT_RISK_FREE_PCT,
     KellyResult,
     KellySizer,
     hack_probability,

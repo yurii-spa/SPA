@@ -35,7 +35,6 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 from spa_core.analytics.regime_adjusted_allocator import (
     AllocationResult,
     RegimeAdjustedAllocator,
-    REGIME_ALLOCATIONS,
     RS001_APY,
     RS002_APY,
     VALID_REGIMES,

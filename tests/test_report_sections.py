@@ -19,7 +19,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import date
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ class TestGoLiveSection(unittest.TestCase):
 
     def test_08_generated_at_is_iso(self):
         """generated_at must be a parseable ISO 8601 timestamp."""
-        from datetime import datetime, timezone
+        from datetime import datetime
         result = golive_section(score=50)
         ts = result.get("generated_at", "")
         datetime.fromisoformat(ts.replace("Z", "+00:00"))  # must not raise

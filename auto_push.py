@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """auto_push.py — автоматически пушит новые файлы после каждого спринта SPA."""
-import json, os, subprocess, sys, time, base64, urllib.request
+import json, subprocess, time, base64, urllib.request
 from pathlib import Path
 from datetime import datetime
 

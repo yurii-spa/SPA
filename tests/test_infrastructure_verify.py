@@ -13,12 +13,9 @@ Sprint v10.34 — MP-1418 Infrastructure score boost.
 stdlib only — unittest, no external dependencies.
 """
 
-import json
-import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # Ensure repo root is on path
 _REPO_ROOT = Path(__file__).parent.parent

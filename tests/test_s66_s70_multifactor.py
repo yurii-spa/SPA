@@ -21,8 +21,7 @@ from spa_core.strategies.s68_temporal_diversification import (
     S68TemporalDiversification, SUB_WEIGHT, T1_VENUES, T2_TOTAL_CAP as S68_T2CAP,
     PER_PROTOCOL_CAP as S68_CAP, PROTOCOL_TIERS as S68_TIERS, CASH_KEY as S68_CASH)
 from spa_core.strategies.s69_governance_informed import (
-    S69GovernanceInformed, PROTOCOLS as S69_PROTOCOLS, PROTOCOL_TIERS as S69_TIERS,
-    CASH_KEY as S69_CASH)
+    S69GovernanceInformed, PROTOCOLS as S69_PROTOCOLS)
 from spa_core.strategies.s70_session_best import (
     S70SessionBest, TARGET_WEIGHTS as S70_TARGET, PROTOCOL_TIERS as S70_TIERS,
     CASH_KEY as S70_CASH)

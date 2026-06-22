@@ -29,7 +29,6 @@ import shutil
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 # Ensure repo root on sys.path regardless of cwd
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -402,7 +401,7 @@ class TestCPAShadowTrackerIntegration(unittest.TestCase):
             # trim + save directly
             if len(entries) > RING_BUFFER_CAP:
                 entries = entries[-RING_BUFFER_CAP:]
-            import json, os, tempfile
+            import os, tempfile
             payload = {"schema_version": "1.0", "strategy_id": "S20",
                        "ring_buffer_cap": RING_BUFFER_CAP, "entries": entries,
                        "updated_at": "2025-01-01T00:00:00+00:00"}

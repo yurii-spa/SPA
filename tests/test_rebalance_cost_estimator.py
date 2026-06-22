@@ -20,7 +20,6 @@ if _REPO_ROOT not in sys.path:
 from spa_core.analytics.rebalance_cost_estimator import (
     RebalanceCostEstimator,
     estimate_rebalance_cost,
-    DEFAULT_GAS_UNITS_PER_TRADE,
 )
 from spa_core.utils.errors import SPAError
 

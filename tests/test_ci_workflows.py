@@ -4,7 +4,6 @@ tests/test_ci_workflows.py
 No network calls; reads files from .github/workflows/.
 """
 import os
-import sys
 import unittest
 
 # Try to import yaml; fall back to manual parsing if absent.

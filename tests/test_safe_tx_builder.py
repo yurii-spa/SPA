@@ -16,7 +16,6 @@ Sprint v10.23 — MP-1407: TODO resolution + validation + gas estimation.
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -29,12 +28,9 @@ if str(_REPO_ROOT) not in sys.path:
 from spa_core.execution.safe_tx_builder import (
     SafeTxBuilder,
     PROTOCOL_WHITELIST,
-    SINGLE_SIG_THRESHOLD_USD,
-    SAFE_TX_SERVICE_URLS,
     _usd_to_usdc_raw,
     _abi_encode_address,
     _abi_encode_uint256,
-    _validate_safe_address,
     _encode_allocate_stub,
     _encode_withdraw_stub,
 )

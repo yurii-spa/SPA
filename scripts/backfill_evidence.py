@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
-import os
 import re
 import subprocess
 import sys
@@ -256,7 +255,7 @@ def main() -> int:  # noqa: C901
                 eq_note = f"  (уже есть, equity={_fmt_equity(eq)})" if eq else "  (уже есть)"
             print(f"    {i:>3}.  {d}{eq_note}")
         print()
-        print(f"  DRY-RUN: ничего не запускается и не записывается.")
+        print("  DRY-RUN: ничего не запускается и не записывается.")
         print(_SEP)
         print()
         return 0
@@ -314,7 +313,7 @@ def main() -> int:  # noqa: C901
 
     print()
     print(_SEP2)
-    print(f"  Итоги backfill_evidence:")
+    print("  Итоги backfill_evidence:")
     print(_SEP2)
     print(f"    Добавлено дней  : {days_added}")
     print(f"    Пропущено дней  : {days_skipped}")

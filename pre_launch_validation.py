@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -767,8 +767,8 @@ class PreLaunchValidation:
             "",
             "## Summary",
             "",
-            f"| Metric | Count |",
-            f"|--------|-------|",
+            "| Metric | Count |",
+            "|--------|-------|",
             f"| Total checks | {report.total_count} |",
             f"| Passed | {report.passed_count} |",
             f"| Blocking failures | {report.blocking_count} |",

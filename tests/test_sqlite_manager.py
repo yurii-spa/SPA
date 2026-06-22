@@ -184,7 +184,7 @@ def test_get_all_adapters_on_date(db):
 
 def test_adapter_apy_history_limit(db):
     for i in range(10):
-        db.insert_adapter_apy(f"2026-06-{i+1:02d}", f"aave_v3", 3.5 + i * 0.1)
+        db.insert_adapter_apy(f"2026-06-{i+1:02d}", "aave_v3", 3.5 + i * 0.1)
     assert len(db.get_adapter_apy_history("aave_v3", days=5)) == 5
 
 

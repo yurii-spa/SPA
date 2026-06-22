@@ -2,7 +2,6 @@
 """Tests for spa_core.analytics.portfolio_optimizer (MP-1249). Pure stdlib / unittest."""
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path

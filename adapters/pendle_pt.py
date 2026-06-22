@@ -20,11 +20,9 @@ sign() / send() / write() → NotImplementedError (явный барьер).
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _CACHE_PATH = _PROJECT_ROOT / "data" / "adapters" / "pendle_pt_state.json"

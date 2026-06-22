@@ -16,7 +16,6 @@ tests/test_s11_hybrid_yield_max.py — MP-421 тесты для S11HybridYieldMa
 """
 from __future__ import annotations
 
-import math
 import sys
 import os
 import unittest
@@ -31,17 +30,12 @@ from spa_core.strategies.s11_hybrid_yield_max import (
     BASE_ALLOCATION,
     FALLBACK_ALLOCATION,
     APY_DEFAULTS,
-    STRATEGY_ID,
-    STRATEGY_NAME,
-    RISK_TIER,
     RISK_SCORE,
     TARGET_APY,
     WEIGHTED_APY,
-    FALLBACK_APY,
     MIN_PENDLE_YT_APY,
     MAX_PENDLE_EXPOSURE,
     REBALANCE_THRESHOLD,
-    MAX_DRAWDOWN_PCT,
 )
 
 

@@ -12,7 +12,6 @@ Tests cover:
   - File output structure
 """
 import json
-import os
 import tempfile
 import unittest
 from datetime import datetime, timezone, timedelta
@@ -24,8 +23,6 @@ from spa_core.analytics.bts_exit_monitor import (
     EXIT_FILE,
     FUNDING_FILE,
     KILL_SWITCH_FILE,
-    FUNDING_REVERSAL_THRESHOLD,
-    SPREAD_FLOOR_BPS,
     STALE_AFTER_S,
 )
 from spa_core.utils.atomic import atomic_save

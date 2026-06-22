@@ -123,7 +123,6 @@ class TestReadEquityCurve(unittest.TestCase):
     def test_C1_returns_empty_when_no_db_no_json(self):
         """read_equity_curve returns [] when no DB and no JSON file."""
         with tempfile.TemporaryDirectory() as d:
-            import unittest.mock as _m
             # Point DB to temp path with no data
             db_path = str(pathlib.Path(d) / "empty.db")
             result = read_equity_curve(db_path=db_path, data_dir=d)

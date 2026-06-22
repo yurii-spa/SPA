@@ -12,7 +12,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 
 from spa_core.paper_trading import cycle_runner as cr
 from spa_core.paper_trading.golive_checker import GoLiveChecker, GoLiveResult

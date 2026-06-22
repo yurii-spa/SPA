@@ -15,19 +15,19 @@ import unittest
 from spa_core.strategies.s51_protocol_lifecycle import (
     S51ProtocolLifecycle, get_age_years, lifecycle_bucket,
     LIFECYCLE_YOUNG, LIFECYCLE_GROWING, LIFECYCLE_MATURE,
-    YOUNG_HARD_CAP, DEFAULT_AGE_YEARS, PROTOCOL_TIERS as S51_TIERS,
+    YOUNG_HARD_CAP, DEFAULT_AGE_YEARS,
 )
 from spa_core.strategies.s52_tvl_momentum import (
     S52TvlMomentum, tvl_momentum_signal,
-    MOMENTUM_UP, MOMENTUM_DOWN, MOMENTUM_FLAT, PROTOCOL_TIERS as S52_TIERS,
+    MOMENTUM_UP, MOMENTUM_DOWN, MOMENTUM_FLAT,
 )
 from spa_core.strategies.s53_correlated_risk_reducer import (
-    S53CorrelatedRiskReducer, load_correlation_matrix, correlation,
+    S53CorrelatedRiskReducer, correlation,
     REDUCED_WEIGHT, CORR_THRESHOLD,
 )
 from spa_core.strategies.s54_daily_yield_maximizer import (
     S54DailyYieldMaximizer, rank_by_yesterday,
-    CHASE_WEIGHT, CHASE_WEIGHT_CAPPED, TOP_N, PROTOCOL_TIERS as S54_TIERS,
+    TOP_N,
 )
 from spa_core.strategies.s55_max_sharpe_portfolio import (
     S55MaxSharpePortfolio, gated_weights, should_rebalance,

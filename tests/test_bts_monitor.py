@@ -11,13 +11,10 @@ Tests cover:
   - Edge cases: malformed data, empty rates, partial data
 """
 import json
-import os
 import tempfile
-import time
 import unittest
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 from spa_core.monitoring.bts_monitor import (
     BTSMonitor,
@@ -28,8 +25,6 @@ from spa_core.monitoring.bts_monitor import (
     ADAPTER_STATUS_FILENAME,
     STALE_AFTER_S,
     DEFAULT_SPOT_YIELD,
-    DEFAULT_EXEC_COST_BPS,
-    DEFAULT_CAPITAL_USD,
 )
 from spa_core.utils.atomic import atomic_save
 

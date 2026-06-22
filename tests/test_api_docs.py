@@ -14,7 +14,6 @@ import importlib
 import sys
 from pathlib import Path
 
-import pytest
 
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent

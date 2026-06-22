@@ -25,7 +25,7 @@ import time
 import unittest
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 import urllib.error
 import urllib.request
 
@@ -192,7 +192,6 @@ class TestCheckHttpServer(unittest.TestCase):
 
     def test_timeout(self) -> None:
         """Timeout → ok=False, error set, no crash."""
-        import socket
         with patch("urllib.request.urlopen", side_effect=OSError("timed out")):
             r = check_http_server(port=8765)
         self.assertFalse(r["ok"])

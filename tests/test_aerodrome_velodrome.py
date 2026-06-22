@@ -39,7 +39,6 @@ from spa_core.adapters.velodrome_optimism_adapter import (
     VelodromeOptimismAdapter,
 )
 from spa_core.strategies.s41_amm_stable_yield import (
-    FALLBACK_APY as S41_FALLBACK,
     WEIGHTS as S41_WEIGHTS,
     S41AmmStableYield,
 )

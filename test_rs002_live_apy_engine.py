@@ -30,8 +30,6 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.analytics.rs002_live_apy_engine import (
     RS002LiveAPYEngine,
-    _SLOTS_DEF,
-    _BTC_MOVE_SCENARIOS,
     TARGET_GROSS_APY,
     RESEARCH_ONLY,
 )

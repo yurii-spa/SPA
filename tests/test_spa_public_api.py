@@ -15,9 +15,7 @@ MP-1383 (v9.99) — Public API acceptance tests for spa_core v10.0.
 Stdlib only — no external dependencies.
 """
 
-import sys
 import unittest
-import importlib
 
 
 class TestSpaImport(unittest.TestCase):

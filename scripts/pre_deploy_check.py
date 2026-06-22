@@ -169,7 +169,7 @@ def landing_dist_exists():
     """landing/dist directory must exist (artifact of build)."""
     dist = "landing/dist"
     if not os.path.isdir(dist):
-        raise AssertionError(f"landing/dist not found — run build first")
+        raise AssertionError("landing/dist not found — run build first")
     files = sum(len(ff) for _, _, ff in os.walk(dist))
     return f"{files} files in dist"
 

@@ -49,7 +49,6 @@ from spa_core.analytics.rebalance_cost import (  # noqa: E402
     DEFAULT_GAS_PRICE_GWEI,
     DEFAULT_ETH_PRICE_USD,
     MAX_SLIPPAGE_BPS,
-    MIN_TRADE_USD,
     RING_BUFFER,
     SCHEMA_VERSION,
     VERDICT_WORTHWHILE,

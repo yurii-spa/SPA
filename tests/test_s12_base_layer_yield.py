@@ -19,11 +19,9 @@ sys.path.insert(0, os.path.expanduser("~/Documents/SPA_Claude"))
 from spa_core.strategies.s12_base_layer_yield import (
     S12BaseLayerYield,
     STRATEGY_ID,
-    STRATEGY_NAME,
     TIER,
     RISK_SCORE,
     TARGET_APY_PCT,
-    DESCRIPTION,
     BASE_WEIGHTS,
     PHASE1_WEIGHTS,
     GAS_KILL_WEIGHTS,
@@ -59,7 +57,6 @@ class TestS12Constants(unittest.TestCase):
 
     def test_phase2_date_format(self):
         """BASE_PHASE_2_DATE должен быть ISO-форматом 'YYYY-MM-DD'."""
-        import re
         self.assertRegex(BASE_PHASE_2_DATE, r"^\d{4}-\d{2}-\d{2}$")
 
     def test_min_days_paper(self):

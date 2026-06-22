@@ -34,8 +34,6 @@ from spa_core.backtesting.cycle_runner_patch import (
     CPA_HOOK_CALL,
     CPA_HOOK_IMPORT,
     CycleRunnerPatch,
-    _CALL_SENTINEL,
-    _IMPORT_SENTINEL,
 )
 
 # ── helpers ──────────────────────────────────────────────────────────────────

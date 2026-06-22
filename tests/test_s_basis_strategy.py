@@ -5,25 +5,19 @@ Tests cover ENTER/SKIP/MONITOR signal mapping, stale data handling,
 allocation capping, and integration with BasisTradeAnalyzer.
 """
 import json
-import os
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 from spa_core.strategies.s_basis import (
     ALLOCATION,
-    DEFAULT_EXEC_COST_BPS,
     MAX_BTS_WEIGHT,
-    MIN_NET_SPREAD_BPS_ENTER,
-    MIN_OPEN_INTEREST_USD,
     STRATEGY_ID,
     STRATEGY_NAME,
     TARGET_APY_MAX,
     TARGET_APY_MIN,
     TIER,
-    TRACKED_ASSETS,
     BasisSignal,
     SBasisStrategy,
 )

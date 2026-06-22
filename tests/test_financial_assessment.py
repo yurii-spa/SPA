@@ -12,9 +12,7 @@ Tests:
 from __future__ import annotations
 
 import json
-import os
 import sys
-import shutil
 from pathlib import Path
 
 import pytest
@@ -228,7 +226,7 @@ class TestAssessFinancial:
             score_after = r2.assess_financial()
 
             assert score_after.score - score_before.score == pytest.approx(3.0), \
-                f"capital_config should add exactly 3 pts"
+                "capital_config should add exactly 3 pts"
 
     def test_assess_financial_fee_structure_adds_2pts(self):
         """Adding fee_structure.py should add 2 pts to score."""
@@ -247,7 +245,7 @@ class TestAssessFinancial:
             r2 = make_report(tmp_path)
             score_after = r2.assess_financial()
             assert score_after.score - score_before.score == pytest.approx(2.0), \
-                f"fee_structure.py should add exactly 2 pts"
+                "fee_structure.py should add exactly 2 pts"
 
     def test_assess_financial_name(self):
         r = GoLiveReadinessReport(base_dir=str(REPO_ROOT))

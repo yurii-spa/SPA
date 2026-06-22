@@ -5,7 +5,6 @@ mocked or redirected into a per-test temp dir. No real network calls.
 """
 from __future__ import annotations
 
-import json
 
 import pytest
 

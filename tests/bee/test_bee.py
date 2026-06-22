@@ -10,7 +10,6 @@
   5. TestLLMForbidden      — Проверка отсутствия LLM-вызовов во всех модулях
 """
 import json
-import hashlib
 import sys
 import pytest
 from pathlib import Path

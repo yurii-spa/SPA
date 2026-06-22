@@ -19,8 +19,7 @@ from __future__ import annotations
 import ast
 import json
 import os
-import sys
-from typing import List, Dict, Optional
+from typing import List
 
 _ANALYTICS_DIR = "spa_core/analytics"
 _BASE_NAMES = {"BaseAnalytics", "BaseReport"}  # acceptable base classes

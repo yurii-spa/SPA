@@ -4,7 +4,6 @@ Verifies dist/ exists, key HTML pages are present, and assets are properly struc
 Run after: cd landing && npm run build
 """
 import os
-import re
 import sys
 
 LANDING_ROOT = os.path.join(os.path.dirname(__file__), "..", "landing")

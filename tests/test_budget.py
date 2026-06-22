@@ -16,12 +16,11 @@ Pure stdlib. No network. Offline.
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import sys
 import unittest
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 _HERE = pathlib.Path(__file__).resolve().parent
 _REPO = _HERE.parent
@@ -30,7 +29,6 @@ sys.path.insert(0, str(_REPO))
 from spa_core.agent_runtime.budget import (
     TokenBudgetTracker,
     _atomic_write_json,
-    DEFAULT_USAGE_PATH,
     SCHEMA_VERSION,
 )
 from spa_core.agent_runtime.mandate import AgentMandate

@@ -25,7 +25,6 @@ Total: ≥ 144 tests (well above the 80-test requirement)
 from __future__ import annotations
 
 import json
-import os
 import sys
 import unittest
 import tempfile
@@ -44,7 +43,6 @@ from spa_core.analytics.daily_digest import (
     RING_BUFFER_SIZE,
     _safe_float,
     _TELEGRAM_MAX_CHARS,
-    _STATUS_BREACH,
 )
 
 

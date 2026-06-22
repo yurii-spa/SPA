@@ -10,7 +10,6 @@ Pure stdlib — no third-party dependencies.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -27,23 +26,15 @@ if str(_ROOT) not in sys.path:
 from spa_core.analytics.scenario_simulator import (
     DISCLAIMER,
     HISTORY_MAX,
-    KILL_SWITCH_PCT,
     PEG_BREAK_RETURN_PCT,
     SCHEMA_VERSION,
-    T1_CAP,
-    T2_T3_CAP,
-    T2_TOTAL_CAP,
-    TVL_FLOOR_USD,
     ScenarioResult,
     ScenarioSimulator,
     _applies_peg_break,
     _compute_shock_multiplier,
     _get_adapter_apy_pct,
-    _get_adapter_chain,
     _get_adapter_id,
     _get_adapter_tier,
-    _get_adapter_tvl,
-    _get_attr,
     _is_wildcard_key,
     _matches_wildcard,
     _normalise_weights,

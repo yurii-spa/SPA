@@ -158,7 +158,7 @@ def main():
         print(f"❌ Data files: {len(real_data_issues)} issues")
     else:
         suppressed = len(data_issues) - len(real_data_issues)
-        print(f"✅ Data files: ok" + (f" ({suppressed} suppressed by baseline)" if suppressed else ""))
+        print("✅ Data files: ok" + (f" ({suppressed} suppressed by baseline)" if suppressed else ""))
 
     print()
     if issues:
@@ -170,7 +170,7 @@ def main():
         print("  All checks passed or suppressed by AUDIT_BASELINE.json")
 
     if warnings:
-        print(f"\n⚠ Warnings:")
+        print("\n⚠ Warnings:")
         for w in warnings:
             print(f"  {w}")
 

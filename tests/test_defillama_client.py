@@ -8,13 +8,12 @@ All HTTP calls are intercepted with unittest.mock — no real network access.
 """
 from __future__ import annotations
 
-import io
 import json
 import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from spa_core.utils.defillama import DeFiLlamaClient, BASE_URL, POOL_URL, CHART_URL
+from spa_core.utils.defillama import DeFiLlamaClient
 
 
 # ---------------------------------------------------------------------------

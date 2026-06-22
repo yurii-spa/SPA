@@ -28,9 +28,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from spa_core.analytics.research_risk_attribution import (
     RISK_FACTORS,
     RS001_EXPECTED_RETURN,
-    RS001_WEIGHTS,
-    RS002_EXPECTED_RETURN,
-    RS002_WEIGHTS,
     ResearchRiskAttribution,
     SlotRiskProfile,
 )

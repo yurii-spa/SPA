@@ -18,7 +18,6 @@ stdlib unittest + pytest compatible
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -29,9 +28,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.analytics.golive_readiness_report import (
-    CategoryScore,
     GoLiveReadinessReport,
-    READINESS_CATEGORIES,
 )
 
 

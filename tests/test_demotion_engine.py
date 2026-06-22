@@ -25,7 +25,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
 
 from spa_core.backtesting.demotion_engine import (
     DemotionEngine,

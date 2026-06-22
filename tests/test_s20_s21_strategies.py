@@ -9,31 +9,23 @@ Tests are stdlib-only, no external deps, pure unit tests.
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
 
 from spa_core.strategies.s20_curve_convex import (
     S20CurveConvex,
     CURVE_POOLS,
     POOL_ALLOCATION,
     CASH_BUFFER,
-    TARGET_APY_MIN,
-    TARGET_APY_MAX,
-    STRATEGY_ID as S20_ID,
 )
 from spa_core.strategies.s21_aave_loop import (
     S21AaveLoop,
-    LTV,
     MAX_LOOPS,
     HEALTH_FACTOR_MIN,
-    STRATEGY_ID as S21_ID,
-    _compute_effective_apy,
     _compute_effective_multiplier,
     _compute_health_factor,
 )

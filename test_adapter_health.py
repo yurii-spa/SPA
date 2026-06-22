@@ -17,7 +17,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 
 # Ensure project root on path
 ROOT = Path(__file__).resolve().parents[1]

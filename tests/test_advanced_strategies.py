@@ -15,41 +15,32 @@ RISK_TIER, EXPECTED_APY_PCT, CAVEAT, regime switching (S72/S74/S75/S76),
 S73 effective_apy calculation, new protocol registrations in adapter_status.json.
 """
 import json
-import math
 import pathlib
 import unittest
 
 # ─── Import all 7 strategies ──────────────────────────────────────────────────
 
 from spa_core.strategies.s71_delta_neutral import (
-    S71DeltaNeutral, ALLOCATION as S71_ALLOC, FALLBACK_APY as S71_FALLBACK,
-    STRATEGY_ID as S71_ID, RISK_TIER as S71_TIER,
+    S71DeltaNeutral,
 )
 from spa_core.strategies.s72_basis_trade import (
-    S72BasisTrade, ALLOC_POSITIVE, ALLOC_NEGATIVE, FALLBACK_APY as S72_FALLBACK,
-    STRATEGY_ID as S72_ID, RISK_TIER as S72_TIER, POSITIVE_REGIME, NEGATIVE_REGIME,
+    S72BasisTrade, ALLOC_POSITIVE, ALLOC_NEGATIVE,
 )
 from spa_core.strategies.s73_leverage_loop import (
-    S73LeverageLoop, ALLOCATION as S73_ALLOC, FALLBACK_APY as S73_FALLBACK,
-    STRATEGY_ID as S73_ID, RISK_TIER as S73_TIER,
-    LEVERAGE_RATIO, LIQUIDATION_THRESHOLD,
+    S73LeverageLoop, LEVERAGE_RATIO, LIQUIDATION_THRESHOLD,
     STAKING_APY_DEFAULT, BORROW_RATE_DEFAULT,
 )
 from spa_core.strategies.s74_rwa_yield import (
-    S74RWAYield, ALLOC_HIGH_MAPLE, ALLOC_NORMAL_MAPLE, FALLBACK_APY as S74_FALLBACK,
-    STRATEGY_ID as S74_ID, RISK_TIER as S74_TIER, MAPLE_HIGH_THRESHOLD,
+    S74RWAYield, ALLOC_HIGH_MAPLE, ALLOC_NORMAL_MAPLE, MAPLE_HIGH_THRESHOLD,
 )
 from spa_core.strategies.s75_pendle_yield_max import (
-    S75PendleYieldMax, ALLOC_HIGH_RATE, ALLOC_NORMAL_RATE, FALLBACK_APY as S75_FALLBACK,
-    STRATEGY_ID as S75_ID, RISK_TIER as S75_TIER, HIGH_RATE_THRESHOLD,
+    S75PendleYieldMax, ALLOC_HIGH_RATE, ALLOC_NORMAL_RATE, HIGH_RATE_THRESHOLD,
 )
 from spa_core.strategies.s76_concentrated_lp import (
-    S76ConcentratedLP, ALLOC_LP_ACTIVE, ALLOC_LP_OFF, FALLBACK_APY as S76_FALLBACK,
-    STRATEGY_ID as S76_ID, RISK_TIER as S76_TIER, LP_ATTRACTIVE_THRESHOLD,
+    S76ConcentratedLP, ALLOC_LP_ACTIVE,
 )
 from spa_core.strategies.s77_points_farming import (
-    S77PointsFarming, ALLOCATION as S77_ALLOC, FALLBACK_APY as S77_FALLBACK,
-    STRATEGY_ID as S77_ID, RISK_TIER as S77_TIER, POINTS_APY_PREMIUM_PCT,
+    S77PointsFarming, POINTS_APY_PREMIUM_PCT,
 )
 from spa_core.strategies.strategy_registry import REGISTRY
 

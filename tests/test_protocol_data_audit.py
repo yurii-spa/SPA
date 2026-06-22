@@ -27,7 +27,6 @@ import os
 import sys
 import unittest
 import tempfile
-from pathlib import Path
 
 # Ensure repo root is on sys.path regardless of cwd
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

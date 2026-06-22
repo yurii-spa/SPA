@@ -22,7 +22,6 @@ import os
 import sys
 import json
 import argparse
-import textwrap
 from pathlib import Path
 from typing import Optional
 # stdlib contract guard integration
@@ -447,7 +446,7 @@ def main(argv=None) -> int:
 
     # Default: show report
     rpt = migration_report(files)
-    print(f"Migration Report")
+    print("Migration Report")
     print(f"  Total files scanned:    {rpt['total_files']}")
     print(f"  Already using utils:    {rpt['already_using_utils']}")
     print(f"  Needs migration:        {rpt['needs_migration']}")

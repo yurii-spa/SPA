@@ -20,8 +20,6 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.analytics.rs002_position_tracker import (
-    LPPosition,
-    RS002_SLOTS,
     RS002PositionTracker,
 )
 from spa_core.analytics.rebalance_engine import RebalanceEngine, RebalanceProposal

@@ -14,9 +14,7 @@ from __future__ import annotations
 import json
 import time
 import unittest
-import urllib.error
-import urllib.request
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import sys
 import os

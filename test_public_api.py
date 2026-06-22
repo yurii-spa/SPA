@@ -124,7 +124,7 @@ def test_adapter_registry_is_dict():
 
 
 def test_adapter_registry_values_are_classes():
-    from spa_core import ADAPTER_REGISTRY, BaseAdapter
+    from spa_core import ADAPTER_REGISTRY
     for name, cls in list(ADAPTER_REGISTRY.items())[:5]:
         assert inspect.isclass(cls), f"{name} value should be a class"
 

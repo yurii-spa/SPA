@@ -8,16 +8,12 @@ where necessary. Tests run fully offline.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
-from unittest import mock
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 # ── Repo root on sys.path ─────────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -26,26 +22,18 @@ if str(REPO_ROOT) not in sys.path:
 
 from spa_core.dev_agents.auto_fixer import (
     BASE_DIR,
-    BACKUP_PREFIX,
-    CLAUDE_MODEL,
-    FORBIDDEN_FILES,
     MAX_FIXES_PER_HOUR,
-    RATE_LIMIT_PREFIX,
     _clean_code_response,
     _extract_error_lineno,
     _extract_sha,
-    _rate_limit_count,
-    _rate_limit_record,
     _summarize_fix,
     _to_relative,
     call_claude_api,
     create_backup,
     find_affected_file,
     is_rate_limited,
-    push_file,
     rollback,
     run_auto_fix,
-    run_tests,
     safety_check,
 )
 

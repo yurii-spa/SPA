@@ -19,10 +19,8 @@ MP-1402 (v10.18) — stdlib only.
 from __future__ import annotations
 
 import hashlib
-import os
 import tempfile
 import unittest
-from unittest.mock import patch
 
 from spa_core.safety.safeguard import (
     is_research_only,

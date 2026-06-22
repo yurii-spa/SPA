@@ -146,7 +146,6 @@ class TestKillSwitch:
 
     def test_kill_switch_forces_exit_regime_in_state(self, m, monkeypatch, tmp_path):
         """kill_switch записывает regime=EXIT в state (dry_run=False)"""
-        import spa_core.paper_trading.hy_cycle as mod
         monkeypatch.setattr(m, "get_hy_regime", lambda: "ENTER")
         bad_state = {
             "equity": 8000.0,

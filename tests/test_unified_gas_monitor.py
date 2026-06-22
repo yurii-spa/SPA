@@ -34,12 +34,10 @@ if _REPO_ROOT not in sys.path:
 from spa_core.monitor.unified_gas_monitor import (
     ETH_PRICE_USD,
     GAS_LIMITS,
-    OUTPUT_PATH,
     PROFITABILITY_THRESHOLD_USD,
     REBALANCES_PER_YEAR,
     SUPPORTED_CHAINS,
     UnifiedGasMonitor,
-    _FALLBACK_GAS_PRICE_GWEI,
     _GWEI_PER_ETH,
 )
 

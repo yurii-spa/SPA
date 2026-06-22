@@ -11,10 +11,7 @@ Verifies that:
 ADR-025 Phase 1 — read-only APY feeds, no allocation.
 """
 import os
-import importlib
-import sys
 
-import pytest
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 

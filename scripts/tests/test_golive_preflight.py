@@ -15,7 +15,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 # Make sure scripts/ is importable
 _SCRIPTS_DIR = Path(__file__).resolve().parents[1]

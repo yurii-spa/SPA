@@ -19,7 +19,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -32,7 +32,6 @@ from spa_core.analytics.rs001_live_apy_engine import (
     RS001LiveAPYEngine,
     _SLOT_DEFS,
     _DEFAULT_DATA_PATH,
-    _CLEAN_DOMINATED_THRESHOLD,
 )
 
 

@@ -16,21 +16,17 @@ Stdlib only, no external dependencies.
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
 
 from spa_core.backtesting.tournament_runner_v2 import (
     TournamentRunnerV2,
     PROMOTION_SHARPE_MIN,
     PROMOTION_DAYS_MIN,
-    DEMOTION_SHARPE_FLOOR,
     DEMOTION_CONSECUTIVE,
-    ANNUALISE_FACTOR,
 )
 
 

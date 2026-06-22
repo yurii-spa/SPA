@@ -14,10 +14,8 @@
 """
 
 import json
-import os
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
@@ -441,7 +439,6 @@ class TestAtomicWrites:
 
     def test_uses_shutil_not_os_replace(self):
         """Verify shutil.move is imported in the module (not just os.replace)."""
-        import spa_core.reporting.tear_sheet as ts_module
         import inspect
         src = inspect.getsource(TearSheetGenerator._atomic_write_text)
         assert "shutil.move" in src
@@ -501,7 +498,6 @@ class TestEdgeCases:
         assert summary["best_strategy"] == "Primary Strategy"
 
     def test_num_helper_returns_none_for_nan(self):
-        import math
         gen = TearSheetGenerator()
         assert gen._num(float("nan")) is None
 

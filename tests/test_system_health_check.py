@@ -5,13 +5,11 @@ MP-1524 (v11.40)
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 import sys
-import tempfile
 import unittest
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
@@ -148,7 +146,7 @@ class TestResultAccounting(unittest.TestCase):
         result = _run_checks_silent()
         self.assertEqual(
             result["fail"], 0,
-            msg=f"Unexpected FAILs:\n" + "\n".join(
+            msg="Unexpected FAILs:\n" + "\n".join(
                 f"  {d['name']}: {d['detail']}"
                 for d in result["details"]
                 if d["status"] == "FAIL"

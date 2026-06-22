@@ -23,10 +23,8 @@ import json
 import os
 import sys
 import tempfile
-import datetime
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

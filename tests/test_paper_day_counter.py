@@ -27,7 +27,7 @@ import os
 import sys
 import unittest
 import tempfile
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 # ── repo root import ──────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from spa_core.backtesting.paper_day_counter import PaperDayCounter, EVIDENCE_REQUIRED
+from spa_core.backtesting.paper_day_counter import PaperDayCounter
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

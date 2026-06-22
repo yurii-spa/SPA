@@ -22,8 +22,6 @@ Total: 30 tests
 
 from __future__ import annotations
 
-import json
-import os
 import sys
 import tempfile
 import unittest
@@ -35,7 +33,6 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.backtesting.launch_runbook import (
     STEPS,
-    VALID_PHASES,
     LaunchRunbook,
 )
 

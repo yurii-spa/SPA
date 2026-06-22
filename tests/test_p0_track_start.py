@@ -11,13 +11,10 @@ Verifies that:
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 from pathlib import Path
-from datetime import date
 
-import pytest
 
 # ---------------------------------------------------------------------------
 # Ensure repo root is importable
@@ -27,10 +24,8 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from spa_core.paper_trading.progress_tracker import (
     PAPER_START_DATE,
-    GO_LIVE_TARGET_DATE,
     _extract_paper_start,
     _count_real_paper_days,
-    _days_between,
     build_progress_report,
 )
 from spa_core.paper_trading.cycle_runner import PAPER_START_DATE as RUNNER_START_DATE

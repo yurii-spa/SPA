@@ -25,14 +25,12 @@ from spa_core.strategies.s13_multi_chain_arb import (
     TIER,
     RISK_SCORE,
     TARGET_APY_PCT,
-    DESCRIPTION,
     PHASE2_DATE,
     SPREAD_THRESHOLD_PCT,
     BASE_MAX_ALLOCATION,
     PHASE1_WEIGHTS,
     ETH_WEIGHTS,
     BASE_WEIGHTS,
-    _weighted_apy,
     _DEFAULT_APY,
 )
 
@@ -69,7 +67,6 @@ class TestS13Constants(unittest.TestCase):
 
     def test_phase2_date_format(self):
         """PHASE2_DATE должен быть ISO-форматом 'YYYY-MM-DD'."""
-        import re
         self.assertRegex(PHASE2_DATE, r"^\d{4}-\d{2}-\d{2}$")
 
     def test_phase2_date_value(self):

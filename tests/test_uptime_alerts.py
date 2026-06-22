@@ -17,7 +17,6 @@ import json
 from pathlib import Path
 from unittest import mock
 
-import pytest
 
 from spa_core.monitoring import uptime_monitor as um
 

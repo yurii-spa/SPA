@@ -5,10 +5,7 @@ MP-1518 (v11.34): 15 tests for scripts/generate_changelog.py.
 
 import importlib.util
 import os
-import sys
-import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Load generate_changelog module without executing main()

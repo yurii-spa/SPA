@@ -2,9 +2,7 @@
 MP-1543 (v11.59) — Meta tags + OpenGraph tests for Layout.astro.
 Checks that the layout template contains all required meta/OG/Twitter/Schema fields.
 """
-import re
 import os
-import json
 import pytest
 
 LAYOUT_PATH = os.path.join(

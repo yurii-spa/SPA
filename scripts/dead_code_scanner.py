@@ -31,7 +31,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 _DEFAULT_SAVE_PATH = "data/dead_code_report.json"
 _SPA_DIR = "spa_core"

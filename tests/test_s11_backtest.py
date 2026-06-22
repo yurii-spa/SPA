@@ -16,7 +16,6 @@ SCRIPTS_DIR = os.path.join(REPO_ROOT, "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from s11_backtest_90d import (
-    ALLOCATION,
     CAPITAL,
     DAYS,
     N_SIMULATIONS,

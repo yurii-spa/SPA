@@ -12,14 +12,10 @@ Tests for pre-commit hook infrastructure — MP-1522 (v11.38)
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
-import sys
-import tempfile
 from pathlib import Path
 
-import pytest
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -8,10 +8,7 @@ Tests for scripts/test_coverage_report.py — MP-1519 (v11.35)
 from __future__ import annotations
 
 import json
-import os
 import sys
-import tempfile
-import textwrap
 from pathlib import Path
 from unittest.mock import patch
 

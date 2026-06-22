@@ -145,7 +145,7 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
         if e.code in (429, 403) and "rate limit" in body.lower():
-            print(f"  Rate limit — ждём 60с...")
+            print("  Rate limit — ждём 60с...")
             time.sleep(60)
             return push_file(pat, local_path, message, repo, dry_run)
         return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}

@@ -10,7 +10,7 @@ import json
 import os
 import sys
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 # ── константы ────────────────────────────────────────────────────────────────

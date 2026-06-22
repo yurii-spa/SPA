@@ -11,7 +11,6 @@ tests/test_dead_code_resolved.py — MP-1439 + MP-1440 verification (Sprint v10.
 from __future__ import annotations
 
 import ast
-import importlib
 import re
 import sys
 from pathlib import Path
