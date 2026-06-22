@@ -69,6 +69,11 @@ def _make_tmp_log() -> Path:
 
 def _make_dispatcher(**kwargs) -> tuple[AlertDispatcher, Path]:
     log_path = _make_tmp_log()
+    # Always use a fresh temp dedup state file so tests are isolated from
+    # any persisted state written by prior test runs (or the live system).
+    if "dedup_state_path" not in kwargs:
+        td = tempfile.mkdtemp()
+        kwargs["dedup_state_path"] = Path(td) / "dedup_state.json"
     d = AlertDispatcher(log_path=log_path, **kwargs)
     return d, log_path
 
