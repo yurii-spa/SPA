@@ -6,9 +6,11 @@ without touching individual agent files.
 
 Design notes:
   - Architect agent uses Claude Fable 5 (best reasoning for design decisions).
-  - CEO / Trader / Strategy / Data / Monitoring / Report agents use Opus 4.8.
-  - Risk and Execution agents MUST be deterministic: LLM is forbidden for
-    any decision that triggers a trade or a kill-switch.
+  - CEO / Trader / Strategy / Data / Report agents use Opus 4.8.
+  - Risk, Execution and Monitoring agents MUST be deterministic: LLM is
+    forbidden for any decision that triggers a trade or a kill-switch, or
+    that sits on the feed-health / monitoring path (project constitution,
+    see spa_core/agent_runtime/mandate.py and spa_core/ci/llm_forbidden_lint.py).
 
 Lookup convention:
     key = agent_name.lower().replace("agent", "").strip()
@@ -27,22 +29,24 @@ AGENT_MODELS: dict[str, str] = {
     "trader":     "claude-opus-4-8",
     "strategy":   "claude-opus-4-8",
     "data":       "claude-opus-4-8",
-    "monitoring": "claude-opus-4-8",
     "report":     "claude-opus-4-8",
 
-    # Risk — deterministic only; model listed for audit completeness but
-    # MUST NOT be used for actual risk decisions (see LLM_FORBIDDEN_AGENTS)
-    "risk": "claude-opus-4-8",
+    # Deterministic-only agents — models listed for audit completeness but
+    # MUST NOT be used for actual decisions (see LLM_FORBIDDEN_AGENTS below).
+    "risk":       "claude-opus-4-8",
+    "monitoring": "claude-opus-4-8",
 }
 
 # Default model when an agent key is not found in AGENT_MODELS
 DEFAULT_MODEL: str = "claude-opus-4-8"
 
 # ─── Agents forbidden from LLM-based decisions ───────────────────────────────
-# Risk and Execution agents are fully deterministic. Any code path that would
-# call an LLM for a decision in these agents is a policy violation.
+# Risk, Execution and Monitoring agents are fully deterministic. Any code path
+# that would call an LLM for a decision in these agents is a policy violation.
+# This set is the project constitution — it MUST stay in sync with
+# spa_core/agent_runtime/mandate.py and spa_core/ci/llm_forbidden_lint.py.
 
-LLM_FORBIDDEN_AGENTS: set[str] = {"risk", "execution"}
+LLM_FORBIDDEN_AGENTS: set[str] = {"risk", "execution", "monitoring"}
 
 
 # ─── Helper ──────────────────────────────────────────────────────────────────
