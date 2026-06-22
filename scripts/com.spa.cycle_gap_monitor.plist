@@ -10,9 +10,9 @@
              data/cycle_gap_state.json). Читает paper_trading_status.json.
     Пишет:   data/cycle_gap_state.json  (dedup state, atomic)
     CLI:     python3 -m spa_core.paper_trading.cycle_gap_monitor -run
+    FIXED: miniconda → /usr/bin/python3 (2026-06-22 AGENT-001)
     Установка:
-      cp scripts/com.spa.cycle_gap_monitor.plist ~/Library/LaunchAgents/
-      launchctl load ~/Library/LaunchAgents/com.spa.cycle_gap_monitor.plist
+      bash scripts/install_all_agents.sh
     -->
 
     <key>Label</key>
@@ -20,7 +20,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>/usr/bin/python3</string>
         <string>-m</string>
         <string>spa_core.paper_trading.cycle_gap_monitor</string>
     </array>
@@ -36,6 +36,14 @@
 
     <key>ThrottleInterval</key>
     <integer>60</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
 
     <key>StandardOutPath</key>
     <string>/tmp/spa_cycle_gap_monitor.log</string>
