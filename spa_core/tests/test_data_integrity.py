@@ -769,8 +769,13 @@ class TestModuleHygiene(unittest.TestCase):
 
     def test_only_stdlib_imports(self):
         import ast
+        # "spa_core" allows the canonical atomic-write helper
+        # (spa_core.utils.atomic — itself pure stdlib). Heavy / network /
+        # LLM deps remain banned by test_no_web3_or_network_imports and
+        # test_no_llm_sdk_imports above.
         allowed = {"argparse", "json", "logging", "math", "os", "sys",
-                   "tempfile", "datetime", "pathlib", "typing", "__future__"}
+                   "tempfile", "datetime", "pathlib", "typing", "__future__",
+                   "spa_core"}
         tree = ast.parse(self.SOURCE)
         imported = set()
         for node in ast.walk(tree):
