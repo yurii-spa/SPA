@@ -16,6 +16,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.base import BaseAnalytics
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -35,7 +36,8 @@ REGIME_SEVERELY_COMPRESSED = "SEVERELY_COMPRESSED"
 # ---------------------------------------------------------------------------
 
 
-class YieldCompressorScore:
+class YieldCompressorScore(BaseAnalytics):
+    OUTPUT_PATH = "data/yield_compressor_score.json"
     """Detects yield compression trends across the DeFi market.
 
     Parameters
@@ -207,6 +209,11 @@ class YieldCompressorScore:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
+
+    def to_dict(self) -> dict:
+        """Return internal state as a plain dict. LLM FORBIDDEN."""
+        return getattr(self, '_data', {})
 
 def _atomic_append(path: str, entry: dict[str, Any], cap: int = 100) -> None:
     """Read existing log, append entry, cap to ``cap``, atomic write."""
