@@ -257,17 +257,25 @@ BOOTSTRAP_GOVERNANCE_PROPOSALS: tuple[dict[str, Any], ...] = (
 )
 
 
+def _bootstrap_unlock_date(days_ahead: int) -> str:
+    """Return an ISO UTC date-string `days_ahead` days from now for bootstrap fixtures."""
+    from datetime import datetime, timedelta, timezone as _tz
+    return (datetime.now(_tz.utc) + timedelta(days=days_ahead)).strftime(
+        "%Y-%m-%dT00:00:00Z"
+    )
+
+
 BOOTSTRAP_TOKEN_UNLOCKS: tuple[dict[str, Any], ...] = (
     {
         "protocol":   "pendle-pt",
-        "unlock_at":  "2026-06-01T00:00:00Z",
+        "unlock_at":  _bootstrap_unlock_date(3),
         "pct_supply": 1.8,
         "tokens":     5_400_000,
         "symbol":     "PENDLE",
     },
     {
         "protocol":   "ethena-susde",
-        "unlock_at":  "2026-06-03T00:00:00Z",
+        "unlock_at":  _bootstrap_unlock_date(5),
         "pct_supply": 6.4,   # > 5 % → CRITICAL even on grade-A
         "tokens":     420_000_000,
         "symbol":     "ENA",
