@@ -1669,6 +1669,28 @@ body > .main-wrap, #app, .app-container,
 #perf-hero-grid .db-metric-label { color: var(--spa-text-3) !important; font-size: 11px !important; }
 #perf-hero-grid .db-metric-value { font-family: var(--spa-mono) !important; color: var(--spa-text) !important; }
 
+/* ─── BEE Evidence Panel (ADR-043 BEE S9.7) ──────────────────────────────── */
+.bee-section-header h3 { margin: 0 0 4px 0; }
+.bee-subtitle { color: var(--spa-text-3, #888); font-size: 0.85em; margin-bottom: 16px; }
+.bee-group { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+.bee-group h4 { margin: 0 0 12px 0; font-size: 0.82em; color: var(--spa-accent, #185FA5); text-transform: uppercase; letter-spacing: 0.5px; }
+.bee-metric { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.bee-metric:last-child { border-bottom: none; }
+.bee-label { color: var(--spa-text-3, #888); font-size: 0.88em; }
+.bee-value { font-weight: 600; font-size: 0.88em; font-family: var(--spa-mono, monospace); }
+.bee-ok   { color: #4ade80; }
+.bee-warn { color: #fbbf24; }
+.bee-error-val { color: #f87171; }
+.bee-disclaimer { font-size: 0.76em; color: var(--spa-text-3, #666); margin-top: 8px; font-style: italic; line-height: 1.4; }
+.bee-footer { text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
+.bee-footer small { color: var(--spa-text-3, #555); font-size: 0.72em; letter-spacing: 0.3px; }
+.bee-events-table { width: 100%; border-collapse: collapse; font-size: 0.8em; margin-top: 8px; }
+.bee-events-table th { text-align: left; color: var(--spa-text-3, #888); font-weight: 600; padding: 4px 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.bee-events-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.bee-events-table tr:last-child td { border-bottom: none; }
+body:not(.night) .bee-group { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
+body:not(.night) .bee-disclaimer { color: #777; }
+
 </style>
 </head>
 <body>
@@ -1734,6 +1756,7 @@ body > .main-wrap, #app, .app-container,
   <button class="tab-btn" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn"         onclick="showTab('evidence',   this)">🔬 Evidence</button>
   <button class="tab-btn" style="display:none" data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
   <button class="tab-btn" style="display:none" data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
   <button class="tab-btn" style="display:none" data-tab="tournament"  onclick="showTab('tournament', this)">🏆 Tournament</button>
@@ -2931,7 +2954,7 @@ body > .main-wrap, #app, .app-container,
       <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-1">~</span> ●</span><span class="stack-value">30 честных дней трека (ADR-002)</span></div>
       <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-2">~</span></span><span class="stack-value">GoLiveChecker: 7 дней READY подряд</span></div>
       <div class="stack-row"><span class="stack-label">Go-Live</span><span class="stack-value">~2026-08-01 · Реальный капитал (ADR-002)</span></div>
-      <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный → реальный AUM</span></div>
+      <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный (paper trading)</span></div>
     </div>
   </div>
 
@@ -3925,6 +3948,13 @@ body > .main-wrap, #app, .app-container,
   </div>
 </div><!-- /tab-tournament -->
 
+<!-- ─── BEE Evidence Panel (ADR-043 BEE S9.7) ────────────────────────────── -->
+<div id="tab-evidence" class="tab-pane" style="display:none">
+  <div id="bee-evidence-container" style="max-width:760px;margin:0 auto;">
+    <p style="color:var(--spa-text-3,#888);font-size:0.9em;">⏳ Loading evidence data…</p>
+  </div>
+</div><!-- /tab-evidence -->
+
 <script>
 
 // ─── Tooltips ────────────────────────────────────────────────────────────────
@@ -4361,6 +4391,7 @@ function showTab(id, btn) {
   if (id === 'team')        { loadAgentCommentary(); loadTeamActivity(); }
   if (id === 'system')      onSystemTabActivated();
   if (id === 'tournament')  loadTournamentTab();
+  if (id === 'evidence')    loadBEEEvidence();
 }
 // alias so any legacy calls still work
 function loadOverview() { loadPerformance(); }
@@ -12549,6 +12580,190 @@ async function initSpaHero() {
   </div>
 </div>
 <script>
+// ─── BEE Evidence Panel (ADR-043 BEE S9.7) ──────────────────────────────────
+// LLM_FORBIDDEN: no AI calls in dashboard data loading. Deterministic only.
+async function loadBEEEvidence() {
+  // LLM_FORBIDDEN
+  const container = document.getElementById('bee-evidence-container');
+  if (!container) return;
+
+  try {
+    // ── 1. Safety report (counterfactual gate analysis) ──────────────────────
+    const safetyRes = await fetch('data/bee/safety_report.json?t=' + Date.now());
+    let safetyHTML = '<p class="bee-disclaimer bee-error-val">Safety report not available</p>';
+    if (safetyRes.ok) {
+      const s = await safetyRes.json();
+      // field names from safety_report.json (v1.0)
+      const triggered = s.events_where_gate_triggered ?? s.gate_triggered ?? 0;
+      const total     = s.total_events_analyzed ?? s.total_events ?? 0;
+      const fp        = s.false_positives ?? s.false_positive_count ?? 0;
+      const avgPct    = s.avg_capital_protected_pct != null
+        ? (s.avg_capital_protected_pct * 100).toFixed(1) + '%' : 'N/A';
+      const caveat    = s.caveat ?? s.disclaimer ?? 'Counterfactual on modeled data · not real trade history';
+
+      // Per-event rows
+      const events = Array.isArray(s.events) ? s.events : [];
+      let evRows = '';
+      for (const ev of events) {
+        const spa  = ev.spa_drawdown_pct != null  ? (ev.spa_drawdown_pct * 100).toFixed(1)  + '%' : '—';
+        const naive= ev.naive_drawdown_pct != null ? (ev.naive_drawdown_pct * 100).toFixed(1) + '%' : '—';
+        const hrs  = ev.hours_after_depeg_start != null ? ev.hours_after_depeg_start + 'h' : '—';
+        evRows += `<tr>
+          <td style="color:var(--spa-text,#333)">${ev.event_name ?? ev.event_id ?? '?'}</td>
+          <td class="bee-ok" style="text-align:center">${ev.exit_triggered ? '✓' : '—'}</td>
+          <td style="text-align:right">${hrs}</td>
+          <td class="bee-ok" style="text-align:right">${spa}</td>
+          <td class="bee-error-val" style="text-align:right">${naive}</td>
+        </tr>`;
+      }
+      const tableHTML = events.length > 0 ? `
+        <table class="bee-events-table">
+          <thead><tr>
+            <th>Event</th><th style="text-align:center">Gate fired</th>
+            <th style="text-align:right">Latency</th>
+            <th style="text-align:right">SPA DD</th>
+            <th style="text-align:right">Naive DD</th>
+          </tr></thead>
+          <tbody>${evRows}</tbody>
+        </table>` : '';
+
+      safetyHTML = `
+        <div class="bee-metric">
+          <span class="bee-label">Historical stress events — gate triggered:</span>
+          <span class="bee-value bee-ok">${triggered} / ${total}</span>
+        </div>
+        <div class="bee-metric">
+          <span class="bee-label">False positives (calm periods):</span>
+          <span class="bee-value ${fp === 0 ? 'bee-ok' : 'bee-warn'}">${fp}</span>
+        </div>
+        <div class="bee-metric">
+          <span class="bee-label">Avg capital protected (counterfactual):</span>
+          <span class="bee-value bee-ok">${avgPct}</span>
+        </div>
+        ${tableHTML}
+        <div class="bee-disclaimer">${caveat}</div>`;
+    }
+
+    // ── 2. Backtest vs live fit ───────────────────────────────────────────────
+    const fitRes = await fetch('data/bee/backtest_live_fit.json?t=' + Date.now());
+    let fitHTML = '<p class="bee-disclaimer bee-error-val">Backtest fit data not available</p>';
+    if (fitRes.ok) {
+      const f = await fitRes.json();
+      const verdict   = f.verdict ?? 'unknown';
+      const regime    = f.current_regime ?? f.regime ?? 'unknown';
+      // live_apy_observed is the field in backtest_live_fit.json
+      const liveApy   = f.live_apy_observed ?? f.live_apy_annualized;
+      const liveApyStr= liveApy != null ? (liveApy * 100).toFixed(2) + '%' : 'N/A';
+      const band      = f.expected_apy_band ?? f.fit_80pct_ci?.expected_apy_band ?? null;
+      const bandStr   = Array.isArray(band)
+        ? `[${(band[0]*100).toFixed(1)}% – ${(band[1]*100).toFixed(1)}%]` : 'N/A';
+      const inBandPct = f.pct_live_days_in_band != null
+        ? (f.pct_live_days_in_band * 100).toFixed(0) + '%' : 'N/A';
+      const liveDays  = f.live_days_since_honest_start ?? '?';
+      const note      = f.data_note ?? f.disclaimer ?? f.note ?? 'Modeled distribution · historical data only · no future performance implied';
+      const vClass    = verdict === 'in_distribution' ? 'bee-ok'
+                      : verdict === 'drifting'        ? 'bee-warn' : 'bee-error-val';
+      fitHTML = `
+        <div class="bee-metric">
+          <span class="bee-label">Backtest vs live fit verdict:</span>
+          <span class="bee-value ${vClass}">${verdict}</span>
+        </div>
+        <div class="bee-metric">
+          <span class="bee-label">Live track (honest start 2026-06-10):</span>
+          <span class="bee-value">${liveDays} days</span>
+        </div>
+        <div class="bee-metric">
+          <span class="bee-label">Current regime:</span>
+          <span class="bee-value">${regime}</span>
+        </div>
+        <div class="bee-metric">
+          <span class="bee-label">Live APY observed:</span>
+          <span class="bee-value">${liveApyStr} &nbsp;<span style="font-weight:400;color:var(--spa-text-3,#888)">backtest 80% band: ${bandStr}</span></span>
+        </div>
+        <div class="bee-metric">
+          <span class="bee-label">Days within backtest band:</span>
+          <span class="bee-value bee-ok">${inBandPct} of live days</span>
+        </div>
+        <div class="bee-disclaimer">${note}</div>`;
+    }
+
+    // ── 3. Benchmark (optional — file may not exist yet) ─────────────────────
+    let benchHTML = '';
+    try {
+      const benchRes = await fetch('data/bee/benchmark_result.json?t=' + Date.now());
+      if (benchRes.ok) {
+        const b = await benchRes.json();
+        if (b && b.verdict) {
+          const wins = b.wins_out_of_5 ?? b.wins ?? 0;
+          const vClass = b.verdict === 'outperforms' ? 'bee-ok'
+                       : b.verdict === 'underperforms' ? 'bee-error-val' : 'bee-warn';
+          benchHTML = `
+            <div class="bee-group">
+              <h4>Benchmark Comparison</h4>
+              <div class="bee-metric">
+                <span class="bee-label">vs Risk-Free Benchmark:</span>
+                <span class="bee-value ${vClass}">${b.verdict} (${wins}/5 metrics)</span>
+              </div>
+              <div class="bee-disclaimer">${b.note ?? 'Historical comparison only'}</div>
+            </div>`;
+        }
+      }
+    } catch(_) { /* optional — не блокирует */ }
+
+    // ── 4. Failure boundary (optional — file may not exist yet) ──────────────
+    let failHTML = '';
+    try {
+      const failRes = await fetch('data/bee/failure_boundary.json?t=' + Date.now());
+      if (failRes.ok) {
+        const fb = await failRes.json();
+        const total    = fb.total_scenarios ?? 0;
+        const survived = Array.isArray(fb.survived) ? fb.survived.length : 0;
+        const failed   = Array.isArray(fb.failed)   ? fb.failed.length   : 0;
+        const rate     = total > 0 ? Math.round(survived / total * 100) : 0;
+        const boundary = fb.depeg_failure_boundary;
+        const bStr     = boundary?.boundary_value != null
+          ? (boundary.boundary_value * 100).toFixed(2) + '%' : 'N/A';
+        failHTML = `
+          <div class="bee-group">
+            <h4>Stress Test — Failure Boundary</h4>
+            <div class="bee-metric">
+              <span class="bee-label">Stress survival rate:</span>
+              <span class="bee-value ${rate >= 75 ? 'bee-ok' : 'bee-warn'}">${rate}% (${survived}/${total} scenarios)</span>
+            </div>
+            <div class="bee-metric">
+              <span class="bee-label">Depeg failure threshold:</span>
+              <span class="bee-value bee-warn">≥ ${bStr}</span>
+            </div>
+          </div>`;
+      }
+    } catch(_) { /* optional */ }
+
+    // ── Render all sections ───────────────────────────────────────────────────
+    container.innerHTML = `
+      <div class="bee-section-header">
+        <h3>🔬 Safety Evidence</h3>
+        <p class="bee-subtitle">Deterministic backtest analysis · No AI · No APY forecasts · Past results ≠ future performance</p>
+      </div>
+      <div class="bee-group">
+        <h4>Counterfactual Gate Analysis</h4>
+        ${safetyHTML}
+      </div>
+      <div class="bee-group">
+        <h4>Backtest ↔ Live Correlation</h4>
+        ${fitHTML}
+      </div>
+      ${benchHTML}
+      ${failHTML}
+      <div class="bee-footer">
+        <small>LLM_FORBIDDEN · Deterministic analysis · Counterfactual on modeled data · No future performance implied</small>
+      </div>`;
+
+  } catch (e) {
+    if (container) container.innerHTML =
+      `<p class="bee-disclaimer bee-error-val">Evidence data unavailable: ${e.message}</p>`;
+  }
+}
+
 // Statistics tab — lazy render charts when scrolled into view
 (function() {
   if (!window.IntersectionObserver) return;
