@@ -591,26 +591,92 @@ def _main(argv: Optional[List[str]] = None) -> int:
 
     monitor = PortfolioMonitor(data_dir=args.data_dir)
 
-    # Illustrative self-test with representative weights
-    current = {
-        "aave_v3":     0.42,
-        "compound_v3": 0.30,
-        "morpho":      0.23,
-        "cash":        0.05,
-    }
-    target = {
-        "aave_v3":     0.35,
-        "compound_v3": 0.35,
-        "morpho":      0.25,
-        "cash":        0.05,
-    }
-    adapters_ex = {
-        "aave_v3":     {"apy": 3.5,  "tvl": 1e9,   "risk_score": 0.20, "tier": "T1"},
-        "compound_v3": {"apy": 4.8,  "tvl": 5e8,   "risk_score": 0.22, "tier": "T1"},
-        "morpho":      {"apy": 6.5,  "tvl": 1.5e8, "risk_score": 0.28, "tier": "T2"},
-        "cash":        {"apy": 0.0,  "tvl": 0.0,   "risk_score": 0.0,  "tier": "T1"},
-    }
-    risk_limits = {"t2_adapters": ["morpho"], "t2_cap": 0.50}
+    # ── Load real portfolio data ──────────────────────────────────────────────
+    data_path = Path(args.data_dir)
+    positions_file = data_path / "current_positions.json"
+    ranking_file   = data_path / "apy_ranking.json"
+    status_file    = data_path / "paper_trading_status.json"
+
+    _fallback = False
+    current: dict = {}
+    target:  dict = {}
+    adapters_ex: dict = {}
+    equity: float = 100_000.0
+
+    if positions_file.exists() and ranking_file.exists():
+        try:
+            pos_raw   = json.loads(positions_file.read_text(encoding="utf-8"))
+            positions = pos_raw.get("positions", {})
+            cash_usd  = float(pos_raw.get("cash_usd",  0.0))
+            equity    = float(pos_raw.get("capital_usd", 100_000.0))
+
+            # Override equity from paper_trading_status if available
+            if status_file.exists():
+                try:
+                    st = json.loads(status_file.read_text(encoding="utf-8"))
+                    equity = float(st.get("current_equity", equity))
+                except Exception:
+                    pass
+
+            total_usd = sum(float(v) for v in positions.values()) + cash_usd
+            if total_usd <= 0:
+                raise ValueError("total_usd <= 0")
+
+            current = {k: float(v) / total_usd for k, v in positions.items()}
+            if cash_usd > 0:
+                current["cash"] = cash_usd / total_usd
+
+            # Build adapters dict from apy_ranking.json
+            ranking_data = json.loads(ranking_file.read_text(encoding="utf-8"))
+            adapters_ex  = {}
+            for entry in ranking_data.get("by_apy", []):
+                proto = entry.get("protocol", "")
+                if not proto:
+                    continue
+                adapters_ex[proto] = {
+                    "apy":        float(entry.get("apy_pct",   0.0)),
+                    "risk_score": float(entry.get("risk_score", 0.5)),
+                    "tier":       entry.get("tier", "T2"),
+                    "tvl":        float(entry.get("tvl_usd",   0.0)),
+                }
+            adapters_ex.setdefault(
+                "cash", {"apy": 0.0, "risk_score": 0.0, "tier": "T1", "tvl": 0.0}
+            )
+
+            # target = current (no separate target file; avoids false drift alerts)
+            target = dict(current)
+
+        except Exception as exc:
+            log.warning("Failed to load real portfolio data — using demo: %s", exc)
+            _fallback = True
+    else:
+        _fallback = True
+
+    if _fallback:
+        # Illustrative self-test with representative weights (fallback only)
+        current = {
+            "aave_v3":     0.42,
+            "compound_v3": 0.30,
+            "morpho":      0.23,
+            "cash":        0.05,
+        }
+        target = {
+            "aave_v3":     0.35,
+            "compound_v3": 0.35,
+            "morpho":      0.25,
+            "cash":        0.05,
+        }
+        adapters_ex = {
+            "aave_v3":     {"apy": 3.5,  "tvl": 1e9,   "risk_score": 0.20, "tier": "T1"},
+            "compound_v3": {"apy": 4.8,  "tvl": 5e8,   "risk_score": 0.22, "tier": "T1"},
+            "morpho":      {"apy": 6.5,  "tvl": 1.5e8, "risk_score": 0.28, "tier": "T2"},
+            "cash":        {"apy": 0.0,  "tvl": 0.0,   "risk_score": 0.0,  "tier": "T1"},
+        }
+        equity = 100_000.0
+
+    # ── Derive risk_limits from adapter tiers ─────────────────────────────────
+    t2_adapters = [k for k, v in adapters_ex.items() if v.get("tier") == "T2"]
+    risk_limits: dict = {"t2_adapters": t2_adapters, "t2_cap": 0.50}
 
     drift = monitor.check_drift(current, target)
     print(f"Drift (≥5 pp): {drift}")
@@ -623,9 +689,10 @@ def _main(argv: Optional[List[str]] = None) -> int:
         )
 
     health = monitor.compute_portfolio_health_score(adapters_ex, current)
-    print(f"Health score: {health:.1f}/100")
+    source = "real" if not _fallback else "demo"
+    print(f"Health score: {health:.1f}/100  (source={source})")
 
-    portfolio = {"current_weights": current, "equity": 100_000.0}
+    portfolio = {"current_weights": current, "equity": equity}
     snap = monitor.get_snapshot(portfolio, adapters_ex, target)
     print(
         f"Snapshot: level={snap['summary_level']}  "
