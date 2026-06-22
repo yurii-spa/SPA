@@ -466,26 +466,52 @@ class TournamentEngine:
 
     def _load_cached_apy(self) -> Dict[str, float]:
         """
-        Load the most recent APY snapshot from paper_trading_status.json or
-        current_positions.json. Returns empty dict if unavailable.
+        Load the most recent per-protocol APY snapshot ``{protocol_key: apy_pct}``.
+
+        Primary source is ``apy_ranking.json`` (``by_apy[]``) — refreshed by
+        cycle_runner every cycle and covering all adapters. Falls back to
+        ``adapter_orchestrator_status.json`` (deployed adapters only), then to
+        any list-shaped ``current_positions.json`` that still carries per-position
+        APY. Returns an empty dict if nothing is available (shadow yields → 0).
+
+        NOTE: ``current_positions.json`` now stores ``{protocol: amount}`` (no APY),
+        so iterating it as dicts would raise ``'str' object has no attribute 'get'``.
+        Every source is shape-guarded here.
         """
-        # Try paper_trading_status first
-        status = _read_json(self._data_dir / "paper_trading_status.json", {})
         apy_map: Dict[str, float] = {}
 
-        # Extract APY from current_positions
-        positions_path = self._data_dir / "current_positions.json"
-        positions_data = _read_json(positions_path, {})
-        positions: List[Dict] = (
-            positions_data.get("positions", [])
+        def _ingest(rows: Any, overwrite: bool) -> None:
+            if not isinstance(rows, list):
+                return
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                proto = row.get("protocol_key") or row.get("protocol")
+                apy = row.get("apy_pct")
+                if apy is None:
+                    apy = row.get("current_apy")
+                if proto and apy:
+                    if overwrite:
+                        apy_map[proto] = float(apy)
+                    else:
+                        apy_map.setdefault(proto, float(apy))
+
+        # Primary: apy_ranking.json — comprehensive, live (percent units).
+        ranking = _read_json(self._data_dir / "apy_ranking.json", {})
+        _ingest(ranking.get("by_apy") if isinstance(ranking, dict) else None, overwrite=True)
+
+        # Secondary: orchestrator status fills any gaps for deployed adapters.
+        orch = _read_json(self._data_dir / "adapter_orchestrator_status.json", {})
+        _ingest(orch.get("adapters") if isinstance(orch, dict) else None, overwrite=False)
+
+        # Tertiary: legacy list-shaped positions carrying per-position APY.
+        positions_data = _read_json(self._data_dir / "current_positions.json", {})
+        positions = (
+            positions_data.get("positions")
             if isinstance(positions_data, dict)
-            else (positions_data if isinstance(positions_data, list) else [])
+            else positions_data
         )
-        for pos in positions:
-            proto = pos.get("protocol_key") or pos.get("protocol", "")
-            apy = pos.get("current_apy") or pos.get("apy_pct", 0.0)
-            if proto and apy:
-                apy_map[proto] = float(apy)
+        _ingest(positions, overwrite=False)
 
         if not apy_map:
             _log.debug("_load_cached_apy: no APY data found, using empty map")
