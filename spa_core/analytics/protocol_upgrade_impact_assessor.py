@@ -371,7 +371,7 @@ class ProtocolUpgradeImpactAssessor:
             if dir_name:
                 os.makedirs(dir_name, exist_ok=True)
 
-            atomic_save(log, str(self))
+            atomic_save(log, str(self._data_file))
         except Exception:
             # Advisory module — never crash the caller
             pass
