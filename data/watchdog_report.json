@@ -126,5 +126,169 @@
         "detail": {}
       }
     ]
+  },
+  {
+    "checked_at": "2026-06-22T08:22:28.243112+00:00",
+    "overall": "CRITICAL",
+    "critical_count": 2,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "CRITICAL",
+        "message": "Check raised exception: No module named 'spa_core'",
+        "detail": {}
+      },
+      {
+        "check": "adapter_status",
+        "status": "CRITICAL",
+        "message": "Check raised exception: No module named 'spa_core'",
+        "detail": {}
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "maple",
+            "spark_susds",
+            "morpho_steakhouse"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T08:22:32.031265+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "maple",
+            "spark_susds",
+            "morpho_steakhouse"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T08:23:43.415030+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "maple",
+            "spark_susds",
+            "morpho_steakhouse"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
   }
 ]
