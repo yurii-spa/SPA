@@ -123,13 +123,16 @@ class VPortfolio:
         if cfg is None:
             return
         self.positions = {}
-        total_alloc = sum(cfg.allocations.values())
-        total_alloc = min(total_alloc, 0.95)  # гарантируем ≥5% кэш
-        for protocol, weight in cfg.allocations.items():
-            # Пропускаем внешние/watchlist протоколы (pendle_pt, sky_susds)
-            if protocol in ("pendle_pt", "sky_susds"):
-                continue
-            alloc_usd = self.capital_usd * weight
+        _EXCLUDED = ("pendle_pt", "sky_susds")
+        raw_alloc = {
+            p: w for p, w in cfg.allocations.items() if p not in _EXCLUDED
+        }
+        raw_total = sum(raw_alloc.values())
+        # Cap deployed weight at 95% to guarantee ≥5% cash buffer.
+        MAX_DEPLOYED = 0.95
+        scale = (raw_total / MAX_DEPLOYED) if raw_total > MAX_DEPLOYED else 1.0
+        for protocol, weight in raw_alloc.items():
+            alloc_usd = self.capital_usd * weight / scale
             if alloc_usd > 0:
                 self.positions[protocol] = alloc_usd
         positions_total = sum(self.positions.values())
