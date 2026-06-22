@@ -181,7 +181,7 @@ class ParameterOptimizer(BaseAnalytics):
 
     def _load_backtest(self) -> List[dict]:
         """Load backtest data from data/backtest_results.json."""
-        path = os.path.join(self.base_dir, "data", "backtest_results.json")
+        path = os.path.join(str(self._data_dir), "data", "backtest_results.json")
         fallback = os.path.join(_DEFAULT_DATA_DIR, "backtest_results.json")
         for p in (path, fallback):
             if os.path.exists(p):
