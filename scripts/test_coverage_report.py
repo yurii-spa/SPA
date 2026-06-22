@@ -76,7 +76,8 @@ def analyze_coverage(
 
     for module in all_modules:
         stem = module.stem
-        pkg = module.parts[1] if len(module.parts) > 2 else "root"
+        rel_parts = module.relative_to(spa_path).parts
+        pkg = rel_parts[0] if len(rel_parts) > 1 else "root"
         if pkg not in by_package:
             by_package[pkg] = {"total": 0, "tested": 0}
         by_package[pkg]["total"] += 1
