@@ -41,3 +41,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Post-deploy smoke
+        if: success()
+        run: |
+          sleep 15
+          # Smoke: main page returns 200
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://yurii-spa.github.io/SPA/" --max-time 15)
+          if [ "$STATUS" != "200" ]; then
+            echo "SMOKE FAIL: /SPA/ returned $STATUS"
+            exit 1
+          fi
+          echo "SMOKE PASS: /SPA/ returned 200"
+          # Smoke: equity data accessible
+          STATUS2=$(curl -s -o /dev/null -w "%{http_code}" "https://yurii-spa.github.io/SPA/data/paper_trading_status.json" --max-time 10)
+          if [ "$STATUS2" != "200" ]; then
+            echo "SMOKE WARN: data/paper_trading_status.json returned $STATUS2 (non-fatal)"
+          else
+            echo "SMOKE PASS: data file accessible"
+          fi
