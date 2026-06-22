@@ -290,5 +290,1237 @@
         "detail": {}
       }
     ]
+  },
+  {
+    "checked_at": "2026-06-22T08:56:37.226749+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "maple",
+            "spark_susds",
+            "morpho_steakhouse"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:11:27.669947+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "maple",
+            "spark_susds",
+            "morpho_steakhouse"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:15:02.588029+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:16:17.809464+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:21:18.025017+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:26:18.260530+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:31:18.488940+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:36:18.640461+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:41:18.812934+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:46:19.135734+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:51:19.384980+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T09:56:19.622835+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:01:19.831803+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:06:20.028125+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:11:20.279966+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:16:20.473200+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:21:20.718681+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:26:20.943547+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:31:21.148180+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:36:21.340454+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:41:21.521318+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
+  },
+  {
+    "checked_at": "2026-06-22T10:46:21.786877+00:00",
+    "overall": "OK",
+    "critical_count": 0,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "position_limits",
+        "status": "OK",
+        "message": "7 protocols, all within per-protocol cap",
+        "detail": {
+          "num_protocols": 7
+        }
+      },
+      {
+        "check": "t1_concentration",
+        "status": "OK",
+        "message": "T1 = 63.4% >= 55%",
+        "detail": {
+          "t1_pct": 63.41
+        }
+      },
+      {
+        "check": "adapter_status",
+        "status": "OK",
+        "message": "8 T1 adapters active",
+        "detail": {
+          "t1_active_count": 8
+        }
+      },
+      {
+        "check": "circuit_breaker",
+        "status": "OK",
+        "message": "No kill switch active, drawdown within limits",
+        "detail": {}
+      },
+      {
+        "check": "apy_coherence",
+        "status": "OK",
+        "message": "Top-APY protocols aligned with top allocation",
+        "detail": {
+          "top_apy": [
+            "morpho_steakhouse",
+            "spark_susds",
+            "compound_v3"
+          ]
+        }
+      },
+      {
+        "check": "llm_forbidden_violations",
+        "status": "OK",
+        "message": "No LLM usage in risk/execution/monitoring domains",
+        "detail": {}
+      }
+    ]
   }
 ]
