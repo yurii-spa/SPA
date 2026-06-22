@@ -98,6 +98,7 @@ class DataFreshnessMonitor(BaseAnalytics):
         clock=None,
     ) -> None:
         super().__init__(base_dir)
+        self.base_dir = base_dir  # exposed for _resolve_path (BaseAnalytics stores as _data_dir)
         self._thresholds = thresholds if thresholds is not None else FRESHNESS_THRESHOLDS
         self._file_map = file_map if file_map is not None else _FILE_MAP
         self._clock = clock if clock is not None else __import__("time").time
