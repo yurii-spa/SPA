@@ -10,8 +10,8 @@
 
 set -e
 
-# Абсолютный путь к python (miniconda, паритет с cyclerunner plist)
-PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
+# System python3 (miniconda не установлен)
+PYTHON=/usr/bin/python3
 
 cd ~/Documents/SPA_Claude
 
