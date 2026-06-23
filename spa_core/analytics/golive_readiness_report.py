@@ -710,42 +710,31 @@ class GoLiveReadinessReport(BaseAnalytics):
                 "(run: python3 -m spa_core.analytics.evidence_auto_calculator --run)"
             )
 
-        # ── 3. Completed cycles (real + seed with 0.5 weight) ──────────────────
+        # ── 3. Completed cycles — HONEST real days only ────────────────────────
+        # Evidence scores on real honest paper-trading days only. Synthetic seed
+        # days (0.5-weight bootstrap) were retired: counting them inflated the
+        # track, which contradicts the project's honest-track-record principle.
         pe = self._read_json(self.data_dir / "paper_evidence.json")
         real_days = int(len(pe.get("days", []))) if isinstance(pe, dict) else 0
+        effective_days = real_days
 
-        # Seed days from paper_evidence_history.json (is_seed=True)
-        hist_days_raw = hist_data.get("days", [])
-        seed_days = sum(
-            1 for d in hist_days_raw
-            if isinstance(d, dict) and d.get("is_seed", False)
-        )
-
-        # effective_days: real days count 1.0, seed days count 0.5
-        effective_days = real_days + seed_days * 0.5
-
-        # Cumulative tier bonuses
-        # Values chosen so that N real days (no seed) gives N cycle pts:
+        # Cumulative tier bonuses — N real days gives N cycle pts up to 15:
         #   5 days → 1+2+2 = 5, 10 days → 1+2+2+5 = 10, 15+ days → 15 (cap)
         CYCLE_TIERS = [
-            (1,  1.0, "≥1 effective cycle"),
-            (3,  2.0, "≥3 effective cycles"),
-            (5,  2.0, "≥5 effective cycles"),
-            (10, 5.0, "≥10 effective cycles"),
-            (15, 5.0, "≥15 effective cycles"),
+            (1,  1.0, "≥1 real cycle"),
+            (3,  2.0, "≥3 real cycles"),
+            (5,  2.0, "≥5 real cycles"),
+            (10, 5.0, "≥10 real cycles"),
+            (15, 5.0, "≥15 real cycles"),
         ]
         cycle_pts = 0.0
         for threshold, pts, label in CYCLE_TIERS:
             if effective_days >= threshold:
                 cycle_pts += pts
-                items_done.append(
-                    f"{label}: {real_days} real + {seed_days} seed "
-                    f"= {effective_days:.1f} effective ✓"
-                )
+                items_done.append(f"{label}: {real_days} real days ✓")
             else:
                 items_pending.append(
-                    f"{label} — {effective_days:.1f}/{threshold} effective "
-                    f"({real_days} real + {seed_days}×0.5 seed)"
+                    f"{label} — {real_days}/{threshold} real days"
                 )
 
         score += min(cycle_pts, 15.0)
@@ -754,8 +743,7 @@ class GoLiveReadinessReport(BaseAnalytics):
             "evidence", score, max_score, items_done, items_pending,
             notes=(
                 f"{score:.1f}/{max_score:.0f} pts, "
-                f"{real_days} real + {seed_days} seed days "
-                f"({effective_days:.1f} effective)"
+                f"{real_days} real days (honest real-only)"
             ),
         )
 
