@@ -19,7 +19,11 @@ import os
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _LP_DATA_PATH = _PROJECT_ROOT / "data" / "lp_paper_trading.json"
 
-LP_CYCLE_VERSION = "lp_cycle_v1.0"
+LP_CYCLE_VERSION = "lp_cycle_v1.1"
+
+# Virtual seed capital for the LP sleeve — separate book ON TOP of the $100k safe
+# sleeve, so the go-live honest track is untouched (decision 2026-06-23).
+LP_SEED_EQUITY = 10_000.0
 
 # IL kill switch threshold: IL drawdown > -12% → kill switch
 IL_KILL_THRESHOLD = -0.12
@@ -59,7 +63,7 @@ def _default_lp_state() -> dict:
         "daily_history": [],
         "last_cycle_at": None,
         "cycles_completed": 0,
-        "note": "Engine C LP sleeve — no seed data.",
+        "note": "Engine C LP sleeve — awaiting first cycle (auto-seeds on run).",
         "LLM_FORBIDDEN": True,
     }
 
@@ -140,6 +144,17 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
 
     state["LLM_FORBIDDEN"] = True
 
+    # Self-seed: fund the sleeve ONLY when the state is genuinely fresh (never run,
+    # no equity, no history). Guards against clobbering an in-flight book.
+    if (float(state.get("seed_equity", 0) or 0) <= 0
+            and float(state.get("equity", 0) or 0) <= 0
+            and not state.get("daily_history")
+            and int(state.get("cycles_completed", 0) or 0) == 0):
+        state["seed_equity"] = LP_SEED_EQUITY
+        state["equity"] = LP_SEED_EQUITY
+        state["peak_equity"] = LP_SEED_EQUITY
+        state["note"] = f"Engine C LP sleeve — seeded ${LP_SEED_EQUITY:,.0f} virtual."
+
     # ── delta-neutral check ──────────────────────────────────────────────────
     positions = state.get("positions", [])
     if not check_positions_delta_neutral(positions):
@@ -188,14 +203,27 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "LLM_FORBIDDEN": True,
         }
 
-    # ── обновляем daily_history (дедупликация по дате) ──────────────────────
+    # ── accrue ONE day of LP fee yield + record daily bar (dedup by date) ───
+    # Real APY of LP-pool protocols (from apy_ranking), accrued once per new day.
+    # v1: impermanent loss not yet modelled (needs a price feed) — il_drawdown
+    # stays 0 until then; no yield invented.
     existing_dates = {entry.get("date") for entry in state.get("daily_history", [])}
     if today not in existing_dates:
+        from spa_core.paper_trading.sleeve_yield import lp_target_apy_pct, daily_yield
+        apy_pct = lp_target_apy_pct()
+        dy = daily_yield(equity, apy_pct)
+        equity += dy
+        if equity > peak:
+            peak = equity
+        il_dd = compute_il_drawdown(equity, peak)
+        state["equity"] = equity
         state.setdefault("daily_history", []).append({
             "date": today,
-            "equity": equity,
-            "peak_equity": peak,
+            "equity": round(equity, 2),
+            "peak_equity": round(peak, 2),
             "il_drawdown_pct": il_dd,
+            "apy_pct": round(apy_pct, 4),
+            "daily_yield_usd": round(dy, 4),
             "positions_count": len(positions),
             "delta_neutral_ok": True,
         })
