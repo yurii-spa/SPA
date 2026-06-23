@@ -480,17 +480,42 @@ def check_system(data_dir: Path, now: datetime,
                 issues.append(f"portfolio_health {score:.1f}/100 (<{PORTFOLIO_HEALTH_FLOOR:.0f})")
                 status = _worst(status, WARNING)
 
-    # --- red flags ---
+    # --- red flags (market intel — advisory unless a HELD protocol is hit) ---
+    # A red flag concerns an EXTERNAL protocol's market conditions, not the health
+    # of SPA's own agents. It drives SYSTEM status to CRITICAL only when it hits a
+    # protocol we actually hold. Flags on protocols we don't hold — or from
+    # fallback/bootstrap data (live feed down) — are surfaced at WARNING (advisory).
     rf = _load_json(data_dir, "red_flags.json")
     if rf:
         flags = rf.get("red_flags") or rf.get("flags") or []
-        crit = sum(1 for f in flags
-                   if isinstance(f, dict)
-                   and str(f.get("severity", "")).upper() in ("CRITICAL", "CRIT"))
-        checks["critical_flags"] = crit
-        if crit > 0:
-            issues.append(f"{crit} CRITICAL red flag(s)")
-            status = _worst(status, CRITICAL)
+        crit_flags = [
+            f for f in flags
+            if isinstance(f, dict)
+            and str(f.get("severity", "")).upper() in ("CRITICAL", "CRIT")
+        ]
+        if crit_flags:
+            pos = _load_json(data_dir, "current_positions.json") or {}
+            held = {str(k).lower() for k in (pos.get("positions") or {})}
+            fallback = bool(rf.get("fallback_used"))
+
+            def _hits_held(flag: dict) -> bool:
+                proto = str(flag.get("protocol", "")).lower().replace("-", "_")
+                return any(h and (h in proto or proto in h) for h in held)
+
+            held_crit = [] if fallback else [f for f in crit_flags if _hits_held(f)]
+            advisory = len(crit_flags) - len(held_crit)
+            # Only HELD-protocol flags are true system criticals. critical_flags
+            # feeds critical_count, which must stay 0 ⟺ overall != CRITICAL.
+            checks["critical_flags"] = len(held_crit)
+            checks["advisory_flags"] = advisory
+            if held_crit:
+                issues.append(f"{len(held_crit)} CRITICAL red flag(s) on HELD protocols")
+                status = _worst(status, CRITICAL)
+            if advisory > 0:
+                issues.append(f"{advisory} red flag(s) on external protocols (advisory)")
+                status = _worst(status, WARNING)
+        else:
+            checks["critical_flags"] = 0
 
     # --- autopush lag ---
     age = file_age_minutes(autopush_log, now)
