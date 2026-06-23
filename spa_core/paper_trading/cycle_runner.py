@@ -1789,6 +1789,23 @@ def run_cycle(
     if write:
         _atomic_write_json(ddir / TRADES_FILENAME, trades)
         _atomic_write_json(ddir / EQUITY_FILENAME, equity_doc)
+        # Compliance / tier / APY summary — downstream readers (SYSTEM_BRIEFING,
+        # dashboard) display these fields; the rebalancer writes them too, so the
+        # cycle's own write must include them or it clobbers the rich doc with a
+        # thin one (→ false "NOT compliant / 0% APY / T1 0%" in the briefing).
+        _cash_usd = capital_usd - deployed
+        try:
+            from spa_core.risk.policy_enforcer import T1_ADAPTERS as _T1
+            _t1_usd = sum(v for p, v in effective_positions.items() if p in _T1)
+        except Exception:  # noqa: BLE001
+            _t1_usd = 0.0
+        _t1_pct = round(_t1_usd / capital_usd * 100.0, 2) if capital_usd else 0.0
+        _t2_pct = round((deployed - _t1_usd) / capital_usd * 100.0, 2) if capital_usd else 0.0
+        _cash_pct = round(_cash_usd / capital_usd * 100.0, 2) if capital_usd else 0.0
+        _deployed_apy = round(
+            sum(v * apy_map.get(p, 0.0) for p, v in effective_positions.items()) / deployed,
+            4,
+        ) if deployed else 0.0
         _atomic_write_json(
             ddir / POSITIONS_FILENAME,
             {
@@ -1798,9 +1815,21 @@ def run_cycle(
                 "is_demo": False,
                 "capital_usd": capital_usd,
                 "deployed_usd": round(deployed, 2),
-                "cash_usd": round(capital_usd - deployed, 2),
+                "cash_usd": round(_cash_usd, 2),
                 "model_used": model_used,
+                "policy_compliant": bool(result.policy_approved),
+                "policy_version": "v1.0",
+                "tuner_expected_apy": _deployed_apy,
                 "positions": {p: round(v, 2) for p, v in effective_positions.items()},
+                "validation_summary": {
+                    "capital_usd": capital_usd,
+                    "deployed_usd": round(deployed, 2),
+                    "cash_usd": round(_cash_usd, 2),
+                    "protocol_count": len(effective_positions),
+                    "t1_pct": _t1_pct,
+                    "t2_pct": _t2_pct,
+                    "cash_pct": _cash_pct,
+                },
             },
         )
         _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
