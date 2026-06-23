@@ -178,8 +178,14 @@ def log_regime_change(
     except Exception:
         entries = {}
 
+    # Normalise the state to its plain value. RegimeState is a (str, Enum); under
+    # Python 3.11+ str(RegimeState.ENTER) is "RegimeState.ENTER" (the repr), not
+    # "ENTER" — which would break readers that compare against "ENTER"/"EXIT".
+    _state = regime_result.get("state", "UNKNOWN")
+    _state_str = getattr(_state, "value", None) or str(_state)
+
     entry = {
-        "state": str(regime_result.get("state", "UNKNOWN")),
+        "state": _state_str,
         "reason": regime_result.get("reason", ""),
         "signals": regime_result.get("signals", {}),
         "timestamp": regime_result.get(
@@ -196,7 +202,7 @@ def log_regime_change(
     updated = {
         "version": "1.0",
         "description": "Engine B (Carry/HY) regime change log",
-        "current_state": str(regime_result.get("state", "UNKNOWN")),
+        "current_state": _state_str,
         "last_updated": datetime.utcnow().isoformat() + "Z",
         "entries": entries,
     }
