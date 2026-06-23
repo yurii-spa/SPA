@@ -30,6 +30,26 @@
 `autopush-pipeline-gotchas`. Тесты: 4760 passed (2 предсуществующих фейла — reportlab не
 установлен, compute_sharpe нулевой вариации — не регрессы).
 
+### GoLive Checker — verified 2026-06-23 (27/29)
+
+Запуск `python3 -m spa_core.paper_trading.golive_checker`. **Verdict: NOT READY (27/29 PASS)**,
+`Consecutive READY days: 0`. Оба недостающих — **PENDING по времени, не FAIL** (нечего чинить кодом):
+
+| Критерий | Статус | Причина |
+|----------|--------|---------|
+| `gap_monitor_30d` | ⏳ PENDING | 14/30 honest track days (с 2026-06-10; +16 дней → target **2026-07-09**) |
+| `min_track_days_30` | ⏳ PENDING | то же 30-дневное условие, с того же якоря |
+
+27 PASS: все адаптеры, компоненты (multi_strategy_runner, promotion_engine, safe_tx_builder,
+http_server), adapter_status, **`autopush_installed` PASS**, `telegram_alert_today`,
+`apy_above_floor`, `drawdown_below_kill`, `gap_monitor_ok` (разрывов нет), risk_policy_snapshot,
+backtest_completed, audit_trail_signed.
+
+**Вывод:** 27/29 — честный потолок на сегодня. Поднять до 29/29 можно только календарно
+(≈2026-07-09), при условии что `com.spa.daily_cycle` идёт ежедневно без пропусков (после
+фикса этой сессии — идёт). Решено (2026-06-23): **оба track-критерия оставить как есть**
+(не сводить в один) — методология гейта без изменений.
+
 ---
 
 ## GoLive Honest Status — 2026-06-21 (v12.27)
