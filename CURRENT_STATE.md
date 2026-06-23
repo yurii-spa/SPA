@@ -50,6 +50,26 @@ backtest_completed, audit_trail_signed.
 фикса этой сессии — идёт). Решено (2026-06-23): **оба track-критерия оставить как есть**
 (не сводить в один) — методология гейта без изменений.
 
+### Alternative-strategy paper test — activated 2026-06-23
+
+Альтернативные (за пределами safe 4-6%) стратегии тестируются двумя механизмами:
+
+1. **Tournament shadow-панель** (работала и раньше): 60 стратегий ранжируются, 5 активно
+   shadow-торгуются — вкл. high-yield `s7_pendle_yt_aggressive`, `s5_pendle_enhanced`,
+   `s2_pendle_morpho`. Накапливает дни, `update_shadow_day` даёт честный APY.
+2. **Выделенные sleeve'ы B/C — АКТИВИРОВАНЫ** (были установлены, но `seed_equity=0`, не
+   торговали): засидированы **отдельными виртуальными книгами ПОВЕРХ $100k** (go-live трек
+   не затронут):
+   - **HY (Engine B, carry):** seed **$20k**, regime-feed подключён (`regime_gate` →
+     `hy_regime_log.json`, починена str-Enum сериализация), сейчас ENTER, начисляет дневной
+     доход по **реальному** APY high-yield-полосы из `apy_ranking` (~8%).
+   - **LP (Engine C, liquidity):** seed **$10k**, начисляет по реальному LP-pool APY (~8.5%).
+   - Общий yield-источник: `spa_core/paper_trading/sleeve_yield.py` (реальные APY, не
+     выдуманные). **v1-упрощения:** HY funding — прокси из lending/Pendle APY (perp-funding
+     фид не подключён); LP — без модели impermanent loss (нужен price-feed). Отдельные
+     golive-чеки `golive_checker_hy/lp` требуют 14 дней каждый (сейчас 1/14).
+   - Сиды отдельные → **основной go-live трек (14/30) и 27/29 не затронуты.**
+
 ---
 
 ## GoLive Honest Status — 2026-06-21 (v12.27)
