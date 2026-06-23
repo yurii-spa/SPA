@@ -1686,6 +1686,50 @@ def run_cycle(
             f"no rebalance: |Δ|=${diff_usd:,.0f} ≤ ${threshold_usd:,.0f} threshold."
         )
 
+    # ── ALLOC-002: enforce protocol-count / T1 floor on the FINAL allocation ──
+    # The StrategyAllocator + RiskPolicy gate (policy.py) cap per-protocol
+    # concentration but NOT the protocol *count* nor the T1 floor. ALLOC-001 only
+    # validated the INCOMING positions, so an over-diversified target (e.g. 23
+    # protocols) could be persisted unchecked and rules_watchdog would flag it.
+    # Here we validate the OUTGOING book against policy_enforcer and, on
+    # violation, adopt the rebalancer's guaranteed-compliant allocation. Fail-open.
+    if write and effective_positions:
+        try:
+            from spa_core.risk.policy_enforcer import validate_positions as _pe_final
+            _eff_cash = capital_usd - sum(effective_positions.values())
+            _fin_check = _pe_final(
+                positions=effective_positions,
+                capital_usd=capital_usd,
+                cash_usd=_eff_cash,
+            )
+            if not _fin_check.passed:
+                _fin_rules = [v.rule for v in _fin_check.violations]
+                log.warning(
+                    "ALLOC-002: final allocation violates enforcer (%s) — "
+                    "adopting rebalancer fallback", _fin_rules,
+                )
+                from spa_core.tuner.portfolio_rebalancer import rebalance_portfolio as _rb2
+                if _rb2(capital_usd=capital_usd, data_dir=ddir, write=True, send_alert=False):
+                    _rb_pos = (
+                        _read_json(ddir / POSITIONS_FILENAME, {}).get("positions", {}) or {}
+                    )
+                    if _rb_pos:
+                        effective_positions = {p: float(v) for p, v in _rb_pos.items()}
+                        notes.append(
+                            "ALLOC-002: enforcer violation {} — rebalanced to {} protocols".format(
+                                _fin_rules, len(effective_positions)
+                            )
+                        )
+                else:
+                    notes.append(
+                        "ALLOC-002: enforcer violation {} but rebalancer rejected — kept book".format(
+                            _fin_rules
+                        )
+                    )
+        except Exception as _alloc002_exc:  # noqa: BLE001
+            log.warning("ALLOC-002: enforcement skipped (%s)", _alloc002_exc)
+            notes.append("ALLOC-002: enforcement_error: {}".format(type(_alloc002_exc).__name__))
+
     # ── Step 4 + 5: accrue yield & upsert today's equity bar ──────────────
     deployed = sum(effective_positions.values())
     # apy_today = realised portfolio APY on a total-equity basis (cash drags).
