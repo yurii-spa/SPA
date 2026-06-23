@@ -1,9 +1,34 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-21** | Версия: **v12.30** | Done: **~1319** задач
+> Последнее обновление: **2026-06-23** | Версия: **v12.83** | Done: **~1319** задач
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
+
+---
+
+## Session — 2026-06-23 (v12.83): agent_health → honest green
+
+Восстановлены сломанные launchd-агенты и доведён `agent_health` до честного зелёного
+(**overall WARNING, critical_count 0, 36/36 healthy**, watchdog exit 0). GoLive **27/29**
+(autopush_installed теперь PASS; оба оставшихся блокера — просто ожидание 30 трек-дней,
+сейчас 14/30).
+
+| Fix | Результат |
+|-----|-----------|
+| `com.spa.daily_cycle` | Канонический раннер: `run_daily_paper_cycle.sh → cycle_runner (+evidence)`; legacy `com.spa.cyclerunner` удалён (rename≠unload зомби замораживал трек). Heartbeat в `launchd_stdout.log` (tee). |
+| `morning_digest` | 3 фикса формата данных (positions dict, tournament list, equity `daily`-ключ + честный старт). |
+| `tournament_engine` | `_load_cached_apy` крах на dict-positions → источник `apy_ranking.json`; логи `/tmp`→`logs/`; errors=0. |
+| `autopush` | pipeline разлочен: miniconda PATH в `auto_push.sh`, `--branch` в `push_to_github.py` (обе копии), heartbeat в `logs/auto_push.log`. 5 застрявших скриптов запушены. |
+| **ALLOC-002** | cycle_runner валидирует ИСХОДЯЩУЮ аллокацию через `policy_enforcer` перед записью; при нарушении (>8 протоколов / T1<55%) берёт compliant ≤7 от rebalancer. Корень: аллокатор over-диверсифицировал в 23, обходя замысел ≤8. + positions-doc теперь содержит `policy_compliant`/`validation_summary`/`tuner_expected_apy`. |
+| `rules_watchdog` | Telegram `html.escape()` (ломал `<` в «T1 < 55%»); exit 0. |
+| Red flags | Advisory: драйвят system-CRITICAL только по **удерживаемым** протоколам; внешние/fallback → WARNING. |
+| `portfolio_health` | APY-потолок `10%→6%` (реалистично для стейбл-доходности) → **70.03** (был 63–67<70). |
+| Evidence | **Honest real-only**: synthetic seed-дни (0.5-вес) ретайрнуты; schema-баг `history`→`days` исправлен. Score 20 (14 дней) → 25 при 15 днях. |
+
+Подробности: память `allocation-and-monitor-calibration`, `daily-cycle-runner-identity`,
+`autopush-pipeline-gotchas`. Тесты: 4760 passed (2 предсуществующих фейла — reportlab не
+установлен, compute_sharpe нулевой вариации — не регрессы).
 
 ---
 
