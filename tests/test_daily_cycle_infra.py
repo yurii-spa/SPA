@@ -84,9 +84,14 @@ class TestRunnerScript:
         assert "completed" in content.lower() or "Cycle completed" in content
 
     def test_runner_exits_with_code(self):
-        """T10: runner propagates exit code"""
+        """T10: runner propagates exit code (any explicit `exit $VAR`/`exit 0`)."""
         content = RUNNER_SH.read_text()
-        assert "EXIT_CODE" in content or "exit $?" in content or "exit 0" in content
+        assert (
+            "EXIT_CODE" in content
+            or "CYCLE_EXIT" in content
+            or "exit $?" in content
+            or "exit 0" in content
+        )
 
 
 # ════════════════════════════════════════════════════════════════════════════
