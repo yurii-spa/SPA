@@ -639,13 +639,22 @@ class TestComputeHealthScore(unittest.TestCase):
         self.assertEqual(score, round(score, 2))
 
     def test_h12_apy_improvement_monotonic(self):
-        """Increasing APY monotonically increases health score (all else equal)."""
+        """Increasing APY monotonically increases health score up to the APY
+        ceiling (_APY_HEALTH_MAX = 6%), then plateaus (full APY credit)."""
+        from spa_core.paper_trading.portfolio_monitor import _APY_HEALTH_MAX
+        # Sample strictly below the ceiling → strictly increasing.
         scores = []
-        for apy in [1.0, 3.0, 5.0, 8.0, 10.0]:
+        for apy in [1.0, 2.0, 3.0, 4.0, 5.0]:
             adapters = {"a": {"apy": apy, "risk_score": 0.3}}
             scores.append(self.m.compute_portfolio_health_score(adapters, {"a": 1.0}))
         for i in range(len(scores) - 1):
             self.assertLess(scores[i], scores[i + 1])
+        # At/above the ceiling the APY component is maxed → equal scores.
+        at_ceiling = self.m.compute_portfolio_health_score(
+            {"a": {"apy": _APY_HEALTH_MAX, "risk_score": 0.3}}, {"a": 1.0})
+        above_ceiling = self.m.compute_portfolio_health_score(
+            {"a": {"apy": _APY_HEALTH_MAX + 5.0, "risk_score": 0.3}}, {"a": 1.0})
+        self.assertEqual(at_ceiling, above_ceiling)
 
 
 # ── TestGetSnapshot ───────────────────────────────────────────────────────────
@@ -800,6 +809,132 @@ class TestSaveSnapshot(unittest.TestCase):
         self.m.save_snapshot({**self.snap, "equity": 99_000.0})
         mtime2 = snap_path.stat().st_mtime
         self.assertGreaterEqual(mtime2, mtime1)
+
+
+# ── TestSaveSnapshotPortfolioHealth ──────────────────────────────────────────
+# Tests specifically for the 6-line block added to save_snapshot() that writes
+# data/portfolio_health.json for agent_health_monitor / system_health_monitor.
+#
+# The 6 lines under test:
+#   health_file = data_path / "portfolio_health.json"
+#   health_payload = {
+#       "generated_at": snapshot.get("generated_at"),
+#       "health_score": snapshot.get("health_score"),
+#       "summary_level": snapshot.get("summary_level"),
+#   }
+#   atomic_save(health_payload, str(health_file))
+
+class TestSaveSnapshotPortfolioHealth(unittest.TestCase):
+    """PH01–PH09: portfolio_health.json written by save_snapshot()."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.m = PortfolioMonitor(data_dir=self.tmp)
+        # Build a real snapshot via the public API so generated_at / health_score
+        # / summary_level are properly populated.
+        portfolio = {"current_weights": _CURRENT_BASIC, "equity": 80_000.0}
+        self.snap = self.m.get_snapshot(portfolio, _ADAPTERS_BASIC, _TARGET_BASIC)
+
+    def _health_path(self) -> Path:
+        return Path(self.tmp) / "portfolio_health.json"
+
+    def _health_data(self) -> dict:
+        return json.loads(self._health_path().read_text(encoding="utf-8"))
+
+    def test_ph01_portfolio_health_json_created(self):
+        """save_snapshot() creates portfolio_health.json in the data_dir."""
+        self.assertFalse(self._health_path().exists(), "precondition: file absent")
+        self.m.save_snapshot(self.snap)
+        self.assertTrue(
+            self._health_path().exists(),
+            "portfolio_health.json was not created by save_snapshot()",
+        )
+
+    def test_ph02_has_generated_at_key(self):
+        """portfolio_health.json contains the 'generated_at' key."""
+        self.m.save_snapshot(self.snap)
+        self.assertIn("generated_at", self._health_data())
+
+    def test_ph03_has_health_score_key(self):
+        """portfolio_health.json contains the 'health_score' key."""
+        self.m.save_snapshot(self.snap)
+        self.assertIn("health_score", self._health_data())
+
+    def test_ph04_has_summary_level_key(self):
+        """portfolio_health.json contains the 'summary_level' key."""
+        self.m.save_snapshot(self.snap)
+        self.assertIn("summary_level", self._health_data())
+
+    def test_ph05_exactly_three_keys(self):
+        """portfolio_health.json contains exactly generated_at, health_score, summary_level."""
+        self.m.save_snapshot(self.snap)
+        self.assertEqual(
+            set(self._health_data().keys()),
+            {"generated_at", "health_score", "summary_level"},
+        )
+
+    def test_ph06_values_match_snapshot(self):
+        """portfolio_health.json values exactly mirror the snapshot dict."""
+        self.m.save_snapshot(self.snap)
+        data = self._health_data()
+        self.assertEqual(data["generated_at"],  self.snap["generated_at"])
+        self.assertEqual(data["health_score"],   self.snap["health_score"])
+        self.assertEqual(data["summary_level"],  self.snap["summary_level"])
+
+    def test_ph07_health_score_is_numeric(self):
+        """portfolio_health.json['health_score'] is a number in [0, 100]."""
+        self.m.save_snapshot(self.snap)
+        score = self._health_data()["health_score"]
+        self.assertIsInstance(score, (int, float))
+        self.assertGreaterEqual(score, 0.0)
+        self.assertLessEqual(score, 100.0)
+
+    def test_ph08_overwritten_on_second_save(self):
+        """A second save_snapshot() overwrites portfolio_health.json with new values."""
+        self.m.save_snapshot(self.snap)
+        # Build a second snapshot with a deliberately different health score by
+        # changing the equity (doesn't affect health score) but swapping adapters
+        # to force a different summary_level.
+        portfolio2 = {"current_weights": _TARGET_BASIC, "equity": 50_000.0}
+        snap2 = self.m.get_snapshot(portfolio2, _ADAPTERS_BASIC, _TARGET_BASIC)
+        self.m.save_snapshot(snap2)
+        data = self._health_data()
+        self.assertEqual(data["generated_at"],  snap2["generated_at"])
+        self.assertEqual(data["health_score"],   snap2["health_score"])
+        self.assertEqual(data["summary_level"],  snap2["summary_level"])
+
+    def test_ph09_created_alongside_snapshots_file(self):
+        """Both monitor_snapshots.json and portfolio_health.json are written together."""
+        self.m.save_snapshot(self.snap)
+        self.assertTrue((Path(self.tmp) / SNAPSHOTS_FILENAME).exists())
+        self.assertTrue(self._health_path().exists())
+
+    def test_ph10_works_with_explicit_data_dir_override(self):
+        """portfolio_health.json is created in the explicit data_dir, not self.data_dir."""
+        other_tmp = tempfile.mkdtemp()
+        self.m.save_snapshot(self.snap, data_dir=other_tmp)
+        self.assertTrue((Path(other_tmp) / "portfolio_health.json").exists())
+        # Original dir should be untouched
+        self.assertFalse(self._health_path().exists())
+
+    def test_ph11_summary_level_ok_when_no_drift(self):
+        """summary_level in portfolio_health.json is 'OK' when no drift exists."""
+        portfolio = {"current_weights": _TARGET_BASIC, "equity": 10_000.0}
+        snap_ok = self.m.get_snapshot(portfolio, _ADAPTERS_BASIC, _TARGET_BASIC)
+        self.m.save_snapshot(snap_ok)
+        self.assertEqual(self._health_data()["summary_level"], "OK")
+
+    def test_ph12_summary_level_warning_on_moderate_drift(self):
+        """summary_level reflects WARNING when an adapter has notable drift."""
+        cur = dict(_TARGET_BASIC)
+        cur["aave_v3"] = cur.get("aave_v3", 0.35) + 0.08   # +8 pp drift → WARNING
+        portfolio = {"current_weights": cur, "equity": 10_000.0}
+        snap_w = self.m.get_snapshot(portfolio, _ADAPTERS_BASIC, _TARGET_BASIC)
+        self.m.save_snapshot(snap_w)
+        self.assertIn(
+            self._health_data()["summary_level"],
+            {"WARNING", ALERT_CRITICAL},   # large drift may cascade to CRITICAL
+        )
 
 
 # ── TestLoadLatestSnapshot ────────────────────────────────────────────────────
