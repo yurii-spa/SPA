@@ -260,11 +260,24 @@ class EvidenceAutoCalculator(BaseAnalytics):
         # Ensure parent directory exists
         self._data_file.parent.mkdir(parents=True, exist_ok=True)
 
+        _now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        # Preserve the original initialized_at across rewrites (set once).
+        _initialized_at = _now
+        try:
+            if self._data_file.exists():
+                _prev = json.loads(self._data_file.read_text(encoding="utf-8"))
+                _initialized_at = _prev.get("initialized_at") or _now
+        except Exception:  # noqa: BLE001
+            pass
+
         _days = [d.to_dict() for d in self._history]
         payload = {
             "schema_version": SCHEMA_VERSION,
-            "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "initialized_at": _initialized_at,
+            "saved_at": _now,
+            "target_pts": float(self.TARGET_PTS),
             "days_count": len(self._history),
+            "day_count": len(self._history),  # alias (seed-format key)
             # Canonical key consumed by golive_readiness_report / tests is "days".
             # "history" retained for backward-compatibility with older readers.
             "days": _days,
