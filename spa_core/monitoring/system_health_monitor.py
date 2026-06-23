@@ -110,7 +110,11 @@ GITHUB_API_RATE = "https://api.github.com/rate_limit"
 LOCAL_API = "http://127.0.0.1:8765/health"
 
 _SECRET_RE = re.compile(r"(token|secret|key|password)", re.I)
-_SECRET_SAFE_SUFFIXES = (".lock",)
+# This is a FILENAME heuristic for accidentally-left secret-DUMP files (the
+# 2026-06-10 PAT leak was in .md/.html/.command files). Source modules named for
+# what they do (e.g. spa_core/utils/keychain.py) are legit code, not leaked
+# secrets, and are gated by code review — exclude source extensions here.
+_SECRET_SAFE_SUFFIXES = (".lock", ".py")
 
 
 # ===========================================================================
@@ -368,14 +372,26 @@ class SystemHealthMonitor:
             else:
                 out.append(CheckResult("d1.tournament.demo", D, OK, "tournament real (is_demo=false)"))
             strat = strat_list(tdata)
+            # "winner" is the de-facto top-ranked strategy. The ranked file may not
+            # carry an explicit "winner" key — derive it from the ranking (top_5 /
+            # ranked_strategies / shadow_active_strategies) so a fully-populated
+            # tournament isn't flagged as having "no valid winner".
             winner = tdata.get("winner")
+            if not winner:
+                for _key in ("top_5", "ranked_strategies", "shadow_active_strategies"):
+                    _ranked = tdata.get(_key) or []
+                    if _ranked and isinstance(_ranked[0], dict):
+                        winner = (_ranked[0].get("id") or _ranked[0].get("strategy_id")
+                                  or _ranked[0].get("strategy_key"))
+                        if winner:
+                            break
             if not strat or not winner:
                 out.append(CheckResult("d1.tournament.populated", D, WARNING,
                                        "no strategies or no valid winner",
                                        value=len(strat)))
             else:
                 out.append(CheckResult("d1.tournament.populated", D, OK,
-                                       f"{len(strat)} strategies, winner present"))
+                                       f"{len(strat)} strategies, winner={winner}"))
 
         # --- status --------------------------------------------------------
         stt = self.src["status"]
@@ -849,8 +865,26 @@ class SystemHealthMonitor:
         crit = [f for f in flags if isinstance(f, dict)
                 and str(f.get("severity", "")).upper() == CRITICAL]
         if crit:
-            return CheckResult("d6.red_flags", D, CRITICAL,
-                               f"{len(crit)} CRITICAL red flag(s)",
+            # A red flag concerns an EXTERNAL protocol's market conditions, not a
+            # failure of SPA itself. It is CRITICAL only when it hits a protocol we
+            # actually hold; flags on protocols we don't hold — or from fallback/
+            # bootstrap data (live feed down) — are advisory (WARNING). Mirrors
+            # agent_health_monitor's red-flag handling.
+            pos = self.src.get("positions", {}).get("data") or {}
+            held = {str(k).lower() for k in (pos.get("positions") or {})}
+            fallback = bool(rf["data"].get("fallback_used")) if isinstance(rf["data"], dict) else False
+
+            def _hits_held(flag: dict) -> bool:
+                proto = str(flag.get("protocol", "")).lower().replace("-", "_")
+                return any(h and (h in proto or proto in h) for h in held)
+
+            held_crit = [] if fallback else [f for f in crit if _hits_held(f)]
+            if held_crit:
+                return CheckResult("d6.red_flags", D, CRITICAL,
+                                   f"{len(held_crit)} CRITICAL red flag(s) on HELD protocols",
+                                   evidence={"flags": [f.get("message", f.get("protocol", "?")) for f in held_crit[:5]]})
+            return CheckResult("d6.red_flags", D, WARNING,
+                               f"{len(crit)} red flag(s) on external protocols (advisory)",
                                evidence={"flags": [f.get("message", f.get("protocol", "?")) for f in crit[:5]]})
         return CheckResult("d6.red_flags", D, OK,
                            f"no CRITICAL red flags ({len(flags)} total)")
