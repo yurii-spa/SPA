@@ -24,6 +24,7 @@ Exit code: 1 если есть критические нарушения, 0 ин
 """
 from __future__ import annotations
 
+import html
 import json
 import logging
 import os
@@ -492,7 +493,9 @@ def run_watchdog(write: bool = True, send_alert: bool = True) -> int:
             "",
         ]
         for r in critical:
-            lines.append("❌ [{}] {}".format(r.name, r.message))
+            # Escape dynamic content — messages contain '<'/'>' (e.g. "T1 < 55%")
+            # which would break parse_mode=HTML and return 400 Bad Request.
+            lines.append("❌ [{}] {}".format(html.escape(r.name), html.escape(r.message)))
         _send_telegram("\n".join(lines))
 
     return 1 if critical else 0
