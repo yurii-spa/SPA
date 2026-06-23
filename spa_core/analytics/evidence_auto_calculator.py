@@ -260,11 +260,15 @@ class EvidenceAutoCalculator(BaseAnalytics):
         # Ensure parent directory exists
         self._data_file.parent.mkdir(parents=True, exist_ok=True)
 
+        _days = [d.to_dict() for d in self._history]
         payload = {
             "schema_version": SCHEMA_VERSION,
             "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "days_count": len(self._history),
-            "history": [d.to_dict() for d in self._history],
+            # Canonical key consumed by golive_readiness_report / tests is "days".
+            # "history" retained for backward-compatibility with older readers.
+            "days": _days,
+            "history": _days,
         }
 
         from spa_core.utils.atomic import atomic_save
@@ -278,7 +282,7 @@ class EvidenceAutoCalculator(BaseAnalytics):
         try:
             with open(self._data_file, encoding="utf-8") as fh:
                 data = json.load(fh)
-            raw_list = data.get("history", [])
+            raw_list = data.get("days") or data.get("history", [])
             self._history = [EvidenceDay.from_dict(d) for d in raw_list]
             # Keep sorted by date
             self._history.sort(key=lambda d: d.date)
