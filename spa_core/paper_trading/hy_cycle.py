@@ -17,7 +17,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _HY_DATA_PATH = _PROJECT_ROOT / "data" / "hy_paper_trading.json"
 _HY_REGIME_LOG_PATH = _PROJECT_ROOT / "data" / "hy_regime_log.json"
 
-HY_CYCLE_VERSION = "hy_cycle_v1.0"
+HY_CYCLE_VERSION = "hy_cycle_v1.1"
+
+# Virtual seed capital for the HY sleeve — separate book ON TOP of the $100k safe
+# sleeve, so the go-live honest track is untouched (decision 2026-06-23).
+HY_SEED_EQUITY = 20_000.0
 
 # Kill switch threshold: drawdown > 8% → EXIT
 _KILL_DRAWDOWN_THRESHOLD = -0.08
@@ -58,7 +62,7 @@ def _default_hy_state() -> dict:
         "regime": "EXIT",
         "last_cycle_at": None,
         "cycles_completed": 0,
-        "note": "Engine B HY sleeve — no seed data.",
+        "note": "Engine B HY sleeve — awaiting first cycle (auto-seeds on run).",
         "LLM_FORBIDDEN": True,
     }
 
@@ -96,6 +100,36 @@ def get_hy_regime() -> str:
         return "EXIT"  # fail-closed
 
 
+def refresh_hy_regime(current_state: str, drawdown_pct: float = 0.0) -> str:
+    """
+    Recompute Engine B regime from live data and persist it to hy_regime_log.json.
+
+    Feeds the deterministic RegimeGate with:
+      - funding_rate proxy = high-yield band APY (real, from apy_ranking) — true perp
+        funding feed not yet wired (v1).
+      - depeg_pct = 0.0 conservative (no live depeg feed yet; peg breaks are still
+        caught by the per-protocol monitors).
+    fail-closed: any error → keep current state (RegimeGate itself defaults to EXIT).
+    LLM_FORBIDDEN.
+    """
+    # LLM_FORBIDDEN
+    try:
+        from spa_core.risk.regime_gate import evaluate_regime, log_regime_change
+        from spa_core.paper_trading.sleeve_yield import hy_target_apy_pct
+        funding_rate = hy_target_apy_pct() / 100.0   # proxy, decimal
+        result = evaluate_regime(
+            funding_rate=funding_rate,
+            depeg_pct=0.0,
+            current_drawdown_pct=drawdown_pct,
+            current_state=current_state if current_state in ("ENTER", "EXIT") else None,
+        )
+        log_regime_change(result, previous_state=current_state)
+        new_state = str(result.get("state", "EXIT"))
+        return new_state if new_state in ("ENTER", "EXIT", "WATCH") else "EXIT"
+    except Exception:
+        return current_state if current_state in ("ENTER", "EXIT", "WATCH") else "EXIT"
+
+
 def compute_drawdown(equity: float, peak_equity: float) -> float:
     """
     Вычисляет drawdown Engine B.
@@ -128,6 +162,20 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
     today = now.strftime("%Y-%m-%d")
 
     state = load_hy_state()
+
+    # Self-seed: fund the sleeve ONLY when the state is genuinely fresh (never run,
+    # no equity, no history). Guards against clobbering an in-flight book.
+    if (float(state.get("seed_equity", 0) or 0) <= 0
+            and float(state.get("equity", 0) or 0) <= 0
+            and not state.get("daily_history")
+            and int(state.get("cycles_completed", 0) or 0) == 0):
+        state["seed_equity"] = HY_SEED_EQUITY
+        state["equity"] = HY_SEED_EQUITY
+        state["peak_equity"] = HY_SEED_EQUITY
+        state["note"] = f"Engine B HY sleeve — seeded ${HY_SEED_EQUITY:,.0f} virtual."
+
+    # Refresh regime from live data (writes hy_regime_log.json), then read it back.
+    refresh_hy_regime(state.get("regime", "EXIT"), state.get("drawdown_pct", 0.0))
     regime = get_hy_regime()
 
     # Всегда обновляем regime в state
@@ -183,15 +231,27 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             "LLM_FORBIDDEN": True,
         }
 
-    # ── обновляем daily_history (дедупликация по дате) ──────────────────────
+    # ── accrue ONE day of carry yield + record daily bar (dedup by date) ────
+    # Real APY of the high-yield band (from apy_ranking), accrued once per new day
+    # while regime==ENTER. Compounds into equity. No yield invented.
     existing_dates = {entry.get("date") for entry in state.get("daily_history", [])}
     if today not in existing_dates:
+        from spa_core.paper_trading.sleeve_yield import hy_target_apy_pct, daily_yield
+        apy_pct = hy_target_apy_pct()
+        dy = daily_yield(equity, apy_pct)
+        equity += dy
+        if equity > peak:
+            peak = equity
+        drawdown = compute_drawdown(equity, peak)
+        state["equity"] = equity
         state.setdefault("daily_history", []).append({
             "date": today,
-            "equity": equity,
-            "peak_equity": peak,
+            "equity": round(equity, 2),
+            "peak_equity": round(peak, 2),
             "drawdown_pct": drawdown,
             "regime": regime,
+            "apy_pct": round(apy_pct, 4),
+            "daily_yield_usd": round(dy, 4),
             "positions_count": len(state.get("positions", [])),
         })
 
