@@ -138,12 +138,16 @@ def build_launchd_section() -> str:
         if len(parts) >= 3:
             pid, exit_code, label = parts[0], parts[1], parts[2]
             loaded_labels.add(label)
-            if exit_code not in ("0", "-"):
+            # Skip non-zero exit for currently-RUNNING agents (numeric PID):
+            # launchctl retains the previous run's exit code, so a live server that
+            # was cleanly restarted shows e.g. -15 (SIGTERM) — a false alarm.
+            _running = pid not in ("-", "0") and pid.lstrip("-").isdigit()
+            if exit_code not in ("0", "-") and not _running:
                 errored.append(f"`{label}` (exit {exit_code})")
 
     # Expected agents from agent_status.sh
     expected = [
-        "com.spa.httpserver", "com.spa.cloudflared", "com.spa.fund-api",
+        "com.spa.httpserver", "com.spa.cloudflared", "com.spa.familyfund",
         "com.spa.uptime_monitor", "com.spa.cycle_health", "com.spa.cycle_gap_monitor",
         "com.spa.portfolio_monitor", "com.spa.peg_monitor", "com.spa.red_flag_monitor",
         "com.spa.governance_watcher", "com.spa.autopush", "com.spa.daily_cycle",
