@@ -86,8 +86,12 @@ DRIFT_CRITICAL_THRESHOLD = 10.0   # > 10 pp → CRITICAL
 # ADR-019: T2 total cap 50 %
 T2_CRITICAL_CAP = 0.50   # fraction
 
-# APY normalisation ceiling for health score
-_APY_HEALTH_MAX = 10.0   # 10 % = full APY score
+# APY normalisation ceiling for health score.
+# Calibrated to the strategy's realistic blended stablecoin yield (DECISIONS.md
+# 2026-06-21: real T1/T2 APY ~3.5-5%). The old 10% ceiling was unreachable, so
+# a healthy portfolio capped the APY component at ~half and the composite score
+# could never clear the 70 health floor. 6% = full APY score.
+_APY_HEALTH_MAX = 6.0
 
 # ── Alert level constants ─────────────────────────────────────────────────────
 
