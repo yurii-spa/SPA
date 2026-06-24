@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.earn-defi.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; base-uri 'self'">
+<title>SPA // AGENT FLEET TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#06070a;
+    --bg-2:#080a0f;
+    --panel:#0a0c11;
+    --panel-2:#0c0f15;
+    --hdr:#0e131b;
+    --line:#161c26;
+    --line-2:#1f2733;
+    --grid:rgba(120,140,170,.05);
+    --txt:#c7d0db;
+    --txt-2:#8d97a6;
+    --dim:#5a6472;
+    --faint:#3a424e;
+    --amber:#f5a623;       /* terminal amber */
+    --green:#3df5a0;       /* phosphor green */
+    --cyan:#56c5d0;        /* muted cyan */
+    --red:#ff5470;
+    --amber-d:rgba(245,166,35,.14);
+    --green-d:rgba(61,245,160,.12);
+    --cyan-d:rgba(86,197,208,.12);
+    --red-d:rgba(255,84,112,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;min-height:100%}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font:12px/1.45 "JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,monospace;
+    -webkit-font-smoothing:antialiased;
+    letter-spacing:.01em;
+  }
+  /* faint scanline + grid texture */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:34px 34px;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.35;
+    background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.10) 3px);
+    mix-blend-mode:multiply;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  .up{text-transform:uppercase}
+  .blink{animation:blink 1.05s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* ============ TOP NAV BAR ============ */
+  .nav{position:sticky;top:0;z-index:50;display:flex;align-items:stretch;
+    border-bottom:1px solid var(--line-2);background:var(--bg-2);height:34px}
+  .nav .brand{display:flex;align-items:center;gap:8px;padding:0 14px;border-right:1px solid var(--line);
+    font-weight:700;color:var(--amber);letter-spacing:.12em;white-space:nowrap}
+  .nav .brand .sq{width:9px;height:9px;background:var(--amber);box-shadow:0 0 8px var(--amber);display:inline-block}
+  .nav .links{display:flex;align-items:stretch;overflow-x:auto;flex:1}
+  .nav .links a{display:flex;align-items:center;padding:0 13px;color:var(--dim);
+    border-right:1px solid var(--line);font-size:11px;letter-spacing:.08em;white-space:nowrap;
+    transition:color .12s,background .12s}
+  .nav .links a:hover{color:var(--txt);background:var(--panel-2)}
+  .nav .links a.on{color:var(--green);background:var(--green-d)}
+  .nav .links a.on::before{content:"›";margin-right:6px;color:var(--green)}
+  .nav .lang{display:flex;align-items:stretch;border-left:1px solid var(--line)}
+  .nav .lang button{appearance:none;border:0;background:transparent;color:var(--dim);
+    font:600 11px "JetBrains Mono",monospace;letter-spacing:.06em;padding:0 11px;cursor:pointer;
+    border-right:1px solid var(--line);transition:.12s}
+  .nav .lang button:last-child{border-right:0}
+  .nav .lang button.on{background:var(--amber-d);color:var(--amber)}
+  .nav .lang button:not(.on):hover{color:var(--txt)}
+
+  /* ============ STATUS TICKER BAR ============ */
+  .ticker{position:relative;z-index:40;height:26px;display:flex;align-items:center;overflow:hidden;
+    border-bottom:1px solid var(--line-2);background:#05060a}
+  .ticker .tag{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 12px;height:100%;
+    background:var(--amber);color:#06070a;font-weight:700;letter-spacing:.14em;font-size:10.5px;
+    border-right:1px solid #06070a}
+  .ticker .live{width:7px;height:7px;border-radius:50%;background:#06070a;
+    animation:blink 1.05s steps(1) infinite}
+  .ticker .stream{flex:1;overflow:hidden;white-space:nowrap;position:relative}
+  .ticker .stream .run{display:inline-block;padding-left:100%;animation:scroll 38s linear infinite}
+  .ticker .stream:hover .run{animation-play-state:paused}
+  @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+  .ticker .it{display:inline-block;padding:0 22px;font-size:11px;color:var(--txt-2);
+    border-right:1px solid var(--line)}
+  .ticker .it b{color:var(--txt);font-weight:600}
+  .ticker .it .v-ok{color:var(--green)} .ticker .it .v-warn{color:var(--amber)} .ticker .it .v-crit{color:var(--red)}
+
+  /* ============ TERMINAL CANVAS ============ */
+  .wrap{position:relative;z-index:10;max-width:1640px;margin:0 auto;padding:12px 12px 40px}
+  .meta-line{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--dim);font-size:10.5px;
+    letter-spacing:.1em;padding:4px 4px 12px;text-transform:uppercase}
+  .meta-line b{color:var(--txt-2)}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+
+  /* panel frame */
+  .pnl{grid-column:span 12;background:var(--panel);border:1px solid var(--line-2);
+    display:flex;flex-direction:column;min-width:0;position:relative}
+  .pnl::after{content:"";position:absolute;top:-1px;left:-1px;width:7px;height:7px;
+    border-top:1px solid var(--amber);border-left:1px solid var(--amber);opacity:.55}
+  .pnl-h{display:flex;align-items:center;gap:9px;height:27px;padding:0 11px;background:var(--hdr);
+    border-bottom:1px solid var(--line-2);flex:0 0 auto}
+  .pnl-h .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);flex:0 0 auto}
+  .pnl-h .tt{font-weight:600;letter-spacing:.14em;font-size:10.5px;color:var(--txt);text-transform:uppercase}
+  .pnl-h .id{color:var(--dim);font-size:10px;letter-spacing:.1em}
+  .pnl-h .sp{flex:1}
+  .pnl-h .badge{font-size:9.5px;letter-spacing:.1em;padding:2px 7px;border:1px solid var(--line-2);
+    color:var(--dim);text-transform:uppercase}
+  .pnl-h .badge.ok{color:var(--green);border-color:rgba(61,245,160,.3);background:var(--green-d)}
+  .pnl-h .badge.warn{color:var(--amber);border-color:rgba(245,166,35,.3);background:var(--amber-d)}
+  .pnl-h .badge.crit{color:var(--red);border-color:rgba(255,84,112,.35);background:var(--red-d)}
+  .pnl-b{padding:11px;flex:1;min-width:0}
+
+  /* spans */
+  .c12{grid-column:span 12}.c8{grid-column:span 8}.c7{grid-column:span 7}
+  .c6{grid-column:span 6}.c5{grid-column:span 5}.c4{grid-column:span 4}.c3{grid-column:span 3}
+
+  /* ===== KPI strip ===== */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line-2);
+    border:1px solid var(--line-2)}
+  .kpi{background:var(--panel-2);padding:11px 13px}
+  .kpi .k{font-size:9.5px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-bottom:7px}
+  .kpi .v{font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1;font-family:"JetBrains Mono",monospace}
+  .kpi .s{font-size:10px;color:var(--dim);margin-top:6px;letter-spacing:.05em}
+  .v.green{color:var(--green)}.v.amber{color:var(--amber)}.v.cyan{color:var(--cyan)}.v.red{color:var(--red)}
+
+  /* ===== pipeline flow ===== */
+  .flow{display:flex;flex-direction:column;gap:9px}
+  .flow .pipe{display:flex;align-items:stretch;flex-wrap:wrap;gap:0}
+  .stg{flex:1;min-width:118px;border:1px solid var(--line-2);background:var(--panel-2);
+    padding:9px 10px;position:relative;display:flex;flex-direction:column;gap:5px}
+  .stg+.stg{border-left:0}
+  .stg .sl{font-size:9px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .stg .sl .led{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .stg .sn{font-size:13px;font-weight:600;letter-spacing:.06em;color:var(--txt)}
+  .stg .sd{font-size:10px;color:var(--dim);line-height:1.4}
+  .stg.gate{background:var(--red-d);border-color:rgba(255,84,112,.4)}
+  .stg.gate .sn{color:var(--red)}
+  .stg .arrow{position:absolute;right:-9px;top:50%;transform:translateY(-50%);z-index:2;
+    color:var(--amber);font-weight:700;font-size:13px}
+  .stg:last-child .arrow{display:none}
+  .led.ok{background:var(--green);box-shadow:0 0 7px var(--green)}
+  .led.warn{background:var(--amber);box-shadow:0 0 7px var(--amber)}
+  .led.crit{background:var(--red);box-shadow:0 0 7px var(--red);animation:blink 1s steps(1) infinite}
+  .led.idle{background:var(--faint)}
+  .flow-note{margin-top:4px;font-size:10px;color:var(--dim);letter-spacing:.04em}
+  .flow-note .cur{color:var(--green)}
+
+  /* ===== agent table ===== */
+  .grpbar{display:flex;align-items:center;gap:8px;padding:6px 0 6px;margin-top:2px;
+    border-bottom:1px solid var(--line);color:var(--cyan);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+  .grpbar:first-child{margin-top:0}
+  .grpbar .cnt{color:var(--dim);letter-spacing:.06em}
+  .grpbar .ln{flex:1;height:1px;background:var(--line)}
+  table.tbl{width:100%;border-collapse:collapse;font-size:11px}
+  table.tbl thead th{text-align:left;font-weight:600;color:var(--dim);font-size:9.5px;letter-spacing:.1em;
+    text-transform:uppercase;padding:5px 8px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:var(--panel)}
+  table.tbl td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--txt-2)}
+  table.tbl tr:hover td{background:var(--panel-2)}
+  table.tbl .c-id{color:var(--txt);white-space:nowrap;font-weight:500}
+  table.tbl .c-id .pfx{color:var(--faint)}
+  table.tbl .c-sched{color:var(--cyan);white-space:nowrap;font-size:10px}
+  table.tbl .c-role{color:var(--dim);font-size:10px;line-height:1.4}
+  table.tbl .c-st{white-space:nowrap;width:1%}
+  .stcell{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.06em}
+  .stcell .led{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .stcell.ok{color:var(--green)}.stcell.warn{color:var(--amber)}.stcell.crit{color:var(--red)}.stcell.unk{color:var(--dim)}
+
+  /* ===== threat / attention feed ===== */
+  .feed{display:flex;flex-direction:column;gap:0;font-size:11px}
+  .feed .row{display:flex;gap:9px;padding:6px 2px;border-bottom:1px solid var(--line);align-items:baseline}
+  .feed .row:last-child{border-bottom:0}
+  .feed .ts{color:var(--faint);font-size:10px;white-space:nowrap;flex:0 0 auto}
+  .feed .lv{font-size:9px;letter-spacing:.1em;padding:1px 6px;flex:0 0 auto;border:1px solid var(--line-2);text-transform:uppercase}
+  .feed .lv.ok{color:var(--green);border-color:rgba(61,245,160,.3)}
+  .feed .lv.warn{color:var(--amber);border-color:rgba(245,166,35,.3)}
+  .feed .lv.crit{color:var(--red);border-color:rgba(255,84,112,.35);background:var(--red-d)}
+  .feed .lv.info{color:var(--cyan);border-color:rgba(86,197,208,.3)}
+  .feed .msg{color:var(--txt-2);flex:1;min-width:0;line-height:1.4}
+  .feed .msg b{color:var(--txt)}
+
+  /* ===== risk policy mini-grid ===== */
+  .rgrid{display:grid;grid-template-columns:1fr auto;gap:0;font-size:10.5px}
+  .rgrid .rk{padding:5px 2px;color:var(--dim);border-bottom:1px solid var(--line);letter-spacing:.04em}
+  .rgrid .rv{padding:5px 2px;color:var(--green);text-align:right;border-bottom:1px solid var(--line);font-weight:500}
+  .rgrid .rv.amber{color:var(--amber)}
+
+  /* footer cmd line */
+  .cmdline{margin-top:12px;padding:8px 11px;border:1px solid var(--line-2);background:#05060a;
+    color:var(--dim);font-size:10.5px;letter-spacing:.05em;display:flex;align-items:center;gap:8px}
+  .cmdline .pr{color:var(--green)}
+  .cmdline .cur{display:inline-block;width:8px;height:13px;background:var(--green);vertical-align:middle}
+
+  /* responsive */
+  @media(max-width:1100px){
+    .c8,.c7,.c6,.c5{grid-column:span 12}
+    .c4,.c3{grid-column:span 6}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:640px){
+    .c4,.c3{grid-column:span 12}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .stg{min-width:46%}
+    .nav .brand .nm{display:none}
+    table.tbl .c-role{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== TOP NAV ===== -->
+<div class="nav">
+  <div class="brand"><span class="sq"></span><span class="nm">SPA//TERMINAL</span></div>
+  <div class="links">
+    <a href="/" data-i="nav_home">OVERVIEW</a>
+    <a href="/app" data-i="nav_dash">DASHBOARD</a>
+    <a href="/packages" data-i="nav_pkg">PACKAGES</a>
+    <a href="/tournament" data-i="nav_trn">TOURNAMENT</a>
+    <a class="on" href="/agents" data-i="nav_agents">AGENTS</a>
+    <a href="/control" data-i="nav_ctrl">CONTROL</a>
+  </div>
+  <div class="lang" role="group" aria-label="language">
+    <button id="lang-en" class="on" onclick="SPA.setLang('en')">EN</button>
+    <button id="lang-ru" onclick="SPA.setLang('ru')">RU</button>
+  </div>
+</div>
+
+<!-- ===== STATUS TICKER ===== -->
+<div class="ticker">
+  <div class="tag"><span class="live"></span><span data-i="tk_tag">FLEET LIVE</span></div>
+  <div class="stream"><div class="run" id="ticker-run"></div></div>
+</div>
+
+<div class="wrap">
+
+  <div class="meta-line">
+    <span><b>SESSION</b> AGENT.FLEET.MONITOR</span>
+    <span><b>HOST</b> earn-defi.com</span>
+    <span><b>FEED</b> <span id="feed-host">api.earn-defi.com</span></span>
+    <span><b>SYNC</b> <span id="sync-ts">--:--:--</span></span>
+    <span><b>LINK</b> <span id="link-state" class="up">INIT</span></span>
+  </div>
+
+  <div class="grid">
+
+    <!-- KPI STRIP -->
+    <div class="pnl c12">
+      <div class="pnl-h"><span class="dot" id="kpi-dot"></span><span class="tt" data-i="p_fleet">FLEET STATUS</span>
+        <span class="id">F0&nbsp;//&nbsp;launchctl</span><span class="sp"></span>
+        <span class="badge ok" id="kpi-badge" data-i="b_nominal">NOMINAL</span></div>
+      <div class="pnl-b" style="padding:0">
+        <div class="kpis">
+          <div class="kpi"><div class="k" data-i="k_agents">AGENTS ONLINE</div><div class="v green" id="kpi-agents">--/--</div><div class="s" data-i="k_agents_s">launchd com.spa.*</div></div>
+          <div class="kpi"><div class="k" data-i="k_cycle">DAILY CYCLE</div><div class="v cyan" id="kpi-cycle">06:00</div><div class="s" data-i="k_cycle_s">last paper cycle UTC</div></div>
+          <div class="kpi"><div class="k" data-i="k_risk">RISK GATE</div><div class="v green" id="kpi-risk">OK</div><div class="s" data-i="k_risk_s">deterministic · LLM off</div></div>
+          <div class="kpi"><div class="k" data-i="k_golive">GO-LIVE GATE</div><div class="v amber" id="kpi-golive">27/29</div><div class="s" data-i="k_golive_s">criteria passing</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PIPELINE FLOW -->
+    <div class="pnl c8">
+      <div class="pnl-h"><span class="dot"></span><span class="tt" data-i="p_pipe">DAILY PIPELINE</span>
+        <span class="id">F1&nbsp;//&nbsp;cycle_runner</span><span class="sp"></span>
+        <span class="badge ok" data-i="b_armed">ARMED</span></div>
+      <div class="pnl-b">
+        <div class="flow">
+          <div class="pipe">
+            <div class="stg"><div class="sl"><span class="led ok" id="fl-ada"></span><span data-i="fl_ada_l">STAGE 01</span></div><div class="sn">ADAPTERS</div><div class="sd" data-i="fl_ada">27 read-only feeds · APY/TVL</div><span class="arrow">▸</span></div>
+            <div class="stg"><div class="sl"><span class="led ok" id="fl-str"></span><span data-i="fl_str_l">STAGE 02</span></div><div class="sn">STRATEGIES</div><div class="sd" data-i="fl_str">S0–S77 · allocator weights</div><span class="arrow">▸</span></div>
+            <div class="stg gate"><div class="sl"><span class="led ok" id="fl-rsk"></span><span data-i="fl_rsk_l">STAGE 03</span></div><div class="sn">RISK GATE ⛔</div><div class="sd" data-i="fl_rsk">deterministic · approved=final</div><span class="arrow">▸</span></div>
+          </div>
+          <div class="pipe">
+            <div class="stg"><div class="sl"><span class="led ok" id="fl-reb"></span><span data-i="fl_reb_l">STAGE 04</span></div><div class="sn">REBALANCE</div><div class="sd" data-i="fl_reb">$100k book · trades · NAV</div><span class="arrow">▸</span></div>
+            <div class="stg"><div class="sl"><span class="led ok" id="fl-evd"></span><span data-i="fl_evd_l">STAGE 05</span></div><div class="sn">EVIDENCE</div><div class="sd" data-i="fl_evd">hash-chain audit · equity</div><span class="arrow">▸</span></div>
+            <div class="stg"><div class="sl"><span class="led ok" id="fl-api"></span><span data-i="fl_api_l">STAGE 06</span></div><div class="sn">API</div><div class="sd" data-i="fl_api">:8765 → /api/live/*</div><span class="arrow">▸</span></div>
+          </div>
+        </div>
+        <div class="flow-note" data-i="fl_note">&gt; cycle_runner --verbose · adapters ▸ strategies ▸ risk ▸ rebalance ▸ evidence ▸ api <span class="cur blink">_</span></div>
+      </div>
+    </div>
+
+    <!-- RISK POLICY -->
+    <div class="pnl c4">
+      <div class="pnl-h"><span class="dot"></span><span class="tt" data-i="p_policy">RISK POLICY v1.0</span>
+        <span class="sp"></span><span class="badge ok" data-i="b_enforced">ENFORCED</span></div>
+      <div class="pnl-b">
+        <div class="rgrid">
+          <div class="rk" data-i="rp_tvl">TVL FLOOR / POOL</div><div class="rv">≥ $5M</div>
+          <div class="rk" data-i="rp_t1">PER-PROTOCOL CAP T1</div><div class="rv">40%</div>
+          <div class="rk" data-i="rp_t2">PER-PROTOCOL CAP T2</div><div class="rv">20%</div>
+          <div class="rk" data-i="rp_t2t">T2 TOTAL CAP</div><div class="rv">≤ 50%</div>
+          <div class="rk" data-i="rp_apy">APY BAND</div><div class="rv">1% – 30%</div>
+          <div class="rk" data-i="rp_cash">MIN CASH BUFFER</div><div class="rv">≥ 5%</div>
+          <div class="rk" data-i="rp_kill">KILL SWITCH DD</div><div class="rv amber">≥ 5%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENT TABLE (left) -->
+    <div class="pnl c7">
+      <div class="pnl-h"><span class="dot"></span><span class="tt" data-i="p_agents_a">FLEET REGISTER · A</span>
+        <span class="id">F2&nbsp;//&nbsp;cycle · monitor · risk</span><span class="sp"></span>
+        <span class="badge ok" id="reg-a-badge">—</span></div>
+      <div class="pnl-b" id="reg-a"></div>
+    </div>
+
+    <!-- THREAT FEED -->
+    <div class="pnl c5">
+      <div class="pnl-h"><span class="dot crit" style="background:var(--amber);box-shadow:0 0 7px var(--amber)"></span>
+        <span class="tt" data-i="p_feed">ATTENTION FEED</span><span class="id">F3&nbsp;//&nbsp;threat_reactor</span>
+        <span class="sp"></span><span class="badge" id="feed-badge" data-i="b_scan">SCANNING</span></div>
+      <div class="pnl-b"><div class="feed" id="feed"></div></div>
+    </div>
+
+    <!-- AGENT TABLE (right) -->
+    <div class="pnl c12">
+      <div class="pnl-h"><span class="dot"></span><span class="tt" data-i="p_agents_b">FLEET REGISTER · B</span>
+        <span class="id">F4&nbsp;//&nbsp;tier-1 · report · heal · infra</span><span class="sp"></span>
+        <span class="badge ok" id="reg-b-badge">—</span></div>
+      <div class="pnl-b" id="reg-b"></div>
+    </div>
+
+  </div>
+
+  <div class="cmdline">
+    <span class="pr">spa@earn-defi:~$</span>
+    <span id="cmd-text" data-i="cmd">launchctl list | grep spa | wc -l</span>
+    <span class="cur blink"></span>
+  </div>
+
+</div>
+
+<script>
+window.SPA = (function(){
+  "use strict";
+  var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1')
+    ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+
+  /* ===================== i18n ===================== */
+  var T = {
+    nav_home:["OVERVIEW","ОБЗОР"], nav_dash:["DASHBOARD","ДАШБОРД"],
+    nav_pkg:["PACKAGES","ПАКЕТЫ"], nav_trn:["TOURNAMENT","ТУРНИР"],
+    nav_agents:["AGENTS","АГЕНТЫ"], nav_ctrl:["CONTROL","CONTROL"],
+    tk_tag:["FLEET LIVE","ФЛОТ LIVE"],
+    p_fleet:["FLEET STATUS","СТАТУС ФЛОТА"], b_nominal:["NOMINAL","НОРМА"],
+    k_agents:["AGENTS ONLINE","АГЕНТОВ ONLINE"], k_agents_s:["launchd com.spa.*","launchd com.spa.*"],
+    k_cycle:["DAILY CYCLE","ДНЕВНОЙ ЦИКЛ"], k_cycle_s:["last paper cycle UTC","последний paper-цикл UTC"],
+    k_risk:["RISK GATE","RISK GATE"], k_risk_s:["deterministic · LLM off","детерминированный · LLM off"],
+    k_golive:["GO-LIVE GATE","GO-LIVE GATE"], k_golive_s:["criteria passing","критериев пройдено"],
+    p_pipe:["DAILY PIPELINE","ДНЕВНОЙ ПАЙПЛАЙН"], b_armed:["ARMED","ВЗВЕДЁН"],
+    fl_ada_l:["STAGE 01","ЭТАП 01"], fl_ada:["27 read-only feeds · APY/TVL","27 read-only фидов · APY/TVL"],
+    fl_str_l:["STAGE 02","ЭТАП 02"], fl_str:["S0–S77 · allocator weights","S0–S77 · веса allocator"],
+    fl_rsk_l:["STAGE 03","ЭТАП 03"], fl_rsk:["deterministic · approved=final","детерм. · approved=final"],
+    fl_reb_l:["STAGE 04","ЭТАП 04"], fl_reb:["$100k book · trades · NAV","книга $100k · трейды · NAV"],
+    fl_evd_l:["STAGE 05","ЭТАП 05"], fl_evd:["hash-chain audit · equity","hash-цепь audit · equity"],
+    fl_api_l:["STAGE 06","ЭТАП 06"], fl_api:[":8765 → /api/live/*",":8765 → /api/live/*"],
+    fl_note:["&gt; cycle_runner --verbose · adapters ▸ strategies ▸ risk ▸ rebalance ▸ evidence ▸ api <span class=\"cur blink\">_</span>",
+             "&gt; cycle_runner --verbose · адаптеры ▸ стратегии ▸ риск ▸ ребаланс ▸ evidence ▸ api <span class=\"cur blink\">_</span>"],
+    p_policy:["RISK POLICY v1.0","RISK POLICY v1.0"], b_enforced:["ENFORCED","ЖЁСТКО"],
+    rp_tvl:["TVL FLOOR / POOL","TVL ПОЛ / ПУЛ"], rp_t1:["PER-PROTOCOL CAP T1","CAP ПРОТОКОЛА T1"],
+    rp_t2:["PER-PROTOCOL CAP T2","CAP ПРОТОКОЛА T2"], rp_t2t:["T2 TOTAL CAP","T2 ОБЩИЙ CAP"],
+    rp_apy:["APY BAND","APY ДИАПАЗОН"], rp_cash:["MIN CASH BUFFER","МИН CASH БУФЕР"],
+    rp_kill:["KILL SWITCH DD","KILL SWITCH DD"],
+    p_agents_a:["FLEET REGISTER · A","РЕЕСТР ФЛОТА · A"], p_agents_b:["FLEET REGISTER · B","РЕЕСТР ФЛОТА · B"],
+    p_feed:["ATTENTION FEED","ЛЕНТА ВНИМАНИЯ"], b_scan:["SCANNING","СКАН"],
+    b_armed2:["ARMED","ВЗВЕДЁН"],
+    th_id:["AGENT ID","ID АГЕНТА"], th_sched:["SCHED","ГРАФИК"], th_st:["STATUS","СТАТУС"], th_role:["ROLE","РОЛЬ"],
+    cmd:["launchctl list | grep spa | wc -l","launchctl list | grep spa | wc -l"],
+    link_init:["INIT","ИНИЦ"], link_up:["LINK UP","LINK UP"], link_down:["LINK DOWN","LINK DOWN"],
+    /* group labels */
+    g_cycle:["CYCLE ENGINES","ДВИЖКИ ЦИКЛОВ"], g_mon:["MONITORING","МОНИТОРИНГ"],
+    g_risk:["RISK / MARKET","РИСК / РЫНОК"], g_tier1:["TIER-1 VALIDATION","TIER-1 ВАЛИДАЦИЯ"],
+    g_report:["REPORTING","ОТЧЁТЫ"], g_heal:["SELF-HEALING","САМОВОССТАНОВЛЕНИЕ"],
+    g_svc:["SERVICES / INFRA","СЕРВИСЫ / ИНФРА"],
+    /* feed seed messages */
+    f_boot:["fleet register loaded — {n} launchd agents enumerated","реестр загружен — {n} launchd-агентов перечислено"],
+    f_gate:["risk gate deterministic · LLM calls forbidden in risk/exec","risk gate детерминирован · LLM запрещён в risk/exec"],
+    f_sky:["sky/sUSDS pinned 0% until GSM pause-delay ≥ 48h on-chain","sky/sUSDS зафиксирован 0% до GSM pause-delay ≥ 48h on-chain"],
+    f_track:["go-live track 27/29 — 2 criteria pending (track days)","go-live трек 27/29 — 2 критерия pending (дни трека)"],
+    f_heal:["self_heal sweep ok · 0 dead agents revived this cycle","self_heal sweep ok · 0 мёртвых агентов поднято за цикл"],
+    f_offline:["live link down — fleet shown from static register","live-линк недоступен — реестр из статики"]
+  };
+
+  /* ===================== AGENT MODEL (43 launchd agents) ===================== */
+  var GROUPS = [
+    {key:"g_cycle",  color:"--green"},
+    {key:"g_mon",    color:"--cyan"},
+    {key:"g_risk",   color:"--red"},
+    {key:"g_tier1",  color:"--amber"},
+    {key:"g_report", color:"--cyan"},
+    {key:"g_heal",   color:"--amber"},
+    {key:"g_svc",    color:"--dim"}
+  ];
+  // crit=true → blinking LED when status critical; all default steady when ok
+  var AGENTS = [
+    /* cycle engines */
+    {id:"com.spa.daily_cycle", g:"g_cycle", sc:"08:00 UTC", crit:true, r:["Canonical daily paper cycle: adapters → strategies → risk → rebalance → evidence.","Канонический дневной paper-цикл: адаптеры → стратегии → risk → ребаланс → evidence."]},
+    {id:"com.spa.hy_cycle", g:"g_cycle", sc:"hourly", r:["High-yield / carry sleeve ($20k) — separate paper book on the $100k core.","HY/carry-sleeve ($20k) — отдельная paper-книга поверх ядра $100k."]},
+    {id:"com.spa.lp_cycle", g:"g_cycle", sc:"hourly", r:["Liquidity-provision sleeve ($10k) — accrues at live LP APY.","LP-sleeve ($10k) — доход по живому LP APY."]},
+    {id:"com.spa.tournament_engine", g:"g_cycle", sc:"09:00 UTC", r:["Ranks 60 strategies by Sharpe; backtest→paper→live promotion pipeline.","Ранжирует 60 стратегий по Sharpe; пайплайн backtest→paper→live."]},
+    {id:"com.spa.mass_tournament", g:"g_cycle", sc:"daily", r:["Mass backtest tournament across full strategy universe; refreshes ranking.","Массовый backtest-турнир по всему набору; обновляет ranking."]},
+    /* monitoring */
+    {id:"com.spa.agent_health", g:"g_mon", sc:"hourly", crit:true, r:["Heartbeat over every com.spa.* agent — the fleet's source of truth.","Heartbeat по всем com.spa.* агентам — источник истины флота."]},
+    {id:"com.spa.cycle_health", g:"g_mon", sc:"15 min", r:["Watches daily-cycle freshness vs equity curve; alerts on staleness.","Следит за свежестью цикла по equity curve; алертит при застое."]},
+    {id:"com.spa.cycle_gap_monitor", g:"g_mon", sc:"5 min", crit:true, r:["Tracks track-record continuity toward the 30-day go-live target.","Отслеживает непрерывность трека к цели 30 дней go-live."]},
+    {id:"com.spa.uptime_monitor", g:"g_mon", sc:"5 min", r:["Probes live API / tunnel uptime end-to-end.","Проверяет uptime live API / туннеля end-to-end."]},
+    {id:"com.spa.system_health_morning", g:"g_mon", sc:"08:30 UTC", r:["Morning E2E + semantic health sweep across 7 domains.","Утренний E2E + семантический health-проход по 7 доменам."]},
+    {id:"com.spa.system_health_evening", g:"g_mon", sc:"20:30 UTC", r:["Evening E2E + semantic health sweep across 7 domains.","Вечерний E2E + семантический health-проход по 7 доменам."]},
+    {id:"com.spa.system_briefing", g:"g_mon", sc:"30 min", r:["Regenerates SYSTEM_BRIEFING.md — canonical operational snapshot.","Перегенерирует SYSTEM_BRIEFING.md — операционный снимок."]},
+    {id:"com.spa.portfolio_monitor", g:"g_mon", sc:"5 min", r:["Watches portfolio health score, APY ceiling and concentration.","Следит за health score, потолком APY и концентрацией."]},
+    {id:"com.spa.dashboard_watcher", g:"g_mon", sc:"5 min", r:["Polls live API and pushes Telegram alerts on drift.","Опрашивает live API и шлёт Telegram-алерты при дрейфе."]},
+    /* risk / market */
+    {id:"com.spa.rules_watchdog", g:"g_risk", sc:"5 min", crit:true, r:["Enforces hard invariants (RULES.md); flags policy violations.","Следит за жёсткими инвариантами (RULES.md); флагует нарушения."]},
+    {id:"com.spa.red_flag_monitor", g:"g_risk", sc:"5 min", crit:true, r:["Scans held protocols for red flags; can arm the kill-switch.","Сканирует held-протоколы на red flags; может взвести kill-switch."]},
+    {id:"com.spa.peg_monitor", g:"g_risk", sc:"5 min", r:["Monitors stablecoin peg deviation across held assets.","Мониторит отклонение пега стейблов в портфеле."]},
+    {id:"com.spa.threat_reactor", g:"g_risk", sc:"5 min", crit:true, r:["Auto-arms kill-switch intraday on CRITICAL threats to held protocols.","Авто-взводит kill-switch при CRITICAL-угрозах held-протоколам."]},
+    {id:"com.spa.sky_monitor", g:"g_risk", sc:"daily", r:["Checks Sky/sUSDS GSM Pause Delay; keeps APY 0% until ≥48h.","Проверяет Sky/sUSDS GSM Pause Delay; держит APY 0% до ≥48h."]},
+    {id:"com.spa.governance_watcher", g:"g_risk", sc:"15 min", r:["Watches governance proposals affecting held positions.","Следит за governance-предложениями по позициям."]},
+    {id:"com.spa.base_gas_monitor", g:"g_risk", sc:"daily", r:["Tracks Base L2 gas affecting rebalance economics.","Отслеживает газ Base L2, влияющий на ребаланс."]},
+    {id:"com.spa.bts-feed", g:"g_risk", sc:"mid-freq", r:["Behavioural / threat-signal feed ingest for the risk layer.","Приём behavioural / threat-signal фида для risk-слоя."]},
+    {id:"com.spa.bts-monitor", g:"g_risk", sc:"mid-freq", r:["Monitors the threat-signal feed and surfaces anomalies.","Мониторит threat-signal фид и выявляет аномалии."]},
+    /* tier-1 validation */
+    {id:"com.spa.analytics_tier_b", g:"g_tier1", sc:"mid-freq", r:["Tier-B analytics: deeper attribution & comparators.","Tier-B аналитика: глубокая attribution и сравнения."]},
+    {id:"com.spa.analytics_tier_c", g:"g_tier1", sc:"daily", r:["Tier-C analytics: heavier daily aggregates and tear-sheets.","Tier-C аналитика: тяжёлые агрегаты и tear-sheet."]},
+    {id:"com.spa.tier1_digest", g:"g_tier1", sc:"daily", r:["Tier-1 digest: validation gate, NAV reconciliation, package status.","Tier-1 дайджест: gate валидации, сверка NAV, статус пакетов."]},
+    {id:"com.spa.tier1_governance", g:"g_tier1", sc:"daily", r:["Tier-1 governance: default-deny policy table & dual-control.","Tier-1 governance: default-deny таблица и dual-control."]},
+    {id:"com.spa.checkpoint-7day", g:"g_tier1", sc:"7-day", r:["Seven-day track-record checkpoint snapshot.","Чекпойнт трека каждые 7 дней."]},
+    /* reporting */
+    {id:"com.spa.morning_digest", g:"g_report", sc:"08:05 UTC", r:["Morning operational digest to Telegram.","Утренний операционный дайджест в Telegram."]},
+    {id:"com.spa.telegram_daily", g:"g_report", sc:"daily", r:["Consolidated daily paper-trading report (HTML, single send).","Сводный дневной paper-отчёт (HTML, один отправ)."]},
+    {id:"com.spa.telegram_weekly", g:"g_report", sc:"Mon 10:00", r:["Weekly performance summary to Telegram.","Недельная сводка результатов в Telegram."]},
+    {id:"com.spa.telegram_milestone", g:"g_report", sc:"hourly", r:["Fires alerts when track-record milestones are reached.","Шлёт алерты при достижении milestone трека."]},
+    {id:"com.spa.cpa_daily", g:"g_report", sc:"daily", r:["Daily performance-attribution report (CPA).","Дневной отчёт performance-attribution (CPA)."]},
+    /* self-healing */
+    {id:"com.spa.self_heal", g:"g_heal", sc:"5 min", crit:true, r:["Revives dead launchd agents and recovers missed daily cycles.","Оживляет мёртвых launchd-агентов и восстанавливает циклы."]},
+    {id:"com.spa.watchdog", g:"g_heal", sc:"5 min", crit:true, r:["Guards the healer — restarts self_heal and core agents if they die.","Сторожит healer — перезапускает self_heal и ключевых агентов."]},
+    /* services */
+    {id:"com.spa.apiserver", g:"g_svc", sc:"always-on", crit:true, r:["FastAPI server :8765 serving /api/live/* and /api/tier1/*.","FastAPI-сервер :8765, отдаёт /api/live/* и /api/tier1/*."]},
+    {id:"com.spa.httpserver", g:"g_svc", sc:"always-on", r:["Static stdlib HTTP server fronting dashboard assets.","Статический stdlib HTTP-сервер для дашборда."]},
+    {id:"com.spa.cloudflared", g:"g_svc", sc:"always-on", crit:true, r:["Cloudflare tunnel exposing api.earn-defi.com.","Cloudflare-туннель для api.earn-defi.com."]},
+    {id:"com.spa.familyfund", g:"g_svc", sc:"always-on", r:["Family Fund investor-cabinet API (:8766, JWT).","API кабинета инвестора Family Fund (:8766, JWT)."]},
+    {id:"com.spa.dashboard", g:"g_svc", sc:"always-on", r:["Dashboard service (:8767).","Сервис дашборда (:8767)."]},
+    {id:"com.spa.bot_commands", g:"g_svc", sc:"always-on", r:["Telegram command bot (interactive queries).","Telegram-бот команд (интерактивные запросы)."]},
+    {id:"com.spa.autopush", g:"g_svc", sc:"90 min", r:["Processes push_v*.sh scripts → commits to GitHub.","Обрабатывает push_v*.sh → коммиты в GitHub."]},
+    {id:"com.spa.weekly_backup", g:"g_svc", sc:"weekly", r:["Weekly state/data backup job.","Еженедельный бэкап состояния/данных."]}
+  ];
+
+  /* ===================== language state ===================== */
+  var lang = (function(){ try{ return localStorage.getItem('spa_lang')||'en'; }catch(e){ return 'en'; } })();
+  if(lang!=='ru') lang='en';
+  function ix(){ return lang==='ru'?1:0; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function shortName(id){ return id.replace(/^com\.spa\./,''); }
+
+  function applyStatic(){
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i]').forEach(function(el){
+      var k = el.getAttribute('data-i'); if(T[k]) el.innerHTML = T[k][ix()];
+    });
+    document.getElementById('lang-en').className = lang==='en'?'on':'';
+    document.getElementById('lang-ru').className = lang==='ru'?'on':'';
+  }
+  function setLang(l){
+    lang = (l==='ru')?'ru':'en';
+    try{ localStorage.setItem('spa_lang', lang); }catch(e){}
+    applyStatic(); renderTables(); renderFeed(); renderTicker();
+    if(LAST) paint(LAST);
+  }
+
+  /* ===================== status ===================== */
+  var STATUS = {}; // id -> {status, issue}
+  function clsOf(s){ s=(s||'').toUpperCase(); return s.indexOf('CRIT')>=0?'crit':s.indexOf('WARN')>=0?'warn':(s?'ok':''); }
+  function stOf(id){ var st=STATUS[id]; if(!st) return LINK_UP?'ok':'unk'; return clsOf(st.status)||'ok'; }
+  var ST_LABEL = {ok:["OK","OK"],warn:["WARN","WARN"],crit:["CRIT","CRIT"],unk:["--","--"]};
+
+  /* ===================== agent tables ===================== */
+  function rowsForGroups(keys){
+    var html='';
+    keys.forEach(function(gk){
+      var list = AGENTS.filter(function(a){return a.g===gk;});
+      if(!list.length) return;
+      html += '<div class="grpbar"><span>'+esc(T[gk][ix()])+'</span><span class="ln"></span><span class="cnt">'+list.length+'</span></div>';
+      html += '<table class="tbl"><thead><tr>'+
+        '<th>'+T.th_id[ix()]+'</th><th>'+T.th_sched[ix()]+'</th><th>'+T.th_st[ix()]+'</th><th>'+T.th_role[ix()]+'</th>'+
+        '</tr></thead><tbody>';
+      list.forEach(function(a){
+        var k=stOf(a.id);
+        var blink = (a.crit && k==='crit') ? ' blink' : '';
+        var stxt = STATUS[a.id] ? STATUS[a.id].status : ST_LABEL[k][ix()];
+        html += '<tr>'+
+          '<td class="c-id"><span class="pfx">com.spa.</span>'+esc(shortName(a.id))+'</td>'+
+          '<td class="c-sched">'+esc(a.sc)+'</td>'+
+          '<td class="c-st"><span class="stcell '+k+'"><span class="led '+k+blink+'"></span>'+esc(stxt)+'</span></td>'+
+          '<td class="c-role">'+esc(a.r[ix()])+'</td>'+
+          '</tr>';
+      });
+      html += '</tbody></table>';
+    });
+    return html;
+  }
+  function renderTables(){
+    document.getElementById('reg-a').innerHTML = rowsForGroups(["g_cycle","g_mon","g_risk"]);
+    document.getElementById('reg-b').innerHTML = rowsForGroups(["g_tier1","g_report","g_heal","g_svc"]);
+    // register badges = worst status in section
+    setRegBadge('reg-a-badge', ["g_cycle","g_mon","g_risk"]);
+    setRegBadge('reg-b-badge', ["g_tier1","g_report","g_heal","g_svc"]);
+  }
+  function setRegBadge(elid, keys){
+    var worst='ok', any=false;
+    AGENTS.forEach(function(a){
+      if(keys.indexOf(a.g)<0) return;
+      var k=stOf(a.id); if(k==='unk') return; any=true;
+      if(k==='crit') worst='crit'; else if(k==='warn'&&worst!=='crit') worst='warn';
+    });
+    var el=document.getElementById(elid);
+    if(!any){ el.className='badge'; el.textContent = LINK_UP?'—':(lang==='ru'?'STATIC':'STATIC'); return; }
+    el.className='badge '+worst;
+    el.textContent = worst==='ok'?(lang==='ru'?'ВСЕ OK':'ALL OK'):worst.toUpperCase();
+  }
+
+  /* ===================== attention feed ===================== */
+  function nowHMS(){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} return p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds()); }
+  function renderFeed(){
+    var rows = [];
+    if(!LINK_UP){
+      rows.push({lv:'warn', m:T.f_offline[ix()]});
+    }
+    rows.push({lv:'info', m:T.f_boot[ix()].replace('{n}', String(AGENTS.length))});
+    rows.push({lv:'ok',   m:T.f_heal[ix()]});
+    rows.push({lv:'ok',   m:T.f_gate[ix()]});
+    rows.push({lv:'warn', m:T.f_sky[ix()]});
+    rows.push({lv:'warn', m:T.f_track[ix()]});
+    // live status-derived rows
+    var bad = AGENTS.filter(function(a){ var k=stOf(a.id); return k==='crit'||k==='warn'; });
+    bad.slice(0,4).forEach(function(a){
+      var k=stOf(a.id); var st=STATUS[a.id];
+      rows.unshift({lv:k, m:'<b>'+esc(shortName(a.id))+'</b> · '+esc(st?(st.status+(st.issue?(' · '+st.issue):'')):k.toUpperCase())});
+    });
+    var el=document.getElementById('feed');
+    el.innerHTML = rows.map(function(r){
+      return '<div class="row"><span class="ts">'+nowHMS()+'</span>'+
+        '<span class="lv '+r.lv+'">'+(r.lv==='ok'?'OK':r.lv==='info'?'INFO':r.lv.toUpperCase())+'</span>'+
+        '<span class="msg">'+r.m+'</span></div>';
+    }).join('');
+    var fb=document.getElementById('feed-badge');
+    var crit = AGENTS.some(function(a){return stOf(a.id)==='crit';});
+    var warn = AGENTS.some(function(a){return stOf(a.id)==='warn';});
+    if(crit){ fb.className='badge crit'; fb.textContent=lang==='ru'?'CRIT':'CRITICAL'; }
+    else if(warn){ fb.className='badge warn'; fb.textContent=lang==='ru'?'WARN':'WARN'; }
+    else { fb.className='badge ok'; fb.textContent=lang==='ru'?'ЧИСТО':'CLEAR'; }
+  }
+
+  /* ===================== ticker ===================== */
+  var TICK = {agents:'--/--', cycle:'06:00', risk:'OK', golive:'27/29', overall:'NOMINAL'};
+  function renderTicker(){
+    function it(label,val,cls){ return '<span class="it"><b>'+label+'</b> <span class="'+(cls||'')+'">'+esc(val)+'</span></span>'; }
+    var oc = clsOf(TICK.overall)==='crit'?'v-crit':clsOf(TICK.overall)==='warn'?'v-warn':'v-ok';
+    var seg =
+      it(lang==='ru'?'АГЕНТЫ':'AGENTS', TICK.agents, 'v-ok')+
+      it(lang==='ru'?'ЦИКЛ':'CYCLE', TICK.cycle, '')+
+      it(lang==='ru'?'РИСК':'RISK', TICK.risk, clsOf(TICK.risk)==='ok'?'v-ok':clsOf(TICK.risk)==='warn'?'v-warn':'v-crit')+
+      it('GO-LIVE', TICK.golive, 'v-warn')+
+      it(lang==='ru'?'ФЛОТ':'FLEET', TICK.overall, oc)+
+      it('RISK-POLICY','v1.0 · LLM-OFF','v-ok')+
+      it(lang==='ru'?'ТРЕК':'TRACK','PAPER · $100K','')+
+      it('SKY/sUSDS','0% · GSM<48H','v-warn')+
+      it(lang==='ru'?'СИНК':'SYNC', new Date().toLocaleTimeString('en-GB'), '');
+    // duplicate for seamless scroll
+    document.getElementById('ticker-run').innerHTML = seg+seg;
+  }
+
+  /* ===================== pipeline LEDs ===================== */
+  function setFlowLeds(state){
+    ['fl-ada','fl-str','fl-rsk','fl-reb','fl-evd','fl-api'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.className='led '+state;
+    });
+  }
+
+  /* ===================== live API ===================== */
+  var LAST=null, LINK_UP=false;
+  function paint(d){
+    LAST=d; LINK_UP=true;
+    var ags = d.agents||[]; if(!Array.isArray(ags)) ags = Object.values(ags||{});
+    STATUS={};
+    ags.forEach(function(a){ if(a.label) STATUS[a.label]={status:a.status,issue:a.issue||''}; });
+
+    var ok = (d.healthy_count!=null)?d.healthy_count:ags.filter(function(a){return clsOf(a.status)==='ok';}).length;
+    var total = d.total_agents!=null?d.total_agents:(ags.length||AGENTS.length);
+    var overall = d.overall_status||'NOMINAL';
+
+    // KPI strip
+    document.getElementById('kpi-agents').textContent = ok+'/'+total;
+    var oc = clsOf(overall);
+    var dotEl=document.getElementById('kpi-dot');
+    dotEl.style.background = oc==='crit'?'var(--red)':oc==='warn'?'var(--amber)':'var(--green)';
+    dotEl.style.boxShadow = '0 0 7px '+(oc==='crit'?'var(--red)':oc==='warn'?'var(--amber)':'var(--green)');
+    var kb=document.getElementById('kpi-badge');
+    kb.className='badge '+(oc||'ok'); kb.textContent=overall.toUpperCase();
+    if(d.golive){ document.getElementById('kpi-golive').textContent = d.golive; }
+    if(d.risk_status){ document.getElementById('kpi-risk').textContent = d.risk_status; }
+
+    // flow leds reflect cycle freshness
+    setFlowLeds(oc==='crit'?'crit':oc==='warn'?'warn':'ok');
+    var gateEl=document.getElementById('fl-rsk');
+    if(gateEl) gateEl.className='led ok'; // gate is deterministic/always armed
+
+    // link state
+    setLink(true);
+
+    // ticker
+    TICK.agents = ok+'/'+total;
+    TICK.overall = overall.toUpperCase();
+    if(d.risk_status) TICK.risk = d.risk_status;
+    if(d.golive) TICK.golive = d.golive;
+
+    document.getElementById('sync-ts').textContent = new Date().toLocaleTimeString('en-GB');
+    renderTables(); renderFeed(); renderTicker();
+  }
+  function setLink(up){
+    var el=document.getElementById('link-state');
+    if(up){ el.textContent=T.link_up[ix()]; el.style.color='var(--green)'; }
+    else  { el.textContent=T.link_down[ix()]; el.style.color='var(--red)'; }
+  }
+  function offline(){
+    LINK_UP=false; STATUS={};
+    setLink(false);
+    document.getElementById('kpi-agents').textContent = '--/'+AGENTS.length;
+    var dotEl=document.getElementById('kpi-dot');
+    dotEl.style.background='var(--amber)'; dotEl.style.boxShadow='0 0 7px var(--amber)';
+    var kb=document.getElementById('kpi-badge'); kb.className='badge warn'; kb.textContent=T.link_down[ix()];
+    setFlowLeds('idle');
+    TICK.agents='--/'+AGENTS.length; TICK.overall=lang==='ru'?'LINK DOWN':'LINK DOWN';
+    document.getElementById('sync-ts').textContent = new Date().toLocaleTimeString('en-GB');
+    renderTables(); renderFeed(); renderTicker();
+  }
+  function loadAgents(){
+    fetch(API+'/api/live/agents').then(function(r){
+      if(!r.ok) throw new Error('http '+r.status); return r.json();
+    }).then(paint).catch(offline);
+  }
+
+  /* ===================== init ===================== */
+  document.getElementById('feed-host').textContent = API.replace(/^https?:\/\//,'');
+  applyStatic();
+  renderTables();
+  renderFeed();
+  renderTicker();
+  loadAgents();
+  setInterval(loadAgents, 30000);
+  setInterval(renderTicker, 15000); // refresh sync clock segment
+
+  return { setLang:setLang };
+})();
+</script>
+</body>
+</html>
