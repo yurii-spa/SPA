@@ -41,7 +41,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Daily yield | **$13.44/день** · APY сегодня ~4.9% |
 | GoLive | ⛔ **26/29 pass** — NOT READY (3 блокера) |
 | Sprint | **v12.82** · Done: **1358** · Backlog: 0 |
-| Агенты | ✅ **12/12 установлены** (FAIL=0, 2026-06-22 14:48) |
+| Агенты | ✅ **~37 загружено** (agent_health crit=0; источник истины — `launchctl list \| grep spa` / SYSTEM_BRIEFING, НЕ это число) |
 | Push queue | 7 скриптов v1357–v1363 ждут autopush (~90 мин цикл) |
 | Repo | `yurii-spa/SPA` (GitHub) |
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
@@ -55,7 +55,10 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 ## ⚙️ LaunchAgents (установлены 2026-06-22, FAIL=0)
 
-Все 12 агентов в `~/Library/LaunchAgents/` — переживают перезагрузку.
+~37 агентов в `~/Library/LaunchAgents/` — переживают перезагрузку. Таблица ниже —
+лишь ключевые; полный актуальный список ВСЕГДА `launchctl list | grep spa` (это число
+дрейфует, не доверяй ему — доверяй launchctl/SYSTEM_BRIEFING). `com.spa.system_briefing`
+доустановлен 2026-06-24.
 
 | Агент | Расписание | Статус |
 |---|---|---|
@@ -273,4 +276,4 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 
 ---
 
-*Обновлено: 2026-06-22 (v12.82 — мигрировано в Claude Code; 12 агентов установлены; tournament engine; SYSTEM_BRIEFING.md mandatory read).*
+*Обновлено: 2026-06-24 (v12.83 — ~37 агентов загружено, source of truth = launchctl/SYSTEM_BRIEFING; system_briefing доустановлен; daily_cycle canonical runner + ALLOC-002; HY/LP sleeves активированы; agent_health честно зелёный).*
