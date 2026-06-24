@@ -198,13 +198,11 @@ install_agent \
     "com.spa.telegram_milestone" \
     "1"
 
-# 18. Dashboard static server — ⚠️ DISABLED: PORT CONFLICT with familyfund (both :8766).
-#     familyfund (:8766) is canonical per CLAUDE.md. Resolve dashboard's port before enabling.
-#     Plist is kept in repo (scripts/com.spa.dashboard.plist) for reproducibility.
-# install_agent \
-#     "$REPO/scripts/com.spa.dashboard.plist" \
-#     "com.spa.dashboard" \
-#     "1"
+# 18. Dashboard static server — :8767 (moved off :8766 to avoid familyfund conflict)
+install_agent \
+    "$REPO/scripts/com.spa.dashboard.plist" \
+    "com.spa.dashboard" \
+    "1"
 
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
