@@ -159,6 +159,15 @@ def _reconcile(computed_nav: float, reported_equity: Optional[float]) -> dict:
     }
 
 
+def _load_accrued_yield() -> float:
+    """accrued_yield_usd from current_positions.json (0 if absent). Separate fn so tests can
+    monkeypatch it like _load_positions/_load_cash."""
+    try:
+        return float(_read_json(_POSITIONS).get("accrued_yield_usd") or 0.0)
+    except Exception:
+        return 0.0
+
+
 def compute_nav() -> dict:
     """NAV = sum(position_usd) + cash, reconciled against reported current_equity.
 
@@ -167,13 +176,17 @@ def compute_nav() -> dict:
     positions = _load_positions()
     cash_usd = round(_load_cash(), 8)
     deployed = round(sum(positions.values()), 8)
-    computed_nav = round(deployed + cash_usd, 8)
+    # Positions/cash are at COST BASIS; accrued yield is an explicit component so NAV
+    # reconciles to the headline equity without re-marking positions each cycle.
+    accrued_yield = round(_load_accrued_yield(), 8)
+    computed_nav = round(deployed + cash_usd + accrued_yield, 8)
     reported = _load_reported_equity()
     rec = _reconcile(computed_nav, reported)
     return {
         "positions": [{"protocol": p, "usd": positions[p]} for p in sorted(positions)],
         "cash_usd": cash_usd,
         "deployed_usd": deployed,
+        "accrued_yield_usd": accrued_yield,
         "computed_nav_usd": computed_nav,
         "reported_equity_usd": reported,
         **rec,
@@ -196,6 +209,7 @@ def build_proof(write: bool = True) -> dict:
         "positions": nav["positions"],
         "cash_usd": nav["cash_usd"],
         "deployed_usd": nav["deployed_usd"],
+        "accrued_yield_usd": nav["accrued_yield_usd"],
         "computed_nav_usd": nav["computed_nav_usd"],
         "reported_equity_usd": nav["reported_equity_usd"],
         "reconciliation_delta_usd": nav["reconciliation_delta_usd"],
@@ -243,8 +257,9 @@ def verify_proof(proof: dict) -> bool:
         if _components_hash(positions_map, cash_usd) != proof.get("components_hash"):
             return False
 
-        # 2) NAV equals sum of parts (this catches a tampered computed_nav_usd)
-        recomputed_nav = round(recomputed_sum + cash_usd, 8)
+        # 2) NAV equals sum of parts incl. accrued yield (catches a tampered computed_nav_usd)
+        accrued_yield = float(proof.get("accrued_yield_usd", 0.0) or 0.0)
+        recomputed_nav = round(recomputed_sum + cash_usd + accrued_yield, 8)
         claimed_nav = round(float(proof.get("computed_nav_usd")), 8)
         if abs(recomputed_nav - claimed_nav) > 1e-6:
             return False
