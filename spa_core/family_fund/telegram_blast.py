@@ -105,27 +105,17 @@ class TelegramBlast:
 
     def _post(self, token: str, chat_id: str, text: str, parse_mode: str = "Markdown") -> dict:
         """
-        Send a Telegram message via the Bot API.
-        Returns the API response dict.
-        Raises urllib.error.HTTPError / RuntimeError on failure.
+        Send a Telegram message via the canonical rate-limited client.
+        Returns an API-shaped response dict ``{"ok": bool}``.
+
+        FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
+        cross-process rate limit applies. Transport only — same payload. The
+        ``token``/``chat_id`` args are kept for signature compatibility; the
+        canonical client re-resolves them from the Keychain (TELEGRAM_*_SPA).
         """
-        url = self._TELEGRAM_API.format(token=token)
-        payload = json.dumps(
-            {
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": parse_mode,
-                "disable_web_page_preview": True,
-            }
-        ).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        from spa_core.alerts.telegram_client import send_message
+        ok = send_message(text, parse_mode=parse_mode)
+        return {"ok": bool(ok)}
 
     # ------------------------------------------------------------------ #
     # Public API
