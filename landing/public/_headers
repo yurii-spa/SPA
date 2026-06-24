@@ -6,6 +6,21 @@
   X-Robots-Tag: noindex, nofollow
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.earn-defi.com https://api.llama.fi https://yields.llama.fi
 
+# Live dashboard + agents page: looser CSP than the marketing pages — they need
+# Chart.js (cdnjs), Google Fonts, the live API (api.earn-defi.com) and GitHub raw
+# (KANBAN). Kept separate so the landing's strict default CSP is unaffected.
+/app.html
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://api.earn-defi.com https://raw.githubusercontent.com https://api.llama.fi https://yields.llama.fi
+  Cache-Control: no-cache
+
+/agents.html
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.earn-defi.com
+  Cache-Control: no-cache
+
+/tournament.html
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.earn-defi.com
+  Cache-Control: no-cache
+
 /api/*
   Cache-Control: no-cache, no-store, must-revalidate
 
