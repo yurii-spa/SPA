@@ -238,6 +238,13 @@ install_agent \
     "com.spa.tier1_governance" \
     "1"
 
+# 22. Strategy-Lab live paper service — hourly single-tick; paper-trades ALL lab strategies
+#     on live data into a growing time-series; restart-survival (state restored, not zeroed).
+install_agent \
+    "$REPO/scripts/com.spa.strategy_lab_paper.plist" \
+    "com.spa.strategy_lab_paper" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
