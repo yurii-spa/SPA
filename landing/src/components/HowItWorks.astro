@@ -9,11 +9,11 @@
 
     <!-- Header -->
     <div class="mb-16 max-w-2xl">
-      <p class="text-accent-400 text-sm font-mono uppercase tracking-widest mb-3">Strategy Methodology</p>
-      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <p class="text-accent-400 text-sm font-mono uppercase tracking-widest mb-3" data-ru="Методология стратегии">Strategy Methodology</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Как работает система">
         How the System Works
       </h2>
-      <p class="text-white/50 leading-relaxed">
+      <p class="text-white/50 leading-relaxed" data-ru="Полностью детерминированно. Никакого человеческого усмотрения в ежедневном исполнении. Никакого LLM на пути риска или исполнения. У каждого решения есть задокументированное правило.">
         Fully deterministic. No human discretion in daily execution. No LLM in the risk or
         execution path. Every decision has a documented rule.
       </p>
@@ -36,9 +36,9 @@
               </svg>
             </div>
             <div class="lg:mt-4">
-              <div class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Step 1 · 08:00 daily</div>
-              <h3 class="text-xl font-semibold text-white mb-3">Daily APY Scan</h3>
-              <p class="text-white/50 text-sm leading-relaxed">
+              <div class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Шаг 1 · ежедневно в 08:00">Step 1 · 08:00 daily</div>
+              <h3 class="text-xl font-semibold text-white mb-3" data-ru="Ежедневное сканирование APY">Daily APY Scan</h3>
+              <p class="text-white/50 text-sm leading-relaxed" data-ru="В 08:00 UTC cycle runner получает актуальные данные по APY и TVL из нескольких whitelist DeFi-протоколов через yields API DeFiLlama. Каждый адаптер протокола работает только на чтение — наблюдает, но никогда не пишет.">
                 At 08:00 UTC, the cycle runner fetches live APY and TVL data from several whitelisted
                 DeFi protocols via DeFiLlama's yields API. Each protocol adapter is read-only —
                 it observes, never writes.
@@ -46,15 +46,15 @@
               <ul class="mt-4 space-y-1.5 text-sm text-white/35">
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-accent-500 flex-shrink-0" aria-hidden="true"></span>
-                  Aave V3, Compound V3, Morpho Steakhouse (Tier 1)
+                  <span data-ru="Aave V3, Compound V3, Morpho Steakhouse (Уровень 1)">Aave V3, Compound V3, Morpho Steakhouse (Tier 1)</span>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-accent-500/50 flex-shrink-0" aria-hidden="true"></span>
-                  Morpho Blue, Yearn V3, Euler V2, Maple (Tier 2)
+                  <span data-ru="Morpho Blue, Yearn V3, Euler V2, Maple (Уровень 2)">Morpho Blue, Yearn V3, Euler V2, Maple (Tier 2)</span>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-accent-500/20 flex-shrink-0" aria-hidden="true"></span>
-                  Pendle PT (Tier 3-SPEC, advisory only)
+                  <span data-ru="Pendle PT (Уровень 3-SPEC, только рекомендательно)">Pendle PT (Tier 3-SPEC, advisory only)</span>
                 </li>
               </ul>
             </div>
@@ -70,29 +70,29 @@
               </svg>
             </div>
             <div class="lg:mt-4">
-              <div class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-2">Step 2 · Deterministic gate</div>
-              <h3 class="text-xl font-semibold text-white mb-3">Risk-Gated Rebalancing</h3>
+              <div class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-2" data-ru="Шаг 2 · Детерминированный гейт">Step 2 · Deterministic gate</div>
+              <h3 class="text-xl font-semibold text-white mb-3" data-ru="Ребалансировка через риск-гейт">Risk-Gated Rebalancing</h3>
               <p class="text-white/50 text-sm leading-relaxed">
-                Every proposed allocation passes through RiskPolicy v1.0 — a hard-coded,
+                <span data-ru="Каждое предлагаемое размещение проходит через RiskPolicy v1.0 — жёстко зашитый, неотменяемый гейт. При нарушении любого лимита ребалансировка блокируется и логируется в">Every proposed allocation passes through RiskPolicy v1.0 — a hard-coded,
                 non-overridable gate. If any limit is breached, the rebalance is blocked
-                and logged to <code class="text-white/40 text-xs font-mono">data/risk_policy_blocks.json</code>.
+                and logged to</span> <code class="text-white/40 text-xs font-mono">data/risk_policy_blocks.json</code>.
               </p>
               <ul class="mt-4 space-y-1.5 text-sm text-white/35">
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
-                  TVL floor ≥ $5M per pool
+                  <span data-ru="Минимум TVL ≥ $5M на пул">TVL floor ≥ $5M per pool</span>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
-                  Per-protocol cap: 40% (T1) / 20% (T2)
+                  <span data-ru="Лимит на протокол: 40% (T1) / 20% (T2)">Per-protocol cap: 40% (T1) / 20% (T2)</span>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
-                  Kill switch: portfolio drawdown ≥ 5% closes all
+                  <span data-ru="Kill switch: просадка портфеля ≥ 5% закрывает всё">Kill switch: portfolio drawdown ≥ 5% closes all</span>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-teal-500 flex-shrink-0" aria-hidden="true"></span>
-                  Min cash buffer ≥ 5% · APY range 1–30%
+                  <span data-ru="Мин. денежный буфер ≥ 5% · диапазон APY 1–30%">Min cash buffer ≥ 5% · APY range 1–30%</span>
                 </li>
               </ul>
             </div>
@@ -108,9 +108,9 @@
               </svg>
             </div>
             <div class="lg:mt-4">
-              <div class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2">Step 3 · Daily compounding</div>
-              <h3 class="text-xl font-semibold text-white mb-3">Compounding Yield, Logged</h3>
-              <p class="text-white/50 text-sm leading-relaxed">
+              <div class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Шаг 3 · Ежедневное реинвестирование">Step 3 · Daily compounding</div>
+              <h3 class="text-xl font-semibold text-white mb-3" data-ru="Доходность с реинвестом, под логом">Compounding Yield, Logged</h3>
+              <p class="text-white/50 text-sm leading-relaxed" data-ru="Одобренные ребалансировки исполняются, ежедневная доходность начисляется на позиции, и кривая капитала обновляется — всё атомарно записывается в версионируемые JSON-файлы. Мультистратегический турнир (только рекомендательный) оценивает размещения по метрикам Sharpe, Calmar, Ulcer и Rachev — окончательное решение go/no-go принимает гейт RiskPolicy.">
                 Approved rebalances execute, daily yield accrues to positions, and the equity
                 curve updates — all written atomically to versioned JSON files.
                 A multi-strategy tournament (advisory-only) evaluates allocations via Sharpe, Calmar,
@@ -119,15 +119,15 @@
               <ul class="mt-4 space-y-1.5 text-sm text-white/35">
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" aria-hidden="true"></span>
-                  Equity curve: 365-day rolling window
+                  <span data-ru="Кривая капитала: скользящее окно 365 дней">Equity curve: 365-day rolling window</span>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" aria-hidden="true"></span>
-                  Every trade logged to <code class="text-white/40 text-xs font-mono">data/trades.json</code>
+                  <span data-ru="Каждая сделка логируется в">Every trade logged to</span> <code class="text-white/40 text-xs font-mono">data/trades.json</code>
                 </li>
                 <li class="flex items-center gap-2">
                   <span class="w-1 h-1 rounded-full bg-white/30 flex-shrink-0" aria-hidden="true"></span>
-                  GoLiveChecker: 29 criteria before real capital
+                  <span data-ru="GoLiveChecker: 29 критериев до реального капитала">GoLiveChecker: 29 criteria before real capital</span>
                 </li>
               </ul>
             </div>
@@ -146,11 +146,11 @@
           </span>
         </div>
         <div>
-          <h4 class="text-sm font-semibold text-white mb-1">No AI in the execution path</h4>
+          <h4 class="text-sm font-semibold text-white mb-1" data-ru="Никакого ИИ на пути исполнения">No AI in the execution path</h4>
           <p class="text-white/40 text-sm leading-relaxed">
-            The risk, execution, and monitoring components are strictly forbidden from LLM calls.
+            <span data-ru="Компонентам риска, исполнения и мониторинга строго запрещены вызовы LLM. Prompt-инъекция в распределение капитала — критический вектор атаки, и наша архитектура относится к нему именно так. Каждое решение о ребалансировке восходит к детерминированному правилу в">The risk, execution, and monitoring components are strictly forbidden from LLM calls.
             Prompt injection into capital allocation is a critical attack vector — our architecture
-            treats it as such. Every rebalance decision traces to a deterministic rule in
+            treats it as such. Every rebalance decision traces to a deterministic rule in</span>
             <code class="text-white/50 font-mono text-xs">spa_core/risk/policy.py</code>.
           </p>
         </div>
