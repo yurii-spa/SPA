@@ -29,12 +29,12 @@ const cfg = statusConfig[status];
 
 // Category breakdown from golive_readiness_report.py buckets (0-100 total)
 const categories = [
-  { name: "Gates",          current: 10, max: 20, description: "4-phase CPA gate progression" },
-  { name: "Evidence",       current:  0, max: 25, description: "Paper trading evidence points" },
-  { name: "Infrastructure", current: 12, max: 20, description: "launchd, autopush, Telegram, monitoring" },
-  { name: "Financial",      current:  8, max: 15, description: "APY track, drawdown, Sharpe, Calmar" },
-  { name: "Data Sources",   current:  3, max: 10, description: "Clean evidence coverage (8/24 sources)" },
-  { name: "Documentation",  current:  2, max: 10, description: "ADR confirmations, risk snapshots" },
+  { name: "Gates",          nameRu: "Гейты",          current: 10, max: 20, description: "4-phase CPA gate progression",            descriptionRu: "Прохождение 4-фазного CPA-гейта" },
+  { name: "Evidence",       nameRu: "Доказательства", current:  0, max: 25, description: "Paper trading evidence points",            descriptionRu: "Очки доказательств бумажной торговли" },
+  { name: "Infrastructure", nameRu: "Инфраструктура", current: 12, max: 20, description: "launchd, autopush, Telegram, monitoring",  descriptionRu: "launchd, autopush, Telegram, мониторинг" },
+  { name: "Financial",      nameRu: "Финансы",        current:  8, max: 15, description: "APY track, drawdown, Sharpe, Calmar",      descriptionRu: "Трек APY, просадка, Sharpe, Calmar" },
+  { name: "Data Sources",   nameRu: "Источники данных", current: 3, max: 10, description: "Clean evidence coverage (8/24 sources)",  descriptionRu: "Покрытие чистыми данными (8/24 источника)" },
+  { name: "Documentation",  nameRu: "Документация",   current:  2, max: 10, description: "ADR confirmations, risk snapshots",        descriptionRu: "Подтверждения ADR, снимки риска" },
 ] as const;
 ---
 
@@ -43,8 +43,8 @@ const categories = [
   <!-- Header -->
   <div class="px-5 pt-5 pb-3 border-b border-white/5 flex items-start justify-between gap-4">
     <div>
-      <h2 class="text-sm font-semibold text-white uppercase tracking-wider">GoLive Readiness</h2>
-      <p class="text-[11px] text-white/30 mt-0.5">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider" data-ru="Готовность к GoLive">GoLive Readiness</h2>
+      <p class="text-[11px] text-white/30 mt-0.5" data-ru={`Чекер go-live по 29 критериям · правило передачи ADR-002 · цель: ${etaDate}`}>
         29-criterion go-live checker · ADR-002 transfer rule · target: {etaDate}
       </p>
     </div>
@@ -58,21 +58,21 @@ const categories = [
   <div class="px-5 py-5 border-b border-white/5">
     <div class="flex items-end gap-6 mb-4 flex-wrap">
       <div>
-        <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">Readiness Score</div>
+        <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1" data-ru="Оценка готовности">Readiness Score</div>
         <div class="font-mono text-4xl font-bold text-white leading-none">
           {score}
           <span class="text-white/25 text-xl font-normal"> / 100</span>
         </div>
       </div>
       <div>
-        <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">ETA</div>
+        <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1" data-ru="Срок">ETA</div>
         <div class="font-mono text-lg text-white/70">~{etaDate}</div>
-        <div class="text-[10px] text-white/20 mt-0.5">{etaDays} days remaining</div>
+        <div class="text-[10px] text-white/20 mt-0.5" data-ru={`осталось дней: ${etaDays}`}>{etaDays} days remaining</div>
       </div>
       <div>
-        <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1">Criteria</div>
+        <div class="text-[10px] text-white/25 uppercase tracking-wider mb-1" data-ru="Критерии">Criteria</div>
         <div class="font-mono text-lg text-white/70">16 <span class="text-white/25">/ 26</span></div>
-        <div class="text-[10px] text-white/20 mt-0.5">pass</div>
+        <div class="text-[10px] text-white/20 mt-0.5" data-ru="пройдено">pass</div>
       </div>
     </div>
 
@@ -107,8 +107,8 @@ const categories = [
       return (
         <div class="px-5 py-3 flex items-center gap-4">
           <div class="w-28 shrink-0">
-            <div class="text-[11px] font-mono text-white/55">{cat.name}</div>
-            <div class="text-[10px] text-white/20 leading-tight mt-0.5">{cat.description}</div>
+            <div class="text-[11px] font-mono text-white/55" data-ru={cat.nameRu}>{cat.name}</div>
+            <div class="text-[10px] text-white/20 leading-tight mt-0.5" data-ru={cat.descriptionRu}>{cat.description}</div>
           </div>
           <div class="flex-1 min-w-0">
             <div class="h-1.5 rounded-full bg-white/8 overflow-hidden">
@@ -127,18 +127,18 @@ const categories = [
 
   <!-- Key blockers -->
   <div class="px-5 py-4 border-t border-white/5 bg-white/1">
-    <div class="text-[10px] font-mono text-white/25 uppercase tracking-wider mb-2">Key Blockers</div>
+    <div class="text-[10px] font-mono text-white/25 uppercase tracking-wider mb-2" data-ru="Ключевые блокеры">Key Blockers</div>
     <ul class="space-y-1.5">
       {[
-        "Paper trading not started (0/30 evidence pts needed)",
-        "gap_monitor 30-day continuity track not started",
-        "autopush launchd daemon not installed (com.spa.autopush)",
-        "5/6 RS-001 data sources missing — acquisition required",
-        "GoLiveChecker: 10 of 29 criteria failing",
+        { en: "Paper trading not started (0/30 evidence pts needed)", ru: "Бумажная торговля не начата (нужно 0/30 очков доказательств)" },
+        { en: "gap_monitor 30-day continuity track not started", ru: "gap_monitor: 30-дневный непрерывный трек не начат" },
+        { en: "autopush launchd daemon not installed (com.spa.autopush)", ru: "launchd-демон autopush не установлен (com.spa.autopush)" },
+        { en: "5/6 RS-001 data sources missing — acquisition required", ru: "Отсутствует 5/6 источников данных RS-001 — требуется получение" },
+        { en: "GoLiveChecker: 10 of 29 criteria failing", ru: "GoLiveChecker: 10 из 29 критериев не пройдены" },
       ].map(b => (
         <li class="flex items-start gap-2 text-[11px] text-white/30 leading-snug">
           <span class="text-red-400/50 shrink-0 mt-0.5">✗</span>
-          {b}
+          <span data-ru={b.ru}>{b.en}</span>
         </li>
       ))}
     </ul>
