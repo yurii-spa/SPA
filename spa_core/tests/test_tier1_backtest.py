@@ -185,6 +185,22 @@ def test_tier1_digest_builds():
     assert "Tier-1" in msg and "Пакеты" in msg
 
 
+def test_data_integrity_audit():
+    from spa_core.backtesting.tier1 import data_integrity as di
+    a = di.audit(write=False)
+    assert a["status"] in ("CLEAN", "ISSUES", "NO_DATA")
+    if a["status"] != "NO_DATA":
+        # no series may contain a future date (lookahead) — that is a hard failure
+        for k, v in a["protocols"].items():
+            assert not any(str(i).startswith("future_date") for i in v.get("issues", []))
+
+
+def test_packages_capacity_scenarios():
+    o = pkg_mod.build(write=False)
+    for p in o["packages"].values():
+        assert "scales_to" in p and set(p["scales_to"].keys()) == {"1M", "10M", "100M"}
+
+
 def test_correlation_analyze_structure():
     a = corr_mod.analyze(write=False)
     assert set(a["packages"].keys()) == {"conservative", "balanced", "aggressive"}
