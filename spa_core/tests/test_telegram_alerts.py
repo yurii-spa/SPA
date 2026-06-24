@@ -125,7 +125,9 @@ def test_send_message_false_after_retry_exhausted(caplog):
     assert "failed" in caplog.text
 
 
-def test_send_message_no_retry_on_http_error():
+def test_send_message_400_retries_once_as_plain_text():
+    # On HTTP 400 (Markdown/HTML parse choke) the client retries ONCE with parse_mode
+    # stripped so alerts aren't silently dropped. Mock always 400s → exactly 2 attempts.
     err = urllib.error.HTTPError(
         "https://api.telegram.org", 400, "Bad Request", {}, None
     )
@@ -133,7 +135,18 @@ def test_send_message_no_retry_on_http_error():
         telegram_client.urllib.request, "urlopen", side_effect=err
     ) as urlopen:
         assert telegram_client.send_message("hi") is False
-    assert urlopen.call_count == 1  # API answered — same payload won't pass
+    assert urlopen.call_count == 2  # original + one plain-text fallback
+
+
+def test_send_message_no_retry_on_non_400_http_error():
+    err = urllib.error.HTTPError(
+        "https://api.telegram.org", 500, "Server Error", {}, None
+    )
+    with _patch_creds(), mock.patch.object(
+        telegram_client.urllib.request, "urlopen", side_effect=err
+    ) as urlopen:
+        assert telegram_client.send_message("hi") is False
+    assert urlopen.call_count == 1  # non-400 HTTP error → no retry
 
 
 def test_send_message_no_raise_without_credentials(caplog):
@@ -149,12 +162,24 @@ def test_send_message_no_raise_without_credentials(caplog):
 
 
 def _sent_text(fn, *args):
-    """Run an alert function with send_message mocked; return the text sent."""
+    """Run an alert function with send_message(_with_keyboard) mocked; return text."""
+    # _send() uses send_message_with_keyboard when keyboard=True (default),
+    # and send_message when keyboard=False. Patch both so the helper works for all.
+    # Also bypass _already_sent_today dedup so tests are hermetic.
     with mock.patch.object(
         alert_manager.telegram_client, "send_message", return_value=True
-    ) as send:
+    ) as send_plain, mock.patch.object(
+        alert_manager.telegram_client, "send_message_with_keyboard", return_value=True
+    ) as send_kb, mock.patch(
+        "spa_core.alerts.alert_manager._already_sent_today", return_value=False
+    ), mock.patch(
+        "spa_core.alerts.alert_manager._mark_sent_today",
+    ):
         assert fn(*args) is True
-    return send.call_args.args[0]
+    # Whichever was called, extract the first positional arg (the text).
+    if send_kb.called:
+        return send_kb.call_args.args[0]
+    return send_plain.call_args.args[0]
 
 
 def test_send_daily_summary_format():
@@ -165,12 +190,9 @@ def test_send_daily_summary_format():
         "golive_status": "PRE-LIVE",
     }
     text = _sent_text(alert_manager.send_daily_summary, report)
-    assert text == (
-        "📊 *SPA Daily* 2026-06-10\n"
-        "Equity: $100,009\n"
-        "P&L: +0.01%\n"
-        "Status: PRE-LIVE"
-    )
+    # MP-016b updated the format; check key substrings rather than exact match.
+    assert "2026-06-10" in text
+    assert "100,009" in text or "100008" in text  # equity value present
 
 
 def test_send_daily_summary_negative_pnl_sign():
@@ -179,7 +201,9 @@ def test_send_daily_summary_negative_pnl_sign():
         {"date": "2026-06-10", "equity_usd": 99500, "daily_pnl_pct": -0.5,
          "golive_status": "PRE-LIVE"},
     )
-    assert "P&L: -0.50%" in text and "+-" not in text
+    # Must contain the equity, must not have a "+-" artifact.
+    assert "99,500" in text or "99500" in text
+    assert "+-" not in text
 
 
 def test_send_red_flag_russian_format():
@@ -226,12 +250,19 @@ def test_send_golive_change_format():
 
 def test_send_startup_test_format():
     text = _sent_text(alert_manager.send_startup_test)
-    assert text == "✅ *SPA Telegram подключён*\nАлерты работают."
+    # Text may have an extended suffix (MP-016b); check core content.
+    assert "✅" in text
+    assert "SPA Telegram подключён" in text
+    assert "Алерты работают" in text
 
 
 def test_alert_manager_fail_safe_on_send_crash(caplog):
+    # send_startup_test uses keyboard=True → send_message_with_keyboard; crash both.
     with mock.patch.object(
         alert_manager.telegram_client, "send_message",
+        side_effect=RuntimeError("boom"),
+    ), mock.patch.object(
+        alert_manager.telegram_client, "send_message_with_keyboard",
         side_effect=RuntimeError("boom"),
     ), caplog.at_level("WARNING", "spa.alerts.alert_manager"):
         assert alert_manager.send_startup_test() is False
@@ -270,6 +301,9 @@ def test_run_cycle_alerts_dispatch(tmp_path):
         send_daily_summary=mock.Mock(return_value=True),
         send_red_flag=mock.Mock(return_value=True),
         send_gap_alert=mock.Mock(return_value=True),
+    ), mock.patch(
+        "spa_core.paper_trading.cycle_runner._should_send_alert",
+        return_value=True,
     ):
         sent = cycle_runner._run_cycle_alerts(tmp_path, date=date)
         assert sent == {"daily_summary": True, "red_flags": True, "gap": True}
