@@ -113,6 +113,37 @@ def _data_source() -> dict:
         return {"source": None, "matched": 0, "max_days": 0}
 
 
+# Capacity: a single position must not exceed this share of its pool's TVL (institutional
+# liquidity constraint — matters when scaling to external AUM, the $100M goal).
+CAPACITY_MAX_POOL_PCT = 0.02  # 2% of pool TVL
+
+
+def _load_tvl() -> Dict[str, float]:
+    """{protocol: tvl_usd} from the real DeFiLlama cache (for capacity)."""
+    try:
+        c = json.loads((_DATA / "bee" / "defillama_apy_history.json").read_text())
+        return {k: float(v.get("tvl_usd") or 0.0)
+                for k, v in (c.get("pool_results") or {}).items() if isinstance(v, dict)}
+    except Exception:
+        return {}
+
+
+def _capacity(allocation: dict, tvl_map: Dict[str, float], capital: float) -> dict:
+    """Max AUM the allocation can hold before any position exceeds CAPACITY_MAX_POOL_PCT of
+    its pool, and whether the CURRENT capital fits. Protocols without TVL data are skipped."""
+    weights = {k: float(v) for k, v in (allocation or {}).items()
+               if k != "cash" and v and tvl_map.get(k, 0) > 0}
+    if not weights:
+        return {"capacity_aum_usd": None, "capacity_ok": True, "binding_protocol": None}
+    # per protocol: max_aum_i = tvl_i * CAP_PCT / weight_i ; capacity = min over protocols
+    per = {p: tvl_map[p] * CAPACITY_MAX_POOL_PCT / w for p, w in weights.items()}
+    binding = min(per, key=per.get)
+    cap_aum = per[binding]
+    return {"capacity_aum_usd": round(cap_aum, 0),
+            "capacity_ok": cap_aum >= capital,
+            "binding_protocol": binding}
+
+
 def _regime(dq: dict, src: dict) -> str:
     """NORMAL = vol meaningful, Sharpe usable.
     LOW_VOL_YIELD = REAL data but near-deterministic yield → Sharpe degenerate BY NATURE,
@@ -169,6 +200,7 @@ def evaluate(write: bool = True) -> dict:
     sharpes_pp = [ds.deannualize_sharpe(float(e.get("sharpe") or 0.0)) for e in board]
     sr_var_pp = ds.sharpe_variance_across_trials(sharpes_pp)
     series_map = oos_mod.load_protocol_series()  # real per-protocol APY for OOS
+    tvl_map = _load_tvl()                         # real per-protocol TVL for capacity
 
     evaluated = []
     pkg_counts = {p["key"]: 0 for p in PACKAGES}
@@ -188,6 +220,7 @@ def evaluate(write: bool = True) -> dict:
         pkg = _assign_package(net_apy, e.get("max_dd_pct"))
         oos_res = oos_mod.oos_check(alloc if isinstance(alloc, dict) else {}, series_map)
         oos_holds = oos_res.get("oos_holds")  # True / False / None(insufficient)
+        cap = _capacity(alloc if isinstance(alloc, dict) else {}, tvl_map, capital)
         dsr_passes = bool(dsr["passes"])
         # Grade by REGIME: Sharpe-DSR for NORMAL; net-yield + OOS for real low-vol yield;
         # UNPROVEN when degenerate AND data isn't real (mock).
@@ -196,8 +229,9 @@ def evaluate(write: bool = True) -> dict:
             validated = dsr_passes and net_apy > 0
         elif regime == "LOW_VOL_YIELD":
             grade = _grade_yield(net_apy, pkg is not None, oos_holds)
-            # validated = real data + fits a package + yield did NOT decay out-of-sample
-            validated = net_apy > 0 and pkg is not None and oos_holds is not False
+            # validated = real data + fits a package + yield held out-of-sample + capacity OK
+            validated = (net_apy > 0 and pkg is not None and oos_holds is not False
+                         and cap["capacity_ok"])
         else:  # DEGENERATE_MOCK
             grade = "UNPROVEN"
             validated = False
@@ -218,6 +252,8 @@ def evaluate(write: bool = True) -> dict:
             "oos_out_sample_apy_pct": oos_res.get("out_of_sample_apy_pct"),
             "oos_holds": oos_holds,
             "oos_status": oos_res.get("status"),
+            "capacity_aum_usd": cap["capacity_aum_usd"],
+            "capacity_ok": cap["capacity_ok"],
             "validated": validated,            # regime-appropriate pass (drives packages)
             "min_track_record_days": round(mtrl, 1) if mtrl != float("inf") else None,
             "tier1_grade": grade,
