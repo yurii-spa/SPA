@@ -31,3 +31,7 @@ echo "[$(ts)] dr_backup: prune (keep=14)"
 "$PY" -c "from spa_core.backtesting.tier1 import dr_backup; print(dr_backup.prune(keep=14))"
 
 echo "[$(ts)] tier1_governance: DONE"
+echo "[$(date -u '+%FT%TZ')] reverse stress..."
+$PY -m spa_core.backtesting.tier1.reverse_stress
+echo "[$(date -u '+%FT%TZ')] anomaly scan..."
+$PY -m spa_core.monitoring.series_anomaly_detector
