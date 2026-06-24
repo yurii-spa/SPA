@@ -252,20 +252,70 @@ def test_dry_run_blocked_writes_nothing(tmp_path):
     assert _load(tmp_path, "paper_trading_status.json") is None
 
 
-# ─── Fail-open on gate errors ────────────────────────────────────────────────
+# ─── LAW 1: fail-SAFE on safety-check errors (was fail-open) ─────────────────
 
 
 def test_policy_exception_does_not_crash_cycle(tmp_path, monkeypatch):
+    """LAW 1: a gate that cannot be evaluated must FAIL-SAFE (hold, no trade).
+
+    Previously this asserted fail-OPEN (status=ok, traded=True). That let a
+    broken RiskPolicy gate wave trades through — the exact anti-pattern LAW 1
+    forbids. The contract is now: the cycle survives (no crash) but HOLDS.
+    """
     class _Boom:
         def __init__(self, *a, **k):
             raise RuntimeError("policy config unavailable")
 
     monkeypatch.setattr("spa_core.risk.policy.RiskPolicy", _Boom)
+    # Suppress the loud Telegram alert in tests.
+    monkeypatch.setattr(cr, "_send_safety_failsafe_alert", lambda *a, **k: None)
     res = _run(tmp_path, CLEAN_TARGET)
-    # Cycle survives; gate skipped fail-open with an explicit note.
-    assert res.status == "ok"
-    assert res.policy_checked is False
-    assert res.policy_approved is True
-    assert any("risk_policy_gate_error" in n for n in res.notes)
-    assert res.traded is True                    # trade proceeds, gate skipped
+    # Cycle survives (no crash) but is HELD: no new trade is recorded.
+    assert res.status == "blocked_safety_check_error"
+    assert res.safety_check_failed is True
+    assert "risk_policy_gate_error" in res.safety_check_reason
+    assert res.traded is False                    # FAIL-SAFE: gate error → HOLD
+    assert any("FAIL_SAFE_HOLD" in n for n in res.notes)
+    # No trade persisted (first cycle blocked → deploys nothing).
+    assert _load(tmp_path, "trades.json") in (None, [])
+    # No block record (that path is for policy-VIOLATIONS, not gate errors).
     assert _load(tmp_path, "risk_policy_blocks.json") is None
+
+
+def test_kill_switch_check_error_holds_positions(tmp_path, monkeypatch):
+    """LAW 1: a kill-switch check that raises → FAIL-SAFE hold, prior positions kept."""
+    # Day 1: establish a compliant book.
+    res1 = _run(tmp_path, CLEAN_TARGET)
+    assert res1.traded is True
+
+    # Day 2: the kill-switch check blows up — must NOT let a rebalance through.
+    def _boom(*a, **k):
+        raise RuntimeError("kill-switch state unreadable")
+
+    monkeypatch.setattr(
+        "spa_core.governance.kill_switch.run_kill_switch_check", _boom
+    )
+    monkeypatch.setattr(cr, "_send_safety_failsafe_alert", lambda *a, **k: None)
+    res2 = _run(
+        tmp_path,
+        # A materially different target that WOULD trade if not held.
+        {"aave_v3": 40000.0, "morpho_blue": 10000.0},
+        now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc),
+    )
+    assert res2.status == "blocked_safety_check_error"
+    assert res2.safety_check_failed is True
+    assert "kill_switch_check_error" in res2.safety_check_reason
+    assert res2.traded is False
+    assert res2.positions == res1.positions      # held verbatim, not replaced
+    trades = _load(tmp_path, "trades.json")
+    assert len(trades) == 1                       # no second trade
+
+
+def test_normal_cycle_unaffected_by_failsafe(tmp_path, monkeypatch):
+    """Sanity: a clean compliant cycle is NOT flagged fail-safe and still trades."""
+    monkeypatch.setattr(cr, "_send_safety_failsafe_alert", lambda *a, **k: None)
+    res = _run(tmp_path, CLEAN_TARGET)
+    assert res.status == "ok"
+    assert res.safety_check_failed is False
+    assert res.safety_check_reason == ""
+    assert res.traded is True
