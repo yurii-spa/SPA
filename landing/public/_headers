@@ -22,6 +22,18 @@
   Cache-Control: no-cache
 /agents2
   Cache-Control: no-cache
+/agents-gallery
+  Cache-Control: no-cache
+/agents-minimal
+  Cache-Control: no-cache
+/agents-terminal
+  Cache-Control: no-cache
+/agents-story
+  Cache-Control: no-cache
+/agents-spatial
+  Cache-Control: no-cache
+/agents-map
+  Cache-Control: no-cache
 /control
   Cache-Control: no-cache
 /control.html
