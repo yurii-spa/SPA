@@ -2,8 +2,10 @@
 # SPA fallback — not needed for Astro static, but good for future dynamic routes
 /risk-disclosure /risk-disclosure/index.html 200
 
+# Old Astro dashboard superseded by /app (real live dashboard)
+/dashboard /app 302
+
 # App shortcut routes
-/app/* /dashboard 200
 /status /dashboard#golive 302
 
 # Redirect www to apex
