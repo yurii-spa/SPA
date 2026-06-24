@@ -91,32 +91,11 @@ class TournamentTelegram:
             _log.debug("TournamentTelegram.send: skipped (not configured)")
             return False
 
-        url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        payload = json.dumps({
-            "chat_id":                  self.chat_id,
-            "text":                     text,
-            "parse_mode":               parse_mode,
-            "disable_web_page_preview": True,
-        }).encode("utf-8")
-
+        # FLOOD-GUARD: route through the canonical rate-limited chokepoint so the
+        # tournament engine can never flood Telegram. Transport only — same payload.
         try:
-            req = urllib.request.Request(
-                url,
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                ok = resp.status == 200
-                _log.info("Telegram message sent (status=%s)", resp.status)
-                return ok
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            _log.error("Telegram HTTP error %s: %s", exc.code, body)
-            return False
-        except urllib.error.URLError as exc:
-            _log.error("Telegram URL error: %s", exc.reason)
-            return False
+            from spa_core.alerts.telegram_client import send_message
+            return send_message(text, parse_mode=parse_mode)
         except Exception as exc:
             _log.error("Telegram unexpected error: %s", exc)
             return False
