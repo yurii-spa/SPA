@@ -1,9 +1,13 @@
 name: SPA — Run & Export
 
 on:
-  schedule:
-    - cron: '0 */4 * * *'   # каждые 4 часа
-  workflow_dispatch:          # ручной запуск из GitHub UI
+  # DISABLED 2026-06-24: the Mac mini is the 24/7 production host (com.spa.daily_cycle).
+  # This cloud cron was a DUPLICATE cycle that committed runtime data/*.json + spa.db
+  # to main every 4h → repo pollution + write races with the Mac. Kept as manual-only
+  # (workflow_dispatch) for emergency cloud fallback; no automatic schedule.
+  # schedule:
+  #   - cron: '0 */4 * * *'
+  workflow_dispatch:          # ручной запуск из GitHub UI (emergency cloud fallback)
 
 permissions:
   contents: write             # нужно для git push
