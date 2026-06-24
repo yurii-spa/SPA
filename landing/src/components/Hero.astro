@@ -5,7 +5,7 @@
 
 <!-- Research project banner (Блок 0) -->
 <div class="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 text-center">
-  <p class="text-xs text-amber-400/80 leading-relaxed">
+  <p class="text-xs text-amber-400/80 leading-relaxed" data-ru="Личный исследовательский проект — сейчас на этапе paper-тестирования и настройки, не на стадии привлечения капитала.">
     Personal research project — currently in paper-testing and tuning, not at a capital-raising stage.
   </p>
 </div>
@@ -23,14 +23,15 @@
       <span class="hidden sm:inline text-xs text-white/30 font-mono ml-1">earn-defi.com</span>
     </div>
     <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
-      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline">Risk</a>
-      <a href="/packages" class="hover:text-white transition-colors hidden sm:inline">Packages</a>
-      <a href="/agents" class="hover:text-white transition-colors hidden md:inline">Agents</a>
-      <a href="/tournament" class="hover:text-white transition-colors hidden lg:inline">Tournament</a>
+      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline" data-ru="Методология">Methodology</a>
+      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline" data-ru="Риск">Risk</a>
+      <a href="/packages" class="hover:text-white transition-colors hidden sm:inline" data-ru="Пакеты">Packages</a>
+      <a href="/agents" class="hover:text-white transition-colors hidden md:inline" data-ru="Агенты">Agents</a>
+      <a href="/tournament" class="hover:text-white transition-colors hidden lg:inline" data-ru="Турнир">Tournament</a>
       <a
         href="/app"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        data-ru="Дашборд ↗"
       >
         Dashboard ↗
       </a>
@@ -43,25 +44,25 @@
     <!-- Status badge — paper trading transparency first -->
     <div class="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/60">
       <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" aria-hidden="true"></span>
-      <span>Paper Trading Mode</span>
+      <span data-ru="Режим бумажной торговли">Paper Trading Mode</span>
       <span class="text-white/30 mx-1">·</span>
       <span id="hero-paper-day">Paper day · started Jun 10, 2026</span>
     </div>
 
     <!-- H1 — Блок 0 reframe -->
     <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.1] tracking-tight mb-6">
-      Systematic onchain<br />
-      <span class="text-accent-400">stablecoin yield.</span>
+      <span data-ru="Систематическая ончейн">Systematic onchain</span><br />
+      <span class="text-accent-400" data-ru="доходность по стейблкоинам.">stablecoin yield.</span>
     </h1>
 
     <!-- Subheadline -->
-    <p class="text-lg sm:text-xl text-white/60 max-w-2xl leading-relaxed mb-4">
+    <p class="text-lg sm:text-xl text-white/60 max-w-2xl leading-relaxed mb-4" data-ru="Личный исследовательский проект по созданию и проверке детерминированного оптимизатора доходности в DeFi. Paper-тестирование на живых данных с 10 июня 2026 — каждое размещение, риск-гейт и ребалансировка логируются и публичны.">
       A personal research project building and validating a deterministic DeFi yield optimizer.
       Live-data paper testing since June 10, 2026 — every allocation, risk gate, and rebalance is logged and public.
     </p>
 
     <!-- Research framing (Блок 0) -->
-    <p class="text-sm text-white/40 max-w-xl mb-10 leading-relaxed">
+    <p class="text-sm text-white/40 max-w-xl mb-10 leading-relaxed" data-ru="Открытый журнал методологии. Отслеживаем реальные данные по APY через несколько read-only DeFi-адаптеров. Капитал не привлекаем — сначала формируем track record.">
       Open methodology journal. Tracking real APY data across several read-only DeFi adapters.
       Not raising capital — building a track record first.
     </p>
@@ -71,12 +72,14 @@
       <a
         href="/methodology"
         class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold text-sm transition-colors shadow-lg shadow-accent-500/20"
+        data-ru="Журнал методологии"
       >
         Methodology Journal
       </a>
       <a
         href="/app"
         class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg border border-white/15 hover:border-white/30 text-white/70 hover:text-white font-medium text-sm transition-all"
+        data-ru="Смотреть paper-результаты"
       >
         View Paper Results
       </a>
@@ -84,7 +87,7 @@
 
     <!-- Protocols monitored -->
     <div class="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-white/30">
-      <span class="uppercase tracking-widest text-white/20 text-[10px]">Protocols monitored (read-only)</span>
+      <span class="uppercase tracking-widest text-white/20 text-[10px]" data-ru="Отслеживаемые протоколы (read-only)">Protocols monitored (read-only)</span>
       {['Aave V3', 'Morpho Steakhouse', 'Compound V3', 'Yearn V3', 'Euler V2', 'Maple', 'Pendle'].map((protocol) => (
         <span class="px-2.5 py-1 rounded border border-white/10 bg-white/3 text-white/40 font-mono text-[11px]">
           {protocol}
