@@ -87,22 +87,13 @@ def _send_telegram(text: str) -> bool:
         )
         return False
 
-    url = _TELEGRAM_API.format(token=token)
-    payload = json.dumps(
-        {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
-    ).encode("utf-8")
-
-    req = urllib.request.Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    # FLOOD-GUARD: route through the canonical rate-limited client so health-check
+    # alerts share the cross-process flood guard. Transport only — same Markdown
+    # message. (ROOT is already on sys.path; creds re-resolved by the client.)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            resp.read()
-        return True
-    except (urllib.error.URLError, OSError) as exc:
+        from spa_core.alerts.telegram_client import send_message
+        return send_message(text, parse_mode="Markdown")
+    except Exception as exc:
         print(f"  [Telegram] send failed: {exc}", file=sys.stderr)
         return False
 
