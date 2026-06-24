@@ -143,9 +143,14 @@ def test_current_positions_written(tmp_path):
     _run(tmp_path, APY, TARGET)
     pos = _load(tmp_path, "current_positions.json")
     assert pos["is_demo"] is False
+    # Positions stored at COST BASIS (stable; no re-marking across cycles).
     assert pos["deployed_usd"] == pytest.approx(74000.0, abs=1e-6)
     assert pos["cash_usd"] == pytest.approx(26000.0, abs=1e-6)
     assert pos["positions"]["morpho_blue"] == 20000.0
+    # NAV reconciliation: deployed + cash + accrued_yield == current_equity (proof-of-reserves).
+    assert pos["deployed_usd"] + pos["cash_usd"] + pos["accrued_yield_usd"] == pytest.approx(
+        pos["current_equity_usd"], abs=0.05
+    )
 
 
 # ─── Ring buffers ─────────────────────────────────────────────────────────────
@@ -173,9 +178,12 @@ def test_trade_id_increments_from_existing(tmp_path):
 
 def test_equity_curve_ring_buffer_365(tmp_path):
     # Pre-fill with 365 dummy bars; one more cycle keeps it at 365.
+    # Dates must be strictly monotonic to avoid EB-05 data-corruption halt.
+    from datetime import date, timedelta
+    _start = date(2025, 6, 10)
     daily = [
         {
-            "date": f"2025-01-{(i % 28) + 1:02d}",
+            "date": (_start + timedelta(days=i)).isoformat(),
             "open_equity": 100000.0,
             "close_equity": 100000.0,
             "daily_return_pct": 0.0,
@@ -270,7 +278,7 @@ def test_small_allocation_drift_under_threshold_no_trade(tmp_path):
     _run(tmp_path, APY, TARGET)  # positions = TARGET
     # Drift one pool by a tiny amount (< 1% of capital total L1 distance);
     # yearn stays well under its T2 cap so the policy gate keeps approving.
-    drifted = {**TARGET, "yearn_v3": TARGET["yearn_v3"] + 300.0}  # L1 = 300 < 1000
+    drifted = {**TARGET, "yearn_v3": TARGET["yearn_v3"] + 150.0}  # L1 = 150 < $200 threshold
     res = _run(
         tmp_path,
         APY,
@@ -343,6 +351,12 @@ def test_demo_curve_archived_and_real_curve_starts_at_capital(tmp_path):
 
 
 def test_strategy_loop_flag_propagates(tmp_path):
+    # ADR-033: strategy_loop_active only propagates when mode="active" in
+    # strategy_config.json; default (file absent) = "shadow" → forced False.
+    import json as _json
+    (tmp_path / "strategy_config.json").write_text(
+        _json.dumps({"strategy_loop_mode": "active"})
+    )
     res = _run(tmp_path, APY, TARGET, strategy_loop=True)
     assert res.strategy_loop_active is True
     st = _load(tmp_path, "paper_trading_status.json")
