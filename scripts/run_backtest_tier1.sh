@@ -27,6 +27,16 @@ echo "[$(date -u '+%FT%TZ')] tier1 VaR/CVaR/ES..."
 $PY -m spa_core.backtesting.tier1.var
 echo "[$(date -u '+%FT%TZ')] tier1 verifiable NAV / proof-of-reserves..."
 $PY -m spa_core.backtesting.tier1.nav_proof
+echo "[$(date -u '+%FT%TZ')] tier1 risk limits (institutional overlay)..."
+$PY -m spa_core.backtesting.tier1.limits
+echo "[$(date -u '+%FT%TZ')] tier1 return attribution..."
+$PY -m spa_core.backtesting.tier1.attribution
+echo "[$(date -u '+%FT%TZ')] tier1 benchmark-relative metrics..."
+$PY -m spa_core.backtesting.tier1.benchmark
 echo "[$(date -u '+%FT%TZ')] tier1 status rollup + problem alert..."
 $PY -m spa_core.backtesting.tier1.status --alert
+echo "[$(date -u '+%FT%TZ')] tier1 pipeline health/SLO..."
+$PY -m spa_core.backtesting.tier1.pipeline_health
+echo "[$(date -u '+%FT%TZ')] tier1 run manifest (reproducibility stamp — LAST)..."
+$PY -m spa_core.backtesting.tier1.run_manifest
 echo "[$(date -u '+%FT%TZ')] done."
