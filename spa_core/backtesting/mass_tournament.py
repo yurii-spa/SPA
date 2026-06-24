@@ -378,7 +378,10 @@ class MassTournament:
             except Exception:
                 pass
 
-        if not hasattr(instance, "get_allocation"):
+        # Accept get_allocation() OR allocate() (s7x-style) as the allocation method —
+        # recovers strategies that expose allocate() instead of get_allocation().
+        _alloc_fn = getattr(instance, "get_allocation", None) or getattr(instance, "allocate", None)
+        if _alloc_fn is None:
             if isinstance(module_alloc, dict):
                 norm = self.normalize_allocation(module_alloc)
                 return (norm, "ALLOCATION_constant") if norm else (None, "empty_after_normalize")
@@ -401,11 +404,15 @@ class MassTournament:
             ({"regime": "normal"}, "get_allocation(regime=normal)"),
             ({"regime": "normal", "spiking_protocol": "aave_v3"},
              "get_allocation(regime,spiking_protocol)"),
+            # allocate()-style signatures (s7x / research strategies)
+            ({"apy_data": MOCK_APY}, "allocate(apy_data)"),
+            ({"capital": INITIAL_CAPITAL, "live_apy": MOCK_APY}, "allocate(capital,live_apy)"),
+            ({"capital": INITIAL_CAPITAL}, "allocate(capital)"),
         ]
 
         for kwargs, label in attempts:
             try:
-                raw = instance.get_allocation(**kwargs)
+                raw = _alloc_fn(**kwargs)
                 if isinstance(raw, dict) and raw:
                     norm = self.normalize_allocation(raw)
                     if norm:
