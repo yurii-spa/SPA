@@ -35,19 +35,20 @@ _TIMEOUT = 25
 SELECTORS: Dict[str, dict] = {
     "aave_v3_usdc_eth":        {"project": "aave-v3",     "chain": "Ethereum", "symbol": "USDC"},
     "compound_v3_usdc_eth":    {"project": "compound-v3", "chain": "Ethereum", "symbol": "USDC"},
-    "morpho_steakhouse_usdc":  {"project": "morpho-blue", "chain": "Ethereum", "symbol": "USDC", "meta": "steakhouse"},
+    "morpho_steakhouse_usdc":  {"project": "morpho-blue", "chain": "Ethereum", "symbol": "STEAKUSDC"},
     "aave_v3":                 {"project": "aave-v3",     "chain": "Ethereum", "symbol": "USDC"},
     "compound_v3":             {"project": "compound-v3", "chain": "Ethereum", "symbol": "USDC"},
-    "morpho_steakhouse":       {"project": "morpho-blue", "chain": "Ethereum", "symbol": "USDC", "meta": "steakhouse"},
-    "morpho_blue":             {"project": "morpho-blue", "chain": "Ethereum", "symbol": "USDC"},
+    "morpho_steakhouse":       {"project": "morpho-blue", "chain": "Ethereum", "symbol": "STEAKUSDC"},
+    "morpho_blue":             {"project": "morpho-blue", "chain": "Ethereum", "symbol": "STEAKUSDC"},
     "yearn_v3":                {"project": "yearn-finance", "chain": "Ethereum", "symbol": "USDC"},
     "euler_v2":                {"project": "euler-v2",    "chain": "Ethereum", "symbol": "USDC"},
-    "maple":                   {"project": "maple",       "chain": "Ethereum", "symbol": "SYRUPUSDC"},
+    "maple":                   {"project": "maple",       "chain": "Ethereum", "symbol": "USDC", "meta": "syrup"},
     "fluid":                   {"project": "fluid-lending", "chain": "Ethereum", "symbol": "USDC"},
-    "spark_susds":             {"project": "spark",       "chain": "Ethereum", "symbol": "USDC"},
     "ethena_susde":            {"project": "ethena-usde", "chain": "Ethereum", "symbol": "SUSDE"},
-    "sky_susds":               {"project": "sky-lending", "chain": "Ethereum", "symbol": "USDS"},
     "aave_v3_base":            {"project": "aave-v3",     "chain": "Base",     "symbol": "USDC"},
+    # NOTE: spark_susds / sky_susds are intentionally NOT fetched — RULES.md pins
+    # Sky/sUSDS = 0% until on-chain GSM Pause Delay >= 48h is confirmed. They stay on the
+    # conservative built-in proxy so the backtest does not contradict the documented policy.
 }
 
 
