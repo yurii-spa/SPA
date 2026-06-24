@@ -46,6 +46,21 @@ SELECTORS: Dict[str, dict] = {
     "fluid":                   {"project": "fluid-lending", "chain": "Ethereum", "symbol": "USDC"},
     "ethena_susde":            {"project": "ethena-usde", "chain": "Ethereum", "symbol": "SUSDE"},
     "aave_v3_base":            {"project": "aave-v3",     "chain": "Base",     "symbol": "USDC"},
+    # ── Higher-yield REAL protocols (2026-06-24 expansion) ──────────────────────
+    # Added to test whether ANY real strategy can validate into Balanced (6-12% net)
+    # or Aggressive (12%+). Slugs/symbols verified against yields.llama.fi/pools by
+    # highest-TVL match. APY is still clamped to <=100% in _chart_to_series.
+    # Maple Syrup USDC — institutional credit, ~6.3% mean, $3B TVL (Balanced band).
+    "maple_syrup_usdc":        {"project": "maple",       "chain": "Ethereum", "symbol": "USDC", "meta": "syrup"},
+    # Fluid lending USDC — ~7.6% mean (real history reaches 25%), $126M TVL (Balanced band).
+    "fluid_usdc_eth":          {"project": "fluid-lending", "chain": "Ethereum", "symbol": "USDC"},
+    # Morpho higher-yield USDC vault (BBQ) — ~5.4% mean, $43M TVL.
+    "morpho_bbq_usdc":         {"project": "morpho-blue", "chain": "Ethereum", "symbol": "BBQUSDC"},
+    # Pendle PT sUSDe (fixed-rate) — ~4.2% mean, ~$10M TVL. "For buying PT" = PT side.
+    "pendle_pt_susde":         {"project": "pendle",      "chain": "Ethereum", "symbol": "SUSDE", "meta": "buying pt"},
+    # Aave V3 on L2s (some strategies allocate to L2 aave) — real per-chain USDC series.
+    "aave_v3_arbitrum":        {"project": "aave-v3",     "chain": "Arbitrum", "symbol": "USDC"},
+    "aave_v3_polygon":         {"project": "aave-v3",     "chain": "Polygon",  "symbol": "USDC"},
     # NOTE: spark_susds / sky_susds are intentionally NOT fetched — RULES.md pins
     # Sky/sUSDS = 0% until on-chain GSM Pause Delay >= 48h is confirmed. They stay on the
     # conservative built-in proxy so the backtest does not contradict the documented policy.
