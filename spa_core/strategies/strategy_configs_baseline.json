@@ -1,0 +1,265 @@
+{
+  "schema_version": "1.1",
+  "strategies": {
+    "S11": {
+      "config_hash": "b2cfb7babfe8cd8de21670c6206019259da9c4b199fe597200f1757af8695d5f",
+      "version": "1.0"
+    },
+    "S14": {
+      "config_hash": "11102a9d5211eaff5653e895fef2f7964f4257c494e55903ecdf6ce648368cf9",
+      "version": "1.0"
+    },
+    "S15": {
+      "config_hash": "c101a37a4853b4b98a22c0703a13ba28b34d86c22640a97e9566a0212e7995d6",
+      "version": "1.0"
+    },
+    "S16": {
+      "config_hash": "4b64489506c369a8943863abb93f55056398fa9c0337f9b7a3c5a521fc3c5421",
+      "version": "1.0"
+    },
+    "S17": {
+      "config_hash": "2bc4f72aba6abe6d1f1fe7c51295610f911343b769392e9290759435913d2def",
+      "version": "1.0"
+    },
+    "S18": {
+      "config_hash": "c7c94839037b07573fcd67c1f0a217425cf770e14c19f08f87ac6a96a7e88f65",
+      "version": "1.0"
+    },
+    "S19": {
+      "config_hash": "9502f3a9c9b82e3236c27c36b8334f9e519a65c58c2b7a25391bcda2e7a5ae52",
+      "version": "1.0"
+    },
+    "S2": {
+      "config_hash": "ed549e17dbb71d9d4be3c22a3a52c7e8cfc036340b01696ad0c0ee41797d8266",
+      "version": "1.0"
+    },
+    "S20": {
+      "config_hash": "735918a50c3193aa70a70730721adbcd67a53f9316e3a11e0f9c4c17244171bd",
+      "version": "1.0"
+    },
+    "S20_CRV": {
+      "config_hash": "d45930719d74b765c6fd527d5321a5ca968da8ec9033d404ee2d3c5847606a5c",
+      "version": "1.0"
+    },
+    "S21_LOOP": {
+      "config_hash": "5e7875f33a39ff9af15455432006cad98e3df27769a962bb02ca9a25c7521664",
+      "version": "1.0"
+    },
+    "S22": {
+      "config_hash": "3f51447393ffd130049ff26424ab44222b62271840fc3b70acc93b944710357a",
+      "version": "1.0"
+    },
+    "S23": {
+      "config_hash": "868bcb4acf34e2bd712391d10a1523cfe891b262531743a1f09302992572c867",
+      "version": "1.0"
+    },
+    "S24": {
+      "config_hash": "576c0c079e7b9f5dc7f83aa69beb060768ec7f84d187c2f120974beec901a614",
+      "version": "1.0"
+    },
+    "S25": {
+      "config_hash": "43fc58f51e7665a41c488399cff730111b0c741f0c1d46db4e65674bc093ed1e",
+      "version": "1.0"
+    },
+    "S26": {
+      "config_hash": "ffcf859d1d676c4157f0fe72a526872fc83b8c170cd86ae0240d015e6822362f",
+      "version": "1.0"
+    },
+    "S27": {
+      "config_hash": "e0141d2e15c8ad362fe440ae39854af39afa0f633acfafe2462d05e66f0120a0",
+      "version": "1.0"
+    },
+    "S28": {
+      "config_hash": "471fbb804001c2102260fdcd3eeabcdd0bbc151efb1d867c20055e304374c547",
+      "version": "1.0"
+    },
+    "S29": {
+      "config_hash": "c9c79110d16d1d3cbcefba16928571d348ebe2ce050adb3977d085eb8d34b765",
+      "version": "1.0"
+    },
+    "S3": {
+      "config_hash": "f2db1254738fc7bf81e16cda56991478932e63ba9a463dcc8635d15fabfabce5",
+      "version": "1.0"
+    },
+    "S30": {
+      "config_hash": "978ce8a14e0a92a66a68bb5ded5129fa003316deadb6419ad38cc9b72b8ea983",
+      "version": "1.0"
+    },
+    "S31": {
+      "config_hash": "548d84d4080a18d03528e1b425154f9c30b8e18d3ba2572d0e77e8fe725738dc",
+      "version": "1.0"
+    },
+    "S32": {
+      "config_hash": "c7810451e575050a5e6d749ae0c28a24878c08999acc2bc1fd134fdd99e75e33",
+      "version": "1.0"
+    },
+    "S34": {
+      "config_hash": "5c253d72336a1708ac6c260a57ae9c678cfac4fbdf1d1ea467be0488261467d0",
+      "version": "1.0"
+    },
+    "S35": {
+      "config_hash": "e4e0e1a1bf1012b1c36bf8914ffb2b485267000bd4cce4494f26104dd0603b94",
+      "version": "1.0"
+    },
+    "S36": {
+      "config_hash": "d34abaeb0f646a5ee52eeeda094abec67de7e18dd49de4c663ff19bef0d31003",
+      "version": "1.0"
+    },
+    "S37": {
+      "config_hash": "1c28b4cfdaaa8f32511816889061a13630b688e2312dfb8b3a35cbab2fea8612",
+      "version": "1.0"
+    },
+    "S38": {
+      "config_hash": "eeadbc05e067ee902103a14f735fb6c41a3b83a59d04d532ee017ed479b04e81",
+      "version": "1.0"
+    },
+    "S39": {
+      "config_hash": "384f44890e02f6c73f4f82d422010b653d7be96448a214a56466b8c6dcb1440f",
+      "version": "1.0"
+    },
+    "S4": {
+      "config_hash": "db6b33ec507d22909adbcdb5e4d937065d65e6fe8a8f496d7c48a654087e825f",
+      "version": "1.0"
+    },
+    "S41": {
+      "config_hash": "dc942a1746322376eb7e872788d88709d4ec871b3c066ac130253f95af8a39c1",
+      "version": "1.0"
+    },
+    "S44": {
+      "config_hash": "d9ed4e90d67daa5c611303292caa12333b1213400dc76c81d86b023ddb664b54",
+      "version": "1.0"
+    },
+    "S45": {
+      "config_hash": "140c65ef5317cd52320c047fe09f46f1f2f00cb07d5719e90ed319fe9366e27e",
+      "version": "1.0"
+    },
+    "S46": {
+      "config_hash": "d91ca1e447c8611bae105c7a084825164711cdcd03b96daf032e69a054a3de46",
+      "version": "1.0"
+    },
+    "S47": {
+      "config_hash": "cbbe87630abaeb56ee2cb1b01706236e17be9eb4d7dec884d83b107efff23f8b",
+      "version": "1.0"
+    },
+    "S48": {
+      "config_hash": "805f2979521f3e8b43104b62a8abb944dc437f583ccea53e1e3c446e119d7b0d",
+      "version": "1.0"
+    },
+    "S49": {
+      "config_hash": "0a10186c4b1e980da7d758c41c7f1234cd2b63cdaf14b043d2d736bca4227048",
+      "version": "1.0"
+    },
+    "S5": {
+      "config_hash": "3aaff51f29bbeb89a5dd3f363c733f359061c121a15f3b26156847a95d34c232",
+      "version": "1.0"
+    },
+    "S50": {
+      "config_hash": "11b4ccc1c0ad5a6140df601495a31ce969cec93d91d16a928d6d4f904a6a16f0",
+      "version": "1.0"
+    },
+    "S51": {
+      "config_hash": "df7a4210c94864f056181c17c6786aaa5644a64ed5fe3d3478d80713467829ef",
+      "version": "1.0"
+    },
+    "S52": {
+      "config_hash": "bb41b5e74775fd5d090b569c627dee132693664a01ac5024a2874ccb0fff26d7",
+      "version": "1.0"
+    },
+    "S53": {
+      "config_hash": "b8220ffbff3cbadd33ae643fddb6ea84369efe2e1c02f5bf90eab8c284b2928c",
+      "version": "1.0"
+    },
+    "S54": {
+      "config_hash": "3815ee6841140461e7dc7894c7edd203d7405b6ac0e2dd268784f6d117eb5820",
+      "version": "1.0"
+    },
+    "S55": {
+      "config_hash": "0053311a69f94833e49c5babcae72d3890a3c2a9b4ad0f138e9625a33e9b75cc",
+      "version": "1.0"
+    },
+    "S6": {
+      "config_hash": "4d46be9c4f136730106371ed9b185d0966b7a2aa385aad9b76626ce1afb01b16",
+      "version": "1.0"
+    },
+    "S61": {
+      "config_hash": "3e7104de8255aab74b6ab82f14d6b1e3942a4b4de3af4565567b1242c8dbf786",
+      "version": "1.0"
+    },
+    "S62": {
+      "config_hash": "765ac1a0b5e1a73352375fdca6359fa92db20f668953e3133b2666f1bdb8cb05",
+      "version": "1.0"
+    },
+    "S63": {
+      "config_hash": "2dd64574640e0cf17def640f61d6b370112bfcb66da1d41c1f02fb3b720406c4",
+      "version": "1.0"
+    },
+    "S64": {
+      "config_hash": "0d17e60e1dc559ad673b9587186f4be3e24dbeea88612a1f5f4a67218ba0ca6f",
+      "version": "1.0"
+    },
+    "S65": {
+      "config_hash": "ad64fd3349f06312aef43b5755ed43d264e9280ece986ab28c810b3afe5d676d",
+      "version": "1.0"
+    },
+    "S66": {
+      "config_hash": "557821a3be2bb4426ee86e4081c4c587a5c88a0c02abc28f2fc9be822e34668f",
+      "version": "1.0"
+    },
+    "S67": {
+      "config_hash": "acc42722e5e464f108a9e5f0f393f39eca4f9cca5b0044af3aedacc0bb89fa9f",
+      "version": "1.0"
+    },
+    "S68": {
+      "config_hash": "be6a659de48f31aed21badf2ed542b32eb59150522e5ae5fffb859521f569447",
+      "version": "1.0"
+    },
+    "S69": {
+      "config_hash": "1878524106dc4e17c2955e3f19b5ed2cce0b6fb61c3d96c20acb505672ca062b",
+      "version": "1.0"
+    },
+    "S7": {
+      "config_hash": "6ef53ecfff7e9ea8f82c576c709d41b916448074a7a1a3b833b039c278d6302f",
+      "version": "1.0"
+    },
+    "S70": {
+      "config_hash": "4470f530cf19fbef1ed8098d07d02d14ebe43bc3d2b9e2d616d50af62d585949",
+      "version": "1.0"
+    },
+    "s10_pendle_yt": {
+      "config_hash": "f7252094136a14f4c20a8e5c0546a34f31fec91f04591dee89ee17d4fb287e0e",
+      "version": "1.0"
+    },
+    "s12_base_layer_yield": {
+      "config_hash": "35afa5ba3cfeb103162b128f9aa9abad377c213e19ca38f3527191840077e8a0",
+      "version": "1.0"
+    },
+    "s13_multi_chain_arb": {
+      "config_hash": "6960d4c0d46b6f1b5a7cd2c0c5fdc47aa00d8afdf6b649abf85bf496035fd3b7",
+      "version": "1.0"
+    },
+    "s1_conservative_lending": {
+      "config_hash": "accdeba0d66c42dc85aa3b562042f08f84097669caef55efbf49646c743ddee5",
+      "version": "1.0"
+    },
+    "s1_t1t2_balanced": {
+      "config_hash": "71616dd7bfcb90a553ac3b0dbd94a7428ecdb0f5506c01220264ff5f3e38c032",
+      "version": "1.0"
+    },
+    "s2_lp_stable": {
+      "config_hash": "9e4e30cdd757155ca4b97188dceeb21d1045abf64be3c849a2948e0b21d9cf4e",
+      "version": "1.0"
+    },
+    "s3_yield_loop": {
+      "config_hash": "59d3202aa985e970834ca606ddfff1099a275472079bd14daecbc8ebc5d43fe3",
+      "version": "1.0"
+    },
+    "s8_delta_neutral_susde": {
+      "config_hash": "16f726f51ae948efeda329f32067fb836b0c931c485e55569fb7a0ea6089de00",
+      "version": "1.0"
+    },
+    "s9_emode_looping": {
+      "config_hash": "220761d3eaba63f00d74b62189e6e9ad4b69c0559a7ade49013dea939c00827d",
+      "version": "1.0"
+    }
+  }
+}
