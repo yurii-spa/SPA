@@ -414,12 +414,32 @@ def test_system_low_portfolio_health_warning(tmp_path):
 
 
 def test_system_critical_red_flags(tmp_path):
+    # Held-protocol contract (2026-06-23): only CRITICAL flags on protocols we
+    # actually HOLD drive system CRITICAL (critical_flags). Flags on external
+    # protocols are advisory (advisory_flags / WARNING). aave_v3 is held below.
     d = tmp_path / "data"
+    _write_json(d, "current_positions.json", {"positions": {"aave_v3": 50_000.0}})
     _write_json(d, "red_flags.json", {"red_flags": [
-        {"severity": "CRITICAL"}, {"severity": "WARN"}, {"severity": "critical"}]})
+        {"protocol": "aave_v3", "severity": "CRITICAL"},   # held → counts
+        {"protocol": "pendle", "severity": "critical"},    # external → advisory
+        {"severity": "WARN"}]})
     checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
-    assert checks["critical_flags"] == 2
+    assert checks["critical_flags"] == 1       # only the held-protocol CRITICAL
+    assert checks.get("advisory_flags") == 1   # the external CRITICAL
     assert status == ahm.CRITICAL
+
+
+def test_system_external_red_flags_advisory(tmp_path):
+    # CRITICAL flags on non-held protocols → advisory WARNING, not system CRITICAL.
+    d = tmp_path / "data"
+    _write_json(d, "current_positions.json", {"positions": {"aave_v3": 50_000.0}})
+    _write_json(d, "red_flags.json", {"red_flags": [
+        {"protocol": "pendle", "severity": "CRITICAL"},
+        {"protocol": "ethena", "severity": "CRITICAL"}]})
+    checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
+    assert checks["critical_flags"] == 0
+    assert checks.get("advisory_flags") == 2
+    assert status == ahm.WARNING
 
 
 def test_system_autopush_lag_warning(tmp_path):
