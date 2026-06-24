@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.backtesting.tier1 import deflated_sharpe as ds
+from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1.cost_model import net_of_cost_apy
 
 _ROOT = Path(__file__).resolve().parents[3]
@@ -131,12 +132,14 @@ def _assign_package(net_apy: float, max_dd_pct: float) -> Optional[str]:
     return None
 
 
-def _grade_yield(net_apy: float, in_package: bool) -> str:
-    """Yield-regime grade — Sharpe inapplicable; rank by net-of-cost APY + package fit."""
-    if net_apy >= 3.0 and in_package:
-        return "A"          # solid net yield, fits a risk package
+def _grade_yield(net_apy: float, in_package: bool, oos_holds: Optional[bool]) -> str:
+    """Yield-regime grade — Sharpe inapplicable; net-of-cost APY + package fit + OOS hold."""
+    if oos_holds is False:
+        return "C"          # net positive but yield decayed out-of-sample → not top-grade
+    if net_apy >= 3.0 and in_package and oos_holds:
+        return "A"          # solid net yield, fits a package, AND holds out-of-sample
     if net_apy > 0 and in_package:
-        return "B"          # positive net yield, fits a package
+        return "B"          # positive net yield, fits a package (OOS unknown/insufficient)
     if net_apy > 0:
         return "C"          # positive net but outside package risk bands
     return "D"              # negative net-of-cost
@@ -165,6 +168,7 @@ def evaluate(write: bool = True) -> dict:
     # Per-period Sharpe variance across all trials (consistent units for DSR).
     sharpes_pp = [ds.deannualize_sharpe(float(e.get("sharpe") or 0.0)) for e in board]
     sr_var_pp = ds.sharpe_variance_across_trials(sharpes_pp)
+    series_map = oos_mod.load_protocol_series()  # real per-protocol APY for OOS
 
     evaluated = []
     pkg_counts = {p["key"]: 0 for p in PACKAGES}
@@ -182,20 +186,23 @@ def evaluate(write: bool = True) -> dict:
                                rebalances_per_year=12, annual_turnover=1.0)
         net_apy = cost["net_apy_pct"]
         pkg = _assign_package(net_apy, e.get("max_dd_pct"))
-        if pkg:
-            pkg_counts[pkg] += 1
+        oos_res = oos_mod.oos_check(alloc if isinstance(alloc, dict) else {}, series_map)
+        oos_holds = oos_res.get("oos_holds")  # True / False / None(insufficient)
         dsr_passes = bool(dsr["passes"])
-        # Grade by REGIME: Sharpe-DSR for NORMAL; net-yield for real low-vol yield;
+        # Grade by REGIME: Sharpe-DSR for NORMAL; net-yield + OOS for real low-vol yield;
         # UNPROVEN when degenerate AND data isn't real (mock).
         if regime == "NORMAL":
             grade = _grade(dsr["dsr"], psr, net_apy)
             validated = dsr_passes and net_apy > 0
         elif regime == "LOW_VOL_YIELD":
-            grade = _grade_yield(net_apy, pkg is not None)
-            validated = net_apy > 0 and pkg is not None      # real data + fits a risk package
+            grade = _grade_yield(net_apy, pkg is not None, oos_holds)
+            # validated = real data + fits a package + yield did NOT decay out-of-sample
+            validated = net_apy > 0 and pkg is not None and oos_holds is not False
         else:  # DEGENERATE_MOCK
             grade = "UNPROVEN"
             validated = False
+        if pkg and validated:
+            pkg_counts[pkg] += 1
         evaluated.append({
             "id": e.get("id"),
             "rank_gross": e.get("rank"),
@@ -207,6 +214,10 @@ def evaluate(write: bool = True) -> dict:
             "psr": round(psr, 4),
             "dsr": round(dsr["dsr"], 4),
             "dsr_passes": dsr_passes,          # informational under LOW_VOL_YIELD
+            "oos_in_sample_apy_pct": oos_res.get("in_sample_apy_pct"),
+            "oos_out_sample_apy_pct": oos_res.get("out_of_sample_apy_pct"),
+            "oos_holds": oos_holds,
+            "oos_status": oos_res.get("status"),
             "validated": validated,            # regime-appropriate pass (drives packages)
             "min_track_record_days": round(mtrl, 1) if mtrl != float("inf") else None,
             "tier1_grade": grade,
