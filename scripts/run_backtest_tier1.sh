@@ -19,4 +19,6 @@ echo "[$(date -u '+%FT%TZ')] tier1 correlation (package diversification)..."
 $PY -m spa_core.backtesting.tier1.correlation
 echo "[$(date -u '+%FT%TZ')] tier1 packages (offered risk tiers)..."
 $PY -m spa_core.backtesting.tier1.packages
+echo "[$(date -u '+%FT%TZ')] tier1 status rollup + problem alert..."
+$PY -m spa_core.backtesting.tier1.status --alert
 echo "[$(date -u '+%FT%TZ')] done."
