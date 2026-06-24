@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>SPA — Агенты и схема взаимодействия</title>
+<style>
+  :root{--bg:#0b0f17;--card:#131a26;--card2:#0f1521;--line:#1f2937;--txt:#e5e7eb;--mut:#94a3b8;--ok:#10b981;--warn:#f59e0b;--crit:#ef4444;--acc:#3b82f6;--p:#8b5cf6}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+  a{color:var(--acc);text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px 18px 60px}
+  header h1{font-size:24px;margin:0 0 4px}
+  header p{color:var(--mut);margin:0 0 18px}
+  .nav{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .nav a{padding:7px 14px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+  .nav a.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+  .stat{flex:1;min-width:140px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat .n{font-size:26px;font-weight:700}
+  .stat .l{color:var(--mut);font-size:12px}
+  h2{font-size:17px;margin:26px 0 12px;border-left:3px solid var(--acc);padding-left:10px}
+  /* pipeline */
+  .flow{display:flex;flex-direction:column;gap:0;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .step{display:flex;align-items:center;gap:14px;padding:10px 6px}
+  .step .ix{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:0 0 auto}
+  .step.risk .ix{background:var(--crit)}
+  .step .b{flex:1}
+  .step .b b{color:var(--txt)}
+  .step .b span{color:var(--mut);font-size:12.5px}
+  .arr{color:var(--mut);text-align:center;font-size:16px;line-height:1;margin-left:14px}
+  /* groups */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+  .g{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .g h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+  .g .dot{width:9px;height:9px;border-radius:50%}
+  .ag{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--line);font-size:12.7px}
+  .ag:first-of-type{border-top:0}
+  .ag .nm{color:var(--txt)}
+  .ag .sc{color:var(--mut);font-size:11.5px;white-space:nowrap}
+  .pill{font-size:10px;padding:1px 7px;border-radius:20px;background:#1e293b;color:var(--mut)}
+  .pill.ok{background:rgba(16,185,129,.15);color:var(--ok)} .pill.warn{background:rgba(245,158,11,.15);color:var(--warn)} .pill.crit{background:rgba(239,68,68,.15);color:var(--crit)}
+  .note{color:var(--mut);font-size:12px;margin-top:8px}
+  .live{font-size:12px;color:var(--mut)}
+  .live b.ok{color:var(--ok)} .live b.warn{color:var(--warn)} .live b.crit{color:var(--crit)}
+  footer{margin-top:40px;color:var(--mut);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🤖 SPA — Агенты и схема взаимодействия</h1>
+    <p>Автономный DeFi yield-оптимизатор. Детерминированный рантайм, <b>LLM запрещён</b> в risk/execution/monitoring. Всё крутится на launchd-агентах Mac mini 24/7.</p>
+  </header>
+  <nav class="nav">
+    <a href="/">← Лендинг</a>
+    <a href="/app.html">📊 Дашборд (live)</a>
+    <a href="/tournament.html">🏆 Турнир</a>
+    <a class="on" href="/agents.html">🤖 Агенты</a>
+  </nav>
+
+  <div class="summary" id="summary">
+    <div class="stat"><div class="n" id="s-total">—</div><div class="l">агентов загружено</div></div>
+    <div class="stat"><div class="n" id="s-ok" style="color:var(--ok)">—</div><div class="l">healthy</div></div>
+    <div class="stat"><div class="n" id="s-overall">—</div><div class="l">overall status</div></div>
+    <div class="stat"><div class="n" id="s-cycle">—</div><div class="l">последний цикл</div></div>
+  </div>
+  <p class="live" id="live-note">Подключение к live API…</p>
+
+  <h2>Дневной цикл — пайплайн (06:00 UTC)</h2>
+  <div class="flow">
+    <div class="step"><div class="ix">1</div><div class="b"><b>Адаптеры (read-only)</b><br><span>27 whitelisted-протоколов → живой APY/TVL (DeFiLlama, TTL 300с)</span></div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="ix">2</div><div class="b"><b>Стратегии S0–S77</b><br><span>multi_strategy_runner → StrategyAllocator → целевая аллокация</span></div></div>
+    <div class="arr">↓</div>
+    <div class="step risk"><div class="ix">⛔</div><div class="b"><b>RiskPolicy gate + ALLOC-002</b><br><span>Детерминированный (LLM FORBIDDEN): TVL≥$5M, T1≤40%, T2≤50%, cash≥5%, ≤8 протоколов, T1≥55%. approved=False нельзя переопределить.</span></div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="ix">3</div><div class="b"><b>Виртуальный ребаланс</b><br><span>$100k USDC → trades.json · daily yield → equity_curve_daily.json</span></div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="ix">4</div><div class="b"><b>Evidence + GoLiveChecker</b><br><span>paper_evidence + audit_trail → 29 критериев go-live (сейчас 27/29)</span></div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="ix">5</div><div class="b"><b>API → туннель → дашборд</b><br><span>apiserver :8765 → cloudflared → api.earn-defi.com → дашборд опрашивает каждые 15с</span></div></div>
+  </div>
+  <p class="note">Параллельно: <b>HY-sleeve</b> ($20k carry) и <b>LP-sleeve</b> ($10k liquidity) — ежечасно, отдельные книги поверх $100k. <b>Tournament engine</b> (07:00 UTC) ранжирует 60 стратегий, 5 в shadow-paper. Эти движки выше базовой safe-доходности 4–6%.</p>
+
+  <h2>Флот агентов по функциям</h2>
+  <div class="grid">
+    <div class="g"><h3><span class="dot" style="background:var(--acc)"></span>Движки циклов</h3>
+      <div class="ag"><span class="nm">daily_cycle</span><span class="sc">06:00 UTC</span></div>
+      <div class="ag"><span class="nm">hy_cycle (HY $20k)</span><span class="sc">ежечасно</span></div>
+      <div class="ag"><span class="nm">lp_cycle (LP $10k)</span><span class="sc">ежечасно</span></div>
+      <div class="ag"><span class="nm">tournament_engine</span><span class="sc">07:00 UTC</span></div>
+    </div>
+    <div class="g"><h3><span class="dot" style="background:var(--ok)"></span>Мониторинг</h3>
+      <div class="ag"><span class="nm">agent_health</span><span class="sc">ежечасно</span></div>
+      <div class="ag"><span class="nm">cycle_health</span><span class="sc">5 мин</span></div>
+      <div class="ag"><span class="nm">cycle_gap_monitor</span><span class="sc">5 мин</span></div>
+      <div class="ag"><span class="nm">uptime_monitor</span><span class="sc">5 мин</span></div>
+      <div class="ag"><span class="nm">system_health</span><span class="sc">08:30/20:30</span></div>
+      <div class="ag"><span class="nm">system_briefing</span><span class="sc">30 мин</span></div>
+      <div class="ag"><span class="nm">portfolio_monitor</span><span class="sc">5 мин</span></div>
+    </div>
+    <div class="g"><h3><span class="dot" style="background:var(--crit)"></span>Риск / рынок</h3>
+      <div class="ag"><span class="nm">rules_watchdog</span><span class="sc">5 мин</span></div>
+      <div class="ag"><span class="nm">red_flag_monitor</span><span class="sc">5 мин</span></div>
+      <div class="ag"><span class="nm">peg_monitor</span><span class="sc">5 мин</span></div>
+      <div class="ag"><span class="nm">sky_monitor</span><span class="sc">ежедн.</span></div>
+      <div class="ag"><span class="nm">governance_watcher</span><span class="sc">15 мин</span></div>
+      <div class="ag"><span class="nm">base_gas_monitor</span><span class="sc">ежедн.</span></div>
+    </div>
+    <div class="g"><h3><span class="dot" style="background:var(--p)"></span>Отчёты / Telegram</h3>
+      <div class="ag"><span class="nm">morning_digest</span><span class="sc">06:05 UTC</span></div>
+      <div class="ag"><span class="nm">daily-paper-report</span><span class="sc">07:00 UTC</span></div>
+      <div class="ag"><span class="nm">telegram_daily</span><span class="sc">08:00</span></div>
+      <div class="ag"><span class="nm">telegram_weekly</span><span class="sc">Пн 10:00</span></div>
+      <div class="ag"><span class="nm">telegram_milestone</span><span class="sc">ежечасно</span></div>
+    </div>
+    <div class="g"><h3><span class="dot" style="background:#0ea5e9"></span>Инфра / сервисы</h3>
+      <div class="ag"><span class="nm">apiserver (FastAPI :8765)</span><span class="sc">always-on</span></div>
+      <div class="ag"><span class="nm">cloudflared (туннель)</span><span class="sc">always-on</span></div>
+      <div class="ag"><span class="nm">familyfund API :8766</span><span class="sc">always-on</span></div>
+      <div class="ag"><span class="nm">dashboard :8767</span><span class="sc">always-on</span></div>
+      <div class="ag"><span class="nm">autopush → GitHub</span><span class="sc">90 мин</span></div>
+      <div class="ag"><span class="nm">bot_commands (Telegram)</span><span class="sc">always-on</span></div>
+    </div>
+  </div>
+
+  <h2>Живой статус агентов</h2>
+  <div class="g" id="live-agents"><p class="note">Загрузка из api.earn-defi.com…</p></div>
+
+  <footer>SPA — paper trading. Источник истины: live API api.earn-defi.com. Эта страница — read-only.</footer>
+</div>
+
+<script>
+(function(){
+  var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+  function cls(s){ s=(s||'').toUpperCase(); return s.indexOf('CRIT')>=0?'crit':s.indexOf('WARN')>=0?'warn':'ok'; }
+  function txt(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+  // Agent health
+  fetch(API+'/api/live/agents').then(function(r){return r.json();}).then(function(d){
+    var ags = d.agents || d || [];
+    if(!Array.isArray(ags)) ags = Object.values(ags);
+    var ok = ags.filter(function(a){return (a.status||'').toUpperCase()==='OK';}).length;
+    txt('s-total', d.total_agents || ags.length);
+    txt('s-ok', ok + (d.total_agents? '/'+d.total_agents : ''));
+    var ov = d.overall_status || '—'; var oe=document.getElementById('s-overall');
+    oe.textContent = ov; oe.style.color = ({ok:'#10b981',warn:'#f59e0b',crit:'#ef4444'})[cls(ov)];
+    document.getElementById('live-note').innerHTML = 'Live из <b>'+API+'</b> · обновлено '+new Date().toLocaleTimeString('ru');
+    var bad = ags.filter(function(a){return (a.status||'').toUpperCase()!=='OK';});
+    var host = document.getElementById('live-agents');
+    host.innerHTML = bad.length
+      ? bad.map(function(a){return '<div class="ag"><span class="nm">'+(a.label||a.name||'?')+'</span><span class="pill '+cls(a.status)+'">'+(a.status||'?')+(a.issue?' · '+a.issue:'')+'</span></div>';}).join('')
+      : '<p class="note" style="color:var(--ok)">✅ Все '+(d.total_agents||ags.length)+' агентов healthy.</p>';
+  }).catch(function(){
+    document.getElementById('live-note').textContent = 'Live API недоступен — туннель оффлайн.';
+    document.getElementById('live-agents').innerHTML='<p class="note">Не удалось загрузить статус.</p>';
+  });
+  // last cycle
+  fetch(API+'/api/live/portfolio').then(function(r){return r.json();}).then(function(d){
+    var st = (d.paper_trading_status)||d; var ts = st.last_cycle_ts || (d.paper_trading_status&&d.paper_trading_status.last_cycle_ts);
+    if(ts) txt('s-cycle', new Date(ts).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}));
+  }).catch(function(){});
+})();
+</script>
+</body>
+</html>
