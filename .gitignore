@@ -28,6 +28,7 @@ scripts/archive/
 # Venv
 venv/
 .venv/
+.venv_test/
 .github_pat
 .github_config
 
