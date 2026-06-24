@@ -17,9 +17,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
+import tempfile
+import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 log = logging.getLogger("spa.alerts.telegram_client")
 
@@ -29,6 +33,39 @@ CHAT_ID_SERVICE = "TELEGRAM_CHAT_ID_SPA"
 
 HTTP_TIMEOUT_S = 10
 RETRIES = 1  # one retry on network error → two attempts total
+
+# ── Flood guard ──────────────────────────────────────────────────────────────
+# A SHARED, cross-process rate limit. Every SPA agent is a separate process, so the
+# counter lives in a state file: the cap bounds TOTAL Telegram volume no matter how many
+# agents (or one runaway loop) try to send. Excess is dropped + logged so a flooder is
+# visible in the log without spamming the chat. Fail-open (a guard error never blocks sends).
+_RATE_STATE = Path(__file__).resolve().parents[2] / "data" / ".telegram_rate.json"
+MAX_MSGS_PER_MIN = 12
+
+
+def _rate_limit_ok(text: str = "") -> bool:
+    try:
+        now = time.time()
+        try:
+            hist = json.loads(_RATE_STATE.read_text())
+            if not isinstance(hist, list):
+                hist = []
+        except Exception:
+            hist = []
+        hist = [t for t in hist if isinstance(t, (int, float)) and (now - t) < 60.0]
+        if len(hist) >= MAX_MSGS_PER_MIN:
+            log.warning("Telegram FLOOD GUARD: dropped message (>%d/min). preview=%r",
+                        MAX_MSGS_PER_MIN, (text or "")[:100])
+            return False
+        hist.append(now)
+        _RATE_STATE.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(_RATE_STATE.parent), prefix=".tgrate_")
+        with os.fdopen(fd, "w") as f:
+            json.dump(hist, f)
+        os.replace(tmp, _RATE_STATE)
+        return True
+    except Exception:
+        return True  # fail-open: never block a legitimate send on a guard error
 
 
 def _read_keychain(service: str) -> str:
@@ -69,6 +106,10 @@ def get_chat_id() -> str:
 def _post_message(payload_dict: dict) -> bool:
     """Internal: POST a sendMessage payload. Shared by send_message and
     send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
+    # FLOOD GUARD: a shared cross-process rate limit so NO sender (any agent) can flood
+    # Telegram. Excess messages are DROPPED + logged with a preview (identifies the flooder).
+    if not _rate_limit_ok(payload_dict.get("text", "")):
+        return False
     try:
         token = get_bot_token()
         chat_id = get_chat_id()
