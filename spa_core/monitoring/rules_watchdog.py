@@ -85,25 +85,11 @@ def _get_tg_creds() -> tuple:
 
 
 def _send_telegram(message: str) -> bool:
-    token, chat_id = _get_tg_creds()
-    if not token or not chat_id:
-        log.warning("Telegram creds not found — skipping alert")
-        return False
-    url = "https://api.telegram.org/bot{}/sendMessage".format(token)
-    payload = json.dumps({
-        "chat_id": chat_id,
-        "text": message[:4096],   # Telegram max
-        "parse_mode": "HTML",
-    }).encode()
+    # FLOOD-GUARD: route through the canonical rate-limited chokepoint so this
+    # 5-min watchdog can never flood Telegram. Transport only — same HTML alert.
     try:
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:
-            result = json.loads(resp.read().decode())
-            return bool(result.get("ok"))
+        from spa_core.alerts.telegram_client import send_message
+        return send_message(message[:4096], parse_mode="HTML")
     except Exception as e:
         log.warning("Telegram send failed: %s", e)
         return False
