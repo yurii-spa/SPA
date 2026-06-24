@@ -4,6 +4,7 @@ import math
 from spa_core.backtesting.tier1 import deflated_sharpe as ds
 from spa_core.backtesting.tier1.cost_model import net_of_cost_apy
 from spa_core.backtesting.tier1 import evaluator
+from spa_core.backtesting.tier1 import oos as oos_mod
 
 
 def test_psr_monotonic_and_bounded():
@@ -69,3 +70,37 @@ def test_evaluator_regime_and_ranking():
 def test_evaluator_packages_present():
     v = evaluator.evaluate(write=False)
     assert set(v["packages"].keys()) == {"conservative", "balanced", "aggressive"}
+
+
+def test_oos_insufficient_data_when_no_series():
+    # No cached protocols → cannot judge OOS, returns insufficient_data (not a crash).
+    r = oos_mod.oos_check({"nonexistent_proto": 1.0}, series_map={})
+    assert r["status"] == "insufficient_data"
+    assert r["oos_holds"] is None
+
+
+def test_oos_decay_detection_synthetic():
+    # in-sample high yield, out-of-sample collapse → oos_holds False.
+    dates = [f"2024-{m:02d}-{d:02d}" for m in range(1, 5) for d in range(1, 26)]
+    half = len(dates) // 2
+    series = {"p": {dt: (0.08 if i < half else 0.02) for i, dt in enumerate(dates)}}
+    r = oos_mod.oos_check({"p": 1.0}, series_map=series, split=0.5, tolerance=0.2)
+    assert r["status"] == "ok"
+    assert r["oos_holds"] is False           # 8% → 2% is a clear decay
+    assert r["in_sample_apy_pct"] > r["out_of_sample_apy_pct"]
+
+
+def test_oos_holds_when_stable():
+    dates = [f"2024-{m:02d}-{d:02d}" for m in range(1, 5) for d in range(1, 26)]
+    series = {"p": {dt: 0.05 for dt in dates}}  # flat yield
+    r = oos_mod.oos_check({"p": 1.0}, series_map=series, split=0.5)
+    assert r["oos_holds"] is True
+
+
+def test_evaluator_oos_gates_validation():
+    """Under LOW_VOL_YIELD, validated strategies must not have a failed OOS."""
+    v = evaluator.evaluate(write=False)
+    if v["regime"] == "LOW_VOL_YIELD":
+        for s in v["leaderboard_tier1"]:
+            if s["validated"]:
+                assert s["oos_holds"] is not False  # OOS-failed cannot be validated
