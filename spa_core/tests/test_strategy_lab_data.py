@@ -408,3 +408,238 @@ def test_marketdata_cache_shared_across_instances(tmp_path):
                      cache_dir=cache)
     snap = md2.snapshot("2026-06-20")
     assert snap.eth_price_usd == 3000.0
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# PAGINATION — deep historical fetch over a window, all with INJECTED multi-page fakes (no net).
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+import datetime as _dt
+
+
+def _ms(date_iso, settle=0):
+    """ms timestamp for a UTC date + 0/1/2 → 00:00/08:00/16:00 settle."""
+    d = _dt.date.fromisoformat(date_iso)
+    base = _dt.datetime(d.year, d.month, d.day, tzinfo=_dt.timezone.utc)
+    return int((base + _dt.timedelta(hours=8 * settle)).timestamp() * 1000)
+
+
+class PagedFetcher:
+    """Routes a url-substring to a SEQUENCE of payloads (one per successive call). Each call to a
+    matching route pops the next payload; the last payload repeats once exhausted. Lets a single
+    feed see several distinct 'pages' across its pagination loop. Records call urls."""
+
+    def __init__(self, routes):
+        # routes: {needle: [payload, payload, ...]}  (a non-list is treated as a 1-page route)
+        self.routes = {k: (v if isinstance(v, list) else [v]) for k, v in routes.items()}
+        self._idx = {k: 0 for k in self.routes}
+        self.calls = []
+
+    def __call__(self, url):
+        self.calls.append(url)
+        for needle, pages in self.routes.items():
+            if needle in url:
+                i = self._idx[needle]
+                payload = pages[min(i, len(pages) - 1)]
+                self._idx[needle] = i + 1
+                if isinstance(payload, Exception):
+                    raise payload
+                return payload
+        raise AssertionError(f"no fake route for {url}")
+
+
+# ── FUNDING pagination ────────────────────────────────────────────────────────────────────────
+def test_funding_pagination_assembles_multiple_pages():
+    # Binance: page1 = 1000 rows ending mid-window (full page → loop continues), page2 = tail.
+    page1 = [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-01") + i, "fundingRate": "0.0001"}
+             for i in range(1000)]
+    page2 = [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-03"), "fundingRate": "0.0002"}]
+    # Bybit: descending, one short page (<200) → stops immediately. Cover same days.
+    bybit_pg = {"retCode": 0, "result": {"list": [
+        {"symbol": "ETHUSDT", "fundingRate": "0.0003", "fundingRateTimestamp": str(_ms("2024-06-03"))},
+        {"symbol": "ETHUSDT", "fundingRate": "0.0001", "fundingRateTimestamp": str(_ms("2024-06-01"))},
+    ]}}
+    fetcher = PagedFetcher({"fapi.binance": [page1, page2], "bybit": bybit_pg})
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
+    series = feed.history(start_date="2024-06-01", end_date="2024-06-03")
+    # 2024-06-01 present (from page1 + bybit), 2024-06-03 present (from page2 + bybit)
+    assert "2024-06-01" in series
+    assert "2024-06-03" in series
+    # binance made >1 call (paginated through the full page1)
+    assert sum("fapi.binance" in u for u in fetcher.calls) >= 2
+
+
+def test_funding_pagination_dedup_by_timestamp():
+    # Same funding timestamp appears in two binance pages → counted ONCE (dedup by ts).
+    ts = _ms("2024-06-02")
+    full = [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-01") + i, "fundingRate": "0.0001"}
+            for i in range(999)]
+    full.append({"symbol": "ETHUSDT", "fundingTime": ts, "fundingRate": "0.0001"})  # 1000th
+    page2 = [{"symbol": "ETHUSDT", "fundingTime": ts, "fundingRate": "0.0001"}]  # duplicate ts
+    bybit_pg = {"retCode": 0, "result": {"list": [
+        {"symbol": "ETHUSDT", "fundingRate": "0.0001", "fundingRateTimestamp": str(ts)},
+    ]}}
+    fetcher = PagedFetcher({"fapi.binance": [full, page2], "bybit": bybit_pg})
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
+    series = feed.history(start_date="2024-06-01", end_date="2024-06-02")
+    # all entries are 0.0001 → median 0.0001 regardless, but the point is the day exists once.
+    assert series["2024-06-02"] == pytest.approx(0.0001)
+
+
+def test_funding_pagination_stops_at_window_bounds():
+    # Binance returns rows BEYOND end_date in the first page; those must be excluded + loop stops.
+    page = [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-01"), "fundingRate": "0.0001"},
+            {"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-10"), "fundingRate": "0.0009"}]
+    bybit_pg = {"retCode": 0, "result": {"list": [
+        {"symbol": "ETHUSDT", "fundingRate": "0.0001", "fundingRateTimestamp": str(_ms("2024-06-01"))},
+    ]}}
+    fetcher = PagedFetcher({"fapi.binance": [page], "bybit": bybit_pg})
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
+    series = feed.history(start_date="2024-06-01", end_date="2024-06-05")
+    assert "2024-06-01" in series
+    assert "2024-06-10" not in series  # beyond end_date → excluded
+
+
+def test_funding_pagination_bad_page_raises():
+    # A malformed second binance page (not a list) must raise InvalidDataError (fail-closed).
+    page1 = [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-01") + i, "fundingRate": "0.0001"}
+             for i in range(1000)]  # full → forces a second fetch
+    page2 = {"oops": "not a list"}
+    bybit_pg = {"retCode": 0, "result": {"list": [
+        {"symbol": "ETHUSDT", "fundingRate": "0.0001", "fundingRateTimestamp": str(_ms("2024-06-01"))},
+    ]}}
+    fetcher = PagedFetcher({"fapi.binance": [page1, page2], "bybit": bybit_pg})
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
+    with pytest.raises(InvalidDataError):
+        feed.history(start_date="2024-06-01", end_date="2024-06-30")
+
+
+# ── PRICE pagination ──────────────────────────────────────────────────────────────────────────
+def _chart_pts(addr, day_to_price):
+    pts = [{"timestamp": int(_dt.datetime.fromisoformat(d + "T00:00:00+00:00").timestamp()),
+            "price": p} for d, p in day_to_price.items()]
+    return {"coins": {f"{CHAIN}:{addr}": {"symbol": "X", "prices": pts}}}
+
+
+def test_price_pagination_assembles_and_dedup():
+    # Each token paginates forward in MAX_SPAN chunks; here a small window fits one page per
+    # token, but we verify the range path merges + computes ratios across the whole range.
+    def routes_for():
+        r = {}
+        for sym, addr in TOKENS.items():
+            base = 3000.0 if sym == "eth" else 3090.0
+            r[f"chart/{CHAIN}:{addr}"] = _chart_pts(addr, {
+                "2024-06-01": base, "2024-06-02": base + 10, "2024-06-03": base + 20,
+            })
+        return r
+    p = PriceFeed(fetcher=PagedFetcher(routes_for()), page_delay_s=0)
+    hist = p.history(start_date="2024-06-01", end_date="2024-06-03")
+    assert sorted(hist["eth"]) == ["2024-06-01", "2024-06-02", "2024-06-03"]
+    assert hist["eth"]["2024-06-01"] == 3000.0
+    ratios = p.history_ratios(start_date="2024-06-01", end_date="2024-06-03")
+    assert ratios["eeth"]["2024-06-01"] == pytest.approx(3090.0 / 3000.0, rel=1e-6)
+
+
+def test_price_pagination_multi_page_merges():
+    # Force a 2-page walk: page1 ends before end_date (full-ish), page2 has the tail.
+    addr = TOKENS["eth"]
+    # 365-day page (MAX_SPAN) so the loop advances; we just supply two distinct pages.
+    page1 = _chart_pts(addr, {"2024-06-01": 3000.0, "2025-05-31": 4000.0})
+    page2 = _chart_pts(addr, {"2025-06-01": 4100.0, "2025-06-02": 4200.0})
+    routes = {f"chart/{CHAIN}:{a}": ([page1, page2] if a == addr else
+              _chart_pts(a, {"2024-06-01": 3090.0, "2025-06-02": 4300.0}))
+              for a in TOKENS.values()}
+    p = PriceFeed(fetcher=PagedFetcher(routes), page_delay_s=0, max_pages=5)
+    hist = p.history(start_date="2024-06-01", end_date="2025-06-02")
+    assert hist["eth"]["2024-06-01"] == 3000.0
+    assert hist["eth"]["2025-06-02"] == 4200.0  # came from page2 (merged)
+
+
+def test_price_pagination_stops_at_window_and_bad_page_raises():
+    addr = TOKENS["eth"]
+    # eth chart route raises on first call → fail-closed
+    routes = {f"chart/{CHAIN}:{addr}": {"coins": {f"{CHAIN}:{addr}": {"prices": []}}}}
+    p = PriceFeed(fetcher=PagedFetcher(routes), page_delay_s=0)
+    with pytest.raises(InvalidDataError):
+        p.history(start_date="2024-06-01", end_date="2024-06-03")
+
+
+# ── RESTAKING pagination (pool /chart history) ──────────────────────────────────────────────────
+def _pools_with_ids():
+    return {"status": "success", "data": [
+        {"project": "ether.fi-stake", "chain": "Ethereum", "symbol": "WEETH",
+         "apy": 2.85, "tvlUsd": 2.8e9, "pool": "POOL_EETH"},
+        {"project": "renzo", "chain": "Ethereum", "symbol": "EZETH",
+         "apy": 1.94, "tvlUsd": 8e7, "pool": "POOL_EZETH"},
+    ]}
+
+
+def _yields_chart(rows):
+    return {"status": "success", "data": [
+        {"timestamp": ts, "apy": apy} for ts, apy in rows
+    ]}
+
+
+def test_restaking_history_builds_series_from_chart():
+    routes = {
+        "pools": _pools_with_ids(),
+        "chart/POOL_EETH": _yields_chart([
+            ("2024-06-05T23:01:34.685Z", 3.49), ("2024-06-06T23:01:00.000Z", 3.40),
+        ]),
+        "chart/POOL_EZETH": _yields_chart([
+            ("2024-12-13T23:01:38.564Z", 3.46), ("2024-12-14T23:01:00.000Z", 3.40),
+        ]),
+    }
+    r = RestakingFeed(fetcher=PagedFetcher(routes))
+    hist = r.history("2024-06-01", "2026-06-24")
+    # eeth + weeth share POOL_EETH → both present
+    assert hist["eeth"]["2024-06-05"] == pytest.approx(0.0349)
+    assert hist["weeth"]["2024-06-06"] == pytest.approx(0.0340)
+    assert hist["ezeth"]["2024-12-13"] == pytest.approx(0.0346)
+
+
+def test_restaking_history_windows_and_drops_out_of_range():
+    # ezETH chart starts 2024-12-13; a window ending before that → ezeth absent, eeth present.
+    routes = {
+        "pools": _pools_with_ids(),
+        "chart/POOL_EETH": _yields_chart([("2024-06-05T23:00:00Z", 3.49)]),
+        "chart/POOL_EZETH": _yields_chart([("2024-12-13T23:00:00Z", 3.46)]),
+    }
+    r = RestakingFeed(fetcher=PagedFetcher(routes))
+    hist = r.history("2024-06-01", "2024-07-01")
+    assert "eeth" in hist
+    assert "ezeth" not in hist  # its only point is outside the window
+
+
+def test_restaking_history_bad_chart_raises():
+    routes = {
+        "pools": _pools_with_ids(),
+        "chart/POOL_EETH": {"status": "error", "data": []},
+        "chart/POOL_EZETH": _yields_chart([("2024-12-13T23:00:00Z", 3.46)]),
+    }
+    r = RestakingFeed(fetcher=PagedFetcher(routes))
+    with pytest.raises(InvalidDataError):
+        r.history("2024-06-01", "2026-06-24")
+
+
+# ── MarketData deep window: per-date restaking series flows into snapshots ───────────────────────
+def test_marketdata_deep_restaking_series_in_snapshot(tmp_path):
+    class _F:
+        def history(self, start_date=None, end_date=None):
+            return {"2024-06-05": 0.0001, "2024-06-06": 0.0002}
+
+    class _P:
+        def history(self, span=90, start_date=None, end_date=None):
+            return {"eth": {"2024-06-05": 3000.0, "2024-06-06": 3010.0}}
+        def history_ratios(self, span=90, start_date=None, end_date=None):
+            return {}
+
+    class _R:
+        def history(self, start_date, end_date):
+            return {"eeth": {"2024-06-05": 0.035, "2024-06-06": 0.034}}
+
+    md = MarketData(funding_feed=_F(), price_feed=_P(), restaking_feed=_R(),
+                    cache_dir=tmp_path / "deep", window=("2024-06-05", "2024-06-06"))
+    md.refresh()
+    snap = md.snapshot("2024-06-06")
+    assert snap.restaking_apy["eeth"] == pytest.approx(0.034)  # per-DATE value, not flat latest
+    assert "restaking_apy" not in snap.gaps
