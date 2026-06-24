@@ -119,31 +119,13 @@ def get_chat_id() -> Optional[str]:
 
 def send_telegram(text: str, token: Optional[str] = None,
                   chat_id: Optional[str] = None) -> bool:
-    """Send an HTML message to Telegram. Fail-safe → False on any error."""
-    token = token or get_bot_token()
-    chat_id = chat_id or get_chat_id()
-    if not token or not chat_id:
-        log.warning("Telegram token/chat_id missing — cannot send alert")
-        return False
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = json.dumps({
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-    }).encode()
+    """Send an HTML message via the canonical telegram_client (single shared client
+    with the 400→plain-text fallback). token/chat_id args kept for back-compat but
+    ignored — the client reads creds from Keychain. Fail-safe → False on any error."""
     try:
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"}, method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read().decode())
-        ok = bool(result.get("ok"))
-        if not ok:
-            log.warning("send_telegram failed: %s", result)
-        return ok
-    except Exception as exc:
+        from spa_core.alerts.telegram_client import send_message
+        return send_message(text, parse_mode="HTML")
+    except Exception as exc:  # noqa: BLE001 — alerts must never crash the watcher
         log.warning("send_telegram error: %s", exc)
         return False
 
