@@ -44,6 +44,10 @@ MAX_MSGS_PER_MIN = 12
 
 
 def _rate_limit_ok(text: str = "") -> bool:
+    # Under pytest the guard is disabled: tests must be isolated and are never a real flood
+    # source (the shared state file would otherwise leak counts across tests).
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
     try:
         now = time.time()
         try:
