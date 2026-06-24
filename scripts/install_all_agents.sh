@@ -159,11 +159,8 @@ install_agent \
     "com.spa.cloudflared" \
     "1"
 
-# 12. Morning Digest — Telegram digest 08:05 (после daily cycle)
-install_agent \
-    "$REPO/scripts/com.spa.morning_digest.plist" \
-    "com.spa.morning_digest" \
-    "1"
+# 12. (RETIRED 2026-06-24) Morning Digest — was redundant with com.spa.telegram_daily
+#     (3 overlapping daily reports). Consolidated to ONE daily report. Do not reinstall.
 
 # 13. System Briefing — auto-updates SYSTEM_BRIEFING.md every 30 min
 install_agent \
