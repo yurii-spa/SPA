@@ -435,55 +435,22 @@ class TelegramDailyDigest:
             * ``message_id``  — int (if ok=True)
             * ``error``       — str (if ok=False)
         """
+        # FLOOD-GUARD: route through the canonical rate-limited client so this
+        # digest shares the cross-process flood guard. Transport only — same
+        # MarkdownV2 message. The ``bot_token``/``chat_id`` args are kept for
+        # signature compatibility; the canonical client re-resolves creds from
+        # the Keychain (TELEGRAM_*_SPA). message_id is not exposed by the
+        # canonical client (returns bool), so it is reported as None on success.
         digest = self.build_digest(date_str=date_str)
-        url = _TELEGRAM_API.format(token=bot_token)
-
-        payload = json.dumps({
-            "chat_id": chat_id,
-            "text": digest,
-            "parse_mode": "MarkdownV2",
-            "disable_web_page_preview": True,
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
         try:
-            with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT) as resp:
-                status_code = resp.getcode()
-                body = json.loads(resp.read().decode("utf-8"))
-                message_id = None
-                if isinstance(body, dict) and body.get("ok"):
-                    message_id = (
-                        body.get("result", {}).get("message_id")
-                        if isinstance(body.get("result"), dict)
-                        else None
-                    )
-                return {
-                    "ok": True,
-                    "status_code": status_code,
-                    "message_id": message_id,
-                }
-        except urllib.error.HTTPError as exc:
-            body_text = ""
-            try:
-                body_text = exc.read().decode("utf-8")
-            except Exception:
-                pass
-            return {
-                "ok": False,
-                "status_code": exc.code,
-                "error": f"HTTP {exc.code}: {body_text[:200]}",
-            }
-        except urllib.error.URLError as exc:
+            from spa_core.alerts.telegram_client import send_message
+            ok = send_message(digest, parse_mode="MarkdownV2")
+            if ok:
+                return {"ok": True, "status_code": 200, "message_id": None}
             return {
                 "ok": False,
                 "status_code": 0,
-                "error": f"URLError: {exc.reason}",
+                "error": "send failed or suppressed by flood guard",
             }
         except Exception as exc:  # noqa: BLE001
             return {
