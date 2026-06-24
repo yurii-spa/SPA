@@ -15,7 +15,7 @@ const FALLBACK = {
   last_cycle_at: null,
   active_protocols: 8,
   risk_policy_blocks_30d: 2,
-  golive_target: '2026-08-01',
+  golive_target: '2026-07-09',
 };
 
 const TABS = [
@@ -176,7 +176,7 @@ function OverviewTab({ d }) {
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Go-Live Target</div>
-            <span className="text-white/50">{d.golive_target ?? '2026-08-01'}</span>
+            <span className="text-white/50">{d.golive_target ?? '2026-07-09'}</span>
           </div>
         </div>
       </div>
@@ -416,8 +416,8 @@ function GoLiveTab({ d }) {
       </div>
 
       <div className="rounded-lg bg-white/3 border border-white/8 px-4 py-3 text-xs text-white/30 leading-relaxed">
-        Go-live requires all 26 criteria to pass for 7+ consecutive days, plus 30-day gap-free track record
-        and manual owner review (ADR-002). Target: August 1, 2026.
+        Go-live requires all 29 criteria to pass for 7+ consecutive days, plus 30-day gap-free track record
+        and manual owner review (ADR-002). Target: July 2026.
       </div>
     </div>
   );
