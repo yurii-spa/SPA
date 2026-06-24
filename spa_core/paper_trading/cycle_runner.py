@@ -161,6 +161,11 @@ class CycleResult:
     # MP-108: kill-switch state for this cycle.
     kill_switch_active: bool = False
     kill_switch_reason: str = ""
+    # LAW-1 (fail-safe): a safety/risk check could not be evaluated this cycle.
+    # When True, no NEW deployment/rebalance is allowed — current positions are
+    # held and the cycle status is "blocked_safety_check_error".
+    safety_check_failed: bool = False
+    safety_check_reason: str = ""
     # MP-310: audit trail correlation id for this cycle.
     correlation_id: str = ""
     # MP-534: market regime snapshot for this cycle.
@@ -193,6 +198,8 @@ class CycleResult:
             "policy_warnings": self.policy_warnings,
             "kill_switch_active": self.kill_switch_active,
             "kill_switch_reason": self.kill_switch_reason,
+            "safety_check_failed": self.safety_check_failed,
+            "safety_check_reason": self.safety_check_reason,
             "correlation_id": self.correlation_id,
             "market_regime": self.market_regime,
             "regime_t1_avg_apy": self.regime_t1_avg_apy,
@@ -217,6 +224,34 @@ def _read_json(path: Path, default: Any) -> Any:
     except (ValueError, OSError) as exc:
         log.warning("%s unreadable (%s) — using default", path.name, exc)
         return default
+
+
+# ─── LAW-1 fail-safe alert ───────────────────────────────────────────────────
+
+
+def _send_safety_failsafe_alert(reason: str, correlation_id: str = "") -> None:
+    """Loud Telegram alert when a safety/risk check could not be evaluated.
+
+    LAW 1 (fail-safe, not fail-open): if a safety check raises, we cannot
+    confirm trading is safe, so the cycle HOLDS (no new trades). This raises a
+    human-visible alarm. Deterministic, stdlib + telegram_client only, never
+    raises (alerting must not crash the cycle that is already degrading safely).
+    """
+    try:
+        from spa_core.alerts import telegram_client  # noqa: PLC0415
+
+        msg = (
+            "🚨 <b>SPA FAIL-SAFE: safety check error</b>\n"
+            "A risk/safety check could not be evaluated — the cycle is "
+            "<b>HOLDING current positions</b> and suppressing all new "
+            "deployment/rebalancing (LAW 1, fail-safe).\n\n"
+            f"<b>Reason:</b> {reason}\n"
+        )
+        if correlation_id:
+            msg += f"<b>correlation_id:</b> {correlation_id}"
+        telegram_client.send_message(msg, parse_mode="HTML")
+    except Exception as _alert_exc:  # noqa: BLE001
+        log.warning("fail-safe Telegram alert failed (%s)", _alert_exc)
 
 
 # ─── Pure helpers ────────────────────────────────────────────────────────────
@@ -1243,9 +1278,25 @@ def run_cycle(
             _save_cycle_snapshot_safe(ddir, result, adapters, run_ts)
         return result
 
+    # ── LAW 1 (fail-safe): safety-check failure suppresses NEW trades ─────────
+    # When ANY safety/risk check below cannot be evaluated (raises), we cannot
+    # confirm trading is safe. Per LAW 1 (fail-safe, not fail-open) the cycle
+    # then HOLDS current positions (no new deployment/rebalance), records the
+    # reason, sets status="blocked_safety_check_error", and fires a loud alert.
+    # Holding (not forcing all-cash) avoids churn while still suppressing risk.
+    _safety_failed = False
+    _safety_reasons: list[str] = []
+
+    def _mark_safety_failure(reason: str) -> None:
+        """Record a LAW-1 fail-safe trigger (idempotent, never raises)."""
+        nonlocal _safety_failed
+        _safety_failed = True
+        _safety_reasons.append(reason)
+        notes.append(f"FAIL_SAFE_HOLD: {reason}")
+
     # ── Step 1b (MP-108): kill-switch check — override allocation if active ──
-    # Deterministic, fail-safe: any exception → WARNING + note, cycle continues.
-    # Kill-switch CANNOT be overridden by any agent (approved=False is final).
+    # Deterministic. LAW 1: any exception → FAIL-SAFE (HOLD, suppress new trades,
+    # alert), NOT fail-open. Kill-switch CANNOT be overridden (approved=False final).
     _ks_triggered = False
     _ks_reason = ""
     _ks_allocation: dict[str, float] = {}
@@ -1262,9 +1313,12 @@ def run_cycle(
             _ks_allocation = dict(kill_status.get("allocation") or {})
             log.critical("KILL SWITCH ACTIVE: %s", _ks_reason)
             notes.append(f"kill_switch_active: {_ks_reason}")
-    except Exception as exc:  # kill-switch check must never crash the cycle
-        log.warning("kill_switch check failed (%s) — fail-open, cycle continues", exc)
-        notes.append(f"kill_switch_check_error: {type(exc).__name__}: {exc}")
+    except Exception as exc:  # LAW 1: cannot confirm safe → HOLD, do NOT trade
+        log.critical(
+            "kill_switch check FAILED (%s) — FAIL-SAFE: holding positions, "
+            "suppressing new trades", exc,
+        )
+        _mark_safety_failure(f"kill_switch_check_error: {type(exc).__name__}: {exc}")
 
     # ── Step 2: allocator → target allocation ─────────────────────────────
     alloc = (allocator or _default_allocator(ddir)).allocate()
@@ -1446,11 +1500,14 @@ def run_cycle(
                 if write:
                     _write_status(ddir, _eb_cycle_result, paper_start_date, capital_usd, run_ts)
                 return _eb_cycle_result
-        except Exception as _eb_exc:  # breaker check must never crash the cycle
-            log.warning(
-                "EmergencyBreakers check failed (%s) — fail-open, cycle continues", _eb_exc
+        except Exception as _eb_exc:  # LAW 1: cannot confirm safe → HOLD, no trade
+            log.critical(
+                "EmergencyBreakers check FAILED (%s) — FAIL-SAFE: holding positions, "
+                "suppressing new trades", _eb_exc,
             )
-            notes.append(f"emergency_breakers_error: {type(_eb_exc).__name__}: {_eb_exc}")
+            _mark_safety_failure(
+                f"emergency_breakers_error: {type(_eb_exc).__name__}: {_eb_exc}"
+            )
 
     # ── Step 2c-pre (ADR-031 / MP-1146): Analytics Blocking Gate ──────────────
     # Runs AFTER the allocator and BEFORE the RiskPolicy gate. Reads the Tier-A
@@ -1536,10 +1593,14 @@ def run_cycle(
         log.warning("audit risk_verdict failed (%s)", _aexc2)
 
     if gate["error"] is not None:
-        notes.append(
-            f"risk_policy_gate_error: {gate['error']} — gate skipped "
-            "(fail-open, WARNING logged)."
+        # LAW 1: the RiskPolicy gate itself could not be evaluated. We cannot
+        # confirm the target is safe → FAIL-SAFE: hold positions, suppress new
+        # trades (do NOT skip the gate and trade anyway).
+        log.critical(
+            "RiskPolicy gate FAILED (%s) — FAIL-SAFE: holding positions, "
+            "suppressing new trades", gate["error"],
         )
+        _mark_safety_failure(f"risk_policy_gate_error: {gate['error']}")
     else:
         if gate["trimmed"]:
             target_usd = dict(gate["target_usd"])
@@ -1621,10 +1682,36 @@ def run_cycle(
         trades = []
     diff_usd = _allocation_diff_usd(current_positions, target_usd)
     threshold_usd = trade_threshold_pct * capital_usd
-    traded = (not policy_blocked) and diff_usd > threshold_usd
+    # LAW 1 (fail-safe): if a safety check could not be evaluated, suppress ALL
+    # new deployment/rebalancing this cycle — hold current positions. This takes
+    # priority over the normal trade decision and over policy_blocked.
+    traded = (not _safety_failed) and (not policy_blocked) and diff_usd > threshold_usd
     trade_id: str | None = None
 
-    if traded:
+    if _safety_failed:
+        # HOLD: keep prior positions verbatim, deploy nothing new. A loud alert
+        # was logged at .critical above; fire the Telegram alarm here too.
+        effective_positions = dict(current_positions)
+        _safety_reason_str = "; ".join(_safety_reasons)
+        notes.append(
+            "FAIL_SAFE_HOLD: safety check could not be evaluated — held current "
+            f"positions, no new trades ({_safety_reason_str})."
+        )
+        if write:
+            _send_safety_failsafe_alert(_safety_reason_str, _correlation_id)
+        # MP-310: record trade_blocked (fail-safe, advisory)
+        try:
+            from spa_core.audit.audit_trail import record_event as _audit_record  # noqa: F811
+            _audit_record(
+                _correlation_id,
+                "trade_blocked",
+                {"reason": "safety_check_error", "detail": _safety_reasons},
+                prev_event_id=_audit_verdict_id,
+                data_dir=str(ddir),
+            )
+        except Exception as _aexc_sf:  # noqa: BLE001
+            log.warning("audit safety-hold trade_blocked failed (%s)", _aexc_sf)
+    elif traded:
         trade_id = _next_trade_id(trades)
         trades.append(
             {
@@ -1696,7 +1783,9 @@ def run_cycle(
     # protocols) could be persisted unchecked and rules_watchdog would flag it.
     # Here we validate the OUTGOING book against policy_enforcer and, on
     # violation, adopt the rebalancer's guaranteed-compliant allocation. Fail-open.
-    if write and effective_positions:
+    # LAW 1: skip when a safety check failed — we are holding and must not let the
+    # rebalancer deploy new positions while a safety check is unverifiable.
+    if write and effective_positions and not _safety_failed:
         try:
             from spa_core.risk.policy_enforcer import validate_positions as _pe_final
             _eff_cash = capital_usd - sum(effective_positions.values())
@@ -1753,9 +1842,11 @@ def run_cycle(
     )
 
     days = _days_running(today, paper_start_date)
-    # MP-108: status reflects kill-switch if active
+    # LAW 1: a failed safety check is the most safety-critical signal — it takes
+    # priority in the reported status. MP-108: kill-switch next, then policy.
     _cycle_status = (
-        "kill_switch" if _ks_triggered
+        "blocked_safety_check_error" if _safety_failed
+        else "kill_switch" if _ks_triggered
         else ("blocked_by_policy" if policy_blocked else "ok")
     )
     result = CycleResult(
@@ -1783,6 +1874,8 @@ def run_cycle(
         policy_warnings=list(gate.get("warnings") or []),
         kill_switch_active=_ks_triggered,
         kill_switch_reason=_ks_reason,
+        safety_check_failed=_safety_failed,
+        safety_check_reason="; ".join(_safety_reasons),
         correlation_id=_correlation_id,
         market_regime=_regime_name,
         regime_t1_avg_apy=_regime_t1_avg_apy,
@@ -2829,6 +2922,9 @@ def _write_status(
         # MP-108: kill-switch state for this cycle.
         "kill_switch_active": result.kill_switch_active,
         "kill_switch_reason": result.kill_switch_reason,
+        # LAW 1 (fail-safe): safety-check evaluation failure for this cycle.
+        "safety_check_failed": result.safety_check_failed,
+        "safety_check_reason": result.safety_check_reason,
         # MP-534: market regime snapshot.
         "market_regime": result.market_regime,
         "regime_t1_avg_apy": result.regime_t1_avg_apy,
