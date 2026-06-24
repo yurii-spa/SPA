@@ -22,6 +22,7 @@ from spa_core.family_fund.models import FundSnapshot, Investor, InvestorStatemen
 from spa_core.family_fund.registry import InvestorRegistry
 from spa_core.family_fund.pnl_attribution import PnLAttributor
 from spa_core.family_fund.telegram_blast import TelegramBlast
+from spa_core.utils.errors import ConfigError
 
 
 # ======================================================================
@@ -535,7 +536,7 @@ class TestTelegramBlast(unittest.TestCase):
         blast = TelegramBlast()
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="not found")
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises((RuntimeError, ConfigError)):
                 blast._get_token("MISSING_KEY")
 
     def test_resolve_credentials_uses_overrides(self):
@@ -606,31 +607,28 @@ class TestTelegramBlast(unittest.TestCase):
         text = mock_post.call_args[0][2]
         self.assertIn("Msg", text)
 
-    def test_post_uses_correct_url(self):
-        blast = self._blast_with_overrides()
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_resp = MagicMock()
-            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
-            mock_resp.__exit__ = MagicMock(return_value=False)
-            mock_resp.read.return_value = b'{"ok":true,"result":{}}'
-            mock_urlopen.return_value = mock_resp
-            blast.send_alert("hello")
-        req = mock_urlopen.call_args[0][0]
-        self.assertIn("fake-token-123", req.full_url)
+    # NOTE (flood-guard migration): _post now routes transport through the
+    # canonical rate-limited client spa_core.alerts.telegram_client.send_message
+    # instead of calling urllib directly. These tests verify the chokepoint is
+    # used and the formatted text is forwarded.
 
-    def test_post_sends_json_body(self):
+    def test_post_routes_through_canonical_client(self):
         blast = self._blast_with_overrides()
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_resp = MagicMock()
-            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
-            mock_resp.__exit__ = MagicMock(return_value=False)
-            mock_resp.read.return_value = b'{"ok":true,"result":{}}'
-            mock_urlopen.return_value = mock_resp
+        with patch(
+            "spa_core.alerts.telegram_client.send_message", return_value=True
+        ) as mock_send:
+            result = blast.send_alert("hello")
+        mock_send.assert_called_once()
+        self.assertTrue(result["ok"])
+
+    def test_post_forwards_text(self):
+        blast = self._blast_with_overrides()
+        with patch(
+            "spa_core.alerts.telegram_client.send_message", return_value=True
+        ) as mock_send:
             blast.send_alert("test")
-        req = mock_urlopen.call_args[0][0]
-        payload = json.loads(req.data.decode("utf-8"))
-        self.assertIn("chat_id", payload)
-        self.assertIn("text", payload)
+        sent_text = mock_send.call_args[0][0]
+        self.assertIn("test", sent_text)
 
 
 # ======================================================================
