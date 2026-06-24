@@ -56,6 +56,16 @@ PROMOTION_CRITERIA: Dict[str, Any] = {
 
 PHASES = ["backtest", "paper_30d", "live"]
 
+
+def _tier1_gate_eligible(strategy_id: str) -> bool:
+    """Advisory consult of the parallel Tier-1 gate. Fail-open (True) if the gate or its
+    module is unavailable — never blocks the tournament on a missing Tier-1 run."""
+    try:
+        from spa_core.backtesting.tier1.gate import is_eligible
+        return bool(is_eligible(strategy_id))
+    except Exception:
+        return True
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -305,6 +315,10 @@ class TournamentEngine:
                     "phase_from": "paper_30d",
                     "phase_to":   "live",
                     "is_advisory": IS_ADVISORY,
+                    # Advisory annotation from the parallel Tier-1 gate (real-data backtest +
+                    # net-of-cost + OOS + capacity). Surfaces whether Tier-1 validates this
+                    # promotion; never blocks (promotions are already advisory). Fail-open.
+                    "tier1_eligible": _tier1_gate_eligible(sid),
                 })
 
         if promotions:
