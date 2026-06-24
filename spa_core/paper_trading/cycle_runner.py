@@ -368,6 +368,9 @@ def _rebuild_summary(daily: list[dict]) -> dict:
 
     return {
         "num_days": len(daily),
+        # Honest track length = non-warmup bars only (pre-2026-06-10 warmup/demo
+        # bars excluded). Consumers should display real_days, not num_days.
+        "real_days": len(real_daily),
         "num_snapshots": len(daily),
         "start_equity": round(start_equity, 2),
         "end_equity": round(end_equity, 2),
