@@ -7,6 +7,8 @@ cd /Users/yuriikulieshov/Documents/SPA_Claude
 PY=/Users/yuriikulieshov/miniconda3/bin/python3
 echo "[$(date -u '+%FT%TZ')] fetch real historical APY (DeFiLlama)..."
 $PY scripts/fetch_historical_apy.py
+echo "[$(date -u '+%FT%TZ')] tier1 data integrity (no-lookahead audit)..."
+$PY -m spa_core.backtesting.tier1.data_integrity
 echo "[$(date -u '+%FT%TZ')] mass_tournament (real data)..."
 $PY -m spa_core.backtesting.mass_tournament
 echo "[$(date -u '+%FT%TZ')] tier1 evaluator (net-of-cost + OOS + capacity)..."
