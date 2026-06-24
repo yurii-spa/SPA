@@ -1750,13 +1750,13 @@ body:not(.night) .bee-disclaimer { color: #777; }
 <div class="tabs">
   <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
-  <button class="tab-btn"         onclick="showTab('backtest',  this)">📉 Backtest</button>
-  <button class="tab-btn"         onclick="showTab('protocols', this)">🔌 Protocols</button>
-  <button class="tab-btn"         onclick="showTab('risk',      this)">🛡 Risk</button>
+  <button class="tab-btn"         onclick="showTab('backtest',  this)" data-ru="📉 Бэктест">📉 Backtest</button>
+  <button class="tab-btn"         onclick="showTab('protocols', this)" data-ru="🔌 Протоколы">🔌 Protocols</button>
+  <button class="tab-btn"         onclick="showTab('risk',      this)" data-ru="🛡 Риск">🛡 Risk</button>
   <button class="tab-btn" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
-  <button class="tab-btn"         onclick="showTab('evidence',   this)">🔬 Evidence</button>
+  <button class="tab-btn"         onclick="showTab('evidence',   this)" data-ru="🔬 Доказательства">🔬 Evidence</button>
   <button class="tab-btn" style="display:none" data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
   <button class="tab-btn" style="display:none" data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
   <a class="tab-btn" href="/tournament" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">🏆 Tournament <span style="font-size:9px;opacity:0.55">↗</span></a>
@@ -1831,7 +1831,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:600">Performance Dashboard</div>
+      <div style="font-size:15px;font-weight:600" data-ru="Панель производительности">Performance Dashboard</div>
       <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · Stable Portfolio Agent · Paper Track</div>
     </div>
     <button class="refresh-btn" data-i18n="refresh" onclick="loadPerformance()">↻ Refresh</button>
@@ -1844,15 +1844,15 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- SECTION 1b: Performance Tear Sheet (B5 — tear_sheet.json) -->
   <div id="perf-tearsheet" class="tearsheet-card">
-    <div class="db-section" style="margin-bottom:6px">📋 Performance Tear Sheet</div>
+    <div class="db-section" style="margin-bottom:6px" data-ru="📋 Сводка производительности">📋 Performance Tear Sheet</div>
     <p id="tearsheet-track" class="tearsheet-track">Loading track data…</p>
     <div class="tearsheet-grid">
       <div class="tearsheet-metric">
-        <div class="tearsheet-metric-label">Total Return</div>
+        <div class="tearsheet-metric-label" data-ru="Совокупная доходность">Total Return</div>
         <div class="tearsheet-metric-value" id="ts-total-ret">—</div>
       </div>
       <div class="tearsheet-metric">
-        <div class="tearsheet-metric-label">Ann. APY</div>
+        <div class="tearsheet-metric-label" data-ru="Годовая APY">Ann. APY</div>
         <div class="tearsheet-metric-value" id="ts-apy">—</div>
       </div>
       <div class="tearsheet-metric">
@@ -1861,7 +1861,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
         <div class="tearsheet-metric-sub" id="ts-sharpe-sub"></div>
       </div>
       <div class="tearsheet-metric">
-        <div class="tearsheet-metric-label">Max Drawdown</div>
+        <div class="tearsheet-metric-label" data-ru="Макс. просадка">Max Drawdown</div>
         <div class="tearsheet-metric-value" id="ts-maxdd">—</div>
       </div>
       <div class="tearsheet-metric">
@@ -1877,7 +1877,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- SECTION 2: Equity Curve (Chart.js) + Period Selector (C2) -->
   <div class="db-full" style="margin-bottom:18px">
     <div class="db-section" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <span>📈 Equity Curve — Net Asset Value (USD)</span>
+      <span data-ru="📈 Кривая капитала — стоимость чистых активов (USD)">📈 Equity Curve — Net Asset Value (USD)</span>
       <div style="display:flex;gap:4px">
         <button class="perf-period-btn" data-days="7"  onclick="setPerfPeriod(7,this)">7D</button>
         <button class="perf-period-btn" data-days="30" onclick="setPerfPeriod(30,this)">30D</button>
@@ -1894,7 +1894,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- SECTION 2b: Equity History Chart (MP-542, equity_history.json) -->
   <div class="db-full" id="equity-chart-container" style="margin-bottom:18px">
-    <div class="db-section" style="margin-bottom:10px">📊 Equity Curve — Daily History</div>
+    <div class="db-section" style="margin-bottom:10px" data-ru="📊 Кривая капитала — дневная история">📊 Equity Curve — Daily History</div>
     <div style="position:relative">
       <canvas id="equityChart" width="700" height="250" style="width:100%;max-width:700px;display:block"></canvas>
       <div id="equity-chart-placeholder" style="display:none;padding:60px 20px;text-align:center;color:#aaa;font-size:13px">
@@ -1903,12 +1903,12 @@ body:not(.night) .bee-disclaimer { color: #777; }
     </div>
     <div id="equity-metrics" style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap">
       <div class="db-metric" style="min-width:120px">
-        <div class="db-metric-label">Start</div>
+        <div class="db-metric-label" data-ru="Старт">Start</div>
         <div class="db-metric-value" style="font-size:16px" id="equityStart">$100,000.00</div>
         <div class="db-metric-sub">initial capital</div>
       </div>
       <div class="db-metric" style="min-width:120px">
-        <div class="db-metric-label">Current</div>
+        <div class="db-metric-label" data-ru="Текущий">Current</div>
         <div class="db-metric-value" style="font-size:16px" id="equityCurrent">—</div>
         <div class="db-metric-sub">latest</div>
       </div>
@@ -1918,7 +1918,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
         <div class="db-metric-sub">since start</div>
       </div>
       <div class="db-metric" style="min-width:120px">
-        <div class="db-metric-label">Return</div>
+        <div class="db-metric-label" data-ru="Доходность">Return</div>
         <div class="db-metric-value" style="font-size:16px" id="equityReturn">—</div>
         <div class="db-metric-sub">total %</div>
       </div>
@@ -1927,7 +1927,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- SECTION 2c: APY Consensus (ADR-028) -->
   <div class="db-full" id="apy-consensus-container" style="margin-bottom:18px">
-    <div class="db-section" style="margin-bottom:8px">📊 APY Consensus <span style="font-size:11px;font-weight:400;color:#666">(ADR-028)</span></div>
+    <div class="db-section" style="margin-bottom:8px"><span data-ru="📊 Консенсус APY">📊 APY Consensus</span> <span style="font-size:11px;font-weight:400;color:#666">(ADR-028)</span></div>
     <p style="font-size:12px;color:#777;margin:0 0 10px">Tier 2: DeFiLlama live &nbsp;|&nbsp; Tier 3: Static fallback &nbsp;|&nbsp; ⚠️ = divergence &gt;150 bps</p>
     <div style="overflow-x:auto">
       <table id="apy-consensus-table" style="width:100%;border-collapse:collapse;font-size:13px">
@@ -1955,7 +1955,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- SECTION 4: Investor Narrative -->
   <div class="db-full" style="margin-bottom:18px;border-left:4px solid #185FA5">
-    <div class="db-section">🏛 About SPA</div>
+    <div class="db-section" data-ru="🏛 О SPA">🏛 About SPA</div>
     <p style="font-size:13px;color:#444;line-height:1.7;margin-bottom:8px">
       <strong>SPA (Stable Portfolio Agent)</strong> is an automated DeFi yield optimizer running a verified paper track since 2026-06-10.
       The system allocates $100,000 virtual USDC across audited Ethereum DeFi protocols using a deterministic, LLM-free risk policy (RiskPolicy v1.0).
@@ -1976,7 +1976,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- SECTION 5: Strategy Race Preview (top 3) -->
   <div class="db-full" style="margin-bottom:18px">
     <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>🏁 Strategy Race — Top 3</span>
+      <span data-ru="🏁 Гонка стратегий — Топ 3">🏁 Strategy Race — Top 3</span>
       <span style="font-size:11px;color:#888">Shadow strategies running in parallel</span>
     </div>
     <div id="perf-race-preview">
@@ -2027,15 +2027,15 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:600">Strategy Race</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">S0–S10 shadow strategies running in parallel · 30-day track to select live strategy</div>
+      <div style="font-size:15px;font-weight:600" data-ru="Гонка стратегий">Strategy Race</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" data-ru="Теневые стратегии S0–S10 работают параллельно · 30-дневный трек для выбора живой стратегии">S0–S10 shadow strategies running in parallel · 30-day track to select live strategy</div>
     </div>
     <button class="refresh-btn" data-i18n="refresh" onclick="loadStrategies()">↻ Refresh</button>
   </div>
 
   <!-- BLOCK 1: Strategy Race Leaderboard -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">🏁 S0–S10 Strategy Leaderboard</div>
+    <div class="db-section" data-ru="🏁 Таблица лидеров стратегий S0–S10">🏁 S0–S10 Strategy Leaderboard</div>
     <div id="strat-accumulate-bar" style="margin-bottom:12px"></div>
     <div style="overflow-x:auto">
       <table class="race-table" style="width:100%">
@@ -2060,7 +2060,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- BLOCK 2: Active Strategy Positions -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">📊 Active Strategy Positions (Live Portfolio)</div>
+    <div class="db-section" data-ru="📊 Активные позиции стратегий (живой портфель)">📊 Active Strategy Positions (Live Portfolio)</div>
     <div style="overflow-x:auto">
       <table class="race-table" style="width:100%">
         <thead>
@@ -2081,7 +2081,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- BLOCK 2a: Portfolio Optimizer (v4.0) -->
   <div class="db-full" id="optimizer-block" style="margin-bottom:18px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="db-section" style="margin-bottom:0">🎯 Portfolio Optimizer — Optimal vs Live</div>
+      <div class="db-section" style="margin-bottom:0" data-ru="🎯 Оптимизатор портфеля — оптимальный против живого">🎯 Portfolio Optimizer — Optimal vs Live</div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="optimizer-projected" style="font-size:12px;color:#185FA5;font-weight:600"></span>
         <button class="refresh-btn" onclick="loadOptimizer()">↻ Refresh</button>
@@ -2111,7 +2111,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- BLOCK 2b: Strategy Tournament Leaderboard (MP-1514, v11.30) -->
   <div class="db-full" id="tournament-leaderboard-block" style="margin-bottom:18px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="db-section" style="margin-bottom:0">🏆 Strategy Tournament Leaderboard</div>
+      <div class="db-section" style="margin-bottom:0" data-ru="🏆 Таблица лидеров турнира стратегий">🏆 Strategy Tournament Leaderboard</div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="tournament-last-run" style="font-size:11px;color:#aaa"></span>
         <button class="refresh-btn" onclick="loadTournamentLeaderboard()">↻ Refresh</button>
@@ -2141,7 +2141,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- BLOCK 3: Planned Strategies Roadmap -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">🗺 Planned Strategies — Roadmap</div>
+    <div class="db-section" data-ru="🗺 Планируемые стратегии — дорожная карта">🗺 Planned Strategies — Roadmap</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:4px">
       <div class="db-card" style="border-left:3px solid #185FA5">
         <div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:6px">Phase 2 · 2026-Q3</div>
@@ -2174,7 +2174,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- BLOCK 5: Basis Trade Opportunities (BTS Phase 4) -->
   <div class="db-full" id="basis-trade-block" style="margin-bottom:18px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="db-section" style="margin-bottom:0">⚡ Basis Trade Opportunities</div>
+      <div class="db-section" style="margin-bottom:0" data-ru="⚡ Возможности базисной торговли">⚡ Basis Trade Opportunities</div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="basis-stale-badge" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:2px 8px">STALE</span>
         <button class="refresh-btn" onclick="loadBasisOpportunities()">↻ Refresh</button>
@@ -2219,7 +2219,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- BLOCK 1: Backtest metrics table -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">📊 Strategy Backtest Metrics</div>
+    <div class="db-section" data-ru="📊 Метрики бэктеста стратегий">📊 Strategy Backtest Metrics</div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
@@ -2241,7 +2241,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- BLOCK 2: Sharpe comparison bar chart -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">📈 Sharpe Ratio Comparison</div>
+    <div class="db-section" data-ru="📈 Сравнение коэффициента Шарпа">📈 Sharpe Ratio Comparison</div>
     <div id="backtest-sharpe-chart" style="padding:8px 4px">
       <div style="text-align:center;padding:20px;color:#888">Loading…</div>
     </div>
@@ -2255,7 +2255,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- BLOCK 3: Tier-1 Tear Sheet Summary (MP-1356) -->
   <div class="db-full" id="tearsheet-summary-block" style="margin-bottom:18px;display:none">
     <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
-      <span>📄 Professional Tear Sheet</span>
+      <span data-ru="📄 Профессиональная сводка">📄 Professional Tear Sheet</span>
       <a id="tearsheet-link" href="docs/reports/backtest_tearsheet.html" target="_blank"
          style="font-size:12px;font-weight:600;color:#185FA5;text-decoration:none">
         View Full Tear Sheet →
@@ -2369,14 +2369,14 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:600">Protocols Monitor</div>
+      <div style="font-size:15px;font-weight:600" data-ru="Монитор протоколов">Protocols Monitor</div>
       <div style="font-size:12px;color:#888;margin-top:2px">All adapters in <code>ADAPTER_REGISTRY</code> · live APY from <code>data/adapter_status.json</code></div>
     </div>
     <button class="refresh-btn" onclick="loadProtocols()">↻ Refresh</button>
   </div>
 
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">🔌 Adapter Registry — Live Status</div>
+    <div class="db-section" data-ru="🔌 Реестр адаптеров — живой статус">🔌 Adapter Registry — Live Status</div>
     <div id="protocols-meta" style="font-size:12px;color:#888;margin-bottom:10px"></div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -2407,7 +2407,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:600">🛡 Risk Analytics</div>
+      <div style="font-size:15px;font-weight:600" data-ru="🛡 Аналитика рисков">🛡 Risk Analytics</div>
       <div style="font-size:12px;color:#888;margin-top:2px">Scenario stress tests &amp; Value-at-Risk · source <code>data/stress_test_results.json</code>, <code>data/var_analytics_v2.json</code></div>
     </div>
     <button class="refresh-btn" onclick="loadRisk()">↻ Refresh</button>
@@ -2415,7 +2415,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- BLOCK 1: Stress Test scenarios -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">💥 Stress Test Scenarios</div>
+    <div class="db-section" data-ru="💥 Сценарии стресс-тестов">💥 Stress Test Scenarios</div>
     <div id="risk-stress-meta" style="font-size:12px;color:#888;margin-bottom:10px"></div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -2441,7 +2441,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- BLOCK 2: Value-at-Risk -->
   <div class="db-full" style="margin-bottom:18px">
-    <div class="db-section">📉 Value-at-Risk (VaR)</div>
+    <div class="db-section" data-ru="📉 Стоимость под риском (VaR)">📉 Value-at-Risk (VaR)</div>
     <div id="risk-var-meta" style="font-size:12px;color:#888;margin-bottom:10px"></div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -2644,7 +2644,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:500">Paper trading · strategy paper-v1</div>
+      <div style="font-size:15px;font-weight:500" data-ru="Бумажная торговля · стратегия paper-v1">Paper trading · strategy paper-v1</div>
       <div style="font-size:12px;color:#888;margin-top:2px" id="dash-ts">Loading...</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -2660,22 +2660,22 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <!-- Метрики -->
   <div class="db-grid4">
     <div class="db-metric">
-      <div class="db-metric-label">total capital</div>
+      <div class="db-metric-label" data-ru="всего капитала">total capital</div>
       <div class="db-metric-value" id="m-capital">—</div>
       <div class="db-metric-sub">virtual USD</div>
     </div>
     <div class="db-metric">
-      <div class="db-metric-label">deployed</div>
+      <div class="db-metric-label" data-ru="размещено">deployed</div>
       <div class="db-metric-value" id="m-deployed">—</div>
       <div class="db-metric-sub" id="m-deployed-sub">—</div>
     </div>
     <div class="db-metric">
-      <div class="db-metric-label">cash buffer</div>
+      <div class="db-metric-label" data-ru="денежный буфер">cash buffer</div>
       <div class="db-metric-value" id="m-cash">—</div>
       <div class="db-metric-sub" id="m-cash-sub">min 5%</div>
     </div>
     <div class="db-metric">
-      <div class="db-metric-label">unrealized PnL</div>
+      <div class="db-metric-label" data-ru="нереализ. PnL">unrealized PnL</div>
       <div class="db-metric-value" id="m-pnl">—</div>
       <div class="db-metric-sub" id="m-dd">drawdown: —</div>
     </div>
@@ -2700,15 +2700,15 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="db-card" style="flex:1">
-        <div class="db-section">risk</div>
-        <div class="risk-row"><span>health</span><span id="r-health">—</span></div>
+        <div class="db-section" data-ru="риск">risk</div>
+        <div class="risk-row"><span data-ru="состояние">health</span><span id="r-health">—</span></div>
         <div class="risk-row"><span>VaR 95% / 7d</span><span id="r-var">—</span></div>
-        <div class="risk-row"><span>drawdown</span><span id="r-dd">—</span></div>
-        <div class="risk-row"><span>alerts</span><span id="r-alerts">—</span></div>
-        <div class="risk-row"><span>trades</span><span id="r-trades">—</span></div>
+        <div class="risk-row"><span data-ru="просадка">drawdown</span><span id="r-dd">—</span></div>
+        <div class="risk-row"><span data-ru="предупреждения">alerts</span><span id="r-alerts">—</span></div>
+        <div class="risk-row"><span data-ru="сделки">trades</span><span id="r-trades">—</span></div>
       </div>
       <div class="db-card" style="flex:1">
-        <div class="db-section">8-week clock</div>
+        <div class="db-section" data-ru="8-недельный отсчёт">8-week clock</div>
         <div style="font-size:13px;color:#888" id="clock-label">—</div>
         <div class="clock-bg"><div class="clock-fill" id="clock-fill" style="width:0%"></div></div>
         <div style="font-size:12px;color:#888" id="clock-sub">—</div>
@@ -2719,7 +2719,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- APY Gap Tracker -->
   <div class="db-full" id="apy-gap-card">
-    <div class="db-section">📈 APY Gap Tracker — target 7.30%</div>
+    <div class="db-section" data-ru="📈 Трекер разрыва APY — цель 7.30%">📈 APY Gap Tracker — target 7.30%</div>
     <div class="apy-gap-bar-wrap">
       <div class="apy-gap-bar-fill" id="apy-gap-fill" style="width:0%"></div>
       <div class="apy-gap-bar-target" id="apy-gap-target-line" style="left:100%"></div>
@@ -3804,7 +3804,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:500">Go-Live Readiness Dashboard</div>
+      <div style="font-size:15px;font-weight:500" data-ru="Панель готовности к запуску">Go-Live Readiness Dashboard</div>
       <div style="font-size:12px;color:#888;margin-top:2px">Checklist · Progress · Timeline · 2026-08-01</div>
     </div>
     <button class="refresh-btn" onclick="loadGoLive()">↻ Refresh</button>
@@ -3866,7 +3866,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- Criteria table -->
   <div class="db-full" style="margin-bottom:20px">
-    <div class="db-section">📋 Readiness Criteria</div>
+    <div class="db-section" data-ru="📋 Критерии готовности">📋 Readiness Criteria</div>
     <div style="overflow-x:auto" id="golive-criteria">
       <div class="skeleton skel-line" style="margin:8px 0"></div>
       <div class="skeleton skel-line short"></div>
@@ -3888,7 +3888,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- PDF Report download -->
   <div class="db-full" style="margin-bottom:20px">
-    <div class="db-section">📄 Investor Report</div>
+    <div class="db-section" data-ru="📄 Отчёт для инвесторов">📄 Investor Report</div>
     <div id="golive-report" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="color:#aaa;font-size:13px">Loading report info...</div>
     </div>
@@ -3896,7 +3896,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <!-- Timeline -->
   <div class="db-full">
-    <div class="db-section">📅 Go-Live Timeline</div>
+    <div class="db-section" data-ru="📅 График запуска">📅 Go-Live Timeline</div>
     <div style="position:relative;padding:30px 0 8px">
       <div style="position:absolute;top:40px;left:80px;right:80px;height:3px;background:#eee;border-radius:2px"></div>
       <div id="timeline-fill" style="position:absolute;top:40px;left:80px;height:3px;background:linear-gradient(90deg,#16a34a,#185FA5);border-radius:2px;transition:width .8s ease;width:0%"></div>
@@ -3980,7 +3980,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
-      <div style="font-size:15px;font-weight:500">System Health Monitor</div>
+      <div style="font-size:15px;font-weight:500" data-ru="Монитор состояния системы">System Health Monitor</div>
       <div style="font-size:12px;color:#888;margin-top:2px">Pipeline · Data Freshness · Pipeline Clock · Go-Live</div>
     </div>
     <button class="refresh-btn" onclick="loadSystemHealth()">↻ Refresh</button>
@@ -3989,7 +3989,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <div class="sys-grid">
     <!-- Card 1: Pipeline Health -->
     <div class="sys-card">
-      <div class="sys-section">⚡ Pipeline Health</div>
+      <div class="sys-section" data-ru="⚡ Состояние конвейера">⚡ Pipeline Health</div>
       <div id="sys-pipeline-body">
         <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
@@ -3997,7 +3997,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
     <!-- Card 2: Data Freshness -->
     <div class="sys-card">
-      <div class="sys-section">🗂 Data Freshness</div>
+      <div class="sys-section" data-ru="🗂 Свежесть данных">🗂 Data Freshness</div>
       <div id="sys-freshness-body">
         <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
@@ -4013,7 +4013,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 
     <!-- Card 4: Go-Live Countdown -->
     <div class="sys-card">
-      <div class="sys-section">🎯 Go-Live Countdown</div>
+      <div class="sys-section" data-ru="🎯 Обратный отсчёт до запуска">🎯 Go-Live Countdown</div>
       <div id="sys-golive-body">
         <div style="color:#aaa;font-size:13px;padding:8px 0"><span class="spa-skeleton">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
       </div>
@@ -12704,6 +12704,14 @@ function setLang(lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (I18N[lang][key] !== undefined) el.textContent = I18N[lang][key];
+  });
+  // data-ru attribute swap: static chrome labels. Stores original EN in
+  // data-en-orig on first switch; restores it when switching back to EN.
+  document.querySelectorAll('[data-ru]').forEach(el => {
+    if (el.getAttribute('data-en-orig') === null) {
+      el.setAttribute('data-en-orig', el.textContent);
+    }
+    el.textContent = (lang === 'ru') ? el.getAttribute('data-ru') : el.getAttribute('data-en-orig');
   });
   const btn = document.getElementById('lang-btn');
   if (btn) btn.textContent = I18N[lang]['lang_toggle'];
