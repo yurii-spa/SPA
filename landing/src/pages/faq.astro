@@ -91,15 +91,16 @@ const faqs = [
         <span class="font-semibold text-white tracking-tight">SPA</span>
       </a>
       <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/50">FAQ</span>
+      <span class="text-sm text-white/50" data-ru="FAQ">FAQ</span>
     </div>
     <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
-      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
-      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline">Risk</a>
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline" data-ru="Главная">Home</a>
+      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline" data-ru="Методология">Methodology</a>
+      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline" data-ru="Риски">Risk</a>
       <a
         href="/dashboard"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+        data-ru="Дашборд ↗"
       >
         Dashboard ↗
       </a>
@@ -110,11 +111,11 @@ const faqs = [
 
     <!-- Header -->
     <section class="pt-16 pb-10">
-      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3">Документация</p>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Документация">Документация</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Часто задаваемые вопросы">
         Часто задаваемые вопросы
       </h1>
-      <p class="text-white/50 text-lg leading-relaxed max-w-2xl">
+      <p class="text-white/50 text-lg leading-relaxed max-w-2xl" data-ru="Всё, что нужно знать перед тем, как стать участником SPA Family Fund.">
         Всё, что нужно знать перед тем, как стать участником SPA Family Fund.
       </p>
 
@@ -165,9 +166,9 @@ const faqs = [
     <!-- Contact CTA -->
     <section class="py-12 border-t border-white/5">
       <div class="rounded-xl bg-white/[0.02] border border-white/8 p-8 text-center">
-        <p class="text-xs text-white/30 font-mono uppercase tracking-widest mb-3">Остались вопросы?</p>
-        <h2 class="text-xl font-semibold text-white mb-3">Свяжитесь с нами</h2>
-        <p class="text-sm text-white/50 mb-6 max-w-sm mx-auto leading-relaxed">
+        <p class="text-xs text-white/30 font-mono uppercase tracking-widest mb-3" data-ru="Остались вопросы?">Остались вопросы?</p>
+        <h2 class="text-xl font-semibold text-white mb-3" data-ru="Свяжитесь с нами">Свяжитесь с нами</h2>
+        <p class="text-sm text-white/50 mb-6 max-w-sm mx-auto leading-relaxed" data-ru="Мы проводим KYC вручную и рассматриваем каждого инвестора индивидуально. Ответим в течение 24 часов.">
           Мы проводим KYC вручную и рассматриваем каждого инвестора индивидуально.
           Ответим в течение 24 часов.
         </p>
@@ -181,6 +182,7 @@ const faqs = [
           <a
             href="/due-diligence"
             class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white text-sm transition-all"
+            data-ru="Due Diligence →"
           >
             Due Diligence →
           </a>
@@ -191,21 +193,21 @@ const faqs = [
     <!-- Related links -->
     <section class="py-12 border-t border-white/5">
       <div class="text-center">
-        <p class="text-sm text-white/30 mb-6">Изучите подробнее</p>
+        <p class="text-sm text-white/30 mb-6" data-ru="Изучите подробнее">Изучите подробнее</p>
         <div class="flex flex-wrap items-center justify-center gap-3">
-          <a href="/methodology" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+          <a href="/methodology" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Методология">
             Методология
           </a>
-          <a href="/risk" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+          <a href="/risk" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Риски">
             Риски
           </a>
-          <a href="/security" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+          <a href="/security" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Безопасность">
             Безопасность
           </a>
-          <a href="/fees" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+          <a href="/fees" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Комиссии">
             Комиссии
           </a>
-          <a href="/dashboard" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all">
+          <a href="/dashboard" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Дашборд">
             Dashboard
           </a>
         </div>
