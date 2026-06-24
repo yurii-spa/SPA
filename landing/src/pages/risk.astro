@@ -15,7 +15,7 @@ import Footer from '../components/Footer.astro';
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
       </svg>
-      <span class="text-sm">Back to earn-defi.com</span>
+      <span class="text-sm" data-ru="Назад на earn-defi.com">Back to earn-defi.com</span>
     </a>
     <span class="text-xs text-white/20 font-mono">risk</span>
   </nav>
@@ -24,17 +24,17 @@ import Footer from '../components/Footer.astro';
 
     <!-- Header -->
     <div class="mb-12">
-      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3">Disclosure</p>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Risk</h1>
-      <p class="text-white/50 text-lg leading-relaxed">
+      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3" data-ru="Раскрытие">Disclosure</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Риск">Risk</h1>
+      <p class="text-white/50 text-lg leading-relaxed" data-ru="Понимание того, что может пойти не так, и как SPA этим управляет.">
         Understanding what can go wrong, and how SPA manages it.
       </p>
     </div>
 
     <!-- Risk Philosophy -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Risk Philosophy</h2>
-      <p class="text-sm text-white/55 leading-relaxed">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Философия риска">Risk Philosophy</h2>
+      <p class="text-sm text-white/55 leading-relaxed" data-ru="SPA построен на принципе, что риск нельзя устранить — его можно лишь измерить, ограничить и раскрыть. Наш подход: явные параметры риска, задокументированные гейты и прозрачное логирование каждого нарушения лимита.">
         SPA is built on the premise that risk cannot be eliminated &mdash; only measured, bounded, and
         disclosed. Our approach: explicit risk parameters, documented gates, and transparent logging of
         every limit breach.
@@ -43,61 +43,61 @@ import Footer from '../components/Footer.astro';
 
     <!-- Main Risk Categories -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Main Risk Categories</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Основные категории риска">Main Risk Categories</h2>
       <div class="space-y-5">
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">01</span>
-            <h3 class="text-sm font-semibold text-white">Smart Contract Risk</h3>
+            <h3 class="text-sm font-semibold text-white" data-ru="Риск смарт-контрактов">Smart Contract Risk</h3>
           </div>
-          <p class="text-sm text-white/55 leading-relaxed mb-2">Protocols can have vulnerabilities.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> TVL floor, audited protocols only, exposure caps.</p>
+          <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="У протоколов могут быть уязвимости.">Protocols can have vulnerabilities.</p>
+          <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="минимум TVL, только аудированные протоколы, лимиты экспозиции.">TVL floor, audited protocols only, exposure caps.</span></p>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">02</span>
-            <h3 class="text-sm font-semibold text-white">Stablecoin Depeg Risk</h3>
+            <h3 class="text-sm font-semibold text-white" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h3>
           </div>
-          <p class="text-sm text-white/55 leading-relaxed mb-2">USDC/USDT/DAI can lose peg.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Diversification across stablecoin types, concentration limits.</p>
+          <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="USDC/USDT/DAI могут потерять привязку.">USDC/USDT/DAI can lose peg.</p>
+          <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="диверсификация по типам стейблкоинов, лимиты концентрации.">Diversification across stablecoin types, concentration limits.</span></p>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">03</span>
-            <h3 class="text-sm font-semibold text-white">Oracle Risk</h3>
+            <h3 class="text-sm font-semibold text-white" data-ru="Риск оракулов">Oracle Risk</h3>
           </div>
-          <p class="text-sm text-white/55 leading-relaxed mb-2">Price feed manipulation.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Chainlink primary feeds, sanity bounds, multi-source validation for Max Yield.</p>
+          <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Манипуляция ценовым фидом.">Price feed manipulation.</p>
+          <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="основные фиды Chainlink, проверки корректности, мультисорс-валидация для Max Yield.">Chainlink primary feeds, sanity bounds, multi-source validation for Max Yield.</span></p>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">04</span>
-            <h3 class="text-sm font-semibold text-white">Protocol Insolvency Risk</h3>
+            <h3 class="text-sm font-semibold text-white" data-ru="Риск неплатёжеспособности протокола">Protocol Insolvency Risk</h3>
           </div>
-          <p class="text-sm text-white/55 leading-relaxed mb-2">Bad debt can socialise losses.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Per-protocol caps (40% T1 / 20% T2), TVL floor ($5M+).</p>
+          <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Безнадёжный долг может социализировать убытки.">Bad debt can socialise losses.</p>
+          <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="лимиты на протокол (40% T1 / 20% T2), минимум TVL ($5M+).">Per-protocol caps (40% T1 / 20% T2), TVL floor ($5M+).</span></p>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">05</span>
-            <h3 class="text-sm font-semibold text-white">Liquidity Risk</h3>
+            <h3 class="text-sm font-semibold text-white" data-ru="Риск ликвидности">Liquidity Risk</h3>
           </div>
-          <p class="text-sm text-white/55 leading-relaxed mb-2">Inability to exit position at expected price.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Liquidity checks in adapters, cash buffer maintained.</p>
+          <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Невозможность выйти из позиции по ожидаемой цене.">Inability to exit position at expected price.</p>
+          <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="проверки ликвидности в адаптерах, поддержание кэш-буфера.">Liquidity checks in adapters, cash buffer maintained.</span></p>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">06</span>
-            <h3 class="text-sm font-semibold text-white">APY Compression Risk</h3>
+            <h3 class="text-sm font-semibold text-white" data-ru="Риск сжатия APY">APY Compression Risk</h3>
           </div>
-          <p class="text-sm text-white/55 leading-relaxed mb-2">Yields can decline rapidly.</p>
-          <p class="text-xs text-white/40"><span class="text-white/50">Mitigation:</span> Daily rebalance to highest risk-adjusted yield.</p>
+          <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Доходность может быстро снизиться.">Yields can decline rapidly.</p>
+          <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="ежедневная ребалансировка в сторону наивысшей доходности с поправкой на риск.">Daily rebalance to highest risk-adjusted yield.</span></p>
         </div>
 
       </div>
@@ -105,12 +105,12 @@ import Footer from '../components/Footer.astro';
 
     <!-- Strategy Risk Matrix -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Strategy Risk Matrix</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Матрица рисков стратегий">Strategy Risk Matrix</h2>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-white/10 bg-white/[0.02]">
-              <th class="text-left text-white/40 font-mono text-xs p-3">Risk Type</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Тип риска">Risk Type</th>
               <th class="text-center text-white/40 font-mono text-xs p-3">Preserve</th>
               <th class="text-center text-white/40 font-mono text-xs p-3">Core</th>
               <th class="text-center text-white/40 font-mono text-xs p-3">Max Yield</th>
@@ -118,46 +118,46 @@ import Footer from '../components/Footer.astro';
           </thead>
           <tbody class="text-white/55">
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Smart contract</td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Low</span></td>
-              <td class="p-3 text-center"><span class="text-amber-400/70">Medium</span></td>
-              <td class="p-3 text-center"><span class="text-red-400/70">High</span></td>
+              <td class="p-3 text-white/70" data-ru="Смарт-контракт">Smart contract</td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
+              <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
+              <td class="p-3 text-center"><span class="text-red-400/70" data-ru="Высокий">High</span></td>
             </tr>
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Stablecoin depeg</td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Low</span></td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Low</span></td>
-              <td class="p-3 text-center"><span class="text-amber-400/70">Medium</span></td>
+              <td class="p-3 text-white/70" data-ru="Депег стейблкоина">Stablecoin depeg</td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
+              <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
             </tr>
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Oracle</td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Very Low</span></td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Low</span></td>
-              <td class="p-3 text-center"><span class="text-amber-400/70">Medium</span></td>
+              <td class="p-3 text-white/70" data-ru="Оракул">Oracle</td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Очень низкий">Very Low</span></td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
+              <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
             </tr>
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Protocol insolvency</td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Very Low</span></td>
-              <td class="p-3 text-center"><span class="text-green-400/70">Low</span></td>
-              <td class="p-3 text-center"><span class="text-amber-400/70">Medium</span></td>
+              <td class="p-3 text-white/70" data-ru="Неплатёжеспособность протокола">Protocol insolvency</td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Очень низкий">Very Low</span></td>
+              <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
+              <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
             </tr>
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Liquidation</td>
-              <td class="p-3 text-center"><span class="text-white/30">None</span></td>
-              <td class="p-3 text-center"><span class="text-white/30">None</span></td>
-              <td class="p-3 text-center"><span class="text-red-400/70">High</span></td>
+              <td class="p-3 text-white/70" data-ru="Ликвидация">Liquidation</td>
+              <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
+              <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
+              <td class="p-3 text-center"><span class="text-red-400/70" data-ru="Высокий">High</span></td>
             </tr>
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Leverage</td>
-              <td class="p-3 text-center"><span class="text-white/30">None</span></td>
-              <td class="p-3 text-center"><span class="text-white/30">None</span></td>
-              <td class="p-3 text-center"><span class="text-red-400/70">High</span></td>
+              <td class="p-3 text-white/70" data-ru="Плечо">Leverage</td>
+              <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
+              <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
+              <td class="p-3 text-center"><span class="text-red-400/70" data-ru="Высокий">High</span></td>
             </tr>
             <tr>
-              <td class="p-3 text-white font-semibold">Overall</td>
-              <td class="p-3 text-center"><span class="text-green-400 font-semibold">Lower</span></td>
-              <td class="p-3 text-center"><span class="text-amber-400 font-semibold">Medium</span></td>
-              <td class="p-3 text-center"><span class="text-red-400 font-semibold">Higher</span></td>
+              <td class="p-3 text-white font-semibold" data-ru="Итого">Overall</td>
+              <td class="p-3 text-center"><span class="text-green-400 font-semibold" data-ru="Ниже">Lower</span></td>
+              <td class="p-3 text-center"><span class="text-amber-400 font-semibold" data-ru="Средний">Medium</span></td>
+              <td class="p-3 text-center"><span class="text-red-400 font-semibold" data-ru="Выше">Higher</span></td>
             </tr>
           </tbody>
         </table>
@@ -166,35 +166,35 @@ import Footer from '../components/Footer.astro';
 
     <!-- Risk Gates -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Risk Gates (RiskPolicy v1.0)</h2>
-      <p class="text-sm text-white/40 mb-6">What happens when a limit is breached:</p>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Риск-гейты (RiskPolicy v1.0)">Risk Gates (RiskPolicy v1.0)</h2>
+      <p class="text-sm text-white/40 mb-6" data-ru="Что происходит при нарушении лимита:">What happens when a limit is breached:</p>
       <div class="space-y-4">
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">BREACH</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">TVL floor breach</p>
-            <p class="text-xs text-white/40">Protocol removed from whitelist</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Нарушение минимума TVL">TVL floor breach</p>
+            <p class="text-xs text-white/40" data-ru="Протокол удалён из вайтлиста">Protocol removed from whitelist</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">BREACH</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Per-protocol cap breach</p>
-            <p class="text-xs text-white/40">Rebalance blocked, logged</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Нарушение лимита на протокол">Per-protocol cap breach</p>
+            <p class="text-xs text-white/40" data-ru="Ребалансировка заблокирована, залогирована">Rebalance blocked, logged</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">KILL</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Drawdown &minus;5%</p>
-            <p class="text-xs text-white/40">Kill switch &rarr; portfolio moves to cash</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Просадка &minus;5%">Drawdown &minus;5%</p>
+            <p class="text-xs text-white/40" data-ru="Kill switch → портфель переводится в кэш">Kill switch &rarr; portfolio moves to cash</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-amber-400/60 bg-amber-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">FLAG</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">APY outside bounds</p>
-            <p class="text-xs text-white/40">Flagged, human review required</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="APY за пределами границ">APY outside bounds</p>
+            <p class="text-xs text-white/40" data-ru="Помечен флагом, требуется проверка человеком">Flagged, human review required</p>
           </div>
         </div>
       </div>
@@ -202,31 +202,31 @@ import Footer from '../components/Footer.astro';
 
     <!-- Stress Scenarios -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Stress Scenarios</h2>
-      <p class="text-sm text-white/40 mb-6">How SPA responds to adverse events:</p>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Стресс-сценарии">Stress Scenarios</h2>
+      <p class="text-sm text-white/40 mb-6" data-ru="Как SPA реагирует на неблагоприятные события:">How SPA responds to adverse events:</p>
       <div class="space-y-6">
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-          <h3 class="text-sm font-semibold text-white mb-3">Scenario 1: Major protocol exploit (e.g., $200M hack)</h3>
+          <h3 class="text-sm font-semibold text-white mb-3" data-ru="Сценарий 1: крупный эксплойт протокола (напр., взлом на $200M)">Scenario 1: Major protocol exploit (e.g., $200M hack)</h3>
           <div class="space-y-2 text-sm text-white/55">
-            <p><span class="text-white/40 font-mono text-xs">TRIGGER:</span> TVL drops below $5M floor / protocol flagged in monitoring</p>
-            <p><span class="text-white/40 font-mono text-xs">RESPONSE:</span> Adapter disabled &rarr; protocol removed from active allocation &rarr; rebalance out in next cycle</p>
+            <p><span class="text-white/40 font-mono text-xs" data-ru="ТРИГГЕР:">TRIGGER:</span> <span data-ru="TVL падает ниже минимума $5M / протокол помечен флагом в мониторинге">TVL drops below $5M floor / protocol flagged in monitoring</span></p>
+            <p><span class="text-white/40 font-mono text-xs" data-ru="РЕАКЦИЯ:">RESPONSE:</span> <span data-ru="адаптер отключён → протокол удалён из активной аллокации → выход из позиции в следующем цикле">Adapter disabled &rarr; protocol removed from active allocation &rarr; rebalance out in next cycle</span></p>
           </div>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-          <h3 class="text-sm font-semibold text-white mb-3">Scenario 2: USDC depeg to $0.95</h3>
+          <h3 class="text-sm font-semibold text-white mb-3" data-ru="Сценарий 2: депег USDC до $0.95">Scenario 2: USDC depeg to $0.95</h3>
           <div class="space-y-2 text-sm text-white/55">
-            <p><span class="text-white/40 font-mono text-xs">TRIGGER:</span> Oracle price anomaly + concentration check</p>
-            <p><span class="text-white/40 font-mono text-xs">RESPONSE:</span> APY bounds trigger (yields spike or collapse) &rarr; rebalance gate &rarr; position review</p>
+            <p><span class="text-white/40 font-mono text-xs" data-ru="ТРИГГЕР:">TRIGGER:</span> <span data-ru="аномалия цены оракула + проверка концентрации">Oracle price anomaly + concentration check</span></p>
+            <p><span class="text-white/40 font-mono text-xs" data-ru="РЕАКЦИЯ:">RESPONSE:</span> <span data-ru="срабатывают границы APY (доходность взлетает или обваливается) → гейт ребалансировки → проверка позиций">APY bounds trigger (yields spike or collapse) &rarr; rebalance gate &rarr; position review</span></p>
           </div>
         </div>
 
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-          <h3 class="text-sm font-semibold text-white mb-3">Scenario 3: Broad market stress, yield compression to &lt;1%</h3>
+          <h3 class="text-sm font-semibold text-white mb-3" data-ru="Сценарий 3: широкий рыночный стресс, сжатие доходности до &lt;1%">Scenario 3: Broad market stress, yield compression to &lt;1%</h3>
           <div class="space-y-2 text-sm text-white/55">
-            <p><span class="text-white/40 font-mono text-xs">TRIGGER:</span> APY lower bound check (1% floor)</p>
-            <p><span class="text-white/40 font-mono text-xs">RESPONSE:</span> Positions flagged &rarr; partial move to cash buffer &rarr; wait for yield normalization</p>
+            <p><span class="text-white/40 font-mono text-xs" data-ru="ТРИГГЕР:">TRIGGER:</span> <span data-ru="проверка нижней границы APY (минимум 1%)">APY lower bound check (1% floor)</span></p>
+            <p><span class="text-white/40 font-mono text-xs" data-ru="РЕАКЦИЯ:">RESPONSE:</span> <span data-ru="позиции помечены флагом → частичный перевод в кэш-буфер → ожидание нормализации доходности">Positions flagged &rarr; partial move to cash buffer &rarr; wait for yield normalization</span></p>
           </div>
         </div>
 
@@ -235,16 +235,16 @@ import Footer from '../components/Footer.astro';
 
     <!-- What APY Figures Mean -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">What APY Figures Mean</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Что означают цифры APY">What APY Figures Mean</h2>
       <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-6 text-sm text-white/55 leading-relaxed space-y-3">
         <p>All APY figures on this site are <strong class="text-white/70">variable and not a guarantee of future returns</strong>.</p>
-        <p>Paper APY reflects simulated performance on virtual $100,000 USDC &mdash; not live trading.</p>
-        <p>Past paper performance does not indicate future live results.</p>
-        <p>Target APY profiles (Preserve, Max Yield) are illustrative ranges based on historical protocol yields.</p>
-        <p class="text-amber-400/70 font-medium">Possible loss of capital in live trading phase.</p>
+        <p data-ru="Paper APY отражает симулированную производительность на виртуальных $100,000 USDC — не живую торговлю.">Paper APY reflects simulated performance on virtual $100,000 USDC &mdash; not live trading.</p>
+        <p data-ru="Прошлая paper-производительность не указывает на будущие live-результаты.">Past paper performance does not indicate future live results.</p>
+        <p data-ru="Целевые профили APY (Preserve, Max Yield) — иллюстративные диапазоны на основе исторической доходности протоколов.">Target APY profiles (Preserve, Max Yield) are illustrative ranges based on historical protocol yields.</p>
+        <p class="text-amber-400/70 font-medium" data-ru="Возможна потеря капитала на этапе live-торговли.">Possible loss of capital in live trading phase.</p>
       </div>
       <p class="text-xs text-white/30 mt-4">
-        Full legal disclosure: <a href="/risk-disclosure" class="text-green-400/60 hover:text-green-400 underline underline-offset-2">/risk-disclosure</a>
+        <span data-ru="Полное юридическое раскрытие:">Full legal disclosure:</span> <a href="/risk-disclosure" class="text-green-400/60 hover:text-green-400 underline underline-offset-2">/risk-disclosure</a>
       </p>
     </section>
 
