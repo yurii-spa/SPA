@@ -218,6 +218,15 @@ def test_data_integrity_audit():
             assert not any(str(i).startswith("future_date") for i in v.get("issues", []))
 
 
+def test_status_rollup():
+    from spa_core.backtesting.tier1 import status
+    s = status.build(write=False, alert=False)
+    assert s["health"] in ("OK", "ATTENTION")
+    assert set(s["packages"].keys()) <= {"conservative", "balanced", "aggressive"}
+    # ATTENTION ⟺ there are problems
+    assert (s["health"] == "ATTENTION") == bool(s["problems"])
+
+
 def test_packages_capacity_scenarios():
     o = pkg_mod.build(write=False)
     for p in o["packages"].values():
