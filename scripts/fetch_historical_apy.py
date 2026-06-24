@@ -97,7 +97,11 @@ def _chart_to_series(chart: dict) -> List[dict]:
         if d in seen:
             continue
         seen.add(d)
-        out.append({"date": d, "apy": round(float(apy) / 100.0, 6)})  # percent → decimal
+        # percent → decimal, clamped to a sane [0, 100%] ceiling. DeFiLlama occasionally
+        # reports transient reward-token APY spikes (e.g. yearn 700%+) that would distort a
+        # stablecoin-yield backtest; cap them rather than ingest implausible outliers.
+        dec = max(0.0, min(float(apy) / 100.0, 1.0))
+        out.append({"date": d, "apy": round(dec, 6)})
     out.sort(key=lambda x: x["date"])
     return out
 
