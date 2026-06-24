@@ -302,21 +302,13 @@ class LeadTracker(BaseAnalytics):
 
     @staticmethod
     def _post_telegram(token: str, chat_id: str, text: str) -> None:
-        url = _TELEGRAM_API.format(token=token)
-        payload = json.dumps({
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": True,
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            resp.read()
+        # FLOOD-GUARD: route through the canonical rate-limited client so lead
+        # notifications share the cross-process flood guard. Transport only —
+        # same Markdown payload. The token/chat_id args are kept for signature
+        # compatibility; the canonical client re-resolves creds from the
+        # Keychain (TELEGRAM_*_SPA).
+        from spa_core.alerts.telegram_client import send_message
+        send_message(text, parse_mode="Markdown")
 
     # ------------------------------------------------------------------ #
     # Helpers
