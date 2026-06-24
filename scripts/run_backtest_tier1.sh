@@ -19,6 +19,8 @@ echo "[$(date -u '+%FT%TZ')] tier1 correlation (package diversification)..."
 $PY -m spa_core.backtesting.tier1.correlation
 echo "[$(date -u '+%FT%TZ')] tier1 packages (offered risk tiers)..."
 $PY -m spa_core.backtesting.tier1.packages
+echo "[$(date -u '+%FT%TZ')] tier1 canary stage..."
+$PY -m spa_core.backtesting.tier1.canary
 echo "[$(date -u '+%FT%TZ')] tier1 regime detection..."
 $PY -m spa_core.backtesting.tier1.regime
 echo "[$(date -u '+%FT%TZ')] tier1 monte-carlo confidence intervals..."
