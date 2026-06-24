@@ -7,8 +7,16 @@ __pycache__/
 
 # Data files (runtime, не в git)
 data/*.json
+data/**/*.json
+*.db
+*.sqlite
 logs/*.log
+*.log
 /tmp/
+
+# Frontend build artifacts
+cabinet/dist/
+landing/dist/
 
 # Backup files
 *.bak
