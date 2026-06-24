@@ -7,6 +7,7 @@ from spa_core.backtesting.tier1 import evaluator
 from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1 import gate as gate_mod
 from spa_core.backtesting.tier1 import correlation as corr_mod
+from spa_core.backtesting.tier1 import packages as pkg_mod
 
 
 def test_psr_monotonic_and_bounded():
@@ -148,6 +149,23 @@ def test_diversified_subset_drops_redundant():
     rank = {"a": 5.0, "b": 4.0, "c": 3.0}
     subset = corr_mod._diversified_subset(["a", "b", "c"], corr, rank)
     assert "a" in subset and "c" in subset and "b" not in subset
+
+
+def test_packages_build_structure():
+    o = pkg_mod.build(write=False)
+    assert set(o["packages"].keys()) == {"conservative", "balanced", "aggressive"}
+    for key, p in o["packages"].items():
+        assert p["status"] in ("available", "no_validated_strategies_yet")
+        if p["status"] == "available":
+            assert p["n_offered"] >= 1
+            # every offered strategy must be net-positive
+            assert all((s.get("net_apy_pct") or 0) > 0 for s in p["strategies"])
+
+
+def test_tier1_digest_builds():
+    from spa_core.reporting import tier1_digest
+    msg = tier1_digest.build_message()
+    assert "Tier-1" in msg and "Пакеты" in msg
 
 
 def test_correlation_analyze_structure():
