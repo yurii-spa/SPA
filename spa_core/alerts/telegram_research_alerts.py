@@ -258,31 +258,14 @@ class TelegramResearchAlerts:
             log.warning("Telegram send skipped (credentials): %s", exc)
             return False
 
-        url = f"{_TELEGRAM_API_BASE}/bot{token}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-        }
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
+        # FLOOD-GUARD: route through the canonical rate-limited client so research
+        # alerts share the cross-process flood guard. Transport only — same
+        # Markdown message. Credentials are re-resolved by the canonical client
+        # from the same Keychain entries (TELEGRAM_*_SPA).
+        _ = (token, chat_id)  # presence already validated above
         try:
-            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
-                body = resp.read()
-                result = json.loads(body)
-                if result.get("ok"):
-                    return True
-                log.warning("Telegram API returned ok=False: %s", result)
-                return False
-        except urllib.error.URLError as exc:
-            log.warning("Telegram network error: %s", exc)
-            return False
+            from spa_core.alerts.telegram_client import send_message
+            return send_message(text, parse_mode="Markdown")
         except Exception as exc:  # noqa: BLE001
             log.warning("Telegram send failed: %s", exc)
             return False
