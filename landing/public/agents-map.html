@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://api.earn-defi.com http://localhost:8765 http://127.0.0.1:8765; img-src 'self' data:;">
+<title>SPA — Agent Transit Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c10;
+    --bg-2:#0d1016;
+    --paper:#11151c;
+    --ink:#e9edf3;
+    --ink-soft:#aeb6c4;
+    --mut:#727c8d;
+    --dim:#49525f;
+    --line:rgba(255,255,255,.07);
+    --line-2:rgba(255,255,255,.12);
+    /* metro line colors */
+    --c-cycle:#2dd4bf;     /* Cycle (trunk) */
+    --c-mon:#5cc6f5;       /* Monitoring */
+    --c-risk:#f0556c;      /* Risk */
+    --c-heal:#f5c542;      /* Self-Healing */
+    --c-tier1:#a98bf5;     /* Tier-1 */
+    --c-report:#9aa6b6;    /* Reporting */
+    --c-svc:#6b7686;       /* Services */
+    --ok:#2dd4bf; --warn:#f5c542; --crit:#f0556c; --unk:#3a424e;
+    --ok-g:rgba(45,212,191,.55); --warn-g:rgba(245,197,66,.5); --crit-g:rgba(240,85,108,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font:14px/1.55 "Inter",-apple-system,Segoe UI,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    overflow:hidden;position:relative;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(1200px 760px at 82% -12%, rgba(45,212,191,.05), transparent 60%),
+      radial-gradient(1000px 700px at 4% 110%, rgba(169,139,245,.045), transparent 60%);
+  }
+  /* faint grid like a map sheet */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+    background-image:
+      linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+    background-size:46px 46px;
+  }
+  a{color:var(--c-cycle);text-decoration:none}
+  .mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+
+  /* ---- top bar ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:40;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:13px 24px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(10,12,16,.94),rgba(10,12,16,.6));
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.01em;font-size:15px;flex:0 0 auto}
+  .brand .mark{width:25px;height:25px;border-radius:7px;flex:0 0 auto;position:relative;
+    background:linear-gradient(150deg,rgba(45,212,191,.2),rgba(169,139,245,.12));
+    border:1px solid rgba(45,212,191,.42);box-shadow:0 0 16px -5px var(--ok-g)}
+  .brand .mark::before,.brand .mark::after{content:"";position:absolute;background:var(--c-cycle);border-radius:2px}
+  .brand .mark::before{left:6px;top:11px;width:13px;height:3px;box-shadow:0 0 6px var(--ok-g)}
+  .brand .mark::after{left:11px;top:6px;width:3px;height:13px;background:var(--c-tier1)}
+  .brand .sub{color:var(--mut);font-weight:400;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase}
+  .right{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .nav{display:flex;gap:2px;flex-wrap:wrap}
+  .nav a{padding:7px 11px;border-radius:8px;font-size:13px;font-weight:450;color:var(--mut);
+    transition:color .2s,background .2s;white-space:nowrap}
+  .nav a:hover{color:var(--ink);background:rgba(255,255,255,.035)}
+  .nav a.on{color:var(--ink);background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px var(--line-2)}
+  .nav a.on::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--c-cycle);box-shadow:0 0 8px var(--ok-g);margin-right:7px;vertical-align:middle}
+  .langtog{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;flex:0 0 auto}
+  .langtog button{appearance:none;border:0;background:transparent;color:var(--mut);
+    font:600 12px "Inter",sans-serif;letter-spacing:.04em;padding:6px 12px;cursor:pointer;transition:.2s}
+  .langtog button.on{background:rgba(45,212,191,.13);color:var(--c-cycle)}
+  .langtog button:not(.on):hover{color:var(--ink)}
+
+  /* ---- stage ---- */
+  #stage{position:fixed;inset:0;top:56px}
+  #map{display:block;width:100%;height:100%;cursor:grab}
+  #map:active{cursor:grabbing}
+
+  /* svg classes */
+  .route{fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .route-casing{fill:none;stroke:var(--bg);stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+  .stn{cursor:pointer}
+  .stn-tick{stroke-linecap:round}
+  .stn-lbl{font:600 10.5px "Inter",sans-serif;fill:var(--ink-soft);pointer-events:none;
+    paint-order:stroke;stroke:var(--bg);stroke-width:3.4px;letter-spacing:-.005em}
+  .stn-lbl.dim{fill:var(--mut)}
+  .term-lbl{font:800 12px "Inter",sans-serif;letter-spacing:-.01em;pointer-events:none;
+    paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+  .line-name{font:700 10px "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase;pointer-events:none;
+    paint-order:stroke;stroke:var(--bg);stroke-width:3px}
+  .stn-ring{fill:none;transition:opacity .3s}
+
+  /* ---- HUD ---- */
+  .hud{position:fixed;top:70px;left:24px;z-index:20;display:flex;flex-direction:column;gap:13px;max-width:330px;pointer-events:none}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--mut);font-weight:600;margin-bottom:11px;pointer-events:auto}
+  .eyebrow .live-dot{width:6px;height:6px;border-radius:50%;background:var(--c-cycle);position:relative}
+  .eyebrow .live-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;
+    border:1px solid var(--c-cycle);opacity:.5;animation:halo 2.6s ease-out infinite}
+  @keyframes halo{0%{transform:scale(.6);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+  .hud h1{font-size:23px;line-height:1.08;margin:0 0 6px;font-weight:800;letter-spacing:-.03em;pointer-events:auto}
+  .hud h1 .acc{color:var(--c-cycle)}
+  .hud .lede{color:var(--ink-soft);font-size:12.5px;font-weight:300;line-height:1.5;margin:0;pointer-events:auto}
+  .stats{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;pointer-events:auto;backdrop-filter:blur(10px);margin-top:2px}
+  .stat{background:rgba(17,21,28,.8);padding:10px 13px;flex:1;min-width:0}
+  .stat .n{font-size:18px;font-weight:600;letter-spacing:-.02em;line-height:1.1;
+    font-family:"JetBrains Mono",monospace;white-space:nowrap}
+  .stat .l{color:var(--mut);font-size:8.5px;margin-top:4px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+  .live-note{font-size:10.5px;color:var(--dim);font-family:"JetBrains Mono",monospace;pointer-events:auto;line-height:1.5}
+  .live-note b{color:var(--ink-soft);font-weight:500}
+
+  /* ---- legend ---- */
+  .legend{position:fixed;bottom:18px;left:24px;z-index:20;pointer-events:auto;
+    background:rgba(13,16,22,.82);border:1px solid var(--line);border-radius:12px;padding:12px 15px;
+    backdrop-filter:blur(10px);max-width:260px}
+  .legend .lt{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+    font-weight:700;margin-bottom:8px}
+  .legend .row{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--mut);cursor:pointer;
+    transition:color .15s,opacity .15s;padding:2px 0}
+  .legend .row:hover{color:var(--ink)}
+  .legend .row.off{opacity:.32}
+  .legend .sw{width:22px;height:5px;border-radius:3px;flex:0 0 auto}
+  .legend .glyphs{display:flex;gap:14px;margin-top:9px;padding-top:9px;border-top:1px solid var(--line);
+    font-size:9.5px;color:var(--dim)}
+  .legend .glyphs .g{display:flex;align-items:center;gap:6px}
+  .legend .glyphs .stn-mini{width:9px;height:9px;border-radius:50%;border:2px solid var(--mut);background:var(--paper)}
+  .legend .glyphs .stn-mini.ix{width:11px;height:11px;border-color:var(--ink-soft);background:var(--ink-soft)}
+
+  /* ---- tooltip ---- */
+  .tip{position:fixed;z-index:35;pointer-events:none;max-width:280px;
+    background:linear-gradient(165deg,rgba(16,20,27,.98),rgba(11,14,19,.99));
+    border:1px solid var(--line-2);border-radius:13px;padding:0;overflow:hidden;
+    box-shadow:0 30px 70px -34px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.04);
+    opacity:0;transform:translateY(6px) scale(.98);transition:opacity .16s,transform .16s}
+  .tip.show{opacity:1;transform:none}
+  .tip .th{padding:12px 14px 11px;border-bottom:1px solid var(--line);position:relative}
+  .tip .th .bar{position:absolute;left:0;top:0;bottom:0;width:3px}
+  .tip .th .cat{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--mut);
+    font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:7px}
+  .tip .th .cat .cd{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .tip .th .id{font:600 13px "JetBrains Mono",monospace;color:var(--ink);letter-spacing:-.01em;
+    display:flex;align-items:center;gap:9px;word-break:break-all}
+  .tip .th .id .st{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--unk)}
+  .tip .th .id .st.ok{background:var(--ok);box-shadow:0 0 8px var(--ok-g)}
+  .tip .th .id .st.warn{background:var(--warn);box-shadow:0 0 8px var(--warn-g)}
+  .tip .th .id .st.crit{background:var(--crit);box-shadow:0 0 8px var(--crit-g);animation:blink 1.2s infinite}
+  @keyframes blink{50%{opacity:.32}}
+  .tip .tb{padding:11px 14px 13px}
+  .tip .role{font-size:12px;color:var(--ink-soft);font-weight:300;line-height:1.5;margin:0 0 11px}
+  .tip .meta{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .tip .meta .m{background:rgba(255,255,255,.02);padding:8px 11px;flex:1;min-width:0}
+  .tip .meta .mk{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}
+  .tip .meta .mv{font:500 11.5px "JetBrains Mono",monospace;color:var(--ink);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+
+  /* ---- hint ---- */
+  .hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:15;
+    font-size:11px;color:var(--dim);font-family:"JetBrains Mono",monospace;letter-spacing:.03em;
+    pointer-events:none;text-align:center;transition:opacity .6s}
+  .hint b{color:var(--mut);font-weight:500}
+
+  @media (max-width:900px){.hud{max-width:220px}.hud h1{font-size:19px}.hud .lede{display:none}}
+  @media (max-width:640px){
+    .topbar{padding:11px 15px}.nav{display:none}
+    .hud{left:13px;top:66px;max-width:170px}.stats{display:none}
+    .legend{display:none}
+  }
+</style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"></span>
+      <span>SPA<span class="sub" style="margin-left:9px">Transit Map</span></span>
+    </div>
+    <div class="right">
+      <nav class="nav">
+        <a href="/" data-i="nav_home">Overview</a>
+        <a href="/app" data-i="nav_dash">Dashboard</a>
+        <a href="/packages" data-i="nav_pkg">Packages</a>
+        <a href="/tournament" data-i="nav_trn">Tournament</a>
+        <a class="on" href="/agents" data-i="nav_agents">Agents</a>
+        <a href="/control" data-i="nav_ctrl">Control</a>
+      </nav>
+      <div class="langtog" role="group" aria-label="language">
+        <button id="lang-en" class="on" onclick="SPA.setLang('en')">EN</button>
+        <button id="lang-ru" onclick="SPA.setLang('ru')">RU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAGE -->
+  <div id="stage">
+    <svg id="map" role="img" aria-label="SPA agent fleet transit map"></svg>
+  </div>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="eyebrow"><span class="live-dot"></span><span data-i="eyebrow">Live launchd fleet · system map</span></div>
+    <h1><span data-i="h1a">Agent </span><span class="acc" data-i="h1b">transit map</span></h1>
+    <p class="lede" data-i="lede">Each line is a functional plane; each station is a deterministic launchd agent. Interchanges mark the hubs where flows cross — the risk gate, the audit terminus, the live API.</p>
+    <div class="stats">
+      <div class="stat"><div class="n" id="s-total">—</div><div class="l" data-i="st_total">Stations</div></div>
+      <div class="stat"><div class="n" id="s-ok" style="color:var(--c-cycle)">—</div><div class="l" data-i="st_ok">Healthy</div></div>
+      <div class="stat"><div class="n" id="s-overall">—</div><div class="l" data-i="st_status">Status</div></div>
+    </div>
+    <div class="live-note" id="live-note" data-i="connecting">Connecting to live API…</div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend" id="legend"></div>
+
+  <!-- HINT -->
+  <div class="hint" id="hint"><b data-i="hint">hover a station for details · drag to pan · scroll to zoom · click a line in the legend to mute it</b></div>
+
+  <!-- TOOLTIP -->
+  <div class="tip" id="tip">
+    <div class="th">
+      <span class="bar" id="t-bar"></span>
+      <div class="cat"><span class="cd" id="t-cd"></span><span id="t-cat">—</span></div>
+      <div class="id"><span class="st" id="t-st"></span><span id="t-id">—</span></div>
+    </div>
+    <div class="tb">
+      <p class="role" id="t-role">—</p>
+      <div class="meta">
+        <div class="m"><div class="mk" data-i="m_sched">Schedule</div><div class="mv" id="t-sched">—</div></div>
+        <div class="m"><div class="mk" data-i="m_status">Live status</div><div class="mv" id="t-status">—</div></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+window.SPA = (function(){
+  "use strict";
+  var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1')
+    ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  /* ===================== i18n ===================== */
+  var T = {
+    nav_home:["Overview","Обзор"], nav_dash:["Dashboard","Дашборд"],
+    nav_pkg:["Packages","Пакеты"], nav_trn:["Tournament","Турнир"],
+    nav_agents:["Agents","Агенты"], nav_ctrl:["Control","Control"],
+    eyebrow:["Live launchd fleet · system map","Живой флот launchd · системная карта"],
+    h1a:["Agent ","Карта "], h1b:["transit map","сети агентов"],
+    lede:["Each line is a functional plane; each station is a deterministic launchd agent. Interchanges mark the hubs where flows cross — the risk gate, the audit terminus, the live API.",
+          "Каждая линия — функциональная плоскость; каждая станция — детерминированный launchd-агент. Пересадки — узлы, где сходятся потоки: risk-гейт, audit-терминус, live API."],
+    st_total:["Stations","Станций"], st_ok:["Healthy","Healthy"], st_status:["Status","Статус"],
+    connecting:["Connecting to live API…","Подключение к live API…"],
+    hint:["hover a station for details · drag to pan · scroll to zoom · click a line in the legend to mute it",
+          "наведи на станцию · тяни для пан · скролл — зум · клик по линии в легенде — приглушить"],
+    m_sched:["Schedule","Расписание"], m_status:["Live status","Статус"],
+    legend_lines:["Lines","Линии"],
+    g_station:["station","станция"], g_interchange:["interchange","пересадка"],
+    live_from:["live","live"], updated:["upd","обн"],
+    offline:["Live API offline — tunnel unavailable.","Live API оффлайн — туннель недоступен."],
+    flow:["flow stage","стадия потока"],
+    /* line / plane names */
+    cat_cycle:["Cycle Line","Линия цикла"], cat_mon:["Monitoring Line","Линия мониторинга"],
+    cat_risk:["Risk Line","Risk-линия"], cat_tier1:["Tier-1 Line","Tier-1 линия"],
+    cat_report:["Reporting Line","Линия отчётов"], cat_heal:["Self-Healing Line","Линия self-heal"],
+    cat_svc:["Services Line","Линия сервисов"]
+  };
+
+  /* ===================== LINE (plane) palette ===================== */
+  var LINES = {
+    cat_cycle:  {color:"#2dd4bf"},
+    cat_mon:    {color:"#5cc6f5"},
+    cat_risk:   {color:"#f0556c"},
+    cat_tier1:  {color:"#a98bf5"},
+    cat_report: {color:"#9aa6b6"},
+    cat_heal:   {color:"#f5c542"},
+    cat_svc:    {color:"#6b7686"}
+  };
+
+  /* ===================== STATIONS =====================
+     Each station has metro-grid coords (gx,gy) on a unit grid that is
+     scaled into the viewBox. flow=pipeline anchor; ix=interchange hub. */
+
+  /* ---- trunk: CYCLE LINE (the daily pipeline spine) ---- */
+  var STN = {
+    /* core trunk interchanges + stages (left→right spine, gy=10) */
+    adapters:   {cat:"cat_cycle", flow:true, gx:6,  gy:10, sc:["read-only","read-only"],
+      r:["27 read-only protocol adapters → live APY/TVL feed. Origin terminus of the Cycle Line.","27 read-only адаптеров протоколов → живой APY/TVL фид. Стартовый терминус Cycle Line."]},
+    strategies: {cat:"cat_cycle", flow:true, gx:13, gy:10, sc:["S0–S77","S0–S77"],
+      r:["multi_strategy_runner S0–S77 → StrategyAllocator target weights.","multi_strategy_runner S0–S77 → целевые веса StrategyAllocator."]},
+    risk_gate:  {cat:"cat_risk",  flow:true, ix:true, gate:true, gx:21, gy:10, sc:["deterministic","deterministic"],
+      r:["⛔ RiskPolicy gate — deterministic, LLM-forbidden. TVL≥$5M, caps, ≥5% cash. approved=false is final. Interchange of Cycle × Risk × Tier-1.","⛔ RiskPolicy gate — детерминированный, LLM запрещён. TVL≥$5M, cap'ы, ≥5% кэш. approved=false окончателен. Пересадка Cycle × Risk × Tier-1."]},
+    rebalance:  {cat:"cat_cycle", flow:true, ix:true, gx:28, gy:10, sc:["$100k book","книга $100k"],
+      r:["Virtual rebalance of the $100k book → trades, equity curve, NAV. Major interchange tapped by reporting & monitoring.","Виртуальный ребаланс книги $100k → трейды, equity curve, NAV. Крупная пересадка для отчётов и мониторинга."]},
+    audit_nav:  {cat:"cat_cycle", flow:true, ix:true, gx:35, gy:10, sc:["hash-chain","hash-chain"],
+      r:["Hash-chained audit trail & verifiable NAV. Terminus where Cycle, Tier-1 and audit flows converge.","Hash-цепочка audit trail и проверяемый NAV. Терминус, где сходятся Cycle, Tier-1 и audit."]},
+    apiserver:  {cat:"cat_svc",   flow:true, ix:true, gx:42, gy:10, sc:["always-on","always-on"],
+      r:["FastAPI server :8765 serving /api/live/* and /api/tier1/*. Public terminus of the network.","FastAPI-сервер :8765, отдаёт /api/live/* и /api/tier1/*. Публичный терминус сети."]},
+
+    /* ---- CYCLE LINE branch (engines feeding the trunk) ---- */
+    "com.spa.daily_cycle":      {cat:"cat_cycle", ix:true, gx:13, gy:4, sc:["08:00 UTC","08:00 UTC"],
+      r:["Canonical daily paper cycle: adapters → strategies → risk gate → rebalance → evidence. Drives the whole trunk.","Канонический дневной paper-цикл: адаптеры → стратегии → risk-гейт → ребаланс → evidence. Ведёт весь trunk."]},
+    "com.spa.tournament_engine":{cat:"cat_cycle", gx:8,  gy:4, sc:["09:00 UTC","09:00 UTC"],
+      r:["Ranks 60 strategies by Sharpe; runs the backtest→paper→live promotion pipeline.","Ранжирует 60 стратегий по Sharpe; пайплайн backtest→paper→live."]},
+    "com.spa.mass_tournament":  {cat:"cat_cycle", gx:4,  gy:4, sc:["daily","ежедневно"],
+      r:["Mass backtest tournament across the full strategy universe; refreshes Sharpe ranking.","Массовый backtest-турнир по всему набору стратегий; обновляет ranking."]},
+    "com.spa.hy_cycle":         {cat:"cat_cycle", gx:24, gy:4, sc:["hourly","ежечасно"],
+      r:["High-yield / carry sleeve ($20k) — separate paper book on top of the $100k core.","HY/carry-sleeve ($20k) — отдельная paper-книга поверх ядра $100k."]},
+    "com.spa.lp_cycle":         {cat:"cat_cycle", gx:30, gy:4, sc:["hourly","ежечасно"],
+      r:["Liquidity-provision sleeve ($10k) — separate paper book accruing at live LP APY.","LP-sleeve ($10k) — отдельная paper-книга, доход по живому LP APY."]},
+
+    /* ---- RISK LINE (vertical, feeds threat_reactor → risk_gate) ---- */
+    "com.spa.threat_reactor":   {cat:"cat_risk", ix:true, gx:21, gy:16, sc:["5 min","5 мин"],
+      r:["Auto-arms the kill-switch intraday on CRITICAL threats to held protocols. Interchange where all risk feeds converge before the gate.","Авто-взводит kill-switch внутри дня при CRITICAL-угрозах held-протоколам. Пересадка, где сходятся все risk-фиды перед гейтом."]},
+    "com.spa.red_flag_monitor": {cat:"cat_risk", gx:14, gy:16, sc:["5 min","5 мин"],
+      r:["Scans held protocols for red flags; held-protocol flags can arm the kill-switch.","Сканирует протоколы в портфеле на red flags; для held-протоколов может взвести kill-switch."]},
+    "com.spa.peg_monitor":      {cat:"cat_risk", gx:14, gy:19, sc:["5 min","5 мин"],
+      r:["Monitors stablecoin peg deviation across held assets.","Мониторит отклонение пега стейблов в портфеле."]},
+    "com.spa.governance_watcher":{cat:"cat_risk", gx:14, gy:22, sc:["15 min","15 мин"],
+      r:["Watches protocol governance proposals that could affect held positions.","Следит за governance-предложениями, влияющими на позиции."]},
+    "com.spa.bts-monitor":      {cat:"cat_risk", gx:28, gy:16, sc:["mid-freq","mid-freq"],
+      r:["Monitors the behavioural threat-signal feed and surfaces anomalies.","Мониторит behavioural threat-signal фид и выявляет аномалии."]},
+    "com.spa.bts-feed":         {cat:"cat_risk", gx:33, gy:16, sc:["mid-freq","mid-freq"],
+      r:["Behavioural / threat-signal feed ingest for the risk layer.","Приём behavioural / threat-signal фида для risk-слоя."]},
+    "com.spa.rules_watchdog":   {cat:"cat_risk", gx:21, gy:22, sc:["5 min","5 мин"],
+      r:["Enforces hard invariants (RULES.md); flags violations of the deterministic policy at the gate.","Следит за жёсткими инвариантами (RULES.md); флагует нарушения политики на гейте."]},
+    "com.spa.sky_monitor":      {cat:"cat_risk", gx:6, gy:16, sc:["daily","ежедневно"],
+      r:["Checks Sky/sUSDS GSM Pause Delay on-chain; keeps APY at 0% until ≥48h confirmed.","Проверяет Sky/sUSDS GSM Pause Delay on-chain; держит APY 0% до ≥48h."]},
+    "com.spa.base_gas_monitor": {cat:"cat_risk", gx:28, gy:22, sc:["daily","ежедневно"],
+      r:["Tracks Base L2 gas conditions affecting rebalance economics.","Отслеживает газ Base L2, влияющий на экономику ребаланса."]},
+
+    /* ---- MONITORING LINE (lower spine, observes the trunk) ---- */
+    "com.spa.agent_health":     {cat:"cat_mon", ix:true, gx:35, gy:28, sc:["hourly","ежечасно"],
+      r:["Heartbeat over every com.spa.* agent + system checks; the fleet's source of truth. Interchange to self-heal & services.","Heartbeat по всем com.spa.* агентам + системные проверки; источник истины флота. Пересадка к self-heal и сервисам."]},
+    "com.spa.cycle_health":     {cat:"cat_mon", gx:13, gy:28, sc:["15 min","15 мин"],
+      r:["Watches daily-cycle freshness against the equity curve; alerts on staleness.","Следит за свежестью дневного цикла по equity curve; алертит при застое."]},
+    "com.spa.cycle_gap_monitor":{cat:"cat_mon", gx:9,  gy:28, sc:["5 min","5 мин"],
+      r:["Tracks track-record continuity (gap monitor) toward the 30-day go-live target.","Отслеживает непрерывность трека к цели 30 дней go-live."]},
+    "com.spa.portfolio_monitor":{cat:"cat_mon", gx:28, gy:28, sc:["5 min","5 мин"],
+      r:["Watches portfolio health score, APY ceiling and concentration.","Следит за portfolio health score, потолком APY и концентрацией."]},
+    "com.spa.system_briefing":  {cat:"cat_mon", gx:31, gy:32, sc:["30 min","30 мин"],
+      r:["Regenerates SYSTEM_BRIEFING.md — the canonical operational snapshot.","Перегенерирует SYSTEM_BRIEFING.md — канонический операционный снимок."]},
+    "com.spa.system_health_morning":{cat:"cat_mon", gx:42, gy:28, sc:["08:30 UTC","08:30 UTC"],
+      r:["Morning E2E + semantic health sweep across 7 domains.","Утренний E2E + семантический health-проход по 7 доменам."]},
+    "com.spa.system_health_evening":{cat:"cat_mon", gx:42, gy:31, sc:["20:30 UTC","20:30 UTC"],
+      r:["Evening E2E + semantic health sweep across 7 domains.","Вечерний E2E + семантический health-проход по 7 доменам."]},
+    "com.spa.uptime_monitor":   {cat:"cat_mon", gx:46, gy:28, sc:["5 min","5 мин"],
+      r:["Probes the live API / tunnel uptime end-to-end.","Проверяет uptime live API / туннеля end-to-end."]},
+    "com.spa.dashboard_watcher":{cat:"cat_mon", gx:42, gy:34, sc:["5 min","5 мин"],
+      r:["Polls the live API and pushes Telegram alerts on agent/portfolio/API drift.","Опрашивает live API и шлёт Telegram-алерты при дрейфе."]},
+
+    /* ---- TIER-1 LINE (validation chain to gate + audit terminus) ---- */
+    "com.spa.analytics_tier_b": {cat:"cat_tier1", gx:35, gy:16, sc:["mid-freq","mid-freq"],
+      r:["Tier-B analytics: deeper performance attribution & comparators.","Tier-B аналитика: глубокая attribution и сравнения."]},
+    "com.spa.analytics_tier_c": {cat:"cat_tier1", gx:39, gy:16, sc:["daily","ежедневно"],
+      r:["Tier-C analytics: heavier daily aggregates and tear-sheets.","Tier-C аналитика: тяжёлые дневные агрегаты и tear-sheet."]},
+    "com.spa.tier1_digest":     {cat:"cat_tier1", ix:true, gx:39, gy:13, sc:["daily","ежедневно"],
+      r:["Tier-1 digest: validation gate, NAV reconciliation and package status. Junction to gate & audit.","Tier-1 дайджест: gate валидации, сверка NAV, статус пакетов. Узел к гейту и audit."]},
+    "com.spa.tier1_governance": {cat:"cat_tier1", gx:35, gy:13, sc:["daily","ежедневно"],
+      r:["Tier-1 governance: default-deny policy table & dual-control posture feeding the gate.","Tier-1 governance: default-deny таблица политик и dual-control для гейта."]},
+    "com.spa.checkpoint-7day":  {cat:"cat_tier1", gx:39, gy:7, sc:["7-day","7-дн"],
+      r:["Seven-day track-record checkpoint snapshot → packages terminus / audit.","Чекпойнт трека каждые 7 дней → терминус пакетов / audit."]},
+
+    /* ---- REPORTING LINE (taps rebalance/audit, runs to Telegram) ---- */
+    "com.spa.morning_digest":   {cat:"cat_report", gx:28, gy:7, sc:["08:05 UTC","08:05 UTC"],
+      r:["Morning operational digest to Telegram.","Утренний операционный дайджест в Telegram."]},
+    "com.spa.telegram_daily":   {cat:"cat_report", gx:31, gy:6, sc:["daily","ежедневно"],
+      r:["Consolidated daily paper-trading report (HTML, single send).","Сводный дневной paper-отчёт (HTML, один отправ)."]},
+    "com.spa.telegram_weekly":  {cat:"cat_report", gx:34, gy:5, sc:["Mon 10:00","Пн 10:00"],
+      r:["Weekly performance summary to Telegram.","Недельная сводка результатов в Telegram."]},
+    "com.spa.telegram_milestone":{cat:"cat_report", gx:37, gy:4, sc:["hourly","ежечасно"],
+      r:["Fires Telegram alerts when track-record milestones are reached.","Шлёт Telegram-алерты при достижении milestone трека."]},
+    "com.spa.cpa_daily":        {cat:"cat_report", gx:25, gy:7, sc:["daily","ежедневно"],
+      r:["Daily performance-attribution report (CPA).","Дневной отчёт performance-attribution (CPA)."]},
+
+    /* ---- SELF-HEALING LINE (touches the whole fleet) ---- */
+    "com.spa.self_heal":        {cat:"cat_heal", ix:true, gx:21, gy:28, sc:["5 min","5 мин"],
+      r:["Revives dead launchd agents and recovers missed daily cycles, deterministically. Interchange with monitoring.","Оживляет мёртвых launchd-агентов и восстанавливает пропущенные циклы. Пересадка с мониторингом."]},
+    "com.spa.watchdog":         {cat:"cat_heal", gx:21, gy:32, sc:["5 min","5 мин"],
+      r:["Guards the healer — restarts self_heal and core agents if they die.","Сторожит healer — перезапускает self_heal и ключевых агентов."]},
+
+    /* ---- SERVICES LINE (api hub fans out to infra) ---- */
+    "com.spa.cloudflared":      {cat:"cat_svc", gx:48, gy:13, sc:["always-on","always-on"],
+      r:["Cloudflare tunnel exposing api.earn-defi.com.","Cloudflare-туннель для api.earn-defi.com."]},
+    "com.spa.httpserver":       {cat:"cat_svc", gx:48, gy:16, sc:["always-on","always-on"],
+      r:["Static/stdlib HTTP server fronting dashboard assets.","Статический stdlib HTTP-сервер для дашборда."]},
+    "com.spa.dashboard":        {cat:"cat_svc", gx:48, gy:19, sc:["always-on","always-on"],
+      r:["Dashboard service (:8767).","Сервис дашборда (:8767)."]},
+    "com.spa.familyfund":       {cat:"cat_svc", gx:45, gy:7, sc:["always-on","always-on"],
+      r:["Family Fund investor-cabinet API (:8766, JWT).","API кабинета инвестора Family Fund (:8766, JWT)."]},
+    "com.spa.bot_commands":     {cat:"cat_svc", gx:48, gy:22, sc:["always-on","always-on"],
+      r:["Telegram command bot (interactive queries).","Telegram-бот команд (интерактивные запросы)."]},
+    "com.spa.autopush":         {cat:"cat_svc", gx:45, gy:4, sc:["90 min","90 мин"],
+      r:["Processes push_v*.sh scripts → commits to GitHub.","Обрабатывает push_v*.sh → коммиты в GitHub."]},
+    "com.spa.weekly_backup":    {cat:"cat_svc", gx:42, gy:4, sc:["weekly","еженедельно"],
+      r:["Weekly state/data backup job.","Еженедельный бэкап состояния/данных."]}
+  };
+
+  /* ===================== ROUTES (the metro lines) =====================
+     Each route = ordered list of station ids the colored line threads
+     through. The polyline is drawn orthogonally (metro 90°/45°) between
+     consecutive grid points. */
+  var ROUTES = [
+    {cat:"cat_cycle", name:["Cycle","Cycle"], main:true,
+     path:["com.spa.mass_tournament","com.spa.tournament_engine","com.spa.daily_cycle",
+           "adapters","strategies","risk_gate","rebalance","audit_nav","apiserver"]},
+    {cat:"cat_cycle", name:["Sleeves","Sleeves"], dash:true,
+     path:["com.spa.hy_cycle","com.spa.lp_cycle","rebalance"]},
+    {cat:"cat_risk", name:["Risk","Risk"],
+     path:["com.spa.sky_monitor","com.spa.red_flag_monitor","com.spa.peg_monitor",
+           "com.spa.governance_watcher","com.spa.rules_watchdog","com.spa.threat_reactor",
+           "com.spa.bts-monitor","com.spa.bts-feed"]},
+    {cat:"cat_risk", name:["Risk→Gate","Risk→Gate"], dash:true,
+     path:["com.spa.threat_reactor","risk_gate"]},
+    {cat:"cat_risk", name:["Gas","Gas"], dash:true,
+     path:["com.spa.base_gas_monitor","com.spa.threat_reactor"]},
+    {cat:"cat_mon", name:["Monitoring","Monitoring"],
+     path:["com.spa.cycle_gap_monitor","com.spa.cycle_health","com.spa.system_briefing",
+           "com.spa.self_heal","com.spa.portfolio_monitor","com.spa.agent_health",
+           "com.spa.system_health_morning","com.spa.system_health_evening",
+           "com.spa.dashboard_watcher","com.spa.uptime_monitor"]},
+    {cat:"cat_heal", name:["Self-Heal","Self-Heal"],
+     path:["com.spa.watchdog","com.spa.self_heal","com.spa.agent_health"]},
+    {cat:"cat_tier1", name:["Tier-1","Tier-1"],
+     path:["com.spa.analytics_tier_b","com.spa.analytics_tier_c","com.spa.tier1_digest",
+           "com.spa.tier1_governance","risk_gate"]},
+    {cat:"cat_tier1", name:["Audit","Audit"], dash:true,
+     path:["com.spa.checkpoint-7day","com.spa.tier1_digest","audit_nav"]},
+    {cat:"cat_report", name:["Reporting","Reporting"],
+     path:["com.spa.cpa_daily","com.spa.morning_digest","com.spa.telegram_daily",
+           "com.spa.telegram_weekly","com.spa.telegram_milestone"]},
+    {cat:"cat_report", name:["Report tap","Report tap"], dash:true,
+     path:["rebalance","com.spa.morning_digest"]},
+    {cat:"cat_svc", name:["Services","Services"],
+     path:["apiserver","com.spa.cloudflared","com.spa.httpserver","com.spa.dashboard","com.spa.bot_commands"]},
+    {cat:"cat_svc", name:["Backup/Push","Backup/Push"], dash:true,
+     path:["com.spa.weekly_backup","com.spa.autopush","com.spa.familyfund","apiserver"]}
+  ];
+
+  /* count of REAL launchd agents (exclude synthetic flow anchors w/o com.spa) */
+  var AGENT_IDS = Object.keys(STN).filter(function(id){ return id.indexOf("com.spa.")===0; });
+
+  /* ===================== language state ===================== */
+  var lang = (function(){ try{ return localStorage.getItem('spa_lang')||'en'; }catch(e){ return 'en'; } })();
+  if(lang!=='ru') lang='en';
+  function ix(){ return lang==='ru'?1:0; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function shortName(id){ return id.replace(/^com\.spa\./,''); }
+  function labelOf(id){ var n=STN[id]; return n.flow ? id.replace(/_/g," ") : shortName(id); }
+
+  /* ===================== status ===================== */
+  var STATUS = {};
+  function clsOf(s){ s=(s||'').toUpperCase(); return s.indexOf('CRIT')>=0?'crit':s.indexOf('WARN')>=0?'warn':(s?'ok':''); }
+  var RING = {ok:"#2dd4bf",warn:"#f5c542",crit:"#f0556c",unknown:"#3a424e"};
+  var STATUS_TXTCOL = {ok:"#2dd4bf",warn:"#f5c542",crit:"#f0556c"};
+  function nodeStatusClass(id){
+    var st = STATUS[id]; if(!st) return 'ok';
+    return clsOf(st.status)||'ok';
+  }
+
+  /* ===================== geometry ===================== */
+  var GX=54, GY=38, CELL=34, PAD=70;     // grid columns/rows + cell px
+  var VW = GX*CELL + PAD*2, VH = GY*CELL + PAD*2;
+  function px(gx){ return PAD + gx*CELL; }
+  function py(gy){ return PAD + gy*CELL; }
+
+  var svg = document.getElementById('map');
+  svg.setAttribute("viewBox","0 0 "+VW+" "+VH);
+  function mk(tag,attrs){ var e=document.createElementNS(SVGNS,tag);
+    if(attrs) for(var k in attrs) e.setAttribute(k,attrs[k]); return e; }
+
+  var defs = mk("defs"); svg.appendChild(defs);
+  // soft glow for healthy interchanges
+  (function(){
+    var f=mk("filter",{id:"glow",x:"-60%",y:"-60%",width:"220%",height:"220%"});
+    f.appendChild(mk("feGaussianBlur",{stdDeviation:"2.4",result:"b"}));
+    var m=mk("feMerge"); var n1=mk("feMergeNode",{in:"b"}); var n2=mk("feMergeNode",{in:"SourceGraphic"});
+    m.appendChild(n1); m.appendChild(n2); f.appendChild(m); defs.appendChild(f);
+  })();
+
+  var gRoutes = mk("g"); svg.appendChild(gRoutes);
+  var gLineNames = mk("g"); svg.appendChild(gLineNames);
+  var gStations = mk("g"); svg.appendChild(gStations);
+
+  /* ---- orthogonal metro path between two grid points ----
+     produces a rounded L/Z route: horizontal then vertical (or a 45° diag
+     when both deltas equal) with rounded corners. */
+  function metroSeg(a,b){
+    var x1=px(a.gx),y1=py(a.gy),x2=px(b.gx),y2=py(b.gy);
+    var dx=x2-x1, dy=y2-y1;
+    if(dx===0||dy===0) return [[x1,y1],[x2,y2]];
+    var adx=Math.abs(dx), ady=Math.abs(dy);
+    // 45° diagonal leg of length = min(adx,ady), remainder straight
+    var diag=Math.min(adx,ady);
+    var sx=dx>0?1:-1, sy=dy>0?1:-1;
+    if(adx>=ady){
+      // go straight then diagonal into target row
+      var bx=x2 - sx*diag;
+      return [[x1,y1],[bx,y1],[x2,y2]];
+    }else{
+      var by=y2 - sy*diag;
+      return [[x1,y1],[x1,by],[x2,y2]];
+    }
+  }
+  function roundedPath(pts,r){
+    if(pts.length<2) return "";
+    if(pts.length===2) return "M"+pts[0][0]+","+pts[0][1]+" L"+pts[1][0]+","+pts[1][1];
+    var d="M"+pts[0][0]+","+pts[0][1];
+    for(var i=1;i<pts.length-1;i++){
+      var p0=pts[i-1],p1=pts[i],p2=pts[i+1];
+      var v1=norm(p1[0]-p0[0],p1[1]-p0[1]), v2=norm(p2[0]-p1[0],p2[1]-p1[1]);
+      var l1=dist(p0,p1), l2=dist(p1,p2);
+      var rr=Math.min(r,l1/2,l2/2);
+      var a=[p1[0]-v1[0]*rr,p1[1]-v1[1]*rr];
+      var c=[p1[0]+v2[0]*rr,p1[1]+v2[1]*rr];
+      d+=" L"+a[0]+","+a[1]+" Q"+p1[0]+","+p1[1]+" "+c[0]+","+c[1];
+    }
+    var last=pts[pts.length-1]; d+=" L"+last[0]+","+last[1];
+    return d;
+  }
+  function norm(x,y){ var m=Math.hypot(x,y)||1; return [x/m,y/m]; }
+  function dist(a,b){ return Math.hypot(b[0]-a[0],b[1]-a[1]); }
+
+  function routePoints(route){
+    var pts=[];
+    for(var i=0;i<route.path.length-1;i++){
+      var a=STN[route.path[i]], b=STN[route.path[i+1]];
+      if(!a||!b) continue;
+      var seg=metroSeg(a,b);
+      if(i>0) seg=seg.slice(1);   // avoid dup vertex
+      seg.forEach(function(p){ pts.push(p); });
+    }
+    return pts;
+  }
+
+  /* ---- draw routes (casing + colored line) ---- */
+  var routeEls=[];   // {cat,el,casing,dash}
+  ROUTES.forEach(function(route){
+    var pts=routePoints(route);
+    var d=roundedPath(pts,11);
+    var col=LINES[route.cat].color;
+    var w = route.main?7 : 5;
+    var casing=mk("path",{class:"route-casing",d:d,"stroke-width":w+4});
+    var line=mk("path",{class:"route",d:d,stroke:col,"stroke-width":w,
+      "stroke-opacity":route.dash?0.65:0.95});
+    if(route.dash) line.setAttribute("stroke-dasharray","1 9"), line.setAttribute("stroke-width",w-1.5);
+    gRoutes.appendChild(casing); gRoutes.appendChild(line);
+    routeEls.push({cat:route.cat, line:line, casing:casing});
+
+    // line name tag at first point (only for primary, non-dash routes)
+    if(!route.dash){
+      var p0=pts[0], p1=pts[1]||pts[0];
+      var ang = Math.atan2(p1[1]-p0[1], p1[0]-p0[0]);
+      var lbl=mk("text",{class:"line-name", x:p0[0], y:p0[1]-13,
+        fill:col, "text-anchor":"start"});
+      lbl.setAttribute("data-cat",route.cat);
+      lbl.textContent = route.name[0];
+      gLineNames.appendChild(lbl);
+      routeEls[routeEls.length-1].nameEl=lbl;
+      routeEls[routeEls.length-1].nameKey=route.name;
+    }
+  });
+
+  /* ---- draw stations ---- */
+  var stnEls={};   // id -> {g, ring, core, label}
+  Object.keys(STN).forEach(function(id){
+    var n=STN[id];
+    var x=px(n.gx), y=py(n.gy);
+    var col=LINES[n.cat].color;
+    var isIx = n.ix || n.flow;
+    var R = n.gate?13 : isIx?9 : 6;
+
+    var g=mk("g",{class:"stn", transform:"translate("+x+","+y+")"});
+    g.setAttribute("data-id",id);
+
+    // status ring (outer)
+    var ring=mk("circle",{class:"stn-ring", r:R+4.5, "stroke-width":1.8, stroke:RING.ok});
+    g.appendChild(ring);
+
+    if(isIx){
+      // interchange = filled white-cored double ring station
+      var outer=mk("circle",{r:R, fill:n.gate?"rgba(240,85,108,.16)":"var(--bg-2)",
+        stroke:col, "stroke-width":n.gate?3:2.6});
+      var inner=mk("circle",{r:R-4, fill:col, "fill-opacity":n.gate?0.0:0.92});
+      g.appendChild(outer); g.appendChild(inner);
+      if(n.gate){
+        var t=mk("text",{"text-anchor":"middle",dy:"0.35em","font-family":"JetBrains Mono, monospace",
+          "font-size":"13px",fill:"#ffd9df","pointer-events":"none"}); t.textContent="✕"; g.appendChild(t);
+      }
+    }else{
+      // ordinary station = small open tick circle
+      var c=mk("circle",{r:R, fill:"var(--bg-2)", stroke:col, "stroke-width":2.4});
+      g.appendChild(c);
+      var dot=mk("circle",{r:2, fill:col}); g.appendChild(dot);
+    }
+
+    // label — placed to avoid the line; flow/ix get bigger label
+    var lblY = (n.gy < GY/2) ? -(R+9) : (R+15);
+    var anchor = "middle";
+    var lx=0;
+    var lbl=mk("text",{class: isIx?"stn-lbl":"stn-lbl dim",
+      x:lx, y:lblY, "text-anchor":anchor});
+    if(n.flow){ lbl.setAttribute("class","term-lbl"); lbl.setAttribute("fill",col); }
+    lbl.textContent = labelOf(id);
+    g.appendChild(lbl);
+
+    g.addEventListener("mouseenter", function(ev){ showTip(id, ev); highlight(n.cat); });
+    g.addEventListener("mousemove", function(ev){ moveTip(ev); });
+    g.addEventListener("mouseleave", function(){ hideTip(); unhighlight(); });
+
+    gStations.appendChild(g);
+    stnEls[id]={g:g, ring:ring};
+  });
+
+  /* ---- status visuals ---- */
+  function applyStatus(){
+    Object.keys(stnEls).forEach(function(id){
+      var k=nodeStatusClass(id);
+      var el=stnEls[id];
+      el.ring.setAttribute("stroke", RING[k]||RING.unknown);
+      el.ring.setAttribute("stroke-opacity", STATUS[id]?0.95:0.45);
+      if(k==='crit'){ el.g.setAttribute("filter","url(#glow)"); }
+      else if(STN[id].ix||STN[id].flow){ el.g.setAttribute("filter","url(#glow)"); }
+      else { el.g.removeAttribute("filter"); }
+    });
+  }
+
+  /* ---- line highlight on station hover ---- */
+  function highlight(cat){
+    routeEls.forEach(function(r){
+      var on = r.cat===cat;
+      r.line.style.opacity = on?1:0.18;
+      r.casing.style.opacity = on?0.9:0.3;
+      if(r.nameEl) r.nameEl.style.opacity = on?1:0.2;
+    });
+    Object.keys(stnEls).forEach(function(id){
+      stnEls[id].g.style.opacity = (STN[id].cat===cat || STN[id].flow || STN[id].ix)?1:0.28;
+    });
+  }
+  function unhighlight(){
+    if(Object.keys(HIDDEN).length){ applyMute(); return; }
+    routeEls.forEach(function(r){ r.line.style.opacity=""; r.casing.style.opacity=""; if(r.nameEl) r.nameEl.style.opacity=""; });
+    Object.keys(stnEls).forEach(function(id){ stnEls[id].g.style.opacity=1; });
+  }
+
+  /* ===================== tooltip ===================== */
+  var tip=document.getElementById('tip');
+  function showTip(id, ev){
+    var n=STN[id]; var col=LINES[n.cat].color;
+    document.getElementById('t-bar').style.background=col;
+    document.getElementById('t-cd').style.background=col;
+    document.getElementById('t-cd').style.boxShadow='0 0 7px '+col;
+    document.getElementById('t-cat').textContent = T[n.cat][ix()] + (n.ix?(" · "+T.g_interchange[ix()]):"");
+    document.getElementById('t-id').textContent = n.flow ? labelOf(id) : (n.ix && id.indexOf('com.spa')!==0 ? labelOf(id) : id);
+    var k=nodeStatusClass(id);
+    document.getElementById('t-st').className='st '+k;
+    document.getElementById('t-role').textContent=n.r[ix()];
+    document.getElementById('t-sched').textContent=n.sc?n.sc[ix()]:'—';
+    var st=STATUS[id];
+    var stEl=document.getElementById('t-status');
+    stEl.textContent = st ? (st.status + (st.issue?(' · '+st.issue):'')) : (n.flow?T.flow[ix()]:'—');
+    stEl.style.color = STATUS_TXTCOL[k]||'var(--ink)';
+    tip.classList.add('show'); moveTip(ev);
+  }
+  function moveTip(ev){
+    var w=tip.offsetWidth||260, h=tip.offsetHeight||140;
+    var x=ev.clientX+16, y=ev.clientY+16;
+    if(x+w>window.innerWidth-12) x=ev.clientX-w-16;
+    if(y+h>window.innerHeight-12) y=ev.clientY-h-16;
+    tip.style.left=Math.max(8,x)+'px'; tip.style.top=Math.max(8,y)+'px';
+  }
+  function hideTip(){ tip.classList.remove('show'); }
+
+  /* ===================== legend (line toggles) ===================== */
+  var LEGEND_ORDER=["cat_cycle","cat_risk","cat_mon","cat_tier1","cat_heal","cat_report","cat_svc"];
+  var HIDDEN={};
+  function buildLegend(){
+    var el=document.getElementById('legend');
+    var html='<div class="lt">'+T.legend_lines[ix()]+'</div>';
+    LEGEND_ORDER.forEach(function(c){
+      html+='<div class="row" data-c="'+c+'"><span class="sw" style="background:'+LINES[c].color+';box-shadow:0 0 8px '+LINES[c].color+'"></span>'+esc(T[c][ix()])+'</div>';
+    });
+    html+='<div class="glyphs"><span class="g"><span class="stn-mini"></span>'+esc(T.g_station[ix()])+'</span>'+
+          '<span class="g"><span class="stn-mini ix"></span>'+esc(T.g_interchange[ix()])+'</span></div>';
+    el.innerHTML=html;
+    el.querySelectorAll('.row').forEach(function(row){
+      row.onclick=function(){ toggleLine(row.getAttribute('data-c'), row); };
+    });
+  }
+  function toggleLine(cat,row){
+    HIDDEN[cat]=!HIDDEN[cat];
+    row.classList.toggle('off',HIDDEN[cat]);
+    applyMute();
+  }
+  function applyMute(){
+    routeEls.forEach(function(r){
+      var off=HIDDEN[r.cat];
+      r.line.style.display=off?"none":"";
+      r.casing.style.display=off?"none":"";
+      if(r.nameEl) r.nameEl.style.display=off?"none":"";
+    });
+    Object.keys(stnEls).forEach(function(id){
+      var n=STN[id];
+      var off = HIDDEN[n.cat] && !n.flow;
+      stnEls[id].g.style.opacity = off?0.16:1;
+    });
+  }
+
+  /* ===================== pan + zoom ===================== */
+  var vb={x:0,y:0,w:VW,h:VH};
+  function fit(){
+    var rect=svg.getBoundingClientRect();
+    var ar=rect.width/rect.height, vbar=VW/VH;
+    // start zoomed to fill nicely
+    var w=VW, h=VH;
+    if(ar>vbar){ w=VH*ar; } else { h=VW/ar; }
+    vb={x:(VW-w)/2, y:(VH-h)/2, w:w, h:h};
+    apply();
+  }
+  function apply(){ svg.setAttribute("viewBox", vb.x+" "+vb.y+" "+vb.w+" "+vb.h); }
+  svg.addEventListener("wheel", function(ev){
+    ev.preventDefault();
+    var rect=svg.getBoundingClientRect();
+    var mx=vb.x+(ev.clientX-rect.left)/rect.width*vb.w;
+    var my=vb.y+(ev.clientY-rect.top)/rect.height*vb.h;
+    var f=ev.deltaY>0?1.12:0.89;
+    var nw=vb.w*f, nh=vb.h*f;
+    nw=Math.max(VW*0.25,Math.min(VW*1.8,nw)); nh=nw*(vb.h/vb.w);
+    vb.x=mx-(mx-vb.x)*(nw/vb.w); vb.y=my-(my-vb.y)*(nh/vb.h);
+    vb.w=nw; vb.h=nh; apply();
+  },{passive:false});
+  var pan=null;
+  svg.addEventListener("mousedown",function(ev){ if(ev.target.closest('.stn'))return; pan={x:ev.clientX,y:ev.clientY,vx:vb.x,vy:vb.y}; });
+  window.addEventListener("mousemove",function(ev){
+    if(!pan)return; var rect=svg.getBoundingClientRect();
+    vb.x=pan.vx-(ev.clientX-pan.x)/rect.width*vb.w;
+    vb.y=pan.vy-(ev.clientY-pan.y)/rect.height*vb.h; apply();
+  });
+  window.addEventListener("mouseup",function(){ pan=null; });
+
+  /* ===================== hint fade ===================== */
+  var hintFaded=false;
+  function fadeHint(){ if(hintFaded)return; hintFaded=true; document.getElementById('hint').style.opacity=0; }
+  setTimeout(fadeHint, 9000);
+  svg.addEventListener("mousedown", fadeHint);
+
+  /* ===================== static i18n ===================== */
+  function applyStatic(){
+    document.documentElement.lang=lang;
+    document.querySelectorAll('[data-i]').forEach(function(el){
+      var k=el.getAttribute('data-i'); if(T[k]) el.innerHTML=T[k][ix()];
+    });
+    document.getElementById('lang-en').className=lang==='en'?'on':'';
+    document.getElementById('lang-ru').className=lang==='ru'?'on':'';
+  }
+  function relabelLines(){
+    routeEls.forEach(function(r){ if(r.nameEl&&r.nameKey) r.nameEl.textContent=r.nameKey[ix()]; });
+  }
+  function setLang(l){
+    lang=(l==='ru')?'ru':'en';
+    try{ localStorage.setItem('spa_lang',lang); }catch(e){}
+    applyStatic(); buildLegend(); relabelLines();
+  }
+
+  /* ===================== live API ===================== */
+  function paint(d){
+    var ags=d.agents||[]; if(!Array.isArray(ags)) ags=Object.values(ags||{});
+    STATUS={};
+    ags.forEach(function(a){ if(a.label) STATUS[a.label]={status:a.status,issue:a.issue||''}; });
+    var ok=(d.healthy_count!=null)?d.healthy_count:ags.filter(function(a){return clsOf(a.status)==='ok';}).length;
+    var total=d.total_agents!=null?d.total_agents:ags.length;
+    document.getElementById('s-total').textContent = total || AGENT_IDS.length;
+    document.getElementById('s-ok').textContent = ok+(total?(' / '+total):'');
+    var ov=d.overall_status||'—';
+    var oe=document.getElementById('s-overall');
+    oe.textContent=ov; oe.style.color=STATUS_TXTCOL[clsOf(ov)]||'var(--ink)';
+    applyStatus();
+    document.getElementById('live-note').innerHTML =
+      T.live_from[ix()]+' · <b>'+esc(API.replace(/^https?:\/\//,''))+'</b> · '+T.updated[ix()]+' '+
+      new Date().toLocaleTimeString(lang==='ru'?'ru':'en-GB');
+  }
+  function loadAgents(){
+    fetch(API+'/api/live/agents').then(function(r){return r.json();}).then(paint).catch(function(){
+      document.getElementById('s-total').textContent=AGENT_IDS.length;
+      document.getElementById('s-ok').textContent='—';
+      document.getElementById('s-overall').textContent='—';
+      document.getElementById('live-note').textContent=T.offline[ix()];
+      applyStatus();
+    });
+  }
+
+  /* ===================== resize ===================== */
+  window.addEventListener("resize", fit);
+
+  /* ===================== init ===================== */
+  applyStatic();
+  buildLegend();
+  relabelLines();
+  applyStatus();
+  fit();
+  loadAgents();
+  setInterval(loadAgents, 30000);
+
+  return { setLang:setLang };
+})();
+</script>
+</body>
+</html>
