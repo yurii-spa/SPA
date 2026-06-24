@@ -539,66 +539,61 @@ class TestSendDigest(unittest.TestCase):
         mock_resp.__exit__ = mock.MagicMock(return_value=False)
         return mock_resp
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_successful_send_returns_ok_true(self, mock_urlopen):
-        mock_urlopen.return_value = self._mock_success_response(message_id=99)
+    # NOTE (flood-guard migration): send_digest now routes transport through the
+    # canonical rate-limited client spa_core.alerts.telegram_client.send_message,
+    # so these tests mock that chokepoint instead of urllib. The canonical client
+    # returns bool, so message_id is no longer surfaced (reported as None).
+
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
+    def test_successful_send_returns_ok_true(self, mock_send):
         result = self.d.send_digest("fake_token", "-100123")
         self.assertTrue(result["ok"])
         self.assertEqual(result["status_code"], 200)
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_successful_send_returns_message_id(self, mock_urlopen):
-        mock_urlopen.return_value = self._mock_success_response(message_id=55)
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
+    def test_successful_send_returns_message_id(self, mock_send):
+        # Canonical client returns bool only — message_id is None on success now.
         result = self.d.send_digest("fake_token", "-100123")
-        self.assertEqual(result.get("message_id"), 55)
+        self.assertIsNone(result.get("message_id"))
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_http_error_returns_ok_false(self, mock_urlopen):
-        import urllib.error
-        err = urllib.error.HTTPError(
-            url="http://x", code=400, msg="Bad Request",
-            hdrs=None, fp=None,
-        )
-        err.read = lambda: b'{"ok":false,"error_code":400,"description":"Bad Request"}'
-        mock_urlopen.side_effect = err
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=False)
+    def test_http_error_returns_ok_false(self, mock_send):
+        # A failed/suppressed send → ok=False with an error string.
         result = self.d.send_digest("bad_token", "0")
         self.assertFalse(result["ok"])
-        self.assertEqual(result["status_code"], 400)
+        self.assertEqual(result["status_code"], 0)
         self.assertIn("error", result)
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_url_error_returns_ok_false(self, mock_urlopen):
-        import urllib.error
-        mock_urlopen.side_effect = urllib.error.URLError(reason="Connection refused")
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=False)
+    def test_url_error_returns_ok_false(self, mock_send):
         result = self.d.send_digest("token", "chat")
         self.assertFalse(result["ok"])
         self.assertEqual(result["status_code"], 0)
-        self.assertIn("URLError", result["error"])
+        self.assertIn("error", result)
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_unexpected_exception_returns_ok_false(self, mock_urlopen):
-        mock_urlopen.side_effect = RuntimeError("unexpected")
+    @mock.patch(
+        "spa_core.alerts.telegram_client.send_message",
+        side_effect=RuntimeError("unexpected"),
+    )
+    def test_unexpected_exception_returns_ok_false(self, mock_send):
         result = self.d.send_digest("token", "chat")
         self.assertFalse(result["ok"])
         self.assertIn("error", result)
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_send_calls_urlopen_once(self, mock_urlopen):
-        mock_urlopen.return_value = self._mock_success_response()
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
+    def test_send_calls_urlopen_once(self, mock_send):
+        # Now: send_digest calls the canonical client exactly once.
         self.d.send_digest("token", "chat")
-        mock_urlopen.assert_called_once()
+        mock_send.assert_called_once()
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_result_has_required_keys_on_success(self, mock_urlopen):
-        mock_urlopen.return_value = self._mock_success_response()
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
+    def test_result_has_required_keys_on_success(self, mock_send):
         result = self.d.send_digest("token", "chat")
         self.assertIn("ok", result)
         self.assertIn("status_code", result)
 
-    @mock.patch("spa_core.analytics.telegram_daily_digest.urllib.request.urlopen")
-    def test_result_has_error_key_on_failure(self, mock_urlopen):
-        import urllib.error
-        mock_urlopen.side_effect = urllib.error.URLError(reason="no route")
+    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=False)
+    def test_result_has_error_key_on_failure(self, mock_send):
         result = self.d.send_digest("token", "chat")
         self.assertIn("error", result)
 
