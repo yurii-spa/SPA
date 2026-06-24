@@ -177,11 +177,19 @@ class TelegramBot:
     def send_message(self, text: str, chat_id: Optional[str] = None,
                      parse_mode: str = "HTML",
                      reply_markup: Optional[Dict] = None) -> Optional[Dict]:
-        """Send a message. Fail-safe."""
+        """Send a message. Fail-safe + FLOOD-GUARDED (shared cross-process rate limit so a
+        reply/callback loop can never flood the chat)."""
         target = chat_id or self.chat_id
         if not target:
             log.warning("send_message: no chat_id available")
             return None
+        try:
+            from spa_core.alerts.telegram_client import _rate_limit_ok
+            if not _rate_limit_ok(text):
+                log.warning("bot send dropped by flood guard (>rate). preview=%r", (text or "")[:80])
+                return None
+        except Exception:
+            pass  # guard import failure must never block a legitimate reply
         params: Dict[str, Any] = {
             "chat_id": target,
             "text": text,
