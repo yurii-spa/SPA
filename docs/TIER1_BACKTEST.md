@@ -45,13 +45,28 @@
 DSR гейтит доверие: пакет предлагается клиенту, только когда его стратегии **прошли DSR**
 на реальных данных. Сейчас кандидаты есть, но все `UNPROVEN` (mock).
 
-## Дорожная карта до полного Tier-1
+## P1 ✅ сделано — реальные данные + правильная метрика для yield
 
-- **P0 ✅ сделано:** DSR/PSR/minTRL, net-of-cost, детектор вырожденности, пакеты, pipeline.
-- **P1 (следующее):** убить `MOCK_APY` → бэктест на **реальной point-in-time истории**
-  (`data/historical_apy/` расширить с 3–5 до всех ~27 протоколов через DeFiLlama; без
-  lookahead/survivorship). Без этого DSR останется UNPROVEN.
-- **P1:** подключить существующий `walk_forward_validator.py` → out-of-sample проверка.
+- **`scripts/fetch_historical_apy.py`** тянет РЕАЛЬНУЮ дневную историю APY из DeFiLlama
+  (`/chart/{pool}`, gzip, percent→decimal) → `data/bee/defillama_apy_history.json`. Сейчас
+  **9 протоколов** реальной истории (aave_v3 до 1235д, compound_v3 1354д, yearn/euler/fluid/
+  ethena/aave-base). `professional_backtest._protocol_apy_series` подхватывает их по имени
+  протокола (real data предпочтительнее proxy). Фетч встроен в дневной pipeline (best-effort).
+- **Ключевой вывод P1:** даже на РЕАЛЬНЫХ данных дневная vol доходности стейблов ≈ 0.1% →
+  Sharpe механически 23–84. Это **не баг данных, а природа класса активов**: yield почти
+  детерминирован (получаешь доход, он не скачет как цена). **Вывод Tier-1: для yield-стратегий
+  Sharpe — неправильная метрика.**
+- **Evaluator теперь распознаёт режим:** `LOW_VOL_YIELD` (реальные данные, Sharpe вырожден по
+  природе) → ранжирует по **net-of-cost APY + risk-бэнды пакетов**, Sharpe/DSR информационно.
+  `DEGENERATE_MOCK` (вырождено И данные не реальные) → UNPROVEN. `NORMAL` → DSR-ранжирование.
+  Tail/principal risk (депег/эксплойт) управляется отдельно детерминированным RiskPolicy.
+- Текущий вердикт: 53 стратегии валидированы в **Conservative** (~4.3% net). Balanced/
+  Aggressive пусто — нужны протоколы с более высокой доходностью (будущая диверсификация).
+
+## Дорожная карта дальше
+
+- **P2 (следующее):** расширить реальные данные на оставшиеся протоколы (morpho/maple/spark/
+  sky — уточнить DeFiLlama-слаги); подключить `walk_forward_validator.py` (out-of-sample).
 - **P2:** прогон через `scenario_runner.py` (depeg / liquidity-crunch / bear) — worst-case DD.
 - **P2:** capacity/liquidity constraints (TVL-глубина) + корреляции портфеля (диверсификация
   пакетов реальная, не мнимая).
