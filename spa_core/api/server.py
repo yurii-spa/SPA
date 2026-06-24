@@ -344,6 +344,34 @@ def get_backtest():
     })
 
 
+@app.get("/api/health-public", tags=["public"])
+def get_health_public():
+    """Flat public health snapshot for the landing LiveStatsWidget. Assembled from
+    paper_trading_status.json + golive_status.json so the widget shows LIVE numbers
+    (it was 404ing → frozen on hardcoded fallback)."""
+    ps = _load_json("paper_trading_status.json", {})
+    gl = _load_json("golive_status.json", {})
+    ts = _load_json("tear_sheet.json", {})
+    passed = gl.get("passed", gl.get("passed_count"))
+    total = gl.get("total", gl.get("total_count", gl.get("criteria_total")))
+    return {
+        "generated_at": _now(),
+        "source": "live",
+        "track_days": ps.get("days_running"),
+        "ytd_apy_pct": ps.get("apy_today_pct"),
+        "current_equity": ps.get("current_equity"),
+        "total_return_pct": ps.get("total_return_pct"),
+        "sharpe_30d": ts.get("sharpe_ratio", ts.get("sharpe")),
+        "max_drawdown_pct": ts.get("max_drawdown_pct", ts.get("max_dd_pct")),
+        "risk_gates_passed": passed,
+        "risk_gates_total": total,
+        "status": ps.get("last_cycle_status", "ok"),
+        "last_cycle_at": ps.get("last_cycle_ts"),
+        "active_protocols": ps.get("num_adapters_live", ps.get("active_protocols")),
+        "is_demo": ps.get("is_demo", False),
+    }
+
+
 @app.get("/api/tier1/packages", tags=["tier1"])
 def get_tier1_packages():
     """Tier-1 risk-tier packages (Conservative/Balanced/Aggressive) — data/tier1_packages.json.
