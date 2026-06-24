@@ -26,13 +26,14 @@ const post = {
         <span class="font-semibold text-white tracking-tight">SPA</span>
       </a>
       <span class="text-white/15 mx-2">/</span>
-      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors">Blog</a>
+      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors" data-ru="Блог">Blog</a>
       <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/30 hidden sm:inline">Architecture Audit</span>
+      <span class="text-sm text-white/30 hidden sm:inline" data-ru="Аудит архитектуры">Architecture Audit</span>
     </div>
     <a
       href="/dashboard"
       class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+      data-ru="Дашборд ↗"
     >
       Dashboard ↗
     </a>
@@ -56,7 +57,7 @@ const post = {
     <article class="pb-16 space-y-8 text-white/60 leading-relaxed">
 
       <section>
-        <p>
+        <p data-ru="Перед началом фазы бумажной торговли SPA прошёл тщательный внутренний аудит архитектуры, охватывающий каждый слой системы: получение данных, исполнение стратегий, риск-гейтинг, сохранение состояния и операционную инфраструктуру.">
           Before starting the paper trading phase, SPA underwent a thorough internal architecture review
           covering every layer of the system: data ingestion, strategy execution, risk gating,
           state persistence, and operational infrastructure.
@@ -65,7 +66,7 @@ const post = {
 
       <!-- Audit areas -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Audit Coverage</p>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Охват аудита">Audit Coverage</p>
         <div class="space-y-3">
           {[
             {
@@ -124,7 +125,7 @@ const post = {
 
       <!-- Key findings -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Key Findings</p>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Ключевые выводы">Key Findings</p>
         <div class="space-y-3 text-sm">
           <p>
             The architecture is sound for paper trading. The primary blocker for GoLiveChecker is
@@ -136,7 +137,7 @@ const post = {
             and <code class="font-mono text-white/60 text-xs">spa_core/execution/</code> is correctly enforced.
             No cross-contamination was found in 800+ test files.
           </p>
-          <p>
+          <p data-ru="RiskPolicy v1.0 не имеет ни одного пути для дискреционного переопределения. Аварийный выключатель при просадке 5% и лимиты на протокол (40% T1, 20% T2) жёстко зашиты в код и неприкосновенны на протяжении всего периода бумажной торговли.">
             RiskPolicy v1.0 has zero discretionary override paths. The kill switch at 5% drawdown
             and the per-protocol caps (40% T1, 20% T2) are hard-coded and untouchable during
             the paper trading period.
@@ -148,10 +149,10 @@ const post = {
 
     <!-- Nav between posts -->
     <div class="py-8 border-t border-white/5 flex items-center justify-between">
-      <a href="/blog/2026-06-18-domain-launched" class="text-sm text-white/40 hover:text-white transition-colors">
+      <a href="/blog/2026-06-18-domain-launched" class="text-sm text-white/40 hover:text-white transition-colors" data-ru="← Запуск домена">
         ← Domain Launch
       </a>
-      <a href="/blog/2026-06-20-paper-trading-started" class="text-sm text-white/40 hover:text-white transition-colors">
+      <a href="/blog/2026-06-20-paper-trading-started" class="text-sm text-white/40 hover:text-white transition-colors" data-ru="Бумажная торговля →">
         Paper Trading →
       </a>
     </div>
