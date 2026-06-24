@@ -192,7 +192,13 @@ def build_portfolio_section() -> str:
     eq_summary = eq.get("summary", {})
     end_equity = eq_summary.get("end_equity", capital)
     total_return = eq_summary.get("total_return_pct", 0.0)
-    num_days = eq_summary.get("num_days", 0)
+    # Honest track length: real (non-warmup) days, not the raw bar count which
+    # includes pre-2026-06-10 warmup/demo bars. Prefer summary.real_days; fall back
+    # to counting non-warmup bars directly so it's honest even before the next cycle.
+    num_days = eq_summary.get("real_days")
+    if num_days is None:
+        _real = [b for b in eq.get("daily", []) if not b.get("is_warmup", False)]
+        num_days = len(_real) if _real else eq_summary.get("num_days", 0)
 
     # positions dict
     positions = pos.get("positions", {})
