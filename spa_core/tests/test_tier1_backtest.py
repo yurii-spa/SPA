@@ -162,6 +162,23 @@ def test_packages_build_structure():
             assert all((s.get("net_apy_pct") or 0) > 0 for s in p["strategies"])
 
 
+def test_tail_risk_tiers_and_adjustment():
+    from spa_core.backtesting.tier1 import tail_risk as tr
+    assert tr.protocol_tail_risk_pct("aave_v3") < tr.protocol_tail_risk_pct("maple")  # T1<T2
+    assert tr.protocol_tail_risk_pct("cash") == 0.0
+    ra = tr.risk_adjusted_net_apy(5.0, {"aave_v3": 0.8, "cash": 0.2})
+    assert ra["risk_adjusted_apy_pct"] < ra["net_apy_pct"]   # tail-risk lowers it
+    assert ra["tail_risk_pct"] > 0
+
+
+def test_packages_carry_risk_adjusted():
+    o = pkg_mod.build(write=False)
+    for p in o["packages"].values():
+        for s in p.get("strategies", []):
+            assert "risk_adjusted_apy_pct" in s and "tail_risk_pct" in s
+            assert s["risk_adjusted_apy_pct"] <= s["net_apy_pct"]
+
+
 def test_tier1_digest_builds():
     from spa_core.reporting import tier1_digest
     msg = tier1_digest.build_message()
