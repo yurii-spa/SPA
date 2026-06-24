@@ -298,6 +298,13 @@ class TournamentEngine:
 
             all_ok = sharpe_ok and days_ok and apy_ok and dd_ok
 
+            # Optional HARD enforcement of the Tier-1 gate (default OFF = advisory). When
+            # TIER1_ENFORCE_GATE=1, a strategy that fails the Tier-1 gate is NOT promoted.
+            tier1_ok = _tier1_gate_eligible(sid)
+            if all_ok and os.environ.get("TIER1_ENFORCE_GATE") == "1" and not tier1_ok:
+                _log.info("Tier-1 gate ENFORCED: skipping promotion of %s (not eligible)", sid)
+                continue
+
             if all_ok:
                 promotions.append({
                     "strategy_id":      sid,
@@ -318,7 +325,7 @@ class TournamentEngine:
                     # Advisory annotation from the parallel Tier-1 gate (real-data backtest +
                     # net-of-cost + OOS + capacity). Surfaces whether Tier-1 validates this
                     # promotion; never blocks (promotions are already advisory). Fail-open.
-                    "tier1_eligible": _tier1_gate_eligible(sid),
+                    "tier1_eligible": tier1_ok,
                 })
 
         if promotions:
