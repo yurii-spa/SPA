@@ -3,8 +3,18 @@ name: SPA CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'data/**'
+      - '**.md'
+      - 'AUTOPUSH_REPORT_*'
+      - 'scripts/archive/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'data/**'
+      - '**.md'
+      - 'AUTOPUSH_REPORT_*'
+      - 'scripts/archive/**'
 
 jobs:
   test:
@@ -19,12 +29,40 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest
+          pip install pytest pytest-asyncio
 
-      - name: Run SPA core tests
+      - name: Smoke test — import spa_core
+        run: |
+          python3 -c "
+          from spa_core.base import BaseAnalytics, BaseReport, BaseAdapter
+          from spa_core.utils.kanban import increment_done
+          import spa_core
+          print('spa_core imports OK')
+          "
+        env:
+          SPA_ENV: ci
+
+      - name: Run spa_core/tests (unit)
         run: |
           cd spa_core
           python -m pytest tests/ -q --tb=short --ignore=tests/test_golive_checker.py
+        env:
+          SPA_ENV: ci
+
+      - name: Run tests/ root (integration)
+        run: |
+          python -m pytest tests/ -q --tb=short -x --ignore=tests/test_golive_checker.py
+        env:
+          SPA_ENV: ci
+
+      - name: Presentation-vs-SSOT guard (Law 3)
+        run: python3 scripts/check_presentation_ssot.py
+        env:
+          SPA_ENV: ci
+
+      - name: Tier-1 module smoke
+        run: |
+          python3 -c "import spa_core.backtesting.tier1.evaluator, spa_core.backtesting.tier1.gate, spa_core.backtesting.tier1.nav_proof, spa_core.governance.policy, spa_core.governance.ssot, spa_core.execution.readiness_audit, spa_core.audit.hash_chain"
         env:
           SPA_ENV: ci
 
@@ -55,4 +93,4 @@ jobs:
         run: python3 scripts/spaerror_final_audit.py 2>/dev/null || true
 
       - name: Stdlib Contract Guard
-        run: python3 scripts/stdlib_contract_guard.py --check
+        run: python3 scripts/stdlib_contract_guard.py
