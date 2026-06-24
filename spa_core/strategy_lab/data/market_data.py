@@ -9,7 +9,9 @@ Public surface:
   MarketData.snapshot(date)            -> MarketSnapshot for a specific ISO date
   MarketData.latest()                  -> MarketSnapshot for the most recent available date
   MarketData.historical_range(s, e)    -> [MarketSnapshot] ascending by date over [s, e]
-  MarketData.refresh()                 -> re-fetch all series and rewrite the cache
+                                          (sets the deep window so a cache miss fetches [s,e])
+  MarketData.refresh(start, end)       -> re-fetch the full PAGINATED deep range + rewrite cache
+  MarketData.refresh()                 -> shallow most-recent page (or instance `window` if set)
 
 Gap / forward-fill policy (per the contract):
   - For a date with no fresh datapoint for a field, forward-fill from the most recent prior
@@ -122,6 +124,7 @@ class MarketData:
         cache_dir: Optional[Path] = None,
         ff_limit_days: int = FF_LIMIT_DAYS,
         price_span: int = 90,
+        window: Optional[tuple] = None,
     ):
         self._funding = funding_feed or FundingFeed()
         self._price = price_feed or PriceFeed()
@@ -130,12 +133,16 @@ class MarketData:
         self._cache_dir = Path(cache_dir) if cache_dir else _CACHE_DIR
         self._ff_limit = ff_limit_days
         self._price_span = price_span
+        # Deep-history window (start_date, end_date) ISO. When set, refresh() pulls the full
+        # PAGINATED range from every feed instead of the most-recent single page.
+        self._window = window
 
         # in-memory series (loaded from cache lazily / populated by refresh)
         self._funding_series: Dict[str, float] = {}
         self._price_series: Dict[str, Dict[str, float]] = {}   # {sym: {date: price}}
         self._ratio_series: Dict[str, Dict[str, float]] = {}   # {lrt_sym: {date: ratio}}
-        self._restaking_latest: Dict[str, float] = {}          # {sym: apy} (point-in-time)
+        self._restaking_latest: Dict[str, float] = {}          # {sym: apy} (point-in-time fallback)
+        self._restaking_series: Dict[str, Dict[str, float]] = {}  # {sym: {date: apy}} (deep history)
         self._loaded = False
 
     # ── paths ────────────────────────────────────────────────────────────────────────────
@@ -171,6 +178,10 @@ class MarketData:
         self._restaking_latest = {
             k: float(v) for k, v in ((restaking or {}).get("apys", {}) or {}).items()
         }
+        self._restaking_series = {
+            sym: {d: float(a) for d, a in s.items()}
+            for sym, s in ((restaking or {}).get("series", {}) or {}).items()
+        }
         if defi and defi.get("series"):
             self._defi_series = {
                 proto: {d: float(a) for d, a in s.items()}
@@ -178,20 +189,41 @@ class MarketData:
             }
         return True
 
-    def refresh(self) -> None:
+    def refresh(self, start: Optional[str] = None, end: Optional[str] = None) -> None:
         """Re-fetch ALL series from the live feeds and rewrite the cache atomically.
+
+        With start/end (or the instance `window`): pull the full PAGINATED deep range from every
+        feed — funding median per day, ETH/LRT prices + ratios at daily granularity, and the
+        per-date restaking APY series. Without a window: the original most-recent single page.
         Fail-CLOSED: a feed raising InvalidDataError propagates (we do not write a partial
         fabricated cache)."""
-        funding = self._funding.history()
-        price_hist = self._price.history(span=self._price_span)
-        ratio_hist = self._price.history_ratios(span=self._price_span)
-        restaking = self._restaking.apys()
+        win = (start, end) if (start is not None and end is not None) else self._window
+        restaking_series: Dict[str, Dict[str, float]] = {}
+        restaking_latest: Dict[str, float] = {}
+        if win:
+            s, e = win
+            funding = self._funding.history(start_date=s, end_date=e)
+            price_hist = self._price.history(start_date=s, end_date=e)
+            ratio_hist = self._price.history_ratios(start_date=s, end_date=e)
+            restaking_series = self._restaking.history(s, e)
+            # derive a point-in-time 'latest' from the deep series (most recent apy per symbol)
+            restaking_latest = {
+                sym: ser[max(ser)] for sym, ser in restaking_series.items() if ser
+            }
+        else:
+            funding = self._funding.history()
+            price_hist = self._price.history(span=self._price_span)
+            ratio_hist = self._price.history_ratios(span=self._price_span)
+            restaking_latest = self._restaking.apys()
 
         ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
         _atomic_write_json(self._p("funding"), {"generated_at": ts, "series": funding})
         _atomic_write_json(self._p("prices"), {"generated_at": ts, "series": price_hist})
         _atomic_write_json(self._p("ratios"), {"generated_at": ts, "series": ratio_hist})
-        _atomic_write_json(self._p("restaking"), {"generated_at": ts, "apys": restaking})
+        _atomic_write_json(
+            self._p("restaking"),
+            {"generated_at": ts, "apys": restaking_latest, "series": restaking_series},
+        )
         if self._defi_series:
             _atomic_write_json(
                 self._p("defi"), {"generated_at": ts, "series": self._defi_series}
@@ -200,7 +232,8 @@ class MarketData:
         self._funding_series = funding
         self._price_series = price_hist
         self._ratio_series = ratio_hist
-        self._restaking_latest = restaking
+        self._restaking_latest = restaking_latest
+        self._restaking_series = restaking_series
         self._loaded = True
 
     # ── assembly ───────────────────────────────────────────────────────────────────────────
@@ -252,11 +285,21 @@ class MarketData:
         for k in gap_keys:
             snap.gaps.add(f"lrt_eth_ratio.{k}")
 
-        # restaking apy (map) — point-in-time latest value (no per-date series from /pools);
-        # applied to every date in range as the best available current estimate.
-        snap.restaking_apy = dict(self._restaking_latest)
-        if not self._restaking_latest:
-            snap.gaps.add("restaking_apy")
+        # restaking apy (map) — prefer the per-date deep series (yields /chart) with forward-fill;
+        # fall back to the point-in-time latest applied to every date when no deep series exists.
+        if self._restaking_series:
+            vals, ff_keys, gap_keys = _ff_lookup_map(self._restaking_series, date, self._ff_limit)
+            snap.restaking_apy = vals
+            for k in ff_keys:
+                snap.ff_filled.add(f"restaking_apy.{k}")
+            for k in gap_keys:
+                snap.gaps.add(f"restaking_apy.{k}")
+            if not vals:
+                snap.gaps.add("restaking_apy")
+        else:
+            snap.restaking_apy = dict(self._restaking_latest)
+            if not self._restaking_latest:
+                snap.gaps.add("restaking_apy")
 
         # defi apy (map) — optional caller-supplied per-date series
         if self._defi_series:
@@ -280,7 +323,12 @@ class MarketData:
         return self.snapshot(max(candidates))
 
     def historical_range(self, start: str, end: str) -> List[MarketSnapshot]:
-        """Ascending list of snapshots for each calendar day in [start, end] inclusive."""
+        """Ascending list of snapshots for each calendar day in [start, end] inclusive.
+
+        Sets the deep-history window to [start, end] so a cache MISS triggers a paginated deep
+        fetch over exactly this range (not the shallow most-recent page)."""
+        if self._window is None:
+            self._window = (start, end)
         self._ensure_loaded()
         try:
             d0 = datetime.date.fromisoformat(start)
