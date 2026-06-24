@@ -92,6 +92,11 @@ def build(write: bool = True) -> dict:
             "blended_risk_adjusted_apy_pct": round(sum(radj) / len(radj), 3) if radj else None,
             "worst_dd_pct": round(max(dds), 3) if dds else None,
             "min_capacity_aum_usd": min(caps) if caps else None,
+            "scales_to": {
+                "1M": (min(caps) >= 1_000_000) if caps else None,
+                "10M": (min(caps) >= 10_000_000) if caps else None,
+                "100M": (min(caps) >= 100_000_000) if caps else None,
+            },
             "strategies": members,
             "status": "available" if members else "no_validated_strategies_yet",
         }
