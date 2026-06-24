@@ -10,7 +10,7 @@ const global = strategies.global;
 
 <Layout
   title="Core Strategy — Systematic DeFi Yield | SPA earn-defi.com"
-  description="Systematic DeFi yield with verified paper track record. Tier 1 + Tier 2 protocols, deterministic risk gates, 6–14% variable APY. Paper tracked since June 10, 2026. USDT and USDC."
+  description="Systematic DeFi yield with paper track record since June 2026. Tier 1 + Tier 2 protocols, deterministic risk gates, target 4–6% APY (actual paper ~3.6%). Paper tracked since June 10, 2026. USDT and USDC."
 >
 
   <!-- Nav -->
@@ -21,13 +21,13 @@ const global = strategies.global;
         <span class="font-semibold text-white tracking-tight">SPA</span>
       </a>
       <span class="text-white/15 mx-2">/</span>
-      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors">Strategies</a>
+      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors" data-ru="Стратегии">Strategies</a>
       <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/50">Core</span>
+      <span class="text-sm text-white/50" data-ru="Core">Core</span>
     </div>
     <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
-      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">All Strategies</a>
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline" data-ru="Главная">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline" data-ru="Все стратегии">All Strategies</a>
       <a
         href="/dashboard"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
@@ -43,13 +43,13 @@ const global = strategies.global;
     <section class="pt-20 pb-12">
       <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-800 text-xs text-green-400 font-medium">
         <span class="w-1.5 h-1.5 rounded-full bg-green-400" aria-hidden="true"></span>
-        Paper Tracked
+        <span data-ru="Бумажный трек">Paper Tracked</span>
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Core">
         Core Strategy
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        Systematic DeFi yield with a verified paper track record. Deterministic
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Систематическая доходность в DeFi с подтверждённым бумажным треком. Детерминированная ребалансировка с риск-гейтами по протоколам Tier 1 и отдельным Tier 2. Бумажная торговля с 10 июня 2026 года.">
+        Systematic DeFi yield with a paper track record since June 2026. Deterministic
         risk-gated rebalancing across Tier 1 and selected Tier 2 protocols.
         Paper tracked since June 10, 2026.
       </p>
@@ -59,9 +59,9 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <div class="flex flex-col sm:flex-row sm:items-center gap-6">
         <div>
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY Range</p>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Целевой диапазон APY">Target APY Range</p>
           <div class="flex items-baseline gap-2">
-            <span class="text-5xl font-mono font-bold text-accent-400">6–14%</span>
+            <span class="text-5xl font-mono font-bold text-accent-400">4–6%</span>
             <span class="text-sm text-white/30 font-mono">APY</span>
           </div>
           <p class="text-xs text-white/25 mt-2">Paper tracked since {global.paper_trading_start}. Variable APY, not guaranteed.</p>
@@ -71,37 +71,37 @@ const global = strategies.global;
 
     <!-- 3. Risk Level -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Risk Level</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Уровень риска">Risk Level</p>
       <div class="flex items-center gap-3">
         <div class="flex gap-1" aria-label="Risk level: 2 of 3">
           <span class="inline-block w-8 h-3 rounded-sm bg-accent-400" aria-hidden="true"></span>
           <span class="inline-block w-8 h-3 rounded-sm bg-accent-400" aria-hidden="true"></span>
           <span class="inline-block w-8 h-3 rounded-sm bg-white/10" aria-hidden="true"></span>
         </div>
-        <span class="text-white/60 text-sm font-medium">Medium Risk</span>
+        <span class="text-white/60 text-sm font-medium" data-ru="Средний риск">Medium Risk</span>
       </div>
-      <p class="text-xs text-white/30 mt-2">
+      <p class="text-xs text-white/30 mt-2" data-ru="Использует протоколы Tier 1 и отдельные Tier 2. Без плеча, без лупинга.">
         Uses Tier 1 + selected Tier 2 protocols. No leverage, no looping.
       </p>
     </section>
 
     <!-- 4. Current Status -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Current Status</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Текущий статус">Current Status</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <div class="text-xs text-white/30 mb-1">Phase</div>
+          <div class="text-xs text-white/30 mb-1" data-ru="Фаза">Phase</div>
           <div class="text-white font-semibold flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" aria-hidden="true"></span>
-            Paper Trading
+            <span data-ru="Бумажная торговля">Paper Trading</span>
           </div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <div class="text-xs text-white/30 mb-1">Tracking Since</div>
+          <div class="text-xs text-white/30 mb-1" data-ru="Отслеживается с">Tracking Since</div>
           <div class="text-white font-semibold">{global.paper_trading_start}</div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <div class="text-xs text-white/30 mb-1">Go-Live Target</div>
+          <div class="text-xs text-white/30 mb-1" data-ru="Цель запуска">Go-Live Target</div>
           <div class="text-white font-semibold">{global.go_live_target}</div>
         </div>
       </div>
@@ -109,8 +109,8 @@ const global = strategies.global;
 
     <!-- 5. Who It's For -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Who It's For</p>
-      <p class="text-white/60 leading-relaxed">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Для кого">Who It's For</p>
+      <p class="text-white/60 leading-relaxed" data-ru="Семейные офисы и частные инвесторы, которым нужна систематическая и прозрачная доходность в DeFi.">
         Family offices and individual allocators seeking systematic, transparent DeFi yield.
       </p>
       <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
@@ -122,54 +122,54 @@ const global = strategies.global;
 
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">What's Inside</p>
-      <p class="text-white/50 text-sm leading-relaxed mb-4">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Стратегия Core распределяет капитал по аудированным DeFi-протоколам кредитования с высоким TVL. Ребалансировка запускается ежедневно cycle runner'ом и проходит через RiskPolicy v1.0 — детерминированный, неотменяемый риск-движок.">
         The Core strategy allocates across audited, high-TVL DeFi lending protocols. Rebalancing
         is triggered daily by the cycle runner and gated by RiskPolicy v1.0 — a deterministic,
         non-overridable risk engine.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
-          <p class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-3">Tier 1 — Primary</p>
+          <p class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-3" data-ru="Tier 1 — Основной">Tier 1 — Primary</p>
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
-              Aave V3 (Ethereum) — ~3.5% APY
+              <span data-ru="Aave V3 (Ethereum) — ~3,5% APY">Aave V3 (Ethereum) — ~3.5% APY</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
-              Compound V3 (Comet USDC) — ~4.8% APY
+              <span data-ru="Compound V3 (Comet USDC) — ~4,8% APY">Compound V3 (Comet USDC) — ~4.8% APY</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
-              Morpho Steakhouse — ~6.5% APY
+              <span data-ru="Morpho Steakhouse — ~6,5% APY">Morpho Steakhouse — ~6.5% APY</span>
             </li>
           </ul>
         </div>
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
-          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3">Tier 2 — Supplementary</p>
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3" data-ru="Tier 2 — Дополнительный">Tier 2 — Supplementary</p>
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              Morpho Blue USDC
+              <span data-ru="Morpho Blue USDC">Morpho Blue USDC</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              Yearn V3 USDC (ERC-4626)
+              <span data-ru="Yearn V3 USDC (ERC-4626)">Yearn V3 USDC (ERC-4626)</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              Euler V2 USDC (ERC-4626)
+              <span data-ru="Euler V2 USDC (ERC-4626)">Euler V2 USDC (ERC-4626)</span>
             </li>
           </ul>
-          <p class="text-xs text-white/25 mt-3">T2 total capped at 50% of portfolio (ADR-019)</p>
+          <p class="text-xs text-white/25 mt-3" data-ru="Совокупный T2 ограничен 50% портфеля (ADR-019)">T2 total capped at 50% of portfolio (ADR-019)</p>
         </div>
       </div>
     </section>
 
     <!-- 7. Yield Sources -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Yield Sources</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Источники доходности">Yield Sources</p>
       <div class="flex flex-wrap gap-2">
         {core.yield_sources.map((source: string) => (
           <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10">
@@ -177,7 +177,7 @@ const global = strategies.global;
           </span>
         ))}
       </div>
-      <p class="text-xs text-white/25 mt-3">
+      <p class="text-xs text-white/25 mt-3" data-ru="Вся доходность формируется из процентных ставок рынков кредитования. Без фарминга governance-токенов, без предоставления ликвидности, без плеча.">
         All yield comes from lending market interest rates. No governance token farming,
         no liquidity provision, no leverage.
       </p>
@@ -185,7 +185,7 @@ const global = strategies.global;
 
     <!-- 8. What This Strategy Does NOT Do -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What This Strategy Does NOT Do</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {core.does_not.map((item: string) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
@@ -198,8 +198,8 @@ const global = strategies.global;
 
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4">Risk Controls — RiskPolicy v1.0</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Каждая предлагаемая аллокация проходит через детерминированный, жёстко зашитый риск-гейт. Ни человек, ни ИИ, ни стратегия не могут переопределить эти параметры.">
         Every proposed allocation passes through a deterministic, hard-coded risk gate.
         No human, no AI, no strategy can override these parameters.
       </p>
@@ -207,46 +207,46 @@ const global = strategies.global;
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-white/10 bg-white/[0.03]">
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Parameter</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Value</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Effect</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Эффект">Effect</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">TVL floor</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Минимальный TVL">TVL floor</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $5M</td>
-              <td class="px-5 py-3 text-white/40">Pools below this threshold are excluded</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Пулы ниже этого порога исключаются">Pools below this threshold are excluded</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap (T1)</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол (T1)">Per-protocol cap (T1)</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">40%</td>
-              <td class="px-5 py-3 text-white/40">Max allocation to any single T1 protocol</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Макс. аллокация в один протокол T1">Max allocation to any single T1 protocol</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Per-protocol cap (T2)</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол (T2)">Per-protocol cap (T2)</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">20%</td>
-              <td class="px-5 py-3 text-white/40">Max allocation to any single T2 protocol</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Макс. аллокация в один протокол T2">Max allocation to any single T2 protocol</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">T2 total cap</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Совокупный лимит T2">T2 total cap</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">&le; 50%</td>
-              <td class="px-5 py-3 text-white/40">All T2 protocols combined (ADR-019)</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Все протоколы T2 суммарно (ADR-019)">All T2 protocols combined (ADR-019)</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">APY range</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Диапазон APY">APY range</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">1% – 30%</td>
-              <td class="px-5 py-3 text-white/40">Positions outside range are rejected</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Позиции вне диапазона отклоняются">Positions outside range are rejected</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/60 font-mono">Cash buffer</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Денежный буфер">Cash buffer</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">&ge; 5%</td>
-              <td class="px-5 py-3 text-white/40">Always held in reserve</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Всегда удерживается в резерве">Always held in reserve</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-red-400/80 font-mono">Kill switch</td>
-              <td class="px-5 py-3 text-red-400 font-mono font-semibold">&ge; 5% drawdown</td>
-              <td class="px-5 py-3 text-white/40">Close all positions immediately</td>
+              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Аварийный стоп (kill switch)">Kill switch</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&ge; 5% просадки">&ge; 5% drawdown</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Немедленно закрыть все позиции">Close all positions immediately</td>
             </tr>
           </tbody>
         </table>
@@ -255,11 +255,11 @@ const global = strategies.global;
 
     <!-- 10. Performance / Validation Status -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Performance & Validation Status</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Результаты и статус валидации">Performance & Validation Status</p>
 
       <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 mb-6 flex items-start gap-3">
         <span class="text-amber-400 flex-shrink-0 mt-0.5">&#9888;</span>
-        <p class="text-sm text-white/50">
+        <p class="text-sm text-white/50" data-ru="Все данные о результатах отражают бумажную торговлю на виртуальном портфеле $100 000 USDT/USDC. Не является показателем будущих результатов.">
           All performance data reflects paper trading on a virtual $100,000 USDT/USDC portfolio.
           Not indicative of future results.
         </p>
@@ -267,13 +267,13 @@ const global = strategies.global;
 
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
         <div class="flex items-center justify-between mb-4">
-          <span class="text-sm text-white/60 font-medium">GoLiveChecker</span>
-          <span class="text-sm font-mono text-white">20<span class="text-white/30"> / 29 criteria met</span></span>
+          <span class="text-sm text-white/60 font-medium" data-ru="GoLiveChecker">GoLiveChecker</span>
+          <span class="text-sm font-mono text-white">20<span class="text-white/30" data-ru=" / 29 критериев выполнено"> / 29 criteria met</span></span>
         </div>
         <div class="w-full bg-white/10 rounded-full h-2 mb-4">
           <div class="bg-accent-500 h-2 rounded-full" style="width: 77%"></div>
         </div>
-        <p class="text-xs text-white/30">
+        <p class="text-xs text-white/30" data-ru="Все 29 критериев должны выполняться 7 дней подряд до активации реального капитала (ADR-002). Текущие блокеры видны на дашборде.">
           All 29 criteria must pass for 7 consecutive days before live capital activation (ADR-002).
           Current blockers visible on dashboard.
         </p>
@@ -282,36 +282,36 @@ const global = strategies.global;
 
     <!-- 11. Strategy-Specific Risks -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-red-400/60 uppercase tracking-wider font-mono mb-4">Strategy-Specific Risks</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+      <p class="text-xs text-red-400/60 uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Инвестирование в DeFi-протоколы несёт существенные риски. Эта стратегия не устраняет их — она управляет экспозицией в рамках заданных параметров.">
         Investing in DeFi protocols carries material risks. This strategy does not eliminate
         these risks — it manages exposure within defined parameters.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Smart Contract Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск смарт-контрактов">Smart Contract Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed" data-ru="Код протокола может содержать необнаруженные уязвимости. Мы размещаем средства только в протоколах с несколькими независимыми аудитами, но аудиты не устраняют риск.">
             Protocol code may contain undiscovered vulnerabilities. We only allocate to
             protocols with multiple independent audits, but audits do not eliminate risk.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed" data-ru="USDC или другие стейблкоины могут временно или навсегда потерять привязку. Аварийный стоп срабатывает при просадке 5% независимо от причины.">
             USDC or other stablecoins may temporarily or permanently lose their peg.
             The kill switch triggers at 5% drawdown regardless of cause.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Oracle Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск оракулов">Oracle Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed" data-ru="Ценовые фиды от оракулов (Chainlink, Pyth) могут запаздывать или быть подвержены манипуляциям. Стратегия использует агрегированные фиды DeFiLlama для данных по APY.">
             Price feeds from oracles (Chainlink, Pyth) may be delayed or manipulated.
             The strategy relies on DeFiLlama aggregated feeds for APY data.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <h4 class="text-sm font-semibold text-white mb-2">Liquidity Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск ликвидности">Liquidity Risk</h4>
+          <p class="text-xs text-white/40 leading-relaxed" data-ru="В экстремальных рыночных условиях вывод средств из пулов кредитования может быть временно задержан, если уровень утилизации приближается к 100%.">
             In extreme market conditions, withdrawals from lending pools may be temporarily
             delayed if utilisation rates approach 100%.
           </p>
@@ -321,7 +321,7 @@ const global = strategies.global;
 
     <!-- 12. Emergency Behavior -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Emergency Behavior</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Поведение в аварийной ситуации">Emergency Behavior</p>
       <div class="rounded-xl border border-red-500/15 bg-red-500/5 p-6">
         <div class="flex items-start gap-4">
           <div class="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
@@ -330,13 +330,13 @@ const global = strategies.global;
             </svg>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-white mb-2">Kill Switch: -5% Monthly Drawdown</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3">
+            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Аварийный стоп: просадка -5% за месяц">Kill Switch: -5% Monthly Drawdown</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Если капитал портфеля падает на 5% или более от месячного пика, все позиции закрываются, а средства переводятся в денежный буфер. Это неотменяемо — ни человек, ни ИИ, ни логика стратегии не могут предотвратить срабатывание.">
               If portfolio equity drops 5% or more from the monthly peak, all positions are
               closed and capital moves to cash buffer. This is non-overridable — no human,
               no AI, no strategy logic can prevent the trigger.
             </p>
-            <p class="text-xs text-white/30">
+            <p class="text-xs text-white/30" data-ru="Аварийный стоп — последняя линия защиты. Он не устраняет убытки, а ограничивает дальнейшую экспозицию после наступления просадки.">
               The kill switch is the last line of defense. It does not eliminate losses — it
               limits further exposure after a drawdown event has occurred.
             </p>
@@ -347,13 +347,13 @@ const global = strategies.global;
 
     <!-- 13. Fees -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Fee Structure</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Структура комиссий">Fee Structure</p>
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-        <p class="text-sm text-white/50 leading-relaxed mb-3">
+        <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Структура комиссий обсуждается индивидуально при онбординге. Действует принцип high-water mark — комиссия за результат не взимается до восстановления предыдущего пика.">
           Fee structure is discussed individually during onboarding. High-water mark applies —
           no performance fee until the previous peak is recovered.
         </p>
-        <p class="text-xs text-white/30">
+        <p class="text-xs text-white/30" data-ru="В период бумажной торговли комиссии отсутствуют.">
           No fees during paper trading period.
         </p>
       </div>
@@ -361,12 +361,12 @@ const global = strategies.global;
 
     <!-- 14. FAQ -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6">Frequently Asked Questions</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Часто задаваемые вопросы">Frequently Asked Questions</p>
       <div class="space-y-6">
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">What is paper trading?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Что такое бумажная торговля?">What is paper trading?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="Бумажная торговля прогоняет полную логику стратегии на живых рыночных данных с виртуальным портфелем $100 000 USDC. Реальный капитал не задействован. Все сделки, риск-решения и метрики результативности логируются публично.">
             Paper trading runs the full strategy logic against live market data with a virtual
             $100,000 USDC portfolio. No real capital is deployed. All trades, risk decisions,
             and performance metrics are logged publicly.
@@ -374,7 +374,7 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">When does live trading start?</h4>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начнётся реальная торговля?">When does live trading start?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
             Target go-live is {global.go_live_target}. Activation requires all 26 GoLiveChecker
             criteria passing for 7+ consecutive days, plus a 30-day gap-free track record
@@ -383,7 +383,7 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">Can the risk policy be overridden?</h4>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Можно ли переопределить риск-политику?">Can the risk policy be overridden?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
             No. RiskPolicy v1.0 is a deterministic, hard-coded gate. The code explicitly
             prevents any agent, strategy, or human from overriding an <code class="text-white/50 font-mono text-xs">approved=False</code> decision.
@@ -392,38 +392,38 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">What assets are supported?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Какие активы поддерживаются?">What assets are supported?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через переговоры — без публичных минимумов и лимитов ёмкости пула.">
             USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums or pool capacity limits.
           </p>
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">What about withdrawals?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Как обстоят дела с выводом средств?">What about withdrawals?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="Без локапа. Стандартная обработка T+1. Крупные или сложные выводы могут занять до 5 рабочих дней. Комиссия за вывод отсутствует.">
             No lock-up. Standard processing T+1. Large or complex withdrawals may take
             up to 5 business days. No withdrawal fee.
           </p>
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">Is KYC required?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Требуется ли KYC?">Is KYC required?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="KYC не требуется для просмотра сайта или дашборда. Верификация личности требуется перед первым депозитом.">
             No KYC required to view the site or dashboard. Identity verification
             is required before first deposit.
           </p>
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">Can I switch strategies?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Можно ли менять стратегии?">Can I switch strategies?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="Да. Смена стратегии разрешена, стандартная обработка T+1. В MVP — вручную/полуавтоматически.">
             Yes. Strategy switch is allowed, T+1 standard processing. Manual/semi-automated in MVP.
           </p>
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">Is there AI in the execution path?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли ИИ в исполнительном контуре?">Is there AI in the execution path?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="Нет. Риск-движок, слой исполнения и системы мониторинга не содержат ни одного вызова LLM. Инъекция промптов в распределение капитала рассматривается как критический вектор атаки. ИИ используется только для аналитики и консультативных задач без права записи в позиции.">
             No. The risk engine, execution layer, and monitoring systems contain zero LLM calls.
             Prompt injection into capital allocation is treated as a critical attack vector.
             AI is used only for analytics and advisory tasks that have no write access to positions.
@@ -431,8 +431,8 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">What happens if a protocol gets exploited?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Что произойдёт, если протокол взломают?">What happens if a protocol gets exploited?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="Аварийный стоп срабатывает при просадке портфеля 5% независимо от причины. Лимиты на протокол (40% T1 / 20% T2) ограничивают экспозицию в один протокол. Минимальный TVL ($5M+) исключает мелкие пулы, которые статистически более подвержены взлому.">
             The kill switch triggers at 5% portfolio drawdown regardless of cause. Per-protocol
             caps (40% T1 / 20% T2) limit single-protocol exposure. The TVL floor ($5M+) excludes
             smaller pools that are statistically more likely to be exploited.
@@ -440,8 +440,8 @@ const global = strategies.global;
         </div>
 
         <div>
-          <h4 class="text-sm font-semibold text-white mb-2">Can I see the strategy logic?</h4>
-          <p class="text-sm text-white/40 leading-relaxed">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Можно ли увидеть логику стратегии?">Can I see the strategy logic?</h4>
+          <p class="text-sm text-white/40 leading-relaxed" data-ru="Да. Методология стратегии, параметры риска, реестр адаптеров и оценщик турнира полностью документированы. Каждое изменение фиксируется в git. Публичный дашборд показывает живые результаты бумажной торговли.">
             Yes. The strategy methodology, risk parameters, adapter registry, and tournament
             evaluator are fully documented. Every change is tracked in git. The public dashboard
             shows live paper trading results.
@@ -454,8 +454,8 @@ const global = strategies.global;
     <!-- 15. CTA -->
     <section class="py-16 border-t border-white/5">
       <div class="text-center">
-        <h2 class="text-2xl font-bold text-white mb-4">Start Your Due Diligence</h2>
-        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed">
+        <h2 class="text-2xl font-bold text-white mb-4" data-ru="Начните свою проверку (due diligence)">Start Your Due Diligence</h2>
+        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="Дашборд публичен. Каждая сделка, каждое решение риск-гейта, каждое обновление кривой капитала — всё доступно для проверки.">
           The dashboard is public. Every trade, every risk gate decision, every equity
           curve update — there for you to verify.
         </p>
@@ -464,7 +464,7 @@ const global = strategies.global;
             href="/dashboard"
             class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
           >
-            Access Dashboard
+            <span data-ru="Открыть дашборд">Access Dashboard</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
               <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
               <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
@@ -474,11 +474,11 @@ const global = strategies.global;
             href="/risk-disclosure"
             class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
           >
-            Read Risk Disclosure
+            <span data-ru="Читать раскрытие рисков">Read Risk Disclosure</span>
           </a>
         </div>
         <p class="text-sm text-white/30">
-          Contact for due diligence: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+          <span data-ru="Контакт для due diligence:">Contact for due diligence:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
         </p>
       </div>
     </section>
