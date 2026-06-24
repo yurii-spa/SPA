@@ -1,0 +1,300 @@
+"""
+spa_core/strategy_lab/metrics.py — standard comparison metric set for the Strategy Lab.
+
+Computes a StrategyMetrics (base.py) from an equity time-series + daily returns + an event
+log. ONE metric set for every strategy (candidates + wrapped baselines) so comparison is
+honest. Reuses the Tier-1 stats helpers rather than reimplementing:
+
+  - spa_core.backtesting.tier1.deflated_sharpe : moments, sharpe_per_period, annualize_sharpe,
+                                                 probabilistic_sharpe_ratio
+  - spa_core.backtesting.tier1.tail_risk       : risk_adjusted_net_apy / strategy_tail_risk
+
+Only the genuinely missing pieces are added locally: annualized net APY from an equity curve,
+max drawdown, Sortino, beta-to-ETH regression, funding drag, correlation to a stable blend,
+the joint ETH-down-20%/funding-flip tail scenario, and the beats-RWA-floor decision.
+
+stdlib-only, deterministic. LLM FORBIDDEN.
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+import math
+from typing import Dict, List, Optional, Sequence
+
+from spa_core.strategy_lab.base import StrategyMetrics
+from spa_core.strategy_lab.config import rwa_floor_apy_pct
+from spa_core.backtesting.tier1.deflated_sharpe import (
+    moments,
+    sharpe_per_period,
+    annualize_sharpe,
+    DAYS_PER_YEAR,
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Local helpers (the bits not already in tier1)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _clean(xs: Sequence[Optional[float]]) -> List[float]:
+    return [float(x) for x in xs if x is not None]
+
+
+def net_apy_from_equity(equity_series: Sequence[float]) -> float:
+    """Annualized net return (%) implied by an equity curve (compounded, daily steps)."""
+    eq = _clean(equity_series)
+    if len(eq) < 2 or eq[0] <= 0:
+        return 0.0
+    n_days = len(eq) - 1
+    total_growth = eq[-1] / eq[0]
+    if total_growth <= 0:
+        return -100.0
+    annual_growth = total_growth ** (DAYS_PER_YEAR / n_days)
+    return round((annual_growth - 1.0) * 100.0, 4)
+
+
+def max_drawdown_pct(equity_series: Sequence[float]) -> float:
+    """Worst peak-to-trough decline (%, reported as a positive number)."""
+    eq = _clean(equity_series)
+    if len(eq) < 2:
+        return 0.0
+    peak = eq[0]
+    worst = 0.0
+    for v in eq:
+        if v > peak:
+            peak = v
+        if peak > 0:
+            dd = (peak - v) / peak
+            if dd > worst:
+                worst = dd
+    return round(worst * 100.0, 4)
+
+
+def volatility_pct(daily_returns: Sequence[float]) -> float:
+    """Annualized volatility (%) of daily returns."""
+    rets = _clean(daily_returns)
+    if len(rets) < 2:
+        return 0.0
+    std = moments(rets)["std"]
+    return round(std * math.sqrt(DAYS_PER_YEAR) * 100.0, 4)
+
+
+def sharpe(daily_returns: Sequence[float], rf_daily: float = 0.0) -> float:
+    """Annualized Sharpe (reuses tier1 sharpe_per_period + annualize_sharpe)."""
+    rets = _clean(daily_returns)
+    if len(rets) < 2:
+        return 0.0
+    return round(annualize_sharpe(sharpe_per_period(rets, rf_daily)), 4)
+
+
+def sortino(daily_returns: Sequence[float], rf_daily: float = 0.0) -> float:
+    """Annualized Sortino: excess mean / downside deviation (only sub-rf returns penalized)."""
+    rets = _clean(daily_returns)
+    if len(rets) < 2:
+        return 0.0
+    mean = sum(rets) / len(rets)
+    downside = [(r - rf_daily) ** 2 for r in rets if r < rf_daily]
+    if not downside:
+        return 0.0
+    dd = math.sqrt(sum(downside) / len(rets))
+    if dd == 0:
+        return 0.0
+    return round(((mean - rf_daily) / dd) * math.sqrt(DAYS_PER_YEAR), 4)
+
+
+def _aligned(a: Sequence[Optional[float]], b: Sequence[Optional[float]]):
+    xs, ys = [], []
+    for x, y in zip(a, b):
+        if x is not None and y is not None:
+            xs.append(float(x))
+            ys.append(float(y))
+    return xs, ys
+
+
+def beta(strategy_returns: Sequence[float], market_returns: Sequence[float]) -> float:
+    """OLS beta of strategy daily returns vs ETH daily returns. ~0 for neutral, ~1 for
+    directional. cov(s, m) / var(m)."""
+    xs, ys = _aligned(strategy_returns, market_returns)  # xs=strategy, ys=market
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    var_m = sum((y - my) ** 2 for y in ys)
+    if var_m == 0:
+        return 0.0
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    return round(cov / var_m, 4)
+
+
+def correlation(a: Sequence[Optional[float]], b: Sequence[Optional[float]]) -> Optional[float]:
+    """Pearson correlation of two aligned daily-return series. None when undefined."""
+    xs, ys = _aligned(a, b)
+    n = len(xs)
+    if n < 2:
+        return None
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    sx = math.sqrt(sum((x - mx) ** 2 for x in xs))
+    sy = math.sqrt(sum((y - my) ** 2 for y in ys))
+    if sx == 0 or sy == 0:
+        return None
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    return round(cov / (sx * sy), 4)
+
+
+def funding_drag_pct(events: Sequence[dict], capital: float) -> float:
+    """Cumulative funding cost as % of capital (for the neutral variant's perp short).
+
+    Sums event entries of type 'funding' (field 'usd', negative = cost paid). Reported as a
+    positive drag percent (cost / capital * 100). 0 when no funding events / no capital."""
+    if capital <= 0:
+        return 0.0
+    total_cost = 0.0
+    for ev in events or []:
+        if ev.get("type") == "funding":
+            usd = float(ev.get("usd", 0.0))
+            if usd < 0:
+                total_cost += -usd
+    return round(total_cost / capital * 100.0, 4)
+
+
+def tail_eth_down20_funding_flip_pct(
+    positions: Sequence,
+    capital: float,
+    beta_to_eth: float,
+    funding_flip_8h: float = 0.0005,
+    settles_per_day: int = 3,
+    horizon_days: int = 1,
+) -> float:
+    """P&L (% of capital) under the joint stress: ETH -20% AND perp funding flips negative.
+
+    Two legs:
+      • Directional/price exposure: beta_to_eth * (-20%) on capital — a neutral book (beta~0)
+        barely moves; a directional one (beta~1) takes ~-20%.
+      • Funding leg: the perp short now PAYS funding; cost = |short notional| * flip * settles.
+        Short notional is read from the strategy's perp_short positions; for a hedged neutral
+        book this is the dominant stress term (its price leg is hedged out).
+    Returns a percent of capital (negative = loss)."""
+    if capital <= 0:
+        return 0.0
+    eth_shock = -0.20
+    price_pnl = beta_to_eth * eth_shock * capital
+
+    short_notional = 0.0
+    for p in positions or []:
+        kind = getattr(p, "kind", None)
+        if kind == "perp_short":
+            short_notional += abs(getattr(p, "notional_usd", 0.0))
+    funding_cost = short_notional * abs(funding_flip_8h) * settles_per_day * horizon_days
+
+    pnl_usd = price_pnl - funding_cost
+    return round(pnl_usd / capital * 100.0, 4)
+
+
+def beats_rwa_floor(
+    net_apy_pct: float,
+    max_dd_pct: float,
+    floor_apy_pct: Optional[float] = None,
+) -> bool:
+    """Risk-adjusted decision vs the RWA risk-free floor.
+
+    A strategy 'beats the floor' only if its net APY exceeds the floor AND it does so on a
+    risk-adjusted basis: excess-return-per-unit-drawdown (a Calmar-style ratio against the
+    floor) must be positive and the drawdown must not erase the excess. The floor itself has
+    ~0 drawdown, so any strategy taking drawdown must out-earn it to compensate."""
+    floor = rwa_floor_apy_pct() if floor_apy_pct is None else float(floor_apy_pct)
+    excess = net_apy_pct - floor
+    if excess <= 0:
+        return False
+    # Risk-adjusted: the annual excess must at least cover the realized drawdown.
+    return excess > max_dd_pct
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Aggregate
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def compute_metrics(
+    equity_series: Sequence[float],
+    daily_returns: Sequence[float],
+    eth_returns: Sequence[float],
+    stable_returns: Sequence[float],
+    events: Sequence[dict],
+    config: dict,
+    positions: Optional[Sequence] = None,
+) -> StrategyMetrics:
+    """Build the full StrategyMetrics from an equity/return series + event log.
+
+    Args:
+        equity_series : daily equity values (>=2 points).
+        daily_returns : strategy daily fractional returns.
+        eth_returns   : ETH daily fractional returns (for beta).
+        stable_returns: stable-yield benchmark daily returns (for correlation).
+        events        : event log dicts; funding events {'type':'funding','usd':...}.
+        config        : strategy config block (uses 'capital_usd' / global initial_capital,
+                        'funding_settles_per_day', 'rwa_floor_apy_pct' if present).
+        positions     : optional current Position list (for the tail scenario short leg).
+    """
+    capital = float(
+        config.get("capital_usd")
+        or config.get("initial_capital")
+        or (equity_series[0] if equity_series else 0.0)
+    )
+    settles = int(config.get("funding_settles_per_day", 3))
+    floor = config.get("rwa_floor_apy_pct")
+
+    napy = net_apy_from_equity(equity_series)
+    mdd = max_drawdown_pct(equity_series)
+    b_eth = beta(daily_returns, eth_returns)
+
+    return StrategyMetrics(
+        net_apy_pct=napy,
+        max_drawdown_pct=mdd,
+        sharpe=sharpe(daily_returns),
+        sortino=sortino(daily_returns),
+        volatility_pct=volatility_pct(daily_returns),
+        beta_to_eth=b_eth,
+        funding_drag_pct=funding_drag_pct(events, capital),
+        corr_to_stable_blend=correlation(daily_returns, stable_returns),
+        tail_eth_down20_funding_flip_pct=tail_eth_down20_funding_flip_pct(
+            positions or [], capital, b_eth, settles_per_day=settles
+        ),
+        beats_rwa_floor=beats_rwa_floor(napy, mdd, floor),
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Comparative table
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _fmt(v, suffix="", nd=2):
+    if v is None:
+        return "—"
+    if isinstance(v, bool):
+        return "✅" if v else "❌"
+    return f"{v:.{nd}f}{suffix}"
+
+
+def compare_table(results: Dict[str, StrategyMetrics], floor_apy_pct: Optional[float] = None) -> str:
+    """Markdown comparative table of strategies vs the RWA floor. Non-passers (beats_rwa_floor
+    False) are flagged. `results` maps strategy id -> StrategyMetrics."""
+    floor = rwa_floor_apy_pct() if floor_apy_pct is None else float(floor_apy_pct)
+    header = (
+        f"### Strategy Lab — comparison vs RWA floor ({floor:.2f}% APY)\n\n"
+        "| Strategy | Net APY % | MaxDD % | Sharpe | Sortino | Vol % | β(ETH) | "
+        "FundDrag % | Corr(stable) | Tail(ETH-20/flip) % | Beats Floor |\n"
+        "|---|---|---|---|---|---|---|---|---|---|---|\n"
+    )
+    rows = []
+    for sid, m in results.items():
+        flag = "" if m.beats_rwa_floor else "  ⚠ below floor"
+        rows.append(
+            f"| {sid}{flag} | {_fmt(m.net_apy_pct)} | {_fmt(m.max_drawdown_pct)} | "
+            f"{_fmt(m.sharpe)} | {_fmt(m.sortino)} | {_fmt(m.volatility_pct)} | "
+            f"{_fmt(m.beta_to_eth)} | {_fmt(m.funding_drag_pct)} | "
+            f"{_fmt(m.corr_to_stable_blend)} | {_fmt(m.tail_eth_down20_funding_flip_pct)} | "
+            f"{_fmt(m.beats_rwa_floor)} |"
+        )
+    return header + "\n".join(rows)
