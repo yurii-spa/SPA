@@ -49,86 +49,222 @@
   .stage.partial{border-color:var(--warn)} .stage.partial .nm{color:var(--warn)}
   .stage.todo{opacity:.55}
   footer{margin-top:40px;color:var(--mut);font-size:12px;text-align:center}
+  /* Language toggle (top-right) */
+  .lang-pill{position:fixed;top:14px;right:16px;z-index:1000;display:flex;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:100px;overflow:hidden;
+    font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+  .lang-pill button{appearance:none;background:transparent;border:0;color:var(--mut);
+    padding:7px 13px;cursor:pointer;letter-spacing:.5px}
+  .lang-pill button.on{background:var(--acc);color:#fff}
+  .lang-pill .div{width:1px;align-self:stretch;background:var(--line)}
 </style>
 </head>
 <body>
+<div class="lang-pill" id="lang-pill" aria-label="Language">
+  <button type="button" data-lang="en">EN</button>
+  <span class="div"></span>
+  <button type="button" data-lang="ru">RU</button>
+</div>
 <div class="wrap">
   <header>
-    <h1>🛰️ SPA — Control Plane (Tier-1)</h1>
-    <p>Eight architectural planes of the autonomous DeFi yield optimizer, live from <b>api.earn-defi.com</b>. Deterministic runtime — <b>LLM forbidden</b> in risk / execution / governance.</p>
+    <h1 data-i18n="title">🛰️ SPA — Control Plane (Tier-1)</h1>
+    <p data-i18n-html="intro">Eight architectural planes of the autonomous DeFi yield optimizer, live from <b>api.earn-defi.com</b>. Deterministic runtime — <b>LLM forbidden</b> in risk / execution / governance.</p>
   </header>
   <nav class="nav">
-    <a href="/">← Landing</a>
-    <a href="/app">📊 Dashboard</a>
-    <a href="/packages">📦 Packages</a>
-    <a href="/tournament">🏆 Tournament</a>
-    <a href="/agents">🤖 Agents</a>
-    <a class="on" href="/control">🛰️ Control</a>
+    <a href="/" data-i18n="nav.landing">← Landing</a>
+    <a href="/app" data-i18n="nav.dashboard">📊 Dashboard</a>
+    <a href="/packages" data-i18n="nav.packages">📦 Packages</a>
+    <a href="/tournament" data-i18n="nav.tournament">🏆 Tournament</a>
+    <a href="/agents" data-i18n="nav.agents">🤖 Agents</a>
+    <a class="on" href="/control" data-i18n="nav.control">🛰️ Control</a>
   </nav>
 
-  <h2>Truth / SSOT — canonical headline facts</h2>
+  <h2 data-i18n="ssot.heading">Truth / SSOT — canonical headline facts</h2>
   <div class="summary" id="ssot-summary">
-    <div class="stat"><div class="n" id="s-days">—</div><div class="l">track days</div></div>
-    <div class="stat"><div class="n" id="s-equity">—</div><div class="l">current equity</div></div>
-    <div class="stat"><div class="n" id="s-apy">—</div><div class="l">APY today</div></div>
-    <div class="stat"><div class="n" id="s-golive">—</div><div class="l">go-live criteria</div></div>
-    <div class="stat"><div class="n" id="s-nav">—</div><div class="l">NAV</div></div>
-    <div class="stat"><div class="n" id="s-regime">—</div><div class="l">regime</div></div>
+    <div class="stat"><div class="n" id="s-days">—</div><div class="l" data-i18n="ssot.days">track days</div></div>
+    <div class="stat"><div class="n" id="s-equity">—</div><div class="l" data-i18n="ssot.equity">current equity</div></div>
+    <div class="stat"><div class="n" id="s-apy">—</div><div class="l" data-i18n="ssot.apy">APY today</div></div>
+    <div class="stat"><div class="n" id="s-golive">—</div><div class="l" data-i18n="ssot.golive">go-live criteria</div></div>
+    <div class="stat"><div class="n" id="s-nav">—</div><div class="l" data-i18n="ssot.nav">NAV</div></div>
+    <div class="stat"><div class="n" id="s-regime">—</div><div class="l" data-i18n="ssot.regime">regime</div></div>
   </div>
-  <p class="live" id="live-note">Connecting to live API…</p>
+  <p class="live" id="live-note" data-i18n="live.connecting">Connecting to live API…</p>
 
-  <h2>Architectural planes</h2>
+  <h2 data-i18n="planes.heading">Architectural planes</h2>
   <div class="grid">
 
     <div class="g" id="plane-risk">
-      <h3><span class="dot" id="d-risk"></span>Risk <span class="src">/api/tier1/gate</span></h3>
-      <div class="desc">Deterministic backtest→paper gate: real-data, net-of-cost, OOS hold-out, fits a risk package, capacity ≥ capital. <b>approved=False is final.</b></div>
+      <h3><span class="dot" id="d-risk"></span><span data-i18n="plane.risk.title">Risk</span> <span class="src">/api/tier1/gate</span></h3>
+      <div class="desc" data-i18n-html="plane.risk.desc">Deterministic backtest→paper gate: real-data, net-of-cost, OOS hold-out, fits a risk package, capacity ≥ capital. <b>approved=False is final.</b></div>
       <div id="risk-body"></div>
     </div>
 
     <div class="g" id="plane-exec">
-      <h3><span class="dot" id="d-exec"></span>Execution <span class="src">/api/execution/readiness</span></h3>
-      <div class="desc">Paper-safe posture: adapters dry-run, kill-switch readable, no signer in env. Gated until custody + track record are met.</div>
+      <h3><span class="dot" id="d-exec"></span><span data-i18n="plane.exec.title">Execution</span> <span class="src">/api/execution/readiness</span></h3>
+      <div class="desc" data-i18n="plane.exec.desc">Paper-safe posture: adapters dry-run, kill-switch readable, no signer in env. Gated until custody + track record are met.</div>
       <div id="exec-body"></div>
     </div>
 
     <div class="g" id="plane-audit">
-      <h3><span class="dot" id="d-audit"></span>Audit / Provenance <span class="src">/api/tier1/nav</span></h3>
-      <div class="desc">Verifiable NAV proof: positions → computed NAV reconciled against reported equity within tolerance, with canonical component &amp; NAV hashes.</div>
+      <h3><span class="dot" id="d-audit"></span><span data-i18n="plane.audit.title">Audit / Provenance</span> <span class="src">/api/tier1/nav</span></h3>
+      <div class="desc" data-i18n-html="plane.audit.desc">Verifiable NAV proof: positions → computed NAV reconciled against reported equity within tolerance, with canonical component &amp; NAV hashes.</div>
       <div id="audit-body"></div>
     </div>
 
     <div class="g" id="plane-gov">
-      <h3><span class="dot" id="d-gov"></span>Governance <span class="src">/api/governance</span></h3>
-      <div class="desc">Default-DENY policy table (AUTO / HUMAN_SINGLE / HUMAN_DUAL). Fund movement &amp; keys require dual control.</div>
+      <h3><span class="dot" id="d-gov"></span><span data-i18n="plane.gov.title">Governance</span> <span class="src">/api/governance</span></h3>
+      <div class="desc" data-i18n-html="plane.gov.desc">Default-DENY policy table (AUTO / HUMAN_SINGLE / HUMAN_DUAL). Fund movement &amp; keys require dual control.</div>
       <div id="gov-body"></div>
     </div>
 
     <div class="g" id="plane-obs">
-      <h3><span class="dot" id="d-obs"></span>Observability <span class="src">/api/live/agents</span></h3>
-      <div class="desc">launchd fleet heartbeat — every agent's status, freshness and exit code, plus system health checks.</div>
+      <h3><span class="dot" id="d-obs"></span><span data-i18n="plane.obs.title">Observability</span> <span class="src">/api/live/agents</span></h3>
+      <div class="desc" data-i18n="plane.obs.desc">launchd fleet heartbeat — every agent's status, freshness and exit code, plus system health checks.</div>
       <div id="obs-body"></div>
     </div>
 
     <div class="g" id="plane-heal">
-      <h3><span class="dot" id="d-heal"></span>Self-Healing <span class="src">/api/live/agents</span></h3>
-      <div class="desc">Deterministic recovery: <b>self_heal</b> revives dead agents &amp; recovers missed cycles; <b>threat_reactor</b> auto-arms the kill-switch on critical threats. Both every 5 min.</div>
+      <h3><span class="dot" id="d-heal"></span><span data-i18n="plane.heal.title">Self-Healing</span> <span class="src">/api/live/agents</span></h3>
+      <div class="desc" data-i18n-html="plane.heal.desc">Deterministic recovery: <b>self_heal</b> revives dead agents &amp; recovers missed cycles; <b>threat_reactor</b> auto-arms the kill-switch on critical threats. Both every 5 min.</div>
       <div id="heal-body"></div>
     </div>
 
     <div class="g" id="plane-strat">
-      <h3><span class="dot" id="d-strat"></span>Strategy / Promotion <span class="src">/api/tier1/packages</span></h3>
-      <div class="desc">Validated strategies grouped into risk packages, advanced through a one-way promotion pipeline.</div>
+      <h3><span class="dot" id="d-strat"></span><span data-i18n="plane.strat.title">Strategy / Promotion</span> <span class="src">/api/tier1/packages</span></h3>
+      <div class="desc" data-i18n="plane.strat.desc">Validated strategies grouped into risk packages, advanced through a one-way promotion pipeline.</div>
       <div id="strat-body"></div>
       <div class="pipe" id="strat-pipe"></div>
     </div>
 
   </div>
 
-  <footer>SPA — paper trading. Source of truth: live API api.earn-defi.com. This page is read-only.</footer>
+  <footer data-i18n="footer">SPA — paper trading. Source of truth: live API api.earn-defi.com. This page is read-only.</footer>
 </div>
 
 <script>
+/* ── i18n dictionary + toggle ── */
+var I18N = {
+  en: {
+    "title": "🛰️ SPA — Control Plane (Tier-1)",
+    "intro": "Eight architectural planes of the autonomous DeFi yield optimizer, live from <b>api.earn-defi.com</b>. Deterministic runtime — <b>LLM forbidden</b> in risk / execution / governance.",
+    "nav.landing": "← Landing", "nav.dashboard": "📊 Dashboard", "nav.packages": "📦 Packages",
+    "nav.tournament": "🏆 Tournament", "nav.agents": "🤖 Agents", "nav.control": "🛰️ Control",
+    "ssot.heading": "Truth / SSOT — canonical headline facts",
+    "ssot.days": "track days", "ssot.equity": "current equity", "ssot.apy": "APY today",
+    "ssot.golive": "go-live criteria", "ssot.nav": "NAV", "ssot.regime": "regime",
+    "live.connecting": "Connecting to live API…",
+    "live.from": "Live from", "live.updated": "updated",
+    "live.offline": "Live API unavailable — tunnel offline. Showing —.",
+    "planes.heading": "Architectural planes",
+    "plane.risk.title": "Risk",
+    "plane.risk.desc": "Deterministic backtest→paper gate: real-data, net-of-cost, OOS hold-out, fits a risk package, capacity ≥ capital. <b>approved=False is final.</b>",
+    "plane.exec.title": "Execution",
+    "plane.exec.desc": "Paper-safe posture: adapters dry-run, kill-switch readable, no signer in env. Gated until custody + track record are met.",
+    "plane.audit.title": "Audit / Provenance",
+    "plane.audit.desc": "Verifiable NAV proof: positions → computed NAV reconciled against reported equity within tolerance, with canonical component &amp; NAV hashes.",
+    "plane.gov.title": "Governance",
+    "plane.gov.desc": "Default-DENY policy table (AUTO / HUMAN_SINGLE / HUMAN_DUAL). Fund movement &amp; keys require dual control.",
+    "plane.obs.title": "Observability",
+    "plane.obs.desc": "launchd fleet heartbeat — every agent's status, freshness and exit code, plus system health checks.",
+    "plane.heal.title": "Self-Healing",
+    "plane.heal.desc": "Deterministic recovery: <b>self_heal</b> revives dead agents &amp; recovers missed cycles; <b>threat_reactor</b> auto-arms the kill-switch on critical threats. Both every 5 min.",
+    "plane.strat.title": "Strategy / Promotion",
+    "plane.strat.desc": "Validated strategies grouped into risk packages, advanced through a one-way promotion pipeline.",
+    "footer": "SPA — paper trading. Source of truth: live API api.earn-defi.com. This page is read-only.",
+    "k.status": "status", "k.offline": "— offline",
+    "k.eligible": "eligible for paper", "k.blocked": "blocked", "k.eligibleStrats": "eligible strategies",
+    "k.regime": "regime", "k.llmForbidden": "LLM forbidden", "k.yes": "yes", "k.no": "no",
+    "k.liveVsBt": "live vs backtest",
+    "k.posture": "posture", "k.readyLive": "ready for live", "k.liveBlockers": "live blockers",
+    "k.killSwitch": "kill-switch", "k.armed": "ARMED", "k.clear": "clear",
+    "k.execMode": "execution mode", "k.live": "LIVE", "k.paperSafe": "paper-safe",
+    "k.blockers": "Blockers:",
+    "k.recon": "reconciliation", "k.reconOk": "OK", "k.reconMismatch": "MISMATCH",
+    "k.computedNav": "computed NAV", "k.reportedEquity": "reported equity", "k.delta": "delta",
+    "k.deployedCash": "deployed / cash", "k.positions": "positions", "k.navHash": "NAV hash:",
+    "k.dualControl": "dual control", "k.enforced": "enforced", "k.advisory": "advisory",
+    "k.signersThreshold": "signers / threshold", "k.defaultPolicy": "default policy",
+    "k.actionsGoverned": "actions governed",
+    "k.overall": "overall", "k.fleetHealthy": "fleet healthy", "k.criticalFlags": "critical flags",
+    "k.portfolioHealth": "portfolio health", "k.cycleFreshness": "cycle freshness",
+    "k.attention": "Attention:", "k.allHealthy1": "✅ All ", "k.allHealthy2": " agents healthy.",
+    "k.overallFleet": "overall fleet", "k.selfHeal": "self_heal", "k.threatReactor": "threat_reactor",
+    "k.killFlags": "kill-switch flags", "k.advisoryFlags": "advisory flags",
+    "k.healNote": "Both run every 5 min. self_heal revives dead launchd agents &amp; recovers missed daily cycles; threat_reactor arms the kill-switch intraday on critical threats to held protocols.",
+    "k.validatedStrats": "validated strategies", "k.validated": "validated"
+  },
+  ru: {
+    "title": "🛰️ SPA — Control Plane (Tier-1)",
+    "intro": "Восемь архитектурных плоскостей автономного DeFi yield-оптимизатора, live из <b>api.earn-defi.com</b>. Детерминированный runtime — <b>LLM запрещён</b> в risk / execution / governance.",
+    "nav.landing": "← Лендинг", "nav.dashboard": "📊 Дашборд", "nav.packages": "📦 Пакеты",
+    "nav.tournament": "🏆 Турнир", "nav.agents": "🤖 Агенты", "nav.control": "🛰️ Control",
+    "ssot.heading": "Truth / SSOT — канонические ключевые факты",
+    "ssot.days": "дней трека", "ssot.equity": "текущий капитал", "ssot.apy": "APY сегодня",
+    "ssot.golive": "критерии go-live", "ssot.nav": "NAV", "ssot.regime": "режим",
+    "live.connecting": "Подключение к live API…",
+    "live.from": "Live из", "live.updated": "обновлено",
+    "live.offline": "Live API недоступен — туннель оффлайн. Показано —.",
+    "planes.heading": "Архитектурные плоскости",
+    "plane.risk.title": "Риск",
+    "plane.risk.desc": "Детерминированный backtest→paper гейт: реальные данные, net-of-cost, OOS hold-out, попадание в risk-пакет, capacity ≥ капитала. <b>approved=False окончателен.</b>",
+    "plane.exec.title": "Исполнение",
+    "plane.exec.desc": "Paper-safe режим: адаптеры в dry-run, kill-switch читаем, нет подписанта в окружении. Заблокировано до выполнения custody + track record.",
+    "plane.audit.title": "Аудит / Происхождение",
+    "plane.audit.desc": "Проверяемое подтверждение NAV: позиции → расчётный NAV сверяется с заявленным equity в пределах допуска, с каноническими хэшами компонентов &amp; NAV.",
+    "plane.gov.title": "Управление",
+    "plane.gov.desc": "Таблица политик default-DENY (AUTO / HUMAN_SINGLE / HUMAN_DUAL). Движение средств &amp; ключи требуют двойного контроля.",
+    "plane.obs.title": "Наблюдаемость",
+    "plane.obs.desc": "Heartbeat флота launchd — статус, свежесть и код выхода каждого агента, плюс проверки здоровья системы.",
+    "plane.heal.title": "Самовосстановление",
+    "plane.heal.desc": "Детерминированное восстановление: <b>self_heal</b> оживляет мёртвых агентов &amp; восстанавливает пропущенные циклы; <b>threat_reactor</b> авто-взводит kill-switch при критических угрозах. Оба каждые 5 мин.",
+    "plane.strat.title": "Стратегии / Промоушен",
+    "plane.strat.desc": "Валидированные стратегии сгруппированы в risk-пакеты и продвигаются по односторонней pipeline промоушена.",
+    "footer": "SPA — paper trading. Источник истины: live API api.earn-defi.com. Эта страница read-only.",
+    "k.status": "статус", "k.offline": "— оффлайн",
+    "k.eligible": "допущено к paper", "k.blocked": "заблокировано", "k.eligibleStrats": "допущенные стратегии",
+    "k.regime": "режим", "k.llmForbidden": "LLM запрещён", "k.yes": "да", "k.no": "нет",
+    "k.liveVsBt": "live vs backtest",
+    "k.posture": "режим", "k.readyLive": "готов к live", "k.liveBlockers": "блокеры live",
+    "k.killSwitch": "kill-switch", "k.armed": "ВЗВЕДЁН", "k.clear": "чисто",
+    "k.execMode": "режим исполнения", "k.live": "LIVE", "k.paperSafe": "paper-safe",
+    "k.blockers": "Блокеры:",
+    "k.recon": "сверка", "k.reconOk": "OK", "k.reconMismatch": "РАСХОЖДЕНИЕ",
+    "k.computedNav": "расчётный NAV", "k.reportedEquity": "заявленный equity", "k.delta": "дельта",
+    "k.deployedCash": "размещено / кэш", "k.positions": "позиции", "k.navHash": "NAV hash:",
+    "k.dualControl": "двойной контроль", "k.enforced": "включён", "k.advisory": "advisory",
+    "k.signersThreshold": "подписанты / порог", "k.defaultPolicy": "политика по умолчанию",
+    "k.actionsGoverned": "действий под контролем",
+    "k.overall": "общий статус", "k.fleetHealthy": "здоровых во флоте", "k.criticalFlags": "критических флагов",
+    "k.portfolioHealth": "здоровье портфеля", "k.cycleFreshness": "свежесть цикла",
+    "k.attention": "Внимание:", "k.allHealthy1": "✅ Все ", "k.allHealthy2": " агентов здоровы.",
+    "k.overallFleet": "общий флот", "k.selfHeal": "self_heal", "k.threatReactor": "threat_reactor",
+    "k.killFlags": "флаги kill-switch", "k.advisoryFlags": "advisory флаги",
+    "k.healNote": "Оба запускаются каждые 5 мин. self_heal оживляет мёртвых launchd-агентов &amp; восстанавливает пропущенные дневные циклы; threat_reactor взводит kill-switch внутри дня при критических угрозах удерживаемым протоколам.",
+    "k.validatedStrats": "валидированных стратегий", "k.validated": "валидировано"
+  }
+};
+var LANG = 'en';
+function t(key){ return (I18N[LANG] && I18N[LANG][key] != null) ? I18N[LANG][key] : ((I18N.en[key]!=null)?I18N.en[key]:key); }
+var _renderers = {}; // plane key -> function() re-rendering from cached data
+function setLang(lang){
+  if(!I18N[lang]) lang = 'en';
+  LANG = lang;
+  try{ localStorage.setItem('spa_lang', lang); }catch(e){}
+  document.documentElement.setAttribute('lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){ el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+  document.querySelectorAll('#lang-pill button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang')===lang); });
+  for(var k in _renderers){ if(_renderers.hasOwnProperty(k)){ try{ _renderers[k](); }catch(e){} } }
+}
+(function initLang(){
+  var saved = 'en';
+  try{ saved = localStorage.getItem('spa_lang') || 'en'; }catch(e){}
+  document.getElementById('lang-pill').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-lang]'); if(b) setLang(b.getAttribute('data-lang'));
+  });
+  setLang(saved);
+})();
+
 (function(){
   var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
     ? 'http://localhost:8765' : 'https://api.earn-defi.com';
@@ -136,7 +272,7 @@
   function cls(s){ s=(s||'').toUpperCase(); return (s.indexOf('CRIT')>=0)?'crit':(s.indexOf('WARN')>=0)?'warn':'ok'; }
   function txt(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
   function dot(id,c){ var e=document.getElementById(id); if(e){ e.className='dot '+c; } }
-  function setOffline(id){ var e=document.getElementById(id); if(e) e.innerHTML='<div class="kv"><span class="k">status</span><span class="v">— offline</span></div>'; }
+  function setOffline(id){ var e=document.getElementById(id); if(e) e.innerHTML='<div class="kv"><span class="k">'+t('k.status')+'</span><span class="v">'+t('k.offline')+'</span></div>'; }
   function usd(n){ return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function pct(n){ return Number(n).toFixed(2)+'%'; }
   function kv(k,v,c){ return '<div class="kv"><span class="k">'+k+'</span><span class="v '+(c||'')+'">'+v+'</span></div>'; }
@@ -144,160 +280,184 @@
 
   // ---- Truth / SSOT ----
   jget('/api/ssot/facts').then(function(d){
-    txt('s-days', (d.track_days!=null?d.track_days:'—'));
-    txt('s-equity', d.current_equity!=null?usd(d.current_equity):'—');
-    txt('s-apy', d.apy_today_pct!=null?pct(d.apy_today_pct):'—');
-    txt('s-golive', (d.golive_passed!=null?d.golive_passed:'—')+' / '+(d.golive_total!=null?d.golive_total:'—'));
-    txt('s-nav', d.nav!=null?usd(d.nav):'—');
-    txt('s-regime', d.regime||'—');
-    var ge=document.getElementById('s-golive');
-    if(ge) ge.style.color = d.golive_ready ? 'var(--ok)' : 'var(--warn)';
-    document.getElementById('live-note').innerHTML =
-      'Live from <b>'+API+'</b> · SSOT '+(d.ssot_version||'')+' · updated '+new Date().toLocaleTimeString('en-GB');
+    _renderers.ssot = function(){
+      txt('s-days', (d.track_days!=null?d.track_days:'—'));
+      txt('s-equity', d.current_equity!=null?usd(d.current_equity):'—');
+      txt('s-apy', d.apy_today_pct!=null?pct(d.apy_today_pct):'—');
+      txt('s-golive', (d.golive_passed!=null?d.golive_passed:'—')+' / '+(d.golive_total!=null?d.golive_total:'—'));
+      txt('s-nav', d.nav!=null?usd(d.nav):'—');
+      txt('s-regime', d.regime||'—');
+      var ge=document.getElementById('s-golive');
+      if(ge) ge.style.color = d.golive_ready ? 'var(--ok)' : 'var(--warn)';
+      document.getElementById('live-note').innerHTML =
+        t('live.from')+' <b>'+API+'</b> · SSOT '+(d.ssot_version||'')+' · '+t('live.updated')+' '+new Date().toLocaleTimeString(LANG==='ru'?'ru-RU':'en-GB');
+    };
+    _renderers.ssot();
   }).catch(function(){
-    document.getElementById('live-note').textContent = 'Live API unavailable — tunnel offline. Showing —.';
+    delete _renderers.ssot;
+    document.getElementById('live-note').textContent = t('live.offline');
   });
 
   // ---- Risk ----
   jget('/api/tier1/gate').then(function(d){
-    var elig = (d.eligible_count!=null?d.eligible_count:(d.eligible_for_paper||[]).length);
-    var blk  = (d.blocked_count!=null?d.blocked_count:Object.keys(d.blocked||{}).length);
-    var lvb  = d.live_vs_backtest||{};
-    var c = elig>0 ? 'ok' : 'warn';
-    dot('d-risk', c);
-    var html = kv('eligible for paper', elig, 'ok')
-      + kv('blocked', blk, blk>0?'warn':'ok')
-      + kv('eligible strategies', (d.eligible_for_paper||[]).join(', ')||'—')
-      + kv('regime', d.regime||'—')
-      + kv('LLM forbidden', d.llm_forbidden?'yes':'no', 'ok');
-    if(lvb.status){
-      html += kv('live vs backtest', lvb.status+' ('+pct(lvb.live_apy_pct)+' vs '+pct(lvb.expected_apy_pct)+')', cls(lvb.status));
-    }
-    document.getElementById('risk-body').innerHTML = html;
-  }).catch(function(){ dot('d-risk','crit'); setOffline('risk-body'); });
+    _renderers.risk = function(){
+      var elig = (d.eligible_count!=null?d.eligible_count:(d.eligible_for_paper||[]).length);
+      var blk  = (d.blocked_count!=null?d.blocked_count:Object.keys(d.blocked||{}).length);
+      var lvb  = d.live_vs_backtest||{};
+      var c = elig>0 ? 'ok' : 'warn';
+      dot('d-risk', c);
+      var html = kv(t('k.eligible'), elig, 'ok')
+        + kv(t('k.blocked'), blk, blk>0?'warn':'ok')
+        + kv(t('k.eligibleStrats'), (d.eligible_for_paper||[]).join(', ')||'—')
+        + kv(t('k.regime'), d.regime||'—')
+        + kv(t('k.llmForbidden'), d.llm_forbidden?t('k.yes'):t('k.no'), 'ok');
+      if(lvb.status){
+        html += kv(t('k.liveVsBt'), lvb.status+' ('+pct(lvb.live_apy_pct)+' vs '+pct(lvb.expected_apy_pct)+')', cls(lvb.status));
+      }
+      document.getElementById('risk-body').innerHTML = html;
+    };
+    _renderers.risk();
+  }).catch(function(){ delete _renderers.risk; dot('d-risk','crit'); setOffline('risk-body'); });
 
   // ---- Execution ----
   jget('/api/execution/readiness').then(function(d){
-    var blockers = d.live_blockers||[];
-    var ready = !!d.ready_for_live;
-    dot('d-exec', ready ? 'ok' : 'warn');
-    var html = kv('posture', d.posture||'—', 'ok')
-      + kv('ready for live', ready?'yes':'no', ready?'ok':'warn')
-      + kv('live blockers', blockers.length, blockers.length?'warn':'ok');
-    var ch = d.checks||{};
-    if(ch.kill_switch_readable) html += kv('kill-switch', ch.kill_switch_readable.kill_switch_active?'ARMED':'clear', ch.kill_switch_readable.kill_switch_active?'crit':'ok');
-    if(ch.execution_mode_not_live) html += kv('execution mode', ch.execution_mode_not_live.live_mode?'LIVE':'paper-safe', ch.execution_mode_not_live.live_mode?'crit':'ok');
-    if(blockers.length){
-      html += '<div class="note"><b>Blockers:</b> '+blockers.join(' · ')+'</div>';
-    }
-    document.getElementById('exec-body').innerHTML = html;
-  }).catch(function(){ dot('d-exec','crit'); setOffline('exec-body'); });
+    _renderers.exec = function(){
+      var blockers = d.live_blockers||[];
+      var ready = !!d.ready_for_live;
+      dot('d-exec', ready ? 'ok' : 'warn');
+      var html = kv(t('k.posture'), d.posture||'—', 'ok')
+        + kv(t('k.readyLive'), ready?t('k.yes'):t('k.no'), ready?'ok':'warn')
+        + kv(t('k.liveBlockers'), blockers.length, blockers.length?'warn':'ok');
+      var ch = d.checks||{};
+      if(ch.kill_switch_readable) html += kv(t('k.killSwitch'), ch.kill_switch_readable.kill_switch_active?t('k.armed'):t('k.clear'), ch.kill_switch_readable.kill_switch_active?'crit':'ok');
+      if(ch.execution_mode_not_live) html += kv(t('k.execMode'), ch.execution_mode_not_live.live_mode?t('k.live'):t('k.paperSafe'), ch.execution_mode_not_live.live_mode?'crit':'ok');
+      if(blockers.length){
+        html += '<div class="note"><b>'+t('k.blockers')+'</b> '+blockers.join(' · ')+'</div>';
+      }
+      document.getElementById('exec-body').innerHTML = html;
+    };
+    _renderers.exec();
+  }).catch(function(){ delete _renderers.exec; dot('d-exec','crit'); setOffline('exec-body'); });
 
   // ---- Audit / Provenance ----
   jget('/api/tier1/nav').then(function(d){
-    var ok = !!d.reconciliation_ok;
-    dot('d-audit', ok ? 'ok' : 'crit');
-    var html = kv('reconciliation', ok?'OK':'MISMATCH', ok?'ok':'crit')
-      + kv('computed NAV', d.computed_nav_usd!=null?usd(d.computed_nav_usd):'—')
-      + kv('reported equity', d.reported_equity_usd!=null?usd(d.reported_equity_usd):'—')
-      + kv('delta', d.reconciliation_delta_usd!=null?usd(d.reconciliation_delta_usd):'—', ok?'ok':'crit')
-      + kv('deployed / cash', usd(d.deployed_usd)+' / '+usd(d.cash_usd))
-      + kv('positions', (d.positions||[]).length);
-    if(d.nav_hash) html += '<div class="note"><b>NAV hash:</b> '+String(d.nav_hash).slice(0,16)+'…</div>';
-    document.getElementById('audit-body').innerHTML = html;
-  }).catch(function(){ dot('d-audit','crit'); setOffline('audit-body'); });
+    _renderers.audit = function(){
+      var ok = !!d.reconciliation_ok;
+      dot('d-audit', ok ? 'ok' : 'crit');
+      var html = kv(t('k.recon'), ok?t('k.reconOk'):t('k.reconMismatch'), ok?'ok':'crit')
+        + kv(t('k.computedNav'), d.computed_nav_usd!=null?usd(d.computed_nav_usd):'—')
+        + kv(t('k.reportedEquity'), d.reported_equity_usd!=null?usd(d.reported_equity_usd):'—')
+        + kv(t('k.delta'), d.reconciliation_delta_usd!=null?usd(d.reconciliation_delta_usd):'—', ok?'ok':'crit')
+        + kv(t('k.deployedCash'), usd(d.deployed_usd)+' / '+usd(d.cash_usd))
+        + kv(t('k.positions'), (d.positions||[]).length);
+      if(d.nav_hash) html += '<div class="note"><b>'+t('k.navHash')+'</b> '+String(d.nav_hash).slice(0,16)+'…</div>';
+      document.getElementById('audit-body').innerHTML = html;
+    };
+    _renderers.audit();
+  }).catch(function(){ delete _renderers.audit; dot('d-audit','crit'); setOffline('audit-body'); });
 
   // ---- Governance ----
   jget('/api/governance').then(function(d){
-    var dc = d.dual_control_posture||{};
-    var enforced = !!dc.enforced;
-    dot('d-gov', enforced ? 'ok' : 'warn');
-    var m = d.manifest||{};
-    var html = kv('dual control', dc.mechanism||'—', enforced?'ok':'warn')
-      + kv('enforced', enforced?'yes':'advisory', enforced?'ok':'warn')
-      + kv('signers / threshold', (dc.signers!=null?dc.signers:'—')+' / '+(dc.threshold!=null?dc.threshold:'—'))
-      + kv('default policy', m.default_policy||'—', 'ok')
-      + kv('actions governed', m.action_count!=null?m.action_count:'—');
-    if(dc.note) html += '<div class="note">'+dc.note+'</div>';
-    document.getElementById('gov-body').innerHTML = html;
-  }).catch(function(){ dot('d-gov','crit'); setOffline('gov-body'); });
+    _renderers.gov = function(){
+      var dc = d.dual_control_posture||{};
+      var enforced = !!dc.enforced;
+      dot('d-gov', enforced ? 'ok' : 'warn');
+      var m = d.manifest||{};
+      var html = kv(t('k.dualControl'), dc.mechanism||'—', enforced?'ok':'warn')
+        + kv(t('k.enforced'), enforced?t('k.yes'):t('k.advisory'), enforced?'ok':'warn')
+        + kv(t('k.signersThreshold'), (dc.signers!=null?dc.signers:'—')+' / '+(dc.threshold!=null?dc.threshold:'—'))
+        + kv(t('k.defaultPolicy'), m.default_policy||'—', 'ok')
+        + kv(t('k.actionsGoverned'), m.action_count!=null?m.action_count:'—');
+      if(dc.note) html += '<div class="note">'+dc.note+'</div>';
+      document.getElementById('gov-body').innerHTML = html;
+    };
+    _renderers.gov();
+  }).catch(function(){ delete _renderers.gov; dot('d-gov','crit'); setOffline('gov-body'); });
 
   // ---- Observability + Self-Healing (one fetch, two cards) ----
   jget('/api/live/agents').then(function(d){
-    var ags = d.agents||[];
-    var healthy = d.healthy_count!=null ? d.healthy_count : ags.filter(function(a){return (a.status||'').toUpperCase()==='OK';}).length;
-    var total = d.total_agents!=null ? d.total_agents : ags.length;
-    var overall = d.overall_status||'—';
-    var oc = cls(overall);
-    var sc = d.system_checks||{};
+    _renderers.obs = function(){
+      var ags = d.agents||[];
+      var healthy = d.healthy_count!=null ? d.healthy_count : ags.filter(function(a){return (a.status||'').toUpperCase()==='OK';}).length;
+      var total = d.total_agents!=null ? d.total_agents : ags.length;
+      var overall = d.overall_status||'—';
+      var oc = cls(overall);
+      var sc = d.system_checks||{};
 
-    // Observability
-    dot('d-obs', oc);
-    var bad = ags.filter(function(a){return (a.status||'').toUpperCase()!=='OK';});
-    var obs = kv('overall', overall, oc)
-      + kv('fleet healthy', healthy+' / '+total, healthy===total?'ok':'warn')
-      + kv('critical flags', sc.critical_flags!=null?sc.critical_flags:'—', (sc.critical_flags>0)?'crit':'ok')
-      + kv('portfolio health', sc.portfolio_health_score!=null?sc.portfolio_health_score:'—')
-      + kv('cycle freshness', sc.cycle_freshness_h!=null?sc.cycle_freshness_h.toFixed(1)+'h':'—');
-    if(bad.length){
-      obs += '<div class="note"><b>Attention:</b> '+bad.map(function(a){return (a.label||'?')+' ('+a.status+')';}).join(' · ')+'</div>';
-    } else {
-      obs += '<div class="note" style="color:var(--ok)">✅ All '+total+' agents healthy.</div>';
-    }
-    document.getElementById('obs-body').innerHTML = obs;
+      // Observability
+      dot('d-obs', oc);
+      var bad = ags.filter(function(a){return (a.status||'').toUpperCase()!=='OK';});
+      var obs = kv(t('k.overall'), overall, oc)
+        + kv(t('k.fleetHealthy'), healthy+' / '+total, healthy===total?'ok':'warn')
+        + kv(t('k.criticalFlags'), sc.critical_flags!=null?sc.critical_flags:'—', (sc.critical_flags>0)?'crit':'ok')
+        + kv(t('k.portfolioHealth'), sc.portfolio_health_score!=null?sc.portfolio_health_score:'—')
+        + kv(t('k.cycleFreshness'), sc.cycle_freshness_h!=null?sc.cycle_freshness_h.toFixed(1)+'h':'—');
+      if(bad.length){
+        obs += '<div class="note"><b>'+t('k.attention')+'</b> '+bad.map(function(a){return (a.label||'?')+' ('+a.status+')';}).join(' · ')+'</div>';
+      } else {
+        obs += '<div class="note" style="color:var(--ok)">'+t('k.allHealthy1')+total+t('k.allHealthy2')+'</div>';
+      }
+      document.getElementById('obs-body').innerHTML = obs;
 
-    // Self-Healing
-    function ag(name){ for(var i=0;i<ags.length;i++){ if((ags[i].label||'').indexOf(name)>=0) return ags[i]; } return null; }
-    var sh = ag('self_heal'), tr = ag('threat_reactor');
-    var shc = sh ? cls(sh.status) : 'warn', trc = tr ? cls(tr.status) : 'warn';
-    dot('d-heal', (shc==='ok'&&trc==='ok') ? 'ok' : 'warn');
-    var heal = kv('overall fleet', overall, oc)
-      + kv('self_heal', sh? sh.status : '—', shc)
-      + kv('threat_reactor', tr? tr.status : '—', trc)
-      + kv('kill-switch flags', sc.critical_flags!=null?sc.critical_flags:'—', (sc.critical_flags>0)?'crit':'ok')
-      + kv('advisory flags', sc.advisory_flags!=null?sc.advisory_flags:'—', (sc.advisory_flags>0)?'warn':'ok');
-    heal += '<div class="note">Both run every 5 min. self_heal revives dead launchd agents &amp; recovers missed daily cycles; threat_reactor arms the kill-switch intraday on critical threats to held protocols.</div>';
-    document.getElementById('heal-body').innerHTML = heal;
+      // Self-Healing
+      function ag(name){ for(var i=0;i<ags.length;i++){ if((ags[i].label||'').indexOf(name)>=0) return ags[i]; } return null; }
+      var sh = ag('self_heal'), tr = ag('threat_reactor');
+      var shc = sh ? cls(sh.status) : 'warn', trc = tr ? cls(tr.status) : 'warn';
+      dot('d-heal', (shc==='ok'&&trc==='ok') ? 'ok' : 'warn');
+      var heal = kv(t('k.overallFleet'), overall, oc)
+        + kv(t('k.selfHeal'), sh? sh.status : '—', shc)
+        + kv(t('k.threatReactor'), tr? tr.status : '—', trc)
+        + kv(t('k.killFlags'), sc.critical_flags!=null?sc.critical_flags:'—', (sc.critical_flags>0)?'crit':'ok')
+        + kv(t('k.advisoryFlags'), sc.advisory_flags!=null?sc.advisory_flags:'—', (sc.advisory_flags>0)?'warn':'ok');
+      heal += '<div class="note">'+t('k.healNote')+'</div>';
+      document.getElementById('heal-body').innerHTML = heal;
+    };
+    _renderers.obs();
   }).catch(function(){
+    delete _renderers.obs;
     dot('d-obs','crit'); setOffline('obs-body');
     dot('d-heal','crit'); setOffline('heal-body');
   });
 
   // ---- Strategy / Promotion ----
   jget('/api/tier1/packages').then(function(d){
-    var pk = d.packages||{};
-    var totalValidated = 0, anyAvail = false;
-    var rows = '';
-    ['conservative','balanced','aggressive'].forEach(function(key){
-      var p = pk[key]; if(!p) return;
-      var n = p.n_validated_in_band||0; totalValidated += n;
-      var avail = (p.status==='available');
-      if(avail) anyAvail = true;
-      var apy = (p.blended_net_apy_pct!=null) ? pct(p.blended_net_apy_pct) : '—';
-      rows += kv((p.label||key)+' ('+(p.target_apy_band_pct?p.target_apy_band_pct[0]+'–'+p.target_apy_band_pct[1]+'%':'')+')',
-                 n+' validated · '+apy, avail?'ok':'warn');
-    });
-    dot('d-strat', anyAvail ? 'ok' : 'warn');
-    document.getElementById('strat-body').innerHTML =
-      kv('validated strategies', totalValidated, totalValidated>0?'ok':'warn')
-      + kv('regime', d.regime||'—')
-      + rows;
+    _renderers.strat = function(){
+      var pk = d.packages||{};
+      var totalValidated = 0, anyAvail = false;
+      var rows = '';
+      ['conservative','balanced','aggressive'].forEach(function(key){
+        var p = pk[key]; if(!p) return;
+        var n = p.n_validated_in_band||0; totalValidated += n;
+        var avail = (p.status==='available');
+        if(avail) anyAvail = true;
+        var apy = (p.blended_net_apy_pct!=null) ? pct(p.blended_net_apy_pct) : '—';
+        rows += kv((p.label||key)+' ('+(p.target_apy_band_pct?p.target_apy_band_pct[0]+'–'+p.target_apy_band_pct[1]+'%':'')+')',
+                   n+' '+t('k.validated')+' · '+apy, avail?'ok':'warn');
+      });
+      dot('d-strat', anyAvail ? 'ok' : 'warn');
+      document.getElementById('strat-body').innerHTML =
+        kv(t('k.validatedStrats'), totalValidated, totalValidated>0?'ok':'warn')
+        + kv(t('k.regime'), d.regime||'—')
+        + rows;
 
-    // Promotion pipeline. With validated paper strategies live, the first stages are done;
-    // CANARY/FULL require go-live + custody (not reached in paper mode).
-    var stages = [
-      {nm:'RESEARCH',   state:'done'},
-      {nm:'BACKTEST',   state:'done'},
-      {nm:'WALK-FORWARD',state:'done'},
-      {nm:'PAPER',      state: totalValidated>0 ? 'done' : 'partial'},
-      {nm:'CANARY',     state:'todo'},
-      {nm:'FULL',       state:'todo'}
-    ];
-    document.getElementById('strat-pipe').innerHTML = stages.map(function(s){
-      var mark = s.state==='done' ? '✅' : (s.state==='partial' ? '◐' : '○');
-      return '<div class="stage '+s.state+'"><span class="nm">'+s.nm+'</span>'+mark+'</div>';
-    }).join('');
-  }).catch(function(){ dot('d-strat','crit'); setOffline('strat-body'); });
+      // Promotion pipeline. With validated paper strategies live, the first stages are done;
+      // CANARY/FULL require go-live + custody (not reached in paper mode). Stage names are
+      // canonical pipeline identifiers — kept untranslated across languages.
+      var stages = [
+        {nm:'RESEARCH',   state:'done'},
+        {nm:'BACKTEST',   state:'done'},
+        {nm:'WALK-FORWARD',state:'done'},
+        {nm:'PAPER',      state: totalValidated>0 ? 'done' : 'partial'},
+        {nm:'CANARY',     state:'todo'},
+        {nm:'FULL',       state:'todo'}
+      ];
+      document.getElementById('strat-pipe').innerHTML = stages.map(function(s){
+        var mark = s.state==='done' ? '✅' : (s.state==='partial' ? '◐' : '○');
+        return '<div class="stage '+s.state+'"><span class="nm">'+s.nm+'</span>'+mark+'</div>';
+      }).join('');
+    };
+    _renderers.strat();
+  }).catch(function(){ delete _renderers.strat; dot('d-strat','crit'); setOffline('strat-body'); });
 
 })();
 </script>
