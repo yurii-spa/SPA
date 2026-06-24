@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>SPA — Agents page · design gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#08090c;--card:#0e1118;--line:rgba(255,255,255,.08);--txt:#e7e9ee;--mut:#8b93a3;--acc:#34d399}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.6 Inter,system-ui,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 22px 80px}
+  .nav{display:flex;gap:14px;margin-bottom:34px;flex-wrap:wrap;font-size:13px}
+  .nav a{color:var(--mut);text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:8px}
+  .nav a:hover{color:#fff}
+  h1{font-size:34px;font-weight:300;letter-spacing:-.02em;margin:0 0 6px}
+  h1 b{font-weight:600;color:var(--acc)}
+  .lede{color:var(--mut);margin:0 0 38px;max-width:640px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;transition:border-color .2s,transform .2s;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:10px}
+  .card:hover{border-color:var(--acc);transform:translateY(-3px)}
+  .num{font:500 12px/1 'JetBrains Mono',monospace;color:var(--acc);letter-spacing:.1em}
+  .card h2{font-size:19px;font-weight:600;margin:2px 0 0}
+  .card p{color:var(--mut);font-size:13.5px;margin:0;flex:1}
+  .tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+  .tag{font:500 10.5px/1 'JetBrains Mono',monospace;color:var(--mut);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:20px;padding:4px 9px}
+  .view{font-size:13px;color:var(--acc);font-weight:500;margin-top:6px}
+  .note{margin-top:34px;color:var(--mut);font-size:13px;border-top:1px solid var(--line);padding-top:20px}
+  .note code{font-family:'JetBrains Mono',monospace;color:var(--txt)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <a href="/">← Home</a><a href="/app">Dashboard</a><a href="/packages">Packages</a>
+    <a href="/tournament">Tournament</a><a href="/control">Control</a>
+  </nav>
+  <h1>Agents page — <b>design gallery</b></h1>
+  <p class="lede">Six distinct visual directions for the agent control-plane page. Open each live, compare, and pick the one to make canonical at <code style="font-family:'JetBrains Mono',monospace">/agents</code>.</p>
+
+  <div class="grid">
+    <a class="card" href="/agents">
+      <span class="num">01 · NETWORK</span>
+      <h2>Force-directed graph</h2>
+      <p>Live physics network — 43 agent nodes connected by their real interactions, draggable, flowing data along edges. The most "technical/alive" take.</p>
+      <div class="tags"><span class="tag">d3-force</span><span class="tag">SVG</span><span class="tag">interactive</span></div>
+      <span class="view">View live →</span>
+    </a>
+    <a class="card" href="/agents2">
+      <span class="num">01b · NETWORK</span>
+      <h2>Force graph — canvas</h2>
+      <p>Same network concept rendered on HTML5 canvas with a hand-rolled physics sim, luminous edge pulses, mission-control feel. Alternate of #01.</p>
+      <div class="tags"><span class="tag">canvas</span><span class="tag">physics</span><span class="tag">60fps</span></div>
+      <span class="view">View live →</span>
+    </a>
+    <a class="card" href="/agents-minimal">
+      <span class="num">02 · MINIMAL</span>
+      <h2>Apple / Linear minimal</h2>
+      <p>Whitespace, large light-weight type, one restrained accent, calm scroll reveals. Clean grouped agent list. Premium product-page restraint.</p>
+      <div class="tags"><span class="tag">minimal</span><span class="tag">elegant</span><span class="tag">calm</span></div>
+      <span class="view">View live →</span>
+    </a>
+    <a class="card" href="/agents-terminal">
+      <span class="num">03 · TERMINAL</span>
+      <h2>Bloomberg quant terminal</h2>
+      <p>Dense monospace ops terminal — tiled panels, status LEDs, scrolling ticker, blinking cursors. Looks like a serious trading/risk desk.</p>
+      <div class="tags"><span class="tag">dense</span><span class="tag">monospace</span><span class="tag">serious</span></div>
+      <span class="view">View live →</span>
+    </a>
+    <a class="card" href="/agents-story">
+      <span class="num">04 · STORY</span>
+      <h2>Stripe editorial</h2>
+      <p>Narrative long-scroll that explains how the fleet works, section by section, with big annotated diagrams and scroll-triggered animation. Investor-grade.</p>
+      <div class="tags"><span class="tag">narrative</span><span class="tag">diagrams</span><span class="tag">gradients</span></div>
+      <span class="view">View live →</span>
+    </a>
+    <a class="card" href="/agents-spatial">
+      <span class="num">05 · SPATIAL</span>
+      <h2>3D orbital</h2>
+      <p>Cinematic depth — the planes as concentric orbital rings, agents as nodes in 3D space, slow rotation, mouse parallax, starfield. Futuristic but tasteful.</p>
+      <div class="tags"><span class="tag">CSS-3D</span><span class="tag">orbital</span><span class="tag">cinematic</span></div>
+      <span class="view">View live →</span>
+    </a>
+    <a class="card" href="/agents-map">
+      <span class="num">06 · MAP</span>
+      <h2>Transit / subway map</h2>
+      <p>The system as a metro map — agents are stations on colored lines (planes), interchanges at key hubs (the risk gate). Clear, clever, infographic.</p>
+      <div class="tags"><span class="tag">infographic</span><span class="tag">SVG</span><span class="tag">legible</span></div>
+      <span class="view">View live →</span>
+    </a>
+  </div>
+
+  <p class="note">All versions: English default + EN|RU toggle (top-right), live status from <code>api.earn-defi.com</code>, 43 real agents. Tell me the winner — I'll make it the canonical <code>/agents</code> and remove the rest.</p>
+</div>
+</body>
+</html>
