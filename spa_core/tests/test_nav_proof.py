@@ -64,9 +64,10 @@ def test_reconciliation_no_reported_equity():
 
 # ----------------------------- verify_proof ----------------------------- #
 
-def _synthetic_proof(monkeypatch, positions, cash, reported):
+def _synthetic_proof(monkeypatch, positions, cash, reported, accrued=0.0):
     monkeypatch.setattr(np, "_load_positions", lambda: dict(positions))
     monkeypatch.setattr(np, "_load_cash", lambda: cash)
+    monkeypatch.setattr(np, "_load_accrued_yield", lambda: accrued)
     monkeypatch.setattr(np, "_load_reported_equity", lambda: reported)
     return np.build_proof(write=False)
 
