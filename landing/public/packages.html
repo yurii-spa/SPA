@@ -53,6 +53,7 @@
   var ORDER=['conservative','balanced','aggressive'];
   function pct(v){return v==null?'—':(v.toFixed ? v.toFixed(2):v)+'%';}
   function usd(v){if(v==null)return '—';if(v>=1e6)return '$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return '$'+(v/1e3).toFixed(0)+'k';return '$'+v;}
+  function scal(s){if(!s)return '';var t=[];['1M','10M','100M'].forEach(function(k){if(s[k]===true)t.push(k);});return t.length?'('+t.join('/')+')':'';}
   fetch(API+'/api/tier1/packages').then(function(r){return r.json();}).then(function(d){
     var pkgs=d.packages||{}; var g=document.getElementById('grid'); g.innerHTML='';
     document.getElementById('live').innerHTML='Live из <b>'+API+'</b> · режим: '+(d.regime||'—')+' · обновлено '+new Date().toLocaleString('ru');
@@ -65,10 +66,12 @@
           '<h2>'+(p.label||key)+'</h2>'+
           '<div class="sub">target '+(p.target_apy_band_pct?p.target_apy_band_pct[0]+'–'+p.target_apy_band_pct[1]+'%':'—')+' · DD ≤ '+(p.max_dd_limit_pct||'—')+'%</div>'+
           '<div class="apy">'+pct(p.blended_net_apy_pct)+' <small>net APY</small></div>'+
+          '<div class="row"><span class="k">Risk-adjusted APY</span><span>'+pct(p.blended_risk_adjusted_apy_pct)+'</span></div>'+
+          '<div class="row"><span class="k">Worst case (стресс)</span><span>'+pct(p.stress_worst_case_pct)+'</span></div>'+
           '<div class="row"><span class="k">Стратегий в пакете</span><span>'+p.n_offered+'</span></div>'+
           '<div class="row"><span class="k">Валидировано в бэнде</span><span>'+p.n_validated_in_band+'</span></div>'+
           '<div class="row"><span class="k">Worst drawdown</span><span>'+pct(p.worst_dd_pct)+'</span></div>'+
-          '<div class="row"><span class="k">Capacity (min)</span><span>'+usd(p.min_capacity_aum_usd)+'</span></div>'+
+          '<div class="row"><span class="k">Capacity / scaling</span><span>'+usd(p.min_capacity_aum_usd)+' '+scal(p.scales_to)+'</span></div>'+
           '<span class="badge '+(avail?'ok':'wait')+'">'+(avail?'✅ доступен':'⏳ нет валидированных стратегий')+'</span>'+
           '<div class="strat">'+members+'</div>'+
         '</div>';
