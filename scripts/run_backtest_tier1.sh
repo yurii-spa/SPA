@@ -13,4 +13,6 @@ echo "[$(date -u '+%FT%TZ')] tier1 evaluator (net-of-cost + OOS + capacity)..."
 $PY -m spa_core.backtesting.tier1.evaluator
 echo "[$(date -u '+%FT%TZ')] tier1 gate (backtest->paper eligibility + live divergence)..."
 $PY -m spa_core.backtesting.tier1.gate
+echo "[$(date -u '+%FT%TZ')] tier1 correlation (package diversification)..."
+$PY -m spa_core.backtesting.tier1.correlation
 echo "[$(date -u '+%FT%TZ')] done."
