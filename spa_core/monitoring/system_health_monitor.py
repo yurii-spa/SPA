@@ -303,9 +303,11 @@ class SystemHealthMonitor:
             out.append(CheckResult("d1.equity.exists", D, OK,
                                    f"equity_curve_daily.json loaded ({len(daily)} bars)"))
 
-            # count
+            # count — honest track days (real_days = non-warmup bars), not the raw
+            # bar count (num_days) which includes pre-PAPER_REAL_START warmup bars.
             expected = (date.today() - PAPER_REAL_START).days + 1
-            num_days = summary.get("num_days", len(daily))
+            real = [b for b in daily if not b.get("is_warmup", False)]
+            num_days = summary.get("real_days", len(real) if real else len(daily))
             if isinstance(num_days, int) and num_days < expected - 1:
                 out.append(CheckResult("d1.equity.count", D, WARNING,
                                        f"only {num_days} track days (expected ~{expected})",
