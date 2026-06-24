@@ -466,6 +466,20 @@ def _extract_sha(output: str) -> Optional[str]:
 
 def _tg_request(token: str, method: str, payload: Optional[Dict] = None,
                 timeout: int = 10) -> Optional[Dict]:
+    # FLOOD-GUARD: outbound sendMessage is routed through the canonical
+    # rate-limited client so auto-fix notifications share the cross-process
+    # flood guard. Other methods (none used today) fall through to direct HTTP.
+    if method == "sendMessage" and payload:
+        try:
+            from spa_core.alerts.telegram_client import send_message
+            ok = send_message(
+                payload.get("text", ""),
+                parse_mode=payload.get("parse_mode", "HTML"),
+            )
+            return {"ok": bool(ok)}
+        except Exception as exc:
+            log.warning("Telegram API %s failed: %s", method, exc)
+            return None
     url = f"https://api.telegram.org/bot{token}/{method}"
     data = json.dumps(payload or {}).encode() if payload else None
     headers = {"Content-Type": "application/json"} if data else {}
