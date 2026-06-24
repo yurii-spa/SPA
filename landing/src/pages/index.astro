@@ -36,11 +36,11 @@ import Footer from '../components/Footer.astro';
   <!-- 7. Methodology CTA — журнал, не привлечение -->
   <section class="py-20 px-4 sm:px-6 lg:px-8 text-center">
     <div class="max-w-2xl mx-auto">
-      <p class="text-xs text-white/30 uppercase tracking-widest font-mono mb-4">Open Methodology</p>
-      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">
+      <p class="text-xs text-white/30 uppercase tracking-widest font-mono mb-4" data-ru="Открытая методология">Open Methodology</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Журнал методологии и доказательств">
         Methodology & Evidence Journal
       </h2>
-      <p class="text-white/50 mb-10 leading-relaxed">
+      <p class="text-white/50 mb-10 leading-relaxed" data-ru="Дашборд публичен. Каждая бумажная сделка, каждое решение риск-гейта, каждое обновление кривой капитала залогировано и видно. Это исследовательский проект, документирующий, как выглядит систематический оптимизатор доходности — построенный до того, как просить у кого-либо капитал.">
         The dashboard is public. Every paper trade, every risk gate decision, every equity curve update
         is logged and visible. This is a research project documenting what a systematic yield optimizer
         looks like — built before asking anyone for capital.
@@ -49,18 +49,20 @@ import Footer from '../components/Footer.astro';
         <a
           href="/methodology"
           class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
+          data-ru="Журнал методологии"
         >
           Methodology Journal
         </a>
         <a
           href="/risk-disclosure"
           class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
+          data-ru="Раскрытие рисков"
         >
           Risk Disclosure
         </a>
       </div>
       <p class="text-sm text-white/30">
-        Contact: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+        <span data-ru="Контакт:">Contact:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
       </p>
     </div>
   </section>
@@ -69,7 +71,7 @@ import Footer from '../components/Footer.astro';
   <section id="faq" class="py-24 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <p class="text-white/30 text-sm font-mono uppercase tracking-widest mb-3">FAQ</p>
-      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-10 leading-tight">
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-10 leading-tight" data-ru="Частые вопросы">
         Common Questions
       </h2>
 
@@ -77,12 +79,12 @@ import Footer from '../components/Footer.astro';
 
         <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            Is this a real trading system?
+            <span data-ru="Это реальная торговая система?">Is this a real trading system?</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
           </summary>
-          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed" data-ru="Да — реальные данные APY/TVL из живых DeFi-протоколов, реальная детерминированная риск-политика, реальные ежедневные циклы. Но пока без реального капитала: это бумажная симуляция на виртуальном портфеле $100,000 USDC. Бумажная торговля начата 10 июня 2026. Текущий APY: ~3.6% (бумажный, переменный, не прогноз).">
             Yes — real APY/TVL data from live DeFi protocols, real deterministic risk policy, real daily cycles.
             But no real capital yet: this is a paper simulation on a virtual $100,000 USDC portfolio.
             Paper trading started June 10, 2026. Current APY: ~3.6% (paper, variable, not a forecast).
@@ -91,12 +93,12 @@ import Footer from '../components/Footer.astro';
 
         <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            How are protocols selected?
+            <span data-ru="Как выбираются протоколы?">How are protocols selected?</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
           </summary>
-          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed" data-ru="Только whitelist-протоколы — Уровень 1 (Aave V3, Compound V3, Morpho Steakhouse) и Уровень 2. RiskPolicy v1.0 обеспечивает: TVL ≥ $5M на пул, лимит на протокол 40% T1 / 20% T2, общий лимит T2 ≤ 50%, гейт APY 1–30%, денежный буфер ≥ 5%.">
             Whitelisted protocols only — Tier 1 (Aave V3, Compound V3, Morpho Steakhouse) and Tier 2.
             RiskPolicy v1.0 enforces: TVL ≥ $5M per pool, per-protocol cap 40% T1 / 20% T2,
             T2 total cap ≤ 50%, APY gate 1–30%, cash buffer ≥ 5%.
@@ -105,26 +107,26 @@ import Footer from '../components/Footer.astro';
 
         <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            How are fees structured?
+            <span data-ru="Как устроены комиссии?">How are fees structured?</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
           </summary>
           <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
-            During paper trading: no fees charged. Future fee model (illustrative, live phase only):
+            <span data-ru="В период бумажной торговли: комиссии не взимаются. Будущая модель комиссий (иллюстративно, только в live-фазе): привязка к результату с high-water mark. Подробнее см.">During paper trading: no fees charged. Future fee model (illustrative, live phase only):
             performance-aligned with high-water mark.
-            See <a href="/fees" class="text-accent-400/70 hover:text-accent-400 underline underline-offset-2 transition-colors">Fees page</a> for details.
+            See</span> <a href="/fees" class="text-accent-400/70 hover:text-accent-400 underline underline-offset-2 transition-colors" data-ru="страницу комиссий">Fees page</a> <span data-ru="для деталей.">for details.</span>
           </div>
         </details>
 
         <details class="group rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
           <summary class="flex items-center justify-between cursor-pointer px-6 py-5 text-sm font-medium text-white/80 hover:text-white transition-colors">
-            When does live trading start?
+            <span data-ru="Когда начнётся live-торговля?">When does live trading start?</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
           </summary>
-          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed">
+          <div class="px-6 pb-5 text-sm text-white/50 leading-relaxed" data-ru="GoLiveChecker: пройдено 27/29 критериев (НЕ ГОТОВО). Цель: ~июль 2026 — при условии прохождения всех 29 критериев 7+ дней подряд + ручная проверка владельцем (ADR-002). Сначала live будет только на собственном капитале — никакого стороннего капитала на этом этапе.">
             GoLiveChecker: 27/29 criteria passing (NOT READY). Target: ~July 2026 — contingent on
             all 29 criteria passing 7+ consecutive days + manual owner review (ADR-002).
             Live will be own-capital only first — no third-party capital at this stage.
