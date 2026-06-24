@@ -109,31 +109,14 @@ def _read_keychain(service: str) -> Optional[str]:
 
 
 def _send_telegram(message: str) -> bool:
-    """Send Telegram alert (PAT/token from Keychain). Best-effort, never raises."""
-    token = _read_keychain("TELEGRAM_BOT_TOKEN_SPA") or os.environ.get(
-        "TELEGRAM_BOT_TOKEN_SPA"
-    ) or os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = _read_keychain("TELEGRAM_CHAT_ID_SPA") or os.environ.get(
-        "TELEGRAM_CHAT_ID_SPA"
-    ) or os.environ.get("TELEGRAM_CHAT_ID")
+    """Send Telegram alert via the canonical rate-limited client. Best-effort, never raises.
 
-    if not token or not chat_id:
-        log.warning("Telegram creds not found — skipping rebalancer alert")
-        return False
-
-    url = "https://api.telegram.org/bot{}/sendMessage".format(token)
-    payload = json.dumps({
-        "chat_id": chat_id,
-        "text": message[:4096],
-        "parse_mode": "HTML",
-    }).encode()
+    FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
+    cross-process rate limit applies. Transport only — same HTML alert.
+    """
     try:
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status == 200
+        from spa_core.alerts.telegram_client import send_message
+        return send_message(message[:4096], parse_mode="HTML")
     except Exception as e:
         log.warning("Telegram send failed: %s", e)
         return False
