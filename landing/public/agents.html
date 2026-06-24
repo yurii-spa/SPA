@@ -4,76 +4,74 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
-<title>SPA — Agent Control Plane</title>
+<title>SPA — Agent Fleet Network</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
   :root{
-    --bg:#08090c;
-    --bg-soft:#0b0d12;
-    --panel:#0c0e14;
-    --panel-2:#0e1118;
+    --bg:#070809;
+    --bg-soft:#0a0c0f;
+    --panel:#0c0e13;
+    --panel-2:#0e1117;
     --line:rgba(255,255,255,.06);
     --line-strong:rgba(255,255,255,.10);
-    --txt:#e6e8ec;
+    --txt:#e7e9ed;
     --txt-soft:#aab0bb;
-    --mut:#727987;
-    --dim:#4c525e;
-    --acc:#34d399;          /* refined emerald */
-    --acc-soft:#1f8f6b;
-    --acc-glow:rgba(52,211,153,.28);
-    --ok:#34d399;
+    --mut:#717885;
+    --dim:#4a505b;
+    --acc:#2dd4bf;          /* refined teal accent */
+    --acc-soft:#1f9d8e;
+    --acc-glow:rgba(45,212,191,.28);
+    --ok:#2dd4bf;
     --warn:#e2b04a;
     --crit:#e5556b;
-    --ok-glow:rgba(52,211,153,.45);
-    --warn-glow:rgba(226,176,74,.45);
-    --crit-glow:rgba(229,85,107,.5);
+    --ok-glow:rgba(45,212,191,.5);
+    --warn-glow:rgba(226,176,74,.5);
+    --crit-glow:rgba(229,85,107,.55);
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html,body{margin:0;padding:0;height:100%}
   body{
     background:var(--bg);
     color:var(--txt);
     font:14px/1.6 "Inter",-apple-system,Segoe UI,Roboto,sans-serif;
     -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-    overflow-x:hidden;position:relative;
+    overflow:hidden;position:relative;
   }
-  /* ambient background — restrained, single accent + faint grain */
   body::before{
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
     background:
-      radial-gradient(1100px 700px at 78% -12%, rgba(52,211,153,.055), transparent 62%),
-      radial-gradient(900px 600px at 8% 6%, rgba(255,255,255,.025), transparent 60%),
-      radial-gradient(1000px 800px at 50% 130%, rgba(52,211,153,.04), transparent 60%);
+      radial-gradient(1100px 720px at 80% -14%, rgba(45,212,191,.05), transparent 62%),
+      radial-gradient(900px 600px at 6% 4%, rgba(255,255,255,.022), transparent 60%),
+      radial-gradient(1100px 820px at 50% 132%, rgba(45,212,191,.035), transparent 60%);
   }
   body::after{
-    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.025;
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.022;
     background-image:radial-gradient(rgba(255,255,255,.6) .5px, transparent .5px);
     background-size:3px 3px;
   }
   a{color:var(--acc);text-decoration:none}
   .mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
-  .wrap{max-width:1180px;margin:0 auto;padding:22px 26px 100px;position:relative;z-index:1}
-
-  /* reveal on scroll */
-  .reveal{opacity:0;transform:translateY(14px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
-  .reveal.in{opacity:1;transform:none}
 
   /* ---- top bar ---- */
-  .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
-    padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:42px}
-  .brand{display:flex;align-items:center;gap:11px;font-weight:600;letter-spacing:.02em;font-size:15px}
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:14px 26px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(7,8,9,.92),rgba(7,8,9,.62));
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:600;letter-spacing:.02em;font-size:15px;flex:0 0 auto}
   .brand .mark{width:24px;height:24px;border-radius:7px;flex:0 0 auto;position:relative;
-    background:linear-gradient(150deg,rgba(52,211,153,.22),rgba(52,211,153,.03));
-    border:1px solid rgba(52,211,153,.4);box-shadow:0 0 18px -6px var(--acc-glow)}
+    background:linear-gradient(150deg,rgba(45,212,191,.22),rgba(45,212,191,.03));
+    border:1px solid rgba(45,212,191,.4);box-shadow:0 0 18px -6px var(--acc-glow)}
   .brand .mark::after{content:"";position:absolute;inset:6px;border-radius:3px;background:var(--acc);opacity:.85;
     box-shadow:0 0 10px var(--acc-glow)}
   .brand .sub{color:var(--mut);font-weight:400;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
-  .right{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   .nav{display:flex;gap:2px;flex-wrap:wrap}
-  .nav a{padding:7px 13px;border-radius:8px;font-size:13px;font-weight:450;color:var(--mut);
-    transition:color .2s,background .2s;letter-spacing:.005em}
+  .nav a{padding:7px 12px;border-radius:8px;font-size:13px;font-weight:450;color:var(--mut);
+    transition:color .2s,background .2s;letter-spacing:.005em;white-space:nowrap}
   .nav a:hover{color:var(--txt);background:rgba(255,255,255,.035)}
   .nav a.on{color:var(--txt);background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px var(--line-strong)}
   .nav a.on::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
@@ -81,153 +79,135 @@
   .langtog{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;flex:0 0 auto}
   .langtog button{appearance:none;border:0;background:transparent;color:var(--mut);
     font:500 12px "Inter",sans-serif;letter-spacing:.04em;padding:6px 12px;cursor:pointer;transition:.2s}
-  .langtog button.on{background:rgba(52,211,153,.12);color:var(--acc)}
+  .langtog button.on{background:rgba(45,212,191,.12);color:var(--acc)}
   .langtog button:not(.on):hover{color:var(--txt)}
 
-  /* ---- hero ---- */
-  header{margin:0 0 14px}
-  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--mut);font-weight:500;margin-bottom:22px}
+  /* ---- stage ---- */
+  #stage{position:fixed;inset:0;top:57px}
+  #net{display:block;width:100%;height:100%;cursor:grab}
+  #net:active{cursor:grabbing}
+
+  /* graph elements */
+  .link{stroke-linecap:round;fill:none}
+  .link-hit{stroke:transparent;stroke-width:14;fill:none;cursor:pointer}
+  .particle{pointer-events:none}
+  .node-g{cursor:pointer}
+  .node-core{transition:stroke-width .25s}
+  .node-label{font:500 11px "Inter",sans-serif;fill:var(--txt-soft);pointer-events:none;
+    paint-order:stroke;stroke:rgba(7,8,9,.85);stroke-width:3px;letter-spacing:-.005em}
+  .node-label.mono{font-family:"JetBrains Mono",monospace;font-size:10px}
+  .plane-label{font:500 10px "JetBrains Mono",monospace;letter-spacing:.2em;text-transform:uppercase;
+    fill:var(--dim);pointer-events:none}
+  .status-ring{fill:none;transition:opacity .3s}
+
+  /* ---- HUD: fleet header ---- */
+  .hud{position:fixed;top:73px;left:26px;z-index:20;pointer-events:none;
+    display:flex;flex-direction:column;gap:14px;max-width:330px}
+  .hud-head{pointer-events:auto}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:10.5px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--mut);font-weight:500;margin-bottom:12px}
   .eyebrow .live-dot{width:6px;height:6px;border-radius:50%;background:var(--acc);position:relative}
   .eyebrow .live-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;
     border:1px solid var(--acc);opacity:.5;animation:halo 2.6s ease-out infinite}
   @keyframes halo{0%{transform:scale(.6);opacity:.6}100%{transform:scale(2.2);opacity:0}}
-  header h1{font-size:clamp(30px,5vw,54px);line-height:1.04;margin:0 0 18px;
-    font-weight:600;letter-spacing:-.025em;max-width:14ch}
-  header h1 .grad{font-weight:300;color:var(--txt-soft)}
-  header h1 .acc{color:var(--acc)}
-  header p.lede{color:var(--txt-soft);max-width:680px;margin:0;font-size:16px;font-weight:300;line-height:1.65}
-  header p.lede b{color:var(--txt);font-weight:500}
+  .hud h1{font-size:23px;line-height:1.1;margin:0 0 6px;font-weight:600;letter-spacing:-.025em}
+  .hud h1 .acc{color:var(--acc)}
+  .hud .lede{color:var(--txt-soft);font-size:12.5px;font-weight:300;line-height:1.55;margin:0}
 
-  /* ---- stat strip ---- */
-  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-    gap:1px;margin:54px 0 8px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-  .stat{background:var(--panel);padding:20px 22px;position:relative;transition:background .25s}
-  .stat:hover{background:var(--panel-2)}
-  .stat .n{font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.1;font-family:"JetBrains Mono",monospace}
-  .stat .l{color:var(--mut);font-size:11px;margin-top:6px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
-  .live{font-size:12px;color:var(--dim);margin:16px 0 0;font-family:"JetBrains Mono",monospace}
-  .live b{color:var(--txt-soft);font-weight:500}
+  .stats{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;pointer-events:auto;backdrop-filter:blur(10px)}
+  .stat{background:rgba(12,14,19,.78);padding:11px 14px;flex:1;min-width:0}
+  .stat .n{font-size:18px;font-weight:600;letter-spacing:-.02em;line-height:1.1;
+    font-family:"JetBrains Mono",monospace;white-space:nowrap}
+  .stat .l{color:var(--mut);font-size:9px;margin-top:4px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+  .live-note{font-size:10.5px;color:var(--dim);font-family:"JetBrains Mono",monospace;pointer-events:auto;line-height:1.5}
+  .live-note b{color:var(--txt-soft);font-weight:500}
 
-  /* section heads */
-  .sec{margin:78px 0 0}
-  .sec h2{font-size:13px;margin:0 0 6px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--acc);display:flex;align-items:center;gap:12px}
-  .sec h2 .ix{font-family:"JetBrains Mono",monospace;color:var(--dim);font-weight:400;font-size:12px;letter-spacing:0}
-  .sec .h2-big{font-size:clamp(22px,3vw,30px);font-weight:500;letter-spacing:-.02em;margin:0 0 8px;color:var(--txt)}
-  .sub{color:var(--mut);font-size:14px;margin:0 0 28px;max-width:680px;font-weight:300;line-height:1.6}
+  /* ---- legend ---- */
+  .legend{position:fixed;bottom:18px;left:26px;z-index:20;
+    display:flex;flex-direction:column;gap:7px;pointer-events:auto;
+    background:rgba(10,12,17,.7);border:1px solid var(--line);border-radius:12px;padding:13px 15px;
+    backdrop-filter:blur(10px)}
+  .legend .lt{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+    font-weight:600;margin-bottom:2px}
+  .legend .row{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--mut);cursor:pointer;
+    transition:color .15s;padding:1px 0}
+  .legend .row:hover{color:var(--txt)}
+  .legend .row.off{opacity:.35}
+  .legend .sw{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
 
-  /* ---- DIAGRAM ---- */
-  .diagram{position:relative;background:
-      radial-gradient(700px 360px at 22% 6%,rgba(52,211,153,.05),transparent 62%),
-      linear-gradient(180deg,var(--panel),var(--bg-soft));
-    border:1px solid var(--line);border-radius:18px;padding:8px;overflow:hidden;
-    box-shadow:0 40px 90px -50px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.03)}
-  .diagram svg{display:block;width:100%;height:auto}
-  /* node card inside foreignObject */
-  .node{height:100%;display:flex;flex-direction:column;justify-content:center;border-radius:11px;padding:10px 13px;
-    border:1px solid var(--line-strong);background:linear-gradient(165deg,rgba(20,23,30,.92),rgba(11,13,18,.94));
-    transition:border-color .3s,box-shadow .3s,transform .3s;cursor:default;
-    box-shadow:0 8px 24px -16px rgba(0,0,0,.8)}
-  .node .nt{font-size:12.5px;font-weight:550;display:flex;align-items:center;gap:8px;line-height:1.2;letter-spacing:-.01em}
-  .node .nt .gly{color:var(--mut);font-size:11px;flex:0 0 auto}
-  .node .nd{font-size:10.5px;color:var(--mut);margin-top:4px;line-height:1.35;font-weight:300}
-  .node .ndot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--dim);transition:.3s}
-  .node.accent{border-color:rgba(52,211,153,.30)}
-  .node.accent .nt{color:#dffaf0}
-  .node.gate{border-color:rgba(229,85,107,.42);background:linear-gradient(165deg,rgba(34,18,22,.92),rgba(16,11,14,.94));
-    box-shadow:0 0 34px -14px var(--crit-glow),0 8px 24px -16px rgba(0,0,0,.8)}
-  .node.gate .nt{color:#ffd9df}
-  .node:hover{transform:translateY(-2px);border-color:rgba(52,211,153,.5);box-shadow:0 0 30px -10px var(--acc-glow)}
-  .node.gate:hover{border-color:rgba(229,85,107,.65);box-shadow:0 0 34px -10px var(--crit-glow)}
-  .node .ndot.ok{background:var(--ok);box-shadow:0 0 9px var(--ok-glow)}
-  .node .ndot.warn{background:var(--warn);box-shadow:0 0 9px var(--warn-glow)}
-  .node .ndot.crit{background:var(--crit);box-shadow:0 0 9px var(--crit-glow);animation:blink 1.2s infinite}
+  /* ---- hint ---- */
+  .hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:15;
+    font-size:11px;color:var(--dim);font-family:"JetBrains Mono",monospace;letter-spacing:.03em;
+    pointer-events:none;text-align:center;transition:opacity .6s}
+  .hint b{color:var(--mut);font-weight:500}
+
+  /* ---- detail panel ---- */
+  .panel{position:fixed;top:73px;right:26px;width:340px;max-width:calc(100vw - 52px);z-index:25;
+    background:linear-gradient(165deg,rgba(13,15,21,.97),rgba(9,11,15,.98));
+    border:1px solid var(--line-strong);border-radius:16px;padding:0;
+    box-shadow:0 40px 90px -40px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.04);
+    opacity:0;visibility:hidden;transform:translateX(14px);transition:opacity .28s,transform .28s,visibility .28s;
+    overflow:hidden}
+  .panel.show{opacity:1;visibility:visible;transform:none}
+  .panel .ph{padding:16px 18px 14px;border-bottom:1px solid var(--line);position:relative}
+  .panel .ph::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}
+  .panel .ph .pcat{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);
+    font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .panel .ph .pcat .pdot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .panel .ph .pid{font:550 15px "JetBrains Mono",monospace;color:var(--txt);letter-spacing:-.01em;
+    display:flex;align-items:center;gap:10px;word-break:break-all}
+  .panel .ph .pst{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--dim)}
+  .panel .ph .pst.ok{background:var(--ok);box-shadow:0 0 9px var(--ok-glow)}
+  .panel .ph .pst.warn{background:var(--warn);box-shadow:0 0 9px var(--warn-glow)}
+  .panel .ph .pst.crit{background:var(--crit);box-shadow:0 0 9px var(--crit-glow);animation:blink 1.2s infinite}
   @keyframes blink{50%{opacity:.32}}
-
-  /* plane group labels in svg */
-  .plane-band{fill:rgba(255,255,255,.012);stroke:var(--line);stroke-width:1;rx:14}
-  .plane-tag{font:500 9.5px "JetBrains Mono",monospace;letter-spacing:.18em;text-transform:uppercase;fill:var(--dim)}
-
-  /* thin glowing connectors */
-  .flow{fill:none;stroke-width:1;opacity:.45}
-  .flow.glow{stroke-width:3;opacity:.12;filter:blur(2px)}
-  .flow.dash{stroke-dasharray:1 7;stroke-linecap:round;animation:dash 1.4s linear infinite}
-  .flow.dash.slow{animation-duration:3s}
-  @keyframes dash{to{stroke-dashoffset:-32}}
-  .flow-dot{r:2.6}
-  .legend{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;padding:18px 8px 10px;
-    font-size:11px;color:var(--mut);letter-spacing:.04em}
-  .legend span{display:inline-flex;align-items:center;gap:8px}
-  .legend i{width:20px;height:2px;border-radius:2px;display:inline-block}
-
-  /* ---- FLEET (refined table-grid) ---- */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1px;
-    background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-  .g{background:var(--panel);padding:20px 20px 12px;transition:background .25s}
-  .g:hover{background:var(--panel-2)}
-  .g h3{margin:0 0 4px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
-    display:flex;align-items:center;gap:10px;color:var(--txt-soft)}
-  .g h3 .gdot{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
-  .g h3 .cnt{margin-left:auto;font-size:11px;color:var(--dim);font-weight:400;
-    font-family:"JetBrains Mono",monospace;letter-spacing:0}
-  .g .gdesc{font-size:11px;color:var(--mut);margin:0 0 12px;font-weight:300}
-  .ag{position:relative;display:flex;align-items:center;gap:11px;padding:9px 8px;
-    border-top:1px solid var(--line);font-size:13px;cursor:default;border-radius:7px;
-    transition:background .16s}
-  .ag:hover{background:rgba(255,255,255,.03)}
-  .ag .st{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--dim);transition:.25s}
-  .ag .st.ok{background:var(--ok);box-shadow:0 0 7px var(--ok-glow)}
-  .ag .st.warn{background:var(--warn);box-shadow:0 0 7px var(--warn-glow)}
-  .ag .st.crit{background:var(--crit);box-shadow:0 0 7px var(--crit-glow);animation:blink 1.2s infinite}
-  .ag .nm{color:var(--txt);font-weight:450;flex:1;min-width:0;font-family:"JetBrains Mono",monospace;
-    font-size:12.5px;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ag .sc{color:var(--mut);font-size:10.5px;white-space:nowrap;font-family:"JetBrains Mono",monospace;
-    background:rgba(255,255,255,.04);padding:2px 7px;border-radius:5px}
-  /* tooltip */
-  .ag .tip{position:absolute;left:6px;right:6px;top:calc(100% - 2px);z-index:40;
-    background:rgba(10,12,17,.99);border:1px solid var(--line-strong);border-radius:10px;padding:12px 14px;
-    box-shadow:0 24px 60px -22px rgba(0,0,0,.95);font-size:12px;line-height:1.5;color:var(--txt-soft);
-    opacity:0;visibility:hidden;transform:translateY(-6px);transition:.2s;pointer-events:none;font-weight:300}
-  .ag .tip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:2px;background:var(--acc)}
-  .ag .tip b{color:var(--txt);display:block;margin-bottom:5px;font-size:12px;font-weight:550;
+  .panel .pb{padding:15px 18px 17px}
+  .panel .prole{font-size:12.5px;color:var(--txt-soft);font-weight:300;line-height:1.55;margin:0 0 14px}
+  .panel .meta{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;margin-bottom:14px}
+  .panel .meta .m{background:rgba(255,255,255,.018);padding:9px 12px;flex:1;min-width:0}
+  .panel .meta .mk{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}
+  .panel .meta .mv{font:500 12px "JetBrains Mono",monospace;color:var(--txt);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .panel .conn-h{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+    font-weight:600;margin:0 0 9px}
+  .panel .conn{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto}
+  .panel .conn .c{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--txt-soft);
     font-family:"JetBrains Mono",monospace}
-  .ag .tip .sch{color:var(--acc);font-family:"JetBrains Mono",monospace;font-size:10.5px;
-    margin-top:7px;display:block;opacity:.85}
-  .ag:hover .tip,.ag:focus-within .tip{opacity:1;visibility:visible;transform:translateY(2px)}
+  .panel .conn .c .dir{font-size:10px;color:var(--acc);flex:0 0 auto;width:14px;text-align:center}
+  .panel .conn .c .dir.in{color:var(--mut)}
+  .panel .conn .cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .panel .conn::-webkit-scrollbar{width:5px}
+  .panel .conn::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:3px}
+  .panel .pclose{position:absolute;top:13px;right:14px;width:24px;height:24px;border-radius:7px;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--mut);cursor:pointer;
+    font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.18s}
+  .panel .pclose:hover{color:var(--txt);background:rgba(255,255,255,.07)}
 
-  /* live attention */
-  .attn-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
-  .attn-box .ag{cursor:default}
-  .pill{font-size:10.5px;padding:2px 9px;border-radius:6px;background:rgba(255,255,255,.05);color:var(--mut);
-    white-space:nowrap;font-family:"JetBrains Mono",monospace}
-  .pill.ok{background:rgba(52,211,153,.12);color:var(--ok)}
-  .pill.warn{background:rgba(226,176,74,.12);color:var(--warn)}
-  .pill.crit{background:rgba(229,85,107,.12);color:var(--crit)}
-  .note{color:var(--mut);font-size:13px;font-weight:300}
-  .okmsg{color:var(--acc);font-weight:450;font-size:13.5px;display:flex;align-items:center;gap:9px}
-  .okmsg::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 9px var(--ok-glow)}
-
-  footer{margin-top:80px;color:var(--dim);font-size:12px;text-align:center;
-    border-top:1px solid var(--line);padding-top:28px;font-weight:300;letter-spacing:.01em}
-
-  @media (max-width:680px){
-    .wrap{padding:20px 18px 80px}
-    .topbar{flex-direction:column;align-items:stretch;gap:14px}
-    .right{justify-content:space-between}
-    header h1{font-size:32px}
-    .grid{grid-template-columns:1fr}
+  @media (max-width:900px){
+    .hud{max-width:230px}
+    .hud h1{font-size:19px}
+    .hud .lede{display:none}
+    .panel{width:300px}
+  }
+  @media (max-width:640px){
+    .topbar{padding:12px 16px}
+    .nav{display:none}
+    .hud{left:14px;top:68px;max-width:180px}
+    .stats{display:none}
+    .panel{right:14px;left:14px;width:auto;top:auto;bottom:14px}
+    .legend{display:none}
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="brand">
       <span class="mark"></span>
-      <span>SPA<span class="sub" style="margin-left:9px">Control Plane</span></span>
+      <span>SPA<span class="sub" style="margin-left:9px">Agent Network</span></span>
     </div>
     <div class="right">
       <nav class="nav">
@@ -245,169 +225,49 @@
     </div>
   </div>
 
-  <!-- HERO -->
-  <header class="reveal">
-    <div class="eyebrow"><span class="live-dot"></span><span data-i="eyebrow">Autonomous · deterministic · 24/7 launchd fleet</span></div>
-    <h1><span data-i="h1a">The </span><span class="acc" data-i="h1b">control plane</span><span class="grad" data-i="h1c"> behind SPA</span></h1>
-    <p class="lede" data-i="lede">~40 deterministic <b>launchd agents</b> on a single Mac mini operate the entire DeFi yield optimizer around the clock — adapters, strategies, a hard <b>risk gate</b>, virtual rebalancing, monitoring, self-healing and a verifiable audit chain. <b>No LLM</b> touches risk, execution or monitoring.</p>
-  </header>
-
-  <!-- STATS -->
-  <div class="summary reveal">
-    <div class="stat"><div class="n" id="s-total">—</div><div class="l" data-i="st_total">Agents loaded</div></div>
-    <div class="stat"><div class="n" id="s-ok" style="color:var(--acc)">—</div><div class="l" data-i="st_ok">Healthy</div></div>
-    <div class="stat"><div class="n" id="s-overall">—</div><div class="l" data-i="st_status">Fleet status</div></div>
-    <div class="stat"><div class="n" id="s-cycle">—</div><div class="l" data-i="st_cycle">Last daily cycle</div></div>
+  <!-- STAGE -->
+  <div id="stage">
+    <svg id="net" role="img" aria-label="SPA agent fleet force-directed network"></svg>
   </div>
-  <p class="live" id="live-note" data-i="connecting">Connecting to live API…</p>
 
-  <!-- DIAGRAM -->
-  <div class="sec reveal">
-    <h2><span class="ix">01</span><span data-i="diag_h">Architecture</span></h2>
-    <div class="h2-big" data-i="diag_big">Live data &amp; decision flow</div>
-    <p class="sub" data-i="diag_sub">How data and decisions traverse the fleet. Thin animated lines indicate direction; the risk gate is default-deny — <code>approved=false</code> is final.</p>
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-head">
+      <div class="eyebrow"><span class="live-dot"></span><span data-i="eyebrow">Live launchd fleet · force-directed</span></div>
+      <h1><span data-i="h1a">Agent </span><span class="acc" data-i="h1b">network</span></h1>
+      <p class="lede" data-i="lede">Every node is a deterministic launchd agent; every edge is a real interaction across the daily pipeline, risk layer and resilience plane.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="s-total">—</div><div class="l" data-i="st_total">Agents</div></div>
+      <div class="stat"><div class="n" id="s-ok" style="color:var(--acc)">—</div><div class="l" data-i="st_ok">Healthy</div></div>
+      <div class="stat"><div class="n" id="s-overall">—</div><div class="l" data-i="st_status">Status</div></div>
+    </div>
+    <div class="live-note" id="live-note" data-i="connecting">Connecting to live API…</div>
+  </div>
 
-    <div class="diagram">
-      <svg viewBox="0 0 1000 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="control plane architecture diagram">
-        <defs>
-          <linearGradient id="gAcc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f8f6b"/><stop offset="1" stop-color="#34d399"/></linearGradient>
-          <linearGradient id="gRisk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e5556b"/><stop offset="1" stop-color="#e5828f"/></linearGradient>
-          <linearGradient id="gMut" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4c525e"/><stop offset="1" stop-color="#727987"/></linearGradient>
-        </defs>
+  <!-- LEGEND -->
+  <div class="legend" id="legend"></div>
 
-        <!-- ===== plane bands (grouping) ===== -->
-        <rect class="plane-band" x="24" y="70" width="952" height="120" rx="14"/>
-        <text class="plane-tag" x="40" y="90">Daily pipeline</text>
-        <rect class="plane-band" x="24" y="210" width="600" height="120" rx="14"/>
-        <text class="plane-tag" x="40" y="230">Serve &amp; report</text>
-        <rect class="plane-band" x="648" y="210" width="328" height="120" rx="14"/>
-        <text class="plane-tag" x="664" y="230">Risk &amp; threat</text>
-        <rect class="plane-band" x="24" y="350" width="952" height="86" rx="14"/>
-        <text class="plane-tag" x="40" y="370">Resilience</text>
-        <rect class="plane-band" x="24" y="456" width="952" height="120" rx="14"/>
-        <text class="plane-tag" x="40" y="476">Tier-1 validation &amp; audit</text>
+  <!-- HINT -->
+  <div class="hint" id="hint"><b data-i="hint">drag nodes · click to inspect · scroll to zoom</b></div>
 
-        <!-- ===== CONNECTORS (under nodes): glow underlay + crisp dash ===== -->
-        <!-- pipeline -->
-        <path id="p1" class="flow glow" stroke="url(#gAcc)" d="M214,134 H300"/>
-        <path class="flow dash" stroke="url(#gAcc)" d="M214,134 H300"/>
-        <path id="p2" class="flow glow" stroke="url(#gAcc)" d="M520,134 H636"/>
-        <path class="flow dash" stroke="url(#gAcc)" d="M520,134 H636"/>
-        <path id="p4" class="flow glow" stroke="url(#gAcc)" d="M636,168 Q560,210 520,256"/>
-        <path class="flow dash" stroke="url(#gAcc)" d="M636,168 Q560,210 520,256"/>
-        <path id="p5" class="flow glow" stroke="url(#gAcc)" d="M300,272 H214"/>
-        <path class="flow dash" stroke="url(#gAcc)" d="M300,272 H214"/>
-        <!-- serve out -->
-        <path id="p7" class="flow glow" stroke="url(#gAcc)" d="M214,290 H300"/>
-        <path class="flow dash" stroke="url(#gAcc)" d="M214,290 H300"/>
-        <path id="p8" class="flow glow" stroke="url(#gAcc)" d="M520,290 H636 Q636,250 636,256"/>
-        <path class="flow dash" stroke="url(#gAcc)" d="M520,290 H636 Q636,250 636,256"/>
-        <!-- monitors -> threat -> risk gate -->
-        <path id="p9" class="flow glow" stroke="url(#gRisk)" d="M810,256 V210"/>
-        <path class="flow dash" stroke="url(#gRisk)" d="M810,256 V210"/>
-        <path id="p10" class="flow glow" stroke="url(#gRisk)" d="M745,210 Q745,170 720,150"/>
-        <path class="flow dash" stroke="url(#gRisk)" d="M745,210 Q745,170 720,150"/>
-        <!-- resilience -> fleet (broad) -->
-        <path id="p11" class="flow glow" stroke="url(#gMut)" d="M130,350 V322"/>
-        <path class="flow dash slow" stroke="url(#gMut)" d="M130,350 V322"/>
-        <path id="p12" class="flow glow" stroke="url(#gMut)" d="M130,436 V350"/>
-        <path class="flow dash slow" stroke="url(#gMut)" d="M130,436 V350"/>
-        <!-- tier1 chain -->
-        <path id="p13" class="flow glow" stroke="url(#gAcc)" d="M260,516 H360"/>
-        <path class="flow dash slow" stroke="url(#gAcc)" d="M260,516 H360"/>
-        <path id="p14" class="flow glow" stroke="url(#gAcc)" d="M560,516 H660"/>
-        <path class="flow dash slow" stroke="url(#gAcc)" d="M560,516 H660"/>
-        <!-- everything -> audit -->
-        <path id="p16" class="flow" stroke="url(#gMut)" stroke-dasharray="2 8" d="M740,310 V516 H880"/>
-
-        <!-- traveling pulse dots -->
-        <circle class="flow-dot" fill="#34d399"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#p1"/></animateMotion></circle>
-        <circle class="flow-dot" fill="#34d399"><animateMotion dur="2.2s" begin="0.6s" repeatCount="indefinite"><mpath href="#p2"/></animateMotion></circle>
-        <circle class="flow-dot" fill="#e5556b"><animateMotion dur="1.8s" begin="1.1s" repeatCount="indefinite"><mpath href="#p10"/></animateMotion></circle>
-        <circle class="flow-dot" fill="#34d399"><animateMotion dur="2.2s" begin="1.3s" repeatCount="indefinite"><mpath href="#p7"/></animateMotion></circle>
-        <circle class="flow-dot" fill="#e5828f"><animateMotion dur="2.6s" begin="0.4s" repeatCount="indefinite"><mpath href="#p9"/></animateMotion></circle>
-        <circle class="flow-dot" fill="#34d399"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#p13"/></animateMotion></circle>
-        <circle class="flow-dot" fill="#34d399"><animateMotion dur="3.2s" begin="1.1s" repeatCount="indefinite"><mpath href="#p14"/></animateMotion></circle>
-
-        <!-- ===== NODES ===== -->
-        <!-- pipeline row -->
-        <foreignObject x="40" y="104" width="174" height="62"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot" id="nd-adapt"></span><span data-i="n_adapt">Adapters</span></div>
-          <div class="nd" data-i="n_adapt_d">27 protocols, read-only → live APY/TVL</div></div></foreignObject>
-        <foreignObject x="300" y="104" width="220" height="62"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot ok"></span><span data-i="n_strat">Strategies S0–S77</span></div>
-          <div class="nd" data-i="n_strat_d">multi-strategy runner → allocator</div></div></foreignObject>
-        <foreignObject x="636" y="100" width="246" height="70"><div xmlns="http://www.w3.org/1999/xhtml" class="node gate">
-          <div class="nt"><span class="ndot" id="nd-risk"></span><span class="gly mono">[deny]</span><span data-i="n_risk">RiskPolicy gate</span></div>
-          <div class="nd" data-i="n_risk_d">Deterministic · LLM-forbidden · TVL≥$5M, caps, ≥5% cash. approved=false is final.</div></div></foreignObject>
-
-        <!-- serve & report row -->
-        <foreignObject x="40" y="242" width="174" height="62"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot" id="nd-api"></span><span data-i="n_api">API · :8765</span></div>
-          <div class="nd" data-i="n_api_d">FastAPI + cloudflared tunnel</div></div></foreignObject>
-        <foreignObject x="300" y="242" width="220" height="62"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot ok"></span><span data-i="n_rebal">Rebalance &amp; serve</span></div>
-          <div class="nd" data-i="n_rebal_d">$100k book → trades, equity, dashboard</div></div></foreignObject>
-        <foreignObject x="540" y="278" width="80" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="node">
-          <div class="nt"><span class="gly mono">tg</span><span data-i="n_tg">Telegram</span></div></div></foreignObject>
-
-        <!-- risk & threat plane -->
-        <foreignObject x="664" y="242" width="146" height="74"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot" id="nd-mon"></span><span data-i="n_mon">Monitors</span></div>
-          <div class="nd" data-i="n_mon_d">peg · red-flag · gov · gas · uptime</div></div></foreignObject>
-        <foreignObject x="826" y="242" width="146" height="74"><div xmlns="http://www.w3.org/1999/xhtml" class="node gate">
-          <div class="nt"><span class="ndot" id="nd-threat"></span><span class="gly mono">!</span><span data-i="n_threat">threat_reactor</span></div>
-          <div class="nd" data-i="n_threat_d">arms kill-switch intraday</div></div></foreignObject>
-
-        <!-- resilience plane -->
-        <foreignObject x="40" y="382" width="220" height="54"><div xmlns="http://www.w3.org/1999/xhtml" class="node">
-          <div class="nt"><span class="ndot" id="nd-heal"></span><span class="gly mono">+</span><span data-i="n_heal">self_heal · watchdog</span></div>
-          <div class="nd" data-i="n_heal_d">revive dead agents · guard the healer</div></div></foreignObject>
-        <foreignObject x="760" y="382" width="212" height="54"><div xmlns="http://www.w3.org/1999/xhtml" class="node">
-          <div class="nt" data-i="n_fleet">↻ entire fleet (~40 agents)</div></div></foreignObject>
-
-        <!-- tier-1 row -->
-        <foreignObject x="40" y="488" width="220" height="56"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot" id="nd-bt"></span><span data-i="n_bt">Tier-1 backtest</span></div>
-          <div class="nd" data-i="n_bt_d">real-data · net-of-cost · OOS</div></div></foreignObject>
-        <foreignObject x="360" y="488" width="200" height="56"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot ok"></span><span data-i="n_eval">Evaluator + gate</span></div>
-          <div class="nd" data-i="n_eval_d">Sharpe / PSR · capacity</div></div></foreignObject>
-        <foreignObject x="660" y="488" width="200" height="56"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot ok"></span><span data-i="n_pkg">Risk packages</span></div>
-          <div class="nd" data-i="n_pkg_d">conservative · balanced · aggressive</div></div></foreignObject>
-        <foreignObject x="828" y="546" width="144" height="54"><div xmlns="http://www.w3.org/1999/xhtml" class="node accent">
-          <div class="nt"><span class="ndot ok"></span><span class="gly mono">#</span><span data-i="n_audit">Audit chain</span></div>
-          <div class="nd" data-i="n_audit_d">hash-chain · verifiable NAV</div></div></foreignObject>
-      </svg>
-
-      <div class="legend">
-        <span><i style="background:linear-gradient(90deg,#1f8f6b,#34d399)"></i><span data-i="lg_pipe">daily pipeline</span></span>
-        <span><i style="background:linear-gradient(90deg,#e5556b,#e5828f)"></i><span data-i="lg_risk">risk / kill-switch</span></span>
-        <span><i style="background:linear-gradient(90deg,#4c525e,#727987)"></i><span data-i="lg_heal">monitoring / healing</span></span>
+  <!-- DETAIL PANEL -->
+  <div class="panel" id="panel">
+    <div class="ph">
+      <button class="pclose" onclick="SPA.deselect()" aria-label="close">×</button>
+      <div class="pcat"><span class="pdot" id="p-cat-dot"></span><span id="p-cat">—</span></div>
+      <div class="pid"><span class="pst" id="p-status"></span><span id="p-id">—</span></div>
+    </div>
+    <div class="pb">
+      <p class="prole" id="p-role">—</p>
+      <div class="meta">
+        <div class="m"><div class="mk" data-i="m_sched">Schedule</div><div class="mv" id="p-sched">—</div></div>
+        <div class="m"><div class="mk" data-i="m_status">Live status</div><div class="mv" id="p-status-txt">—</div></div>
       </div>
+      <div class="conn-h" data-i="conn_h">Connections</div>
+      <div class="conn" id="p-conn"></div>
     </div>
   </div>
-
-  <!-- FLEET -->
-  <div class="sec reveal">
-    <h2><span class="ix">02</span><span data-i="fleet_h">The fleet</span></h2>
-    <div class="h2-big" data-i="fleet_big">~40 agents, grouped by function</div>
-    <p class="sub" data-i="fleet_sub">Every agent is a deterministic launchd job. Hover any row for its role and schedule; status dots reflect live API health.</p>
-    <div class="grid" id="fleet"></div>
-  </div>
-
-  <!-- LIVE ATTENTION -->
-  <div class="sec reveal">
-    <h2><span class="ix">03</span><span data-i="attn_h">Live attention</span></h2>
-    <div class="h2-big" data-i="attn_big">What needs a look right now</div>
-    <div class="attn-box" id="live-agents"><p class="note" data-i="loading">Loading status from api.earn-defi.com…</p></div>
-  </div>
-
-  <footer>
-    <span data-i="footer">SPA — paper trading. Source of truth: live API api.earn-defi.com. This page is read-only and deterministic.</span>
-  </footer>
-</div>
 
 <script>
 window.SPA = (function(){
@@ -415,255 +275,621 @@ window.SPA = (function(){
   var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1')
     ? 'http://localhost:8765' : 'https://api.earn-defi.com';
 
-  /* ---------- i18n ---------- */
+  /* ===================== i18n ===================== */
   var T = {
     nav_home:["Overview","Обзор"], nav_dash:["Dashboard","Дашборд"],
     nav_pkg:["Packages","Пакеты"], nav_trn:["Tournament","Турнир"],
     nav_agents:["Agents","Агенты"], nav_ctrl:["Control","Control"],
-    eyebrow:["Autonomous · deterministic · 24/7 launchd fleet","Автономно · детерминированно · флот launchd 24/7"],
-    h1a:["The ","Этот "], h1b:["control plane","control plane"], h1c:[" behind SPA"," управляет SPA"],
-    lede:["~40 deterministic <b>launchd agents</b> on a single Mac mini operate the entire DeFi yield optimizer around the clock — adapters, strategies, a hard <b>risk gate</b>, virtual rebalancing, monitoring, self-healing and a verifiable audit chain. <b>No LLM</b> touches risk, execution or monitoring.",
-          "~40 детерминированных <b>launchd-агентов</b> на одном Mac mini управляют всем DeFi yield-оптимизатором 24/7 — адаптеры, стратегии, жёсткий <b>risk-гейт</b>, виртуальный ребаланс, мониторинг, самовосстановление и проверяемая audit-цепочка. <b>LLM не касается</b> risk, execution и monitoring."],
-    st_total:["Agents loaded","Агентов загружено"], st_ok:["Healthy","Healthy"],
-    st_status:["Fleet status","Статус флота"], st_cycle:["Last daily cycle","Последний цикл"],
+    eyebrow:["Live launchd fleet · force-directed","Живой флот launchd · force-directed"],
+    h1a:["Agent ","Сеть "], h1b:["network","агентов"],
+    lede:["Every node is a deterministic launchd agent; every edge is a real interaction across the daily pipeline, risk layer and resilience plane.",
+          "Каждый узел — детерминированный launchd-агент; каждое ребро — реальное взаимодействие в дневном пайплайне, risk-слое и плоскости resilience."],
+    st_total:["Agents","Агентов"], st_ok:["Healthy","Healthy"], st_status:["Status","Статус"],
     connecting:["Connecting to live API…","Подключение к live API…"],
-    diag_h:["Architecture","Архитектура"],
-    diag_big:["Live data & decision flow","Поток данных и решений"],
-    diag_sub:["How data and decisions traverse the fleet. Thin animated lines indicate direction; the risk gate is default-deny — <code>approved=false</code> is final.",
-              "Как данные и решения движутся по флоту. Тонкие линии показывают направление; risk-гейт — default-deny: <code>approved=false</code> окончателен."],
-    n_adapt:["Adapters","Адаптеры"], n_adapt_d:["27 protocols, read-only → live APY/TVL","27 протоколов, read-only → живой APY/TVL"],
-    n_strat:["Strategies S0–S77","Стратегии S0–S77"], n_strat_d:["multi-strategy runner → allocator","multi_strategy_runner → allocator"],
-    n_risk:["RiskPolicy gate","RiskPolicy gate"], n_risk_d:["Deterministic · LLM-forbidden · TVL≥$5M, caps, ≥5% cash. approved=false is final.","Детерминированный · LLM запрещён · TVL≥$5M, cap'ы, ≥5% кэш. approved=false окончателен."],
-    n_rebal:["Rebalance & serve","Ребаланс и выдача"], n_rebal_d:["$100k book → trades, equity, dashboard","Книга $100k → трейды, equity, дашборд"],
-    n_tg:["Telegram","Telegram"],
-    n_api:["API · :8765","API · :8765"], n_api_d:["FastAPI + cloudflared tunnel","FastAPI + cloudflared туннель"],
-    n_mon:["Monitors","Мониторы"], n_mon_d:["peg · red-flag · gov · gas · uptime","peg · red-flag · gov · газ · uptime"],
-    n_threat:["threat_reactor","threat_reactor"], n_threat_d:["arms kill-switch intraday","взводит kill-switch внутри дня"],
-    n_heal:["self_heal · watchdog","self_heal · watchdog"], n_heal_d:["revive dead agents · guard the healer","оживляет мёртвых агентов · сторожит healer"],
-    n_fleet:["↻ entire fleet (~40 agents)","↻ весь флот (~40 агентов)"],
-    n_bt:["Tier-1 backtest","Tier-1 backtest"], n_bt_d:["real-data · net-of-cost · OOS","реальные данные · net-of-cost · OOS"],
-    n_eval:["Evaluator + gate","Evaluator + gate"], n_eval_d:["Sharpe / PSR · capacity","Sharpe / PSR · capacity"],
-    n_pkg:["Risk packages","Risk-пакеты"], n_pkg_d:["conservative · balanced · aggressive","conservative · balanced · aggressive"],
-    n_audit:["Audit chain","Audit-цепочка"], n_audit_d:["hash-chain · verifiable NAV","hash-цепочка · проверяемый NAV"],
-    lg_pipe:["daily pipeline","дневной пайплайн"], lg_risk:["risk / kill-switch","risk / kill-switch"],
-    lg_heal:["monitoring / healing","мониторинг / healing"],
-    fleet_h:["The fleet","Флот"],
-    fleet_big:["~40 agents, grouped by function","~40 агентов по функциям"],
-    fleet_sub:["Every agent is a deterministic launchd job. Hover any row for its role and schedule; status dots reflect live API health.",
-               "Каждый агент — детерминированная задача launchd. Наведи на строку — роль и расписание; точки статуса из live API."],
-    attn_h:["Live attention","Требует внимания"],
-    attn_big:["What needs a look right now","Что требует внимания сейчас"],
-    loading:["Loading status from api.earn-defi.com…","Загрузка статуса из api.earn-defi.com…"],
-    footer:["SPA — paper trading. Source of truth: live API api.earn-defi.com. This page is read-only and deterministic.",
-            "SPA — paper trading. Источник истины: live API api.earn-defi.com. Страница read-only и детерминирована."],
+    hint:["drag nodes · click to inspect · scroll to zoom","тяни узлы · клик — детали · скролл — зум"],
+    m_sched:["Schedule","Расписание"], m_status:["Live status","Статус"],
+    conn_h:["Connections","Связи"],
+    live_from:["live","live"], updated:["updated","обновлено"],
+    offline:["Live API unavailable — tunnel offline.","Live API недоступен — туннель оффлайн."],
+    all_ok:["all healthy","все healthy"],
+    /* plane / category labels */
     cat_cycle:["Cycle engines","Движки циклов"], cat_mon:["Monitoring","Мониторинг"],
     cat_risk:["Risk / market","Риск / рынок"], cat_tier1:["Tier-1 validation","Tier-1 валидация"],
-    cat_report:["Reporting / Telegram","Отчёты / Telegram"], cat_heal:["Self-healing","Самовосстановление"],
-    cat_svc:["Services / infra","Сервисы / инфра"],
-    cd_cycle:["Run the daily paper cycle and strategy tournaments.","Запускают дневной paper-цикл и турниры стратегий."],
-    cd_mon:["Heartbeat, freshness and health sweeps across the fleet.","Heartbeat, свежесть и health-проходы по флоту."],
-    cd_risk:["Enforce invariants and arm the kill-switch on threats.","Соблюдают инварианты и взводят kill-switch при угрозах."],
-    cd_tier1:["Validate strategies and reconcile NAV.","Валидируют стратегии и сверяют NAV."],
-    cd_report:["Deliver digests and milestones to Telegram.","Доставляют дайджесты и milestone в Telegram."],
-    cd_heal:["Revive dead agents and recover missed cycles.","Оживляют мёртвых агентов и восстанавливают циклы."],
-    cd_svc:["Serve the API, tunnel, dashboard and push to GitHub.","Отдают API, туннель, дашборд и пушат в GitHub."],
-    all_ok:["All %N agents healthy.","Все %N агентов healthy."],
-    no_status:["Could not load live status — tunnel offline.","Не удалось загрузить статус — туннель оффлайн."],
-    live_from:["live","live"], updated:["updated","обновлено"], offline:["Live API unavailable — tunnel offline.","Live API недоступен — туннель оффлайн."]
+    cat_report:["Reporting","Отчёты"], cat_heal:["Self-healing","Самовосстановление"],
+    cat_svc:["Services / infra","Сервисы / инфра"], cat_core:["Core flow","Ядро потока"]
   };
 
-  /* schedules are language-neutral; roles bilingual [en,ru] */
-  var FLEET = [
-    {cat:"cat_cycle", desc:"cd_cycle", color:"#34d399", agents:[
-      {id:"com.spa.daily_cycle", sc:"08:00 UTC", r:["Canonical daily paper cycle: adapters → strategies → risk gate → rebalance → evidence.","Канонический дневной paper-цикл: адаптеры → стратегии → risk-гейт → ребаланс → evidence."]},
-      {id:"com.spa.hy_cycle", sc:"hourly", r:["High-yield / carry sleeve ($20k) — separate paper book on top of the $100k core.","HY/carry-sleeve ($20k) — отдельная paper-книга поверх ядра $100k."]},
-      {id:"com.spa.lp_cycle", sc:"hourly", r:["Liquidity-provision sleeve ($10k) — separate paper book accruing at live LP APY.","LP-sleeve ($10k) — отдельная paper-книга, доход по живому LP APY."]},
-      {id:"com.spa.tournament_engine", sc:"09:00 UTC", r:["Ranks 60 strategies by Sharpe; runs the backtest→paper→live promotion pipeline.","Ранжирует 60 стратегий по Sharpe; пайплайн backtest→paper→live."]},
-      {id:"com.spa.mass_tournament", sc:"daily", r:["Mass backtest tournament across the full strategy universe; refreshes Sharpe ranking.","Массовый backtest-турнир по всему набору стратегий; обновляет ranking."]}
-    ]},
-    {cat:"cat_mon", desc:"cd_mon", color:"#34d399", agents:[
-      {id:"com.spa.agent_health", sc:"hourly", r:["Heartbeat over every com.spa.* agent + system checks; the fleet's source of truth.","Heartbeat по всем com.spa.* агентам + системные проверки; источник истины флота."]},
-      {id:"com.spa.cycle_health", sc:"15 min", r:["Watches daily-cycle freshness against the equity curve; alerts on staleness.","Следит за свежестью дневного цикла по equity curve; алертит при застое."]},
-      {id:"com.spa.cycle_gap_monitor", sc:"5 min", r:["Tracks track-record continuity (gap monitor) toward the 30-day go-live target.","Отслеживает непрерывность трека к цели 30 дней go-live."]},
-      {id:"com.spa.uptime_monitor", sc:"5 min", r:["Probes the live API / tunnel uptime end-to-end.","Проверяет uptime live API / туннеля end-to-end."]},
-      {id:"com.spa.system_health_morning", sc:"08:30 UTC", r:["Morning E2E + semantic health sweep across 7 domains.","Утренний E2E + семантический health-проход по 7 доменам."]},
-      {id:"com.spa.system_health_evening", sc:"20:30 UTC", r:["Evening E2E + semantic health sweep across 7 domains.","Вечерний E2E + семантический health-проход по 7 доменам."]},
-      {id:"com.spa.system_briefing", sc:"30 min", r:["Regenerates SYSTEM_BRIEFING.md — the canonical operational snapshot.","Перегенерирует SYSTEM_BRIEFING.md — канонический операционный снимок."]},
-      {id:"com.spa.portfolio_monitor", sc:"5 min", r:["Watches portfolio health score, APY ceiling and concentration.","Следит за portfolio health score, потолком APY и концентрацией."]},
-      {id:"com.spa.dashboard_watcher", sc:"5 min", r:["Polls the live API and pushes Telegram alerts on agent/portfolio/API drift.","Опрашивает live API и шлёт Telegram-алерты при дрейфе."]}
-    ]},
-    {cat:"cat_risk", desc:"cd_risk", color:"#e5556b", agents:[
-      {id:"com.spa.rules_watchdog", sc:"5 min", r:["Enforces hard invariants (RULES.md); flags violations of the deterministic policy.","Следит за жёсткими инвариантами (RULES.md); флагует нарушения политики."]},
-      {id:"com.spa.red_flag_monitor", sc:"5 min", r:["Scans held protocols for red flags; held-protocol flags can arm the kill-switch.","Сканирует протоколы в портфеле на red flags; для held-протоколов может взвести kill-switch."]},
-      {id:"com.spa.peg_monitor", sc:"5 min", r:["Monitors stablecoin peg deviation across held assets.","Мониторит отклонение пега стейблов в портфеле."]},
-      {id:"com.spa.threat_reactor", sc:"5 min", r:["Auto-arms the kill-switch intraday on CRITICAL threats to held protocols.","Авто-взводит kill-switch внутри дня при CRITICAL-угрозах held-протоколам."]},
-      {id:"com.spa.sky_monitor", sc:"daily", r:["Checks Sky/sUSDS GSM Pause Delay on-chain; keeps APY at 0% until ≥48h confirmed.","Проверяет Sky/sUSDS GSM Pause Delay on-chain; держит APY 0% до ≥48h."]},
-      {id:"com.spa.governance_watcher", sc:"15 min", r:["Watches protocol governance proposals that could affect held positions.","Следит за governance-предложениями, влияющими на позиции."]},
-      {id:"com.spa.base_gas_monitor", sc:"daily", r:["Tracks Base L2 gas conditions affecting rebalance economics.","Отслеживает газ Base L2, влияющий на экономику ребаланса."]},
-      {id:"com.spa.bts-feed", sc:"mid-freq", r:["Behavioural / threat-signal feed ingest for the risk layer.","Приём behavioural / threat-signal фида для risk-слоя."]},
-      {id:"com.spa.bts-monitor", sc:"mid-freq", r:["Monitors the threat-signal feed and surfaces anomalies.","Мониторит threat-signal фид и выявляет аномалии."]}
-    ]},
-    {cat:"cat_tier1", desc:"cd_tier1", color:"#34d399", agents:[
-      {id:"com.spa.analytics_tier_b", sc:"mid-freq", r:["Tier-B analytics: deeper performance attribution & comparators.","Tier-B аналитика: глубокая attribution и сравнения."]},
-      {id:"com.spa.analytics_tier_c", sc:"daily", r:["Tier-C analytics: heavier daily aggregates and tear-sheets.","Tier-C аналитика: тяжёлые дневные агрегаты и tear-sheet."]},
-      {id:"com.spa.tier1_digest", sc:"daily", r:["Tier-1 digest: validation gate, NAV reconciliation and package status.","Tier-1 дайджест: gate валидации, сверка NAV, статус пакетов."]},
-      {id:"com.spa.tier1_governance", sc:"daily", r:["Tier-1 governance: default-deny policy table & dual-control posture.","Tier-1 governance: default-deny таблица политик и dual-control."]},
-      {id:"com.spa.checkpoint-7day", sc:"7-day", r:["Seven-day track-record checkpoint snapshot.","Чекпойнт трека каждые 7 дней."]}
-    ]},
-    {cat:"cat_report", desc:"cd_report", color:"#727987", agents:[
-      {id:"com.spa.morning_digest", sc:"08:05 UTC", r:["Morning operational digest to Telegram.","Утренний операционный дайджест в Telegram."]},
-      {id:"com.spa.telegram_daily", sc:"daily", r:["Consolidated daily paper-trading report (HTML, single send).","Сводный дневной paper-отчёт (HTML, один отправ)."]},
-      {id:"com.spa.telegram_weekly", sc:"Mon 10:00", r:["Weekly performance summary to Telegram.","Недельная сводка результатов в Telegram."]},
-      {id:"com.spa.telegram_milestone", sc:"hourly", r:["Fires Telegram alerts when track-record milestones are reached.","Шлёт Telegram-алерты при достижении milestone трека."]},
-      {id:"com.spa.cpa_daily", sc:"daily", r:["Daily performance-attribution report (CPA).","Дневной отчёт performance-attribution (CPA)."]}
-    ]},
-    {cat:"cat_heal", desc:"cd_heal", color:"#727987", agents:[
-      {id:"com.spa.self_heal", sc:"5 min", r:["Revives dead launchd agents and recovers missed daily cycles, deterministically.","Оживляет мёртвых launchd-агентов и восстанавливает пропущенные циклы."]},
-      {id:"com.spa.watchdog", sc:"5 min", r:["Guards the healer — restarts self_heal and core agents if they die.","Сторожит healer — перезапускает self_heal и ключевых агентов."]}
-    ]},
-    {cat:"cat_svc", desc:"cd_svc", color:"#727987", agents:[
-      {id:"com.spa.apiserver", sc:"always-on", r:["FastAPI server on :8765 serving /api/live/* and /api/tier1/*.","FastAPI-сервер на :8765, отдаёт /api/live/* и /api/tier1/*."]},
-      {id:"com.spa.httpserver", sc:"always-on", r:["Static/stdlib HTTP server fronting dashboard assets.","Статический stdlib HTTP-сервер для дашборда."]},
-      {id:"com.spa.cloudflared", sc:"always-on", r:["Cloudflare tunnel exposing api.earn-defi.com.","Cloudflare-туннель для api.earn-defi.com."]},
-      {id:"com.spa.familyfund", sc:"always-on", r:["Family Fund investor-cabinet API (:8766, JWT).","API кабинета инвестора Family Fund (:8766, JWT)."]},
-      {id:"com.spa.dashboard", sc:"always-on", r:["Dashboard service (:8767).","Сервис дашборда (:8767)."]},
-      {id:"com.spa.bot_commands", sc:"always-on", r:["Telegram command bot (interactive queries).","Telegram-бот команд (интерактивные запросы)."]},
-      {id:"com.spa.autopush", sc:"90 min", r:["Processes push_v*.sh scripts → commits to GitHub.","Обрабатывает push_v*.sh → коммиты в GitHub."]},
-      {id:"com.spa.weekly_backup", sc:"weekly", r:["Weekly state/data backup job.","Еженедельный бэкап состояния/данных."]}
-    ]}
+  /* ===================== AGENT MODEL =====================
+     Each agent: id, cat (plane), sc (schedule), r [en,ru] role.
+     A few synthetic "flow" anchor nodes (adapters, strategies, risk gate,
+     rebalance, audit) make the architecture legible — they are the real
+     pipeline stages the launchd agents act on. */
+  var CATS = {
+    cat_core:  {color:"#2dd4bf"},
+    cat_cycle: {color:"#2dd4bf"},
+    cat_mon:   {color:"#7dd3fc"},
+    cat_risk:  {color:"#e5556b"},
+    cat_tier1: {color:"#a78bfa"},
+    cat_report:{color:"#94a3b8"},
+    cat_heal:  {color:"#facc15"},
+    cat_svc:   {color:"#64748b"}
+  };
+
+  // flow anchors (pipeline stages) — larger, accented
+  var FLOW = [
+    {id:"adapters",   cat:"cat_core", flow:true, big:1.6, sc:"read-only",
+      r:["27 read-only protocol adapters → live APY/TVL feed.","27 read-only адаптеров протоколов → живой APY/TVL фид."]},
+    {id:"strategies", cat:"cat_core", flow:true, big:1.5, sc:"S0–S77",
+      r:["Multi-strategy runner S0–S77 → StrategyAllocator target weights.","multi_strategy_runner S0–S77 → целевые веса StrategyAllocator."]},
+    {id:"risk_gate",  cat:"cat_risk", flow:true, big:1.8, gate:true, sc:"deterministic",
+      r:["Deterministic RiskPolicy gate — LLM-forbidden. TVL≥$5M, caps, ≥5% cash. approved=false is final.",
+         "Детерминированный RiskPolicy gate — LLM запрещён. TVL≥$5M, cap'ы, ≥5% кэш. approved=false окончателен."]},
+    {id:"rebalance",  cat:"cat_core", flow:true, big:1.5, sc:"$100k book",
+      r:["Virtual rebalance of the $100k book → trades, equity curve, NAV.","Виртуальный ребаланс книги $100k → трейды, equity curve, NAV."]},
+    {id:"audit_nav",  cat:"cat_core", flow:true, big:1.5, sc:"hash-chain",
+      r:["Hash-chained audit trail & verifiable NAV — terminal sink of the fleet.","Hash-цепочка audit trail и проверяемый NAV — терминальный сток флота."]}
   ];
 
+  // launchd agents
+  var AGENTS = [
+    /* cycle engines */
+    {id:"com.spa.daily_cycle", cat:"cat_cycle", sc:"08:00 UTC", r:["Canonical daily paper cycle: adapters → strategies → risk gate → rebalance → evidence.","Канонический дневной paper-цикл: адаптеры → стратегии → risk-гейт → ребаланс → evidence."]},
+    {id:"com.spa.hy_cycle", cat:"cat_cycle", sc:"hourly", r:["High-yield / carry sleeve ($20k) — separate paper book on top of the $100k core.","HY/carry-sleeve ($20k) — отдельная paper-книга поверх ядра $100k."]},
+    {id:"com.spa.lp_cycle", cat:"cat_cycle", sc:"hourly", r:["Liquidity-provision sleeve ($10k) — separate paper book accruing at live LP APY.","LP-sleeve ($10k) — отдельная paper-книга, доход по живому LP APY."]},
+    {id:"com.spa.tournament_engine", cat:"cat_cycle", sc:"09:00 UTC", r:["Ranks 60 strategies by Sharpe; runs the backtest→paper→live promotion pipeline.","Ранжирует 60 стратегий по Sharpe; пайплайн backtest→paper→live."]},
+    {id:"com.spa.mass_tournament", cat:"cat_cycle", sc:"daily", r:["Mass backtest tournament across the full strategy universe; refreshes Sharpe ranking.","Массовый backtest-турнир по всему набору стратегий; обновляет ranking."]},
+    /* monitoring */
+    {id:"com.spa.agent_health", cat:"cat_mon", sc:"hourly", r:["Heartbeat over every com.spa.* agent + system checks; the fleet's source of truth.","Heartbeat по всем com.spa.* агентам + системные проверки; источник истины флота."]},
+    {id:"com.spa.cycle_health", cat:"cat_mon", sc:"15 min", r:["Watches daily-cycle freshness against the equity curve; alerts on staleness.","Следит за свежестью дневного цикла по equity curve; алертит при застое."]},
+    {id:"com.spa.cycle_gap_monitor", cat:"cat_mon", sc:"5 min", r:["Tracks track-record continuity (gap monitor) toward the 30-day go-live target.","Отслеживает непрерывность трека к цели 30 дней go-live."]},
+    {id:"com.spa.uptime_monitor", cat:"cat_mon", sc:"5 min", r:["Probes the live API / tunnel uptime end-to-end.","Проверяет uptime live API / туннеля end-to-end."]},
+    {id:"com.spa.system_health_morning", cat:"cat_mon", sc:"08:30 UTC", r:["Morning E2E + semantic health sweep across 7 domains.","Утренний E2E + семантический health-проход по 7 доменам."]},
+    {id:"com.spa.system_health_evening", cat:"cat_mon", sc:"20:30 UTC", r:["Evening E2E + semantic health sweep across 7 domains.","Вечерний E2E + семантический health-проход по 7 доменам."]},
+    {id:"com.spa.system_briefing", cat:"cat_mon", sc:"30 min", r:["Regenerates SYSTEM_BRIEFING.md — the canonical operational snapshot.","Перегенерирует SYSTEM_BRIEFING.md — канонический операционный снимок."]},
+    {id:"com.spa.portfolio_monitor", cat:"cat_mon", sc:"5 min", r:["Watches portfolio health score, APY ceiling and concentration.","Следит за portfolio health score, потолком APY и концентрацией."]},
+    {id:"com.spa.dashboard_watcher", cat:"cat_mon", sc:"5 min", r:["Polls the live API and pushes Telegram alerts on agent/portfolio/API drift.","Опрашивает live API и шлёт Telegram-алерты при дрейфе."]},
+    /* risk / market */
+    {id:"com.spa.rules_watchdog", cat:"cat_risk", sc:"5 min", r:["Enforces hard invariants (RULES.md); flags violations of the deterministic policy.","Следит за жёсткими инвариантами (RULES.md); флагует нарушения политики."]},
+    {id:"com.spa.red_flag_monitor", cat:"cat_risk", sc:"5 min", r:["Scans held protocols for red flags; held-protocol flags can arm the kill-switch.","Сканирует протоколы в портфеле на red flags; для held-протоколов может взвести kill-switch."]},
+    {id:"com.spa.peg_monitor", cat:"cat_risk", sc:"5 min", r:["Monitors stablecoin peg deviation across held assets.","Мониторит отклонение пега стейблов в портфеле."]},
+    {id:"com.spa.threat_reactor", cat:"cat_risk", sc:"5 min", r:["Auto-arms the kill-switch intraday on CRITICAL threats to held protocols.","Авто-взводит kill-switch внутри дня при CRITICAL-угрозах held-протоколам."]},
+    {id:"com.spa.sky_monitor", cat:"cat_risk", sc:"daily", r:["Checks Sky/sUSDS GSM Pause Delay on-chain; keeps APY at 0% until ≥48h confirmed.","Проверяет Sky/sUSDS GSM Pause Delay on-chain; держит APY 0% до ≥48h."]},
+    {id:"com.spa.governance_watcher", cat:"cat_risk", sc:"15 min", r:["Watches protocol governance proposals that could affect held positions.","Следит за governance-предложениями, влияющими на позиции."]},
+    {id:"com.spa.base_gas_monitor", cat:"cat_risk", sc:"daily", r:["Tracks Base L2 gas conditions affecting rebalance economics.","Отслеживает газ Base L2, влияющий на экономику ребаланса."]},
+    {id:"com.spa.bts-feed", cat:"cat_risk", sc:"mid-freq", r:["Behavioural / threat-signal feed ingest for the risk layer.","Приём behavioural / threat-signal фида для risk-слоя."]},
+    {id:"com.spa.bts-monitor", cat:"cat_risk", sc:"mid-freq", r:["Monitors the threat-signal feed and surfaces anomalies.","Мониторит threat-signal фид и выявляет аномалии."]},
+    /* tier-1 validation */
+    {id:"com.spa.analytics_tier_b", cat:"cat_tier1", sc:"mid-freq", r:["Tier-B analytics: deeper performance attribution & comparators.","Tier-B аналитика: глубокая attribution и сравнения."]},
+    {id:"com.spa.analytics_tier_c", cat:"cat_tier1", sc:"daily", r:["Tier-C analytics: heavier daily aggregates and tear-sheets.","Tier-C аналитика: тяжёлые дневные агрегаты и tear-sheet."]},
+    {id:"com.spa.tier1_digest", cat:"cat_tier1", sc:"daily", r:["Tier-1 digest: validation gate, NAV reconciliation and package status.","Tier-1 дайджест: gate валидации, сверка NAV, статус пакетов."]},
+    {id:"com.spa.tier1_governance", cat:"cat_tier1", sc:"daily", r:["Tier-1 governance: default-deny policy table & dual-control posture.","Tier-1 governance: default-deny таблица политик и dual-control."]},
+    {id:"com.spa.checkpoint-7day", cat:"cat_tier1", sc:"7-day", r:["Seven-day track-record checkpoint snapshot.","Чекпойнт трека каждые 7 дней."]},
+    /* reporting */
+    {id:"com.spa.morning_digest", cat:"cat_report", sc:"08:05 UTC", r:["Morning operational digest to Telegram.","Утренний операционный дайджест в Telegram."]},
+    {id:"com.spa.telegram_daily", cat:"cat_report", sc:"daily", r:["Consolidated daily paper-trading report (HTML, single send).","Сводный дневной paper-отчёт (HTML, один отправ)."]},
+    {id:"com.spa.telegram_weekly", cat:"cat_report", sc:"Mon 10:00", r:["Weekly performance summary to Telegram.","Недельная сводка результатов в Telegram."]},
+    {id:"com.spa.telegram_milestone", cat:"cat_report", sc:"hourly", r:["Fires Telegram alerts when track-record milestones are reached.","Шлёт Telegram-алерты при достижении milestone трека."]},
+    {id:"com.spa.cpa_daily", cat:"cat_report", sc:"daily", r:["Daily performance-attribution report (CPA).","Дневной отчёт performance-attribution (CPA)."]},
+    /* self-healing */
+    {id:"com.spa.self_heal", cat:"cat_heal", sc:"5 min", r:["Revives dead launchd agents and recovers missed daily cycles, deterministically.","Оживляет мёртвых launchd-агентов и восстанавливает пропущенные циклы."]},
+    {id:"com.spa.watchdog", cat:"cat_heal", sc:"5 min", r:["Guards the healer — restarts self_heal and core agents if they die.","Сторожит healer — перезапускает self_heal и ключевых агентов."]},
+    /* services */
+    {id:"com.spa.apiserver", cat:"cat_svc", sc:"always-on", r:["FastAPI server on :8765 serving /api/live/* and /api/tier1/*.","FastAPI-сервер на :8765, отдаёт /api/live/* и /api/tier1/*."]},
+    {id:"com.spa.httpserver", cat:"cat_svc", sc:"always-on", r:["Static/stdlib HTTP server fronting dashboard assets.","Статический stdlib HTTP-сервер для дашборда."]},
+    {id:"com.spa.cloudflared", cat:"cat_svc", sc:"always-on", r:["Cloudflare tunnel exposing api.earn-defi.com.","Cloudflare-туннель для api.earn-defi.com."]},
+    {id:"com.spa.familyfund", cat:"cat_svc", sc:"always-on", r:["Family Fund investor-cabinet API (:8766, JWT).","API кабинета инвестора Family Fund (:8766, JWT)."]},
+    {id:"com.spa.dashboard", cat:"cat_svc", sc:"always-on", r:["Dashboard service (:8767).","Сервис дашборда (:8767)."]},
+    {id:"com.spa.bot_commands", cat:"cat_svc", sc:"always-on", r:["Telegram command bot (interactive queries).","Telegram-бот команд (интерактивные запросы)."]},
+    {id:"com.spa.autopush", cat:"cat_svc", sc:"90 min", r:["Processes push_v*.sh scripts → commits to GitHub.","Обрабатывает push_v*.sh → коммиты в GitHub."]},
+    {id:"com.spa.weekly_backup", cat:"cat_svc", sc:"weekly", r:["Weekly state/data backup job.","Еженедельный бэкап состояния/данных."]}
+  ];
+
+  var NODES = FLOW.concat(AGENTS);
+  var NODE_BY_ID = {}; NODES.forEach(function(n){ NODE_BY_ID[n.id]=n; });
+
+  /* ===================== EDGES (real interactions) =====================
+     kind: 'pipe' (daily flow), 'risk' (risk/kill-switch), 'heal', 'serve',
+     'mon' (observation), 'audit'. */
+  var L = [];
+  function e(s,t,kind){ if(NODE_BY_ID[s]&&NODE_BY_ID[t]) L.push({source:s,target:t,kind:kind}); }
+
+  // --- core daily pipeline ---
+  e("adapters","strategies","pipe");
+  e("strategies","risk_gate","pipe");
+  e("risk_gate","rebalance","pipe");
+  e("rebalance","audit_nav","pipe");
+  e("com.spa.daily_cycle","adapters","pipe");
+  e("com.spa.daily_cycle","strategies","pipe");
+  e("com.spa.daily_cycle","risk_gate","pipe");
+  e("com.spa.daily_cycle","rebalance","pipe");
+  e("com.spa.hy_cycle","rebalance","pipe");
+  e("com.spa.lp_cycle","rebalance","pipe");
+  e("com.spa.tournament_engine","strategies","pipe");
+  e("com.spa.mass_tournament","strategies","pipe");
+  e("com.spa.tournament_engine","com.spa.mass_tournament","pipe");
+
+  // --- monitoring observes the pipeline ---
+  e("com.spa.cycle_health","com.spa.daily_cycle","mon");
+  e("com.spa.cycle_gap_monitor","com.spa.daily_cycle","mon");
+  e("com.spa.portfolio_monitor","rebalance","mon");
+  e("com.spa.agent_health","com.spa.daily_cycle","mon");
+  e("com.spa.agent_health","com.spa.self_heal","mon");
+  e("com.spa.agent_health","com.spa.apiserver","mon");
+  e("com.spa.system_briefing","com.spa.agent_health","mon");
+  e("com.spa.system_health_morning","com.spa.apiserver","mon");
+  e("com.spa.system_health_evening","com.spa.apiserver","mon");
+  e("com.spa.uptime_monitor","com.spa.apiserver","mon");
+  e("com.spa.uptime_monitor","com.spa.cloudflared","mon");
+  e("com.spa.dashboard_watcher","com.spa.apiserver","mon");
+
+  // --- risk / market monitors → threat_reactor → risk gate ---
+  e("com.spa.red_flag_monitor","com.spa.threat_reactor","risk");
+  e("com.spa.peg_monitor","com.spa.threat_reactor","risk");
+  e("com.spa.governance_watcher","com.spa.threat_reactor","risk");
+  e("com.spa.bts-monitor","com.spa.threat_reactor","risk");
+  e("com.spa.bts-feed","com.spa.bts-monitor","risk");
+  e("com.spa.threat_reactor","risk_gate","risk");
+  e("com.spa.rules_watchdog","risk_gate","risk");
+  e("com.spa.sky_monitor","adapters","risk");
+  e("com.spa.base_gas_monitor","rebalance","risk");
+  e("com.spa.red_flag_monitor","rebalance","mon");
+  e("com.spa.peg_monitor","rebalance","mon");
+
+  // --- self-healing covers the fleet ---
+  e("com.spa.self_heal","com.spa.daily_cycle","heal");
+  e("com.spa.self_heal","com.spa.apiserver","heal");
+  e("com.spa.self_heal","com.spa.threat_reactor","heal");
+  e("com.spa.self_heal","com.spa.tournament_engine","heal");
+  e("com.spa.watchdog","com.spa.self_heal","heal");
+  e("com.spa.watchdog","com.spa.apiserver","heal");
+
+  // --- tier-1 validation chain ---
+  e("com.spa.analytics_tier_b","com.spa.tier1_digest","pipe");
+  e("com.spa.analytics_tier_c","com.spa.tier1_digest","pipe");
+  e("com.spa.tier1_digest","com.spa.tier1_governance","pipe");
+  e("com.spa.tier1_governance","risk_gate","risk");
+  e("com.spa.tier1_digest","audit_nav","audit");
+  e("com.spa.checkpoint-7day","audit_nav","audit");
+  e("com.spa.analytics_tier_b","rebalance","mon");
+
+  // --- services serve + report ---
+  e("rebalance","com.spa.apiserver","serve");
+  e("audit_nav","com.spa.apiserver","serve");
+  e("com.spa.apiserver","com.spa.cloudflared","serve");
+  e("com.spa.apiserver","com.spa.httpserver","serve");
+  e("com.spa.apiserver","com.spa.dashboard","serve");
+  e("com.spa.apiserver","com.spa.familyfund","serve");
+  e("com.spa.bot_commands","com.spa.apiserver","serve");
+  e("com.spa.autopush","audit_nav","serve");
+  e("com.spa.weekly_backup","audit_nav","serve");
+
+  // --- reporting taps NAV/portfolio ---
+  e("com.spa.morning_digest","rebalance","mon");
+  e("com.spa.telegram_daily","rebalance","mon");
+  e("com.spa.telegram_weekly","rebalance","mon");
+  e("com.spa.telegram_milestone","audit_nav","mon");
+  e("com.spa.cpa_daily","rebalance","mon");
+
+  // --- everything important ends at audit ---
+  e("risk_gate","audit_nav","audit");
+  e("com.spa.threat_reactor","audit_nav","audit");
+
+  var EDGE_COLOR = {
+    pipe:"#2dd4bf", risk:"#e5556b", heal:"#facc15",
+    serve:"#64748b", mon:"#7dd3fc", audit:"#a78bfa"
+  };
+
+  /* adjacency for highlight + panel */
+  var ADJ = {}; NODES.forEach(function(n){ ADJ[n.id]={out:[],in:[]}; });
+  L.forEach(function(l){ ADJ[l.source].out.push(l); ADJ[l.target].in.push(l); });
+
+  /* ===================== language state ===================== */
   var lang = (function(){ try{ return localStorage.getItem('spa_lang')||'en'; }catch(e){ return 'en'; } })();
   if(lang!=='ru') lang='en';
-
   function ix(){ return lang==='ru'?1:0; }
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function shortName(id){ return id.replace(/^com\.spa\./,''); }
   function applyStatic(){
     document.documentElement.lang = lang;
-    var els = document.querySelectorAll('[data-i]');
-    for(var i=0;i<els.length;i++){
-      var k = els[i].getAttribute('data-i');
-      if(T[k]) els[i].innerHTML = T[k][ix()];
-    }
+    document.querySelectorAll('[data-i]').forEach(function(el){
+      var k = el.getAttribute('data-i'); if(T[k]) el.innerHTML = T[k][ix()];
+    });
     document.getElementById('lang-en').className = lang==='en'?'on':'';
     document.getElementById('lang-ru').className = lang==='ru'?'on':'';
   }
-
   function setLang(l){
     lang = (l==='ru')?'ru':'en';
     try{ localStorage.setItem('spa_lang', lang); }catch(e){}
-    applyStatic();
-    renderFleet();
+    applyStatic(); buildLegend(); relabel();
+    if(selected) openPanel(selected);
     if(LAST) paint(LAST);
   }
 
-  /* ---------- fleet render ---------- */
-  var STATUS = {}; // label -> {status, issue}
-  function shortName(id){ return id.replace(/^com\.spa\./,''); }
-  function renderFleet(){
-    var host = document.getElementById('fleet'); if(!host) return;
-    var html = '';
-    for(var c=0;c<FLEET.length;c++){
-      var grp = FLEET[c];
-      html += '<div class="g"><h3><span class="gdot" style="background:'+grp.color+';box-shadow:0 0 8px '+grp.color+'"></span>'+
-              esc(T[grp.cat][ix()])+'<span class="cnt">'+grp.agents.length+'</span></h3>'+
-              '<p class="gdesc">'+esc(T[grp.desc][ix()])+'</p>';
-      for(var a=0;a<grp.agents.length;a++){
-        var ag = grp.agents[a];
-        var st = STATUS[ag.id];
-        var sc = st ? clsOf(st.status) : '';
-        var nm = shortName(ag.id);
-        var issue = (st && st.issue) ? ' · '+esc(st.issue) : '';
-        html += '<div class="ag" tabindex="0">'+
-          '<span class="st '+sc+'"></span>'+
-          '<span class="nm">'+esc(nm)+'</span>'+
-          '<span class="sc">'+esc(ag.sc)+'</span>'+
-          '<div class="tip"><b>'+esc(nm)+'</b>'+esc(ag.r[ix()])+
-            '<span class="sch">'+esc(ag.sc)+(st?(' · '+esc(st.status)+issue):'')+'</span></div>'+
-        '</div>';
-      }
-      html += '</div>';
-    }
-    host.innerHTML = html;
+  /* ===================== status ===================== */
+  var STATUS = {}; // id -> {status, issue}
+  function clsOf(s){ s=(s||'').toUpperCase(); return s.indexOf('CRIT')>=0?'crit':s.indexOf('WARN')>=0?'warn':(s?'ok':''); }
+  var STATUS_COLOR = {ok:"var(--ok)",warn:"var(--warn)",crit:"var(--crit)"};
+  var RING = {ok:"#2dd4bf",warn:"#e2b04a",crit:"#e5556b",unknown:"#3a4049"};
+  function nodeStatusClass(id){
+    var st = STATUS[id]; if(!st) return 'ok';   // flow anchors / unknown → ok by default
+    return clsOf(st.status)||'ok';
   }
 
-  function clsOf(s){ s=(s||'').toUpperCase(); return s.indexOf('CRIT')>=0?'crit':s.indexOf('WARN')>=0?'warn':(s?'ok':''); }
-  function txt(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
-  function dot(id,c){ var e=document.getElementById(id); if(e) e.className='ndot '+c; }
+  /* ===================== D3 FORCE GRAPH ===================== */
+  var svg = d3.select("#net");
+  var W = window.innerWidth, H = window.innerHeight - 57;
+  var root = svg.append("g");                 // zoom container
+  var gLink = root.append("g");
+  var gPart = root.append("g");
+  var gPlane = root.append("g");
+  var gNode = root.append("g");
 
-  /* ---------- live ---------- */
+  // radial cluster anchors per plane → keeps groups apart, avoids hairball
+  var PLANE_ORDER = ["cat_core","cat_cycle","cat_mon","cat_risk","cat_tier1","cat_report","cat_heal","cat_svc"];
+  var PLANE_ANGLE = {};
+  PLANE_ORDER.forEach(function(c,i){ PLANE_ANGLE[c] = (i/PLANE_ORDER.length)*2*Math.PI - Math.PI/2; });
+
+  function clusterPos(){
+    var cx=W/2, cy=H/2, R=Math.min(W,H)*0.33;
+    var fx={}, fy={};
+    PLANE_ORDER.forEach(function(c){
+      if(c==="cat_core"){ fx[c]=cx; fy[c]=cy; return; }   // core flow at the center
+      var a=PLANE_ANGLE[c];
+      fx[c]=cx+Math.cos(a)*R; fy[c]=cy+Math.sin(a)*R;
+    });
+    return {fx:fx,fy:fy};
+  }
+  var CP = clusterPos();
+
+  NODES.forEach(function(n){
+    n.x = CP.fx[n.cat] + (Math.random()-0.5)*60;
+    n.y = CP.fy[n.cat] + (Math.random()-0.5)*60;
+    n.rad = n.flow ? (n.big? n.big*9 : 12) : 6.5;
+  });
+
+  // links: shorter for pipeline (tight backbone), longer for loose monitors
+  function linkDist(l){
+    var s=NODE_BY_ID[l.source.id||l.source], t=NODE_BY_ID[l.target.id||l.target];
+    if(s.flow && t.flow) return 95;
+    if(l.kind==='mon') return 130;
+    return 78;
+  }
+  function linkStr(l){
+    if(l.kind==='pipe'||l.kind==='risk') return 0.6;
+    return 0.25;
+  }
+
+  var sim = d3.forceSimulation(NODES)
+    .force("link", d3.forceLink(L).id(function(d){return d.id;}).distance(linkDist).strength(linkStr))
+    .force("charge", d3.forceManyBody().strength(function(d){return d.flow?-680:-260;}).distanceMax(520))
+    .force("collide", d3.forceCollide().radius(function(d){return d.rad+11;}).strength(0.9))
+    .force("x", d3.forceX(function(d){return CP.fx[d.cat];}).strength(function(d){return d.flow?0.02:0.11;}))
+    .force("y", d3.forceY(function(d){return CP.fy[d.cat];}).strength(function(d){return d.flow?0.02:0.11;}))
+    .force("center", d3.forceCenter(W/2, H/2).strength(0.04))
+    .velocityDecay(0.32)
+    .alphaDecay(0.022);
+
+  /* ----- links ----- */
+  var linkSel = gLink.selectAll("g.lk").data(L).enter().append("g").attr("class","lk");
+  linkSel.append("path").attr("class","link")
+    .attr("stroke", function(d){return EDGE_COLOR[d.kind];})
+    .attr("stroke-width", function(d){return (d.kind==='pipe'||d.kind==='risk')?1.4:0.9;})
+    .attr("stroke-opacity", function(d){return (d.kind==='pipe'||d.kind==='risk')?0.34:0.15;})
+    .attr("stroke-dasharray", function(d){return (d.kind==='mon'||d.kind==='serve')?"2 6":null;});
+  // invisible thick hit-path for hover
+  linkSel.append("path").attr("class","link-hit")
+    .on("mouseover", function(ev,d){ hoverNode(d.source.id, d.target.id); })
+    .on("mouseout", function(){ if(!selected) clearHover(); });
+
+  /* ----- traveling particles on active flow links ----- */
+  var flowLinks = L.filter(function(l){ return l.kind==='pipe'||l.kind==='risk'||l.kind==='heal'; });
+  var partSel = gPart.selectAll("circle.particle").data(flowLinks).enter().append("circle")
+    .attr("class","particle")
+    .attr("r", function(d){return d.kind==='risk'?2.4:2.2;})
+    .attr("fill", function(d){return EDGE_COLOR[d.kind];})
+    .attr("opacity",0.9)
+    .each(function(d){ d._t = Math.random(); d._spd = 0.0016 + Math.random()*0.0016; });
+
+  /* ----- plane labels ----- */
+  var planeSel = gPlane.selectAll("text").data(PLANE_ORDER.filter(function(c){return c!=='cat_core';}))
+    .enter().append("text").attr("class","plane-label")
+    .attr("text-anchor","middle")
+    .text(function(c){return T[c][ix()];});
+
+  /* ----- nodes ----- */
+  var nodeSel = gNode.selectAll("g.node-g").data(NODES).enter().append("g")
+    .attr("class","node-g")
+    .call(d3.drag()
+      .on("start", dragStart).on("drag", dragMove).on("end", dragEnd))
+    .on("mouseover", function(ev,d){ if(!selected) hoverNode(d.id); })
+    .on("mouseout", function(){ if(!selected) clearHover(); })
+    .on("click", function(ev,d){ ev.stopPropagation(); selectNode(d.id); });
+
+  // status ring (outer)
+  nodeSel.append("circle").attr("class","status-ring")
+    .attr("r", function(d){return d.rad+4.5;})
+    .attr("stroke-width", 1.6);
+
+  // glow halo
+  nodeSel.append("circle").attr("class","node-halo")
+    .attr("r", function(d){return d.rad+2;})
+    .attr("fill","none");
+
+  // core circle
+  nodeSel.append("circle").attr("class","node-core")
+    .attr("r", function(d){return d.rad;})
+    .attr("fill", function(d){ return d.gate? "rgba(229,85,107,.16)" : nodeFill(d); })
+    .attr("stroke", function(d){ return CATS[d.cat].color; })
+    .attr("stroke-width", function(d){return d.flow?1.8:1.3;})
+    .attr("stroke-opacity", function(d){return d.flow?0.95:0.7;});
+
+  // gate inner mark
+  nodeSel.filter(function(d){return d.gate;}).append("text")
+    .attr("text-anchor","middle").attr("dy","0.34em")
+    .attr("font-family","JetBrains Mono, monospace").attr("font-size","11px")
+    .attr("fill","#ffd9df").attr("pointer-events","none").text("✖");
+
+  // labels
+  nodeSel.append("text").attr("class","node-label")
+    .attr("text-anchor","middle")
+    .attr("dy", function(d){return d.rad + 13;})
+    .classed("mono", function(d){return !d.flow;})
+    .text(function(d){return labelOf(d);});
+
+  function labelOf(d){ return d.flow ? d.id.replace(/_/g," ") : shortName(d.id); }
+  function relabel(){
+    planeSel.text(function(c){return T[c][ix()];});
+  }
+  function nodeFill(d){
+    var c = CATS[d.cat].color;
+    return d.flow ? hexA(c,0.18) : hexA(c,0.12);
+  }
+  function hexA(hex,a){
+    var h=hex.replace('#',''); var r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);
+    return 'rgba('+r+','+g+','+b+','+a+')';
+  }
+
+  function applyStatusVisuals(){
+    nodeSel.select(".status-ring")
+      .attr("stroke", function(d){ var k=nodeStatusClass(d.id); return RING[k]||RING.unknown; })
+      .attr("stroke-opacity", function(d){ return STATUS[d.id]?0.85:0.4; });
+    nodeSel.select(".node-core")
+      .attr("filter", function(d){
+        var k=nodeStatusClass(d.id);
+        return k==='crit' ? "url(#glowCrit)" : (d.flow?"url(#glowAcc)":null);
+      });
+  }
+
+  /* ----- defs (glow filters) ----- */
+  var defs = svg.append("defs");
+  function glow(id,color,dev){
+    var f=defs.append("filter").attr("id",id).attr("x","-80%").attr("y","-80%").attr("width","260%").attr("height","260%");
+    f.append("feGaussianBlur").attr("stdDeviation",dev).attr("result","b");
+    var m=f.append("feMerge"); m.append("feMergeNode").attr("in","b"); m.append("feMergeNode").attr("in","SourceGraphic");
+  }
+  glow("glowAcc","#2dd4bf",2.4);
+  glow("glowCrit","#e5556b",3);
+
+  /* ----- ticking ----- */
+  sim.on("tick", function(){
+    linkSel.selectAll("path").attr("d", function(d){
+      return "M"+d.source.x+","+d.source.y+" L"+d.target.x+","+d.target.y;
+    });
+    nodeSel.attr("transform", function(d){
+      d.x=Math.max(d.rad+8,Math.min(W-d.rad-8,d.x));
+      d.y=Math.max(d.rad+8,Math.min(H-d.rad-8,d.y));
+      return "translate("+d.x+","+d.y+")";
+    });
+    positionPlaneLabels();
+  });
+
+  function positionPlaneLabels(){
+    var cx=W/2, cy=H/2, R=Math.min(W,H)*0.33 + 46;
+    planeSel.attr("x", function(c){ return cx+Math.cos(PLANE_ANGLE[c])*R; })
+            .attr("y", function(c){ return cy+Math.sin(PLANE_ANGLE[c])*R; });
+  }
+
+  /* ----- particle animation (independent rAF, follows links) ----- */
+  function lerp(a,b,t){return a+(b-a)*t;}
+  d3.timer(function(){
+    partSel.each(function(d){
+      d._t += d._spd; if(d._t>1) d._t-=1;
+      var s=d.source, t=d.target;
+      d3.select(this).attr("cx", lerp(s.x,t.x,d._t)).attr("cy", lerp(s.y,t.y,d._t));
+    });
+  });
+
+  /* ----- drag ----- */
+  function dragStart(ev,d){ if(!ev.active) sim.alphaTarget(0.22).restart(); d.fx=d.x; d.fy=d.y; fadeHint(); }
+  function dragMove(ev,d){ d.fx=ev.x; d.fy=ev.y; }
+  function dragEnd(ev,d){ if(!ev.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }
+
+  /* ----- zoom ----- */
+  var zoom = d3.zoom().scaleExtent([0.45,3.2]).on("zoom", function(ev){
+    root.attr("transform", ev.transform);
+  });
+  svg.call(zoom).on("dblclick.zoom", null);
+  svg.on("click", function(){ deselect(); });
+
+  /* ===================== highlight / selection ===================== */
+  var selected = null;
+
+  function neighbors(id){
+    var set={}; set[id]=true;
+    ADJ[id].out.forEach(function(l){ set[l.target.id]=true; });
+    ADJ[id].in.forEach(function(l){ set[l.source.id]=true; });
+    return set;
+  }
+  function hoverNode(idA, idB){
+    var hot={}; hot[idA]=true; if(idB) hot[idB]=true;
+    if(!idB){ hot = neighbors(idA); }
+    dimTo(hot, idB?[idA,idB]:null, idB?null:idA);
+  }
+  function dimTo(hotSet, edgePair, focusId){
+    nodeSel.transition().duration(160)
+      .style("opacity", function(d){ return hotSet[d.id]?1:0.13; });
+    nodeSel.select(".node-core").attr("stroke-width", function(d){
+      return d.id===focusId ? (d.flow?2.8:2.2) : (d.flow?1.8:1.3);
+    });
+    linkSel.selectAll(".link").transition().duration(160)
+      .attr("stroke-opacity", function(d){
+        var on = edgePair
+          ? ((d.source.id===edgePair[0]&&d.target.id===edgePair[1])||(d.source.id===edgePair[1]&&d.target.id===edgePair[0]))
+          : (hotSet[d.source.id]&&hotSet[d.target.id]&&(d.source.id===focusId||d.target.id===focusId));
+        return on ? 0.85 : 0.04;
+      })
+      .attr("stroke-width", function(d){
+        var base=(d.kind==='pipe'||d.kind==='risk')?1.4:0.9;
+        var on = edgePair
+          ? ((d.source.id===edgePair[0]&&d.target.id===edgePair[1])||(d.source.id===edgePair[1]&&d.target.id===edgePair[0]))
+          : (hotSet[d.source.id]&&hotSet[d.target.id]&&(d.source.id===focusId||d.target.id===focusId));
+        return on ? base+1 : base;
+      });
+    partSel.transition().duration(160).attr("opacity", function(d){
+      var on = focusId ? (d.source.id===focusId||d.target.id===focusId) : (hotSet[d.source.id]&&hotSet[d.target.id]);
+      return on?1:0.06;
+    });
+  }
+  function clearHover(){
+    nodeSel.transition().duration(220).style("opacity",1);
+    nodeSel.select(".node-core").attr("stroke-width", function(d){return d.flow?1.8:1.3;});
+    linkSel.selectAll(".link").transition().duration(220)
+      .attr("stroke-opacity", function(d){return (d.kind==='pipe'||d.kind==='risk')?0.34:0.15;})
+      .attr("stroke-width", function(d){return (d.kind==='pipe'||d.kind==='risk')?1.4:0.9;});
+    partSel.transition().duration(220).attr("opacity",0.9);
+  }
+
+  function selectNode(id){
+    selected = id; fadeHint();
+    hoverNode(id);
+    openPanel(id);
+  }
+  function deselect(){
+    if(!selected) return;
+    selected = null; clearHover();
+    document.getElementById('panel').classList.remove('show');
+  }
+
+  /* ===================== detail panel ===================== */
+  function openPanel(id){
+    var n = NODE_BY_ID[id]; if(!n) return;
+    var p = document.getElementById('panel');
+    var catColor = CATS[n.cat].color;
+    document.getElementById('p-cat-dot').style.background = catColor;
+    document.getElementById('p-cat-dot').style.boxShadow = '0 0 7px '+catColor;
+    document.getElementById('p-cat').textContent = T[n.cat][ix()];
+    document.getElementById('p-id').textContent = n.flow ? labelOf(n) : shortName(n.id);
+    var sk = nodeStatusClass(id);
+    document.getElementById('p-status').className = 'pst '+sk;
+    document.getElementById('p-role').textContent = n.r[ix()];
+    document.getElementById('p-sched').textContent = n.sc || '—';
+    var st = STATUS[id];
+    document.getElementById('p-status-txt').textContent = st ? (st.status + (st.issue?(' · '+st.issue):'')) : (n.flow?'flow':'—');
+    document.getElementById('p-status-txt').style.color = STATUS_COLOR[sk]||'var(--txt)';
+
+    // connections
+    var conns = [];
+    ADJ[id].out.forEach(function(l){ conns.push({dir:'out', other:l.target.id, kind:l.kind}); });
+    ADJ[id].in.forEach(function(l){ conns.push({dir:'in', other:l.source.id, kind:l.kind}); });
+    var html = conns.map(function(c){
+      var o = NODE_BY_ID[c.other];
+      var nm = o.flow ? labelOf(o) : shortName(o.id);
+      var arrow = c.dir==='out' ? '→' : '←';
+      return '<div class="c"><span class="dir '+(c.dir==='in'?'in':'')+'" style="color:'+EDGE_COLOR[c.kind]+'">'+arrow+'</span>'+
+             '<span class="cn">'+esc(nm)+'</span></div>';
+    }).join('');
+    document.getElementById('p-conn').innerHTML = html || '<div class="c"><span class="cn" style="color:var(--dim)">—</span></div>';
+    p.classList.add('show');
+  }
+
+  /* ===================== legend ===================== */
+  var EDGE_KINDS = [
+    {k:"pipe",  l:["daily pipeline","дневной пайплайн"]},
+    {k:"risk",  l:["risk / kill-switch","risk / kill-switch"]},
+    {k:"heal",  l:["self-healing","самовосстановление"]},
+    {k:"mon",   l:["monitoring","мониторинг"]},
+    {k:"serve", l:["serve / infra","выдача / инфра"]},
+    {k:"audit", l:["audit / tier-1","audit / tier-1"]}
+  ];
+  function buildLegend(){
+    var el = document.getElementById('legend');
+    var html = '<div class="lt">'+(lang==='ru'?'Связи':'Edges')+'</div>';
+    EDGE_KINDS.forEach(function(d){
+      html += '<div class="row" data-k="'+d.k+'"><span class="sw" style="background:'+EDGE_COLOR[d.k]+';box-shadow:0 0 7px '+EDGE_COLOR[d.k]+'"></span>'+esc(d.l[ix()])+'</div>';
+    });
+    el.innerHTML = html;
+    el.querySelectorAll('.row').forEach(function(row){
+      row.onclick = function(){ toggleKind(row.getAttribute('data-k'), row); };
+    });
+  }
+  var HIDDEN = {};
+  function toggleKind(k,row){
+    HIDDEN[k] = !HIDDEN[k];
+    row.classList.toggle('off', HIDDEN[k]);
+    linkSel.style("display", function(d){ return HIDDEN[d.kind]?"none":null; });
+    partSel.style("display", function(d){ return HIDDEN[d.kind]?"none":null; });
+  }
+
+  /* ===================== hint fade ===================== */
+  var hintFaded=false;
+  function fadeHint(){ if(hintFaded) return; hintFaded=true;
+    var h=document.getElementById('hint'); h.style.opacity=0; }
+  setTimeout(fadeHint, 9000);
+
+  /* ===================== live API ===================== */
   var LAST=null;
   function paint(d){
     LAST=d;
     var ags = d.agents||[]; if(!Array.isArray(ags)) ags = Object.values(ags||{});
+    STATUS={};
+    ags.forEach(function(a){ if(a.label) STATUS[a.label]={status:a.status,issue:a.issue||''}; });
+
     var ok = (d.healthy_count!=null)?d.healthy_count:ags.filter(function(a){return clsOf(a.status)==='ok';}).length;
     var total = d.total_agents!=null?d.total_agents:ags.length;
-    txt('s-total', total);
-    txt('s-ok', ok+(total?(' / '+total):''));
+    document.getElementById('s-total').textContent = total || AGENTS.length;
+    document.getElementById('s-ok').textContent = ok+(total?(' / '+total):'');
     var ov = d.overall_status||'—';
     var oe=document.getElementById('s-overall');
-    if(oe){ oe.textContent=ov; oe.style.color=({ok:'var(--ok)',warn:'var(--warn)',crit:'var(--crit)'})[clsOf(ov)]||'var(--txt)'; }
+    oe.textContent = ov; oe.style.color = STATUS_COLOR[clsOf(ov)]||'var(--txt)';
 
-    STATUS={};
-    for(var i=0;i<ags.length;i++){ STATUS[ags[i].label]={status:ags[i].status,issue:ags[i].issue||''}; }
-    renderFleet();
-
-    // diagram dots
-    function any(pred){ for(var i=0;i<ags.length;i++){ if(pred(ags[i].label)) return ags[i].status; } return null; }
-    function set(id,sub){ var s=any(function(l){return l.indexOf(sub)>=0;}); dot(id, s?clsOf(s):'ok'); }
-    set('nd-adapt','daily_cycle'); set('nd-risk','rules_watchdog'); set('nd-mon','uptime_monitor');
-    set('nd-threat','threat_reactor'); set('nd-api','apiserver'); set('nd-heal','self_heal');
-    set('nd-bt','tier1_digest');
+    applyStatusVisuals();
+    if(selected) openPanel(selected);
 
     document.getElementById('live-note').innerHTML =
-      T.live_from[ix()]+' · <b>'+esc(API)+'</b> · '+T.updated[ix()]+' '+new Date().toLocaleTimeString(lang==='ru'?'ru':'en-GB');
-
-    var bad = ags.filter(function(a){return clsOf(a.status)!=='ok';});
-    var host=document.getElementById('live-agents');
-    if(bad.length){
-      host.innerHTML = bad.map(function(a){
-        return '<div class="ag"><span class="st '+clsOf(a.status)+'"></span>'+
-               '<span class="nm">'+esc(shortName(a.label))+'</span>'+
-               '<span class="pill '+clsOf(a.status)+'">'+esc(a.status||'?')+(a.issue?' · '+esc(a.issue):'')+'</span></div>';
-      }).join('');
-    } else {
-      host.innerHTML='<p class="okmsg">'+esc(T.all_ok[ix()].replace('%N',total))+'</p>';
-    }
+      T.live_from[ix()]+' · <b>'+esc(API.replace(/^https?:\/\//,''))+'</b> · '+T.updated[ix()]+' '+
+      new Date().toLocaleTimeString(lang==='ru'?'ru':'en-GB');
   }
-
   function loadAgents(){
     fetch(API+'/api/live/agents').then(function(r){return r.json();}).then(paint).catch(function(){
+      document.getElementById('s-total').textContent = AGENTS.length;
+      document.getElementById('s-ok').textContent = '—';
+      document.getElementById('s-overall').textContent = '—';
       document.getElementById('live-note').textContent = T.offline[ix()];
-      document.getElementById('live-agents').innerHTML='<p class="note">'+esc(T.no_status[ix()])+'</p>';
+      applyStatusVisuals();
     });
   }
-  function loadCycle(){
-    fetch(API+'/api/live/portfolio').then(function(r){return r.json();}).then(function(d){
-      var st=(d.paper_trading_status)||d;
-      var ts=st.last_cycle_ts||(d.paper_trading_status&&d.paper_trading_status.last_cycle_ts);
-      if(ts) txt('s-cycle', new Date(ts).toLocaleString(lang==='ru'?'ru':'en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}));
-    }).catch(function(){});
-  }
 
-  /* ---------- scroll reveal ---------- */
-  function initReveal(){
-    var els = document.querySelectorAll('.reveal');
-    if(!('IntersectionObserver' in window)){ for(var i=0;i<els.length;i++) els[i].classList.add('in'); return; }
-    var io = new IntersectionObserver(function(ents){
-      ents.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
-    },{rootMargin:'0px 0px -8% 0px',threshold:.08});
-    for(var j=0;j<els.length;j++) io.observe(els[j]);
+  /* ===================== resize ===================== */
+  function onResize(){
+    W=window.innerWidth; H=window.innerHeight-57;
+    svg.attr("width",W).attr("height",H);
+    CP = clusterPos();
+    sim.force("center", d3.forceCenter(W/2,H/2).strength(0.04));
+    sim.force("x", d3.forceX(function(d){return CP.fx[d.cat];}).strength(function(d){return d.flow?0.02:0.11;}));
+    sim.force("y", d3.forceY(function(d){return CP.fy[d.cat];}).strength(function(d){return d.flow?0.02:0.11;}));
+    sim.alpha(0.4).restart();
   }
+  window.addEventListener("resize", onResize);
 
-  /* ---------- init ---------- */
+  /* ===================== init ===================== */
+  svg.attr("width",W).attr("height",H);
   applyStatic();
-  renderFleet();
-  initReveal();
+  buildLegend();
+  applyStatusVisuals();
   loadAgents();
-  loadCycle();
   setInterval(loadAgents, 30000);
 
-  return { setLang:setLang };
+  return { setLang:setLang, deselect:deselect };
 })();
 </script>
 </body>
