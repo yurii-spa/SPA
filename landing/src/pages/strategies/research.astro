@@ -20,13 +20,13 @@ const global = strategies.global;
         <span class="font-semibold text-white tracking-tight">SPA</span>
       </a>
       <span class="text-white/15 mx-2">/</span>
-      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors">Strategies</a>
+      <a href="/strategies" class="text-sm text-white/40 hover:text-white/60 transition-colors" data-ru="Стратегии">Strategies</a>
       <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/50">Research</span>
+      <span class="text-sm text-white/50" data-ru="Исследования">Research</span>
     </div>
     <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/" class="hover:text-white transition-colors hidden sm:inline">Home</a>
-      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline">All Strategies</a>
+      <a href="/" class="hover:text-white transition-colors hidden sm:inline" data-ru="Главная">Home</a>
+      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline" data-ru="Все стратегии">All Strategies</a>
       <a
         href="/dashboard"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
@@ -42,12 +42,12 @@ const global = strategies.global;
     <section class="pt-20 pb-12">
       <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-700/50 text-xs text-purple-300 font-medium">
         <span class="w-1.5 h-1.5 rounded-full bg-purple-400" aria-hidden="true"></span>
-        Research Only — Not in Strict Evidence Mode
+        <span data-ru="Только исследования — не в строгом режиме доказательств">Research Only — Not in Strict Evidence Mode</span>
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Исследовательские стратегии">
         Research Strategies
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="RS-001 и RS-002 — это исследовательские проекции. Они требуют point-in-time исторических данных, прежде чем перейти в строгий режим бэктеста, и не могут принимать аллокации, пока не будут выполнены все критерии валидации.">
         RS-001 and RS-002 are research projections. They require point-in-time
         historical data before entering strict backtest mode and cannot accept
         allocations until all validation criteria are met.
@@ -59,8 +59,8 @@ const global = strategies.global;
       <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-5 flex items-start gap-4">
         <span class="text-amber-400 text-xl flex-shrink-0 mt-0.5" aria-hidden="true">⚠</span>
         <div>
-          <p class="text-sm font-semibold text-amber-300 mb-1">Research Projections — Not Historical Evidence</p>
-          <p class="text-sm text-white/50 leading-relaxed">
+          <p class="text-sm font-semibold text-amber-300 mb-1" data-ru="Исследовательские проекции — не исторические доказательства">Research Projections — Not Historical Evidence</p>
+          <p class="text-sm text-white/50 leading-relaxed" data-ru="Эти стратегии используют заглушки APY для компонентов без point-in-time исторических данных. Целевая доходность — это смоделированные проекции, а не подтверждённый трек-рекорд. Не используйте для принятия решений об аллокации капитала.">
             These strategies use placeholder APYs for components without point-in-time
             historical data. Target returns are modelled projections, not verified
             track records. Do not use for capital allocation decisions.
@@ -75,8 +75,8 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1">RS-001</p>
-          <h2 class="text-2xl font-bold text-white">Anti-Crisis Basket</h2>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="RS-001">RS-001</p>
+          <h2 class="text-2xl font-bold text-white" data-ru="Антикризисная корзина">Anti-Crisis Basket</h2>
         </div>
         <div class="flex items-center gap-3">
           <div class="flex gap-1" aria-label="Risk level: 2 of 3">
@@ -84,78 +84,78 @@ const global = strategies.global;
             <span class="inline-block w-8 h-3 rounded-sm bg-orange-400" aria-hidden="true"></span>
             <span class="inline-block w-8 h-3 rounded-sm bg-white/10" aria-hidden="true"></span>
           </div>
-          <span class="text-white/60 text-sm font-medium">Moderate-High Risk</span>
+          <span class="text-white/60 text-sm font-medium" data-ru="Умеренно-высокий риск">Moderate-High Risk</span>
         </div>
       </div>
 
       <!-- Target APY -->
       <div class="mb-6">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY</p>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
         <div class="flex items-baseline gap-2">
           <span class="text-4xl font-mono font-bold text-orange-400">18.2%</span>
-          <span class="text-sm text-white/30 font-mono">research projection</span>
+          <span class="text-sm text-white/30 font-mono" data-ru="исследовательская проекция">research projection</span>
         </div>
       </div>
 
       <!-- Allocation table -->
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Allocation</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Аллокация">Allocation</p>
       <div class="overflow-x-auto rounded-xl border border-white/10 mb-6">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-white/10 bg-white/[0.03]">
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Component</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Weight</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">APY Target</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Data Status</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Компонент">Component</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Вес">Weight</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Целевой APY">APY Target</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Статус данных">Data Status</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">GMX BTC Exposure</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Экспозиция GMX BTC">GMX BTC Exposure</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">20%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">15% APY target</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15% APY">15% APY target</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">GMX ETH Exposure</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Экспозиция GMX ETH">GMX ETH Exposure</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">10%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">15% APY target</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15% APY">15% APY target</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">BTC Stable Pool</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Стабильный пул BTC">BTC Stable Pool</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">35%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">25% APY target</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 25% APY">25% APY target</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">ETH Aggressive Pool</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Агрессивный пул ETH">ETH Aggressive Pool</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">5%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">45% APY target</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 45% APY">45% APY target</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">Gold Proxy</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Прокси на золото">Gold Proxy</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">15%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">15% APY target</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15% APY">15% APY target</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">Stablecoin T1</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Стейблкоин T1">Stablecoin T1</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">15%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">3% APY target</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 3% APY">3% APY target</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/25 text-xs text-teal-400 font-mono">LIVE DATA</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/25 text-xs text-teal-400 font-mono" data-ru="ЖИВЫЕ ДАННЫЕ">LIVE DATA</span>
               </td>
             </tr>
           </tbody>
@@ -166,17 +166,17 @@ const global = strategies.global;
       <div class="space-y-3">
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-orange-400 font-semibold">Strict eligible: 15%</span> (Stablecoin T1 only).
-            85% of allocation has no point-in-time historical data and cannot be backtested in strict mode.
+            <span class="text-orange-400 font-semibold" data-ru="Подходит для строгого режима: 15%">Strict eligible: 15%</span> <span data-ru="(только Стейблкоин T1). 85% аллокации не имеют point-in-time исторических данных и не могут быть протестированы в строгом режиме.">(Stablecoin T1 only).
+            85% of allocation has no point-in-time historical data and cannot be backtested in strict mode.</span>
           </p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-orange-400 font-semibold">Label caveat:</span> "Anti-Crisis" requires validation —
+            <span class="text-orange-400 font-semibold" data-ru="Оговорка по названию:">Label caveat:</span> <span data-ru="название «Антикризисная» требует валидации — 70% этой стратегии составляет крипто-экспозиция (GMX BTC/ETH, пул BTC, пул ETH). Прокси на золото (15%) обеспечивает частичный хедж в кризис; стейблкоин T1 (15%) — единственный гарантированно стабильный компонент. При сильном обвале крипторынка ожидается, что эта стратегия будет показывать результат хуже, чем подразумевает её «антикризисное» название.">"Anti-Crisis" requires validation —
             70% of this strategy is crypto exposure (GMX BTC/ETH, BTC pool, ETH pool).
             Gold proxy (15%) provides partial crisis hedge; stablecoin T1 (15%) provides
             the only guaranteed stable component. In a severe crypto crash, this strategy
-            is expected to underperform relative to its "anti-crisis" label.
+            is expected to underperform relative to its "anti-crisis" label.</span>
           </p>
         </div>
       </div>
@@ -188,8 +188,8 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1">RS-002</p>
-          <h2 class="text-2xl font-bold text-white">Cashflow / Concentrated LP</h2>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="RS-002">RS-002</p>
+          <h2 class="text-2xl font-bold text-white" data-ru="Cashflow / Концентрированный LP">Cashflow / Concentrated LP</h2>
         </div>
         <div class="flex items-center gap-3">
           <div class="flex gap-1" aria-label="Risk level: 3 of 3">
@@ -197,75 +197,75 @@ const global = strategies.global;
             <span class="inline-block w-8 h-3 rounded-sm bg-red-500" aria-hidden="true"></span>
             <span class="inline-block w-8 h-3 rounded-sm bg-red-500" aria-hidden="true"></span>
           </div>
-          <span class="text-white/60 text-sm font-medium">Aggressive Risk</span>
+          <span class="text-white/60 text-sm font-medium" data-ru="Агрессивный риск">Aggressive Risk</span>
         </div>
       </div>
 
       <!-- Target APY + IL warning -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2">Target APY (Gross)</p>
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY (брутто)">Target APY (Gross)</p>
           <div class="flex items-baseline gap-2">
             <span class="text-4xl font-mono font-bold text-red-400">29.24%</span>
-            <span class="text-sm text-white/30 font-mono">gross, before IL</span>
+            <span class="text-sm text-white/30 font-mono" data-ru="брутто, до учёта IL">gross, before IL</span>
           </div>
-          <p class="text-xs text-white/25 mt-1">
+          <p class="text-xs text-white/25 mt-1" data-ru="Оценка нетто: 12–18% в боковике · 3% в тренде · отрицательная при обвале">
             Net estimate: 12–18% sideways · 3% trending · negative in crash
           </p>
         </div>
         <div class="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3">
           <span class="text-red-400 flex-shrink-0 mt-0.5 text-sm" aria-hidden="true">⚠</span>
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-red-400 font-semibold">IL Warning:</span> Concentrated LP at 40% APY gross
+            <span class="text-red-400 font-semibold" data-ru="Предупреждение об IL:">IL Warning:</span> <span data-ru="концентрированный LP при 40% APY брутто теряет 15–25% на непостоянных потерях (impermanent loss) при типичной волатильности BTC. Чистый APY значительно ниже заявленной цифры.">Concentrated LP at 40% APY gross
             loses 15–25% to impermanent loss at typical BTC volatility.
-            Net APY is significantly lower than the headline figure.
+            Net APY is significantly lower than the headline figure.</span>
           </p>
         </div>
       </div>
 
       <!-- Allocation table -->
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3">Allocation</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Аллокация">Allocation</p>
       <div class="overflow-x-auto rounded-xl border border-white/10 mb-6">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-white/10 bg-white/[0.03]">
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Component</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Weight</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Gross APY</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Data Status</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Компонент">Component</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Вес">Weight</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="APY брутто">Gross APY</th>
+              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Статус данных">Data Status</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">BTC/USD Concentrated LP</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Концентрированный LP BTC/USD">BTC/USD Concentrated LP</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">60%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">40% gross APY</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="40% APY брутто">40% gross APY</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">RWA Concentrated LP</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Концентрированный LP RWA">RWA Concentrated LP</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">10%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">18% APY</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="18% APY">18% APY</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">Trader Losses Vault</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Хранилище убытков трейдеров">Trader Losses Vault</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">14%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">20% APY</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="20% APY">20% APY</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">SOURCE NEEDED</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-white/70 font-mono">Stablecoin Deposit</td>
+              <td class="px-5 py-3 text-white/70 font-mono" data-ru="Депозит в стейблкоине">Stablecoin Deposit</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">16%</td>
-              <td class="px-5 py-3 text-white/60 font-mono">4% APY</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="4% APY">4% APY</td>
               <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/25 text-xs text-teal-400 font-mono">LIVE DATA</span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/25 text-xs text-teal-400 font-mono" data-ru="ЖИВЫЕ ДАННЫЕ">LIVE DATA</span>
               </td>
             </tr>
           </tbody>
@@ -276,18 +276,18 @@ const global = strategies.global;
       <div class="space-y-3">
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-red-400 font-semibold">Strict eligible: 16%</span> (Stablecoin Deposit only).
-            The 60% BTC/USD Concentrated LP position has no IL-adjusted point-in-time historical series.
+            <span class="text-red-400 font-semibold" data-ru="Подходит для строгого режима: 16%">Strict eligible: 16%</span> <span data-ru="(только Депозит в стейблкоине). Позиция концентрированного LP BTC/USD на 60% не имеет point-in-time исторического ряда с поправкой на IL.">(Stablecoin Deposit only).
+            The 60% BTC/USD Concentrated LP position has no IL-adjusted point-in-time historical series.</span>
           </p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-red-400 font-semibold">Net APY scenarios:</span>
-            The 29.24% figure is gross blended APY before impermanent loss and execution costs.
+            <span class="text-red-400 font-semibold" data-ru="Сценарии чистого APY:">Net APY scenarios:</span>
+            <span data-ru="цифра 29,24% — это брутто-смешанный APY до непостоянных потерь (impermanent loss) и издержек исполнения. Типичная волатильность BTC (40% годовых) съедает 10–15% у позиций концентрированного LP. На трендовых рынках BTC (обвал или сильное ралли) позиции концентрированного LP выходят из диапазона, и доход от комиссий прекращается — позиция фактически держит один актив, пока другой уходит в сторону. При сильных движениях чистый APY может быть отрицательным.">The 29.24% figure is gross blended APY before impermanent loss and execution costs.
             Typical BTC volatility (40% annualized) erodes 10–15% from concentrated LP positions.
             In trending BTC markets (crash or strong rally), concentrated LP positions
             go out-of-range and fee income stops — the position effectively holds one asset
-            while the other moves away. Net APY can be negative in severe moves.
+            while the other moves away. Net APY can be negative in severe moves.</span>
           </p>
         </div>
       </div>
@@ -297,52 +297,52 @@ const global = strategies.global;
     <!-- Scenario Matrix Summary -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Stress Scenario Matrix (MP-1313)</p>
-      <p class="text-sm text-white/40 leading-relaxed mb-6">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Матрица стресс-сценариев (MP-1313)">Stress Scenario Matrix (MP-1313)</p>
+      <p class="text-sm text-white/40 leading-relaxed mb-6" data-ru="Смоделировано 120 стресс-сценариев (по 60 на стратегию), охватывающих обвалы BTC, режимы волатильности, рыночные режимы и события хвостового риска. Это математические проекции на основе заглушечных предположений по APY — не результаты доказательного уровня.">
         120 stress scenarios (60 per strategy) have been modelled covering BTC crashes,
         volatility regimes, market regimes, and tail-risk events. These are
         mathematical projections using placeholder APY assumptions — not evidence-grade results.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <p class="text-xs text-orange-400/70 uppercase tracking-wider font-mono mb-3">RS-001 Scenario Summary</p>
+          <p class="text-xs text-orange-400/70 uppercase tracking-wider font-mono mb-3" data-ru="Сводка по сценариям RS-001">RS-001 Scenario Summary</p>
           <div class="space-y-2 text-sm text-white/50">
             <div class="flex justify-between">
-              <span>Scenarios run</span>
+              <span data-ru="Прогнано сценариев">Scenarios run</span>
               <span class="text-white font-mono">60</span>
             </div>
             <div class="flex justify-between">
-              <span>Dimensions</span>
-              <span class="text-white font-mono">BTC move × regime × duration</span>
+              <span data-ru="Измерения">Dimensions</span>
+              <span class="text-white font-mono" data-ru="движение BTC × режим × длительность">BTC move × regime × duration</span>
             </div>
             <div class="flex justify-between">
-              <span>IL drag</span>
-              <span class="text-white font-mono">0% (no LP)</span>
+              <span data-ru="Просадка от IL">IL drag</span>
+              <span class="text-white font-mono" data-ru="0% (без LP)">0% (no LP)</span>
             </div>
             <div class="flex justify-between">
-              <span>Edge cases</span>
-              <span class="text-white font-mono">6 (black swan, depeg…)</span>
+              <span data-ru="Крайние случаи">Edge cases</span>
+              <span class="text-white font-mono" data-ru="6 (чёрный лебедь, депег…)">6 (black swan, depeg…)</span>
             </div>
           </div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <p class="text-xs text-red-400/70 uppercase tracking-wider font-mono mb-3">RS-002 Scenario Summary</p>
+          <p class="text-xs text-red-400/70 uppercase tracking-wider font-mono mb-3" data-ru="Сводка по сценариям RS-002">RS-002 Scenario Summary</p>
           <div class="space-y-2 text-sm text-white/50">
             <div class="flex justify-between">
-              <span>Scenarios run</span>
+              <span data-ru="Прогнано сценариев">Scenarios run</span>
               <span class="text-white font-mono">60</span>
             </div>
             <div class="flex justify-between">
-              <span>Dimensions</span>
-              <span class="text-white font-mono">BTC move × vol × range</span>
+              <span data-ru="Измерения">Dimensions</span>
+              <span class="text-white font-mono" data-ru="движение BTC × волатильность × диапазон">BTC move × vol × range</span>
             </div>
             <div class="flex justify-between">
-              <span>IL drag</span>
-              <span class="text-white font-mono">applied to 70% LP weight</span>
+              <span data-ru="Просадка от IL">IL drag</span>
+              <span class="text-white font-mono" data-ru="применяется к 70% веса LP">applied to 70% LP weight</span>
             </div>
             <div class="flex justify-between">
-              <span>Edge cases</span>
-              <span class="text-white font-mono">6 (flash crash, vol spike…)</span>
+              <span data-ru="Крайние случаи">Edge cases</span>
+              <span class="text-white font-mono" data-ru="6 (флэш-краш, всплеск волатильности…)">6 (flash crash, vol spike…)</span>
             </div>
           </div>
         </div>
@@ -353,14 +353,14 @@ const global = strategies.global;
     <!-- What's needed before these strategies go live -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">What's Needed Before These Strategies Go Live</p>
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что нужно, прежде чем эти стратегии выйдут в продакшен">What's Needed Before These Strategies Go Live</p>
       <div class="space-y-3">
 
         <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
           <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">1</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Clean point-in-time historical data for each component</p>
-            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+            <p class="text-sm text-white/70 font-medium" data-ru="Чистые point-in-time исторические данные по каждому компоненту">Clean point-in-time historical data for each component</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="Каждая нога аллокации требует проверяемого ряда APY/доходности с указанием источника. Нужен point-in-time фид DeFiLlama или эквивалент — без заглушечных допущений.">
               Each allocation leg requires a verifiable APY/return series with source attribution.
               DeFiLlama or equivalent point-in-time feed required — no placeholder assumptions.
             </p>
@@ -370,8 +370,8 @@ const global = strategies.global;
         <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
           <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">2</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">IL-adjusted backtests for all LP components (RS-002)</p>
-            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+            <p class="text-sm text-white/70 font-medium" data-ru="Бэктесты с поправкой на IL для всех LP-компонентов (RS-002)">IL-adjusted backtests for all LP components (RS-002)</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="Позиции концентрированного LP должны быть протестированы с реалистичным моделированием непостоянных потерь. Брутто-показателей APY недостаточно для решений об аллокации.">
               Concentrated LP positions must be backtested with realistic impermanent loss
               modelling. Gross APY numbers are not sufficient for allocation decisions.
             </p>
@@ -381,8 +381,8 @@ const global = strategies.global;
         <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
           <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">3</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Venue and protocol identity verification</p>
-            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+            <p class="text-sm text-white/70 font-medium" data-ru="Верификация идентичности площадок и протоколов">Venue and protocol identity verification</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="Все неуказанные пулы (Стабильный пул BTC, Агрессивный пул ETH, Прокси на золото, Концентрированный LP RWA, Хранилище убытков трейдеров) должны быть сопоставлены с конкретными on-chain площадками с записями аудитов и историей TVL.">
               All unspecified pools (BTC Stable Pool, ETH Aggressive Pool, Gold Proxy,
               RWA Conc LP, Trader Losses Vault) must be mapped to specific on-chain venues
               with audit records and TVL history.
@@ -393,8 +393,8 @@ const global = strategies.global;
         <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
           <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">4</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Owner acceptance of each strategy's risk classification</p>
-            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+            <p class="text-sm text-white/70 font-medium" data-ru="Принятие владельцем классификации риска каждой стратегии">Owner acceptance of each strategy's risk classification</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="Название «Антикризисная» у RS-001 требует явного подтверждения того, что 70% аллокации коррелировано с криптовалютой. Разрыв между брутто и нетто у RS-002 должен быть признан письменно до аллокации.">
               RS-001's "Anti-Crisis" label requires explicit acknowledgement that 70%
               of the allocation is crypto-correlated. RS-002's gross/net gap must be
               acknowledged in writing before allocation.
@@ -405,8 +405,8 @@ const global = strategies.global;
         <div class="flex items-start gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4">
           <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/40 font-mono">5</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Paper trading period (minimum 30 days)</p>
-            <p class="text-xs text-white/35 mt-1 leading-relaxed">
+            <p class="text-sm text-white/70 font-medium" data-ru="Период бумажной торговли (минимум 30 дней)">Paper trading period (minimum 30 days)</p>
+            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="После принятия строгих данных обе стратегии должны пройти не менее 30 дней бумажной торговли на живых данных адаптеров до развёртывания реального капитала. Применяются стандартные критерии GoLiveChecker (ADR-002).">
               Once strict data is accepted, both strategies must complete at least 30 days
               of paper trading with live adapter data before any real capital is deployed.
               Standard GoLiveChecker criteria (ADR-002) apply.
@@ -421,26 +421,26 @@ const global = strategies.global;
     <!-- Compare with live strategies -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Compare with Live Strategies</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Сравнить с действующими стратегиями">Compare with Live Strategies</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Если вы ищете стратегии, которые сейчас находятся в бумажном треке с проверенными данными, см. страницы действующих стратегий ниже.">
         If you're looking for strategies currently in paper tracking with verified data,
         see the live strategy pages below.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <a href="/strategies/preserve" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
-          <p class="text-xs text-teal-400/70 font-mono uppercase tracking-wider mb-2">Preserve</p>
+          <p class="text-xs text-teal-400/70 font-mono uppercase tracking-wider mb-2" data-ru="Preserve">Preserve</p>
           <p class="text-white font-medium mb-1 group-hover:text-white/90">~6% APY</p>
-          <p class="text-xs text-white/35">Capital-preservation · T1 only · Lower risk</p>
+          <p class="text-xs text-white/35" data-ru="Сохранение капитала · только T1 · пониженный риск">Capital-preservation · T1 only · Lower risk</p>
         </a>
         <a href="/strategies/core" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
-          <p class="text-xs text-accent-400/70 font-mono uppercase tracking-wider mb-2">Core</p>
+          <p class="text-xs text-accent-400/70 font-mono uppercase tracking-wider mb-2" data-ru="Core">Core</p>
           <p class="text-white font-medium mb-1 group-hover:text-white/90">6–14% APY</p>
-          <p class="text-xs text-white/35">Paper tracked · T1+T2 · Medium risk</p>
+          <p class="text-xs text-white/35" data-ru="Бумажный трек · T1+T2 · средний риск">Paper tracked · T1+T2 · Medium risk</p>
         </a>
         <a href="/strategies/max-yield" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
-          <p class="text-xs text-orange-400/70 font-mono uppercase tracking-wider mb-2">Max Yield</p>
+          <p class="text-xs text-orange-400/70 font-mono uppercase tracking-wider mb-2" data-ru="Max Yield">Max Yield</p>
           <p class="text-white font-medium mb-1 group-hover:text-white/90">14–28% APY</p>
-          <p class="text-xs text-white/35">Higher yield · Tournament-optimised</p>
+          <p class="text-xs text-white/35" data-ru="Повышенная доходность · оптимизировано турниром">Higher yield · Tournament-optimised</p>
         </a>
       </div>
     </section>
@@ -448,8 +448,8 @@ const global = strategies.global;
     <!-- CTA -->
     <section class="py-16 border-t border-white/5">
       <div class="text-center">
-        <h2 class="text-2xl font-bold text-white mb-4">Due Diligence Questions?</h2>
-        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed">
+        <h2 class="text-2xl font-bold text-white mb-4" data-ru="Вопросы по due diligence?">Due Diligence Questions?</h2>
+        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="RS-001 и RS-002 находятся в исследовательском режиме и пока не принимают аллокации. По вопросам о методологии, требованиях к данным или сроках перехода в строгий режим обращайтесь напрямую.">
           RS-001 and RS-002 are in research mode and not yet accepting allocations.
           For questions about the methodology, data requirements, or timeline to
           strict mode, reach out directly.
@@ -459,7 +459,7 @@ const global = strategies.global;
             href="/dashboard"
             class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
           >
-            Access Dashboard
+            <span data-ru="Открыть дашборд">Access Dashboard</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
               <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
               <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
@@ -469,11 +469,11 @@ const global = strategies.global;
             href="/strategies"
             class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
           >
-            ← All Strategies
+            <span data-ru="← Все стратегии">← All Strategies</span>
           </a>
         </div>
         <p class="text-sm text-white/30">
-          Contact: <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+          <span data-ru="Контакт:">Contact:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
         </p>
       </div>
     </section>
