@@ -593,6 +593,197 @@ td.num-cell { text-align: right; }
 .lang-pill button.on { background: var(--spa-accent); color: #07120e; }
 .lang-pill .div { width: 1px; align-self: stretch; background: var(--spa-border-2); }
 
+/* ── Ranking methodology note (near leaderboard header) ── */
+.rank-note {
+  margin: -6px 0 16px;
+  padding: 11px 16px;
+  background: rgba(96,165,250,0.06);
+  border: 1px solid rgba(96,165,250,0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--spa-text-2);
+  line-height: 1.6;
+}
+.rank-note strong { color: #60a5fa; }
+.rank-note a {
+  color: var(--spa-accent);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(30,216,160,0.4);
+}
+.rank-note a:hover { border-bottom-style: solid; }
+
+/* ── Clickable affordance ── */
+.is-clickable { cursor: pointer; }
+.lb-table tbody tr.is-clickable:hover td { background: rgba(96,165,250,0.06); }
+.medal-card.is-clickable:hover,
+.shadow-card.is-clickable:hover { border-color: var(--spa-border-2); }
+.click-hint {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+tr.is-clickable:hover .click-hint,
+.medal-card:hover .click-hint,
+.shadow-card:hover .click-hint { opacity: 0.8; }
+
+/* ── Drill-down detail panel (slide-in overlay) ── */
+.dd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,6,9,0.66);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.dd-overlay.open { opacity: 1; pointer-events: auto; }
+.dd-panel {
+  position: fixed;
+  top: 0; right: 0;
+  height: 100%;
+  width: 480px;
+  max-width: 94vw;
+  background: linear-gradient(160deg, #10131b 0%, #0c0e15 100%);
+  border-left: 1px solid var(--spa-border-2);
+  box-shadow: -12px 0 40px rgba(0,0,0,0.5);
+  z-index: 1001;
+  transform: translateX(102%);
+  transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dd-overlay.open .dd-panel { transform: translateX(0); }
+.dd-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--spa-border-2);
+  position: relative;
+  flex-shrink: 0;
+  background: var(--spa-surface);
+}
+.dd-close {
+  position: absolute;
+  top: 16px; right: 18px;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--spa-border-2);
+  background: var(--spa-surface-2);
+  color: var(--spa-text-2);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.dd-close:hover { color: var(--spa-neg); border-color: var(--spa-neg); }
+.dd-rank-chip {
+  display: inline-block;
+  font-family: var(--spa-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--spa-accent);
+  background: var(--spa-accent-dim);
+  border: 1px solid rgba(30,216,160,0.25);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 10px;
+}
+.dd-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--spa-text);
+  line-height: 1.25;
+  padding-right: 40px;
+  margin-bottom: 4px;
+}
+.dd-id { font-family: var(--spa-mono); font-size: 11px; color: var(--spa-text-3); }
+.dd-badges { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dd-body {
+  padding: 20px 24px 40px;
+  overflow-y: auto;
+  flex: 1;
+}
+.dd-sec { margin-bottom: 22px; }
+.dd-sec-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--spa-text-3);
+  margin-bottom: 9px;
+}
+.dd-desc {
+  font-size: 13.5px;
+  color: var(--spa-text);
+  line-height: 1.68;
+}
+.dd-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--spa-border-2);
+  border: 1px solid var(--spa-border-2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.dd-metric { background: var(--spa-surface); padding: 13px 12px; }
+.dd-metric-val { font-family: var(--spa-mono); font-size: 17px; font-weight: 700; color: var(--spa-text); line-height: 1; margin-bottom: 5px; }
+.dd-metric-val.pos { color: var(--spa-accent); }
+.dd-metric-lbl { font-size: 9.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--spa-text-3); }
+.dd-alloc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.dd-alloc-name { font-size: 12px; color: var(--spa-text-2); width: 130px; flex-shrink: 0; }
+.dd-alloc-bar { flex: 1; height: 7px; background: var(--spa-surface-3); border-radius: 4px; overflow: hidden; }
+.dd-alloc-fill { height: 100%; background: linear-gradient(90deg,#1ed8a0,#60a5fa); border-radius: 4px; }
+.dd-alloc-pct { font-family: var(--spa-mono); font-size: 12px; font-weight: 600; color: var(--spa-text); width: 42px; text-align: right; flex-shrink: 0; }
+.dd-t1 {
+  border: 1px solid var(--spa-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--spa-surface);
+}
+.dd-t1.validated { border-color: rgba(30,216,160,0.3); background: rgba(30,216,160,0.04); }
+.dd-t1.missing { border-color: var(--spa-border); }
+.dd-t1-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 12px; }
+.dd-t1-row + .dd-t1-row { border-top: 1px solid var(--spa-border); }
+.dd-t1-k { color: var(--spa-text-3); }
+.dd-t1-v { font-family: var(--spa-mono); font-weight: 600; color: var(--spa-text); }
+.dd-t1-v.yes { color: var(--spa-accent); }
+.dd-t1-v.no  { color: var(--spa-neg); }
+.dd-t1-empty { font-size: 12px; color: var(--spa-text-3); line-height: 1.6; }
+.dd-grade {
+  display: inline-block;
+  font-family: var(--spa-mono);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: var(--spa-accent-dim);
+  color: var(--spa-accent);
+  border: 1px solid rgba(30,216,160,0.25);
+}
+.dd-explainer {
+  font-size: 12px;
+  color: var(--spa-text-2);
+  line-height: 1.65;
+  padding: 13px 15px;
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 8px;
+}
+.dd-explainer strong { color: #ca8d2e; }
+
 /* ── Responsive ── */
 @media (max-width: 960px) {
   .t-hero-title { font-size: 30px; }
@@ -676,7 +867,7 @@ td.num-cell { text-align: right; }
         <div class="pipe-node">
           <div class="pipe-dot done">🔬</div>
           <div class="pipe-label" data-i18n="pipe.scan">Scan</div>
-          <div class="pipe-count" id="pipe-scan">74 files</div>
+          <div class="pipe-count" id="pipe-scan">75 files</div>
         </div>
         <div class="pipe-arrow">›</div>
         <div class="pipe-node">
@@ -688,7 +879,7 @@ td.num-cell { text-align: right; }
         <div class="pipe-node">
           <div class="pipe-dot done" style="font-size:18px">⚠️</div>
           <div class="pipe-label" data-i18n="pipe.skipped">Skipped</div>
-          <div class="pipe-count" id="pipe-sk">14 excluded</div>
+          <div class="pipe-count" id="pipe-sk">11 excluded</div>
         </div>
         <div class="pipe-arrow">›</div>
         <div class="pipe-node">
@@ -733,6 +924,9 @@ td.num-cell { text-align: right; }
     <div class="t-section-hdr">
       <div class="t-section-title" data-i18n="lb.title">📊 Leaderboard — Top 20</div>
       <div class="t-section-sub" data-i18n="lb.sub">Ranked by Sharpe ratio · 2022–2025 backtest · $100K USDC</div>
+    </div>
+    <div class="rank-note" data-i18n-html="lb.rankNote">
+      ℹ️ <strong>Ranked by Sharpe</strong> (risk-adjusted return), so #1 is the steadiest strategy — <em>not</em> the highest-APY one. For stablecoin yield Sharpe is degenerate, so the trustworthy view is the <a href="/packages">Tier-1 validated net-APY packages</a>. Click any row to see what a strategy does.
     </div>
     <div class="lb-wrap">
       <table class="lb-table">
@@ -818,6 +1012,20 @@ td.num-cell { text-align: right; }
 
 </div><!-- /t-main -->
 
+<!-- ── Strategy drill-down panel ── -->
+<div class="dd-overlay" id="dd-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="dd-panel" id="dd-panel">
+    <div class="dd-head">
+      <button type="button" class="dd-close" id="dd-close" aria-label="Close">×</button>
+      <div class="dd-rank-chip" id="dd-rank"></div>
+      <div class="dd-title" id="dd-title"></div>
+      <div class="dd-id" id="dd-id"></div>
+      <div class="dd-badges" id="dd-badges"></div>
+    </div>
+    <div class="dd-body" id="dd-body"></div>
+  </div>
+</div>
+
 <!-- ── Footer ── -->
 <div class="t-footer">
   <a href="/app" class="t-footer-back" data-i18n="footer.back">← Back to Dashboard</a>
@@ -855,6 +1063,18 @@ var I18N = {
     "lb.th.strategy": "Strategy", "lb.th.tier": "Tier", "lb.th.sharpe": "Sharpe",
     "lb.th.apy": "APY %", "lb.th.maxdd": "Max DD", "lb.th.phase": "Phase",
     "lb.paper": "Paper 🔄", "lb.backtest": "Backtest ✓",
+    "lb.rankNote": "ℹ️ <strong>Ranked by Sharpe</strong> (risk-adjusted return), so #1 is the steadiest strategy — <em>not</em> the highest-APY one. For stablecoin yield Sharpe is degenerate, so the trustworthy view is the <a href=\"/packages\">Tier-1 validated net-APY packages</a>. Click any row to see what a strategy does.",
+    "lb.clickHint": "Details ›",
+    "dd.rank": "Rank", "dd.about": "What it does", "dd.metrics": "Performance Metrics",
+    "dd.alloc": "Allocation", "dd.tier1": "Tier-1 Validation",
+    "dd.m.apy": "APY (annual)", "dd.m.sharpe": "Sharpe", "dd.m.sortino": "Sortino",
+    "dd.m.calmar": "Calmar", "dd.m.maxdd": "Max Drawdown", "dd.m.vol": "Volatility",
+    "dd.t1.validated": "Validated", "dd.t1.oos": "Yield holds out-of-sample", "dd.t1.netapy": "Net-of-cost APY",
+    "dd.t1.package": "Risk package", "dd.t1.grade": "Tier-1 grade", "dd.t1.eligible": "Eligible for paper",
+    "dd.t1.yes": "Yes", "dd.t1.no": "No",
+    "dd.t1.missing": "Not in the current Tier-1 validated set — this strategy has not (yet) passed real-data net-APY validation into a risk package.",
+    "dd.t1.loading": "Checking Tier-1 status…",
+    "dd.explainer": "<strong>Ranked by Sharpe</strong> (risk-adjusted return), not raw APY — a steadier lower-APY strategy can outrank a higher-APY one. Note: for stablecoin yield Sharpe is degenerate (near-constant returns), so the <strong>Tier-1 net-APY ranking</strong> is the trustworthy one.",
     "shadow.title": "🔄 Shadow Paper Trading — Live Top 5",
     "shadow.sub": "Simulating with live APY · Advisory only · Day",
     "shadow.rank": "Rank", "shadow.btApy": "Backtest APY", "shadow.sharpe": "Sharpe",
@@ -896,6 +1116,18 @@ var I18N = {
     "lb.th.strategy": "Стратегия", "lb.th.tier": "Tier", "lb.th.sharpe": "Sharpe",
     "lb.th.apy": "APY %", "lb.th.maxdd": "Макс. DD", "lb.th.phase": "Фаза",
     "lb.paper": "Paper 🔄", "lb.backtest": "Бэктест ✓",
+    "lb.rankNote": "ℹ️ <strong>Ранжир по Sharpe</strong> (доходность с поправкой на риск) — поэтому #1 это самая стабильная стратегия, а <em>не</em> с самым высоким APY. Для стейблкоин-доходности Sharpe вырожден, поэтому надёжный взгляд — <a href=\"/packages\">валидированные Tier-1 пакеты по чистому APY</a>. Кликните строку, чтобы узнать, что делает стратегия.",
+    "lb.clickHint": "Детали ›",
+    "dd.rank": "Ранг", "dd.about": "Что делает", "dd.metrics": "Метрики доходности",
+    "dd.alloc": "Аллокация", "dd.tier1": "Валидация Tier-1",
+    "dd.m.apy": "APY (годовой)", "dd.m.sharpe": "Sharpe", "dd.m.sortino": "Sortino",
+    "dd.m.calmar": "Calmar", "dd.m.maxdd": "Макс. просадка", "dd.m.vol": "Волатильность",
+    "dd.t1.validated": "Валидирована", "dd.t1.oos": "Доходность держится out-of-sample", "dd.t1.netapy": "Чистый APY (за вычетом издержек)",
+    "dd.t1.package": "Risk-пакет", "dd.t1.grade": "Оценка Tier-1", "dd.t1.eligible": "Допущена в paper",
+    "dd.t1.yes": "Да", "dd.t1.no": "Нет",
+    "dd.t1.missing": "Не входит в текущий валидированный набор Tier-1 — стратегия (пока) не прошла валидацию по чистому APY на реальных данных в risk-пакет.",
+    "dd.t1.loading": "Проверка статуса Tier-1…",
+    "dd.explainer": "<strong>Ранжир по Sharpe</strong> (доходность с поправкой на риск), а не по сырому APY — более стабильная стратегия с меньшим APY может обойти более доходную. Важно: для стейблкоин-доходности Sharpe вырожден (почти постоянная доходность), поэтому надёжен именно <strong>рейтинг Tier-1 по чистому APY</strong>.",
     "shadow.title": "🔄 Shadow Paper Trading — Live Топ-5",
     "shadow.sub": "Симуляция на live APY · Только advisory · День",
     "shadow.rank": "Ранг", "shadow.btApy": "Бэктест APY", "shadow.sharpe": "Sharpe",
@@ -930,6 +1162,10 @@ function setLang(lang){
   // Re-render dynamic content (medals/leaderboard/shadow/pipeline) in the active language
   if (typeof _LAST_RENDER !== 'undefined' && _LAST_RENDER){
     try{ renderAll(_LAST_RENDER.mass, _LAST_RENDER.tournament, _LAST_RENDER.shadow); }catch(e){}
+  }
+  // If the drill-down is open, re-render it in the new language
+  if (typeof _ddOpenId !== 'undefined' && _ddOpenId){
+    try{ openDetail(_ddOpenId); }catch(e){}
   }
 }
 (function initLang(){
@@ -986,6 +1222,103 @@ const FALLBACK_SHADOW = {
     {rank:5, strategy_key:"s53_correlated_risk_reducer", name:"S53CorrelatedRiskReducer", sharpe:175.5289, paper_apy:4.1097, max_dd_pct:0.0394, days_active:0, allocation:{aave_v3:0.05, compound_v3:0.05, morpho_steakhouse:0.60, yearn_v3:0.30}}
   ]
 };
+
+/* ═══════════════════════════════════════════════════
+   Plain-English strategy descriptions {id:{en,ru}}
+   Derived from spa_core/strategies/strategy_registry.py
+   (StrategyMeta.description) + data/strategy_configs.json
+   (tier_focus / risk_profile). Paraphrased into plain
+   English; RU translations authored alongside. Covers
+   the strategies that appear in the live leaderboard +
+   shadow list. Unknown ids fall back to a tier/alloc note.
+   ═══════════════════════════════════════════════════ */
+var STRAT_DESC = {
+  s11_hybrid_yield_max: {en:"Hybrid yield maximizer: tilts heavily into Pendle YT for upside (advisory) with a Morpho + Euler + Maple core; chases the highest blended APY in bull regimes, falls back to a safer T1/T2 book otherwise.", ru:"Гибридный максимайзер доходности: сильно смещается в Pendle YT ради апсайда (advisory) с ядром Morpho + Euler + Maple; ловит максимальный смешанный APY в бычьем режиме, иначе откатывается к более безопасному T1/T2-портфелю."},
+  s6_max_diversified: {en:"Maximum diversification across Pendle PT, Morpho, Fluid, Compound and Aave Arbitrum — spreads weight to lower concentration risk while keeping a ~7.6% blended APY.", ru:"Максимальная диверсификация по Pendle PT, Morpho, Fluid, Compound и Aave Arbitrum — распределяет вес ради снижения концентрации, удерживая смешанный APY ~7,6%."},
+  s24_base_chain_max: {en:"Base L2 chain maximizer: Morpho Blue Base + Aave V3 Base + Moonwell Base, all read-only Base adapters. Aims for the best stablecoin yield available on Base.", ru:"Максимайзер на сети Base (L2): Morpho Blue Base + Aave V3 Base + Moonwell Base, все read-only адаптеры Base. Цель — лучшая стейблкоин-доходность на Base."},
+  s65_session_champion: {en:"Hand-curated best-of-session book: Sky income anchor + Morpho Blue and Fluid yield boosters + an Aave/Compound T1 sleeve + cash. Highest expected-yield book that still fits all policy caps.", ru:"Вручную отобранный лучший портфель сессии: якорь дохода Sky + ускорители Morpho Blue и Fluid + T1-слив Aave/Compound + кэш. Самый доходный портфель, всё ещё укладывающийся в лимиты политики."},
+  s77_points_farming: {en:"Points farming (advisory): allocates to protocols running points/airdrop programs (e.g. Morpho, Spark) to capture future token incentives on top of base yield. Simulation-only.", ru:"Фарминг поинтов (advisory): размещает средства в протоколы с программами поинтов/эирдропов (напр. Morpho, Spark), чтобы поймать будущие токен-стимулы поверх базовой доходности. Только симуляция."},
+  s2_pendle_morpho: {en:"Fixed-rate strategy: half in Pendle PT USDC for a locked rate, balanced by Morpho Steakhouse and Compound V3 — a steadier ~7% yield with maturity risk on the PT leg.", ru:"Стратегия фиксированной ставки: половина в Pendle PT USDC ради зафиксированной ставки, баланс через Morpho Steakhouse и Compound V3 — стабильный ~7% APY с риском погашения по ноге PT."},
+  s36_cross_chain_optimizer: {en:"Cross-chain optimizer: weekly compares stablecoin APY across mainnet, Arbitrum and Base, tilts 60% to the best chain while holding a 30% mainnet anchor and 10% cash as a bridge-risk buffer.", ru:"Кросс-чейн оптимизатор: еженедельно сравнивает APY стейблкоинов на mainnet, Arbitrum и Base, смещает 60% в лучшую сеть, удерживая 30% якоря на mainnet и 10% кэша как буфер риска мостов."},
+  s4_spark_fluid_conservative: {en:"Capital-preservation book anchored in Spark sUSDS with Fluid and Morpho boosters. Low blended risk (~0.31) and a smooth ~5.9% APY; prioritizes safety over peak yield.", ru:"Портфель сохранения капитала с якорем в Spark sUSDS и ускорителями Fluid и Morpho. Низкий смешанный риск (~0,31) и ровный APY ~5,9%; приоритет безопасности над пиковой доходностью."},
+  s14_arbitrum_radiant: {en:"Arbitrum-dominant book: Aave V3 Arbitrum anchor + Radiant Arbitrum yield boost + a mainnet Morpho backstop. Captures L2 yield with mainnet safety, ~6% blended APY.", ru:"Портфель с доминированием Arbitrum: якорь Aave V3 Arbitrum + ускоритель Radiant Arbitrum + бэкстоп Morpho на mainnet. Ловит доходность L2 с подстраховкой mainnet, ~6% смешанного APY."},
+  s74_rwa_yield: {en:"Real-world-asset yield: routes into tokenized treasury / RWA venues (e.g. Ondo USDY, sDAI) for off-chain-backed stablecoin yield, diversifying away from pure DeFi lending risk.", ru:"Доходность от реальных активов (RWA): направляет средства в токенизированные казначейские/RWA-инструменты (напр. Ondo USDY, sDAI) ради доходности, обеспеченной офчейн-активами, диверсифицируя риск от чисто DeFi-кредитования."},
+  s37_radiant_concentrated: {en:"Concentrated Radiant play: half in Radiant USDC Arbitrum (T2) backed by Aave and Compound mainnet for safety and a cash buffer. Higher single-protocol exposure for yield.", ru:"Концентрированная ставка на Radiant: половина в Radiant USDC Arbitrum (T2) с подстраховкой Aave и Compound на mainnet и кэш-буфером. Повышенная экспозиция на один протокол ради доходности."},
+  s7_pendle_yt_aggressive: {en:"Aggressive Pendle yield-token strategy — the first to cross 10% APY. Trades Pendle YT for speculative yield, anchored by Pendle PT fixed rate plus a Morpho/Compound safety buffer.", ru:"Агрессивная стратегия на yield-токенах Pendle — первая, преодолевшая 10% APY. Торгует Pendle YT ради спекулятивной доходности, с якорем фиксированной ставки Pendle PT и буфером безопасности Morpho/Compound."},
+  s39_morpho_max_plus: {en:"Research strategy that pushes Morpho Blue above the standard 20% T2 cap, combined with Euler, Aave and Compound. NON-COMPLIANT under RiskPolicy v1.0 — advisory only.", ru:"Исследовательская стратегия, выводящая Morpho Blue выше стандартного лимита 20% T2, в сочетании с Euler, Aave и Compound. НЕ соответствует RiskPolicy v1.0 — только advisory."},
+  s68_temporal_diversification: {en:"Temporal diversification: four equal sleeves laddered by rebalance horizon (30-day Sky lock, 7-day T1, 1-day best-APY, Pendle PT rate-lock). Diversifies timing risk, not just protocol risk.", ru:"Временная диверсификация: четыре равных слива, разложенных по горизонту ребаланса (30-дневный лок Sky, 7-дневный T1, 1-дневный лучший APY, фиксация ставки Pendle PT). Диверсифицирует риск тайминга, а не только протоколов."},
+  s70_session_best: {en:"Hand-curated best-of-session book trading a little yield for a smoother, low-volatility ride: Sky ballast + Morpho/Fluid T2 sleeve + Aave/Compound T1 + cash (~4.55% APY).", ru:"Вручную отобранный лучший портфель сессии, жертвующий частью доходности ради более ровного, низковолатильного хода: балласт Sky + слив T2 Morpho/Fluid + T1 Aave/Compound + кэш (~4,55% APY)."},
+  s49_diversified_max: {en:"Maximum diversification across 7 venues with no single protocol over 20% (Aave/Compound/Sky/Morpho/Fluid/Yearn/Euler). Sacrifices ~0.3pp of APY for very low concentration.", ru:"Максимальная диверсификация по 7 площадкам, ни один протокол не более 20% (Aave/Compound/Sky/Morpho/Fluid/Yearn/Euler). Жертвует ~0,3 п.п. APY ради очень низкой концентрации."},
+  s12_base_layer_yield: {en:"Multi-protocol Base-chain USDC yield (ADR-025 Phase 2): concentrates into Base lending markets to harvest L2 yield at low gas cost.", ru:"Мультипротокольная доходность USDC на сети Base (ADR-025, фаза 2): концентрируется в кредитных рынках Base ради доходности L2 при низком газе."},
+  s22_ethena_yield_max: {en:"Ethena yield maximizer: Ethena sUSDe (funding + staking, ~12% APY) plus Sky sUSDS and Aave T1 anchors. Kill switch routes to a T1 safe harbor on any sUSDe depeg.", ru:"Максимайзер доходности Ethena: sUSDe (funding + стейкинг, ~12% APY) плюс якоря Sky sUSDS и Aave T1. Kill switch уводит в T1-убежище при любом депеге sUSDe."},
+  s25_yield_ladder: {en:"Barbell yield ladder: 60% in ultra-safe T1 (Sky + Aave) plus a 40% dynamic T2 sleeve that rotates each cycle into the highest-APY of Ethena/Yearn/Euler/Maple.", ru:"Барбелл-лестница доходности: 60% в сверхбезопасном T1 (Sky + Aave) плюс 40% динамический слив T2, который каждый цикл переходит в самый доходный из Ethena/Yearn/Euler/Maple."},
+  s5_pendle_enhanced: {en:"Aggressive fixed-rate book: 65% Pendle PT USDC for a high locked rate, backstopped by Morpho and Compound. ~8.5% target yield, sits between conservative PT and full delta-neutral plays.", ru:"Агрессивный портфель фиксированной ставки: 65% Pendle PT USDC ради высокой зафиксированной ставки, с подстраховкой Morpho и Compound. ~8,5% целевой APY, между консервативным PT и полными дельта-нейтральными стратегиями."},
+  s29_barbell_plus: {en:"Barbell Plus: 70% ultra-conservative T1 (only protocols with TVL over $500M) plus a 30% best-risk-adjusted T2 sleeve rotated monthly. Very low drawdown with competitive yield.", ru:"Barbell Plus: 70% сверхконсервативного T1 (только протоколы с TVL свыше $500M) плюс 30% слив T2 с лучшим риск-скорректированным профилем, ротация ежемесячно. Очень низкая просадка при конкурентной доходности."},
+  s38_morpho_max: {en:"Morpho Max: pushes Morpho Blue to its 20% T2 cap (highest APY in the universe) plus Euler, Aave and Compound. Fully RiskPolicy-compliant, ~4% blended APY.", ru:"Morpho Max: выводит Morpho Blue к лимиту 20% T2 (наивысший APY в наборе) плюс Euler, Aave и Compound. Полностью соответствует RiskPolicy, ~4% смешанного APY."},
+  s32_market_neutral: {en:"Market neutral: a fixed 50% T1 / 45% T2 / 5% cash split regardless of regime, rebalanced weekly. No market timing — targets a steady 5–6% APY with under 1% drawdown.", ru:"Рыночно-нейтральная: фиксированное деление 50% T1 / 45% T2 / 5% кэш независимо от режима, ребаланс еженедельно. Без тайминга — цель ровные 5–6% APY с просадкой менее 1%."},
+  s72_basis_trade: {en:"Basis / carry trade: captures the funding-rate spread between a stablecoin position and perp futures (delta-neutral). Advisory — no perp-funding feed live yet, so simulation-only.", ru:"Базисная/carry-сделка: ловит спред ставки финансирования между стейблкоин-позицией и перп-фьючерсами (дельта-нейтрально). Advisory — фид funding по перпам пока не подключён, только симуляция."},
+  s53_correlated_risk_reducer: {en:"Correlated risk reducer: detects protocol pairs with APY correlation over 0.9 and collapses each pair into its higher-yield member, cutting redundant exposure. Quality over quantity.", ru:"Снижение коррелированного риска: находит пары протоколов с корреляцией APY выше 0,9 и сводит каждую пару к более доходному участнику, срезая избыточную экспозицию. Качество вместо количества."},
+  s48_utilization_aware: {en:"Regime-adaptive: reads live Aave USDC APY as a utilization proxy — high utilization tilts to Aave, low utilization shifts weight to Morpho Blue. Adaptive 4.2–4.8% APY.", ru:"Адаптивная к режиму: читает live APY Aave USDC как прокси утилизации — высокая утилизация смещает в Aave, низкая переносит вес в Morpho Blue. Адаптивный APY 4,2–4,8%."},
+  s1_t1t2_balanced: {en:"Balanced T1+T2 book: Aave V3 + Morpho Steakhouse + Compound V3 in roughly 40/40/20 weights. Default ~5.2% blended APY at low risk.", ru:"Сбалансированный T1+T2 портфель: Aave V3 + Morpho Steakhouse + Compound V3 в примерно 40/40/20. По умолчанию ~5,2% смешанного APY при низком риске."},
+  s71_delta_neutral: {en:"Delta-neutral stablecoin strategy: pairs a yield-bearing position (e.g. Ethena sUSDe) with an offsetting short to neutralize price exposure and harvest funding/staking yield. Advisory.", ru:"Дельта-нейтральная стейблкоин-стратегия: сочетает доходную позицию (напр. Ethena sUSDe) с компенсирующим шортом, нейтрализуя ценовую экспозицию и собирая доход funding/стейкинга. Advisory."},
+  s16_stablecoin_ladder: {en:"Stablecoin ladder: tiered allocation — conservative T1 (Compound + Spark) / balanced T1+T2 (sDAI + Morpho Blue) / growth T2 (sFRAX + wUSDM). ~6.2% target APY.", ru:"Стейблкоин-лестница: ступенчатая аллокация — консервативный T1 (Compound + Spark) / сбалансированный T1+T2 (sDAI + Morpho Blue) / ростовой T2 (sFRAX + wUSDM). Целевой APY ~6,2%."},
+  s28_momentum_yield: {en:"Momentum yield: tilts an equal-weight base toward protocols with positive 7-day APY momentum and away from declining ones — rides yield peaks, avoids collapses.", ru:"Моментум доходности: смещает равновесную базу к протоколам с положительным 7-дневным моментумом APY и от снижающихся — ловит пики доходности, избегает обвалов."},
+  s51_protocol_lifecycle: {en:"Protocol lifecycle manager: treats protocol age as a risk signal — young protocols capped at 10%, growing ones at 25%, mature anchors (Aave/Compound) carry full weight. Conservative ~4.1% APY.", ru:"Менеджер жизненного цикла протоколов: возраст протокола как риск-сигнал — молодые до 10%, растущие до 25%, зрелые якоря (Aave/Compound) с полным весом. Консервативный APY ~4,1%."},
+  s52_tvl_momentum: {en:"TVL momentum: overweights protocols whose TVL is above its 6-month average and underweights those with declining TVL — TVL flow as a leading signal of durable yield.", ru:"TVL-моментум: перевешивает протоколы, чей TVL выше 6-месячного среднего, и недовешивает со снижающимся TVL — поток TVL как опережающий сигнал устойчивой доходности."},
+  s54_daily_yield_maximizer: {en:"Daily yield maximizer: aggressive daily rotation on yesterday's APY (lagged, leak-free) — 80% chases the top-3 performers, 20% baseline, with a T1-floor kill switch. ~4.8% APY.", ru:"Дневной максимайзер доходности: агрессивная дневная ротация по вчерашнему APY (с лагом, без утечки) — 80% гонится за топ-3, 20% базовая, с kill switch для T1-пола. ~4,8% APY."},
+  s34_arbitrum_yield: {en:"Arbitrum-focused stablecoin book: Aave V3 Arbitrum + Radiant Arbitrum + a mainnet Aave anchor; rotates back to mainnet if the L2 sequencer goes down. ~4.2% APY.", ru:"Стейблкоин-портфель с фокусом на Arbitrum: Aave V3 Arbitrum + Radiant Arbitrum + якорь Aave на mainnet; уходит обратно в mainnet при сбое секвенсера L2. ~4,2% APY."},
+  s43_vol_adjusted: {en:"Volatility-adjusted weighting: scales each protocol's allocation inversely to its APY volatility, so steadier yield sources get more weight — a risk-parity tilt for stable yield.", ru:"Взвешивание с поправкой на волатильность: масштабирует аллокацию каждого протокола обратно его волатильности APY, давая больше веса стабильным источникам — наклон в сторону risk-parity для стабильной доходности."},
+  s61_hybrid_income_shield: {en:"Hybrid income shield: income-first, low-volatility book anchored 50% in Sky sUSDS, shielded by Aave + Compound T1 and boosted by Morpho Blue. Targets under 1% portfolio volatility.", ru:"Гибридный щит дохода: ориентированный на доход, низковолатильный портфель с якорем 50% в Sky sUSDS, защищённый Aave + Compound T1 и усиленный Morpho Blue. Цель — волатильность портфеля менее 1%."},
+  s23_pendle_pt_fixed: {en:"Pendle PT fixed-rate: half in Pendle PT (locked ~7% YTM) plus Sky sUSDS and Aave T1. Locks in 6–9% with lower variance than floating-rate lending.", ru:"Pendle PT фиксированная ставка: половина в Pendle PT (зафиксированный YTM ~7%) плюс Sky sUSDS и Aave T1. Фиксирует 6–9% с меньшей дисперсией, чем плавающее кредитование."},
+  s66_real_data_optimal: {en:"Real-data optimal: the optimizer's best static book anchored to DeFiLlama 365-day historical means under RiskPolicy caps (Aave/Sky/Compound/Morpho), ~4.5% APY, rebalanced on drift.", ru:"Оптимум на реальных данных: лучший статический портфель оптимизатора, привязанный к 365-дневным историческим средним DeFiLlama в рамках лимитов RiskPolicy (Aave/Sky/Compound/Morpho), ~4,5% APY, ребаланс по дрейфу."},
+  s3_aave_arb_morpho: {en:"L2-focused all-T1 strategy: mostly Aave V3 Arbitrum (cheap gas) plus Morpho Steakhouse and a mainnet Aave baseline. ~4.7% APY with L2 bridge risk noted.", ru:"L2-ориентированная полностью T1 стратегия: в основном Aave V3 Arbitrum (дешёвый газ) плюс Morpho Steakhouse и базовый Aave на mainnet. ~4,7% APY с отмеченным риском мостов L2."},
+  s55_max_sharpe_portfolio: {en:"Maximum-Sharpe portfolio: adopts the optimizer's best risk-adjusted static weights (Aave/Compound/Sky/Morpho), rebalanced weekly. Sky is gated to cash until its GSM delay is confirmed.", ru:"Портфель максимального Sharpe: берёт лучшие риск-скорректированные статические веса оптимизатора (Aave/Compound/Sky/Morpho), ребаланс еженедельно. Sky держится в кэше до подтверждения GSM-задержки."},
+  s63_anti_correlation: {en:"Anti-correlation: monitors the Aave↔Compound APY correlation and swaps the lower-yield twin for decorrelated Sky sUSDS when they move together, restoring balance when they diverge.", ru:"Анти-корреляция: следит за корреляцией APY Aave↔Compound и меняет менее доходного «близнеца» на декоррелированный Sky sUSDS, когда они движутся вместе, восстанавливая баланс при расхождении."},
+  s17_polygon_yield: {en:"Polygon yield: Aave V3 Polygon USDC.e anchor + Spark sUSDS for L1 stability + Morpho Blue boost. ~5.8% target APY at ~90% cheaper gas than mainnet.", ru:"Доходность Polygon: якорь Aave V3 Polygon USDC.e + Spark sUSDS для стабильности L1 + ускоритель Morpho Blue. Целевой APY ~5,8% при газе на ~90% дешевле mainnet."},
+  s30_all_weather: {en:"All-weather DeFi: regime-adaptive from Aave utilization — bull tilts to T2, bear shifts to T1 + cash, sideways stays balanced. Targets 4–6% APY in any regime with under 2% drawdown.", ru:"Всепогодная DeFi: адаптивная к режиму по утилизации Aave — бык смещается в T2, медведь в T1 + кэш, боковик остаётся сбалансированным. Цель 4–6% APY в любом режиме при просадке менее 2%."},
+  s75_pendle_yield_max: {en:"Pendle yield maximizer: concentrates into Pendle PT/YT markets to maximize fixed + speculative yield-token returns, anchored by a stablecoin lending buffer. Advisory.", ru:"Максимайзер доходности Pendle: концентрируется в рынках Pendle PT/YT ради максимизации фиксированной и спекулятивной доходности yield-токенов, с буфером стейблкоин-кредитования. Advisory."},
+  s45_mean_reversion: {en:"Mean-reversion yield: overweights protocols whose APY is temporarily below their long-run mean (expected to revert up) and underweights those above mean. Buys the dip in yield.", ru:"Доходность возврата к среднему: перевешивает протоколы, чей APY временно ниже долгосрочного среднего (ожидается возврат вверх), и недовешивает выше среднего. Покупает просадку доходности."},
+  s64_bayesian_updater: {en:"Bayesian updater: starts from an equal-weight prior and updates weights each week by observed-vs-expected return — winners gain weight, laggards shrink — then enforces RiskPolicy caps.", ru:"Байесовский апдейтер: стартует с равновесного приора и еженедельно обновляет веса по отношению факт/ожидание — победители набирают вес, отстающие сжимаются — затем применяет лимиты RiskPolicy."},
+  s69_governance_informed: {en:"Governance-informed: reads the governance watcher feed and tilts weights ±10% toward protocols with APY-positive active proposals and away from APY-negative ones. Caps enforced.", ru:"Учёт управления: читает фид governance-наблюдателя и смещает веса на ±10% к протоколам с APY-позитивными активными предложениями и от APY-негативных. Лимиты соблюдаются."},
+  s26_volatility_harvester: {en:"Volatility harvester: rotates between floating-rate Aave supply in high-volatility regimes and fixed-rate Pendle PT in calm ones. Targets 6–9% APY with lower variance than pure lending.", ru:"Сборщик волатильности: переключается между плавающим Aave в высоковолатильных режимах и фиксированным Pendle PT в спокойных. Цель 6–9% APY с меньшей дисперсией, чем чистое кредитование."},
+  s19_balanced_l2: {en:"Balanced L2: equal 25% each across Aave V3 on Arbitrum, Base, Optimism and Polygon. ~5% target APY at roughly 92% cheaper gas than mainnet, diversified across four L2s.", ru:"Сбалансированный L2: равные 25% по Aave V3 на Arbitrum, Base, Optimism и Polygon. Целевой APY ~5% при газе примерно на 92% дешевле mainnet, диверсификация по четырём L2."},
+  s50_tournament_champion: {en:"Meta-strategy: each cycle copies the allocation of the current tournament leader (best 7-day paper APY), adapting as the tournament evolves; falls back to an equal-weight T1 book when no data.", ru:"Мета-стратегия: каждый цикл копирует аллокацию текущего лидера турнира (лучший 7-дневный paper APY), адаптируясь по ходу турнира; при отсутствии данных откатывается к равновесному T1-портфелю."},
+  s47_monthly_income: {en:"Predictability-weighted all-T1 income engine: Sky sUSDS (smoothest) + Compound + Aave, weighted for steady monthly income (~$322/mo on $100k) rather than peak APY. Very low risk.", ru:"Движок дохода полностью на T1, взвешенный по предсказуемости: Sky sUSDS (самый ровный) + Compound + Aave, ради стабильного месячного дохода (~$322/мес на $100k), а не пикового APY. Очень низкий риск."},
+  s42_crisis_refuge: {en:"Crisis refuge: a defensive bunker book that moves fully into the safest T1 venues (Aave/Compound/Sky) and cash during stress, prioritizing principal protection over yield. Advisory.", ru:"Кризисное убежище: оборонительный «бункерный» портфель, который в стрессе полностью уходит в самые безопасные T1-площадки (Aave/Compound/Sky) и кэш, ставя защиту тела выше доходности. Advisory."},
+  s46_safe_harbor: {en:"Safe harbor: ultra-conservative capital preservation — 100% T1, never T2. Aave + Compound + Sky sUSDS, ~3.8% APY. The lowest-risk strategy in the tournament.", ru:"Тихая гавань: сверхконсервативное сохранение капитала — 100% T1, никогда T2. Aave + Compound + Sky sUSDS, ~3,8% APY. Стратегия с самым низким риском в турнире."},
+  s44_spike_harvester: {en:"Yield-spike harvester: detects temporary APY spikes (over 2x the 30-day average) and concentrates into the spiking protocol with a Sky sUSDS refuge, rotating back on mean-reversion.", ru:"Сборщик всплесков доходности: ловит временные всплески APY (более 2x 30-дневного среднего) и концентрируется в всплеснувшем протоколе с убежищем Sky sUSDS, возвращаясь при откате к среднему."},
+  s67_anti_bear: {en:"Anti-Bear: the structural inverse of the Bear Market Hedge — it flips that regime signal (underlying bear → it goes bull, and vice versa). Run alongside S31 for self-hedging negative correlation.", ru:"Anti-Bear: структурная инверсия Bear Market Hedge — переворачивает его сигнал режима (внешний медведь → идёт в быка, и наоборот). Запускается рядом с S31 ради самохеджирующей отрицательной корреляции."},
+  s31_bear_market_hedge: {en:"Bear market hedge: regime-aware defensive rotation — bear = 80% T1 + Sky + cash, zero T2/YT; bull = 50% T1 + 35% T2 + Pendle PT. Gradual rotation to avoid whipsaw.", ru:"Хедж медвежьего рынка: оборонительная ротация по режиму — медведь = 80% T1 + Sky + кэш, ноль T2/YT; бык = 50% T1 + 35% T2 + Pendle PT. Плавная ротация против «пилы»."},
+  s41_amm_stable_yield: {en:"AMM stable yield: T1-anchored (70% Aave/Compound mainnet) with two L2 stablecoin-AMM LP sleeves on Aerodrome (Base) and Velodrome (Optimism) earning fees + emissions on correlated pairs.", ru:"AMM стейбл-доходность: якорь T1 (70% Aave/Compound на mainnet) с двумя L2 LP-сливами на Aerodrome (Base) и Velodrome (Optimism), зарабатывающими комиссии + эмиссии на коррелированных парах."},
+  s15_multichain_l2: {en:"MultiChain L2 yield: Aave V3 spread across Base, Optimism and Arbitrum. ~5.5% target APY at roughly 93% cheaper gas than mainnet, diversified across three L2 deployments.", ru:"MultiChain L2 доходность: Aave V3, распределённый по Base, Optimism и Arbitrum. Целевой APY ~5,5% при газе примерно на 93% дешевле mainnet, диверсификация по трём развёртываниям L2."},
+  s35_gmx_carry: {en:"GMX stablecoin carry: allocates 20% to GMX GLP on Arbitrum only when its stablecoin-attributable APY exceeds 8%, otherwise stays fully in mainnet T1. Conditional carry trade.", ru:"GMX стейблкоин-carry: размещает 20% в GMX GLP на Arbitrum только когда приписываемый стейблкоинам APY превышает 8%, иначе остаётся полностью в T1 на mainnet. Условная carry-сделка."},
+  s40_pendle_pt_fixed: {en:"Pendle PT fixed-rate: locks yield via Pendle Principal Tokens (PT-sUSDe / PT-USDC) for a known maturity rate, balanced by T1 lending — lower variance than floating yield.", ru:"Pendle PT фиксированная ставка: фиксирует доход через Principal-токены Pendle (PT-sUSDe / PT-USDC) под известную ставку погашения, баланс через T1-кредитование — меньшая дисперсия, чем плавающая доходность."},
+  s27_stablecoin_carry: {en:"Stablecoin carry: parks 100% in the single top-yielding T1 stablecoin venue (USDC/USDT/DAI on Aave/Compound/Sky), switching only when the rate spread exceeds 0.5% to avoid churn.", ru:"Стейблкоин-carry: держит 100% в одной самой доходной T1-площадке стейблкоинов (USDC/USDT/DAI на Aave/Compound/Sky), переключаясь только когда спред ставок превышает 0,5%, чтобы избежать лишних движений."},
+  s62_yield_ladder_v2: {en:"Yield Ladder v2: gradual 3-week deployment of fresh capital with no FOMO entry and no cash drag — week 1 in Sky, week 2 split Morpho/Sky, week 3+ the optimal balanced book.", ru:"Yield Ladder v2: постепенное 3-недельное развёртывание свежего капитала без FOMO-входа и без простоя кэша — 1-я неделя в Sky, 2-я делёж Morpho/Sky, с 3-й недели оптимальный сбалансированный портфель."},
+  s18_high_yield_t2: {en:"High-yield T2: a small T1 safety net plus aggressive T2 cores (sFRAX, wUSDM, sDAI, scrvUSD) and a max-APY boost sleeve. ~8% target APY at elevated risk (T2 ≈ 70%). Advisory.", ru:"Высокодоходный T2: небольшая T1-страховка плюс агрессивные T2-ядра (sFRAX, wUSDM, sDAI, scrvUSD) и слив-ускоритель максимального APY. Целевой APY ~8% при повышенном риске (T2 ≈ 70%). Advisory."},
+  s76_concentrated_lp: {en:"Concentrated LP: provides liquidity in tight ranges on stablecoin AMM pairs to maximize fee capture per dollar, accepting active-management and impermanent-loss risk. Advisory.", ru:"Концентрированный LP: предоставляет ликвидность в узких диапазонах на стейблкоин-парах AMM ради максимизации сбора комиссий на доллар, принимая риск активного управления и непостоянных потерь. Advisory."}
+};
+
+/* Tier label → human, for the auto-fallback description */
+function fallbackDesc(id, alloc) {
+  var tier = getTier(alloc || {});
+  var protos = Object.keys(alloc || {}).slice(0,3)
+    .map(function(k){ return k.replace('_steakhouse','').replace('_v3','').replace(/_/g,' '); });
+  var en, ru;
+  if (tier.label === 'T1') {
+    en = "Conservative T1 stablecoin lending"; ru = "Консервативное стейблкоин-кредитование T1";
+  } else if (tier.label === 'T3') {
+    en = "Aggressive higher-yield strategy"; ru = "Агрессивная стратегия повышенной доходности";
+  } else {
+    en = "Balanced T1/T2 stablecoin yield"; ru = "Сбалансированная стейблкоин-доходность T1/T2";
+  }
+  var tail = protos.length ? (' across ' + protos.join(', ')) : '';
+  var tailRu = protos.length ? (' по ' + protos.join(', ')) : '';
+  return { en: en + tail + '.', ru: ru + tailRu + '.' };
+}
+function descFor(id, alloc) {
+  return STRAT_DESC[id] || fallbackDesc(id, alloc);
+}
 
 /* ═══════════════════════════════════════════════════
    Utilities
@@ -1090,8 +1423,9 @@ function renderMedals(top3) {
     const name = stratName(s.id, s.class);
     const tier = getTier(s.allocation);
     const alloc = allocText(s.allocation);
+    indexStrategy(s.id, s);
     return `
-    <div class="medal-card ${m[i]}">
+    <div class="medal-card ${m[i]} is-clickable" data-strat="${s.id}" role="button" tabindex="0">
       <span class="medal-icon">${ic[i]}</span>
       <div class="medal-rank-lbl">${labels[i]}</div>
       <div class="medal-name">${name}</div>
@@ -1099,6 +1433,7 @@ function renderMedals(top3) {
       <div class="medal-badges">
         <span class="tier-badge ${tier.cls}">${tier.label}</span>
         <span class="phase-badge phase-paper">${t('medal.paper')}</span>
+        <span class="click-hint" style="margin-left:auto">${t('lb.clickHint')}</span>
       </div>
       <div class="medal-metrics">
         <div>
@@ -1134,10 +1469,11 @@ function renderLeaderboard(lb, shadowSet) {
       : `<span class="phase-badge phase-bt">${t('lb.backtest')}</span>`;
     const rankDisp = medalEmoji[s.rank] || `#${s.rank}`;
     const sharpeClass = s.sharpe >= 150 ? 'lb-pos' : s.sharpe >= 100 ? 'lb-hi' : 'lb-neu';
-    return `<tr${paper ? ' style="background:rgba(96,165,250,0.04)"' : ''}>
+    indexStrategy(s.id, Object.assign({_shadow: paper}, s));
+    return `<tr class="is-clickable" data-strat="${s.id}" role="button" tabindex="0"${paper ? ' style="background:rgba(96,165,250,0.04)"' : ''}>
       <td class="lb-rank" style="text-align:center">${rankDisp}</td>
       <td>
-        <span class="lb-name">${name}</span>
+        <span class="lb-name">${name} <span class="click-hint">${t('lb.clickHint')}</span></span>
         <span class="lb-id">${s.id}</span>
       </td>
       <td><span class="tier-badge ${tier.cls}">${tier.label}</span></td>
@@ -1158,12 +1494,18 @@ function renderShadow(strategies) {
     const spark = sparkSVG(pts, color);
     const alloc = allocText(s.allocation, 3);
     const days  = s.days_active || 0;
+    const sid   = s.strategy_key || s.id;
+    indexStrategy(sid, {
+      id: sid, class: s.name, rank: s.rank, allocation: s.allocation,
+      sharpe: s.sharpe, annual_return_pct: s.paper_apy, max_dd_pct: s.max_dd_pct,
+      sortino: s.sortino, calmar: s.calmar, volatility_pct: s.volatility_pct, _shadow: true
+    });
     return `
-    <div class="shadow-card">
+    <div class="shadow-card is-clickable" data-strat="${sid}" role="button" tabindex="0">
       <div class="shadow-chart">${spark}</div>
       <div class="shadow-body">
         <div class="shadow-rank-badge">${t('shadow.rank')} #${s.rank}</div>
-        <div class="shadow-name">${name}</div>
+        <div class="shadow-name">${name} <span class="click-hint">${t('lb.clickHint')}</span></div>
         <div class="shadow-row">
           <span class="shadow-lbl">${t('shadow.btApy')}</span>
           <span class="shadow-val" style="color:var(--spa-pos)">+${fmt(s.paper_apy)}%</span>
@@ -1221,6 +1563,158 @@ function renderPipeline(mass, shadow) {
 }
 
 /* ═══════════════════════════════════════════════════
+   Strategy drill-down detail panel
+   ═══════════════════════════════════════════════════ */
+var STRAT_INDEX = {};   // id → normalized strategy record (from leaderboard/shadow)
+var TIER1_DATA  = null;  // {byId:{}, eligible:Set, loaded:bool}
+var _ddOpenId   = null;  // currently open strategy (to re-render on lang switch)
+
+function indexStrategy(id, rec) { if (id && !STRAT_INDEX[id]) STRAT_INDEX[id] = rec; }
+
+/* Pull Tier-1 verdict + gate once; tolerate failure/absence */
+async function loadTier1() {
+  if (TIER1_DATA) return TIER1_DATA;
+  var byId = {}, eligible = new Set();
+  try {
+    var vr = await fetch(LIVE_API + '/api/tier1/verdict', { cache: 'no-store' });
+    if (vr.ok) {
+      var v = await vr.json();
+      (v.leaderboard_tier1 || []).forEach(function(e){ if (e && e.id) byId[e.id] = e; });
+    }
+  } catch(_) { /* tolerate */ }
+  try {
+    var gr = await fetch(LIVE_API + '/api/tier1/gate', { cache: 'no-store' });
+    if (gr.ok) {
+      var g = await gr.json();
+      (g.eligible_for_paper || []).forEach(function(x){ eligible.add(x); });
+    }
+  } catch(_) { /* tolerate */ }
+  TIER1_DATA = { byId: byId, eligible: eligible, loaded: true };
+  return TIER1_DATA;
+}
+
+function yesNo(v) {
+  return v ? '<span class="dd-t1-v yes">' + t('dd.t1.yes') + '</span>'
+           : '<span class="dd-t1-v no">'  + t('dd.t1.no')  + '</span>';
+}
+
+function renderTier1Section(id) {
+  var box = document.getElementById('dd-t1-box');
+  if (!box) return;
+  if (!TIER1_DATA || !TIER1_DATA.loaded) { box.innerHTML = '<div class="dd-t1-empty">' + t('dd.t1.loading') + '</div>'; box.className = 'dd-t1 missing'; return; }
+  var e = TIER1_DATA.byId[id];
+  if (!e) { box.className = 'dd-t1 missing'; box.innerHTML = '<div class="dd-t1-empty">' + t('dd.t1.missing') + '</div>'; return; }
+  var elig = TIER1_DATA.eligible.has(id);
+  box.className = 'dd-t1' + (e.validated ? ' validated' : '');
+  var rows = [
+    ['dd.t1.validated', yesNo(e.validated)],
+    ['dd.t1.oos',       (e.oos_holds == null ? '<span class="dd-t1-v">—</span>' : yesNo(e.oos_holds))],
+    ['dd.t1.netapy',    '<span class="dd-t1-v">' + (e.net_apy_pct != null ? e.net_apy_pct.toFixed(2) + '%' : '—') + '</span>'],
+    ['dd.t1.package',   '<span class="dd-t1-v">' + (e.package ? e.package.charAt(0).toUpperCase()+e.package.slice(1) : '—') + '</span>'],
+    ['dd.t1.grade',     (e.tier1_grade ? '<span class="dd-grade">' + e.tier1_grade + '</span>' : '<span class="dd-t1-v">—</span>')],
+    ['dd.t1.eligible',  yesNo(elig)]
+  ];
+  box.innerHTML = rows.map(function(r){
+    return '<div class="dd-t1-row"><span class="dd-t1-k">' + t(r[0]) + '</span>' + r[1] + '</div>';
+  }).join('');
+}
+
+function openDetail(id) {
+  var rec = STRAT_INDEX[id];
+  if (!rec) return;
+  _ddOpenId = id;
+  var name  = stratName(rec.id, rec.class || rec.name);
+  var tier  = getTier(rec.allocation);
+  var desc  = descFor(rec.id, rec.allocation);
+
+  document.getElementById('dd-rank').textContent  = rec.rank ? (t('dd.rank') + ' #' + rec.rank) : t('dd.rank');
+  document.getElementById('dd-title').textContent = name;
+  document.getElementById('dd-id').textContent    = rec.id;
+  document.getElementById('dd-badges').innerHTML  =
+    '<span class="tier-badge ' + tier.cls + '">' + tier.label + '</span>' +
+    (rec._shadow
+      ? '<span class="phase-badge phase-paper">' + t('lb.paper') + '</span>'
+      : '<span class="phase-badge phase-bt">'   + t('lb.backtest') + '</span>');
+
+  // Allocation bars
+  var allocEntries = Object.entries(rec.allocation || {}).sort(function(a,b){ return b[1]-a[1]; });
+  var allocHtml = allocEntries.length ? allocEntries.map(function(kv){
+    var label = kv[0].replace('_steakhouse','').replace('_v3',' v3').replace(/_/g,' ');
+    var pct = (kv[1]*100);
+    return '<div class="dd-alloc-row">' +
+             '<span class="dd-alloc-name">' + label + '</span>' +
+             '<span class="dd-alloc-bar"><span class="dd-alloc-fill" style="width:' + Math.min(pct,100).toFixed(0) + '%"></span></span>' +
+             '<span class="dd-alloc-pct">' + pct.toFixed(0) + '%</span>' +
+           '</div>';
+  }).join('') : '<div class="dd-t1-empty">—</div>';
+
+  // Metrics (Sharpe-leaderboard record has these; shadow has a subset)
+  var apy    = rec.annual_return_pct != null ? rec.annual_return_pct : rec.paper_apy;
+  var metrics = [
+    ['dd.m.apy',    (apy != null ? '+' + fmt(apy) + '%' : '—'), 'pos'],
+    ['dd.m.sharpe', fmt(rec.sharpe, 1), ''],
+    ['dd.m.sortino',fmt(rec.sortino, 1), ''],
+    ['dd.m.calmar', fmt(rec.calmar, 1), ''],
+    ['dd.m.maxdd',  (rec.max_dd_pct != null ? fmt(rec.max_dd_pct) + '%' : '—'), ''],
+    ['dd.m.vol',    (rec.volatility_pct != null ? fmt(rec.volatility_pct, 3) + '%' : '—'), '']
+  ];
+  var metricsHtml = metrics.map(function(m){
+    return '<div class="dd-metric"><div class="dd-metric-val ' + m[2] + '">' + m[1] + '</div>' +
+           '<div class="dd-metric-lbl">' + t(m[0]) + '</div></div>';
+  }).join('');
+
+  document.getElementById('dd-body').innerHTML =
+    '<div class="dd-sec"><div class="dd-sec-title">' + t('dd.about') + '</div>' +
+      '<div class="dd-desc">' + (LANG === 'ru' ? desc.ru : desc.en) + '</div></div>' +
+    '<div class="dd-sec"><div class="dd-sec-title">' + t('dd.metrics') + '</div>' +
+      '<div class="dd-metrics">' + metricsHtml + '</div></div>' +
+    '<div class="dd-sec"><div class="dd-sec-title">' + t('dd.alloc') + '</div>' + allocHtml + '</div>' +
+    '<div class="dd-sec"><div class="dd-sec-title">' + t('dd.tier1') + '</div>' +
+      '<div class="dd-t1 missing" id="dd-t1-box"><div class="dd-t1-empty">' + t('dd.t1.loading') + '</div></div></div>' +
+    '<div class="dd-sec"><div class="dd-explainer">' + t('dd.explainer') + '</div></div>';
+
+  var ov = document.getElementById('dd-overlay');
+  ov.classList.add('open');
+  ov.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+
+  // Fill Tier-1 (async, graceful)
+  loadTier1().then(function(){ if (_ddOpenId === id) renderTier1Section(id); });
+}
+
+function closeDetail() {
+  var ov = document.getElementById('dd-overlay');
+  ov.classList.remove('open');
+  ov.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  _ddOpenId = null;
+}
+
+(function initDetail(){
+  document.getElementById('dd-close').addEventListener('click', closeDetail);
+  document.getElementById('dd-overlay').addEventListener('click', function(e){
+    if (e.target === this) closeDetail();   // click backdrop closes
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && _ddOpenId) closeDetail();
+  });
+  // Delegated open: any element carrying [data-strat] inside the three live containers
+  ['medal-grid','lb-tbody','shadow-grid'].forEach(function(cid){
+    var c = document.getElementById(cid);
+    if (!c) return;
+    c.addEventListener('click', function(e){
+      var el = e.target.closest('[data-strat]');
+      if (el) openDetail(el.getAttribute('data-strat'));
+    });
+    c.addEventListener('keydown', function(e){
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var el = e.target.closest('[data-strat]');
+      if (el) { e.preventDefault(); openDetail(el.getAttribute('data-strat')); }
+    });
+  });
+})();
+
+/* ═══════════════════════════════════════════════════
    Tournament Live Mode — mirrors index.html live detection
    ═══════════════════════════════════════════════════ */
 const LIVE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
@@ -1235,6 +1729,7 @@ let _liveLastFetch = 0;
 var _LAST_RENDER = null; // cache args so the language toggle can re-render dynamic content
 function renderAll(massData, tournamentData, shadowPaperData) {
   _LAST_RENDER = { mass: massData, tournament: tournamentData, shadow: shadowPaperData };
+  STRAT_INDEX = {};   // rebuild from the freshest data each render
   const mass = massData || FALLBACK_MASS;
 
   // Resolve active strategies from tournament data (strategy_tournament.json)
