@@ -162,21 +162,60 @@ def _save(report: dict) -> None:
         pass
 
 
+_REVIVAL_LOG = _DATA / "self_heal_revivals.json"
+MAX_REVIVALS_PER_HOUR = 5  # circuit-breaker: stop reviving a crash-looping agent
+
+
+def _revival_history() -> dict:
+    try:
+        d = json.loads(_REVIVAL_LOG.read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _record_revival(hist: dict, label: str, now_epoch: float) -> None:
+    hist.setdefault(label, [])
+    hist[label] = [t for t in hist[label] if isinstance(t, (int, float)) and now_epoch - t < 3600.0]
+    hist[label].append(now_epoch)
+
+
+def _save_revival_history(hist: dict) -> None:
+    try:
+        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".revivals_")
+        with os.fdopen(fd, "w") as f:
+            json.dump(hist, f)
+        os.replace(tmp, _REVIVAL_LOG)
+    except Exception:
+        pass
+
+
 def run_self_heal(dry_run: bool = False) -> dict:
+    import time as _t
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now_epoch = _t.time()
     actions: List[str] = []
     failures: List[str] = []
+    breakers: List[str] = []
 
     loaded = _loaded_labels()
     expected = _expected_labels()
+    hist = _revival_history()
 
-    # 1) Revive expected agents that are NOT loaded.
+    # 1) Revive expected agents that are NOT loaded — with a CIRCUIT BREAKER: an agent that
+    #    has been revived > MAX_REVIVALS_PER_HOUR is crash-looping; reviving it again only
+    #    makes things worse (e.g. a flooding bot). Stop reviving it and alert instead.
     for label in expected:
         if label not in loaded:
+            recent = [t for t in hist.get(label, []) if now_epoch - t < 3600.0]
+            if len(recent) >= MAX_REVIVALS_PER_HOUR:
+                breakers.append(f"circuit-breaker: {label} crash-looping ({len(recent)}/h) — NOT revived")
+                continue
             if dry_run:
                 actions.append(f"would bootstrap {label}")
             elif _bootstrap(label):
                 actions.append(f"revived (bootstrap) {label}")
+                _record_revival(hist, label, now_epoch)
             else:
                 failures.append(f"bootstrap failed {label}")
 
@@ -213,24 +252,30 @@ def run_self_heal(dry_run: bool = False) -> dict:
                 f"cycle recovery {'ok' if ok else 'attempted/failed'} (was {age:.1f}h)"
             )
 
+    if not dry_run:
+        _save_revival_history(hist)
+
     report = {
         "ts": now,
         "expected": len(expected),
         "loaded": len(loaded),
         "actions": actions,
         "failures": failures,
+        "circuit_breakers": breakers,
         "cycle_age_h": round(age, 2) if age is not None else None,
-        "healthy": not actions and not failures,
+        "healthy": not actions and not failures and not breakers,
         "LLM_FORBIDDEN": True,
     }
     if not dry_run:
         _save(report)
-        if actions or failures:
+        if actions or failures or breakers:
             lines = ["🔧 <b>SPA Self-Heal</b>"]
             for a in actions:
                 lines.append(f"✅ {a}")
             for f in failures:
                 lines.append(f"❌ {f}")
+            for b in breakers:
+                lines.append(f"🛑 {b}")
             _send_telegram("\n".join(lines))
     return report
 
