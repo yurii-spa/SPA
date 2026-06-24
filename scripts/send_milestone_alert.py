@@ -9,6 +9,9 @@ import urllib.request
 import urllib.parse
 import json
 import sys
+from pathlib import Path
+
+_BASE = Path(__file__).resolve().parents[1]
 
 
 def get_keychain(key: str) -> str | None:
@@ -52,25 +55,19 @@ def main() -> None:
         "✅ GoLive: 26/26 PASS — система готова к go-live"
     )
 
-    data = urllib.parse.urlencode(
-        {
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown",
-        }
-    ).encode()
-
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    req = urllib.request.Request(url, data=data, method="POST")
-
+    # FLOOD-GUARD: route through the canonical rate-limited client so this
+    # one-shot milestone alert shares the cross-process flood guard. Transport
+    # only — same Markdown message. Credentials are re-resolved by the canonical
+    # client from the Keychain (the presence check above is retained).
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read())
-            if result.get("ok"):
-                print("✅ Telegram milestone alert sent successfully")
-            else:
-                print(f"❌ Telegram API error: {result}")
-                sys.exit(1)
+        if str(_BASE) not in sys.path:
+            sys.path.insert(0, str(_BASE))
+        from spa_core.alerts.telegram_client import send_message
+        if send_message(message, parse_mode="Markdown"):
+            print("✅ Telegram milestone alert sent successfully")
+        else:
+            print("❌ Telegram send failed or suppressed by flood guard")
+            sys.exit(1)
     except Exception as e:
         print(f"❌ Request failed: {e}")
         sys.exit(1)
