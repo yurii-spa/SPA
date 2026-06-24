@@ -371,6 +371,14 @@ def get_tier1_gate():
     })
 
 
+@app.get("/api/tier1/status", tags=["tier1"])
+def get_tier1_status():
+    """One-glance Tier-1 rollup (regime, eligible, packages, integrity, divergence)."""
+    return _load_json("tier1_status.json", {
+        "generated_at": _now(), "model": "tier1_status", "health": "unknown", "packages": {},
+    })
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
