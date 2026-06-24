@@ -214,6 +214,13 @@ install_agent \
     "com.spa.dashboard" \
     "1"
 
+# 19. Mass Tournament backtest — daily 06:30 local, BEFORE tournament_engine, so the
+#     ranking uses a fresh backtest of all strategies (was manual + days-stale).
+install_agent \
+    "$REPO/scripts/com.spa.mass_tournament.plist" \
+    "com.spa.mass_tournament" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
