@@ -21,6 +21,7 @@ import tempfile
 from pathlib import Path
 
 from spa_core.backtesting.tier1.tail_risk import risk_adjusted_net_apy, strategy_tail_risk
+from spa_core.backtesting.tier1.stress import stress_strategy
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -60,10 +61,11 @@ def build(write: bool = True) -> dict:
         # offered = validated AND in the diversified core (fall back to validated if no corr)
         offered = [sid for sid in validated_ids if sid in core] or validated_ids
         members = []
-        nets, dds, caps, radj = [], [], [], []
+        nets, dds, caps, radj, worsts = [], [], [], [], []
         for sid in offered:
             s = board[sid]
             ra = risk_adjusted_net_apy(s.get("net_apy_pct") or 0.0, alloc_map.get(sid, {}))
+            st = stress_strategy(s.get("net_apy_pct") or 0.0, alloc_map.get(sid, {}))
             members.append({
                 "id": sid,
                 "net_apy_pct": s.get("net_apy_pct"),
@@ -73,9 +75,12 @@ def build(write: bool = True) -> dict:
                 "max_dd_pct": s.get("max_dd_pct"),
                 "oos_out_sample_apy_pct": s.get("oos_out_sample_apy_pct"),
                 "capacity_aum_usd": s.get("capacity_aum_usd"),
+                "stress_worst_case_pct": st["worst_case_pct"],
+                "stress_worst_scenario": st["worst_scenario"],
                 "grade": s.get("tier1_grade"),
             })
             radj.append(ra["risk_adjusted_apy_pct"])
+            worsts.append(st["worst_case_pct"])
             if s.get("net_apy_pct") is not None:
                 nets.append(s["net_apy_pct"])
             if s.get("max_dd_pct") is not None:
@@ -90,6 +95,7 @@ def build(write: bool = True) -> dict:
             "n_validated_in_band": len(validated_ids),
             "blended_net_apy_pct": round(sum(nets) / len(nets), 3) if nets else None,
             "blended_risk_adjusted_apy_pct": round(sum(radj) / len(radj), 3) if radj else None,
+            "stress_worst_case_pct": round(min(worsts), 3) if worsts else None,
             "worst_dd_pct": round(max(dds), 3) if dds else None,
             "min_capacity_aum_usd": min(caps) if caps else None,
             "scales_to": {
