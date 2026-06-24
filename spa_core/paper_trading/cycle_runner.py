@@ -1802,6 +1802,7 @@ def run_cycle(
             _t1_usd = sum(v for p, v in effective_positions.items() if p in _T1)
         except Exception:  # noqa: BLE001
             _t1_usd = 0.0
+        # Percentages are allocation RATIOS (scale-invariant) — computed on the cost basis.
         _t1_pct = round(_t1_usd / capital_usd * 100.0, 2) if capital_usd else 0.0
         _t2_pct = round((deployed - _t1_usd) / capital_usd * 100.0, 2) if capital_usd else 0.0
         _cash_pct = round(_cash_usd / capital_usd * 100.0, 2) if capital_usd else 0.0
@@ -1809,6 +1810,12 @@ def run_cycle(
             sum(v * apy_map.get(p, 0.0) for p, v in effective_positions.items()) / deployed,
             4,
         ) if deployed else 0.0
+        # NAV RECONCILIATION: positions/cash are stored at COST BASIS (sized on capital_usd,
+        # stable so held positions don't re-mark/compound across cycles). The book's accrued
+        # yield lives in current_equity; expose it as an explicit component so that
+        #   deployed + cash + accrued_yield == current_equity  (proof-of-reserves reconciles).
+        _equity = float(getattr(result, "current_equity", 0.0) or 0.0) or capital_usd
+        _accrued_yield = round(_equity - capital_usd, 2)
         _atomic_write_json(
             ddir / POSITIONS_FILENAME,
             {
@@ -1817,8 +1824,10 @@ def run_cycle(
                 "execution_mode": "read_only_simulation",
                 "is_demo": False,
                 "capital_usd": capital_usd,
+                "current_equity_usd": round(_equity, 2),
                 "deployed_usd": round(deployed, 2),
                 "cash_usd": round(_cash_usd, 2),
+                "accrued_yield_usd": _accrued_yield,
                 "model_used": model_used,
                 "policy_compliant": bool(result.policy_approved),
                 "policy_version": "v1.0",
@@ -1826,8 +1835,10 @@ def run_cycle(
                 "positions": {p: round(v, 2) for p, v in effective_positions.items()},
                 "validation_summary": {
                     "capital_usd": capital_usd,
+                    "current_equity_usd": round(_equity, 2),
                     "deployed_usd": round(deployed, 2),
                     "cash_usd": round(_cash_usd, 2),
+                    "accrued_yield_usd": _accrued_yield,
                     "protocol_count": len(effective_positions),
                     "t1_pct": _t1_pct,
                     "t2_pct": _t2_pct,
