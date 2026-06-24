@@ -47,33 +47,12 @@ class TelegramSender:
         if not self.available:
             return False
 
-        url     = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        payload = json.dumps({
-            "chat_id":                  self.chat_id,
-            "text":                     text,
-            "parse_mode":               parse_mode,
-            "disable_web_page_preview": True,
-        }).encode("utf-8")
-
+        # FLOOD-GUARD: route through the canonical rate-limited chokepoint so all
+        # sends share one cross-process rate limit. Transport only — same payload.
+        # (Credentials now resolved by telegram_client from the macOS Keychain.)
         try:
-            req = urllib.request.Request(
-                url,
-                data    = payload,
-                headers = {"Content-Type": "application/json"},
-                method  = "POST",
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                ok = resp.status == 200
-                log.info(f"Telegram message sent (status={resp.status})")
-                return ok
-
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            log.error(f"Telegram HTTP error {exc.code}: {body}")
-            return False
-        except urllib.error.URLError as exc:
-            log.error(f"Telegram URL error: {exc.reason}")
-            return False
+            from spa_core.alerts.telegram_client import send_message
+            return send_message(text, parse_mode=parse_mode)
         except Exception as exc:
             log.error(f"Telegram unexpected error: {exc}")
             return False
