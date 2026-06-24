@@ -221,6 +221,12 @@ install_agent \
     "com.spa.mass_tournament" \
     "1"
 
+# 20. Tier-1 weekly digest — eligible strategies + packages + diversification → Telegram
+install_agent \
+    "$REPO/scripts/com.spa.tier1_digest.plist" \
+    "com.spa.tier1_digest" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
