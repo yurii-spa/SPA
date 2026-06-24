@@ -171,6 +171,41 @@ install_agent \
     "com.spa.system_briefing" \
     "1"
 
+echo ""
+echo "--- SERVICES & REPORTING agents ---"
+
+# 14. Family Fund API — uvicorn :8766 (investor cabinet backend)
+install_agent \
+    "$REPO/scripts/com.spa.familyfund.plist" \
+    "com.spa.familyfund" \
+    "1"
+
+# 15. Telegram Daily Report — 08:00 local daily
+install_agent \
+    "$REPO/scripts/com.spa.telegram_daily.plist" \
+    "com.spa.telegram_daily" \
+    "1"
+
+# 16. Telegram Weekly Report — Mon 10:00 local
+install_agent \
+    "$REPO/scripts/com.spa.telegram_weekly.plist" \
+    "com.spa.telegram_weekly" \
+    "1"
+
+# 17. Telegram Milestone Alerts — hourly
+install_agent \
+    "$REPO/scripts/com.spa.telegram_milestone.plist" \
+    "com.spa.telegram_milestone" \
+    "1"
+
+# 18. Dashboard static server — ⚠️ DISABLED: PORT CONFLICT with familyfund (both :8766).
+#     familyfund (:8766) is canonical per CLAUDE.md. Resolve dashboard's port before enabling.
+#     Plist is kept in repo (scripts/com.spa.dashboard.plist) for reproducibility.
+# install_agent \
+#     "$REPO/scripts/com.spa.dashboard.plist" \
+#     "com.spa.dashboard" \
+#     "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
