@@ -50,16 +50,20 @@ def test_moments_normal_ish():
     assert m["std"] > 0 and math.isfinite(m["skew"]) and math.isfinite(m["kurt"])
 
 
-def test_evaluator_flags_degenerate_mock_data():
-    """The real leaderboard is on mock/near-constant data → must be flagged untrustworthy."""
+def test_evaluator_regime_and_ranking():
+    """Evaluator must classify the data regime and rank by the regime-appropriate metric."""
     v = evaluator.evaluate(write=False)
-    dq = v["data_quality"]
-    # median vol is ~0% on mock data → DEGENERATE, nothing certified
-    assert dq["status"] in ("DEGENERATE", "OK", "EMPTY")
-    if dq["status"] == "DEGENERATE":
-        assert v["dsr_passers"] == 0
+    assert v["regime"] in ("NORMAL", "LOW_VOL_YIELD", "DEGENERATE_MOCK")
+    if v["regime"] == "LOW_VOL_YIELD":
+        # Real low-vol yield → rank by net-of-cost APY, not Sharpe; validated strategies graded.
+        assert v["ranking_metric"] == "net_of_cost_apy"
+        board = v["leaderboard_tier1"]
+        nets = [s["net_apy_pct"] for s in board if s["validated"]]
+        assert nets == sorted(nets, reverse=True)  # validated ranked by net APY desc
+        assert all(s["tier1_grade"] in ("A", "B", "C", "D") for s in board)
+    elif v["regime"] == "DEGENERATE_MOCK":
+        assert v["validated_count"] == 0
         assert all(s["tier1_grade"] == "UNPROVEN" for s in v["leaderboard_tier1"])
-        assert not dq["trustworthy"]
 
 
 def test_evaluator_packages_present():
