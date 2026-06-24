@@ -15,7 +15,7 @@ import Footer from '../components/Footer.astro';
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
       </svg>
-      <span class="text-sm">Back to earn-defi.com</span>
+      <span class="text-sm" data-ru="Назад на earn-defi.com">Back to earn-defi.com</span>
     </a>
     <span class="text-xs text-white/20 font-mono">trust</span>
   </nav>
@@ -24,16 +24,16 @@ import Footer from '../components/Footer.astro';
 
     <!-- Header -->
     <div class="mb-12">
-      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3">Architecture</p>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Trust Architecture</h1>
-      <p class="text-white/50 text-lg leading-relaxed">
+      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3" data-ru="Архитектура">Architecture</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Архитектура доверия">Trust Architecture</h1>
+      <p class="text-white/50 text-lg leading-relaxed" data-ru="Как устроен SPA, кто чем управляет и как обращаются с вашим капиталом.">
         How SPA is structured, who controls what, and how your capital is handled.
       </p>
     </div>
 
     <!-- Intro -->
     <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6 mb-12 text-sm text-white/60 leading-relaxed">
-      <p>
+      <p data-ru="SPA работает как система paper trading вплоть до go-live. Эта страница документирует архитектуру контроля, потоки данных и операционные меры безопасности, определяющие работу системы. Прозрачность — это и есть продукт.">
         SPA operates as a paper trading system through go-live. This page documents the control
         architecture, data flows, and operational safeguards that govern how the system works.
         Transparency is the product.
@@ -42,39 +42,39 @@ import Footer from '../components/Footer.astro';
 
     <!-- Custody Model -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Custody Model</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Модель кастоди">Custody Model</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Paper trading phase:</strong> no real capital involved. Virtual $100,000 USDC portfolio.</p>
+          <p><strong class="text-white/80" data-ru="Этап paper trading:">Paper trading phase:</strong> <span data-ru="реальный капитал не задействован. Виртуальный портфель $100,000 USDC.">no real capital involved. Virtual $100,000 USDC portfolio.</span></p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Live phase (planned):</strong> self-custodial model. Users retain control of assets via Gnosis Safe multisig. SPA operates as an authorised keeper with limited execution rights.</p>
+          <p><strong class="text-white/80" data-ru="Live-этап (планируется):">Live phase (planned):</strong> <span data-ru="модель самокастоди. Пользователи сохраняют контроль над активами через мультисиг Gnosis Safe. SPA работает как авторизованный keeper с ограниченными правами исполнения.">self-custodial model. Users retain control of assets via Gnosis Safe multisig. SPA operates as an authorised keeper with limited execution rights.</span></p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>SPA does not hold user funds in a centralised custodian.</p>
+          <p data-ru="SPA не хранит средства пользователей у централизованного кастодиана.">SPA does not hold user funds in a centralised custodian.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Keeper permissions:</strong> rebalance within approved whitelist only. Cannot withdraw to external addresses.</p>
+          <p><strong class="text-white/80" data-ru="Права keeper:">Keeper permissions:</strong> <span data-ru="ребалансировка только в пределах одобренного вайтлиста. Не может выводить средства на внешние адреса.">rebalance within approved whitelist only. Cannot withdraw to external addresses.</span></p>
         </div>
       </div>
     </section>
 
     <!-- 9 Key Questions -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-2 pb-3 border-b border-white/8">The 9 Key Questions</h2>
-      <p class="text-xs text-white/30 mb-8">Key questions about the system architecture.</p>
+      <h2 class="text-xl font-semibold text-white mb-2 pb-3 border-b border-white/8" data-ru="9 ключевых вопросов">The 9 Key Questions</h2>
+      <p class="text-xs text-white/30 mb-8" data-ru="Ключевые вопросы об архитектуре системы.">Key questions about the system architecture.</p>
 
       <div class="space-y-6">
 
         <!-- Q1 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q1</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Who can change the strategy?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Кто может изменить стратегию?">Who can change the strategy?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Параметры стратегии определены в RiskPolicy v1.0. Изменения требуют задокументированного ADR (Architecture Decision Record), повышения версии и повторного запуска GoLiveChecker. Никаких незадокументированных изменений.">
             Strategy parameters are defined in RiskPolicy v1.0. Changes require a documented ADR
             (Architecture Decision Record), version bump, and re-run of GoLiveChecker. No undocumented changes.
           </p>
@@ -83,8 +83,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q2 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q2</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Who can change RiskPolicy?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Кто может изменить RiskPolicy?">Who can change RiskPolicy?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Изменения RiskPolicy требуют явного версионирования. Сейчас v1.0. Любое изменение создаёт новую версию с задокументированным обоснованием. Changelog публичен в репозитории.">
             RiskPolicy changes require explicit versioning. Currently v1.0. Any change produces a new
             version with documented rationale. Changelog is public in repository.
           </p>
@@ -93,8 +93,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q3 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q3</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Who can pause deposits?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Кто может приостановить депозиты?">Who can pause deposits?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Kill switch может быть запущен: (1) автоматическим гейтом просадки (−5% за месяц), (2) ручным запуском оператором. Оба пути логируются. Kill switch переводит портфель в кэш-буфер.">
             Kill switch can be triggered by: (1) automated drawdown gate (&minus;5% monthly),
             (2) manual trigger by operator. Both paths are logged. Kill switch moves portfolio to cash buffer.
           </p>
@@ -103,8 +103,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q4 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q4</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Who can close positions?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Кто может закрывать позиции?">Who can close positions?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="В paper trading: только автоматический ребалансировщик, в пределах гейтов RiskPolicy. На live-этапе: keeper (автоматически) в пределах одобренных прав + экстренное переопределение через мультисиг.">
             In paper trading: automated rebalancer only, within RiskPolicy gates. In live phase: keeper
             (automated) within approved permissions + multisig emergency override.
           </p>
@@ -113,8 +113,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q5 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q5</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Who can upgrade contracts?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Кто может обновлять контракты?">Who can upgrade contracts?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Live-этап: для любого обновления контракта требуется мультисиг. Timelock будет определён перед go-live. Этап paper trading: live-контракты не развёрнуты.">
             Live phase: multisig required for any contract upgrade. Timelock TBD before go-live.
             Paper trading phase: no live contracts deployed.
           </p>
@@ -123,8 +123,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q6 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q6</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Can a human override a risk gate?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Может ли человек переопределить риск-гейт?">Can a human override a risk gate?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Нет. На этапе paper trading заблокированные ребалансировки логируются, но не исполняются. Результат гейта окончателен. Возможность ручного переопределения явно исключена из прав keeper.">
             No. In paper trading phase, blocked rebalances are logged but not executed. The gate result
             is final. Manual override capability is explicitly excluded from keeper permissions.
           </p>
@@ -133,8 +133,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q7 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q7</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Is there a multisig, and who are the signers?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли мультисиг и кто его подписанты?">Is there a multisig, and who are the signers?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Мультисиг Gnosis Safe запланирован для live-этапа. Состав подписантов и порог будут определены перед go-live. Будут опубликованы в этом документе до июля 2026.">
             Gnosis Safe multisig planned for live phase. Signer composition and threshold TBD before
             go-live. Will be published in this document before July 2026.
           </p>
@@ -143,8 +143,8 @@ import Footer from '../components/Footer.astro';
         <!-- Q8 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q8</p>
-          <h3 class="text-sm font-semibold text-white mb-2">Where can I see all logs?</h3>
-          <p class="text-sm text-white/55 leading-relaxed">
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Где я могу увидеть все логи?">Where can I see all logs?</h3>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Дашборд → вкладка Trades (все события ребалансировки), Дашборд → вкладка Risk Blocks (все заблокированные ребалансировки) и аудит-лог под контролем версий (JSON-логи, ADR, версии RiskPolicy).">
             Dashboard &rarr; Trades tab (all rebalance events), Dashboard &rarr; Risk Blocks tab
             (all blocked rebalances), and a version-controlled audit log (JSON logs, ADRs, RiskPolicy versions).
           </p>
@@ -153,13 +153,13 @@ import Footer from '../components/Footer.astro';
         <!-- Q9 -->
         <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-xs text-green-400/70 font-mono mb-2">Q9</p>
-          <h3 class="text-sm font-semibold text-white mb-2">What happens during an incident?</h3>
+          <h3 class="text-sm font-semibold text-white mb-2" data-ru="Что происходит во время инцидента?">What happens during an incident?</h3>
           <div class="text-sm text-white/55 leading-relaxed space-y-1">
-            <p>1. Kill switch activates if drawdown gate fires.</p>
-            <p>2. Operator notified via monitoring alerts.</p>
-            <p>3. Portfolio moves to cash buffer.</p>
-            <p>4. Incident documented and published.</p>
-            <p>5. No resumption until root cause identified.</p>
+            <p data-ru="1. Kill switch активируется, если срабатывает гейт просадки.">1. Kill switch activates if drawdown gate fires.</p>
+            <p data-ru="2. Оператор уведомляется через алерты мониторинга.">2. Operator notified via monitoring alerts.</p>
+            <p data-ru="3. Портфель переводится в кэш-буфер.">3. Portfolio moves to cash buffer.</p>
+            <p data-ru="4. Инцидент документируется и публикуется.">4. Incident documented and published.</p>
+            <p data-ru="5. Никакого возобновления до выявления первопричины.">5. No resumption until root cause identified.</p>
           </div>
         </div>
 
@@ -168,20 +168,20 @@ import Footer from '../components/Footer.astro';
 
     <!-- KYC / Identity Verification -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Identity Verification</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Верификация личности">Identity Verification</h2>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
         <div class="space-y-4 text-sm text-white/55 leading-relaxed">
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-            <p>No identity verification required to view strategies or dashboard.</p>
+            <p data-ru="Для просмотра стратегий или дашборда верификация личности не требуется.">No identity verification required to view strategies or dashboard.</p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-            <p>Currently paper-only — no deposits. In any future live phase, verification procedures will be documented here.</p>
+            <p data-ru="Сейчас только paper — никаких депозитов. В любой будущей live-фазе процедуры верификации будут задокументированы здесь.">Currently paper-only — no deposits. In any future live phase, verification procedures will be documented here.</p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-            <p>This is a paper research project. No funds are managed. See architecture above for planned live phase controls.</p>
+            <p data-ru="Это paper-исследовательский проект. Никакими средствами не управляют. См. архитектуру выше для запланированных контролей live-фазы.">This is a paper research project. No funds are managed. See architecture above for planned live phase controls.</p>
           </div>
         </div>
       </div>
@@ -189,9 +189,9 @@ import Footer from '../components/Footer.astro';
 
     <!-- Incident Communication -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Incident Communication</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Коммуникация при инцидентах">Incident Communication</h2>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <p class="text-sm text-white/55 leading-relaxed">
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="На этапе приватного MVP коммуникация при инцидентах ведётся напрямую через Telegram и email. Ответственный за реагирование: Юрий. Публичная страница статуса и формальный SLA будут добавлены перед публичным запуском.">
           In the private MVP phase, incident communication is handled directly via Telegram and email.
           Response owner: Yurii. Public status page and formal SLA will be added before public launch.
         </p>
@@ -200,9 +200,9 @@ import Footer from '../components/Footer.astro';
 
     <!-- Contract Transparency -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Contract Transparency</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Прозрачность контрактов">Contract Transparency</h2>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <p class="text-sm text-white/55 leading-relaxed">
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="Мы публикуем список одобренных брендов DeFi-протоколов, с которыми работаем: Aave, Compound, Morpho. Полный реестр контрактов будет опубликован после завершения аудита безопасности (планируется Q3 2026). Адреса операционных кошельков не публикуются.">
           We publish the list of approved DeFi protocol brands we work with: Aave, Compound, Morpho.
           Full contract registry will be published after security audit completion
           (planned Q3 2026). Operational wallet addresses are not published.
@@ -212,35 +212,35 @@ import Footer from '../components/Footer.astro';
 
     <!-- Operational Model -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Operational Model</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Операционная модель">Operational Model</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Daily Cycle</p>
-          <p class="text-sm text-white/60">Scan &rarr; Gate &rarr; Rebalance (automated)</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Ежедневный цикл">Daily Cycle</p>
+          <p class="text-sm text-white/60" data-ru="Скан → Гейт → Ребалансировка (автоматически)">Scan &rarr; Gate &rarr; Rebalance (automated)</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">LLM in Execution</p>
-          <p class="text-sm text-white/60">None. Zero AI in the decision path.</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="LLM в исполнении">LLM in Execution</p>
+          <p class="text-sm text-white/60" data-ru="Нет. Ноль ИИ в пути принятия решений.">None. Zero AI in the decision path.</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Decision Logic</p>
-          <p class="text-sm text-white/60">All decisions deterministic and logged</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Логика решений">Decision Logic</p>
+          <p class="text-sm text-white/60" data-ru="Все решения детерминированы и логируются">All decisions deterministic and logged</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <p class="text-xs text-white/30 font-mono mb-1">Paper Trading</p>
-          <p class="text-sm text-white/60">No real transactions — all operations simulated</p>
+          <p class="text-sm text-white/60" data-ru="Никаких реальных транзакций — все операции симулируются">No real transactions — all operations simulated</p>
         </div>
       </div>
     </section>
 
     <!-- Live Monitors -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Live Monitors</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Живые мониторы">Live Monitors</h2>
       <div class="space-y-3">
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">GoLiveChecker</p>
-            <p class="text-xs text-white/40">27/29 criteria currently passing (NOT READY)</p>
+            <p class="text-xs text-white/40" data-ru="27/29 критериев сейчас пройдено (НЕ ГОТОВО)">27/29 criteria currently passing (NOT READY)</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -248,8 +248,8 @@ import Footer from '../components/Footer.astro';
         </a>
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
           <div>
-            <p class="text-sm text-white/80 group-hover:text-white">Risk Blocks</p>
-            <p class="text-xs text-white/40">All blocked rebalances logged</p>
+            <p class="text-sm text-white/80 group-hover:text-white" data-ru="Блокировки риска">Risk Blocks</p>
+            <p class="text-xs text-white/40" data-ru="Все заблокированные ребалансировки залогированы">All blocked rebalances logged</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -258,7 +258,7 @@ import Footer from '../components/Footer.astro';
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-4 hover:border-green-400/30 transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">Paper APY</p>
-            <p class="text-xs text-white/40">Tracked daily since June 10, 2026</p>
+            <p class="text-xs text-white/40" data-ru="Отслеживается ежедневно с 10 июня 2026">Tracked daily since June 10, 2026</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -269,9 +269,9 @@ import Footer from '../components/Footer.astro';
 
     <!-- Contact -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-4 pb-3 border-b border-white/8">Contact</h2>
+      <h2 class="text-xl font-semibold text-white mb-4 pb-3 border-b border-white/8" data-ru="Контакты">Contact</h2>
       <p class="text-sm text-white/55 leading-relaxed">
-        For due diligence inquiries: <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
+        <span data-ru="По запросам due diligence:">For due diligence inquiries:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
       </p>
     </section>
 
