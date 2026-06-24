@@ -21,8 +21,8 @@
     {
       "id": "core",
       "name": "Core",
-      "tagline": "Systematic yield with verified paper track record",
-      "target_apy": 10,
+      "tagline": "Systematic, risk-gated DeFi yield — paper-tracked since June 2026",
+      "target_apy": 5,
       "risk_level": "medium",
       "risk_level_label": "Medium Risk",
       "risk_bars": 2,
@@ -33,7 +33,7 @@
       "description": "Tier 1 + selected Tier 2 protocols. Deterministic risk-gated rebalancing. Public paper track record since June 10, 2026.",
       "yield_sources": ["Aave V3 USDC", "Morpho Blue USDC", "Compound V3 USDC", "Yearn V3 USDC", "Euler V2 USDC"],
       "does_not": ["Use leverage", "Use looping", "Bypass RiskPolicy gates", "Allocate to unaudited protocols"],
-      "target_apy_note": "Paper APY verified since June 10, 2026. Variable APY, not guaranteed.",
+      "target_apy_note": "Target band; actual paper APY ~3.6% since June 10, 2026. Variable, not guaranteed.",
       "assets": ["USDT (TRC-20, ERC-20)", "USDC (ERC-20)"],
       "path": "/strategies/core"
     },
