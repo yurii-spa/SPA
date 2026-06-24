@@ -62,22 +62,30 @@ spa_core/strategy_lab/
 - **One source of truth:** backtest (historical) and paper (live) consume the SAME `MarketData`
   / cached series, so they can't disagree.
 
-## Known limitation (honest)
+## Historical depth (free pagination)
 
-The free keyless funding endpoints (Binance/Bybit) only reliably reach back a few weeks without
-pagination, so the **real backtest window is bounded to recent history** (the current paper
-track, 2026-06-10 →). A deeper historical backtest needs funding-history pagination or an
-archived dataset — a follow-up. The harness itself is window-agnostic and validated on a
-synthetic stress window (engineered ETH drawdown + funding flip).
+The feeds paginate the free keyless endpoints to reach **~2 years** of real history at $0:
+- **Binance/Bybit funding** — paged via `startTime`/`endTime` (Binance 1000/page ascending, Bybit
+  200/page descending), de-duped, daily MEDIAN across venues. Reaches back to perp inception.
+- **ETH + LRT prices** — DeFiLlama `coins.llama.fi/chart` paged in ≤365-day daily chunks.
+- **Restaking APY** — DeFiLlama `yields.llama.fi/chart/{pool}` per-date APY series.
 
-## Latest real comparative (window 2026-06-10 → 2026-06-24)
+Real achievable depth: prices/eETH-restaking from **2024-06-05**; ezETH restaking from 2024-12-13
+(earlier dates honestly gapped, not fabricated). Default window: **2024-06-05 → 2026-06-24**.
 
-| Strategy | Net APY % | MaxDD % | Sharpe | β(ETH) | Tail % | Beats floor |
-|---|---|---|---|---|---|---|
-| variant_n | 12.85 | 1.58 | 1.32 | −0.06 | +1.12 | ✅ |
-| variant_d | −16.01 | 11.49 | −0.04 | 0.94 | −18.75 | ❌ |
-| engine_a / b / c | 4.60 / 8.33 / 8.87 | 0 | — | ~0 | 0 | ✅ |
-| rwa_floor | 4.60 | 0 | — | 0 | — | benchmark |
+## Latest real comparative (deep window 2024-06-05 → 2026-06-24, 750 days)
 
-Variant N delivered a neutral (β≈0) return above the floor; Variant D underperformed in this
-ETH-down window — exactly the behaviour the harness is meant to surface honestly.
+Window validation ✅ — contains **4 ETH drawdowns >10% + 74 funding flips to negative** (real stress).
+
+| Strategy | Net APY % | MaxDD % | Sharpe | β(ETH) | Beats floor |
+|---|---|---|---|---|---|
+| variant_n | −0.84 | 10.79 | −0.04 | −0.02 | ❌ (killed 2024-08-09, LRT depeg 2.89%) |
+| variant_d | −15.42 | 30.05 | −1.03 | 0.05* | ❌ (killed 2024-08-05, drawdown 30%) |
+| engine_a / b / c | 4.60 / 8.33 / 8.87 | 0 | — | ~0 | ✅ |
+| rwa_floor | 4.60 | 0 | — | 0 | benchmark |
+
+*Variant D's full-window β reads ~0 because its drawdown kill latched in the Aug-2024 ETH crash and
+it held flat thereafter. **Honest finding:** over a deep window with real ETH crashes, both restaking
+candidates hit their kill switches and do NOT beat the stable engines / RWA floor — exactly what the
+lab exists to surface. (On a calm short window, Variant N's neutral carry did beat the floor; it is
+the tail/crash behaviour that disqualifies it here.)
