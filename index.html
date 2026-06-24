@@ -1984,6 +1984,41 @@ body:not(.night) .bee-disclaimer { color: #777; }
     </div>
   </div>
 
+  <!-- SECTION 6: Tier-1 Validation Layer (live /api/tier1/* + /api/ssot/facts) -->
+  <div class="db-full" id="tier1-panel" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span>🛡 Tier-1 Validation Layer
+        <span class="spa-tip" data-tip="Validated risk packages, proof-of-reserves NAV, backtest→paper gate, and market regime — served live from the API. Real-data backtest ∩ net-of-cost ∩ out-of-sample ∩ capacity.">?</span>
+      </span>
+      <button class="refresh-btn" onclick="loadTier1()">↻ Refresh</button>
+    </div>
+
+    <!-- Top summary row: NAV / Gate / Regime -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+      <div class="db-metric">
+        <div class="db-metric-label">NAV / Proof-of-Reserves</div>
+        <div class="db-metric-value" id="t1-nav">—</div>
+        <div class="db-metric-sub" id="t1-nav-recon">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Backtest → Paper Gate</div>
+        <div class="db-metric-value" id="t1-gate">—</div>
+        <div class="db-metric-sub" id="t1-gate-lvb">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Market Regime</div>
+        <div class="db-metric-value" id="t1-regime">—</div>
+        <div class="db-metric-sub" id="t1-golive">—</div>
+      </div>
+    </div>
+
+    <!-- Validated packages: Conservative / Balanced / Aggressive -->
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--spa-text-3);text-transform:uppercase;margin-bottom:8px">Validated Risk Packages</div>
+    <div id="t1-packages" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+      <div style="text-align:center;padding:16px;color:#aaa;font-size:13px;grid-column:1/-1">Loading Tier-1 packages…</div>
+    </div>
+  </div>
+
 </div><!-- /tab-overview -->
 
 
@@ -4485,7 +4520,7 @@ function showTab(id, btn) {
   const tabEl = document.getElementById('tab-' + id);
   if (tabEl) { tabEl.classList.add('active'); tabEl.style.display = ''; }
   btn.classList.add('active');
-  if (id === 'overview')    loadPerformance();
+  if (id === 'overview')    { loadPerformance(); loadTier1(); }
   if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); loadOptimizer(); loadBasisOpportunities(); }
   if (id === 'backtest')    loadBacktest();
   if (id === 'protocols')   loadProtocols();
@@ -4504,6 +4539,107 @@ function showTab(id, btn) {
 }
 // alias so any legacy calls still work
 function loadOverview() { loadPerformance(); }
+
+// ─── Tier-1 Validation Layer (live /api/tier1/* + /api/ssot/facts) ───────────
+// Fetches 4 endpoints off the FastAPI base (LIVE_API + '/api/...'); each is
+// fully independent and graceful on failure (shows "—"). These paths are NOT
+// under /api/live/ — they live at /api/tier1/* and /api/ssot/facts.
+let _t1Loaded = false;
+function _t1Fmt(v, dec, suf) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toFixed(dec == null ? 2 : dec) + (suf || '');
+}
+async function _t1Get(path) {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(LIVE_API + path, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(tid);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_) { return null; }
+}
+async function loadTier1() {
+  // Fetch all 4 endpoints in parallel; render each independently.
+  const [pkgs, nav, gate, facts] = await Promise.all([
+    _t1Get('/api/tier1/packages'),
+    _t1Get('/api/tier1/nav'),
+    _t1Get('/api/tier1/gate'),
+    _t1Get('/api/ssot/facts'),
+  ]);
+
+  // ── NAV / proof-of-reserves ──
+  const navEl = document.getElementById('t1-nav');
+  const navRe = document.getElementById('t1-nav-recon');
+  if (navEl) {
+    if (nav && nav.computed_nav_usd != null) {
+      navEl.textContent = '$' + Number(nav.computed_nav_usd).toLocaleString('en-US', {maximumFractionDigits:0});
+      const ok = nav.reconciliation_ok;
+      navRe.innerHTML = ok
+        ? '<span style="color:var(--spa-pos)">✅ reconciled</span>'
+        : '<span style="color:var(--spa-neg)">⚠️ delta ' + _t1Fmt(nav.reconciliation_delta_usd, 2, ' USD') + '</span>';
+    } else { navEl.textContent = '—'; navRe.textContent = '—'; }
+  }
+
+  // ── Backtest → Paper Gate ──
+  const gateEl = document.getElementById('t1-gate');
+  const gateLvb = document.getElementById('t1-gate-lvb');
+  if (gateEl) {
+    if (gate && gate.eligible_count != null) {
+      gateEl.innerHTML = '<span style="color:var(--spa-pos)">' + gate.eligible_count + '</span> eligible · '
+        + '<span style="color:var(--spa-neg)">' + (gate.blocked_count != null ? gate.blocked_count : '—') + '</span> blocked';
+      const lvb = gate.live_vs_backtest || {};
+      const lvbOk = (lvb.status || '').toLowerCase() === 'ok';
+      gateLvb.innerHTML = 'live vs backtest: '
+        + (lvbOk ? '<span style="color:var(--spa-pos)">✅ ' : '<span style="color:var(--spa-neg)">⚠️ ')
+        + (lvb.status || '—') + '</span>'
+        + (lvb.live_apy_pct != null ? ' (' + _t1Fmt(lvb.live_apy_pct, 2, '%') + ' vs ' + _t1Fmt(lvb.expected_apy_pct, 2, '%') + ')' : '');
+    } else { gateEl.textContent = '—'; gateLvb.textContent = '—'; }
+  }
+
+  // ── Market Regime + Go-Live ──
+  const regEl = document.getElementById('t1-regime');
+  const glEl = document.getElementById('t1-golive');
+  if (regEl) {
+    const regime = (facts && facts.regime) || (pkgs && pkgs.regime) || (gate && gate.regime) || null;
+    regEl.textContent = regime || '—';
+    if (facts && facts.golive_total != null) {
+      const ready = facts.golive_ready;
+      glEl.innerHTML = 'Go-Live '
+        + (ready ? '<span style="color:var(--spa-pos)">' : '<span style="color:var(--spa-text-3)">')
+        + facts.golive_passed + '/' + facts.golive_total + (ready ? ' ✅' : '') + '</span>'
+        + (facts.track_days != null ? ' · ' + facts.track_days + 'd track' : '');
+    } else { glEl.textContent = '—'; }
+  }
+
+  // ── Validated packages ──
+  const pkgEl = document.getElementById('t1-packages');
+  if (pkgEl) {
+    const P = pkgs && pkgs.packages;
+    if (P) {
+      const order = ['conservative', 'balanced', 'aggressive'];
+      pkgEl.innerHTML = order.map(key => {
+        const p = P[key]; if (!p) return '';
+        const avail = (p.status || '') === 'available';
+        const apy = p.blended_net_apy_pct;
+        const ra = p.blended_risk_adjusted_apy_pct;
+        const band = p.target_apy_band_pct ? (p.target_apy_band_pct[0] + '–' + p.target_apy_band_pct[1] + '%') : '';
+        const statusTxt = avail
+          ? '<span style="color:var(--spa-pos)">● available</span>'
+          : '<span style="color:var(--spa-text-3)">○ ' + (p.status || '').replace(/_/g, ' ') + '</span>';
+        return `<div class="db-metric" style="display:flex;flex-direction:column;gap:2px">
+          <div class="db-metric-label">${p.label || key} <span style="opacity:.6">${band}</span></div>
+          <div class="db-metric-value" style="font-size:20px">${apy != null ? _t1Fmt(apy, 2, '%') : '<span style="color:#bbb">—</span>'}</div>
+          <div class="db-metric-sub">risk-adj ${ra != null ? _t1Fmt(ra, 2, '%') : '—'} · ${p.n_offered != null ? p.n_offered : '—'} offered</div>
+          <div class="db-metric-sub">${statusTxt}</div>
+        </div>`;
+      }).join('') || '<div style="text-align:center;padding:16px;color:#aaa;font-size:13px;grid-column:1/-1">No packages</div>';
+    } else {
+      pkgEl.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;font-size:13px;grid-column:1/-1">Tier-1 data unavailable</div>';
+    }
+  }
+  _t1Loaded = true;
+}
 
 // ─── Tournament Tab (MP-154) ─────────────────────────────────────────────────
 
@@ -12582,6 +12718,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadPerformance(); // default tab is Performance Hero
   setLang(IS_PUBLIC ? 'en' : currentLang); // P1-2: always EN on public, else restore from localStorage
   initSpaHero(); // SPA Hero v1.0
+  // Tier-1 Validation panel — defer so detectLiveMode() can resolve LIVE_API first
+  setTimeout(loadTier1, 1500); // graceful: shows "—" if API unreachable
 });
 
 // SPA Hero v1.0 initializer
