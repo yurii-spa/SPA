@@ -97,6 +97,14 @@ def _post_message(payload_dict: dict) -> bool:
                     return True
                 last_err = RuntimeError(f"HTTP status {resp.status}")
         except urllib.error.HTTPError as exc:
+            # 400 = parse error (Markdown/HTML choke on '_' in protocol names or '<').
+            # Retry ONCE as plain text so the message always delivers (no formatting
+            # beats a silently-dropped alert). Fixes the recurring 400 glitch class.
+            if exc.code == 400 and "parse_mode" in payload_dict:
+                log.warning("Telegram 400 (parse) — retrying as plain text")
+                payload_dict.pop("parse_mode", None)
+                payload = json.dumps(payload_dict).encode("utf-8")
+                continue
             log.warning("Telegram API error %s: %s", exc.code, exc.reason)
             return False
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
