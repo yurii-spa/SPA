@@ -567,6 +567,32 @@ td.num-cell { text-align: right; }
 .live-dot.live    { background: #00e5a0; box-shadow: 0 0 6px rgba(0,229,160,0.4); animation: t-pulse 2s infinite; }
 .live-dot.offline { background: #555; box-shadow: none; }
 
+/* ── Language toggle (top-right) ── */
+.lang-pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--spa-surface-2);
+  border: 1px solid var(--spa-border-2);
+  border-radius: 100px;
+  overflow: hidden;
+  font-family: var(--spa-mono);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.lang-pill button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--spa-text-2);
+  padding: 6px 11px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  font: inherit;
+}
+.lang-pill button.on { background: var(--spa-accent); color: #07120e; }
+.lang-pill .div { width: 1px; align-self: stretch; background: var(--spa-border-2); }
+
 /* ── Responsive ── */
 @media (max-width: 960px) {
   .t-hero-title { font-size: 30px; }
@@ -597,39 +623,44 @@ td.num-cell { text-align: right; }
 <div class="t-header">
   <a href="/" class="t-logo">SPA</a>
   <span class="t-sep">/</span>
-  <span class="t-title">Strategy Tournament</span>
-  <span class="t-paper-badge">PAPER PHASE</span>
+  <span class="t-title" data-i18n="hdr.title">Strategy Tournament</span>
+  <span class="t-paper-badge" data-i18n="hdr.paper">PAPER PHASE</span>
   <span id="live-indicator" class="live-dot" title="Checking live API…"></span>
-  <a href="/app" class="t-back" style="margin-left:auto">📊 Dashboard</a>
-  <a href="/packages" class="t-back">📦 Packages</a>
-  <a href="/agents" class="t-back">🤖 Agents</a>
+  <a href="/app" class="t-back" style="margin-left:auto" data-i18n="nav.dashboard">📊 Dashboard</a>
+  <a href="/packages" class="t-back" data-i18n="nav.packages">📦 Packages</a>
+  <a href="/agents" class="t-back" data-i18n="nav.agents">🤖 Agents</a>
+  <div class="lang-pill" id="lang-pill" aria-label="Language">
+    <button type="button" data-lang="en">EN</button>
+    <span class="div"></span>
+    <button type="button" data-lang="ru">RU</button>
+  </div>
 </div>
 
 <div class="t-main">
 
   <!-- ── Hero ── -->
   <div class="t-hero">
-    <div class="t-hero-tag">⚔️ Tournament v1.0 · 2026</div>
-    <div class="t-hero-title">Strategy Tournament</div>
-    <div class="t-hero-sub">
+    <div class="t-hero-tag" data-i18n="hero.tag">⚔️ Tournament v1.0 · 2026</div>
+    <div class="t-hero-title" data-i18n="hero.title">Strategy Tournament</div>
+    <div class="t-hero-sub" data-i18n="hero.sub">
       Deterministic backtest 2022–2025 · OU noise (seed=42, ρ=0.85) · Advisory only · LLM_FORBIDDEN
     </div>
     <div class="t-hero-stats">
       <div class="t-stat">
         <div class="t-stat-val" id="stat-tested">60</div>
-        <div class="t-stat-lbl">Strategies Tested</div>
+        <div class="t-stat-lbl" data-i18n="hero.stat.tested">Strategies Tested</div>
       </div>
       <div class="t-stat">
         <div class="t-stat-val">4</div>
-        <div class="t-stat-lbl">Years Simulated</div>
+        <div class="t-stat-lbl" data-i18n="hero.stat.years">Years Simulated</div>
       </div>
       <div class="t-stat">
         <div class="t-stat-val" id="stat-paper">5</div>
-        <div class="t-stat-lbl">In Paper Phase</div>
+        <div class="t-stat-lbl" data-i18n="hero.stat.paper">In Paper Phase</div>
       </div>
       <div class="t-stat">
         <div class="t-stat-val">0</div>
-        <div class="t-stat-lbl">Live Promotions</div>
+        <div class="t-stat-lbl" data-i18n="hero.stat.promotions">Live Promotions</div>
       </div>
     </div>
   </div>
@@ -637,44 +668,44 @@ td.num-cell { text-align: right; }
   <!-- ── Tournament Pipeline ── -->
   <section class="t-section">
     <div class="t-section-hdr">
-      <div class="t-section-title">Tournament Pipeline</div>
+      <div class="t-section-title" data-i18n="pipe.title">Tournament Pipeline</div>
       <div class="t-section-sub" id="pipe-updated"></div>
     </div>
     <div class="pipe-card">
       <div class="pipe-flow">
         <div class="pipe-node">
           <div class="pipe-dot done">🔬</div>
-          <div class="pipe-label">Scan</div>
+          <div class="pipe-label" data-i18n="pipe.scan">Scan</div>
           <div class="pipe-count" id="pipe-scan">74 files</div>
         </div>
         <div class="pipe-arrow">›</div>
         <div class="pipe-node">
           <div class="pipe-dot done">✅</div>
-          <div class="pipe-label">Backtest</div>
+          <div class="pipe-label" data-i18n="pipe.backtest">Backtest</div>
           <div class="pipe-count" id="pipe-bt">60 passed</div>
         </div>
         <div class="pipe-arrow">›</div>
         <div class="pipe-node">
           <div class="pipe-dot done" style="font-size:18px">⚠️</div>
-          <div class="pipe-label">Skipped</div>
+          <div class="pipe-label" data-i18n="pipe.skipped">Skipped</div>
           <div class="pipe-count" id="pipe-sk">14 excluded</div>
         </div>
         <div class="pipe-arrow">›</div>
         <div class="pipe-node">
           <div class="pipe-dot active">🔄</div>
-          <div class="pipe-label">Paper Phase</div>
+          <div class="pipe-label" data-i18n="pipe.paper">Paper Phase</div>
           <div class="pipe-count" id="pipe-paper">5 · 30d</div>
         </div>
         <div class="pipe-arrow">›</div>
         <div class="pipe-node">
           <div class="pipe-dot future">🚀</div>
-          <div class="pipe-label">Live</div>
-          <div class="pipe-count">0 promoted</div>
+          <div class="pipe-label" data-i18n="pipe.live">Live</div>
+          <div class="pipe-count" data-i18n="pipe.promoted">0 promoted</div>
         </div>
       </div>
       <!-- Paper phase progress bar -->
       <div class="paper-prog">
-        <span class="paper-prog-lbl">📊 Paper Phase</span>
+        <span class="paper-prog-lbl" data-i18n="pipe.paperBar">📊 Paper Phase</span>
         <div class="paper-prog-bar">
           <div class="paper-prog-fill" id="prog-fill" style="width:0%"></div>
         </div>
@@ -686,13 +717,13 @@ td.num-cell { text-align: right; }
   <!-- ── Podium (top 3) ── -->
   <section class="t-section">
     <div class="t-section-hdr">
-      <div class="t-section-title">🏆 Podium — Top 3 by Sharpe</div>
-      <div class="t-section-sub">Backtest 2022–2025 · All in shadow paper phase</div>
+      <div class="t-section-title" data-i18n="podium.title">🏆 Podium — Top 3 by Sharpe</div>
+      <div class="t-section-sub" data-i18n="podium.sub">Backtest 2022–2025 · All in shadow paper phase</div>
     </div>
     <div class="medal-grid" id="medal-grid">
       <div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--spa-text-3)">
         <div style="font-size:24px;margin-bottom:10px">⏳</div>
-        Loading podium…
+        <span data-i18n="podium.loading">Loading podium…</span>
       </div>
     </div>
   </section>
@@ -700,24 +731,24 @@ td.num-cell { text-align: right; }
   <!-- ── Leaderboard ── -->
   <section class="t-section">
     <div class="t-section-hdr">
-      <div class="t-section-title">📊 Leaderboard — Top 20</div>
-      <div class="t-section-sub">Ranked by Sharpe ratio · 2022–2025 backtest · $100K USDC</div>
+      <div class="t-section-title" data-i18n="lb.title">📊 Leaderboard — Top 20</div>
+      <div class="t-section-sub" data-i18n="lb.sub">Ranked by Sharpe ratio · 2022–2025 backtest · $100K USDC</div>
     </div>
     <div class="lb-wrap">
       <table class="lb-table">
         <thead>
           <tr>
             <th style="text-align:center">#</th>
-            <th>Strategy</th>
-            <th>Tier</th>
-            <th style="text-align:right">Sharpe</th>
-            <th style="text-align:right">APY %</th>
-            <th style="text-align:right">Max DD</th>
-            <th style="text-align:right">Phase</th>
+            <th data-i18n="lb.th.strategy">Strategy</th>
+            <th data-i18n="lb.th.tier">Tier</th>
+            <th style="text-align:right" data-i18n="lb.th.sharpe">Sharpe</th>
+            <th style="text-align:right" data-i18n="lb.th.apy">APY %</th>
+            <th style="text-align:right" data-i18n="lb.th.maxdd">Max DD</th>
+            <th style="text-align:right" data-i18n="lb.th.phase">Phase</th>
           </tr>
         </thead>
         <tbody id="lb-tbody">
-          <tr><td colspan="7" style="text-align:center;padding:28px;color:var(--spa-text-3)">Loading…</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:28px;color:var(--spa-text-3)" data-i18n="lb.loading">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -726,7 +757,7 @@ td.num-cell { text-align: right; }
   <!-- ── Shadow Paper Trading ── -->
   <section class="t-section">
     <div class="t-section-hdr">
-      <div class="t-section-title">🔄 Shadow Paper Trading — Live Top 5</div>
+      <div class="t-section-title" data-i18n="shadow.title">🔄 Shadow Paper Trading — Live Top 5</div>
       <div class="t-section-sub" id="shadow-sub">Simulating with live APY · Advisory only · Day 0</div>
     </div>
     <div class="shadow-grid" id="shadow-grid">
@@ -737,37 +768,37 @@ td.num-cell { text-align: right; }
   <!-- ── Methodology ── -->
   <section class="t-section">
     <div class="t-section-hdr">
-      <div class="t-section-title">📋 Methodology</div>
+      <div class="t-section-title" data-i18n="method.title">📋 Methodology</div>
     </div>
     <div class="method-card">
       <div class="method-grid">
         <div class="method-item">
-          <div class="method-item-title">Backtest Framework</div>
-          <div class="method-item-text">
+          <div class="method-item-title" data-i18n="method.bt.title">Backtest Framework</div>
+          <div class="method-item-text" data-i18n-html="method.bt.text">
             60 strategies evaluated over a 4-year daily simulation spanning 2022-01-01 to 2025-12-31.
             Each strategy starts with <code>$100,000 USDC</code>. APY data sourced from
             DeFiLlama historical yields for whitelisted protocols (Aave V3, Compound V3, Morpho, Yearn, Euler V2, Maple).
           </div>
         </div>
         <div class="method-item">
-          <div class="method-item-title">Noise Model</div>
-          <div class="method-item-text">
+          <div class="method-item-title" data-i18n="method.noise.title">Noise Model</div>
+          <div class="method-item-text" data-i18n-html="method.noise.text">
             Ornstein-Uhlenbeck process with <code>seed=42</code>, mean-reversion parameter
             <code>ρ=0.85</code>. This models realistic APY fluctuations around DeFiLlama
             historical means without purely deterministic paths. Prevents look-ahead bias.
           </div>
         </div>
         <div class="method-item">
-          <div class="method-item-title">Ranking Metric</div>
-          <div class="method-item-text">
+          <div class="method-item-title" data-i18n="method.rank.title">Ranking Metric</div>
+          <div class="method-item-text" data-i18n-html="method.rank.text">
             Primary rank: <strong>Sharpe ratio</strong> (excess return / daily volatility).
             Secondary: Sortino, Calmar. 100% win rate across all strategies reflects
             the stablecoin yield nature — no directional risk generating negative return days.
           </div>
         </div>
         <div class="method-item">
-          <div class="method-item-title">Promotion Policy (ADR-023)</div>
-          <div class="method-item-text">
+          <div class="method-item-title" data-i18n="method.promo.title">Promotion Policy (ADR-023)</div>
+          <div class="method-item-text" data-i18n-html="method.promo.text">
             Top-5 enter a 30-day shadow paper phase — strategies simulate allocations
             alongside the live portfolio without modifying real trades or equity curves.
             Promotion to live requires passing all 29 GoLive criteria including
@@ -775,7 +806,7 @@ td.num-cell { text-align: right; }
           </div>
         </div>
       </div>
-      <div class="disclaimer">
+      <div class="disclaimer" data-i18n-html="method.disclaimer">
         ⚠️ <strong>Advisory only. Backtested results do not guarantee future performance.</strong>
         All results are simulated on historical data. The deterministic RiskPolicy gate (LLM_FORBIDDEN)
         makes all actual allocation decisions — tournament ranking is advisory input only.
@@ -789,13 +820,127 @@ td.num-cell { text-align: right; }
 
 <!-- ── Footer ── -->
 <div class="t-footer">
-  <a href="/app" class="t-footer-back">← Back to Dashboard</a>
+  <a href="/app" class="t-footer-back" data-i18n="footer.back">← Back to Dashboard</a>
   <span class="t-footer-info" id="footer-ts">
     SPA Strategy Tournament · Generated 2026-06-22 · Advisory only
   </span>
 </div>
 
 <script>
+/* ═══════════════════════════════════════════════════
+   i18n dictionary + top-right EN|RU toggle (default EN)
+   ═══════════════════════════════════════════════════ */
+var I18N = {
+  en: {
+    "hdr.title": "Strategy Tournament", "hdr.paper": "PAPER PHASE",
+    "nav.dashboard": "📊 Dashboard", "nav.packages": "📦 Packages", "nav.agents": "🤖 Agents",
+    "hero.tag": "⚔️ Tournament v1.0 · 2026", "hero.title": "Strategy Tournament",
+    "hero.sub": "Deterministic backtest 2022–2025 · OU noise (seed=42, ρ=0.85) · Advisory only · LLM_FORBIDDEN",
+    "hero.stat.tested": "Strategies Tested", "hero.stat.years": "Years Simulated",
+    "hero.stat.paper": "In Paper Phase", "hero.stat.promotions": "Live Promotions",
+    "pipe.title": "Tournament Pipeline",
+    "pipe.scan": "Scan", "pipe.backtest": "Backtest", "pipe.skipped": "Skipped",
+    "pipe.paper": "Paper Phase", "pipe.live": "Live", "pipe.promoted": "0 promoted",
+    "pipe.paperBar": "📊 Paper Phase",
+    "pipe.files": "files", "pipe.passed": "passed", "pipe.excluded": "excluded",
+    "pipe.active": "active", "pipe.generated": "Generated", "pipe.updated": "Updated",
+    "pipe.day": "Day",
+    "podium.title": "🏆 Podium — Top 3 by Sharpe", "podium.sub": "Backtest 2022–2025 · All in shadow paper phase",
+    "podium.loading": "Loading podium…",
+    "medal.champion": "#1 Champion", "medal.runnerup": "#2 Runner-Up", "medal.third": "#3 Third Place",
+    "medal.sharpe": "Sharpe", "medal.apy": "Ann. APY", "medal.total": "4yr Total", "medal.maxdd": "Max DD",
+    "medal.alloc": "Allocation", "medal.paper": "Paper 🔄",
+    "lb.title": "📊 Leaderboard — Top 20", "lb.sub": "Ranked by Sharpe ratio · 2022–2025 backtest · $100K USDC",
+    "lb.loading": "Loading…",
+    "lb.th.strategy": "Strategy", "lb.th.tier": "Tier", "lb.th.sharpe": "Sharpe",
+    "lb.th.apy": "APY %", "lb.th.maxdd": "Max DD", "lb.th.phase": "Phase",
+    "lb.paper": "Paper 🔄", "lb.backtest": "Backtest ✓",
+    "shadow.title": "🔄 Shadow Paper Trading — Live Top 5",
+    "shadow.sub": "Simulating with live APY · Advisory only · Day",
+    "shadow.rank": "Rank", "shadow.btApy": "Backtest APY", "shadow.sharpe": "Sharpe",
+    "shadow.maxdd": "Max DD", "shadow.liveDays": "Live Days", "shadow.status": "🔄 Shadow Paper · Day",
+    "method.title": "📋 Methodology",
+    "method.bt.title": "Backtest Framework",
+    "method.bt.text": "60 strategies evaluated over a 4-year daily simulation spanning 2022-01-01 to 2025-12-31. Each strategy starts with <code>$100,000 USDC</code>. APY data sourced from DeFiLlama historical yields for whitelisted protocols (Aave V3, Compound V3, Morpho, Yearn, Euler V2, Maple).",
+    "method.noise.title": "Noise Model",
+    "method.noise.text": "Ornstein-Uhlenbeck process with <code>seed=42</code>, mean-reversion parameter <code>ρ=0.85</code>. This models realistic APY fluctuations around DeFiLlama historical means without purely deterministic paths. Prevents look-ahead bias.",
+    "method.rank.title": "Ranking Metric",
+    "method.rank.text": "Primary rank: <strong>Sharpe ratio</strong> (excess return / daily volatility). Secondary: Sortino, Calmar. 100% win rate across all strategies reflects the stablecoin yield nature — no directional risk generating negative return days.",
+    "method.promo.title": "Promotion Policy (ADR-023)",
+    "method.promo.text": "Top-5 enter a 30-day shadow paper phase — strategies simulate allocations alongside the live portfolio without modifying real trades or equity curves. Promotion to live requires passing all 29 GoLive criteria including 30-day paper continuity and gap-monitor check.",
+    "method.disclaimer": "⚠️ <strong>Advisory only. Backtested results do not guarantee future performance.</strong> All results are simulated on historical data. The deterministic RiskPolicy gate (LLM_FORBIDDEN) makes all actual allocation decisions — tournament ranking is advisory input only. Virtual capital $100,000 USDC; no real funds are at risk during the paper trading phase. Strategies classified as T3 or using experimental protocols are excluded from live promotion.",
+    "footer.back": "← Back to Dashboard",
+    "footer.info": "SPA Strategy Tournament · Advisory only"
+  },
+  ru: {
+    "hdr.title": "Турнир стратегий", "hdr.paper": "PAPER-ФАЗА",
+    "nav.dashboard": "📊 Дашборд", "nav.packages": "📦 Пакеты", "nav.agents": "🤖 Агенты",
+    "hero.tag": "⚔️ Турнир v1.0 · 2026", "hero.title": "Турнир стратегий",
+    "hero.sub": "Детерминированный бэктест 2022–2025 · OU-шум (seed=42, ρ=0.85) · Только advisory · LLM_FORBIDDEN",
+    "hero.stat.tested": "Стратегий протестировано", "hero.stat.years": "Лет симуляции",
+    "hero.stat.paper": "В paper-фазе", "hero.stat.promotions": "Промоушенов в live",
+    "pipe.title": "Pipeline турнира",
+    "pipe.scan": "Скан", "pipe.backtest": "Бэктест", "pipe.skipped": "Пропущено",
+    "pipe.paper": "Paper-фаза", "pipe.live": "Live", "pipe.promoted": "0 промоутнуто",
+    "pipe.paperBar": "📊 Paper-фаза",
+    "pipe.files": "файлов", "pipe.passed": "прошло", "pipe.excluded": "исключено",
+    "pipe.active": "активно", "pipe.generated": "Сгенерировано", "pipe.updated": "Обновлено",
+    "pipe.day": "День",
+    "podium.title": "🏆 Подиум — Топ-3 по Sharpe", "podium.sub": "Бэктест 2022–2025 · Все в shadow paper-фазе",
+    "podium.loading": "Загрузка подиума…",
+    "medal.champion": "#1 Чемпион", "medal.runnerup": "#2 Второе место", "medal.third": "#3 Третье место",
+    "medal.sharpe": "Sharpe", "medal.apy": "Год. APY", "medal.total": "Всего за 4 года", "medal.maxdd": "Макс. DD",
+    "medal.alloc": "Аллокация", "medal.paper": "Paper 🔄",
+    "lb.title": "📊 Лидерборд — Топ-20", "lb.sub": "Ранжир по Sharpe · бэктест 2022–2025 · $100K USDC",
+    "lb.loading": "Загрузка…",
+    "lb.th.strategy": "Стратегия", "lb.th.tier": "Tier", "lb.th.sharpe": "Sharpe",
+    "lb.th.apy": "APY %", "lb.th.maxdd": "Макс. DD", "lb.th.phase": "Фаза",
+    "lb.paper": "Paper 🔄", "lb.backtest": "Бэктест ✓",
+    "shadow.title": "🔄 Shadow Paper Trading — Live Топ-5",
+    "shadow.sub": "Симуляция на live APY · Только advisory · День",
+    "shadow.rank": "Ранг", "shadow.btApy": "Бэктест APY", "shadow.sharpe": "Sharpe",
+    "shadow.maxdd": "Макс. DD", "shadow.liveDays": "Дней live", "shadow.status": "🔄 Shadow Paper · День",
+    "method.title": "📋 Методология",
+    "method.bt.title": "Фреймворк бэктеста",
+    "method.bt.text": "60 стратегий оценены в дневной симуляции за 4 года с 2022-01-01 по 2025-12-31. Каждая стратегия стартует с <code>$100,000 USDC</code>. Данные APY взяты из исторических доходностей DeFiLlama для whitelist-протоколов (Aave V3, Compound V3, Morpho, Yearn, Euler V2, Maple).",
+    "method.noise.title": "Модель шума",
+    "method.noise.text": "Процесс Орнштейна–Уленбека с <code>seed=42</code>, параметром возврата к среднему <code>ρ=0.85</code>. Это моделирует реалистичные колебания APY вокруг исторических средних DeFiLlama без чисто детерминированных траекторий. Предотвращает look-ahead bias.",
+    "method.rank.title": "Метрика ранжирования",
+    "method.rank.text": "Основной ранг: <strong>коэффициент Sharpe</strong> (избыточная доходность / дневная волатильность). Вторичные: Sortino, Calmar. 100% win rate по всем стратегиям отражает природу стейблкоин-доходности — нет направленного риска, дающего дни с отрицательной доходностью.",
+    "method.promo.title": "Политика промоушена (ADR-023)",
+    "method.promo.text": "Топ-5 входят в 30-дневную shadow paper-фазу — стратегии симулируют аллокации параллельно с live-портфелем, не меняя реальные сделки и equity-кривые. Промоушен в live требует прохождения всех 29 критериев GoLive, включая 30-дневную непрерывность paper и проверку gap-monitor.",
+    "method.disclaimer": "⚠️ <strong>Только advisory. Результаты бэктеста не гарантируют будущую доходность.</strong> Все результаты симулированы на исторических данных. Детерминированный гейт RiskPolicy (LLM_FORBIDDEN) принимает все реальные решения об аллокации — рейтинг турнира лишь advisory-вход. Виртуальный капитал $100,000 USDC; реальные средства не под риском в paper-фазе. Стратегии класса T3 или использующие экспериментальные протоколы исключены из промоушена в live.",
+    "footer.back": "← Назад к дашборду",
+    "footer.info": "SPA Турнир стратегий · Только advisory"
+  }
+};
+var LANG = 'en';
+function t(key){ return (I18N[LANG] && I18N[LANG][key] != null) ? I18N[LANG][key] : ((I18N.en[key]!=null)?I18N.en[key]:key); }
+function applyStaticI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){ el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+}
+function setLang(lang){
+  if(!I18N[lang]) lang = 'en';
+  LANG = lang;
+  try{ localStorage.setItem('spa_lang', lang); }catch(e){}
+  document.documentElement.setAttribute('lang', lang);
+  applyStaticI18n();
+  document.querySelectorAll('#lang-pill button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang')===lang); });
+  // Re-render dynamic content (medals/leaderboard/shadow/pipeline) in the active language
+  if (typeof _LAST_RENDER !== 'undefined' && _LAST_RENDER){
+    try{ renderAll(_LAST_RENDER.mass, _LAST_RENDER.tournament, _LAST_RENDER.shadow); }catch(e){}
+  }
+}
+(function initLang(){
+  var saved = 'en';
+  try{ saved = localStorage.getItem('spa_lang') || 'en'; }catch(e){}
+  document.getElementById('lang-pill').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-lang]'); if(b) setLang(b.getAttribute('data-lang'));
+  });
+  setLang(saved);
+})();
+
 /* ═══════════════════════════════════════════════════
    Embedded fallback data — real values from
    data/mass_tournament_results.json (top-20) and
@@ -939,7 +1084,7 @@ function renderMedals(top3) {
   const m = ['gold','silver','bronze'];
   const ic = ['🥇','🥈','🥉'];
   const vc = ['c-gold','c-silver','c-bronze'];
-  const labels = ['#1 Champion','#2 Runner-Up','#3 Third Place'];
+  const labels = [t('medal.champion'), t('medal.runnerup'), t('medal.third')];
 
   document.getElementById('medal-grid').innerHTML = top3.slice(0,3).map((s,i) => {
     const name = stratName(s.id, s.class);
@@ -953,27 +1098,27 @@ function renderMedals(top3) {
       <div class="medal-id">${s.id}</div>
       <div class="medal-badges">
         <span class="tier-badge ${tier.cls}">${tier.label}</span>
-        <span class="phase-badge phase-paper">Paper 🔄</span>
+        <span class="phase-badge phase-paper">${t('medal.paper')}</span>
       </div>
       <div class="medal-metrics">
         <div>
           <div class="medal-metric-val ${vc[i]}">${fmt(s.sharpe)}</div>
-          <div class="medal-metric-lbl">Sharpe</div>
+          <div class="medal-metric-lbl">${t('medal.sharpe')}</div>
         </div>
         <div>
           <div class="medal-metric-val ${vc[i]}">${fmt(s.annual_return_pct)}%</div>
-          <div class="medal-metric-lbl">Ann. APY</div>
+          <div class="medal-metric-lbl">${t('medal.apy')}</div>
         </div>
         <div>
           <div class="medal-metric-val ${vc[i]}">${fmt(s.total_return_pct)}%</div>
-          <div class="medal-metric-lbl">4yr Total</div>
+          <div class="medal-metric-lbl">${t('medal.total')}</div>
         </div>
         <div>
           <div class="medal-metric-val ${vc[i]}">${fmt(s.max_dd_pct)}%</div>
-          <div class="medal-metric-lbl">Max DD</div>
+          <div class="medal-metric-lbl">${t('medal.maxdd')}</div>
         </div>
       </div>
-      ${alloc ? `<div class="medal-alloc"><div class="medal-alloc-title">Allocation</div>${alloc}</div>` : ''}
+      ${alloc ? `<div class="medal-alloc"><div class="medal-alloc-title">${t('medal.alloc')}</div>${alloc}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -985,8 +1130,8 @@ function renderLeaderboard(lb, shadowSet) {
     const tier  = getTier(s.allocation);
     const paper = shadowSet.has(s.id);
     const phase = paper
-      ? `<span class="phase-badge phase-paper">Paper 🔄</span>`
-      : `<span class="phase-badge phase-bt">Backtest ✓</span>`;
+      ? `<span class="phase-badge phase-paper">${t('lb.paper')}</span>`
+      : `<span class="phase-badge phase-bt">${t('lb.backtest')}</span>`;
     const rankDisp = medalEmoji[s.rank] || `#${s.rank}`;
     const sharpeClass = s.sharpe >= 150 ? 'lb-pos' : s.sharpe >= 100 ? 'lb-hi' : 'lb-neu';
     return `<tr${paper ? ' style="background:rgba(96,165,250,0.04)"' : ''}>
@@ -1017,25 +1162,25 @@ function renderShadow(strategies) {
     <div class="shadow-card">
       <div class="shadow-chart">${spark}</div>
       <div class="shadow-body">
-        <div class="shadow-rank-badge">Rank #${s.rank}</div>
+        <div class="shadow-rank-badge">${t('shadow.rank')} #${s.rank}</div>
         <div class="shadow-name">${name}</div>
         <div class="shadow-row">
-          <span class="shadow-lbl">Backtest APY</span>
+          <span class="shadow-lbl">${t('shadow.btApy')}</span>
           <span class="shadow-val" style="color:var(--spa-pos)">+${fmt(s.paper_apy)}%</span>
         </div>
         <div class="shadow-row">
-          <span class="shadow-lbl">Sharpe</span>
+          <span class="shadow-lbl">${t('shadow.sharpe')}</span>
           <span class="shadow-val" style="color:var(--spa-accent)">${fmt(s.sharpe,1)}</span>
         </div>
         <div class="shadow-row">
-          <span class="shadow-lbl">Max DD</span>
+          <span class="shadow-lbl">${t('shadow.maxdd')}</span>
           <span class="shadow-val" style="color:var(--spa-text-2)">${fmt(s.max_dd_pct)}%</span>
         </div>
         <div class="shadow-row">
-          <span class="shadow-lbl">Live Days</span>
+          <span class="shadow-lbl">${t('shadow.liveDays')}</span>
           <span class="shadow-val" style="color:var(--spa-text-2)">${days} / 30</span>
         </div>
-        <div class="shadow-status">🔄 Shadow Paper · Day ${days}</div>
+        <div class="shadow-status">${t('shadow.status')} ${days}</div>
         ${alloc ? `<div class="shadow-alloc">${alloc}</div>` : ''}
       </div>
     </div>`;
@@ -1053,25 +1198,24 @@ function renderPipeline(mass, shadow) {
   setTimeout(() => {
     document.getElementById('prog-fill').style.width = pct + '%';
   }, 100);
-  document.getElementById('prog-pct').textContent = `Day ${daysIn} / ${totalDays}`;
-  document.getElementById('shadow-sub').textContent =
-    `Simulating with live APY · Advisory only · Day ${daysIn}`;
+  document.getElementById('prog-pct').textContent = `${t('pipe.day')} ${daysIn} / ${totalDays}`;
+  document.getElementById('shadow-sub').textContent = `${t('shadow.sub')} ${daysIn}`;
 
   // Pipeline counts
   if (mass) {
-    document.getElementById('pipe-scan').textContent = `${mass.total_files_scanned || 74} files`;
-    document.getElementById('pipe-bt').textContent   = `${mass.strategies_tested   || 60} passed`;
-    document.getElementById('pipe-sk').textContent   = `${mass.strategies_skipped  || 14} excluded`;
+    document.getElementById('pipe-scan').textContent = `${mass.total_files_scanned || 74} ${t('pipe.files')}`;
+    document.getElementById('pipe-bt').textContent   = `${mass.strategies_tested   || 60} ${t('pipe.passed')}`;
+    document.getElementById('pipe-sk').textContent   = `${mass.strategies_skipped  || 14} ${t('pipe.excluded')}`;
 
     const n = (shadow?.shadow_active_strategies || shadow?.active_strategies || []).length;
-    if (n) document.getElementById('pipe-paper').textContent = `${n} active · 30d`;
+    if (n) document.getElementById('pipe-paper').textContent = `${n} ${t('pipe.active')} · 30d`;
 
     if (mass.generated_at) {
-      const d = new Date(mass.generated_at).toLocaleDateString('en-US',
+      const d = new Date(mass.generated_at).toLocaleDateString(LANG==='ru'?'ru-RU':'en-US',
         {month:'short', day:'numeric', year:'numeric'});
-      document.getElementById('pipe-updated').textContent = 'Generated ' + d;
+      document.getElementById('pipe-updated').textContent = `${t('pipe.generated')} ${d}`;
       document.getElementById('footer-ts').textContent =
-        `SPA Strategy Tournament · Updated ${d} · Advisory only`;
+        `${t('footer.info')} · ${t('pipe.updated')} ${d}`;
     }
   }
 }
@@ -1088,7 +1232,9 @@ let _pollTimer = null;
 let _liveLastFetch = 0;
 
 /* ── Shared render entry point ── */
+var _LAST_RENDER = null; // cache args so the language toggle can re-render dynamic content
 function renderAll(massData, tournamentData, shadowPaperData) {
+  _LAST_RENDER = { mass: massData, tournament: tournamentData, shadow: shadowPaperData };
   const mass = massData || FALLBACK_MASS;
 
   // Resolve active strategies from tournament data (strategy_tournament.json)
