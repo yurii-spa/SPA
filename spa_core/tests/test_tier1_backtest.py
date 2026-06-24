@@ -5,6 +5,7 @@ from spa_core.backtesting.tier1 import deflated_sharpe as ds
 from spa_core.backtesting.tier1.cost_model import net_of_cost_apy
 from spa_core.backtesting.tier1 import evaluator
 from spa_core.backtesting.tier1 import oos as oos_mod
+from spa_core.backtesting.tier1 import gate as gate_mod
 
 
 def test_psr_monotonic_and_bounded():
@@ -98,9 +99,35 @@ def test_oos_holds_when_stable():
 
 
 def test_evaluator_oos_gates_validation():
-    """Under LOW_VOL_YIELD, validated strategies must not have a failed OOS."""
+    """Under LOW_VOL_YIELD, validated strategies must not have a failed OOS or capacity."""
     v = evaluator.evaluate(write=False)
     if v["regime"] == "LOW_VOL_YIELD":
         for s in v["leaderboard_tier1"]:
             if s["validated"]:
                 assert s["oos_holds"] is not False  # OOS-failed cannot be validated
+                assert s["capacity_ok"] is not False  # capacity-failed cannot be validated
+
+
+def test_gate_eligible_subset_of_validated():
+    """The gate's eligible set must equal the verdict's validated set."""
+    v = evaluator.evaluate(write=False)
+    g = gate_mod.build_gate(write=False)
+    validated_ids = {s["id"] for s in v["leaderboard_tier1"] if s["validated"]}
+    assert set(g["eligible_for_paper"]) == validated_ids
+    assert g["eligible_count"] + g["blocked_count"] == len(v["leaderboard_tier1"])
+
+
+def test_gate_blocked_have_reasons():
+    g = gate_mod.build_gate(write=False)
+    assert all(isinstance(r, str) and r for r in g["blocked"].values())
+
+
+def test_gate_live_divergence_present():
+    g = gate_mod.build_gate(write=False)
+    assert g["live_vs_backtest"]["status"] in ("ok", "DIVERGENT", "insufficient_data")
+
+
+def test_gate_is_eligible_fail_open(tmp_path, monkeypatch):
+    # Missing gate file → fail-open True (don't block ops on a missing Tier-1 run).
+    monkeypatch.setattr(gate_mod, "_OUT", tmp_path / "nonexistent_gate.json")
+    assert gate_mod.is_eligible("anything") is True
