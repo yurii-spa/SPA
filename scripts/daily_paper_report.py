@@ -331,18 +331,14 @@ def test_risk_limits_section() -> bool:
 
 
 def send_telegram(message: str, bot_token: str, chat_id: str) -> bool:
-    data = urllib.parse.urlencode(
-        {
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown",
-        }
-    ).encode()
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    req = urllib.request.Request(url, data=data, method="POST")
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        result = json.loads(resp.read())
-    return result.get("ok", False)
+    # FLOOD-GUARD: route through the canonical rate-limited client so this
+    # report shares the cross-process flood guard. Transport only — same
+    # Markdown message. The token/chat_id args are kept for signature
+    # compatibility; the canonical client re-resolves creds from the Keychain.
+    if str(BASE) not in sys.path:
+        sys.path.insert(0, str(BASE))
+    from spa_core.alerts.telegram_client import send_message
+    return send_message(message, parse_mode="Markdown")
 
 
 if __name__ == "__main__":
