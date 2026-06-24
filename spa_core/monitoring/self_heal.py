@@ -93,6 +93,28 @@ def _kickstart(label: str) -> bool:
     return r.returncode == 0
 
 
+# Local liveness probes: URL → launchd label to kickstart if the port isn't listening.
+_PROBES = {
+    "http://127.0.0.1:8765/health": "com.spa.apiserver",
+    "http://127.0.0.1:8766/": "com.spa.familyfund",
+    "http://127.0.0.1:8767/": "com.spa.dashboard",
+}
+
+
+def _http_up(url: str) -> bool:
+    """True if the port answers with ANY HTTP response (server is listening). False only on
+    connection-refused / timeout (server down). 404/500 etc. count as UP."""
+    import urllib.error
+    import urllib.request
+    try:
+        urllib.request.urlopen(url, timeout=5)
+        return True
+    except urllib.error.HTTPError:
+        return True   # got an HTTP response → listening
+    except Exception:
+        return False  # refused / timeout / DNS → not listening
+
+
 def _last_cycle_age_hours() -> float | None:
     try:
         d = json.loads((_DATA / "paper_trading_status.json").read_text())
@@ -167,6 +189,18 @@ def run_self_heal(dry_run: bool = False) -> dict:
                 actions.append(f"restarted down server {label}")
             else:
                 failures.append(f"kickstart failed {label}")
+
+    # 2b) Active liveness probes — a server can be "loaded" with a PID yet not actually
+    # listening (hung/half-dead). Probe the local ports; connection refused → kickstart.
+    for url, label in _PROBES.items():
+        if _http_up(url):
+            continue
+        if dry_run:
+            actions.append(f"would kickstart unreachable {label} ({url})")
+        elif _kickstart(label):
+            actions.append(f"restarted unreachable {label} ({url})")
+        else:
+            failures.append(f"kickstart failed (unreachable) {label}")
 
     # 3) Daily cycle gap → recover.
     age = _last_cycle_age_hours()
