@@ -447,8 +447,10 @@ def _protocol_apy_series(
         "yearn_v3": _YEARN_V3_PROXY,
     }
 
-    # Try BEE cache first
-    bee_key = BEE_KEY_MAP.get(protocol)
+    # Try BEE cache first. Fall back to the protocol name itself as the cache key so
+    # any protocol with real DeFiLlama history (data/bee/defillama_apy_history.json,
+    # keyed by protocol name) is used automatically — real data preferred over proxy.
+    bee_key = BEE_KEY_MAP.get(protocol, protocol)
     if bee_key:
         series = None
         if bee_data and bee_key in bee_data:
