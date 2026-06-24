@@ -185,6 +185,29 @@ def test_tier1_digest_builds():
     assert "Tier-1" in msg and "Пакеты" in msg
 
 
+def test_stress_worst_case():
+    from spa_core.backtesting.tier1 import stress
+    r = stress.stress_strategy(5.0, {"aave_v3": 0.4, "maple": 0.4, "cash": 0.2})
+    assert r["worst_case_pct"] <= min(r["scenarios"].values()) + 1e-9
+    # a T2-heavy book's worst case is the exploit scenario
+    assert r["worst_scenario"] in ("t2_exploit", "rate_collapse", "stable_depeg")
+
+
+def test_evaluator_ranks_risk_adjusted():
+    v = evaluator.evaluate(write=False)
+    board = v["leaderboard_tier1"]
+    assert all("risk_adjusted_apy_pct" in s and "tail_risk_pct" in s for s in board)
+    val = [s["risk_adjusted_apy_pct"] for s in board if s["validated"]]
+    assert val == sorted(val, reverse=True)  # validated ranked by risk-adjusted desc
+
+
+def test_packages_have_stress():
+    o = pkg_mod.build(write=False)
+    for p in o["packages"].values():
+        for s in p.get("strategies", []):
+            assert "stress_worst_case_pct" in s
+
+
 def test_data_integrity_audit():
     from spa_core.backtesting.tier1 import data_integrity as di
     a = di.audit(write=False)
