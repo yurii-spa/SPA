@@ -20,6 +20,10 @@
   Cache-Control: no-cache
 /agents
   Cache-Control: no-cache
+/control
+  Cache-Control: no-cache
+/control.html
+  Cache-Control: no-cache
 /tournament
   Cache-Control: no-cache
 
