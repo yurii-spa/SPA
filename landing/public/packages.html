@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>SPA — Risk-tier пакеты (Tier-1 validated)</title>
+<style>
+  :root{--bg:#0b0f17;--card:#131a26;--line:#1f2937;--txt:#e5e7eb;--mut:#94a3b8;--ok:#10b981;--warn:#f59e0b;--acc:#3b82f6;--p:#8b5cf6}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.55 -apple-system,Segoe UI,Roboto,sans-serif}
+  a{color:var(--acc);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 18px 60px}
+  h1{font-size:24px;margin:0 0 4px} header p{color:var(--mut);margin:0 0 18px}
+  .nav{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+  .nav a{padding:7px 14px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+  .nav a.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .pkg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;position:relative}
+  .pkg.conservative{border-top:3px solid var(--ok)} .pkg.balanced{border-top:3px solid var(--warn)} .pkg.aggressive{border-top:3px solid var(--p)}
+  .pkg h2{font-size:18px;margin:0 0 2px} .pkg .sub{color:var(--mut);font-size:12px;margin-bottom:14px}
+  .apy{font-size:34px;font-weight:800;line-height:1} .apy small{font-size:14px;color:var(--mut);font-weight:500}
+  .row{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+  .row .k{color:var(--mut)} .badge{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:20px;margin-top:10px}
+  .badge.ok{background:rgba(16,185,129,.15);color:var(--ok)} .badge.wait{background:rgba(245,158,11,.15);color:var(--warn)}
+  .strat{font-size:12px;color:var(--mut);margin-top:10px} .strat b{color:var(--txt)}
+  .note{color:var(--mut);font-size:12px;margin:18px 0;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+  footer{margin-top:36px;color:var(--mut);font-size:12px;text-align:center}
+  .live{font-size:12px;color:var(--mut);margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📦 Risk-tier пакеты</h1>
+    <p>Доходность под разный аппетит к риску. Каждый пакет — стратегии, прошедшие <b>Tier-1 валидацию</b>:
+       реальные данные + net-of-cost + out-of-sample + capacity + диверсификация. Не сырой рейтинг.</p>
+  </header>
+  <nav class="nav">
+    <a href="/">← Лендинг</a>
+    <a href="/app.html">📊 Дашборд</a>
+    <a class="on" href="/packages.html">📦 Пакеты</a>
+    <a href="/tournament.html">🏆 Турнир</a>
+    <a href="/agents.html">🤖 Агенты</a>
+  </nav>
+  <p class="live" id="live">Загрузка пакетов из api.earn-defi.com…</p>
+  <div class="grid" id="grid"></div>
+  <div class="note" id="basis"></div>
+  <footer>SPA — paper trading. Цифры — результат бэктеста на реальных данных DeFiLlama, не обещание. Read-only.</footer>
+</div>
+<script>
+(function(){
+  var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+  var ORDER=['conservative','balanced','aggressive'];
+  function pct(v){return v==null?'—':(v.toFixed ? v.toFixed(2):v)+'%';}
+  function usd(v){if(v==null)return '—';if(v>=1e6)return '$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return '$'+(v/1e3).toFixed(0)+'k';return '$'+v;}
+  fetch(API+'/api/tier1/packages').then(function(r){return r.json();}).then(function(d){
+    var pkgs=d.packages||{}; var g=document.getElementById('grid'); g.innerHTML='';
+    document.getElementById('live').innerHTML='Live из <b>'+API+'</b> · режим: '+(d.regime||'—')+' · обновлено '+new Date().toLocaleString('ru');
+    ORDER.forEach(function(key){
+      var p=pkgs[key]; if(!p)return;
+      var avail=p.status==='available';
+      var members=(p.strategies||[]).map(function(s){return '<b>'+s.id+'</b> ('+pct(s.net_apy_pct)+')';}).join('<br>')||'—';
+      g.innerHTML+=''+
+        '<div class="pkg '+key+'">'+
+          '<h2>'+(p.label||key)+'</h2>'+
+          '<div class="sub">target '+(p.target_apy_band_pct?p.target_apy_band_pct[0]+'–'+p.target_apy_band_pct[1]+'%':'—')+' · DD ≤ '+(p.max_dd_limit_pct||'—')+'%</div>'+
+          '<div class="apy">'+pct(p.blended_net_apy_pct)+' <small>net APY</small></div>'+
+          '<div class="row"><span class="k">Стратегий в пакете</span><span>'+p.n_offered+'</span></div>'+
+          '<div class="row"><span class="k">Валидировано в бэнде</span><span>'+p.n_validated_in_band+'</span></div>'+
+          '<div class="row"><span class="k">Worst drawdown</span><span>'+pct(p.worst_dd_pct)+'</span></div>'+
+          '<div class="row"><span class="k">Capacity (min)</span><span>'+usd(p.min_capacity_aum_usd)+'</span></div>'+
+          '<span class="badge '+(avail?'ok':'wait')+'">'+(avail?'✅ доступен':'⏳ нет валидированных стратегий')+'</span>'+
+          '<div class="strat">'+members+'</div>'+
+        '</div>';
+    });
+    document.getElementById('basis').textContent='Основа: '+(d.basis||'')+'.';
+  }).catch(function(){document.getElementById('live').textContent='Live API недоступен — туннель оффлайн.';});
+})();
+</script>
+</body>
+</html>
