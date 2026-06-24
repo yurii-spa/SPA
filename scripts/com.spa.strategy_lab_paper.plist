@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.strategy_lab_paper</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/strategy_lab_paper.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/strategy_lab_paper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/strategy_lab_paper.err</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+    </dict>
+</dict>
+</plist>
