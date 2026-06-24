@@ -654,38 +654,23 @@ def send_protocol_report(
 
 
 def _post_telegram(bot_token: str, chat_id: str, text: str) -> bool:
-    """POST a sendMessage payload to Telegram Bot API. Fail-safe."""
+    """Send a report via the canonical rate-limited client. Fail-safe.
+
+    FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
+    cross-process rate limit applies. Transport only — same MarkdownV2 message.
+    The ``bot_token``/``chat_id`` args are kept for signature compatibility;
+    the canonical client re-resolves them from the Keychain (TELEGRAM_*_SPA).
+    """
     if not bot_token or not chat_id:
         log.warning("send_protocol_report: missing bot_token or chat_id")
         return False
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = json.dumps({
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "MarkdownV2",
-        "disable_web_page_preview": True,
-    }).encode("utf-8")
-
     try:
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status == 200:
-                log.info("Protocol report sent successfully")
-                return True
-            log.warning("Telegram responded with status %s", resp.status)
-            return False
-    except urllib.error.HTTPError as exc:
-        log.warning("Telegram HTTP error %s: %s", exc.code, exc.reason)
-        return False
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        log.warning("Telegram network error: %s", exc)
-        return False
+        from spa_core.alerts.telegram_client import send_message
+        ok = send_message(text, parse_mode="MarkdownV2")
+        if ok:
+            log.info("Protocol report sent successfully")
+        return ok
     except Exception as exc:  # noqa: BLE001
         log.warning("Telegram send failed: %s", exc)
         return False
