@@ -172,6 +172,19 @@ install_agent \
     "1"
 
 echo ""
+echo "--- SELF-HEALING & SAFETY agents (active recovery, not just alerts) ---"
+
+# Self-Heal — revives dead/unloaded agents + recovers missed cycle (every 5 min)
+install_agent \
+    "$REPO/scripts/com.spa.self_heal.plist" \
+    "com.spa.self_heal"
+
+# Threat Reactor — intraday kill-switch on CRITICAL threats to held protocols (every 5 min)
+install_agent \
+    "$REPO/scripts/com.spa.threat_reactor.plist" \
+    "com.spa.threat_reactor"
+
+echo ""
 echo "--- SERVICES & REPORTING agents ---"
 
 # 14. Family Fund API — uvicorn :8766 (investor cabinet backend)
