@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>SPA — Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d;
+    --bg-2:#0e0e11;
+    --line:rgba(255,255,255,.07);
+    --line-2:rgba(255,255,255,.11);
+    --txt:#ededf0;
+    --txt-2:#9b9ba4;
+    --mut:#6b6b74;
+    --dim:#46464d;
+    --acc:#6e8bff;          /* single restrained accent */
+    --acc-soft:rgba(110,139,255,.14);
+    --ok:#5ed3a5;
+    --warn:#e2b04a;
+    --crit:#e5556b;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--txt);
+    font:400 16px/1.6 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    letter-spacing:-.011em;
+  }
+  ::selection{background:var(--acc-soft);color:#fff}
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px}
+
+  /* ---------- nav ---------- */
+  .nav{position:fixed;top:0;left:0;right:0;z-index:40;
+    background:rgba(11,11,13,.72);backdrop-filter:blur(18px) saturate(160%);
+    -webkit-backdrop-filter:blur(18px) saturate(160%);
+    border-bottom:1px solid var(--line)}
+  .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:15px;letter-spacing:-.02em}
+  .brand .mark{width:18px;height:18px;border-radius:5px;
+    background:linear-gradient(145deg,var(--acc),#9db0ff);opacity:.92}
+  .links{display:flex;gap:4px}
+  .links a{padding:7px 13px;border-radius:8px;font-size:14px;color:var(--txt-2);font-weight:400;
+    transition:color .2s,background .2s}
+  .links a:hover{color:var(--txt)}
+  .links a.on{color:var(--txt)}
+  .navright{display:flex;align-items:center;gap:14px}
+  .lang{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+  .lang button{appearance:none;border:0;background:transparent;color:var(--mut);
+    font:500 12px "Inter",sans-serif;letter-spacing:.03em;padding:6px 11px;cursor:pointer;transition:.18s}
+  .lang button.on{background:var(--acc-soft);color:var(--acc)}
+  .lang button:not(.on):hover{color:var(--txt)}
+
+  /* ---------- reveal ---------- */
+  .rv{opacity:0;transform:translateY(18px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+  .rv.in{opacity:1;transform:none}
+
+  /* ---------- hero ---------- */
+  .hero{padding:188px 0 120px;text-align:center}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;letter-spacing:.04em;
+    color:var(--txt-2);font-weight:400;margin-bottom:26px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);position:relative;flex:0 0 auto}
+  .eyebrow .dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;
+    border:1px solid var(--ok);opacity:.45;animation:halo 2.8s ease-out infinite}
+  @keyframes halo{0%{transform:scale(.5);opacity:.5}100%{transform:scale(2.4);opacity:0}}
+  .hero h1{font-size:clamp(40px,7vw,76px);line-height:1.02;font-weight:300;letter-spacing:-.035em;
+    margin:0 auto 26px;max-width:14ch}
+  .hero h1 b{font-weight:500}
+  .hero p{font-size:clamp(17px,2.2vw,21px);font-weight:300;color:var(--txt-2);
+    max-width:60ch;margin:0 auto;line-height:1.55}
+  .hero .fleet{margin-top:46px;display:inline-flex;align-items:center;gap:0;
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg-2)}
+  .hero .fleet .cell{padding:18px 30px;text-align:center;border-right:1px solid var(--line)}
+  .hero .fleet .cell:last-child{border-right:0}
+  .hero .fleet .cv{font-size:26px;font-weight:400;letter-spacing:-.02em;line-height:1}
+  .hero .fleet .cl{font-size:11.5px;color:var(--mut);margin-top:8px;letter-spacing:.05em}
+  .hero .fleet .cv.acc{color:var(--acc)}
+  #fleet-state{color:var(--txt-2)}
+
+  /* ---------- section heads ---------- */
+  section{padding:80px 0}
+  .shead{margin-bottom:52px}
+  .skicker{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);
+    font-weight:500;margin-bottom:16px}
+  .shead h2{font-size:clamp(28px,4vw,40px);font-weight:300;letter-spacing:-.03em;margin:0 0 14px;line-height:1.1}
+  .shead h2 b{font-weight:500}
+  .shead p{font-size:17px;font-weight:300;color:var(--txt-2);max-width:62ch;margin:0;line-height:1.55}
+
+  /* ---------- pipeline ---------- */
+  .pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;border-top:1px solid var(--line)}
+  .step{flex:1 1 150px;min-width:150px;padding:34px 24px 32px;position:relative;
+    border-bottom:1px solid var(--line)}
+  .step:not(:last-child)::after{content:"";position:absolute;right:0;top:34px;bottom:32px;width:1px;
+    background:var(--line)}
+  .step .sn{font:500 12px "JetBrains Mono",monospace;color:var(--dim);margin-bottom:18px;letter-spacing:.04em}
+  .step .st{font-size:17px;font-weight:500;letter-spacing:-.02em;margin-bottom:9px}
+  .step .sd{font-size:13.5px;font-weight:300;color:var(--txt-2);line-height:1.5}
+  .step.gate .st{color:var(--crit)}
+  .step.gate .sn{color:var(--crit);opacity:.7}
+  @media(max-width:760px){
+    .step:not(:last-child)::after{display:none}
+    .step{flex:1 1 100%;border-right:0}
+  }
+
+  /* ---------- agent groups ---------- */
+  .group{margin-bottom:58px}
+  .ghead{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;padding-bottom:18px;
+    border-bottom:1px solid var(--line)}
+  .ghead .gdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;align-self:center}
+  .ghead h3{font-size:19px;font-weight:500;letter-spacing:-.02em;margin:0}
+  .ghead .gc{font:400 13px "JetBrains Mono",monospace;color:var(--mut)}
+  .rows{display:flex;flex-direction:column}
+  .row{display:grid;grid-template-columns:18px minmax(180px,1.1fr) 130px 2fr;align-items:center;gap:16px;
+    padding:15px 8px;border-bottom:1px solid var(--line);transition:background .18s;border-radius:8px}
+  .row:hover{background:rgba(255,255,255,.025)}
+  .row .rs{width:8px;height:8px;border-radius:50%;background:var(--dim);justify-self:center;
+    transition:background .3s,box-shadow .3s}
+  .row .rs.ok{background:var(--ok);box-shadow:0 0 8px rgba(94,211,165,.55)}
+  .row .rs.warn{background:var(--warn);box-shadow:0 0 8px rgba(226,176,74,.55)}
+  .row .rs.crit{background:var(--crit);box-shadow:0 0 8px rgba(229,85,107,.6);animation:blink 1.3s infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .row .rid{font:500 13.5px "JetBrains Mono",monospace;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .rsc{font:400 12.5px "JetBrains Mono",monospace;color:var(--mut)}
+  .row .rr{font-size:13.5px;font-weight:300;color:var(--txt-2);line-height:1.45}
+  @media(max-width:760px){
+    .row{grid-template-columns:18px 1fr;gap:6px 14px;padding:16px 8px}
+    .row .rsc{grid-column:2;color:var(--dim)}
+    .row .rr{grid-column:2}
+  }
+
+  /* ---------- footer ---------- */
+  footer{padding:70px 0 90px;border-top:1px solid var(--line);text-align:center;color:var(--mut);font-size:13px;font-weight:300}
+  footer .fnote{font:400 12px "JetBrains Mono",monospace;color:var(--dim);margin-top:10px}
+
+  @media(max-width:640px){
+    .wrap{padding:0 20px}
+    .links{display:none}
+    .hero{padding:140px 0 80px}
+    .hero .fleet{flex-direction:column;width:100%}
+    .hero .fleet .cell{border-right:0;border-bottom:1px solid var(--line);width:100%}
+    .hero .fleet .cell:last-child{border-bottom:0}
+  }
+</style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="wrap">
+      <a class="brand" href="/"><span class="mark"></span>SPA</a>
+      <div class="navright">
+        <div class="links">
+          <a href="/" data-i="nav_home">Overview</a>
+          <a href="/app" data-i="nav_app">Dashboard</a>
+          <a href="/packages" data-i="nav_pkg">Packages</a>
+          <a href="/tournament" data-i="nav_trn">Tournament</a>
+          <a class="on" href="/agents" data-i="nav_agents">Agents</a>
+          <a href="/control" data-i="nav_ctrl">Control</a>
+        </div>
+        <div class="lang" role="group" aria-label="language">
+          <button id="lang-en" class="on" onclick="SPA.setLang('en')">EN</button>
+          <button id="lang-ru" onclick="SPA.setLang('ru')">RU</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap">
+      <div class="eyebrow rv"><span class="dot"></span><span data-i="eyebrow">Control plane · live launchd fleet</span></div>
+      <h1 class="rv"><span data-i="h1a">A quiet fleet of </span><b data-i="h1b">deterministic agents</b></h1>
+      <p class="rv" data-i="lede">Around forty launchd agents run the daily pipeline, risk layer and resilience plane on their own schedules. No language model touches the runtime — every decision is deterministic, auditable and reproducible.</p>
+      <div class="fleet rv">
+        <div class="cell"><div class="cv mono" id="f-total">43</div><div class="cl" data-i="f_total">Agents</div></div>
+        <div class="cell"><div class="cv mono acc" id="f-ok">—</div><div class="cl" data-i="f_ok">Healthy</div></div>
+        <div class="cell"><div class="cv" id="fleet-state" data-i="f_connect">connecting…</div><div class="cl" data-i="f_state">Fleet status</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PIPELINE -->
+  <section id="pipeline">
+    <div class="wrap">
+      <div class="shead rv">
+        <div class="skicker" data-i="pk">The daily pipeline</div>
+        <h2><span data-i="ph1">Six stages, </span><b data-i="ph2">one direction</b></h2>
+        <p data-i="pp">Each cycle moves through the same deterministic sequence. The RiskPolicy gate is final — an unapproved allocation can never be overridden.</p>
+      </div>
+      <div class="pipe rv" id="pipe"></div>
+    </div>
+  </section>
+
+  <!-- AGENTS -->
+  <section id="agents">
+    <div class="wrap">
+      <div class="shead rv">
+        <div class="skicker" data-i="ak">The fleet</div>
+        <h2><span data-i="ah1">Every agent, </span><b data-i="ah2">grouped by purpose</b></h2>
+        <p data-i="ap">Mono identifiers, schedules and a single line on what each one does. Status dots reflect the live fleet when the API is reachable.</p>
+      </div>
+      <div id="groups"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div data-i="foot">SPA — Smart Passive Aggregator · paper-trading control plane</div>
+      <div class="fnote" id="foot-note">—</div>
+    </div>
+  </footer>
+
+<script>
+window.SPA = (function(){
+  "use strict";
+  var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1')
+    ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+
+  /* ---------- i18n ---------- */
+  var T = {
+    nav_home:["Overview","Обзор"], nav_app:["Dashboard","Дашборд"],
+    nav_pkg:["Packages","Пакеты"], nav_trn:["Tournament","Турнир"],
+    nav_agents:["Agents","Агенты"], nav_ctrl:["Control","Control"],
+    eyebrow:["Control plane · live launchd fleet","Control plane · живой launchd-флот"],
+    h1a:["A quiet fleet of ","Тихий флот "], h1b:["deterministic agents","детерминированных агентов"],
+    lede:["Around forty launchd agents run the daily pipeline, risk layer and resilience plane on their own schedules. No language model touches the runtime — every decision is deterministic, auditable and reproducible.",
+          "Около сорока launchd-агентов ведут дневной пайплайн, risk-слой и плоскость resilience по своим расписаниям. Языковая модель не касается runtime — каждое решение детерминировано, проверяемо и воспроизводимо."],
+    f_total:["Agents","Агентов"], f_ok:["Healthy","Healthy"], f_state:["Fleet status","Статус флота"],
+    f_connect:["connecting…","подключение…"],
+    pk:["The daily pipeline","Дневной пайплайн"],
+    ph1:["Six stages, ","Шесть стадий, "], ph2:["one direction","одно направление"],
+    pp:["Each cycle moves through the same deterministic sequence. The RiskPolicy gate is final — an unapproved allocation can never be overridden.",
+        "Каждый цикл проходит одну и ту же детерминированную последовательность. RiskPolicy gate окончателен — неодобренная аллокация не может быть переопределена."],
+    ak:["The fleet","Флот"],
+    ah1:["Every agent, ","Каждый агент, "], ah2:["grouped by purpose","сгруппирован по назначению"],
+    ap:["Mono identifiers, schedules and a single line on what each one does. Status dots reflect the live fleet when the API is reachable.",
+        "Моно-идентификаторы, расписания и одна строка о роли каждого. Статус-точки отражают живой флот, когда API доступен."],
+    foot:["SPA — Smart Passive Aggregator · paper-trading control plane",
+          "SPA — Smart Passive Aggregator · control plane paper-трейдинга"],
+    offline:["Live API unavailable — showing static fleet.","Live API недоступен — статический флот."],
+    healthy:["all healthy","все healthy"], stale:["stale","устарело"],
+    updated:["updated","обновлено"], static_:["static","статично"],
+    /* group labels */
+    g_cycle:["Cycle engines","Движки циклов"],
+    g_mon:["Monitoring","Мониторинг"],
+    g_risk:["Risk & market","Риск и рынок"],
+    g_tier1:["Tier-1 validation","Tier-1 валидация"],
+    g_report:["Reporting","Отчёты"],
+    g_heal:["Self-healing","Самовосстановление"],
+    g_svc:["Services & infra","Сервисы и инфра"]
+  };
+
+  /* ---------- pipeline stages ---------- */
+  var PIPE = [
+    {t:["Adapters","Адаптеры"], d:["27 read-only protocol adapters stream live APY and TVL.","27 read-only адаптеров отдают живой APY и TVL."]},
+    {t:["Strategies","Стратегии"], d:["Multi-strategy runner S0–S77 proposes target weights.","multi_strategy_runner S0–S77 предлагает целевые веса."]},
+    {t:["RiskPolicy gate","RiskPolicy gate"], d:["Deterministic, LLM-forbidden. TVL ≥ $5M, caps, ≥ 5% cash.","Детерминированный, LLM запрещён. TVL ≥ $5M, cap'ы, ≥ 5% кэш."], gate:true},
+    {t:["Rebalance","Ребаланс"], d:["Virtual rebalance of the $100k book → trades & equity.","Виртуальный ребаланс книги $100k → трейды и equity."]},
+    {t:["Evidence","Evidence"], d:["Hash-chained audit trail and verifiable daily NAV.","Hash-цепочка audit trail и проверяемый дневной NAV."]},
+    {t:["API","API"], d:["FastAPI on :8765 serves the live fleet and portfolio.","FastAPI на :8765 отдаёт живой флот и портфель."]}
+  ];
+
+  /* ---------- agent groups (43 launchd agents) ---------- */
+  var GROUPS = [
+    {key:"g_cycle", color:"#6e8bff", agents:[
+      {id:"com.spa.daily_cycle", sc:"08:00 UTC", r:["Canonical daily paper cycle: adapters → strategies → gate → rebalance → evidence.","Канонический дневной paper-цикл: адаптеры → стратегии → gate → ребаланс → evidence."]},
+      {id:"com.spa.hy_cycle", sc:"hourly", r:["High-yield / carry sleeve ($20k) — separate paper book over the core.","HY/carry-sleeve ($20k) — отдельная paper-книга поверх ядра."]},
+      {id:"com.spa.lp_cycle", sc:"hourly", r:["Liquidity-provision sleeve ($10k) accruing at live LP APY.","LP-sleeve ($10k), доход по живому LP APY."]},
+      {id:"com.spa.tournament_engine", sc:"09:00 UTC", r:["Ranks 60 strategies by Sharpe; runs the promotion pipeline.","Ранжирует 60 стратегий по Sharpe; пайплайн промоушена."]},
+      {id:"com.spa.mass_tournament", sc:"daily", r:["Mass backtest across the strategy universe; refreshes ranking.","Массовый backtest по набору стратегий; обновляет ранкинг."]}
+    ]},
+    {key:"g_mon", color:"#7dd3fc", agents:[
+      {id:"com.spa.agent_health", sc:"hourly", r:["Heartbeat over every agent plus system checks — the source of truth.","Heartbeat по всем агентам и системные проверки — источник истины."]},
+      {id:"com.spa.cycle_health", sc:"15 min", r:["Watches daily-cycle freshness against the equity curve.","Следит за свежестью цикла по equity curve."]},
+      {id:"com.spa.cycle_gap_monitor", sc:"5 min", r:["Tracks track-record continuity toward the 30-day target.","Отслеживает непрерывность трека к цели 30 дней."]},
+      {id:"com.spa.uptime_monitor", sc:"5 min", r:["Probes live API and tunnel uptime end-to-end.","Проверяет uptime API и туннеля end-to-end."]},
+      {id:"com.spa.system_health_morning", sc:"08:30 UTC", r:["Morning E2E and semantic sweep across 7 domains.","Утренний E2E и семантический проход по 7 доменам."]},
+      {id:"com.spa.system_health_evening", sc:"20:30 UTC", r:["Evening E2E and semantic sweep across 7 domains.","Вечерний E2E и семантический проход по 7 доменам."]},
+      {id:"com.spa.system_briefing", sc:"30 min", r:["Regenerates the canonical operational snapshot.","Перегенерирует канонический операционный снимок."]},
+      {id:"com.spa.portfolio_monitor", sc:"5 min", r:["Watches portfolio health, APY ceiling and concentration.","Следит за здоровьем портфеля, потолком APY и концентрацией."]},
+      {id:"com.spa.dashboard_watcher", sc:"5 min", r:["Polls the API and sends Telegram alerts on drift.","Опрашивает API и шлёт Telegram-алерты при дрейфе."]}
+    ]},
+    {key:"g_risk", color:"#e5556b", agents:[
+      {id:"com.spa.rules_watchdog", sc:"5 min", r:["Enforces the hard invariants of the deterministic policy.","Следит за жёсткими инвариантами политики."]},
+      {id:"com.spa.red_flag_monitor", sc:"5 min", r:["Scans held protocols for red flags; can arm the kill-switch.","Сканирует held-протоколы; может взвести kill-switch."]},
+      {id:"com.spa.peg_monitor", sc:"5 min", r:["Monitors stablecoin peg deviation across held assets.","Мониторит отклонение пега стейблов в портфеле."]},
+      {id:"com.spa.threat_reactor", sc:"5 min", r:["Auto-arms the kill-switch on critical threats to held positions.","Авто-взводит kill-switch при критических угрозах позициям."]},
+      {id:"com.spa.sky_monitor", sc:"daily", r:["Checks Sky/sUSDS pause delay on-chain; APY held at 0% until safe.","Проверяет Sky/sUSDS pause delay on-chain; APY 0% до подтверждения."]},
+      {id:"com.spa.governance_watcher", sc:"15 min", r:["Watches governance proposals affecting held positions.","Следит за governance-предложениями по позициям."]},
+      {id:"com.spa.base_gas_monitor", sc:"daily", r:["Tracks Base L2 gas affecting rebalance economics.","Отслеживает газ Base L2, влияющий на ребаланс."]},
+      {id:"com.spa.bts-feed", sc:"mid-freq", r:["Ingests the behavioural / threat-signal feed.","Приём behavioural / threat-signal фида."]},
+      {id:"com.spa.bts-monitor", sc:"mid-freq", r:["Monitors the threat-signal feed and surfaces anomalies.","Мониторит threat-signal фид и выявляет аномалии."]}
+    ]},
+    {key:"g_tier1", color:"#a78bfa", agents:[
+      {id:"com.spa.analytics_tier_b", sc:"mid-freq", r:["Deeper performance attribution and comparators.","Глубокая attribution и сравнения."]},
+      {id:"com.spa.analytics_tier_c", sc:"daily", r:["Heavier daily aggregates and tear-sheets.","Тяжёлые дневные агрегаты и tear-sheet."]},
+      {id:"com.spa.tier1_digest", sc:"daily", r:["Validation gate, NAV reconciliation and package status.","Gate валидации, сверка NAV, статус пакетов."]},
+      {id:"com.spa.tier1_governance", sc:"daily", r:["Default-deny policy table and dual-control posture.","Default-deny таблица политик и dual-control."]},
+      {id:"com.spa.checkpoint-7day", sc:"7-day", r:["Seven-day track-record checkpoint snapshot.","Чекпойнт трека каждые 7 дней."]}
+    ]},
+    {key:"g_report", color:"#9b9ba4", agents:[
+      {id:"com.spa.morning_digest", sc:"08:05 UTC", r:["Morning operational digest to Telegram.","Утренний операционный дайджест в Telegram."]},
+      {id:"com.spa.telegram_daily", sc:"daily", r:["Consolidated daily paper-trading report.","Сводный дневной paper-отчёт."]},
+      {id:"com.spa.telegram_weekly", sc:"Mon 10:00", r:["Weekly performance summary to Telegram.","Недельная сводка результатов в Telegram."]},
+      {id:"com.spa.telegram_milestone", sc:"hourly", r:["Alerts when track-record milestones are reached.","Алерты при достижении milestone трека."]},
+      {id:"com.spa.cpa_daily", sc:"daily", r:["Daily performance-attribution report.","Дневной отчёт performance-attribution."]}
+    ]},
+    {key:"g_heal", color:"#facc15", agents:[
+      {id:"com.spa.self_heal", sc:"5 min", r:["Revives dead agents and recovers missed cycles.","Оживляет мёртвых агентов и восстанавливает пропущенные циклы."]},
+      {id:"com.spa.watchdog", sc:"5 min", r:["Guards the healer — restarts it and core agents if they die.","Сторожит healer — перезапускает его и ключевых агентов."]}
+    ]},
+    {key:"g_svc", color:"#64748b", agents:[
+      {id:"com.spa.apiserver", sc:"always-on", r:["FastAPI on :8765 serving the live and tier-1 endpoints.","FastAPI на :8765, отдаёт live и tier-1 эндпоинты."]},
+      {id:"com.spa.httpserver", sc:"always-on", r:["Stdlib HTTP server fronting dashboard assets.","Stdlib HTTP-сервер для ассетов дашборда."]},
+      {id:"com.spa.cloudflared", sc:"always-on", r:["Cloudflare tunnel exposing api.earn-defi.com.","Cloudflare-туннель для api.earn-defi.com."]},
+      {id:"com.spa.familyfund", sc:"always-on", r:["Family Fund investor-cabinet API (:8766, JWT).","API кабинета инвестора Family Fund (:8766, JWT)."]},
+      {id:"com.spa.dashboard", sc:"always-on", r:["Dashboard service (:8767).","Сервис дашборда (:8767)."]},
+      {id:"com.spa.bot_commands", sc:"always-on", r:["Telegram command bot for interactive queries.","Telegram-бот команд для интерактивных запросов."]},
+      {id:"com.spa.autopush", sc:"90 min", r:["Processes push scripts into GitHub commits.","Обрабатывает push-скрипты в коммиты GitHub."]},
+      {id:"com.spa.weekly_backup", sc:"weekly", r:["Weekly state and data backup job.","Еженедельный бэкап состояния и данных."]}
+    ]}
+  ];
+
+  var TOTAL = GROUPS.reduce(function(a,g){return a+g.agents.length;},0);
+
+  /* ---------- lang state ---------- */
+  var lang = (function(){ try{ return localStorage.getItem('spa_lang')||'en'; }catch(e){ return 'en'; } })();
+  if(lang!=='ru') lang='en';
+  function ix(){ return lang==='ru'?1:0; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function shortName(id){ return id.replace(/^com\.spa\./,''); }
+
+  function applyStatic(){
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i]').forEach(function(el){
+      var k = el.getAttribute('data-i'); if(T[k]) el.textContent = T[k][ix()];
+    });
+    document.getElementById('lang-en').className = lang==='en'?'on':'';
+    document.getElementById('lang-ru').className = lang==='ru'?'on':'';
+  }
+  function setLang(l){
+    lang = (l==='ru')?'ru':'en';
+    try{ localStorage.setItem('spa_lang', lang); }catch(e){}
+    applyStatic(); renderPipe(); renderGroups(); paint(LAST);
+  }
+
+  /* ---------- render pipeline ---------- */
+  function renderPipe(){
+    var el = document.getElementById('pipe');
+    el.innerHTML = PIPE.map(function(s,i){
+      var n = ('0'+(i+1)).slice(-2);
+      return '<div class="step'+(s.gate?' gate':'')+'">'+
+        '<div class="sn">'+n+'</div>'+
+        '<div class="st">'+esc(s.t[ix()])+'</div>'+
+        '<div class="sd">'+esc(s.d[ix()])+'</div>'+
+        '</div>';
+    }).join('');
+  }
+
+  /* ---------- render groups ---------- */
+  function renderGroups(){
+    var el = document.getElementById('groups');
+    el.innerHTML = GROUPS.map(function(g){
+      var rows = g.agents.map(function(a){
+        return '<div class="row" data-id="'+esc(a.id)+'">'+
+          '<span class="rs" data-rs="'+esc(a.id)+'"></span>'+
+          '<span class="rid">'+esc(shortName(a.id))+'</span>'+
+          '<span class="rsc">'+esc(a.sc)+'</span>'+
+          '<span class="rr">'+esc(a.r[ix()])+'</span>'+
+          '</div>';
+      }).join('');
+      return '<div class="group rv">'+
+        '<div class="ghead">'+
+          '<span class="gdot" style="background:'+g.color+';box-shadow:0 0 8px '+g.color+'"></span>'+
+          '<h3>'+esc(T[g.key][ix()])+'</h3>'+
+          '<span class="gc">'+g.agents.length+'</span>'+
+        '</div>'+
+        '<div class="rows">'+rows+'</div>'+
+      '</div>';
+      }).join('');
+    observe();
+  }
+
+  /* ---------- live status ---------- */
+  var STATUS = {}, LAST = null;
+  function clsOf(s){ s=(s||'').toUpperCase(); return s.indexOf('CRIT')>=0?'crit':s.indexOf('WARN')>=0?'warn':(s?'ok':''); }
+
+  function paint(d){
+    LAST = d;
+    var okEl = document.getElementById('f-ok');
+    var stEl = document.getElementById('fleet-state');
+    var foot = document.getElementById('foot-note');
+    document.getElementById('f-total').textContent = (d && d.total_agents!=null) ? d.total_agents : TOTAL;
+
+    if(!d){
+      okEl.textContent = '—';
+      stEl.textContent = T.static_[ix()];
+      foot.textContent = T.offline[ix()];
+      // clear dots to neutral
+      document.querySelectorAll('.rs').forEach(function(n){ n.className='rs'; });
+      return;
+    }
+
+    var ags = d.agents || [];
+    if(!Array.isArray(ags)) ags = Object.keys(ags).map(function(k){ var v=ags[k]; if(!v.label)v.label=k; return v; });
+    STATUS = {};
+    ags.forEach(function(a){ if(a.label) STATUS[a.label]={status:a.status}; });
+
+    var ok = (d.healthy_count!=null) ? d.healthy_count
+           : ags.filter(function(a){return clsOf(a.status)==='ok';}).length;
+    var total = (d.total_agents!=null) ? d.total_agents : ags.length;
+    okEl.textContent = ok + (total ? (' / '+total) : '');
+
+    var ov = (d.overall_status||'').toUpperCase();
+    if(ov.indexOf('CRIT')>=0){ stEl.textContent = 'critical'; stEl.style.color='var(--crit)'; }
+    else if(ov.indexOf('WARN')>=0){ stEl.textContent = 'warning'; stEl.style.color='var(--warn)'; }
+    else { stEl.textContent = T.healthy[ix()]; stEl.style.color='var(--ok)'; }
+
+    document.querySelectorAll('.rs').forEach(function(n){
+      var id = n.getAttribute('data-rs');
+      var st = STATUS[id];
+      n.className = 'rs ' + (st ? (clsOf(st.status)||'ok') : 'ok');
+    });
+
+    foot.textContent = T.updated[ix()]+' · '+new Date().toLocaleTimeString(lang==='ru'?'ru':'en-GB');
+  }
+
+  function loadAgents(){
+    fetch(API+'/api/live/agents').then(function(r){ return r.json(); })
+      .then(paint)
+      .catch(function(){ paint(null); });
+  }
+
+  /* ---------- reveal on scroll ---------- */
+  var io = null;
+  function observe(){
+    if(!('IntersectionObserver' in window)){
+      document.querySelectorAll('.rv').forEach(function(e){ e.classList.add('in'); });
+      return;
+    }
+    if(!io){
+      io = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+      }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+    }
+    document.querySelectorAll('.rv:not(.in)').forEach(function(e){ io.observe(e); });
+  }
+
+  /* ---------- init ---------- */
+  applyStatic();
+  renderPipe();
+  renderGroups();
+  observe();
+  paint(null);
+  loadAgents();
+  setInterval(loadAgents, 30000);
+
+  return { setLang:setLang };
+})();
+</script>
+</body>
+</html>
