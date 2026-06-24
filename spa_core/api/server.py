@@ -372,6 +372,41 @@ def get_health_public():
     }
 
 
+@app.get("/api/ssot/facts", tags=["ssot"])
+def get_ssot_facts():
+    """Canonical headline facts straight from SSOT (Law 3) — the presentation layer should
+    render THESE verbatim so the site can't show a number that isn't in canon."""
+    try:
+        from spa_core.governance.ssot import key_facts
+        return key_facts()
+    except Exception as exc:  # noqa: BLE001
+        return {"generated_at": _now(), "error": str(exc), "facts": {}}
+
+
+@app.get("/api/governance", tags=["governance"])
+def get_governance():
+    """Governance-as-code: auto-vs-human action policy + dual-control posture."""
+    return _load_json("governance_policy.json", {
+        "generated_at": _now(), "policy": {}, "dual_control_posture": {"enforced": False},
+    })
+
+
+@app.get("/api/execution/readiness", tags=["execution"])
+def get_execution_readiness():
+    """Execution go/no-go posture (PAPER_SAFE) + honest live-blockers."""
+    return _load_json("execution_readiness.json", {
+        "generated_at": _now(), "posture": "unknown", "ready_for_live": False,
+    })
+
+
+@app.get("/api/tier1/nav", tags=["tier1"])
+def get_tier1_nav():
+    """Verifiable NAV / proof-of-reserves snapshot — anyone can recompute from components."""
+    return _load_json("tier1_nav_proof.json", {
+        "generated_at": _now(), "computed_nav_usd": None, "reconciliation_ok": None,
+    })
+
+
 @app.get("/api/tier1/packages", tags=["tier1"])
 def get_tier1_packages():
     """Tier-1 risk-tier packages (Conservative/Balanced/Aggressive) — data/tier1_packages.json.
