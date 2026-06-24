@@ -26,13 +26,14 @@ const post = {
         <span class="font-semibold text-white tracking-tight">SPA</span>
       </a>
       <span class="text-white/15 mx-2">/</span>
-      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors">Blog</a>
+      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors" data-ru="Блог">Blog</a>
       <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/30 hidden sm:inline">Domain Launch</span>
+      <span class="text-sm text-white/30 hidden sm:inline" data-ru="Запуск домена">Domain Launch</span>
     </div>
     <a
       href="/dashboard"
       class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
+      data-ru="Дашборд ↗"
     >
       Dashboard ↗
     </a>
@@ -66,13 +67,13 @@ const post = {
 
       <!-- What's on the site -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Site Structure</p>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Структура сайта">Site Structure</p>
         <div class="overflow-x-auto rounded-xl border border-white/10">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-white/10 bg-white/[0.03]">
-                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Page</th>
-                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider">Purpose</th>
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Страница">Page</th>
+                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Назначение">Purpose</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-white/5">
@@ -101,7 +102,7 @@ const post = {
 
       <!-- Tech stack -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Tech Stack</p>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Технологический стек">Tech Stack</p>
         <div class="flex flex-wrap gap-2">
           {[
             'Astro 4.x', 'Tailwind CSS', 'React (LiveStats widget)', 'TypeScript',
@@ -116,7 +117,7 @@ const post = {
 
       <!-- Design principles -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">Design Principles</p>
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Принципы дизайна">Design Principles</p>
         <div class="space-y-2 text-sm">
           {[
             'Dark-first — matches institutional product aesthetics; no jarring light flash on load',
@@ -137,8 +138,8 @@ const post = {
 
     <!-- Nav between posts -->
     <div class="py-8 border-t border-white/5 flex items-center justify-between">
-      <a href="/blog" class="text-sm text-white/40 hover:text-white transition-colors">← All posts</a>
-      <a href="/blog/2026-06-19-architecture-audit" class="text-sm text-white/40 hover:text-white transition-colors">
+      <a href="/blog" class="text-sm text-white/40 hover:text-white transition-colors" data-ru="← Все записи">← All posts</a>
+      <a href="/blog/2026-06-19-architecture-audit" class="text-sm text-white/40 hover:text-white transition-colors" data-ru="Аудит архитектуры →">
         Architecture Audit →
       </a>
     </div>
