@@ -181,6 +181,11 @@ install_agent \
     "$REPO/scripts/com.spa.threat_reactor.plist" \
     "com.spa.threat_reactor"
 
+# Watchdog — guardian-of-guardians: revives self_heal + threat_reactor if dead/stale (every 10 min)
+install_agent \
+    "$REPO/scripts/com.spa.watchdog.plist" \
+    "com.spa.watchdog"
+
 echo ""
 echo "--- SERVICES & REPORTING agents ---"
 
