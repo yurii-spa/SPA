@@ -6,6 +6,7 @@ from spa_core.backtesting.tier1.cost_model import net_of_cost_apy
 from spa_core.backtesting.tier1 import evaluator
 from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1 import gate as gate_mod
+from spa_core.backtesting.tier1 import correlation as corr_mod
 
 
 def test_psr_monotonic_and_bounded():
@@ -131,3 +132,29 @@ def test_gate_is_eligible_fail_open(tmp_path, monkeypatch):
     # Missing gate file → fail-open True (don't block ops on a missing Tier-1 run).
     monkeypatch.setattr(gate_mod, "_OUT", tmp_path / "nonexistent_gate.json")
     assert gate_mod.is_eligible("anything") is True
+
+
+def test_pearson_perfect_and_insufficient():
+    base = [None] + [float(i % 7) - 3 for i in range(60)]
+    assert abs(corr_mod._pearson(base, base) - 1.0) < 1e-9        # identical → +1
+    inv = [None] + [-(float(i % 7) - 3) for i in range(60)]
+    assert abs(corr_mod._pearson(base, inv) + 1.0) < 1e-9         # mirror → -1
+    assert corr_mod._pearson([1.0, 2.0], [1.0, 2.0]) is None       # < MIN_OVERLAP
+
+
+def test_diversified_subset_drops_redundant():
+    # a,b perfectly correlated; c independent → subset keeps the higher-rank of {a,b} + c.
+    corr = {"a": {"b": 1.0, "c": 0.0}, "b": {"a": 1.0, "c": 0.0}, "c": {"a": 0.0, "b": 0.0}}
+    rank = {"a": 5.0, "b": 4.0, "c": 3.0}
+    subset = corr_mod._diversified_subset(["a", "b", "c"], corr, rank)
+    assert "a" in subset and "c" in subset and "b" not in subset
+
+
+def test_correlation_analyze_structure():
+    a = corr_mod.analyze(write=False)
+    assert set(a["packages"].keys()) == {"conservative", "balanced", "aggressive"}
+    cons = a["packages"]["conservative"]
+    if cons.get("n", 0) >= 2:
+        assert cons["diversified_subset_size"] <= cons["n"]  # core never larger than candidates
+        if cons["avg_pairwise_corr"] is not None:
+            assert -1.0 <= cons["avg_pairwise_corr"] <= 1.0
