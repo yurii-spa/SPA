@@ -227,6 +227,12 @@ install_agent \
     "com.spa.tier1_digest" \
     "1"
 
+# 21. Tier-1 governance — daily 07:15 UTC, refreshes SSOT/policy/readiness/DR report JSONs
+install_agent \
+    "$REPO/scripts/com.spa.tier1_governance.plist" \
+    "com.spa.tier1_governance" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
