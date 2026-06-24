@@ -73,17 +73,18 @@ def get_keychain(service: str) -> str | None:
 # ─── Telegram ────────────────────────────────────────────────────────────────
 
 def send_telegram(token: str, chat_id: str, text: str) -> bool:
-    """Отправляет сообщение в Telegram. Возвращает True при успехе."""
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "HTML"}).encode()
+    """Отправляет сообщение в Telegram через canonical rate-limited client.
+
+    FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
+    cross-process rate limit applies. Transport only — same HTML message. The
+    token/chat_id args are kept for signature compatibility; the canonical
+    client re-resolves them from the Keychain (TELEGRAM_*_SPA).
+    """
     try:
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status == 200
+        if str(BASE) not in sys.path:
+            sys.path.insert(0, str(BASE))
+        from spa_core.alerts.telegram_client import send_message
+        return send_message(text, parse_mode="HTML")
     except Exception:
         return False
 
