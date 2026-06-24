@@ -1,6 +1,13 @@
 # SPA System Current State
-> Последнее обновление: **2026-06-23** | Версия: **v12.83** | Done: **~1319** задач
+> Последнее обновление: **2026-06-24** | Версия: **v12.83** | Done: см. KANBAN.json
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
+>
+> 🟢 **АВТОРИТЕТНО — ТОЛЬКО блок «Session — 2026-06-23/24 (v12.83)» ниже.** Всё, что дальше
+> него — **исторический changelog** (датированные снимки), и может противоречить текущему
+> состоянию (старые GoLive 25/26, «32 дня», «31 агент», seed-evidence, cyclerunner — всё
+> УСТАРЕЛО). Живые цифры — `docs/SYSTEM_BRIEFING.md` + `launchctl list | grep spa` + golive_checker.
+> Текущая правда (2026-06-24): GoLive **27/29**, трек **~15/30** (с 2026-06-10), агентов **~37**
+> (agent_health crit=0), портфель compliant, HY $20k + LP $10k sleeves активны.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
