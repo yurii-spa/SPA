@@ -707,13 +707,28 @@ def test_d6_health_good_ok(good_dir, monkeypatch):
 
 
 def test_d6_red_flags_critical(good_dir, monkeypatch):
+    # Held-protocol contract (2026-06-23): a CRITICAL flag on a HELD protocol
+    # (aave_v3 is in _good_positions) drives d6 CRITICAL.
     _write(good_dir / "data", "red_flags.json",
-           {"red_flags": [{"protocol": "x", "severity": "CRITICAL", "message": "boom"}]})
+           {"red_flags": [{"protocol": "aave_v3", "severity": "CRITICAL", "message": "boom"}]})
     mon = make_mon(good_dir)
     prelude(mon)
     _patch_killswitch(mon, monkeypatch)
     res = mon.check_d6_risk_gates()
     assert by_id(res, "d6.red_flags").status == CRITICAL
+
+
+def test_d6_red_flags_external_advisory(good_dir, monkeypatch):
+    # A CRITICAL flag on a NON-held (external) protocol is market intel → advisory
+    # WARNING, not a system CRITICAL.
+    _write(good_dir / "data", "red_flags.json",
+           {"red_flags": [{"protocol": "some_external_proto", "severity": "CRITICAL",
+                           "message": "boom"}]})
+    mon = make_mon(good_dir)
+    prelude(mon)
+    _patch_killswitch(mon, monkeypatch)
+    res = mon.check_d6_risk_gates()
+    assert by_id(res, "d6.red_flags").status == WARNING
 
 
 def test_d6_red_flags_unreadable_warns(good_dir, monkeypatch):
