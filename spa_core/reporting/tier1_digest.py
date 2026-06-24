@@ -41,8 +41,9 @@ def build_message() -> str:
         if not p:
             continue
         if p.get("status") == "available":
-            lines.append(f"• {_esc(p['label'])}: <b>{p.get('blended_net_apy_pct')}%</b> net · "
-                         f"{p.get('n_offered')} страт · worst DD {p.get('worst_dd_pct')}%")
+            lines.append(f"• {_esc(p['label'])}: <b>{p.get('blended_net_apy_pct')}%</b> net "
+                         f"(risk-adj {p.get('blended_risk_adjusted_apy_pct')}%) · "
+                         f"{p.get('n_offered')} страт · worst-case {p.get('stress_worst_case_pct')}%")
         else:
             lines.append(f"• {_esc(p['label'])}: ⏳ нет валидированных стратегий")
 
