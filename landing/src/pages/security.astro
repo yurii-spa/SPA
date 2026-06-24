@@ -15,7 +15,7 @@ import Footer from '../components/Footer.astro';
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
       </svg>
-      <span class="text-sm">Back to earn-defi.com</span>
+      <span class="text-sm" data-ru="Назад на earn-defi.com">Back to earn-defi.com</span>
     </a>
     <span class="text-xs text-white/20 font-mono">security</span>
   </nav>
@@ -24,17 +24,17 @@ import Footer from '../components/Footer.astro';
 
     <!-- Header -->
     <div class="mb-12">
-      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3">Infrastructure</p>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">Security</h1>
-      <p class="text-white/50 text-lg leading-relaxed">
+      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3" data-ru="Инфраструктура">Infrastructure</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Безопасность">Security</h1>
+      <p class="text-white/50 text-lg leading-relaxed" data-ru="Как earn-defi.com и SPA защищают пользователей, активы и операции.">
         How earn-defi.com and SPA protect users, assets, and operations.
       </p>
     </div>
 
     <!-- Security Philosophy -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Security Philosophy</h2>
-      <p class="text-sm text-white/55 leading-relaxed">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Философия безопасности">Security Philosophy</h2>
+      <p class="text-sm text-white/55 leading-relaxed" data-ru="Безопасность многоуровневая: смарт-контракты, фронтенд, домен, зависимости, развёртывание и мониторинг. Слабость на любом уровне может скомпрометировать всю систему. На этой странице описан каждый уровень — что реализовано сегодня и что запланировано до запуска.">
         Security is layered: smart contracts, frontend, domain, dependencies, deployment, and monitoring.
         A weakness in any layer can compromise the whole. This page documents each layer &mdash; what is
         in place today, and what is planned before go-live.
@@ -43,93 +43,93 @@ import Footer from '../components/Footer.astro';
 
     <!-- Smart Contract Security -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Smart Contract Security</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Безопасность смарт-контрактов">Smart Contract Security</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Paper trading phase:</strong> no live contracts deployed &mdash; no smart contract attack surface on live funds.</p>
+          <p><strong class="text-white/80" data-ru="Фаза бумажной торговли:">Paper trading phase:</strong> no live contracts deployed &mdash; no smart contract attack surface on live funds.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Pre-go-live:</strong> external audit planned before any live contract deployment.</p>
+          <p><strong class="text-white/80" data-ru="До запуска:">Pre-go-live:</strong> external audit planned before any live contract deployment.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Protocol selection:</strong> only audited, TVL-proven protocols (see <a href="/due-diligence" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/due-diligence</a> for whitelist).</p>
+          <p><strong class="text-white/80" data-ru="Выбор протоколов:">Protocol selection:</strong> only audited, TVL-proven protocols (see <a href="/due-diligence" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/due-diligence</a> for whitelist).</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>No experimental or unaudited protocol integration.</p>
+          <p data-ru="Без интеграции экспериментальных или непроаудированных протоколов.">No experimental or unaudited protocol integration.</p>
         </div>
       </div>
     </section>
 
     <!-- Frontend Security -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Frontend Security</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Безопасность фронтенда">Frontend Security</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">CSP Headers</p>
-          <p class="text-sm text-white/60">Content Security Policy configured on Cloudflare Pages</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Заголовки CSP">CSP Headers</p>
+          <p class="text-sm text-white/60" data-ru="Политика безопасности контента (CSP) настроена на Cloudflare Pages">Content Security Policy configured on Cloudflare Pages</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">No Sensitive Data</p>
-          <p class="text-sm text-white/60">No sensitive data processed in browser</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Без конфиденциальных данных">No Sensitive Data</p>
+          <p class="text-sm text-white/60" data-ru="В браузере не обрабатываются конфиденциальные данные">No sensitive data processed in browser</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">No Private Keys</p>
-          <p class="text-sm text-white/60">No private keys ever enter the frontend</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Без приватных ключей">No Private Keys</p>
+          <p class="text-sm text-white/60" data-ru="Приватные ключи никогда не попадают на фронтенд">No private keys ever enter the frontend</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Trusted CDNs</p>
-          <p class="text-sm text-white/60">All external resources loaded from trusted CDNs only</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Доверенные CDN">Trusted CDNs</p>
+          <p class="text-sm text-white/60" data-ru="Все внешние ресурсы загружаются только из доверенных CDN">All external resources loaded from trusted CDNs only</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Minimal JS</p>
-          <p class="text-sm text-white/60">React islands hydrated only client:visible (minimal JS footprint)</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Минимум JS">Minimal JS</p>
+          <p class="text-sm text-white/60" data-ru="React-острова гидрируются только при client:visible (минимальный объём JS)">React islands hydrated only client:visible (minimal JS footprint)</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">No Analytics Scripts</p>
-          <p class="text-sm text-white/60">No third-party analytics scripts that could be poisoned</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Без скриптов аналитики">No Analytics Scripts</p>
+          <p class="text-sm text-white/60" data-ru="Нет сторонних скриптов аналитики, которые могли бы быть скомпрометированы">No third-party analytics scripts that could be poisoned</p>
         </div>
       </div>
     </section>
 
     <!-- Domain Security -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Domain Security</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Безопасность домена">Domain Security</h2>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-white/10 bg-white/[0.02]">
-              <th class="text-left text-white/40 font-mono text-xs p-3">Measure</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3">Status</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Мера">Measure</th>
+              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Статус">Status</th>
             </tr>
           </thead>
           <tbody class="text-white/55">
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">DNSSEC</td>
-              <td class="p-3"><span class="text-green-400/70">Enabled</span> on earn-defi.com (Cloudflare)</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> on earn-defi.com (Cloudflare)</td>
             </tr>
             <tr class="border-b border-white/5">
-              <td class="p-3 text-white/70">Cloudflare Proxy</td>
-              <td class="p-3"><span class="text-green-400/70">Active</span> &mdash; DDoS mitigation, WAF</td>
+              <td class="p-3 text-white/70" data-ru="Прокси Cloudflare">Cloudflare Proxy</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Активен">Active</span> &mdash; DDoS mitigation, WAF</td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">HTTPS</td>
-              <td class="p-3"><span class="text-green-400/70">Enforced</span> &mdash; HTTP redirects to HTTPS</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Принудительно">Enforced</span> &mdash; HTTP redirects to HTTPS</td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">HSTS</td>
-              <td class="p-3"><span class="text-green-400/70">Enabled</span> via Cloudflare</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> via Cloudflare</td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">RegistryLock</td>
-              <td class="p-3"><span class="text-amber-400/70">TBD</span> &mdash; check with registrar before go-live</td>
+              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> &mdash; check with registrar before go-live</td>
             </tr>
             <tr>
-              <td class="p-3 text-white/70">CAA Records</td>
-              <td class="p-3"><span class="text-amber-400/70">TBD</span> &mdash; planned before go-live</td>
+              <td class="p-3 text-white/70" data-ru="Записи CAA">CAA Records</td>
+              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> &mdash; planned before go-live</td>
             </tr>
           </tbody>
         </table>
@@ -138,86 +138,86 @@ import Footer from '../components/Footer.astro';
 
     <!-- Dependency Management -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Dependency Management</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Управление зависимостями">Dependency Management</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Dependencies pinned in package-lock.json / package.json.</p>
+          <p data-ru="Версии зависимостей зафиксированы в package-lock.json / package.json.">Dependencies pinned in package-lock.json / package.json.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>No auto-update of dependencies without review.</p>
+          <p data-ru="Без автоматического обновления зависимостей без проверки.">No auto-update of dependencies without review.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Dependabot alerts monitored (GitHub).</p>
+          <p data-ru="Оповещения Dependabot отслеживаются (GitHub).">Dependabot alerts monitored (GitHub).</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>No unreviewed dependency upgrades in production.</p>
+          <p data-ru="В продакшене нет непроверенных обновлений зависимостей.">No unreviewed dependency upgrades in production.</p>
         </div>
       </div>
     </section>
 
     <!-- Deployment Process -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Deployment Process</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Процесс развёртывания">Deployment Process</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>All deployments via Cloudflare Pages from GitHub main branch.</p>
+          <p data-ru="Все развёртывания через Cloudflare Pages из основной ветки main на GitHub.">All deployments via Cloudflare Pages from GitHub main branch.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>No direct FTP or manual file upload.</p>
+          <p data-ru="Без прямой загрузки файлов по FTP или вручную.">No direct FTP or manual file upload.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Branch setup: no direct push to main without review (TBD for team setup).</p>
+          <p data-ru="Настройка веток: без прямого push в main без проверки (для командной работы уточняется).">Branch setup: no direct push to main without review (TBD for team setup).</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Build logs visible on Cloudflare Pages dashboard.</p>
+          <p data-ru="Логи сборки доступны в панели управления Cloudflare Pages.">Build logs visible on Cloudflare Pages dashboard.</p>
         </div>
       </div>
     </section>
 
     <!-- Monitoring and Alerts -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Monitoring and Alerts</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Мониторинг и оповещения">Monitoring and Alerts</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Uptime</p>
-          <p class="text-sm text-white/60">Cloudflare Analytics</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Доступность">Uptime</p>
+          <p class="text-sm text-white/60" data-ru="Аналитика Cloudflare">Cloudflare Analytics</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Error Alerts</p>
-          <p class="text-sm text-white/60">Telegram bot (operator notified within minutes)</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Оповещения об ошибках">Error Alerts</p>
+          <p class="text-sm text-white/60" data-ru="Telegram-бот (оператор уведомляется в течение нескольких минут)">Telegram bot (operator notified within minutes)</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Drawdown</p>
-          <p class="text-sm text-white/60">SPA kill switch (automated)</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Просадка">Drawdown</p>
+          <p class="text-sm text-white/60" data-ru="Аварийное отключение SPA (автоматическое)">SPA kill switch (automated)</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Protocol Status</p>
-          <p class="text-sm text-white/60">Adapter health checks per cycle</p>
+          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Статус протоколов">Protocol Status</p>
+          <p class="text-sm text-white/60" data-ru="Проверка состояния адаптеров каждый цикл">Adapter health checks per cycle</p>
         </div>
       </div>
     </section>
 
     <!-- User Wallet Safety -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">User Wallet Safety</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Безопасность кошелька пользователя">User Wallet Safety</h2>
       <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-6 mb-6">
-        <p class="text-sm text-white/70 font-medium mb-3">For allocators interacting with SPA:</p>
+        <p class="text-sm text-white/70 font-medium mb-3" data-ru="Для распределителей капитала, взаимодействующих с SPA:">For allocators interacting with SPA:</p>
         <div class="space-y-4 text-sm text-white/55 leading-relaxed">
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p>SPA (in paper trading) never requests wallet connection.</p>
+            <p data-ru="SPA (в режиме бумажной торговли) никогда не запрашивает подключение кошелька.">SPA (in paper trading) never requests wallet connection.</p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p><strong class="text-white/80">Live phase:</strong> connect only to verify on-chain positions &mdash; never to sign arbitrary transactions.</p>
+            <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> connect only to verify on-chain positions &mdash; never to sign arbitrary transactions.</p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
@@ -225,11 +225,11 @@ import Footer from '../components/Footer.astro';
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p>Use a hardware wallet for any significant allocation.</p>
+            <p data-ru="Используйте аппаратный кошелёк для любого значительного размещения средств.">Use a hardware wallet for any significant allocation.</p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p>Never share seed phrases with anyone.</p>
+            <p data-ru="Никогда никому не сообщайте seed-фразы.">Never share seed phrases with anyone.</p>
           </div>
         </div>
       </div>
@@ -237,86 +237,86 @@ import Footer from '../components/Footer.astro';
 
     <!-- Transaction Simulation -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Transaction Simulation (Live Phase)</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Симуляция транзакций (боевая фаза)">Transaction Simulation (Live Phase)</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>All transactions simulated before execution (Tenderly or equivalent).</p>
+          <p data-ru="Все транзакции симулируются перед исполнением (Tenderly или аналог).">All transactions simulated before execution (Tenderly or equivalent).</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Simulation failure &rarr; transaction cancelled.</p>
+          <p data-ru="Сбой симуляции → транзакция отменяется.">Simulation failure &rarr; transaction cancelled.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Simulation results logged per cycle.</p>
+          <p data-ru="Результаты симуляции логируются каждый цикл.">Simulation results logged per cycle.</p>
         </div>
       </div>
     </section>
 
     <!-- Token Approval Hygiene -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Token Approval Hygiene</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Гигиена одобрений токенов">Token Approval Hygiene</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80">Live phase:</strong> approve only the minimum necessary amount.</p>
+          <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> approve only the minimum necessary amount.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>Revoke unused approvals via revoke.cash or Etherscan.</p>
+          <p data-ru="Отзывайте неиспользуемые одобрения через revoke.cash или Etherscan.">Revoke unused approvals via revoke.cash or Etherscan.</p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p>SPA adapters use minimal approval scope.</p>
+          <p data-ru="Адаптеры SPA используют минимальный объём одобрений.">SPA adapters use minimal approval scope.</p>
         </div>
       </div>
     </section>
 
     <!-- Incident Response -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8">Incident Response</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Реагирование на инциденты">Incident Response</h2>
       <div class="space-y-4">
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Detection</p>
-            <p class="text-xs text-white/40">Incident detected via monitoring alert or user report</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Обнаружение">Detection</p>
+            <p class="text-xs text-white/40" data-ru="Инцидент обнаружен через оповещение мониторинга или сообщение пользователя">Incident detected via monitoring alert or user report</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Kill Switch</p>
-            <p class="text-xs text-white/40">Activated if drawdown gate fires</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Аварийное отключение">Kill Switch</p>
+            <p class="text-xs text-white/40" data-ru="Активируется при срабатывании порога просадки">Activated if drawdown gate fires</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-amber-400/60 bg-amber-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Assessment</p>
-            <p class="text-xs text-white/40">Operator assesses situation and scope</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Оценка">Assessment</p>
+            <p class="text-xs text-white/40" data-ru="Оператор оценивает ситуацию и масштаб">Operator assesses situation and scope</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Communication</p>
-            <p class="text-xs text-white/40">Public communication within 4 hours on official channels</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Коммуникация">Communication</p>
+            <p class="text-xs text-white/40" data-ru="Публичное сообщение в течение 4 часов по официальным каналам">Public communication within 4 hours on official channels</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">5</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Root Cause Analysis</p>
-            <p class="text-xs text-white/40">Published within 72 hours</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Анализ первопричин">Root Cause Analysis</p>
+            <p class="text-xs text-white/40" data-ru="Публикуется в течение 72 часов">Published within 72 hours</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
           <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">6</span>
           <div>
-            <p class="text-sm text-white/70 font-medium">Resumption</p>
-            <p class="text-xs text-white/40">No resumption until fix verified</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Возобновление">Resumption</p>
+            <p class="text-xs text-white/40" data-ru="Возобновление работы только после подтверждения устранения проблемы">No resumption until fix verified</p>
           </div>
         </div>
       </div>
