@@ -4872,7 +4872,7 @@ async function loadPerformance() {
   if (statusBarEl) {
     const lastTs       = status ? status.last_cycle_ts : null;
     const lastCycleStr = lastTs ? 'Last cycle: ' + _perfTimeAgo(lastTs) : 'No cycle data';
-    const criteriaStr  = golive ? `${golive.criteria_met != null ? golive.criteria_met : '—'}/${golive.total_criteria != null ? golive.total_criteria : 26} criteria` : '—/26 criteria';
+    const criteriaStr  = golive ? `${golive.criteria_met != null ? golive.criteria_met : '—'}/${golive.total_criteria != null ? golive.total_criteria : 29} criteria` : '—/29 criteria';
     statusBarEl.innerHTML =
       `<span style="color:#3B6D11;font-weight:600">✅ Systems operational</span>` +
       `<span style="color:#888;font-size:12px;margin-left:14px">` + lastCycleStr + `</span>` +
