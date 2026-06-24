@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.spa.tier1_digest</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string><string>spa_core.reporting.tier1_digest</string>
+        <string>--send</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+    <key>StartCalendarInterval</key><dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>30</integer></dict>
+    <key>RunAtLoad</key><false/>
+    <key>StandardOutPath</key><string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/tier1_digest.log</string>
+    <key>StandardErrorPath</key><string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/tier1_digest.err</string>
+    <key>EnvironmentVariables</key><dict><key>PATH</key><string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin</string><key>HOME</key><string>/Users/yuriikulieshov</string></dict>
+</dict>
+</plist>
