@@ -51,10 +51,19 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if args.refresh:
-        # Refresh the unified market-data cache from the live feeds (needs network).
+        # Refresh the unified market-data cache from the live feeds (needs network). Pull the
+        # full PAGINATED deep range over the config window so the backtest sees real ETH
+        # drawdowns + funding flips, not just the most-recent shallow page.
+        from spa_core.strategy_lab import config as lab_config
         from spa_core.strategy_lab.data.market_data import MarketData
-        print("[strategy_lab_backtest] refreshing market data from live feeds…", file=sys.stderr)
-        MarketData().refresh()
+        g = lab_config.load_config()["global"]
+        ws, we = g["window_start"], g["window_end"]
+        print(
+            f"[strategy_lab_backtest] refreshing DEEP market data {ws}..{we} "
+            "from live feeds (paginated)…",
+            file=sys.stderr,
+        )
+        MarketData(window=(ws, we)).refresh()
 
     result = run_backtest()
 
