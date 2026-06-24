@@ -344,6 +344,33 @@ def get_backtest():
     })
 
 
+@app.get("/api/tier1/packages", tags=["tier1"])
+def get_tier1_packages():
+    """Tier-1 risk-tier packages (Conservative/Balanced/Aggressive) — data/tier1_packages.json.
+    Validated (real-data backtest + net-of-cost + OOS + capacity) ∩ diversified core."""
+    return _load_json("tier1_packages.json", {
+        "generated_at": _now(), "model": "tier1_packages", "packages": {},
+        "note": "Tier-1 packages not yet generated (run the backtest pipeline).",
+    })
+
+
+@app.get("/api/tier1/verdict", tags=["tier1"])
+def get_tier1_verdict():
+    """Full Tier-1 verdict over the tournament — data/tier1_verdict.json."""
+    return _load_json("tier1_verdict.json", {
+        "generated_at": _now(), "model": "tier1_parallel", "leaderboard_tier1": [],
+    })
+
+
+@app.get("/api/tier1/gate", tags=["tier1"])
+def get_tier1_gate():
+    """Backtest→paper eligibility gate + live-vs-backtest divergence — data/tier1_gate.json."""
+    return _load_json("tier1_gate.json", {
+        "generated_at": _now(), "gate": "tier1_backtest_to_paper",
+        "eligible_for_paper": [], "blocked": {},
+    })
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
