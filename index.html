@@ -3421,11 +3421,11 @@ body:not(.night) .bee-disclaimer { color: #777; }
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#f9fafb">
-            <th style="text-align:left;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Metric</th>
-            <th style="text-align:center;padding:8px 10px;color:#3b82f6;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">v1 Conservative</th>
-            <th style="text-align:center;padding:8px 10px;color:#8b5cf6;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">v2 Aggressive</th>
-            <th style="text-align:center;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Weight</th>
-            <th style="text-align:center;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Winner</th>
+            <th style="text-align:center;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">#</th>
+            <th style="text-align:left;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Strategy</th>
+            <th style="text-align:center;padding:8px 10px;color:#3b82f6;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Sharpe</th>
+            <th style="text-align:center;padding:8px 10px;color:#10b981;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">APY %</th>
+            <th style="text-align:center;padding:8px 10px;color:#9ca3af;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1)">Days</th>
           </tr>
         </thead>
         <tbody id="tournament-tbody">
@@ -6592,10 +6592,17 @@ async function loadDashboard() {
         if (_heroEl('hero-golive')) _heroEl('hero-golive').textContent = META_GOLIVE || '2026-08-01';
         if (_heroEl('hero-status') && paperStatus.go_live_status) _heroEl('hero-status').textContent = paperStatus.go_live_status;
       }
-      // hero-track-days: compute from gap_monitor / equity_curve length
+      // hero-track-days: HONEST track days. Prefer status.days_running (anchored to
+      // PAPER_REAL_START); fall back to counting only real (non-warmup) bars since
+      // REAL_TRACK_START — NOT the raw array length (it includes warmup/demo bars,
+      // and is_demo is a top-level flag, never per-point, so the old filter was a no-op).
       if (_heroEl('hero-track-days')) {
         const _ec = equityCurve && (equityCurve.daily || equityCurve.curve || equityCurve);
-        const _n = Array.isArray(_ec) ? _ec.filter(p => !p.is_demo).length : 0;
+        let _n = Number(paperStatus && paperStatus.days_running) || 0;
+        if (!_n && Array.isArray(_ec)) {
+          _n = _ec.filter(p => !p.is_warmup &&
+                (!window.REAL_TRACK_START || String(p.date || '') >= window.REAL_TRACK_START)).length;
+        }
         _heroEl('hero-track-days').textContent = 'День ' + _n + '/' + (META_TRACK_DAYS || 30);
       } }
     renderApyGapTracker(status, null);            // weighted APY считается из живых позиций
@@ -7180,7 +7187,7 @@ async function loadAnalytics() {
       fetch(BASE + '/strategy_comparison.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/pnl_history.json?_=' + ts).then(r => r.json()).catch(() => []),
       fetch(BASE + '/chains_status.json?_=' + ts).then(r => r.json()).catch(() => null),
-      fetch(BASE + '/tournament_results.json?_=' + ts).then(r => r.json()).catch(() => null),
+      fetch(BASE + '/strategy_tournament.json?_=' + ts).then(r => r.json()).catch(() => null),
       fetch(BASE + '/advanced_analytics.json?_=' + ts).then(r => r.json()).catch(() => null),
     ]);
     _allProtos = protocols;
@@ -7510,6 +7517,9 @@ async function loadEquityCurve() {
 }
 
 // ── Strategy Tournament ──────────────────────────────────────────────────────
+// Consumes strategy_tournament.json (60 ranked + 5 shadow). Shows the winner
+// (top-ranked) + a leaderboard of the top strategies. (Was hard-wired to an
+// obsolete 2-strategy v1/v2 schema → "data unavailable" / only 1 strategy.)
 function renderTournament(data) {
   const winnerCard = document.getElementById('tournament-winner-card');
   const winnerText = document.getElementById('tournament-winner-text');
@@ -7518,61 +7528,43 @@ function renderTournament(data) {
   const rec        = document.getElementById('tournament-recommendation');
   if (!winnerCard) return;
 
-  if (!data || data.error) {
+  // Normalise: accept either the raw file or the /api/tournament {tournament:{…}} wrapper.
+  const t = (data && data.tournament) ? data.tournament : (data || {});
+  const ranked = t.ranked_strategies || t.top_5 || t.shadow_active_strategies || [];
+  if (!Array.isArray(ranked) || ranked.length === 0) {
     winnerText.textContent = 'Tournament data unavailable';
-    winnerCard.style.background = '#f9fafb';
-    winnerCard.style.borderColor = '#e5e7eb';
-    if (rec) rec.textContent = data && data.error ? data.error : 'Run export_data.py to generate results.';
+    if (rec) rec.textContent = 'Live API: GET /api/tournament (или data/strategy_tournament.json).';
     return;
   }
 
-  const winner = data.winner || '–';
-  const conf   = (data.confidence || 'LOW').toUpperCase();
-  const scores = data.scores || {};
-  const metrics = data.metrics || {};
+  const sid = s => s.strategy_id || s.id || s.strategy_key || '—';
+  const num = (v, d=2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+  const top = ranked.slice().sort((a, b) =>
+    (b.composite_score || b.sharpe || 0) - (a.composite_score || a.sharpe || 0));
+  const win = top[0];
 
-  const confColors = {
-    HIGH:   { bg:'#f0fdf4', border:'#bbf7d0', text:'#166534', badgeBg:'#d1fae5', badgeText:'#065f46' },
-    MEDIUM: { bg:'#fffbeb', border:'#fde68a', text:'#92400e', badgeBg:'#fef3c7', badgeText:'#78350f' },
-    LOW:    { bg:'#f9fafb', border:'#d1d5db', text:'#374151', badgeBg:'#e5e7eb', badgeText:'#4b5563' },
-  };
-  const c = confColors[conf] || confColors.LOW;
-  winnerCard.style.background    = c.bg;
-  winnerCard.style.borderColor   = c.border;
-  winnerText.style.color         = c.text;
-  winnerText.textContent         = '🏆 ' + winner.replace(/_/g, ' ').toUpperCase() + ' WINS';
-  badge.textContent              = conf;
-  badge.style.background         = c.badgeBg;
-  badge.style.color              = c.badgeText;
+  winnerCard.style.background  = '#f0fdf4';
+  winnerCard.style.borderColor = '#bbf7d0';
+  winnerText.style.color       = '#166534';
+  winnerText.textContent       = '🏆 ' + sid(win) + ' — лучшая (Sharpe ' + num(win.sharpe) + ')';
+  badge.textContent            = ranked.length + ' стратегий';
+  badge.style.background       = '#d1fae5';
+  badge.style.color            = '#065f46';
 
-  const ROWS = [
-    { key:'sharpe_ratio',     label:'Sharpe Ratio',    weight:'40%', higherBetter:true,  fmt: v => v != null ? v.toFixed(2) : '–' },
-    { key:'total_return_pct', label:'Total Return',    weight:'30%', higherBetter:true,  fmt: v => v != null ? v.toFixed(2)+'%' : '–' },
-    { key:'max_drawdown_pct', label:'Max Drawdown',    weight:'20%', higherBetter:false, fmt: v => v != null ? v.toFixed(2)+'%' : '–' },
-    { key:'win_rate',         label:'Win Rate',        weight:'10%', higherBetter:true,  fmt: v => v != null ? (v*100).toFixed(1)+'%' : '–' },
-    { key:'composite_score',  label:'Composite Score', weight:'—',   higherBetter:true,  fmt: v => v != null ? v.toFixed(3) : '–', isScore:true },
-  ];
-
-  const m1 = metrics['v1_passive']    || {};
-  const m2 = metrics['v2_aggressive'] || {};
-
-  tbody.innerHTML = ROWS.map(row => {
-    let v1, v2;
-    if (row.isScore) { v1 = scores['v1_passive']; v2 = scores['v2_aggressive']; }
-    else             { v1 = m1[row.key];           v2 = m2[row.key]; }
-    const v1Better = row.higherBetter ? (v1 != null && v2 != null && v1 > v2) : (v1 != null && v2 != null && v1 < v2);
-    const v2Better = row.higherBetter ? (v1 != null && v2 != null && v2 > v1) : (v1 != null && v2 != null && v2 < v1);
-    const rs = row.isScore ? 'font-weight:700;background:#f8fafc' : '';
-    return `<tr style="${rs}">
-      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#374151">${row.label}</td>
-      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#3b82f6">${row.fmt(v1)}${v1Better?' ★':''}</td>
-      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#8b5cf6">${row.fmt(v2)}${v2Better?' ★':''}</td>
-      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#9ca3af">${row.weight}</td>
-      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#374151">${v1Better?'v1':v2Better?'v2':'–'}</td>
+  tbody.innerHTML = top.slice(0, 12).map((s, i) => {
+    const hi = i === 0 ? 'font-weight:700;background:#f0fdf4' : '';
+    return `<tr style="${hi}">
+      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#9ca3af">${i + 1}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#374151">${sid(s)}${i===0?' 🏆':''}</td>
+      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#3b82f6">${num(s.sharpe)}</td>
+      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#10b981">${num((s.net_apy != null ? s.net_apy : s.annual_return_pct), 2)}</td>
+      <td style="text-align:center;padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#9ca3af">${s.days_running != null ? s.days_running : '–'}</td>
     </tr>`;
   }).join('');
 
-  if (rec) rec.textContent = data.recommendation || '–';
+  const nShadow = (t.shadow_active_strategies || []).length;
+  if (rec) rec.textContent = ranked.length + ' стратегий в турнире · ' + nShadow +
+    ' в shadow-paper · лучшая по Sharpe: ' + sid(win) + '. RiskPolicy принимает решения; турнир — advisory.';
 }
 
 // ── MP-613: Benchmark Panel ─────────────────────────────────────────────────
