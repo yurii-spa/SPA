@@ -21,6 +21,7 @@ FAIL-CLOSED: missing/empty/unparseable price → InvalidDataError. No silent def
 from __future__ import annotations
 
 import datetime
+import time
 from typing import Callable, Dict, List, Optional
 
 from spa_core.strategy_lab.base import InvalidDataError
@@ -38,8 +39,18 @@ LRT_SYMBOLS = ("eeth", "weeth", "ezeth")  # everything except the eth reference
 
 CURRENT_URL = "https://coins.llama.fi/prices/current/{ids}"
 CHART_URL = "https://coins.llama.fi/chart/{id}?span={span}&period=1d"
+# Deep history: anchor at a unix `start` and walk forward in ≤MAX_SPAN day chunks (the API 400s
+# on very large span). period=1d → one point per UTC day. FREE keyless endpoint.
+CHART_RANGE_URL = "https://coins.llama.fi/chart/{id}?start={start}&span={span}&period=1d"
+MAX_SPAN = 365              # days per chart call (API rejects very large spans → ~400)
+PAGE_DELAY_S = 0.25         # polite delay between page fetches
+MAX_PAGES = 12              # safety cap (12 * 365 ≈ 12y) per token
 
 Fetcher = Callable[[str], object]
+
+
+def _to_unix(d: datetime.date) -> int:
+    return int(datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp())
 
 
 def _coin_id(addr: str) -> str:
@@ -79,8 +90,15 @@ def _ratios(prices: Dict[str, float]) -> Dict[str, float]:
 class PriceFeed:
     """ETH + LRT USD prices and lrt/eth ratios. Inject `fetcher` (url->json) in tests."""
 
-    def __init__(self, fetcher: Optional[Fetcher] = None):
+    def __init__(
+        self,
+        fetcher: Optional[Fetcher] = None,
+        page_delay_s: float = PAGE_DELAY_S,
+        max_pages: int = MAX_PAGES,
+    ):
         self._fetch = fetcher or http_fetch
+        self._page_delay = page_delay_s
+        self._max_pages = max_pages
 
     # ── current (live) ──────────────────────────────────────────────────────────────────
     def current(self) -> Dict[str, object]:
@@ -92,20 +110,82 @@ class PriceFeed:
         return {"prices": prices, "ratios": _ratios(prices)}
 
     # ── historical ──────────────────────────────────────────────────────────────────────
-    def history(self, span: int = 90) -> Dict[str, Dict[str, float]]:
-        """Return {sym: {date(ISO): usd_price}} for each token over the last `span` days.
+    def history(
+        self,
+        span: int = 90,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Dict[str, float]]:
+        """Return {sym: {date(ISO): usd_price}} for each token.
 
-        Fetches one /chart call per token. Schema-validates each: a chart with no usable
-        price points raises InvalidDataError (fail-closed)."""
-        out: Dict[str, Dict[str, float]] = {}
+        Default (no start_date/end_date): one /chart call per token over the last `span` days.
+        With start_date/end_date (ISO): page each token forward from `start` in ≤MAX_SPAN-day
+        chunks (the API 400s on huge spans) until the window is covered, merging by date (last
+        wins). Schema-validates each page; a token with no usable price points raises
+        InvalidDataError (fail-closed)."""
+        if start_date is None and end_date is None:
+            out: Dict[str, Dict[str, float]] = {}
+            for sym, addr in TOKENS.items():
+                payload = self._fetch(CHART_URL.format(id=_coin_id(addr), span=span))
+                out[sym] = _parse_chart(payload, addr, sym)
+            return out
+
+        if start_date is None or end_date is None:
+            raise InvalidDataError("price history: provide BOTH start_date and end_date")
+        try:
+            d0 = datetime.date.fromisoformat(start_date)
+            d1 = datetime.date.fromisoformat(end_date)
+        except ValueError as exc:
+            raise InvalidDataError(f"price history: bad date(s) {start_date!r}..{end_date!r}") from exc
+        if d1 < d0:
+            raise InvalidDataError(f"price history: end {end_date} before start {start_date}")
+
+        out = {}
         for sym, addr in TOKENS.items():
-            payload = self._fetch(CHART_URL.format(id=_coin_id(addr), span=span))
-            out[sym] = _parse_chart(payload, addr, sym)
+            out[sym] = self._paginate_chart(addr, sym, d0, d1, start_date, end_date)
         return out
 
-    def history_ratios(self, span: int = 90) -> Dict[str, Dict[str, float]]:
+    def _paginate_chart(
+        self, addr: str, sym: str, d0: datetime.date, d1: datetime.date,
+        start_date: str, end_date: str,
+    ) -> Dict[str, float]:
+        """Walk forward from d0 in ≤MAX_SPAN-day chunks, merging schema-validated pages.
+        Keeps only dates within [start_date, end_date]."""
+        merged: Dict[str, float] = {}
+        cursor = d0
+        for _ in range(self._max_pages):
+            if cursor > d1:
+                break
+            remaining = (d1 - cursor).days + 1
+            span = min(MAX_SPAN, remaining)
+            url = CHART_RANGE_URL.format(id=_coin_id(addr), start=_to_unix(cursor), span=span)
+            page = _parse_chart(self._fetch(url), addr, sym)  # schema-validates / raises
+            for d, p in page.items():
+                if start_date <= d <= end_date:
+                    merged[d] = p
+            last_d = max(datetime.date.fromisoformat(x) for x in page)
+            if last_d >= d1:
+                break
+            nxt = last_d + datetime.timedelta(days=1)
+            if nxt <= cursor:
+                break  # no forward progress (guard)
+            cursor = nxt
+            if self._page_delay:
+                time.sleep(self._page_delay)
+        if not merged:
+            raise InvalidDataError(
+                f"price history: no points for {sym} in {start_date}..{end_date}"
+            )
+        return merged
+
+    def history_ratios(
+        self,
+        span: int = 90,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Dict[str, float]]:
         """Return {lrt_sym: {date: lrt/eth ratio}} aligned on shared dates with eth."""
-        hist = self.history(span=span)
+        hist = self.history(span=span, start_date=start_date, end_date=end_date)
         eth = hist.get("eth", {})
         ratios: Dict[str, Dict[str, float]] = {}
         for sym in LRT_SYMBOLS:
