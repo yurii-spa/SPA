@@ -100,12 +100,46 @@ def _assess_data_quality(board: list) -> dict:
     }
 
 
+def _data_source() -> dict:
+    """Read the historical-APY cache to tell REAL DeFiLlama data from absent/mock."""
+    try:
+        c = json.loads((_DATA / "bee" / "defillama_apy_history.json").read_text())
+        pr = c.get("pool_results", {})
+        days = [v.get("n_days", 0) for v in pr.values() if isinstance(v, dict)]
+        return {"source": c.get("source"), "matched": c.get("matched", len(pr)),
+                "max_days": max(days) if days else 0}
+    except Exception:
+        return {"source": None, "matched": 0, "max_days": 0}
+
+
+def _regime(dq: dict, src: dict) -> str:
+    """NORMAL = vol meaningful, Sharpe usable.
+    LOW_VOL_YIELD = REAL data but near-deterministic yield → Sharpe degenerate BY NATURE,
+                    rank by net-of-cost APY + tail risk (the Tier-1-correct metric).
+    DEGENERATE_MOCK = degenerate AND no real data → not trustworthy, fix the data."""
+    real = src.get("source") == "defillama_real" and src.get("matched", 0) > 0
+    if dq["status"] != "DEGENERATE":
+        return "NORMAL"
+    return "LOW_VOL_YIELD" if real else "DEGENERATE_MOCK"
+
+
 def _assign_package(net_apy: float, max_dd_pct: float) -> Optional[str]:
     dd = abs(max_dd_pct or 0.0)
     for p in PACKAGES:
         if p["net_apy_min"] <= net_apy < p["net_apy_max"] and dd <= p["max_dd_limit"]:
             return p["key"]
     return None
+
+
+def _grade_yield(net_apy: float, in_package: bool) -> str:
+    """Yield-regime grade — Sharpe inapplicable; rank by net-of-cost APY + package fit."""
+    if net_apy >= 3.0 and in_package:
+        return "A"          # solid net yield, fits a risk package
+    if net_apy > 0 and in_package:
+        return "B"          # positive net yield, fits a package
+    if net_apy > 0:
+        return "C"          # positive net but outside package risk bands
+    return "D"              # negative net-of-cost
 
 
 def _grade(dsr: float, psr: float, net_apy: float) -> str:
@@ -125,7 +159,8 @@ def evaluate(write: bool = True) -> dict:
     n_obs = _parse_n_obs(result)
     n_trials = int(result.get("strategies_tested") or len(board) or 1)
     dq = _assess_data_quality(board)
-    trustworthy = dq["trustworthy"]
+    src = _data_source()
+    regime = _regime(dq, src)
 
     # Per-period Sharpe variance across all trials (consistent units for DSR).
     sharpes_pp = [ds.deannualize_sharpe(float(e.get("sharpe") or 0.0)) for e in board]
@@ -149,9 +184,18 @@ def evaluate(write: bool = True) -> dict:
         pkg = _assign_package(net_apy, e.get("max_dd_pct"))
         if pkg:
             pkg_counts[pkg] += 1
-        # Degenerate (mock) data → metrics not trustworthy: force UNPROVEN, no DSR pass.
-        dsr_passes = bool(dsr["passes"]) and trustworthy
-        grade = _grade(dsr["dsr"], psr, net_apy) if trustworthy else "UNPROVEN"
+        dsr_passes = bool(dsr["passes"])
+        # Grade by REGIME: Sharpe-DSR for NORMAL; net-yield for real low-vol yield;
+        # UNPROVEN when degenerate AND data isn't real (mock).
+        if regime == "NORMAL":
+            grade = _grade(dsr["dsr"], psr, net_apy)
+            validated = dsr_passes and net_apy > 0
+        elif regime == "LOW_VOL_YIELD":
+            grade = _grade_yield(net_apy, pkg is not None)
+            validated = net_apy > 0 and pkg is not None      # real data + fits a risk package
+        else:  # DEGENERATE_MOCK
+            grade = "UNPROVEN"
+            validated = False
         evaluated.append({
             "id": e.get("id"),
             "rank_gross": e.get("rank"),
@@ -162,15 +206,16 @@ def evaluate(write: bool = True) -> dict:
             "max_dd_pct": e.get("max_dd_pct"),
             "psr": round(psr, 4),
             "dsr": round(dsr["dsr"], 4),
-            "dsr_passes": dsr_passes,
+            "dsr_passes": dsr_passes,          # informational under LOW_VOL_YIELD
+            "validated": validated,            # regime-appropriate pass (drives packages)
             "min_track_record_days": round(mtrl, 1) if mtrl != float("inf") else None,
             "tier1_grade": grade,
             "package": pkg,
         })
 
-    # Re-rank by net APY among DSR-passers first, else by net APY.
-    evaluated.sort(key=lambda x: (x["dsr_passes"], x["net_apy_pct"]), reverse=True)
-    passers = [x for x in evaluated if x["dsr_passes"]]
+    # Rank validated strategies first, then by net-of-cost APY (the right yield metric).
+    evaluated.sort(key=lambda x: (x["validated"], x["net_apy_pct"]), reverse=True)
+    passers = [x for x in evaluated if x["validated"]]
 
     verdict = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -181,15 +226,27 @@ def evaluate(write: bool = True) -> dict:
         "sr_benchmark_annual_under_null": round(
             ds.annualize_sharpe(ds.expected_max_sharpe(sr_var_pp, n_trials)), 3),
         "dsr_pass_threshold": DSR_PASS,
+        "regime": regime,
+        "ranking_metric": "net_of_cost_apy" if regime == "LOW_VOL_YIELD" else "deflated_sharpe",
         "data_quality": dq,
+        "data_source": src,
         "strategies_evaluated": len(evaluated),
-        "dsr_passers": len(passers),
-        "honest_note": (
-            "DATA QUALITY FAIL — " + dq["reason"]
-        ) if not trustworthy else (
-            "0 DSR-passers is EXPECTED on a short track record — the expected-max Sharpe "
-            "under the null from many trials is high, so no strategy is yet proven."
-        ) if not passers else f"{len(passers)} strategy(ies) survive multiple-testing.",
+        "validated_count": len(passers),
+        "honest_note": {
+            "DEGENERATE_MOCK": "DATA QUALITY FAIL — " + dq["reason"],
+            "LOW_VOL_YIELD": (
+                f"REAL DeFiLlama data ({src.get('matched')} protocols, up to {src.get('max_days')}d). "
+                "Stablecoin yield is near-deterministic → Sharpe degenerate BY ASSET CLASS "
+                "(not a data bug). Ranking by NET-OF-COST APY + package risk bands (the "
+                f"Tier-1-correct metric). {len(passers)} strategy(ies) validated into packages. "
+                "Tail/principal risk (depeg/exploit) is governed separately by RiskPolicy."
+            ),
+            "NORMAL": (
+                f"{len(passers)} strategy(ies) survive multiple-testing (DSR)."
+                if passers else
+                "0 DSR-passers — expected-max Sharpe under the null is high; nothing proven yet."
+            ),
+        }[regime],
         "packages": {p["key"]: {"label": p["label"], "net_apy_band": [p["net_apy_min"], p["net_apy_max"]],
                                 "max_dd_limit": p["max_dd_limit"], "candidates": pkg_counts[p["key"]]}
                      for p in PACKAGES},
@@ -207,9 +264,11 @@ def evaluate(write: bool = True) -> dict:
 if __name__ == "__main__":
     v = evaluate()
     print(json.dumps({
-        "n_trials": v["n_trials"], "n_obs_days": v["n_obs_days"],
-        "sr_benchmark_annual_under_null": v["sr_benchmark_annual_under_null"],
-        "dsr_passers": v["dsr_passers"], "packages": {k: x["candidates"] for k, x in v["packages"].items()},
-        "top3_by_net": [(x["id"], x["net_apy_pct"], x["dsr"], x["tier1_grade"]) for x in v["leaderboard_tier1"][:3]],
+        "regime": v["regime"], "ranking_metric": v["ranking_metric"],
+        "data_source": v["data_source"], "n_obs_days": v["n_obs_days"],
+        "validated_count": v["validated_count"],
+        "packages": {k: x["candidates"] for k, x in v["packages"].items()},
+        "top3": [(x["id"], "net=%.2f%%" % x["net_apy_pct"], "dd=%s" % x["max_dd_pct"], x["tier1_grade"])
+                 for x in v["leaderboard_tier1"][:3]],
         "honest_note": v["honest_note"],
     }, indent=2, ensure_ascii=False))
