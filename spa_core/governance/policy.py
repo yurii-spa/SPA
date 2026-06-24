@@ -323,6 +323,8 @@ def build_report(write: bool = True, data_dir: str | Path | None = None) -> dict
 
 
 def _print_table() -> None:
+    # Persist the governance report → data/governance_policy.json (atomic).
+    build_report(write=True)
     manifest = policy_manifest()
     print(f"SPA Governance-as-Code · policy {manifest['version']} "
           f"({manifest['action_count']} actions) · default={manifest['default_policy']}")
