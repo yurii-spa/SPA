@@ -45,7 +45,10 @@ VERSION = "v1.0"
 # Protocol universe
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Protocols that ProfessionalBacktest has APY history for
+# Protocols that ProfessionalBacktest has APY history for. The higher-yield additions
+# (2026-06-24) now have REAL DeFiLlama series in data/bee/defillama_apy_history.json, so
+# they are wired through instead of being dropped — to honestly test whether any strategy
+# can validate into the Balanced/Aggressive packages on real higher-yield data.
 KNOWN_PROTOCOLS = frozenset({
     "aave_v3",
     "compound_v3",
@@ -54,6 +57,14 @@ KNOWN_PROTOCOLS = frozenset({
     "maple",
     "euler_v2",
     "yearn_v3",
+    # higher-yield, real-series protocols (keys match the new bee-cache keys)
+    "ethena_susde",
+    "fluid_usdc_eth",
+    "maple_syrup_usdc",
+    "morpho_bbq_usdc",
+    "pendle_pt_susde",
+    "aave_v3_arbitrum",
+    "aave_v3_polygon",
 })
 
 # Map strategy-specific protocol keys → backtest engine keys.
@@ -67,30 +78,37 @@ PROTOCOL_ALIAS: Dict[str, Optional[str]] = {
     "sky_susds":            "spark_susds",
     "sky_dai":              "spark_susds",
     "sky":                  "spark_susds",
-    "aave_v3_arbitrum":     "aave_v3",
-    "aave_v3_base":         "aave_v3",
+    # L2 aave now has its own REAL per-chain series → use it (not the ETH proxy).
+    "aave_v3_arbitrum":     "aave_v3_arbitrum",
+    "aave_v3_polygon":      "aave_v3_polygon",
+    "aave_arbitrum":        "aave_v3_arbitrum",
+    "aave_v3_base":         "aave_v3",   # base series ≈ eth-tracked; keep as aave_v3
     "aave_v3_optimism":     "aave_v3",
-    "aave_v3_polygon":      "aave_v3",
-    "aave_arbitrum":        "aave_v3",
     "aave_base":            "aave_v3",
     "aave_mainnet":         "aave_v3",
     "aave_usdc":            "aave_v3",
     "aave":                 "aave_v3",
     "compound_usdc":        "compound_v3",
     "compound":             "compound_v3",
-    "fluid":                "euler_v2",
-    "fluid_adapter":        "euler_v2",
-    "fluid_fusdc":          "euler_v2",
-    "moonwell_base":        "euler_v2",   # closest T2 lending proxy
+    # Fluid now has a REAL higher-yield series → wire it through (was proxied to euler).
+    "fluid":                "fluid_usdc_eth",
+    "fluid_adapter":        "fluid_usdc_eth",
+    "fluid_fusdc":          "fluid_usdc_eth",
+    "fluid_lending":        "fluid_usdc_eth",
+    "moonwell_base":        "euler_v2",   # closest T2 lending proxy (no real series)
     "radiant_arbitrum":     "euler_v2",   # T2 lending proxy
     "yearn":                "yearn_v3",
     "maple_usdc":           "maple",
-    # Explicitly dropped (no reliable historical series / T3-SPEC)
+    # Ethena sUSDe + Pendle PT now have REAL series → wire through (were dropped).
+    "ethena_susde":         "ethena_susde",
+    "susde":                "ethena_susde",
+    "susde_spot":           "ethena_susde",
+    "pendle_pt":            "pendle_pt_susde",
+    "pendle_pt_live":       "pendle_pt_susde",
+    # Explicitly dropped (no reliable historical series / unhedged-leg / T3-SPEC).
+    # pendle_yt is the leveraged-yield leg with no standalone safe series → still dropped.
     "cash":                 None,
-    "pendle_pt":            None,
     "pendle_yt":            None,
-    "ethena_susde":         None,
-    "susde_spot":           None,
     "perp_short_hedge":     None,
     "aerodrome":            None,
     "aerodrome_base":       None,
