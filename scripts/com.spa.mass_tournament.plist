@@ -2,23 +2,34 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Label</key><string>com.spa.mass_tournament</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string><string>spa_core.backtesting.mass_tournament</string>
-    </array>
-    <key>WorkingDirectory</key><string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-    <!-- 06:30 local = 04:30 UTC; runs BEFORE tournament_engine (07:00 UTC) so the
-         ranking always uses a fresh backtest, not a 2-day-stale one. -->
-    <key>StartCalendarInterval</key><dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>30</integer></dict>
-    <key>RunAtLoad</key><false/>
-    <key>StandardOutPath</key><string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/mass_tournament.log</string>
-    <key>StandardErrorPath</key><string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/mass_tournament.err</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key><string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-        <key>HOME</key><string>/Users/yuriikulieshov</string>
-    </dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>HOME</key>
+		<string>/Users/yuriikulieshov</string>
+		<key>PATH</key>
+		<string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+	<key>Label</key>
+	<string>com.spa.mass_tournament</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/run_backtest_tier1.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardErrorPath</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/mass_tournament.err</string>
+	<key>StandardOutPath</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/mass_tournament.log</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>6</integer>
+		<key>Minute</key>
+		<integer>30</integer>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>
