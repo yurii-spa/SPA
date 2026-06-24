@@ -30,6 +30,7 @@ from typing import Optional
 from spa_core.backtesting.tier1 import deflated_sharpe as ds
 from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1.cost_model import net_of_cost_apy
+from spa_core.backtesting.tier1.tail_risk import strategy_tail_risk
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -221,6 +222,8 @@ def evaluate(write: bool = True) -> dict:
         oos_res = oos_mod.oos_check(alloc if isinstance(alloc, dict) else {}, series_map)
         oos_holds = oos_res.get("oos_holds")  # True / False / None(insufficient)
         cap = _capacity(alloc if isinstance(alloc, dict) else {}, tvl_map, capital)
+        tr = strategy_tail_risk(alloc if isinstance(alloc, dict) else {})
+        risk_adj_apy = round(net_apy - tr["tail_risk_pct"], 4)
         dsr_passes = bool(dsr["passes"])
         # Grade by REGIME: Sharpe-DSR for NORMAL; net-yield + OOS for real low-vol yield;
         # UNPROVEN when degenerate AND data isn't real (mock).
@@ -254,14 +257,17 @@ def evaluate(write: bool = True) -> dict:
             "oos_status": oos_res.get("status"),
             "capacity_aum_usd": cap["capacity_aum_usd"],
             "capacity_ok": cap["capacity_ok"],
+            "tail_risk_pct": tr["tail_risk_pct"],
+            "risk_adjusted_apy_pct": risk_adj_apy,
             "validated": validated,            # regime-appropriate pass (drives packages)
             "min_track_record_days": round(mtrl, 1) if mtrl != float("inf") else None,
             "tier1_grade": grade,
             "package": pkg,
         })
 
-    # Rank validated strategies first, then by net-of-cost APY (the right yield metric).
-    evaluated.sort(key=lambda x: (x["validated"], x["net_apy_pct"]), reverse=True)
+    # Rank validated first, then by RISK-ADJUSTED net APY (net-of-cost minus tail risk) —
+    # the yield you keep after expected principal loss, the correct Tier-1 yield ranking.
+    evaluated.sort(key=lambda x: (x["validated"], x["risk_adjusted_apy_pct"]), reverse=True)
     passers = [x for x in evaluated if x["validated"]]
 
     verdict = {
