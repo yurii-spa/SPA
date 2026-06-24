@@ -25,11 +25,11 @@
     <div class="flex items-center gap-6 text-sm text-white/50">
       <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline">Methodology</a>
       <a href="/risk" class="hover:text-white transition-colors hidden sm:inline">Risk</a>
-      <a href="/packages.html" class="hover:text-white transition-colors hidden sm:inline">Packages</a>
-      <a href="/agents.html" class="hover:text-white transition-colors hidden md:inline">Agents</a>
-      <a href="/tournament.html" class="hover:text-white transition-colors hidden lg:inline">Tournament</a>
+      <a href="/packages" class="hover:text-white transition-colors hidden sm:inline">Packages</a>
+      <a href="/agents" class="hover:text-white transition-colors hidden md:inline">Agents</a>
+      <a href="/tournament" class="hover:text-white transition-colors hidden lg:inline">Tournament</a>
       <a
-        href="/app.html"
+        href="/app"
         class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
       >
         Dashboard ↗
@@ -45,7 +45,7 @@
       <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" aria-hidden="true"></span>
       <span>Paper Trading Mode</span>
       <span class="text-white/30 mx-1">·</span>
-      <span>Paper day 11 · started Jun 10, 2026</span>
+      <span id="hero-paper-day">Paper day · started Jun 10, 2026</span>
     </div>
 
     <!-- H1 — Блок 0 reframe -->
@@ -75,7 +75,7 @@
         Methodology Journal
       </a>
       <a
-        href="/dashboard"
+        href="/app"
         class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg border border-white/15 hover:border-white/30 text-white/70 hover:text-white font-medium text-sm transition-all"
       >
         View Paper Results
@@ -94,3 +94,19 @@
 
   </div>
 </section>
+
+<!-- Live status: keep the hero day-count + APY current from the live API (never stale). -->
+<script is:inline>
+  (function () {
+    fetch('https://api.earn-defi.com/api/health-public')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var el = document.getElementById('hero-paper-day');
+        if (el && d && d.track_days != null) {
+          var apy = (d.ytd_apy_pct != null) ? ' · ~' + Number(d.ytd_apy_pct).toFixed(1) + '% APY' : '';
+          el.textContent = 'Paper day ' + d.track_days + ' · started Jun 10, 2026' + apy;
+        }
+      })
+      .catch(function () { /* keep static text on failure */ });
+  })();
+</script>
