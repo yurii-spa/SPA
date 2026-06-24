@@ -1,0 +1,208 @@
+"""
+spa_core/monitoring/self_heal.py — active self-healing watchdog (MP-SELFHEAL).
+
+The other monitors (agent_health, uptime_monitor) only DETECT + alert. This one
+ACTS: it revives agents that should be running but aren't, restarts down servers,
+and re-runs a missed daily cycle. Runs every 5 min via com.spa.self_heal.
+
+Self-healing rules (deterministic, stdlib only, LLM FORBIDDEN):
+  1. Expected agents = every ~/Library/LaunchAgents/com.spa.*.plist that is NOT
+     *.disabled. Any expected label missing from `launchctl list` → bootstrap it.
+  2. Always-on servers (KeepAlive) that are loaded but have PID 0 → kickstart -k.
+  3. Daily cycle gap: if paper_trading_status.last_cycle_ts is older than
+     CYCLE_GAP_HOURS → run the deterministic gap recovery (cycle_runner) and
+     kickstart com.spa.daily_cycle.
+  4. Every action is logged to data/self_heal_status.json and (on action or repeated
+     failure) sent to Telegram. Fail-safe: a heal attempt never crashes the watchdog.
+
+Atomic writes (tmp + os.replace). Idempotent — safe to run every 5 min.
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+import datetime
+import json
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Dict, List
+
+_ROOT = Path(__file__).resolve().parents[2]
+_DATA = _ROOT / "data"
+_LA = Path.home() / "Library" / "LaunchAgents"
+_STATUS = _DATA / "self_heal_status.json"
+
+CYCLE_GAP_HOURS = 28.0          # daily cadence; >28h since last cycle → recover
+SUBPROC_TIMEOUT = 25
+
+# Always-on servers (KeepAlive) — if loaded but PID 0, kickstart them.
+_SERVERS = {
+    "com.spa.apiserver", "com.spa.httpserver", "com.spa.familyfund",
+    "com.spa.cloudflared", "com.spa.dashboard", "com.spa.bot_commands",
+}
+
+
+def _uid() -> str:
+    return str(os.getuid())
+
+
+def _run(args: List[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(args, capture_output=True, text=True, timeout=SUBPROC_TIMEOUT)
+
+
+def _loaded_labels() -> Dict[str, int]:
+    """label -> pid (0 if not running) for every loaded com.spa.* job."""
+    out: Dict[str, int] = {}
+    try:
+        r = _run(["launchctl", "list"])
+        for line in r.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 3 and parts[2].startswith("com.spa."):
+                pid = 0
+                try:
+                    pid = int(parts[0])
+                except ValueError:
+                    pid = 0
+                out[parts[2]] = pid
+    except Exception:
+        pass
+    return out
+
+
+def _expected_labels() -> List[str]:
+    """Every installed (non-disabled) com.spa.*.plist is expected to be loaded."""
+    if not _LA.exists():
+        return []
+    return sorted(
+        p.stem for p in _LA.glob("com.spa.*.plist")
+        if p.suffix == ".plist" and not p.name.endswith(".disabled")
+    )
+
+
+def _bootstrap(label: str) -> bool:
+    plist = _LA / f"{label}.plist"
+    if not plist.exists():
+        return False
+    r = _run(["launchctl", "bootstrap", f"gui/{_uid()}", str(plist)])
+    return r.returncode == 0
+
+
+def _kickstart(label: str) -> bool:
+    r = _run(["launchctl", "kickstart", "-k", f"gui/{_uid()}/{label}"])
+    return r.returncode == 0
+
+
+def _last_cycle_age_hours() -> float | None:
+    try:
+        d = json.loads((_DATA / "paper_trading_status.json").read_text())
+        ts = d.get("last_cycle_ts")
+        if not ts:
+            return None
+        t = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return (now - t).total_seconds() / 3600.0
+    except Exception:
+        return None
+
+
+def _recover_cycle() -> bool:
+    """Run the deterministic, file-locked gap recovery (idempotent 1/day)."""
+    try:
+        r = _run([
+            "/Users/yuriikulieshov/miniconda3/bin/python3",
+            "-m", "spa_core.paper_trading.gap_monitor", "--recover",
+        ])
+        ok = r.returncode == 0
+    except Exception:
+        ok = False
+    # Also kickstart the scheduled agent so the next run is on track.
+    _kickstart("com.spa.daily_cycle")
+    return ok
+
+
+def _send_telegram(msg: str) -> None:
+    try:
+        from spa_core.alerts.telegram_client import send_message
+        send_message(msg)
+    except Exception:
+        pass
+
+
+def _save(report: dict) -> None:
+    try:
+        _DATA.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".self_heal_")
+        with os.fdopen(fd, "w") as f:
+            json.dump(report, f, indent=2)
+        os.replace(tmp, _STATUS)
+    except Exception:
+        pass
+
+
+def run_self_heal(dry_run: bool = False) -> dict:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    actions: List[str] = []
+    failures: List[str] = []
+
+    loaded = _loaded_labels()
+    expected = _expected_labels()
+
+    # 1) Revive expected agents that are NOT loaded.
+    for label in expected:
+        if label not in loaded:
+            if dry_run:
+                actions.append(f"would bootstrap {label}")
+            elif _bootstrap(label):
+                actions.append(f"revived (bootstrap) {label}")
+            else:
+                failures.append(f"bootstrap failed {label}")
+
+    # 2) Always-on servers loaded but with PID 0 → kickstart.
+    for label in _SERVERS:
+        if label in loaded and loaded[label] == 0:
+            if dry_run:
+                actions.append(f"would kickstart down server {label}")
+            elif _kickstart(label):
+                actions.append(f"restarted down server {label}")
+            else:
+                failures.append(f"kickstart failed {label}")
+
+    # 3) Daily cycle gap → recover.
+    age = _last_cycle_age_hours()
+    if age is not None and age > CYCLE_GAP_HOURS:
+        if dry_run:
+            actions.append(f"would recover cycle (last {age:.1f}h ago)")
+        else:
+            ok = _recover_cycle()
+            (actions if ok else failures).append(
+                f"cycle recovery {'ok' if ok else 'attempted/failed'} (was {age:.1f}h)"
+            )
+
+    report = {
+        "ts": now,
+        "expected": len(expected),
+        "loaded": len(loaded),
+        "actions": actions,
+        "failures": failures,
+        "cycle_age_h": round(age, 2) if age is not None else None,
+        "healthy": not actions and not failures,
+        "LLM_FORBIDDEN": True,
+    }
+    if not dry_run:
+        _save(report)
+        if actions or failures:
+            lines = ["🔧 <b>SPA Self-Heal</b>"]
+            for a in actions:
+                lines.append(f"✅ {a}")
+            for f in failures:
+                lines.append(f"❌ {f}")
+            _send_telegram("\n".join(lines))
+    return report
+
+
+if __name__ == "__main__":
+    import sys
+    res = run_self_heal(dry_run="--dry-run" in sys.argv)
+    print(json.dumps(res, indent=2, ensure_ascii=False))
+    raise SystemExit(0 if not res["failures"] else 1)
