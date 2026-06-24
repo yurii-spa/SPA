@@ -6587,10 +6587,12 @@ async function loadDashboard() {
       if (_heroEl('hero-equity') && paperStatus) {
         const _eq = paperStatus.current_equity || paperStatus.equity;
         if (_eq) _heroEl('hero-equity').textContent = '$' + Number(_eq).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
-        const _apy = paperStatus.current_apy_pct || paperStatus.apy;
+        const _apy = (paperStatus.apy_today_pct != null) ? paperStatus.apy_today_pct
+                     : (paperStatus.current_apy_pct != null ? paperStatus.current_apy_pct : paperStatus.apy);
         if (_apy != null) _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%';
-        if (_heroEl('hero-golive')) _heroEl('hero-golive').textContent = META_GOLIVE || '2026-08-01';
-        if (_heroEl('hero-status') && paperStatus.go_live_status) _heroEl('hero-status').textContent = paperStatus.go_live_status;
+        if (_heroEl('hero-golive')) _heroEl('hero-golive').textContent = META_GOLIVE || '2026-07-09';
+        const _st = paperStatus.last_cycle_status || paperStatus.go_live_status || (paperStatus.is_demo === false ? 'live' : null);
+        if (_heroEl('hero-status') && _st) _heroEl('hero-status').textContent = _st;
       }
       // hero-track-days: HONEST track days. Prefer status.days_running (anchored to
       // PAPER_REAL_START); fall back to counting only real (non-warmup) bars since
