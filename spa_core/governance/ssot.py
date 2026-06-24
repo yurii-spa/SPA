@@ -306,7 +306,9 @@ def build_report(
 
 
 def _main() -> None:
-    facts = key_facts()
+    # Persist the manifest (registry + key_facts) → data/ssot_manifest.json (atomic).
+    manifest = build_report(write=True)
+    facts = manifest["key_facts"]
     print("=== SPA SSOT key_facts (canonical — site MUST mirror) ===")
     for k, v in facts.items():
         print(f"  {k:24} = {v}")
@@ -314,6 +316,8 @@ def _main() -> None:
     print("=== SSOT registry (data_type → canonical source · Law 3) ===")
     for dtype, spec in registry().items():
         print(f"  {dtype:20} [{spec['kind']:6}] -> {spec['canonical']}")
+    print()
+    print("wrote: data/ssot_manifest.json")
 
 
 if __name__ == "__main__":
