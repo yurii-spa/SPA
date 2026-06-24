@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "doc": "SINGLE SOURCE OF TRUTH for Strategy-Lab parameters. Edit here, never hardcode in strategy code. Risk LIMITS are NOT here \u2014 they come from spa_core.risk.policy (RiskConfig). Loaded via spa_core.strategy_lab.config.load_config().",
+    "version": "v1.0",
+    "version_date": "2026-06-24"
+  },
+  "global": {
+    "initial_capital": 100000,
+    "window_start": "2026-06-10",
+    "window_end": "2026-06-24",
+    "seed": 42,
+    "gas_usd_per_rebalance": 8.0,
+    "slippage_bps": 5.0,
+    "rebalance_bps": 2.0,
+    "funding_settles_per_day": 3,
+    "rwa_floor_apy_pct": 4.5
+  },
+  "strategies": {
+    "variant_n": {
+      "name": "Neutral Restaking (delta-neutral LRT + perp short)",
+      "mandate": "neutral",
+      "is_advisory": true,
+      "lrt_symbol": "eeth",
+      "hedge_ratio": 1.0,
+      "funding_kill_threshold": -0.0003,
+      "funding_kill_hours": 24,
+      "lrt_depeg_kill_pct": 2.0,
+      "points_apy_assumption": 0.03
+    },
+    "variant_d": {
+      "name": "Directional Restaking (long LRT, unhedged)",
+      "mandate": "directional",
+      "is_advisory": true,
+      "lrt_symbol": "eeth",
+      "drawdown_kill_pct": 25.0
+    },
+    "engine_a": {
+      "name": "Engine A \u2014 Stable base book",
+      "mandate": "stable",
+      "is_advisory": false,
+      "capital_usd": 100000
+    },
+    "engine_b": {
+      "name": "Engine B \u2014 HY / carry sleeve",
+      "mandate": "stable",
+      "is_advisory": false,
+      "capital_usd": 20000
+    },
+    "engine_c": {
+      "name": "Engine C \u2014 LP sleeve",
+      "mandate": "stable",
+      "is_advisory": false,
+      "capital_usd": 10000
+    },
+    "rwa_floor": {
+      "name": "RWA Floor \u2014 risk-free benchmark",
+      "mandate": "stable",
+      "is_advisory": true,
+      "capital_usd": 100000,
+      "apy_pct": 4.5
+    }
+  }
+}
