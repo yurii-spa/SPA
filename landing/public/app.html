@@ -1204,6 +1204,9 @@
     .ce-metric { min-width: 80px; padding: 6px; }
     .fc-val { font-size: 16px; }
   }
+  /* FAST-FIRST-PAINT: subtle pulse while hero metrics are in flight (~<1s) */
+  .hero-loading { opacity: .55; font-style: italic; font-weight: 400 !important; animation: heroPulse 1s ease-in-out infinite; }
+  @keyframes heroPulse { 0%,100% { opacity: .35; } 50% { opacity: .75; } }
 
   /* P1-1: hide internal tabs on GitHub Pages (IS_PUBLIC) */
   body.is-public [data-tab="analytics"],
@@ -1741,9 +1744,9 @@ body:not(.night) .bee-disclaimer { color: #777; }
 <!-- FIX-7 P2-2: Hero strip — PAPER badge + live stats (hidden by CSS, replaced by spa-hero) -->
 <div id="hero-strip" style="background:#1a1a2e;color:#fff;padding:8px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;border-bottom:1px solid #333;margin-bottom:12px;border-radius:8px">
   <span style="background:#e74c3c;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px">PAPER TRADING · VIRTUAL CAPITAL</span>
-  <span>Equity: <b id="hero-equity">$—</b></span>
-  <span>APY: <b id="hero-apy">—%</b></span>
-  <span id="hero-track-days">День —/30</span>
+  <span>Equity: <b id="hero-equity" class="hero-loading">загрузка…</b></span>
+  <span>APY: <b id="hero-apy" class="hero-loading">загрузка…</b></span>
+  <span id="hero-track-days" class="hero-loading">загрузка…</span>
   <span>Go-Live: <b id="hero-golive">—</b></span>
   <span id="hero-status" style="font-weight:bold">—</span>
 </div>
@@ -4182,6 +4185,22 @@ const LIVE_API = (location.hostname === 'localhost' || location.hostname === '12
 // against the public tunnel (CORS-allowed), so github.io can also go live.
 const IS_PUBLIC = location.hostname.endsWith('github.io') || location.hostname.endsWith('github.com');
 if (IS_PUBLIC) document.body.classList.add('is-public'); // P1-1: hide internal tabs via CSS
+
+// FAST-FIRST-PAINT: on any hosted (non-localhost) site the static ./data/*.json
+// snapshots are gitignored and resolve to a 404/HTML fallback, so the first-screen
+// loaders that fire on init produced blank "—" until detectLiveMode() (async 3s
+// ping) redirected the bases AND the 15s poll fired. Prime the bases at the live
+// tunnel UP FRONT so the very first fetch hits real data (~90ms). detectLiveMode()
+// still runs to confirm; reverifyLive()/its catch revert to static if the tunnel
+// is actually down. Local dev (localhost) keeps its existing detect-then-redirect
+// flow so the local file server is used until the local API is confirmed.
+const _isHostedSite = !(location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+if (_isHostedSite) {
+  dataBase = LIVE_API + '/api/live/data';
+  BASE     = LIVE_API + '/api/live/data';
+  LIVE_BASE = LIVE_API + '/api';
+}
+
 let _liveWs = null;
 let _livePollTimer = null;
 let _liveVerifyTimer = null;
@@ -6720,12 +6739,13 @@ async function loadDashboard() {
     updateDataFreshnessBadge(meta, paperStatus);  // P0-3: pass paperStatus for cycle freshness
     // FIX-7: fill hero strip
     { const _heroEl = id => document.getElementById(id);
+      const _heroDone = el => { if (el) el.classList.remove('hero-loading'); };
       if (_heroEl('hero-equity') && paperStatus) {
         const _eq = paperStatus.current_equity || paperStatus.equity;
-        if (_eq) _heroEl('hero-equity').textContent = '$' + Number(_eq).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+        if (_eq) { _heroEl('hero-equity').textContent = '$' + Number(_eq).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2}); _heroDone(_heroEl('hero-equity')); }
         const _apy = (paperStatus.apy_today_pct != null) ? paperStatus.apy_today_pct
                      : (paperStatus.current_apy_pct != null ? paperStatus.current_apy_pct : paperStatus.apy);
-        if (_apy != null) _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%';
+        if (_apy != null) { _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%'; _heroDone(_heroEl('hero-apy')); }
         if (_heroEl('hero-golive')) _heroEl('hero-golive').textContent = META_GOLIVE || '2026-07-09';
         const _st = paperStatus.last_cycle_status || paperStatus.go_live_status || (paperStatus.is_demo === false ? 'live' : null);
         if (_heroEl('hero-status') && _st) _heroEl('hero-status').textContent = _st;
@@ -6742,6 +6762,7 @@ async function loadDashboard() {
                 (!window.REAL_TRACK_START || String(p.date || '') >= window.REAL_TRACK_START)).length;
         }
         _heroEl('hero-track-days').textContent = 'День ' + _n + '/' + (META_TRACK_DAYS || 30);
+        _heroDone(_heroEl('hero-track-days'));
       } }
     renderApyGapTracker(status, null);            // weighted APY считается из живых позиций
     renderApyTrends();
@@ -9820,6 +9841,11 @@ document.getElementById('ts-subtitle').textContent = 'Проект · ' + nowStr
 const _todEl = document.getElementById('today-date');
 if (_todEl) _todEl.textContent = new Date().toISOString().slice(0,10);
 detectLiveMode();
+// FAST-FIRST-PAINT: fire the hero-strip loader (loadDashboard fills hero-equity /
+// hero-apy / hero-track-days) IMMEDIATELY, in parallel with detectLiveMode() —
+// not deferred behind the 3s ping + 15s poll. Bases are already primed to the
+// live tunnel above, so this first fetch hits real data right away.
+try { loadDashboard(); } catch(e) {}
 loadBacklog();   // live tab counter "BACKLOG (N)" + warm cache on page load
 loadOverview();  // v2.0: load Dashboard on startup (it's the default tab)
 
