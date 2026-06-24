@@ -6,13 +6,22 @@
     <string>com.spa.dashboard</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
         <string>-m</string>
         <string>http.server</string>
-        <string>8766</string>
+        <string>8767</string>
         <string>--directory</string>
         <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
     </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
