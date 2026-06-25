@@ -151,6 +151,82 @@ def test_idempotent_same_day_retick(tmp_path):
         assert len(doc["series"]) == 1, sid
 
 
+def test_series_grows_one_point_per_distinct_day(tmp_path):
+    """REGRESSION (P1): the forward series must APPEND one point per distinct market date and
+    NOT duplicate on a same-date re-tick. The original bug left every series stuck at n=1 because
+    the market date never advanced across hourly ticks — here we advance it explicitly and assert
+    the track grows 1→2→3, while a same-date re-tick holds it flat."""
+    md = FakeMarketData()
+    svc = _make_service(tmp_path, md)
+
+    def _series_len(sid):
+        return len(json.loads((tmp_path / f"{sid}_series.json").read_text())["series"])
+
+    def _series_dates(sid):
+        return [p["date"] for p in json.loads((tmp_path / f"{sid}_series.json").read_text())["series"]]
+
+    days = ("2026-06-10", "2026-06-11", "2026-06-12", "2026-06-13")
+    for n, d in enumerate(days, start=1):
+        md.set_snapshot(_snapshot(d, eth=3000.0 + n * 25))
+        svc.tick()
+        # one fresh point per distinct day → series length tracks the day count exactly
+        for sid in svc._strategies:
+            assert _series_len(sid) == n, (sid, d, n)
+            assert _series_dates(sid) == list(days[:n]), sid
+        # re-ticking the SAME day must NOT add a duplicate point (idempotent)
+        svc.tick()
+        for sid in svc._strategies:
+            assert _series_len(sid) == n, (sid, "re-tick", d)
+            assert _series_dates(sid)[-1] == d, sid
+
+    # final track has exactly one dated point per distinct day, in order, no duplicates
+    for sid in svc._strategies:
+        dates = _series_dates(sid)
+        assert dates == list(days), sid
+        assert len(dates) == len(set(dates)), sid  # no duplicate dates
+
+
+def test_real_market_data_refreshed_once_per_day(tmp_path):
+    """The fix triggers a live-data refresh on the FIRST tick of each UTC day (so latest().date
+    advances), and at most once per day (hourly ticks must not re-fetch the network 24×/day).
+    We use a fake whose .refresh() advances the date it serves and counts its calls."""
+
+    class RefreshingMarketData:
+        """Stands in for the real MarketData: has a refresh() that advances the served date."""
+
+        def __init__(self, dates):
+            self._dates = list(dates)
+            self._idx = -1
+            self.refresh_calls = 0
+
+        def refresh(self):
+            self.refresh_calls += 1
+            if self._idx < len(self._dates) - 1:
+                self._idx += 1
+
+        def latest(self):
+            i = max(0, self._idx)
+            return _snapshot(self._dates[i])
+
+    md = RefreshingMarketData(["2026-06-10", "2026-06-11"])
+    svc = _make_service(tmp_path, md)
+
+    # First refresh of "day 1" → fetch fires, served date becomes 2026-06-10.
+    svc._refresh_market_data_if_due("2026-06-10")
+    assert md.refresh_calls == 1
+    assert md.latest().date == "2026-06-10"
+
+    # Same UTC day, more (hourly) ticks → NO additional fetch (network not hit 24×/day).
+    svc._refresh_market_data_if_due("2026-06-10")
+    svc._refresh_market_data_if_due("2026-06-10")
+    assert md.refresh_calls == 1  # still one fetch for the whole day
+
+    # A NEW UTC day → fetch fires again and the served date advances.
+    svc._refresh_market_data_if_due("2026-06-11")
+    assert md.refresh_calls == 2
+    assert md.latest().date == "2026-06-11"
+
+
 def test_fail_closed_on_raising_fetch(tmp_path):
     """A raising live fetch → safe-hold: no advance, gap recorded, no fabricated series point."""
     # First a good tick so there is a known prior state.
