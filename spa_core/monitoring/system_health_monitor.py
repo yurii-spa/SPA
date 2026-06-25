@@ -918,7 +918,11 @@ class SystemHealthMonitor:
                 return CheckResult("d6.red_flags", D, CRITICAL,
                                    f"{len(held_crit)} CRITICAL red flag(s) on HELD protocols",
                                    evidence={"flags": [f.get("message", f.get("protocol", "?")) for f in held_crit[:5]]})
-            return CheckResult("d6.red_flags", D, WARNING,
+            # Flags only on EXTERNAL (non-held) protocols are market intelligence, not
+            # a risk-gate defect. They are advisory context (INFO) and MUST NOT escalate
+            # the d6 domain to WARNING — the gates themselves (health/t2.cap/killswitch)
+            # are what gate live risk. Mirrors agent_health_monitor's advisory handling.
+            return CheckResult("d6.red_flags", D, INFO,
                                f"{len(crit)} red flag(s) on external protocols (advisory)",
                                evidence={"flags": [f.get("message", f.get("protocol", "?")) for f in crit[:5]]})
         return CheckResult("d6.red_flags", D, OK,
