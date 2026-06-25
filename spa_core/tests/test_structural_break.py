@@ -746,10 +746,11 @@ class TestImportHygiene(unittest.TestCase):
         self.assertIn("from spa_core.paper_trading.equity_curve import", src)
 
     def test_atomic_write_pattern(self) -> None:
+        # write_status delegates atomicity to atomic_save (spa_core.utils.atomic)
+        # which internally uses tempfile.mkstemp + os.replace. Verify the source
+        # calls atomic_save rather than a raw open/write.
         src = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("tempfile.mkstemp", src)
-        self.assertIn("os.replace", src)
-        self.assertIn(".tmp_structural_break_", src)
+        self.assertIn("atomic_save", src)
 
 
 # =============================================================================
