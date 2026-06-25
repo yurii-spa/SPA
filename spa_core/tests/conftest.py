@@ -10,6 +10,17 @@ import pytest
 import os
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+
+# ---------------------------------------------------------------------------
+# Skip test_family_fund_api if fastapi is not installed (stdlib-only env).
+# Must be a collect_ignore at conftest level so pytest never tries to import
+# the sub-conftest that has a bare `from fastapi...` import.
+# ---------------------------------------------------------------------------
+try:
+    import importlib
+    importlib.import_module("fastapi")
+except ImportError:
+    collect_ignore_glob = ["test_family_fund_api/*"]
 from unittest.mock import MagicMock, patch
 
 # Make spa_core importable from this directory
