@@ -42,10 +42,11 @@ from __future__ import annotations
 import inspect
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.atomic import atomic_save
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -71,26 +72,8 @@ REPORT_VERSION = "v1.0"
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    """Atomic JSON write via tmp + os.replace (stdlib only).
-
-    We deliberately do NOT import spa_core.utils.atomic to keep this
-    safety-critical module dependency-free (stdlib only, no import surface
-    into the wider codebase).
-    """
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    dir_ = str(path.parent) or "."
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, indent=2, default=str)
-        os.replace(tmp, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    """Atomic JSON write — delegates to the shared atomic-save utility."""
+    atomic_save(obj, str(path))
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
