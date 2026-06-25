@@ -15,6 +15,19 @@
     "funding_settles_per_day": 3,
     "rwa_floor_apy_pct": 4.5
   },
+  "promotion": {
+    "_doc": "Thresholds for promotion.py — the deterministic decision layer that scores each lab sleeve and assigns a pipeline STAGE (REJECT / BACKTEST_PASS / PAPER_CANDIDATE) along RESEARCH→BACKTEST→WALK-FORWARD→PAPER→CANARY→FULL. Fail-CLOSED: any missing criterion fails. NEVER hardcode these in code. RiskPolicy is the gate; LLM FORBIDDEN.",
+    "max_drawdown_band_pct": 15.0,
+    "wf_consistency_min_pct": 70.0,
+    "min_capacity_aum_usd": 1000000.0,
+    "min_net_apy_pct": 0.0,
+    "data_gap_kill_substrings": [
+      "missing/invalid",
+      "fail-closed (step raised)",
+      "missing",
+      "no valid"
+    ]
+  },
   "strategies": {
     "variant_n": {
       "name": "Neutral Restaking (delta-neutral LRT + perp short)",
