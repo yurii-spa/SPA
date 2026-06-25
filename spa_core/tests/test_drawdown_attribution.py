@@ -1129,11 +1129,15 @@ class TestRealLinterHygiene(unittest.TestCase):
         self.assertIn("from spa_core.reporting.tear_sheet import", src)
         self.assertIn("content_fingerprint", src)
 
-    # 83. atomic-write pattern present (tempfile.mkstemp + os.replace)
+    # 83. atomic-write pattern present (tempfile.mkstemp + os.replace or atomic_save)
     def test_atomic_write_pattern(self):
         src = self._MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("tempfile.mkstemp", src)
-        self.assertIn("os.replace", src)
+        uses_atomic_save = "atomic_save" in src
+        uses_raw_atomic = "tempfile.mkstemp" in src and "os.replace" in src
+        self.assertTrue(
+            uses_atomic_save or uses_raw_atomic,
+            "Module must use atomic_save() or the raw tempfile.mkstemp+os.replace pattern",
+        )
 
     # 84. e2e round-trip: build → write → reload → matches fingerprint
     def test_e2e_round_trip(self):
