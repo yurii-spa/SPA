@@ -8,11 +8,11 @@ import strategies from '../data/strategy_config.json';
 
     <!-- Header -->
     <div class="text-center mb-6 max-w-2xl mx-auto">
-      <p class="text-accent-400 text-sm font-mono uppercase tracking-widest mb-3">Investment Strategies</p>
-      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <p class="text-accent-400 text-sm font-mono uppercase tracking-widest mb-3" data-ru="Инвестиционные стратегии">Investment Strategies</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Выберите свою стратегию">
         Choose Your Strategy
       </h2>
-      <p class="text-white/50 leading-relaxed">
+      <p class="text-white/50 leading-relaxed" data-ru="Три профиля риска. Один системный фреймворк. APY переменный и не гарантирован.">
         Three risk profiles. One systematic framework. APY variable and not guaranteed.
       </p>
     </div>
@@ -20,9 +20,9 @@ import strategies from '../data/strategy_config.json';
     <!-- Risk gradient bar -->
     <div class="max-w-xl mx-auto mb-12">
       <div class="flex items-center gap-3">
-        <span class="text-xs text-white/30 font-mono whitespace-nowrap">Lower Risk</span>
+        <span class="text-xs text-white/30 font-mono whitespace-nowrap" data-ru="Ниже риск">Lower Risk</span>
         <div class="flex-1 h-1.5 rounded-full bg-gradient-to-r from-blue-500 via-accent-400 to-amber-400 opacity-40"></div>
-        <span class="text-xs text-white/30 font-mono whitespace-nowrap">Higher Risk</span>
+        <span class="text-xs text-white/30 font-mono whitespace-nowrap" data-ru="Выше риск">Higher Risk</span>
       </div>
     </div>
 
@@ -34,7 +34,7 @@ import strategies from '../data/strategy_config.json';
     </div>
 
     <!-- Disclaimer -->
-    <p class="text-center text-xs text-white/20 mt-8 max-w-2xl mx-auto">
+    <p class="text-center text-xs text-white/20 mt-8 max-w-2xl mx-auto" data-ru="Показатели APY переменны и не гарантированы. Прошлые результаты бумажной торговли не гарантируют будущих результатов. Возможна потеря капитала.">
       {strategies.global.apy_disclaimer}
     </p>
 
