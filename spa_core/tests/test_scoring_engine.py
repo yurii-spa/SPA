@@ -486,6 +486,9 @@ def _fake_urlopen(payload):
 
 
 def test_fetch_defillama_protocols_success(tmp_path):
+    # FIX-P1 (AUDIT-011): _fetch_defillama_protocols no longer uses urlopen —
+    # it reads from a local DeFiLlama cache file instead. Patch the cache path.
+    import json as _json
     eng = se.RiskScoringEngine(
         incidents_file=tmp_path / "incidents.json",
         audit_file=tmp_path / "audit.json",
@@ -497,7 +500,9 @@ def test_fetch_defillama_protocols_success(tmp_path):
         {"slug": "newcoin", "name": "NewCoin", "tvl": 100_000_000.0,
          "change_30d": 200.0, "audits": 1, "chain": "Solana"},
     ]
-    with patch("urllib.request.urlopen", return_value=_fake_urlopen(payload)):
+    cache_file = tmp_path / "defi_llama_cache.json"
+    cache_file.write_text(_json.dumps(payload))
+    with patch.object(se, "DEFILLAMA_CACHE_FILE", cache_file):
         out = eng._fetch_defillama_protocols(offline=False)
     assert "aave-v3" in out
     assert "newcoin" in out
@@ -552,7 +557,7 @@ def test_export_writes_file(offline_engine, tmp_path):
     assert "generated_at" in loaded
     assert loaded["engine_version"] == se.ENGINE_VERSION
     assert "weights" in loaded
-    assert len(loaded["weights"]) == 15
+    assert len(loaded["weights"]) == len(se.WEIGHTS)
     assert "scores" in loaded
     assert len(loaded["scores"]) == len(se.SPA_WHITELIST)
     assert "summary_by_grade" in loaded
