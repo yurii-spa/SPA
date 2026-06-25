@@ -794,11 +794,12 @@ class TestImportHygiene(unittest.TestCase):
         self.assertTrue(_MODULE_PATH.exists(), f"Module not found: {_MODULE_PATH}")
 
     def test_no_external_imports(self):
-        """Only stdlib modules may be imported."""
+        """Only stdlib modules and internal spa_core modules may be imported."""
         stdlib_modules = {
             "json", "math", "os", "tempfile", "time",
             "typing", "__future__", "abc", "collections",
             "functools", "itertools", "re", "sys",
+            "spa_core",  # internal package — not a 3rd-party external dep
         }
         source = _MODULE_PATH.read_text(encoding="utf-8")
         tree = ast.parse(source)
