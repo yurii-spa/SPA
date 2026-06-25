@@ -1,8 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
-import Footer from '../components/Footer.astro';
-
 const faqs = [
   {
     id: 'faq-what-is-spa',
@@ -114,29 +112,6 @@ const faqs = [
 >
 
   <!-- Nav -->
-  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
-    <div class="flex items-center gap-2">
-      <a href="/" class="flex items-center gap-2">
-        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
-        <span class="font-semibold text-white tracking-tight">SPA</span>
-      </a>
-      <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/50" data-ru="FAQ">FAQ</span>
-    </div>
-    <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/" class="hover:text-white transition-colors hidden sm:inline" data-ru="Главная">Home</a>
-      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline" data-ru="Методология">Methodology</a>
-      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline" data-ru="Риски">Risk</a>
-      <a
-        href="/dashboard"
-        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
-        data-ru="Дашборд ↗"
-      >
-        Dashboard ↗
-      </a>
-    </div>
-  </nav>
-
   <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Header -->
@@ -237,7 +212,7 @@ const faqs = [
           <a href="/fees" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Комиссии">
             Fees
           </a>
-          <a href="/dashboard" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Дашборд">
+          <a href="/app" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Дашборд">
             Dashboard
           </a>
         </div>
@@ -247,6 +222,4 @@ const faqs = [
   </main>
 
   <Disclaimer />
-  <Footer />
-
 </Layout>
