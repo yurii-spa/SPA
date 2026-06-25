@@ -519,10 +519,11 @@ class TestIntegrationRunCycle:
                 "compound_v3": _reg_entry(tier=1, fallback_apy=0.052),
             },
         )
-        # Adapters return error/0 values (network failure scenario)
+        # Adapters return zero APY/TVL but status="ok" so the cycle proceeds to
+        # the policy gate (status="error" causes skipped_no_live_data early return).
         adapters = [
-            _adapter_dict("aave_v3", apy_pct=0.0, tvl_usd=0.0, status="error"),
-            _adapter_dict("compound_v3", apy_pct=0.0, tvl_usd=0.0, status="error"),
+            _adapter_dict("aave_v3", apy_pct=0.0, tvl_usd=0.0, status="ok"),
+            _adapter_dict("compound_v3", apy_pct=0.0, tvl_usd=0.0, status="ok"),
         ]
         res = _run_cycle(
             tmp_path,
@@ -535,9 +536,9 @@ class TestIntegrationRunCycle:
 
     def test_run_cycle_blocked_without_registry(self, tmp_path):
         """Same setup but no registry → still blocked → no trade."""
-        # No adapter_registry.json in tmp_path
+        # No adapter_registry.json in tmp_path; status="ok" so cycle reaches policy gate.
         adapters = [
-            _adapter_dict("aave_v3", apy_pct=0.0, tvl_usd=0.0, status="error"),
+            _adapter_dict("aave_v3", apy_pct=0.0, tvl_usd=0.0, status="ok"),
         ]
         res = _run_cycle(
             tmp_path,
