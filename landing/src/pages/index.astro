@@ -29,6 +29,12 @@ import Layout from '../layouts/Layout.astro';
         <span class="div">·</span><span class="num" id="sl-apy">~—%</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
         <span class="div">·</span><span class="num" id="sl-gates">—/—</span>&nbsp;<span data-ru="критериев">criteria</span>
       </div>
+      <a class="por-chip" id="porChip" href="/track-record" title="Proof of Reserves">
+        <span class="por-dot" aria-hidden="true"></span>
+        <span data-ru="Доказательство резервов">Proof of Reserves</span>
+        <span class="por-state" id="porChipState" data-ru="загрузка…">loading…</span>
+        <span class="por-arrow" aria-hidden="true">→</span>
+      </a>
     </div>
   </section>
 
@@ -176,6 +182,16 @@ import Layout from '../layouts/Layout.astro';
   .status-line .seg{color:var(--text-secondary)}
   .status-line .div{color:var(--text-faint); margin:0 8px}
   .status-line .num{color:var(--data-teal)}
+  .por-chip{display:inline-flex; align-items:center; gap:8px; margin-top:18px; padding:7px 14px; border-radius:var(--r-full); border:1px solid var(--border); background:var(--bg-surface); font-family:var(--font-mono); font-size:.75rem; color:var(--text-secondary); text-decoration:none; transition:all 120ms var(--ease)}
+  .por-chip:hover{border-color:var(--border-strong); color:var(--text-primary)}
+  .por-chip .por-dot{width:7px; height:7px; border-radius:50%; background:var(--text-faint)}
+  .por-chip.ok .por-dot{background:var(--data-teal); box-shadow:0 0 8px rgba(54,194,180,.6)}
+  .por-chip.warn .por-dot{background:var(--warn)}
+  .por-chip .por-state{color:var(--text-muted)}
+  .por-chip.ok .por-state{color:var(--data-teal)}
+  .por-chip.warn .por-state{color:var(--warn)}
+  .por-chip .por-arrow{color:var(--text-faint); transition:transform 120ms var(--ease)}
+  .por-chip:hover .por-arrow{transform:translateX(2px); color:var(--text-secondary)}
 
   /* Section scaffold */
   section.band{padding:96px 0; border-top:1px solid var(--border)}
@@ -328,7 +344,21 @@ import Layout from '../layouts/Layout.astro';
       }).catch(function(){});
     }
 
-    function init(){ loadHealth(); loadPackages(); loadEvidence(); }
+    function loadNav(){
+      fetch(API + '/api/tier1/nav').then(function(r){ return r.json(); }).then(function(d){
+        if(!d || d.reconciliation_ok == null) return;
+        var chip = document.getElementById('porChip');
+        var state = document.getElementById('porChipState');
+        if(!chip || !state) return;
+        var ru = LANG() === 'ru';
+        var ok = d.reconciliation_ok === true;
+        chip.classList.remove('ok','warn');
+        chip.classList.add(ok ? 'ok' : 'warn');
+        state.textContent = ok ? (ru ? '✓ сверено' : '✓ reconciled') : (ru ? '⚠ расхождение' : '⚠ delta');
+      }).catch(function(){});
+    }
+
+    function init(){ loadHealth(); loadPackages(); loadEvidence(); loadNav(); }
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
   })();
