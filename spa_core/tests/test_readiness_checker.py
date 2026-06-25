@@ -21,10 +21,10 @@ from spa_core.golive.readiness_checker import ReadinessChecker
 from spa_core.golive.readiness_report import ReadinessReport
 
 
-# A fixed "today" giving 40 days of paper trading (start 2026-05-20).
-TODAY_OK = date(2026, 6, 29)
+# A fixed "today" giving 40 days of paper trading (start 2026-06-10 per readiness_checker.py).
+TODAY_OK = date(2026, 7, 20)  # 40 days after 2026-06-10
 # A fixed "today" giving only 10 days (blocker C001 would fail).
-TODAY_SHORT = date(2026, 5, 30)
+TODAY_SHORT = date(2026, 6, 20)  # 10 days after 2026-06-10
 
 
 def _good_data() -> dict:
