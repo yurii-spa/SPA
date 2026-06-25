@@ -326,7 +326,13 @@ def main() -> None:
     agent_ok = agent_h.get("healthy_count", "?")
     eq_end = eq.get("summary", {}).get("end_equity", 100000)
     eq_ret = eq.get("summary", {}).get("total_return_pct", 0.0)
-    eq_days = eq.get("summary", {}).get("num_days", 0)
+    # Honest track length: real (non-warmup) days, NOT the raw bar count which
+    # includes pre-2026-06-10 warmup/demo bars. Mirror build_portfolio_section so
+    # the header table and the Portfolio section never disagree (e.g. 35d vs 15d).
+    eq_days = eq.get("summary", {}).get("real_days")
+    if eq_days is None:
+        _real_bars = [b for b in eq.get("daily", []) if not b.get("is_warmup", False)]
+        eq_days = len(_real_bars) if _real_bars else eq.get("summary", {}).get("num_days", 0)
 
     golive_icon = "✅" if golive_ready else "⛔"
     agent_icon = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴"}.get(agent_status, "❓")
