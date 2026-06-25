@@ -317,13 +317,15 @@ run("Status::var_positive_with_position", test_status_var_positive_with_position
 # ─── Tests: Risk policy integration ──────────────────────────────────────────
 
 def test_t2_total_limit_enforced():
-    """Суммарный лимит T2 (35%) должен блокировать новые T2 позиции."""
+    """Суммарный лимит T2 (50% — ADR-019) должен блокировать новые T2 позиции."""
     trader, _ = make_trader()
+    # Fill up 50% in T2 to hit the cap, then try to add more
     trader.open_position(MAPLE_USDC, PCT_20, VALID_APY, VALID_TVL)   # 20% T2
-    trader.open_position(EULER_USDC, PCT_15, VALID_APY, VALID_TVL)   # 35% T2 (на лимите)
+    trader.open_position(EULER_USDC, PCT_15, VALID_APY, VALID_TVL)   # 35% T2
+    trader.open_position(YEARN_USDC, PCT_15, VALID_APY, VALID_TVL)   # 50% T2 (на лимите)
     raised = False
     try:
-        trader.open_position(YEARN_USDC, PCT_5, VALID_APY, VALID_TVL)  # +5% = 40% > 35% лимит
+        trader.open_position(YEARN_USDC, PCT_5, VALID_APY, VALID_TVL)  # +5% = 55% > 50% лимит
     except RiskPolicyViolation as e:
         raised = True
         assert any("T2 allocation" in v for v in e.result.violations)
