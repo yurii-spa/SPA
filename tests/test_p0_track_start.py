@@ -205,3 +205,79 @@ def test_build_progress_report_uses_canonical_start():
         assert report["paper_days"] == 2, (
             f"Expected 2 real paper days, got {report['paper_days']}"
         )
+
+
+# ---------------------------------------------------------------------------
+# 8. GUARD (2026-06-25 corruption): _summarize anchors real_days to
+#    PAPER_REAL_START_DATE. A legacy curve whose pre-teardown bars LACK an
+#    is_warmup flag must NOT inflate real_days nor drift first_real_date earlier
+#    than 2026-06-10. This is the invariant that the ad-hoc cycle re-run broke
+#    (real_days jumped to 32, first_real_date -> 2026-05-21).
+# ---------------------------------------------------------------------------
+from spa_core.paper_trading.cycle_runner import (  # noqa: E402
+    _rebuild_summary,
+    PAPER_REAL_START_DATE,
+)
+
+
+def _bar(date_str, equity):
+    return {
+        "date": date_str,
+        "open_equity": equity,
+        "close_equity": equity,
+        "high_equity": equity,
+        "low_equity": equity,
+        "daily_return_pct": 0.0,
+        "equity": equity,
+    }
+
+
+def test_real_start_date_anchor_value():
+    assert PAPER_REAL_START_DATE.isoformat() == "2026-06-10"
+
+
+def test_summarize_unflagged_warmup_bars_do_not_inflate_real_days():
+    # 3 pre-teardown bars with NO is_warmup flag (the exact corruption shape)
+    # + 2 genuine real bars on/after 2026-06-10.
+    daily = [
+        _bar("2026-05-21", 100010.8),
+        _bar("2026-05-22", 100021.6),
+        _bar("2026-06-09", 100216.0),
+        _bar("2026-06-10", 100010.81),
+        _bar("2026-06-20", 100118.91),
+    ]
+    s = _rebuild_summary(daily)
+    assert s["real_days"] == 2, f"expected 2 real bars, got {s['real_days']}"
+    assert s["first_real_date"] == "2026-06-10", s["first_real_date"]
+    assert s["first_date"] == "2026-06-10", s["first_date"]
+    # num_days still reflects total stored bars (incl. warmup).
+    assert s["num_days"] == 5
+
+
+def test_summarize_first_real_never_drifts_before_anchor():
+    # Even with an explicit is_warmup:false on a pre-anchor bar (bad data),
+    # the date anchor wins — first_real_date never predates 2026-06-10.
+    daily = [
+        {**_bar("2026-05-21", 100000.0), "is_warmup": False},
+        _bar("2026-06-10", 100010.81),
+    ]
+    s = _rebuild_summary(daily)
+    assert s["real_days"] == 1
+    assert s["first_real_date"] == "2026-06-10"
+
+
+def test_summarize_no_real_bars_reports_anchor_not_warmup_date():
+    daily = [_bar("2026-05-21", 100000.0), _bar("2026-06-09", 100216.0)]
+    s = _rebuild_summary(daily)
+    assert s["real_days"] == 0
+    assert s["first_real_date"] == "2026-06-10"
+
+
+def test_summarize_explicit_warmup_flag_still_excluded():
+    daily = [
+        {**_bar("2026-06-11", 100021.0), "is_warmup": True},  # flagged → excluded
+        _bar("2026-06-12", 100032.0),
+    ]
+    s = _rebuild_summary(daily)
+    assert s["real_days"] == 1
+    assert s["first_real_date"] == "2026-06-12"
