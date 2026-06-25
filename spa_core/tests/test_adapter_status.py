@@ -283,7 +283,12 @@ class TestLiveApyGate:
             )
 
     def test_live_apy_enabled_via_env(self):
-        with mock.patch.dict(os.environ, {"SPA_LIVE_APY": "true"}):
+        # Patch the network fetch so this never makes a real HTTP call.
+        def _no_network(protocol_key, mock_apy):
+            return {}  # pretend no live data available (network mocked out)
+
+        with mock.patch.dict(os.environ, {"SPA_LIVE_APY": "true"}), \
+             mock.patch.object(adapter_status, "_fetch_live_apy_map", side_effect=_no_network):
             doc = build_status_document()
             assert doc["live_apy_enabled"] is True
             assert all(
