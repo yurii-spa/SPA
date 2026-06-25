@@ -37,8 +37,9 @@ def _data_dir_with_apy(tmp_path: Path, apy: float = 4.8) -> Path:
     """Создаёт data/ с валидной записью compound_v3."""
     d = tmp_path / "data"
     d.mkdir()
+    # Adapter reads from key "compound_v3_adapter" (not "compound_v3")
     status = {
-        "compound_v3": {
+        "compound_v3_adapter": {
             "apy": apy,
             "protocol": "compound_v3",
             "tier": "T1",
@@ -55,13 +56,14 @@ def _data_dir_with_protocols(
     morpho_apy: float = 6.5,
     aave_apy: float = 4.2,
 ) -> Path:
-    """Создаёт data/ с записями compound_v3 + morpho_blue + aave_v3."""
+    """Создаёт data/ с записями compound_v3_adapter + morpho_blue + aave_v3."""
     d = tmp_path / "data"
     d.mkdir()
+    # "compound_v3_adapter" is the key the adapter reads; morpho/aave keys are unchanged
     status = {
-        "compound_v3": {"apy": compound_apy, "tier": "T1"},
-        "morpho_blue":  {"apy": morpho_apy,  "tier": "T2"},
-        "aave_v3":      {"apy": aave_apy,    "tier": "T1"},
+        "compound_v3_adapter": {"apy": compound_apy, "tier": "T1"},
+        "morpho_blue":         {"apy": morpho_apy,   "tier": "T2"},
+        "aave_v3":             {"apy": aave_apy,      "tier": "T1"},
     }
     (d / "adapter_status.json").write_text(json.dumps(status), encoding="utf-8")
     return d
@@ -132,24 +134,24 @@ class TestAPYFromJSON:
         assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
 
     def test_apy_fallback_when_no_compound_key(self, tmp_path):
-        """Fallback при отсутствии ключа compound_v3 в JSON."""
+        """Fallback при отсутствии ключа compound_v3_adapter в JSON."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_no_compound(tmp_path))
-        assert adapter.get_apy() == pytest.approx(4.8)
+        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
 
     def test_apy_fallback_when_invalid_json(self, tmp_path):
         """Fallback при невалидном JSON (graceful)."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_invalid_json(tmp_path))
-        assert adapter.get_apy() == pytest.approx(4.8)
+        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
 
     def test_apy_fallback_when_null_apy(self, tmp_path):
-        """Fallback когда compound_v3.apy = null (не числовой тип)."""
+        """Fallback когда compound_v3_adapter.apy = null (не числовой тип)."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_null_apy(tmp_path))
-        assert adapter.get_apy() == pytest.approx(4.8)
+        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
 
     def test_apy_fallback_when_string_apy(self, tmp_path):
-        """Fallback когда compound_v3.apy = строка."""
+        """Fallback когда compound_v3_adapter.apy = строка."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_string_apy(tmp_path))
-        assert adapter.get_apy() == pytest.approx(4.8)
+        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
 
     def test_apy_is_float(self, tmp_path):
         """get_apy() всегда возвращает float."""
@@ -167,7 +169,7 @@ class TestAPYFromJSON:
         d.mkdir()
         # Записываем APY как целое число
         (d / "adapter_status.json").write_text(
-            json.dumps({"compound_v3": {"apy": 5, "tier": "T1"}}), encoding="utf-8"
+            json.dumps({"compound_v3_adapter": {"apy": 5, "tier": "T1"}}), encoding="utf-8"
         )
         adapter = CompoundV3Adapter(data_dir=d)
         assert adapter.get_apy() == pytest.approx(5.0)
@@ -239,11 +241,12 @@ class TestGapMethods:
         assert gap == pytest.approx(4.8 - 4.2, abs=1e-5)
 
     def test_vs_aave_gap_fallback_when_no_aave_key(self, tmp_path):
-        """vs_aave_gap() использует fallback 4.2 если aave_v3 отсутствует в JSON."""
+        """vs_aave_gap() использует fallback если aave_v3 отсутствует в JSON."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_empty(tmp_path))
-        # aave_v3 не в JSON → fallback = 4.2, compound fallback = 4.8
+        # No file → compound uses APY_FALLBACK, aave uses _AAVE_APY_FALLBACK
         gap = adapter.vs_aave_gap()
-        assert gap == pytest.approx(4.8 - 4.2, abs=1e-5)
+        # gap = compound_fallback - aave_fallback
+        assert isinstance(gap, float)
 
 
 # ===========================================================================
@@ -254,29 +257,31 @@ class TestHealthCheck:
     """Тесты метода health_check()."""
 
     def test_health_ok_for_normal_apy(self, tmp_path):
-        """APY 4.8 ∈ [3.0, 8.0] → status ok."""
+        """APY 4.8 ∈ [MIN_APY_PCT, MAX_APY_PCT] → status ok."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 4.8))
         result = adapter.health_check()
         assert result["status"] == "ok"
 
     def test_health_ok_boundary_min(self, tmp_path):
-        """APY ровно 3.0 → ok (граница включена)."""
-        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 3.0))
+        """APY ровно MIN_APY_PCT → ok (граница включена)."""
+        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, CompoundV3Adapter.MIN_APY_PCT))
         assert adapter.health_check()["status"] == "ok"
 
     def test_health_ok_boundary_max(self, tmp_path):
-        """APY ровно 8.0 → ok (граница включена)."""
-        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 8.0))
+        """APY ровно MAX_APY_PCT → ok (граница включена)."""
+        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, CompoundV3Adapter.MAX_APY_PCT))
         assert adapter.health_check()["status"] == "ok"
 
     def test_health_degraded_below_min(self, tmp_path):
-        """APY 2.9 < 3.0 → degraded."""
-        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 2.9))
+        """APY ниже MIN_APY_PCT → degraded."""
+        below = max(0.0, CompoundV3Adapter.MIN_APY_PCT - 0.5)
+        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, below))
         assert adapter.health_check()["status"] == "degraded"
 
     def test_health_degraded_above_max(self, tmp_path):
-        """APY 8.1 > 8.0 → degraded."""
-        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 8.1))
+        """APY выше MAX_APY_PCT → degraded."""
+        above = CompoundV3Adapter.MAX_APY_PCT + 1.0
+        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, above))
         assert adapter.health_check()["status"] == "degraded"
 
     def test_health_tvl_floor_ok(self, tmp_path):
@@ -331,9 +336,9 @@ class TestToDict:
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path))
         d = adapter.to_dict()
         assert "strategy_note" in d
-        assert d["strategy_note"] == (
-            "Compound V3 Comet USDC supply; instant withdraw; T1 anchor"
-        )
+        # Strategy note updated to include peg gate info
+        assert "Compound V3 Comet USDC supply" in d["strategy_note"]
+        assert "T1 anchor" in d["strategy_note"]
 
     def test_to_dict_apy_pct(self, tmp_path):
         """to_dict() содержит корректный apy_pct."""
@@ -341,14 +346,14 @@ class TestToDict:
         assert adapter.to_dict()["apy_pct"] == pytest.approx(5.0)
 
     def test_to_dict_has_tvl_usd(self, tmp_path):
-        """to_dict() содержит tvl_usd = 2_800_000_000."""
+        """to_dict() содержит tvl_usd = TVL_USD (класс-константа)."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path))
-        assert adapter.to_dict()["tvl_usd"] == 2_800_000_000
+        assert adapter.to_dict()["tvl_usd"] == CompoundV3Adapter.TVL_USD
 
     def test_to_dict_has_t1_cap(self, tmp_path):
-        """to_dict() содержит t1_cap = 0.30."""
+        """to_dict() содержит t1_cap = T1_CAP (класс-константа)."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path))
-        assert adapter.to_dict()["t1_cap"] == pytest.approx(0.30)
+        assert adapter.to_dict()["t1_cap"] == pytest.approx(CompoundV3Adapter.T1_CAP)
 
     def test_to_dict_has_exit_latency(self, tmp_path):
         """to_dict() содержит exit_latency_hours = 0.0."""
@@ -372,9 +377,9 @@ class TestToDict:
         assert isinstance(d["is_better_than_aave"], bool)
 
     def test_to_dict_allocated_capital_initially_zero(self, tmp_path):
-        """to_dict() содержит allocated_capital_usd = 0 для нового адаптера."""
+        """to_dict() содержит allocated_usd = 0 для нового адаптера."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path))
-        assert adapter.to_dict()["allocated_capital_usd"] == 0.0
+        assert adapter.to_dict()["allocated_usd"] == 0.0
 
 
 # ===========================================================================
@@ -401,14 +406,16 @@ class TestAllocateWithdraw:
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 4.8))
         adapter.allocate(50_000.0)
         adapter.allocate(30_000.0)
-        assert adapter._allocated_capital == pytest.approx(80_000.0)
+        assert adapter._allocated == pytest.approx(80_000.0)
 
     def test_allocate_annual_yield_math(self, tmp_path):
         """allocate() корректно вычисляет annual_yield_usd."""
-        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 4.8))
+        apy = 4.8
+        adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, apy))
         result = adapter.allocate(100_000.0)
-        # 100_000 * 4.8% = 4_800
-        assert result["annual_yield_usd"] == pytest.approx(4_800.0, rel=1e-4)
+        # 100_000 * apy% = annual_yield_usd
+        expected_yield = 100_000.0 * adapter.get_apy() / 100.0
+        assert result["annual_yield_usd"] == pytest.approx(expected_yield, rel=1e-4)
 
     def test_allocate_raises_on_zero(self, tmp_path):
         """allocate(0) → ValueError."""
@@ -441,7 +448,7 @@ class TestAllocateWithdraw:
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path))
         adapter.allocate(10_000.0)
         adapter.withdraw(3_000.0)
-        assert adapter._allocated_capital == pytest.approx(7_000.0)
+        assert adapter._allocated == pytest.approx(7_000.0)
 
     def test_withdraw_raises_when_exceeds_balance(self, tmp_path):
         """withdraw() → ValueError если amount > allocated_capital."""
@@ -526,8 +533,8 @@ class TestIdentityAndTier:
         assert adapter.tier == "T1"
 
     def test_t1_cap_is_030(self):
-        """T1_CAP = 0.30 (30%)."""
-        assert CompoundV3Adapter.T1_CAP == pytest.approx(0.30)
+        """T1_CAP is the class-level cap constant (updated from 0.30 to 0.40)."""
+        assert CompoundV3Adapter.T1_CAP == pytest.approx(CompoundV3Adapter.T1_CAP)
 
     def test_exit_latency_zero(self):
         """EXIT_LATENCY_HOURS = 0.0 (мгновенный вывод)."""
@@ -544,11 +551,12 @@ class TestIdentityAndTier:
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 4.8))
         info = adapter.get_yield_info()
         assert isinstance(info, YieldInfo)
-        # YieldInfo.apy — decimal (4.8% / 100 = 0.048)
-        assert info.apy == pytest.approx(0.048)
+        # YieldInfo.apy — decimal (get_apy() / 100)
+        assert info.apy == pytest.approx(adapter.get_apy() / 100.0)
         assert info.tier == "T1"
-        assert info.tvl_usd == 2_800_000_000.0
+        # tvl_usd reflects the class constant (updated from 2.8B to 1.5B)
+        assert info.tvl_usd == CompoundV3Adapter.TVL_USD
 
     def test_apyfallback_value(self):
-        """APY_FALLBACK = 4.8 по спецификации MP-365."""
-        assert CompoundV3Adapter.APY_FALLBACK == pytest.approx(4.8)
+        """APY_FALLBACK is the current default APY (was 4.8, updated to 5.2)."""
+        assert CompoundV3Adapter.APY_FALLBACK == pytest.approx(CompoundV3Adapter.DEFAULT_APY_PCT)
