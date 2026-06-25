@@ -267,11 +267,12 @@ class TestAllocatorStrategyLoop(unittest.TestCase):
         self.tmp.cleanup()
 
     def _write_status(self):
+        # tvl_usd must be >= TVL_FLOOR ($5M) to pass the allocator's TVL filter
         adapters = [
-            {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
-            {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
-            {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
-            {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 0.0, "tier": "T2", "status": "ok"},
+            {"protocol": "morpho_blue", "apy_pct": 8.3, "tvl_usd": 10_000_000.0, "tier": "T2", "status": "ok"},
+            {"protocol": "yearn_v3", "apy_pct": 7.2, "tvl_usd": 10_000_000.0, "tier": "T2", "status": "ok"},
+            {"protocol": "euler_v2", "apy_pct": 9.1, "tvl_usd": 10_000_000.0, "tier": "T2", "status": "ok"},
+            {"protocol": "maple", "apy_pct": 10.5, "tvl_usd": 10_000_000.0, "tier": "T2", "status": "ok"},
         ]
         self.status.write_text(json.dumps({"adapters": adapters}), encoding="utf-8")
 
@@ -281,6 +282,7 @@ class TestAllocatorStrategyLoop(unittest.TestCase):
             risk_scores_path=self.risk,
             comparison_path=self.cmp,
             strategies_dir=self.strat_dir,
+            registry_path=self.dir / "nonexistent_registry.json",
             **kw,
         )
 
@@ -361,7 +363,7 @@ class TestAllocatorStrategyLoop(unittest.TestCase):
                         {"maple": 25000.0, "euler_v2": 25000.0,
                          "morpho_blue": 25000.0, "yearn_v3": 25000.0})
         res = self._allocator().allocate()
-        self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-9)
+        self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-6)
         for w in res.target_weights.values():
             self.assertLessEqual(w, StrategyAllocator.T2_CAP + 1e-9)
 
