@@ -13,7 +13,7 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Header -->
     <div class="mb-12">
-      <p class="text-xs text-green-400/70 font-mono uppercase tracking-widest mb-3" data-ru="Раскрытие">Disclosure</p>
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Раскрытие">Disclosure</p>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Риск">Risk</h1>
       <p class="text-white/50 text-lg leading-relaxed" data-ru="Понимание того, что может пойти не так, и как SPA этим управляет.">
         Understanding what can go wrong, and how SPA manages it.
@@ -22,7 +22,7 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Risk Philosophy -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Философия риска">Risk Philosophy</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Философия риска">Risk Philosophy</h2>
       <p class="text-sm text-white/55 leading-relaxed" data-ru="SPA построен на принципе, что риск нельзя устранить — его можно лишь измерить, ограничить и раскрыть. Наш подход: явные параметры риска, задокументированные гейты и прозрачное логирование каждого нарушения лимита.">
         SPA is built on the premise that risk cannot be eliminated &mdash; only measured, bounded, and
         disclosed. Our approach: explicit risk parameters, documented gates, and transparent logging of
@@ -32,57 +32,57 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Main Risk Categories -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Основные категории риска">Main Risk Categories</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Основные категории риска">Main Risk Categories</h2>
       <div class="space-y-5">
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">01</span>
+            <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded">01</span>
             <h3 class="text-sm font-semibold text-white" data-ru="Риск смарт-контрактов">Smart Contract Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="У протоколов могут быть уязвимости.">Protocols can have vulnerabilities.</p>
           <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="минимум TVL, только аудированные протоколы, лимиты экспозиции.">TVL floor, audited protocols only, exposure caps.</span></p>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">02</span>
+            <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded">02</span>
             <h3 class="text-sm font-semibold text-white" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="USDC/USDT/DAI могут потерять привязку.">USDC/USDT/DAI can lose peg.</p>
           <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="диверсификация по типам стейблкоинов, лимиты концентрации.">Diversification across stablecoin types, concentration limits.</span></p>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">03</span>
+            <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded">03</span>
             <h3 class="text-sm font-semibold text-white" data-ru="Риск оракулов">Oracle Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Манипуляция ценовым фидом.">Price feed manipulation.</p>
           <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="основные фиды Chainlink, проверки корректности, мультисорс-валидация для Max Yield.">Chainlink primary feeds, sanity bounds, multi-source validation for Max Yield.</span></p>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">04</span>
+            <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded">04</span>
             <h3 class="text-sm font-semibold text-white" data-ru="Риск неплатёжеспособности протокола">Protocol Insolvency Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Безнадёжный долг может социализировать убытки.">Bad debt can socialise losses.</p>
           <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="лимиты на протокол (40% T1 / 20% T2), минимум TVL ($5M+).">Per-protocol caps (40% T1 / 20% T2), TVL floor ($5M+).</span></p>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">05</span>
+            <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded">05</span>
             <h3 class="text-sm font-semibold text-white" data-ru="Риск ликвидности">Liquidity Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Невозможность выйти из позиции по ожидаемой цене.">Inability to exit position at expected price.</p>
           <p class="text-xs text-white/40"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="проверки ликвидности в адаптерах, поддержание кэш-буфера.">Liquidity checks in adapters, cash buffer maintained.</span></p>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs font-mono text-green-400/60 bg-green-400/10 px-2 py-0.5 rounded">06</span>
+            <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded">06</span>
             <h3 class="text-sm font-semibold text-white" data-ru="Риск сжатия APY">APY Compression Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Доходность может быстро снизиться.">Yields can decline rapidly.</p>
@@ -94,11 +94,11 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Strategy Risk Matrix -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Матрица рисков стратегий">Strategy Risk Matrix</h2>
-      <div class="overflow-x-auto rounded-xl border border-white/10">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Матрица рисков стратегий">Strategy Risk Matrix</h2>
+      <div class="overflow-x-auto rounded-xl border border-border-strong">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-white/10 bg-white/[0.02]">
+            <tr class="border-b border-border-strong bg-bg-surface">
               <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Тип риска">Risk Type</th>
               <th class="text-center text-white/40 font-mono text-xs p-3">Preserve</th>
               <th class="text-center text-white/40 font-mono text-xs p-3">Core</th>
@@ -106,37 +106,37 @@ import Layout from '../layouts/Layout.astro';
             </tr>
           </thead>
           <tbody class="text-white/55">
-            <tr class="border-b border-white/5">
+            <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Смарт-контракт">Smart contract</td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
               <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
               <td class="p-3 text-center"><span class="text-red-400/70" data-ru="Высокий">High</span></td>
             </tr>
-            <tr class="border-b border-white/5">
+            <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Депег стейблкоина">Stablecoin depeg</td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
               <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
             </tr>
-            <tr class="border-b border-white/5">
+            <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Оракул">Oracle</td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Очень низкий">Very Low</span></td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
               <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
             </tr>
-            <tr class="border-b border-white/5">
+            <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Неплатёжеспособность протокола">Protocol insolvency</td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Очень низкий">Very Low</span></td>
               <td class="p-3 text-center"><span class="text-green-400/70" data-ru="Низкий">Low</span></td>
               <td class="p-3 text-center"><span class="text-amber-400/70" data-ru="Средний">Medium</span></td>
             </tr>
-            <tr class="border-b border-white/5">
+            <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Ликвидация">Liquidation</td>
               <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
               <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
               <td class="p-3 text-center"><span class="text-red-400/70" data-ru="Высокий">High</span></td>
             </tr>
-            <tr class="border-b border-white/5">
+            <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Плечо">Leverage</td>
               <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
               <td class="p-3 text-center"><span class="text-white/30" data-ru="Нет">None</span></td>
@@ -155,31 +155,31 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Risk Gates -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Риск-гейты (RiskPolicy v1.0)">Risk Gates (RiskPolicy v1.0)</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Риск-гейты (RiskPolicy v1.0)">Risk Gates (RiskPolicy v1.0)</h2>
       <p class="text-sm text-white/40 mb-6" data-ru="Что происходит при нарушении лимита:">What happens when a limit is breached:</p>
       <div class="space-y-4">
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">BREACH</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Нарушение минимума TVL">TVL floor breach</p>
             <p class="text-xs text-white/40" data-ru="Протокол удалён из вайтлиста">Protocol removed from whitelist</p>
           </div>
         </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">BREACH</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Нарушение лимита на протокол">Per-protocol cap breach</p>
             <p class="text-xs text-white/40" data-ru="Ребалансировка заблокирована, залогирована">Rebalance blocked, logged</p>
           </div>
         </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">KILL</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Просадка &minus;5%">Drawdown &minus;5%</p>
             <p class="text-xs text-white/40" data-ru="Kill switch → портфель переводится в кэш">Kill switch &rarr; portfolio moves to cash</p>
           </div>
         </div>
-        <div class="flex gap-4 items-start rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-amber-400/60 bg-amber-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">FLAG</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="APY за пределами границ">APY outside bounds</p>
@@ -191,11 +191,11 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Stress Scenarios -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Стресс-сценарии">Stress Scenarios</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Стресс-сценарии">Stress Scenarios</h2>
       <p class="text-sm text-white/40 mb-6" data-ru="Как SPA реагирует на неблагоприятные события:">How SPA responds to adverse events:</p>
       <div class="space-y-6">
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <h3 class="text-sm font-semibold text-white mb-3" data-ru="Сценарий 1: крупный эксплойт протокола (напр., взлом на $200M)">Scenario 1: Major protocol exploit (e.g., $200M hack)</h3>
           <div class="space-y-2 text-sm text-white/55">
             <p><span class="text-white/40 font-mono text-xs" data-ru="ТРИГГЕР:">TRIGGER:</span> <span data-ru="TVL падает ниже минимума $5M / протокол помечен флагом в мониторинге">TVL drops below $5M floor / protocol flagged in monitoring</span></p>
@@ -203,7 +203,7 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <h3 class="text-sm font-semibold text-white mb-3" data-ru="Сценарий 2: депег USDC до $0.95">Scenario 2: USDC depeg to $0.95</h3>
           <div class="space-y-2 text-sm text-white/55">
             <p><span class="text-white/40 font-mono text-xs" data-ru="ТРИГГЕР:">TRIGGER:</span> <span data-ru="аномалия цены оракула + проверка концентрации">Oracle price anomaly + concentration check</span></p>
@@ -211,7 +211,7 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
 
-        <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <h3 class="text-sm font-semibold text-white mb-3" data-ru="Сценарий 3: широкий рыночный стресс, сжатие доходности до &lt;1%">Scenario 3: Broad market stress, yield compression to &lt;1%</h3>
           <div class="space-y-2 text-sm text-white/55">
             <p><span class="text-white/40 font-mono text-xs" data-ru="ТРИГГЕР:">TRIGGER:</span> <span data-ru="проверка нижней границы APY (минимум 1%)">APY lower bound check (1% floor)</span></p>
@@ -224,7 +224,7 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- What APY Figures Mean -->
     <section class="mb-14">
-      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-white/8" data-ru="Что означают цифры APY">What APY Figures Mean</h2>
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Что означают цифры APY">What APY Figures Mean</h2>
       <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-6 text-sm text-white/55 leading-relaxed space-y-3">
         <p><span data-ru="Все значения APY на этом сайте">All APY figures on this site are</span> <strong class="text-white/70" data-ru="переменны и не являются гарантией будущей доходности">variable and not a guarantee of future returns</strong>.</p>
         <p data-ru="Paper APY отражает симулированную производительность на виртуальных $100,000 USDC — не живую торговлю.">Paper APY reflects simulated performance on virtual $100,000 USDC &mdash; not live trading.</p>
