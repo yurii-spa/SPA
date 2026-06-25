@@ -23,12 +23,11 @@ from __future__ import annotations
 import datetime
 import json
 import math  # noqa: F401  (stdlib-only invariant; available for any numeric extension)
-import os
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.tier1.tail_risk import PROTOCOL_TIER
+from spa_core.utils.atomic import atomic_save
 
 LIMITS_VERSION = "v1.0"
 
@@ -217,15 +216,7 @@ def _validated_strategy_allocations() -> List[dict]:
 
 
 def _atomic_write(path: Path, payload: dict) -> None:
-    _DATA.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".tier1_limits_")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(payload, f, indent=2)
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+    atomic_save(payload, str(path))
 
 
 def build_report(write: bool = True) -> dict:
