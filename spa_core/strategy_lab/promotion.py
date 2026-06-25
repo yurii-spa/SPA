@@ -44,6 +44,10 @@ from spa_core.strategy_lab import config as lab_config
 _ROOT = Path(__file__).resolve().parents[2]  # …/SPA_Claude
 _DATA = _ROOT / "data"
 DEFAULT_BACKTEST = _DATA / "strategy_lab_backtest.json"
+# LAB-SLEEVE walk-forward (keyed BY LAB-SLEEVE ID) — the PRIMARY WF/capacity source for sleeves.
+DEFAULT_LAB_WALK_FORWARD = _DATA / "strategy_lab_walk_forward.json"
+# Tournament WF (keyed by tournament-strategy ids s27/s65/live_portfolio) — FALLBACK only; lab
+# sleeves almost never have a match here (that is exactly why their criteria came back PENDING).
 DEFAULT_WALK_FORWARD = _DATA / "tier1_walk_forward.json"
 DEFAULT_REVERSE_STRESS = _DATA / "tier1_reverse_stress.json"
 DEFAULT_OUT = _DATA / "strategy_lab_promotion.json"
@@ -375,6 +379,24 @@ def _wf_for_sleeve(sleeve_id: str, wf_doc: Optional[dict]) -> Optional[dict]:
     return None
 
 
+def _lab_wf_for_sleeve(sleeve_id: str, lab_wf_doc: Optional[dict]) -> Optional[dict]:
+    """Find a LAB-SLEEVE walk-forward block in strategy_lab_walk_forward.json.
+
+    That file is keyed BY LAB-SLEEVE ID (variant_n / eth_lst_neutral / rwa_sleeve / engine_a…)
+    under "sleeves", in the flattened shape score_sleeve reads ({status, consistency_pct,
+    wf_robust, capacity:{max_safe_aum_usd}}). This is the PRIMARY WF/capacity source for lab
+    sleeves — it is what lets them escape PENDING and reach PAPER_CANDIDATE on real evidence."""
+    if not isinstance(lab_wf_doc, dict):
+        return None
+    sleeves = lab_wf_doc.get("sleeves")
+    if isinstance(sleeves, dict) and isinstance(sleeves.get(sleeve_id), dict):
+        return sleeves[sleeve_id]
+    # tolerate a flat (sleeve_id → block) doc too.
+    if isinstance(lab_wf_doc.get(sleeve_id), dict):
+        return lab_wf_doc[sleeve_id]
+    return None
+
+
 def _rs_for_sleeve(sleeve_id: str, rs_doc: Optional[dict]) -> Optional[dict]:
     """Find a per-sleeve reverse-stress block in tier1_reverse_stress.json (same id-mismatch
     caveat as walk-forward → usually None for lab sleeves)."""
@@ -395,6 +417,7 @@ def build_report(
     out_path: Optional[Path] = None,
     config: Optional[dict] = None,
     backtest: Optional[dict] = None,
+    lab_walk_forward_path: Optional[Path] = None,
 ) -> dict:
     """Score ALL sleeves in the lab comparison, assign each a stage, and (optionally) write
     data/strategy_lab_promotion.json atomically.
@@ -416,6 +439,8 @@ def build_report(
     """
     thr = promotion_config(config)
     bt = backtest if backtest is not None else _read_json(Path(backtest_path) if backtest_path else DEFAULT_BACKTEST)
+    # PRIMARY WF/capacity for lab sleeves (keyed by sleeve id), with the tournament WF as fallback.
+    lab_wf_doc = _read_json(Path(lab_walk_forward_path) if lab_walk_forward_path else DEFAULT_LAB_WALK_FORWARD)
     wf_doc = _read_json(Path(walk_forward_path) if walk_forward_path else DEFAULT_WALK_FORWARD)
     rs_doc = _read_json(Path(reverse_stress_path) if reverse_stress_path else DEFAULT_REVERSE_STRESS)
 
@@ -434,7 +459,11 @@ def build_report(
                 continue
             if blk.get("is_benchmark"):
                 continue
-            wf = _wf_for_sleeve(sid, wf_doc)
+            # Lab-sleeve WF (keyed by sleeve id) FIRST; fall back to the tournament WF only when
+            # the lab WF has no entry for this sleeve (so lab sleeves now get REAL wf+capacity).
+            wf = _lab_wf_for_sleeve(sid, lab_wf_doc)
+            if wf is None:
+                wf = _wf_for_sleeve(sid, wf_doc)
             rs = _rs_for_sleeve(sid, rs_doc)
             score = score_sleeve(
                 blk,
