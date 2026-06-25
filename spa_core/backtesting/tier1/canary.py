@@ -38,8 +38,6 @@ from __future__ import annotations
 import datetime
 import json
 import math  # noqa: F401  (stdlib-only invariant; available for any numeric extension)
-import os
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -48,6 +46,7 @@ from spa_core.backtesting.tier1.limits import (
     TIER_AGGREGATE_MAX,
     MIN_CASH,
 )
+from spa_core.utils.atomic import atomic_save
 
 # ── canary CONFIG (deterministic, version-pinned — change → new ADR) ──────────────────────
 CANARY_VERSION = "v1.0"
@@ -227,15 +226,7 @@ def graduation_check(strategy_id: str, days_in_canary: float,
 
 
 def _atomic_write(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".tier1_canary_")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(payload, f, indent=2)
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+    atomic_save(payload, str(path))
 
 
 def build_report(write: bool = True, aum_usd: float = 100000.0) -> dict:
