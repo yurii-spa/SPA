@@ -165,7 +165,8 @@ class TestConnectionSQLite(unittest.TestCase):
 
     # 19
     def test_invalid_scheme_raises_value_error(self):
-        with self.assertRaises(ValueError):
+        from spa_core.utils.errors import ConfigError
+        with self.assertRaises((ValueError, ConfigError)):
             with self.get_connection("mysql://localhost/db") as _:
                 pass
 
