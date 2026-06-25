@@ -31,7 +31,9 @@ class APYTracker(BaseAnalytics):
         if self.history_file.exists():
             try:
                 return json.loads(self.history_file.read_text())
-            except:
+            except (json.JSONDecodeError, OSError, ValueError):
+                # Corrupt or unreadable history → start fresh (don't swallow
+                # KeyboardInterrupt/SystemExit via a bare except).
                 pass
         return {"protocol_history": {}, "last_updated": None}
 
