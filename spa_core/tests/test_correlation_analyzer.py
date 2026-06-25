@@ -819,8 +819,15 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_atomic_write_pattern_present(self):
         source = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("os.replace", source)
-        self.assertIn("tempfile.mkstemp", source)
+        # Module uses atomic_save utility (which internally calls os.replace)
+        # OR a direct (tempfile.mkstemp + os.replace) pattern.
+        has_atomic = "atomic_save" in source or (
+            "os.replace" in source and "tempfile" in source
+        )
+        self.assertTrue(
+            has_atomic,
+            "Expected atomic_save or (tempfile + os.replace) pattern for safe writes"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
