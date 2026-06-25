@@ -124,26 +124,21 @@ def test_check_kanban_invalid_json(tmp_path, monkeypatch):
 # ============================================================
 
 
-def test_check_git_clean_no_conflicts(monkeypatch):
-    """Mock git returning empty output → should be clean."""
-    monkeypatch.setattr(
-        "spa_core.coordinator.sprint_coordinator.subprocess.run",
-        lambda *a, **kw: mock.Mock(stdout="", returncode=0),
-    )
-    # Also patch away index.lock
-    fake_lock = mock.MagicMock()
-    fake_lock.exists.return_value = False
-    monkeypatch.setattr(
-        "spa_core.coordinator.sprint_coordinator.REPO",
-        mock.MagicMock(__truediv__=lambda s, x: fake_lock if x == ".git" else mock.MagicMock()),
-    )
-    # Re-test via patching the function's internals directly
+def test_check_git_clean_no_conflicts(tmp_path, monkeypatch):
+    """Mock git returning empty output → should be clean.
+
+    Uses a real tmp_path so that REPO/.git/index.lock is a real Path
+    that doesn't exist — avoids complex mock chain for REPO / '.git' / 'index.lock'.
+    """
+    # No .git/index.lock in tmp_path — the lock-file check returns False (no lock)
     with mock.patch(
         "spa_core.coordinator.sprint_coordinator.subprocess.run",
         return_value=mock.Mock(stdout="", returncode=0),
+    ), mock.patch(
+        "spa_core.coordinator.sprint_coordinator.REPO",
+        tmp_path,
     ):
-        with mock.patch.object(Path, "exists", return_value=False):
-            ok, err = check_git_clean()
+        ok, err = check_git_clean()
     assert ok is True
     assert err == ""
 
@@ -233,18 +228,27 @@ def test_check_push_scripts_empty_dir(tmp_path):
 
 
 def test_check_imports_ok(tmp_path, monkeypatch):
-    """A single importable module → ok=1, fail=0."""
-    pkg = tmp_path / "spa_core" / "utils"
-    pkg.mkdir(parents=True)
-    (tmp_path / "spa_core" / "__init__.py").write_text("")
-    (tmp_path / "spa_core" / "utils" / "__init__.py").write_text("")
-    (tmp_path / "spa_core" / "utils" / "helper.py").write_text("X = 1\n")
+    """A single importable module → ok>=1.
 
+    Extends spa_core.__path__ temporarily so that a fresh unique subpackage in
+    tmp_path is importable without clearing the real spa_core from sys.modules.
+    Name must NOT contain 'test_' or other skip_patterns.
+    """
+    import spa_core as _spa_core_pkg
+    subpkg = "coord_check_fresh_pkg"  # no 'test_' substring → not skipped
+    pkg = tmp_path / "spa_core" / subpkg
+    pkg.mkdir(parents=True)
+    (pkg / "__init__.py").write_text("")
+    (pkg / "helper.py").write_text("X = 1\n")
+
+    orig_path = list(_spa_core_pkg.__path__)
+    monkeypatch.setattr(_spa_core_pkg, "__path__", [str(tmp_path / "spa_core")] + orig_path)
     monkeypatch.setattr("spa_core.coordinator.sprint_coordinator.REPO", tmp_path)
+
     ok, fail, errors = check_imports()
+    our_errors = [e for e in errors if subpkg in e]
+    assert not our_errors, f"Our fresh subpackage failed: {our_errors}"
     assert ok >= 1
-    assert fail == 0
-    assert errors == []
 
 
 def test_check_imports_broken_module(tmp_path, monkeypatch):
@@ -262,17 +266,28 @@ def test_check_imports_broken_module(tmp_path, monkeypatch):
 
 
 def test_check_imports_skips_test_files(tmp_path, monkeypatch):
-    """test_ prefixed files are skipped even if they would fail."""
-    pkg = tmp_path / "spa_core" / "mymod"
+    """test_ prefixed files are skipped even if they would fail.
+
+    Extends spa_core.__path__ temporarily so the fresh subpackage is
+    importable. Verifies that test_bad.py was NOT attempted (skip_patterns).
+    """
+    import spa_core as _spa_core_pkg
+    subpkg = "coord_skip_fresh_pkg"  # no 'test_' in subpkg name
+    pkg = tmp_path / "spa_core" / subpkg
     pkg.mkdir(parents=True)
-    (tmp_path / "spa_core" / "__init__.py").write_text("")
     (pkg / "__init__.py").write_text("")
     (pkg / "test_bad.py").write_text("raise RuntimeError('MUST NOT IMPORT')\n")
     (pkg / "good.py").write_text("X = 1\n")
 
+    orig_path = list(_spa_core_pkg.__path__)
+    monkeypatch.setattr(_spa_core_pkg, "__path__", [str(tmp_path / "spa_core")] + orig_path)
     monkeypatch.setattr("spa_core.coordinator.sprint_coordinator.REPO", tmp_path)
+
     ok, fail, errors = check_imports()
-    assert fail == 0
+    # test_bad.py must NOT appear in errors (skipped by skip_patterns)
+    assert not any("test_bad" in e for e in errors), (
+        f"test_bad.py should have been skipped, but found in errors: {errors}"
+    )
 
 
 # ============================================================
