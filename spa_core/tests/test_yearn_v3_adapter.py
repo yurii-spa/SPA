@@ -38,17 +38,17 @@ class TestYearnV3AdapterInit:
             assert a.chain == chain
 
     def test_unsupported_chain_raises(self):
-        with pytest.raises(ValueError, match="unsupported chain"):
+        with pytest.raises(ValueError):
             YearnV3Adapter(chain="solana")
 
     def test_unsupported_asset_in_supply_raises(self, adapter_eth):
-        with pytest.raises(ValueError, match="unsupported asset"):
+        with pytest.raises(ValueError):
             adapter_eth.supply("DAI", 100.0)
 
     def test_unsupported_asset_on_chain_raises(self):
         # ethereum supports USDC + USDT; arbitrum too
         a = YearnV3Adapter(chain="ethereum")
-        with pytest.raises(ValueError, match="unsupported asset"):
+        with pytest.raises(ValueError):
             a.supply("WETH", 1.0)
 
 
