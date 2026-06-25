@@ -41,6 +41,12 @@ from spa_core.strategy_lab.rates_desk.contracts import (
     UnderlyingRisk,
 )
 from spa_core.strategy_lab.rates_desk.fair_value_engine import FairValueEngine
+from spa_core.strategy_lab.rates_desk.opportunity_engine import (
+    CostConfig,
+    OpportunityEngine,
+    RateSurface,
+    ScannedOpportunity,
+)
 from spa_core.strategy_lab.rates_desk.rate_policy import evaluate_entry, evaluate_hold
 
 
@@ -265,3 +271,430 @@ class FixedCarrySleeve(Strategy):
 
     def equity(self) -> float:
         return round(float(self.equity_decimal()), 2)
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# Phase-1 sleeves — the three remaining trade shapes (B / C / D). Each mirrors FixedCarrySleeve: a thin
+# Strategy-ABC wrapper that owns NO pricing/policy logic. They scan via the OpportunityEngine (which
+# does no risk veto) and gate every entry/hold via the refusal-first rate_policy. ALL the edge is in
+# the engine + gate. stdlib only, deterministic, LLM-FORBIDDEN, fail-CLOSED, is_advisory=True.
+#
+# Common `step(surface, risks, positions, state, as_of) -> (orders, new_state)` PURE interface:
+#   • inputs: a RateSurface (the markets), the per-underlying risks, the sleeve's open books
+#     (`positions` dict market_id->book), a carry-forward `state` dict, and the explicit as_of.
+#   • output: a list of ORDER dicts (the executor applies them — the sleeve never moves capital) +
+#     the NEW state. No mutation of the inputs; same (inputs, as_of) → same (orders, new_state).
+# Order shape: {"action": "open"|"unwind"|"hold"|"rotate", "market_id","underlying","shape","size",
+#               "rate","reason", ...}. Decimal-exact (rates/sizes are str(Decimal) in the order).
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+
+def _order(action: str, so_or_book, **extra) -> dict:
+    """Build a deterministic, string-exact order dict (the executor consumes these). Pure."""
+    o = {"action": action}
+    o.update({k: (str(v) if isinstance(v, Decimal) else v) for k, v in extra.items()})
+    return o
+
+
+class _RatesPureSleeveBase(Strategy):
+    """Shared plumbing for the pure-functional Phase-1 sleeves. The ABC hooks (init/positions/step/
+    metrics/kill_check) keep the harness happy; the PURE engine-driven core is `step_pure`.
+
+    `step_pure(surface, risks, positions, state, as_of) -> (orders, new_positions, new_state)` is the
+    deterministic heart each sleeve implements. `positions` is a dict market_id -> book; `state` is a
+    free-form dict the sleeve threads (per-market KillState lives in book["state"])."""
+
+    is_advisory = True
+    mandate = "stable"
+
+    def __init__(self, params: Optional[RatePolicyParams] = None,
+                 costs: Optional[CostConfig] = None) -> None:
+        self.params = params or RatePolicyParams()
+        self.costs = costs or CostConfig()
+        self.engine = FairValueEngine(self.params)
+        self.opp_engine = OpportunityEngine(self.params, self.engine, self.costs)
+        self._capital = D0
+        self._cash = D0
+        self._books: Dict[str, dict] = {}
+        self._state: Dict[str, object] = {}
+        self._closed: List[dict] = []
+        self._accrued = D0
+        self._last_orders: List[dict] = []
+
+    # ── Strategy ABC (harness) ─────────────────────────────────────────────────────────────────────
+    def init(self, capital: float, config: dict) -> None:
+        self._capital = Decimal(str(capital))
+        self._cash = self._capital
+        overrides = (config or {}).get("rate_policy_params")
+        if isinstance(overrides, dict) and overrides:
+            base = self.params
+            kwargs = {f.name: getattr(base, f.name) for f in base.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+            for k, v in overrides.items():
+                if k in kwargs:
+                    cur = kwargs[k]
+                    kwargs[k] = Decimal(str(v)) if isinstance(cur, Decimal) else type(cur)(v)
+            self.params = RatePolicyParams(**kwargs)
+            self.engine = FairValueEngine(self.params)
+            self.opp_engine = OpportunityEngine(self.params, self.engine, self.costs)
+
+    def positions(self) -> List[Position]:
+        out: List[Position] = []
+        for mid, bk in self._books.items():
+            out.append(Position(
+                asset=bk["opp"].quote.underlying, kind="lending",
+                notional_usd=float(bk["size"]),
+                meta={"market_id": mid, "shape": bk["opp"].shape.value,
+                      "entry_rate": str(bk["entry_rate"]), "carry": str(bk["carry"])},
+            ))
+        out.append(Position(asset="usdc", kind="cash", notional_usd=float(self._cash)))
+        return out
+
+    def step(self, market: MarketSnapshot) -> None:
+        """Harness tick: accrue carry on open books (entry/exit is engine-driven via step_pure)."""
+        for bk in self._books.values():
+            self._accrued += bk["size"] * bk["entry_rate"] / Decimal("365")
+
+    def metrics(self) -> StrategyMetrics:
+        eq = self.equity_decimal()
+        net = eq - self._capital
+        apy_pct = float(net / self._capital * Decimal("100")) if self._capital > 0 else 0.0
+        return StrategyMetrics(
+            net_apy_pct=round(apy_pct, 4), beats_rwa_floor=None,
+            extra={"open_books": len(self._books), "closed_books": len(self._closed),
+                   "accrued_usd": str(self._accrued), "equity_usd": str(eq)},
+        )
+
+    def kill_check(self, market: MarketSnapshot) -> KillResult:
+        for mid, bk in self._books.items():
+            st: KillState = bk["state"]
+            if st.killed:
+                return KillResult(triggered=True, reason=f"{mid}:{st.kill_reason.value}", ts=market.date)
+        return KillResult(triggered=False, ts=market.date)
+
+    def equity_decimal(self) -> Decimal:
+        return self._cash + sum((bk["size"] for bk in self._books.values()), D0) + self._accrued
+
+    def equity(self) -> float:
+        return round(float(self.equity_decimal()), 2)
+
+    # ── stateful driver over the pure core (tests/validation call this OR step_pure directly) ───────
+    def step_apply(
+        self,
+        surface: RateSurface,
+        risks: Dict[str, UnderlyingRisk],
+        as_of: str,
+        debt_asset_price: Decimal = Decimal("1"),
+        global_approved: bool = True,
+        current_carries: Optional[Dict[str, Decimal]] = None,
+    ) -> List[dict]:
+        """Run the pure core against the sleeve's own books and APPLY the resulting orders (cash/book
+        bookkeeping). Returns the orders. The pure core itself is side-effect-free; this is the thin
+        stateful wrapper the harness/tests use to advance a book."""
+        orders, new_books, new_state = self.step_pure(
+            surface, risks, self._books, self._state, as_of,
+            cash=self._cash, debt_asset_price=debt_asset_price, global_approved=global_approved,
+            current_carries=current_carries or {},
+        )
+        # apply cash deltas from the orders deterministically
+        for o in orders:
+            if o["action"] == "open":
+                self._cash -= Decimal(o["size"])
+            elif o["action"] == "unwind":
+                self._cash += Decimal(o["size"])
+            elif o["action"] == "rotate":
+                # rotate = unwind held + open candidate at equal size (size preserved); cash net 0
+                pass
+        self._books = new_books
+        self._state = new_state
+        self._last_orders = orders
+        return orders
+
+
+class BasisHedgeSleeve(_RatesPureSleeveBase):
+    """Shape C — PT long (receive fixed) hedged on Boros (pay variable): isolate and harvest the BASIS.
+
+    Scans ONLY BASIS_HEDGE opportunities (which the OpportunityEngine emits only where hedge_available
+    is true and a Boros leg exists). Gates entry via the refusal-first rate_policy; the funding leg is
+    hedged on Boros so the position is funding-neutral by construction. Holds + unwinds via
+    evaluate_hold each tick (depeg / compression / maturity / funding-flip / util / concentration).
+
+    PURE step. is_advisory=True."""
+
+    id = "rates_desk_basis_hedge"
+    name = "Rates Desk — Basis Hedge (PT vs Boros funding)"
+
+    def step_pure(self, surface, risks, positions, state, as_of, *, cash,
+                  debt_asset_price=Decimal("1"), global_approved=True, current_carries=None):
+        current_carries = current_carries or {}
+        orders: List[dict] = []
+        books = dict(positions)  # shallow copy — we never mutate the input dict
+        new_state = dict(state)
+
+        # ── HOLD pass: continuous kill on every open basis book ──
+        for mid in list(books.keys()):
+            bk = books[mid]
+            q = bk["opp"].quote
+            risk = risks.get(q.underlying)
+            cur_carry = current_carries.get(mid, bk["carry"])
+            if risk is None:
+                orders.append(_order("unwind", bk, market_id=mid, underlying=q.underlying,
+                                     shape=TradeShape.BASIS_HEDGE.value, size=bk["size"],
+                                     reason=KillReason.UNDERLYING_DEPEG.value, note="no risk surface"))
+                del books[mid]
+                continue
+            res, ns = evaluate_hold(opp=bk["opp"], risk=risk, debt_asset_price=debt_asset_price,
+                                    exit_liquidity=q.exit_liquidity_usd, current_carry=cur_carry,
+                                    params=self.params, state=bk["state"], engine=self.engine)
+            bk = dict(bk); bk["state"] = ns; bk["carry"] = cur_carry; books[mid] = bk
+            if not res.approved:
+                orders.append(_order("unwind", bk, market_id=mid, underlying=q.underlying,
+                                     shape=TradeShape.BASIS_HEDGE.value, size=bk["size"],
+                                     reason=res.reason.value, hedge="boros"))
+                del books[mid]
+
+        # ── ENTRY pass: scan BASIS_HEDGE candidates, gate each, open the approved ones ──
+        for so in self.opp_engine.scan_detailed(surface, risks, as_of):
+            if so.opportunity.shape != TradeShape.BASIS_HEDGE:
+                continue
+            q = so.opportunity.quote
+            if q.market_id in books:
+                continue
+            risk = risks.get(q.underlying)
+            if risk is None:
+                continue
+            res, ent_state = evaluate_entry(
+                opp=so.opportunity, risk=risk, debt_asset_price=debt_asset_price,
+                exit_liquidity=q.exit_liquidity_usd, params=self.params, state=KillState(),
+                engine=self.engine)
+            if res.approved and global_approved and res.approved_size_usd <= cash:
+                books[q.market_id] = {"opp": so.opportunity, "size": res.approved_size_usd,
+                                      "state": ent_state, "entry_rate": q.quoted_rate,
+                                      "carry": res.net_edge, "hedge_leg": so.second_leg}
+                cash -= res.approved_size_usd
+                orders.append(_order("open", None, market_id=q.market_id, underlying=q.underlying,
+                                     shape=TradeShape.BASIS_HEDGE.value, size=res.approved_size_usd,
+                                     rate=q.quoted_rate, net_edge=res.net_edge, hedge="boros"))
+        return orders, books, new_state
+
+
+class LeveredCarrySleeve(_RatesPureSleeveBase):
+    """Shape B — borrow a stable → buy PT: AMPLIFY the carry with GATED leverage.
+
+    Leverage is a HARD function of the kill-rules: the sleeve only levers a position the gate would
+    keep, and the applied leverage is capped at `max_leverage` (config). It unwinds the instant
+    evaluate_hold fires CARRY_BASIS_COMPRESSION or MATURITY_BUFFER (the two kills the brief names for
+    levered carry), or any earlier refusal-first structural kill.
+
+    PURE step. is_advisory=True."""
+
+    id = "rates_desk_levered_carry"
+    name = "Rates Desk — Levered Carry (borrow stable, buy PT)"
+
+    DEFAULT_MAX_LEVERAGE = Decimal("3")
+
+    def __init__(self, params=None, costs=None, max_leverage: Optional[Decimal] = None) -> None:
+        super().__init__(params, costs)
+        self.max_leverage = max_leverage if max_leverage is not None else self.DEFAULT_MAX_LEVERAGE
+
+    def _leverage_for(self, ltv: Decimal) -> Decimal:
+        """Leverage as a HARD function of the kill/liquidation rules: the LTV ceiling implies a max
+        recursive leverage 1/(1-ltv); we clamp it to the sleeve's max_leverage. fail-CLOSED: a
+        malformed/extreme ltv yields leverage 1 (no leverage)."""
+        l = _safe_decimal_local(ltv)
+        if l is None or l < 0 or l >= Decimal("1"):
+            return Decimal("1")
+        implied = Decimal("1") / (Decimal("1") - l)
+        return implied if implied < self.max_leverage else self.max_leverage
+
+    def step_pure(self, surface, risks, positions, state, as_of, *, cash,
+                  debt_asset_price=Decimal("1"), global_approved=True, current_carries=None):
+        current_carries = current_carries or {}
+        orders: List[dict] = []
+        books = dict(positions)
+        new_state = dict(state)
+
+        # ── HOLD pass — unwind on compression / maturity (and any earlier structural kill) ──
+        for mid in list(books.keys()):
+            bk = books[mid]
+            q = bk["opp"].quote
+            risk = risks.get(q.underlying)
+            cur_carry = current_carries.get(mid, bk["carry"])
+            if risk is None:
+                orders.append(_order("unwind", bk, market_id=mid, underlying=q.underlying,
+                                     shape=TradeShape.LEVERED_CARRY.value, size=bk["size"],
+                                     reason=KillReason.UNDERLYING_DEPEG.value, note="no risk surface"))
+                del books[mid]
+                continue
+            res, ns = evaluate_hold(opp=bk["opp"], risk=risk, debt_asset_price=debt_asset_price,
+                                    exit_liquidity=q.exit_liquidity_usd, current_carry=cur_carry,
+                                    params=self.params, state=bk["state"], engine=self.engine)
+            bk = dict(bk); bk["state"] = ns; bk["carry"] = cur_carry; books[mid] = bk
+            if not res.approved:
+                orders.append(_order("unwind", bk, market_id=mid, underlying=q.underlying,
+                                     shape=TradeShape.LEVERED_CARRY.value, size=bk["size"],
+                                     reason=res.reason.value, leverage=bk.get("leverage", D0)))
+                del books[mid]
+
+        # ── ENTRY pass — scan LEVERED_CARRY, gate, lever within max_leverage ──
+        for so in self.opp_engine.scan_detailed(surface, risks, as_of):
+            if so.opportunity.shape != TradeShape.LEVERED_CARRY:
+                continue
+            q = so.opportunity.quote
+            if q.market_id in books:
+                continue
+            risk = risks.get(q.underlying)
+            if risk is None:
+                continue
+            res, ent_state = evaluate_entry(
+                opp=so.opportunity, risk=risk, debt_asset_price=debt_asset_price,
+                exit_liquidity=q.exit_liquidity_usd, params=self.params, state=KillState(),
+                engine=self.engine)
+            if not (res.approved and global_approved):
+                continue
+            borrow_leg = so.second_leg
+            ltv = borrow_leg.ltv if borrow_leg is not None else D0
+            lev = self._leverage_for(ltv)               # HARD-capped leverage
+            base_size = min(res.approved_size_usd, cash)
+            if base_size <= D0:
+                continue
+            levered_size = base_size * lev
+            books[q.market_id] = {"opp": so.opportunity, "size": base_size, "levered_size": levered_size,
+                                  "leverage": lev, "state": ent_state, "entry_rate": q.quoted_rate,
+                                  "carry": res.net_edge, "borrow_leg": borrow_leg}
+            cash -= base_size
+            orders.append(_order("open", None, market_id=q.market_id, underlying=q.underlying,
+                                 shape=TradeShape.LEVERED_CARRY.value, size=base_size,
+                                 levered_size=levered_size, leverage=lev, rate=q.quoted_rate,
+                                 net_edge=res.net_edge))
+        return orders, books, new_state
+
+
+class RateMatrixSleeve(_RatesPureSleeveBase):
+    """Shape D — cross-venue rate matrix: hold the argmax-net-rate venue, rotate ONLY when clearly
+    better AND the candidate passes the full gate.
+
+    Rotation rule (anti-churn hysteresis): switch from the HELD venue to a CANDIDATE venue ONLY when
+        net_rate[candidate] − net_rate[held] > switch_cost + rotation_buffer
+    AND the candidate opportunity passes the refusal-first gate. The held venue + its net_rate are
+    carried in `state` so noise (a candidate barely better, within the buffer) never triggers a churn.
+
+    PURE step. is_advisory=True."""
+
+    id = "rates_desk_rate_matrix"
+    name = "Rates Desk — Rate Matrix (argmax venue rotation)"
+
+    DEFAULT_SWITCH_COST = Decimal("0.0005")
+    DEFAULT_ROTATION_BUFFER = Decimal("0.0030")
+
+    def __init__(self, params=None, costs=None, switch_cost: Optional[Decimal] = None,
+                 rotation_buffer: Optional[Decimal] = None) -> None:
+        super().__init__(params, costs)
+        self.switch_cost = switch_cost if switch_cost is not None else self.DEFAULT_SWITCH_COST
+        self.rotation_buffer = (rotation_buffer if rotation_buffer is not None
+                                else self.DEFAULT_ROTATION_BUFFER)
+
+    def step_pure(self, surface, risks, positions, state, as_of, *, cash,
+                  debt_asset_price=Decimal("1"), global_approved=True, current_carries=None):
+        current_carries = current_carries or {}
+        orders: List[dict] = []
+        books = dict(positions)
+        new_state = dict(state)
+
+        # candidate RATE_MATRIX opps this tick, keyed by underlying (argmax venue already chosen)
+        candidates: Dict[str, ScannedOpportunity] = {}
+        for so in self.opp_engine.scan_detailed(surface, risks, as_of):
+            if so.opportunity.shape == TradeShape.RATE_MATRIX:
+                candidates.setdefault(so.opportunity.quote.underlying, so)
+
+        # ── HOLD / ROTATE pass for every open matrix book ──
+        for mid in list(books.keys()):
+            bk = books[mid]
+            q = bk["opp"].quote
+            underlying = q.underlying
+            risk = risks.get(underlying)
+            cur_carry = current_carries.get(mid, bk["carry"])
+            if risk is None:
+                orders.append(_order("unwind", bk, market_id=mid, underlying=underlying,
+                                     shape=TradeShape.RATE_MATRIX.value, size=bk["size"],
+                                     reason=KillReason.UNDERLYING_DEPEG.value, note="no risk surface"))
+                del books[mid]
+                continue
+            # continuous kill on the held venue first (refusal-first)
+            res, ns = evaluate_hold(opp=bk["opp"], risk=risk, debt_asset_price=debt_asset_price,
+                                    exit_liquidity=q.exit_liquidity_usd, current_carry=cur_carry,
+                                    params=self.params, state=bk["state"], engine=self.engine)
+            bk = dict(bk); bk["state"] = ns; bk["carry"] = cur_carry; books[mid] = bk
+            if not res.approved:
+                orders.append(_order("unwind", bk, market_id=mid, underlying=underlying,
+                                     shape=TradeShape.RATE_MATRIX.value, size=bk["size"],
+                                     reason=res.reason.value, venue=bk.get("venue", "")))
+                del books[mid]
+                continue
+
+            # ── ROTATION with hysteresis ──
+            cand = candidates.get(underlying)
+            held_net = bk.get("net_rate", bk["carry"])
+            if cand is not None and cand.opportunity.quote.market_id != mid:
+                cand_net = cand.edge.net_edge
+                threshold = self.switch_cost + self.rotation_buffer
+                if (cand_net - held_net) > threshold:
+                    # candidate is CLEARLY better — but it must pass the full gate to rotate INTO it
+                    cq = cand.opportunity.quote
+                    crisk = risks.get(cq.underlying)
+                    gres, gstate = evaluate_entry(
+                        opp=cand.opportunity, risk=crisk, debt_asset_price=debt_asset_price,
+                        exit_liquidity=cq.exit_liquidity_usd, params=self.params, state=KillState(),
+                        engine=self.engine)
+                    if gres.approved and global_approved:
+                        # rotate: unwind held, open candidate at the same size (size-preserving)
+                        size = bk["size"]
+                        del books[mid]
+                        books[cq.market_id] = {
+                            "opp": cand.opportunity, "size": size, "state": gstate,
+                            "entry_rate": cq.quoted_rate, "carry": cand_net,
+                            "net_rate": cand_net, "venue": cand.edge.venue}
+                        orders.append(_order(
+                            "rotate", None, market_id=cq.market_id, from_market_id=mid,
+                            underlying=underlying, shape=TradeShape.RATE_MATRIX.value, size=size,
+                            from_venue=bk.get("venue", ""), to_venue=cand.edge.venue,
+                            held_net=held_net, cand_net=cand_net, threshold=threshold))
+                        continue
+                # else: within buffer → HOLD (anti-churn); no order
+            orders.append(_order("hold", bk, market_id=mid, underlying=underlying,
+                                 shape=TradeShape.RATE_MATRIX.value, size=bk["size"],
+                                 venue=bk.get("venue", ""), net_rate=held_net))
+
+        # ── ENTRY pass — open a matrix book for any underlying we don't yet hold ──
+        held_underlyings = {books[m]["opp"].quote.underlying for m in books}
+        for underlying, cand in sorted(candidates.items()):
+            if underlying in held_underlyings:
+                continue
+            cq = cand.opportunity.quote
+            if cq.market_id in books:
+                continue
+            crisk = risks.get(underlying)
+            if crisk is None:
+                continue
+            res, ent_state = evaluate_entry(
+                opp=cand.opportunity, risk=crisk, debt_asset_price=debt_asset_price,
+                exit_liquidity=cq.exit_liquidity_usd, params=self.params, state=KillState(),
+                engine=self.engine)
+            if res.approved and global_approved and res.approved_size_usd <= cash:
+                books[cq.market_id] = {
+                    "opp": cand.opportunity, "size": res.approved_size_usd, "state": ent_state,
+                    "entry_rate": cq.quoted_rate, "carry": cand.edge.net_edge,
+                    "net_rate": cand.edge.net_edge, "venue": cand.edge.venue}
+                cash -= res.approved_size_usd
+                held_underlyings.add(underlying)
+                orders.append(_order("open", None, market_id=cq.market_id, underlying=underlying,
+                                     shape=TradeShape.RATE_MATRIX.value, size=res.approved_size_usd,
+                                     venue=cand.edge.venue, net_rate=cand.edge.net_edge,
+                                     rate=cq.quoted_rate))
+        return orders, books, new_state
+
+
+def _safe_decimal_local(x):
+    """Local fail-CLOSED Decimal coercion (mirrors fair_value_engine._safe_decimal; kept local so the
+    sleeve module has no cross-import beyond the engine)."""
+    from spa_core.strategy_lab.rates_desk.fair_value_engine import _safe_decimal as _sd
+    return _sd(x)

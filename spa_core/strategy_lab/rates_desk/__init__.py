@@ -17,6 +17,22 @@ Modules:
   retro.py      — the two retrospective tests over the real cached 2024-2026 history.
   config.py     — all thresholds (no magic numbers in logic; change → new ADR).
 
+  — Phase-0 Rate/Basis Sleeve engine (Decimal, the "on-chain rates desk"): —
+  contracts.py         — frozen Decimal dataclasses + enums (RateQuote/UnderlyingRisk/
+                         YieldDecomposition/Opportunity/GateResult/KillState/RatePolicyParams).
+  fair_value_engine.py — FairValueEngine: kind-aware baseline + the 5 structural haircuts → fair.
+  rate_policy.py       — the REFUSAL-FIRST gate (evaluate_entry / evaluate_hold); composes UNDER
+                         the global spa_core.risk.policy.RiskPolicy (only ever MORE restrictive).
+  opportunity_engine.py— OpportunityEngine.scan(surface, risks, as_of): enumerate the FOUR trade
+                         shapes (A FIXED_CARRY / B LEVERED_CARRY / C BASIS_HEDGE / D RATE_MATRIX) per
+                         underlying, compute gross/net edge + exit-bound raw size, rank by net_edge.
+                         NO risk veto (that is the gate's job) — only shape feasibility + economics.
+  sleeves.py           — FixedCarrySleeve (Phase 0) + the Phase-1 sleeves: BasisHedgeSleeve (C),
+                         LeveredCarrySleeve (B, gated leverage), RateMatrixSleeve (D, argmax-venue
+                         rotation w/ anti-churn hysteresis). All Strategy ABC, gated by rate_policy.
+  validation.py        — the Phase-1 gate (assertion 1: refusal fired early — PASS; assertion 2:
+                         survivor beats floor — DATA-GAPPED on ~69d Pendle keyless history).
+
 Conventions inherited from the Strategy Lab: stdlib only, deterministic, LLM-forbidden,
 fail-CLOSED (missing/invalid data raises or scores as MAX tail-risk, never a silent pass).
 """
