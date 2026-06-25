@@ -1,0 +1,238 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+---
+
+<Layout
+  title="Track Record — Honest Paper Trading | earn-defi.com"
+  description="The live, honest paper track. Real equity curve since June 10, 2026, current paper APY, drawdown, and go-live progress against 29 deterministic criteria. Live from api.earn-defi.com."
+  canonical="https://earn-defi.com/track-record"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" aria-hidden="true"></span>
+        <span data-ru="Бумажный трек · в реальном времени">Paper track · live</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Честный трек-рекорд">
+        An honest track record
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Реальный бумажный трек с 10 июня 2026 года. Каждая точка кривой капитала, каждое решение риск-гейта и каждый день публичны. Без приукрашивания, без бэкфилла.">
+        A real paper track since June 10, 2026. Every equity point, every risk-gate
+        decision, every day is public. No embellishment, no backfill.
+      </p>
+    </section>
+
+    <!-- Live metric strip -->
+    <section class="pb-10">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
+          <p class="text-2xl font-mono font-bold text-white" id="tr-equity">—</p>
+          <p class="text-xs text-white/30 mt-1" data-ru="виртуальные $100k">virtual $100k base</p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
+          <p class="text-2xl font-mono font-bold text-teal-400" id="tr-apy">—</p>
+          <p class="text-xs text-white/30 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
+          <p class="text-2xl font-mono font-bold text-white" id="tr-dd">—</p>
+          <p class="text-xs text-white/30 mt-1" data-ru="с начала трека">since track start</p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Дней трека">Track days</p>
+          <p class="text-2xl font-mono font-bold text-accent-400" id="tr-days">—</p>
+          <p class="text-xs text-white/30 mt-1" data-ru="реальных · 30 для go-live">real · 30 for go-live</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Equity curve -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Кривая капитала (бумажная)">Equity curve (paper)</p>
+        <p class="text-xs text-white/25 font-mono">
+          <span data-ru="источник:">source:</span> <span id="tr-spark-src">static fallback</span>
+        </p>
+      </div>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <svg id="tr-spark" viewBox="0 0 800 200" preserveAspectRatio="none" class="w-full h-48" role="img" aria-label="Paper equity curve"></svg>
+        <p class="text-xs text-white/30 mt-3 text-center" id="tr-spark-note" data-ru="Кривая загружается из живого фида доказательств. При офлайне показывается последний статический снимок.">
+          Curve loads from the live evidence feed. When offline, the last static snapshot is shown.
+        </p>
+      </div>
+    </section>
+
+    <!-- Go-live progress -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Прогресс Go-Live">Go-live progress</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Критерии GoLiveChecker">GoLiveChecker criteria</div>
+          <div class="flex items-end gap-2 mb-3">
+            <span class="text-5xl font-mono font-bold text-amber-400" id="tr-gates-pass">—</span>
+            <span class="text-2xl text-white/30 mb-1">/ <span id="tr-gates-total">29</span></span>
+          </div>
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+            <div class="h-full bg-amber-400 rounded-full transition-all" id="tr-gates-bar" style="width:0%"></div>
+          </div>
+          <p class="text-white/50 text-sm" data-ru="детерминированные критерии (ADR-002) — все должны пройти до go-live">deterministic criteria (ADR-002) — all must pass before go-live</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Честные дни трека">Honest track days</div>
+          <div class="flex items-end gap-2 mb-3">
+            <span class="text-5xl font-mono font-bold text-accent-400" id="tr-days-2">—</span>
+            <span class="text-2xl text-white/30 mb-1">/ 30 <span data-ru="дней">days</span></span>
+          </div>
+          <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+            <div class="h-full bg-accent-400 rounded-full transition-all" id="tr-days-bar" style="width:0%"></div>
+          </div>
+          <p class="text-white/50 text-sm"><span data-ru="Реальный трек начат">Real track started</span> 2026-06-10 <span data-ru="· цель go-live ~2026-07-09">· go-live target ~2026-07-09</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- The honest-track narrative -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Как мы считаем честность">How we count honesty</p>
+      <div class="space-y-3">
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-sm text-white/55 leading-relaxed">
+            <span class="text-white/80 font-semibold" data-ru="real_days, не сырые бары.">real_days, not raw bars.</span>
+            <span data-ru="Трек-дни отсчитываются от PAPER_REAL_START (10 июня 2026). Всё, что было до — демо и признано недействительным. Мы не считаем доперезагрузочные бары как трек: число дней привязано к реальному старту, а не к длине файла equity.">
+              Track days are anchored to PAPER_REAL_START (June 10, 2026). Everything before that
+              was demo and has been invalidated. We do not count pre-teardown bars as track:
+              the day count is anchored to the real start, not the length of the equity file.</span>
+          </p>
+        </div>
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-sm text-white/55 leading-relaxed">
+            <span class="text-white/80 font-semibold" data-ru="Заметка о реконструированном дне.">Reconstructed-day note.</span>
+            <span data-ru="Если автономный цикл пропустил день (например, при перезагрузке хоста), пропуск фиксируется gap_monitor, а пробел заполняется реконструированным баром — он помечается, а не выдаётся за живой. Непрерывность за 30 дней — отдельный критерий go-live.">
+              If the autonomous cycle missed a day (e.g. during a host restart), the gap is recorded
+              by gap_monitor and the hole is filled with a reconstructed bar — which is flagged, not
+              passed off as live. 30-day continuity is itself a separate go-live criterion.</span>
+          </p>
+        </div>
+        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+          <p class="text-sm text-white/55 leading-relaxed">
+            <span class="text-white/80 font-semibold" data-ru="Бумажная, переменная, не прогноз.">Paper, variable, not a forecast.</span>
+            <span data-ru="Все цифры отражают симулированную торговлю на виртуальном портфеле $100,000 USDC. Симуляция не учитывает реальное проскальзывание, влияние на ликвидность и риск исполнения смарт-контрактов. Прошлая бумажная доходность ничего не гарантирует.">
+              All figures reflect simulated trading on a virtual $100,000 USDC portfolio. The
+              simulation does not account for live slippage, liquidity impact, or smart-contract
+              execution risk. Past paper performance guarantees nothing.</span>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cross-links -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Углубиться">Go deeper</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/methodology" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Методология">Methodology</p>
+          <p class="text-xs text-white/35" data-ru="Как движок принимает решения, детерминированно">How the engine decides, deterministically</p>
+        </a>
+        <a href="/system" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Система">System</p>
+          <p class="text-xs text-white/35" data-ru="Живые операционные поверхности и парк агентов">Live operational surfaces &amp; agent fleet</p>
+        </a>
+        <a href="/app" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Дашборд ↗">Dashboard ↗</p>
+          <p class="text-xs text-white/35" data-ru="Полный живой дашборд, обновляется ежедневно">The full live dashboard, updated daily</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <script is:inline>
+    /* Live track record — api.earn-defi.com, localhost fallback, graceful offline. */
+    (function(){
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function setText(id, txt){ var el = document.getElementById(id); if(el){ el.textContent = txt; } }
+      function setWidth(id, pct){ var el = document.getElementById(id); if(el){ el.style.width = Math.max(0, Math.min(100, pct)) + '%'; } }
+
+      function loadHealth(){
+        fetch(API + '/api/health-public').then(function(r){ return r.json(); }).then(function(d){
+          if(!d) return;
+          var day = d.track_days != null ? d.track_days : null;
+          var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null;
+          var pass = d.risk_gates_passed, total = d.risk_gates_total;
+          setText('tr-apy', apy != null ? apy + '%' : '—');
+          setText('tr-dd', d.max_drawdown_pct != null ? Number(d.max_drawdown_pct).toFixed(2) + '%' : '—');
+          setText('tr-days', day != null ? day : '—');
+          setText('tr-days-2', day != null ? day : '—');
+          if(day != null){ setWidth('tr-days-bar', (day / 30) * 100); }
+          if(pass != null){ setText('tr-gates-pass', pass); }
+          if(total != null){ setText('tr-gates-total', total); }
+          if(pass != null && total != null){ setWidth('tr-gates-bar', (pass / total) * 100); }
+        }).catch(function(){});
+      }
+
+      function loadFacts(){
+        fetch(API + '/api/ssot/facts').then(function(r){ return r.json(); }).then(function(d){
+          var f = (d && (d.facts || d.data || d)) || {};
+          var eq = f.current_equity != null ? f.current_equity
+                 : f.equity != null ? f.equity
+                 : f.nav != null ? f.nav : null;
+          if(eq != null){
+            setText('tr-equity', '$' + Number(eq).toLocaleString('en-US', {maximumFractionDigits: 0}));
+          }
+        }).catch(function(){});
+      }
+
+      function drawSpark(points){
+        var svg = document.getElementById('tr-spark'); if(!svg || !points || points.length < 2) return;
+        var W = 800, H = 200, pad = 8;
+        var min = Math.min.apply(null, points), max = Math.max.apply(null, points);
+        var range = (max - min) || 1;
+        var n = points.length;
+        var coords = points.map(function(v, i){
+          var x = pad + (i / (n - 1)) * (W - 2 * pad);
+          var y = H - pad - ((v - min) / range) * (H - 2 * pad);
+          return x.toFixed(1) + ',' + y.toFixed(1);
+        });
+        var line = 'M' + coords.join(' L');
+        var area = line + ' L' + (W - pad).toFixed(1) + ',' + (H - pad) + ' L' + pad + ',' + (H - pad) + ' Z';
+        svg.innerHTML =
+          '<defs><linearGradient id="trsg" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="rgba(54,194,180,.25)"/>' +
+          '<stop offset="100%" stop-color="rgba(54,194,180,0)"/></linearGradient></defs>' +
+          '<path d="' + area + '" fill="url(#trsg)"/>' +
+          '<path d="' + line + '" fill="none" stroke="#36C2B4" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+
+      function loadEvidence(){
+        fetch(API + '/api/v1/evidence').then(function(r){ return r.json(); }).then(function(resp){
+          var data = resp && (resp.data || resp);
+          var daily = (data && data.daily) || (Array.isArray(data) ? data : null);
+          if(!daily || !daily.length) return;
+          var pts = daily.map(function(row){
+            return row.close_equity != null ? row.close_equity
+                 : row.equity != null ? row.equity
+                 : row.nav != null ? row.nav : null;
+          }).filter(function(v){ return v != null; });
+          if(pts.length >= 2){
+            drawSpark(pts);
+            setText('tr-spark-src', 'live');
+            if(setText('tr-equity', '$' + Number(pts[pts.length-1]).toLocaleString('en-US', {maximumFractionDigits: 0})), true){}
+          }
+        }).catch(function(){});
+      }
+
+      function init(){ loadHealth(); loadFacts(); loadEvidence(); }
+      if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>
