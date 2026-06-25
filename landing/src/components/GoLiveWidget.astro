@@ -20,9 +20,9 @@ const etaDate = (() => {
 })();
 
 const statusConfig = {
-  BLOCKED:     { emoji: "🔴", label: "BLOCKED",     borderColor: "border-red-500/30",    bgColor: "bg-red-500/10",    textColor: "text-red-400",    barColor: "bg-red-500/50" },
-  IN_PROGRESS: { emoji: "🟡", label: "IN PROGRESS", borderColor: "border-amber-500/30",  bgColor: "bg-amber-500/10",  textColor: "text-amber-400",  barColor: "bg-amber-500/60" },
-  READY:       { emoji: "🟢", label: "READY",       borderColor: "border-emerald-500/30",bgColor: "bg-emerald-500/10",textColor: "text-emerald-400",barColor: "bg-emerald-500/70" },
+  BLOCKED:     { emoji: "🔴", label: "BLOCKED",     labelRu: "ЗАБЛОКИРОВАНО", borderColor: "border-red-500/30",    bgColor: "bg-red-500/10",    textColor: "text-red-400",    barColor: "bg-red-500/50" },
+  IN_PROGRESS: { emoji: "🟡", label: "IN PROGRESS", labelRu: "В ПРОЦЕССЕ",    borderColor: "border-amber-500/30",  bgColor: "bg-amber-500/10",  textColor: "text-amber-400",  barColor: "bg-amber-500/60" },
+  READY:       { emoji: "🟢", label: "READY",       labelRu: "ГОТОВО",        borderColor: "border-emerald-500/30",bgColor: "bg-emerald-500/10",textColor: "text-emerald-400",barColor: "bg-emerald-500/70" },
 } as const;
 
 const cfg = statusConfig[status];
@@ -50,7 +50,7 @@ const categories = [
     </div>
     <!-- Status badge -->
     <span class={`shrink-0 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full border ${cfg.borderColor} ${cfg.bgColor} ${cfg.textColor} flex items-center gap-1.5`}>
-      {cfg.emoji} {cfg.label}
+      {cfg.emoji} <span data-ru={cfg.labelRu}>{cfg.label}</span>
     </span>
   </div>
 
@@ -118,7 +118,7 @@ const categories = [
           <div class="shrink-0 text-right w-20">
             <span class="font-mono text-[11px] text-white/50">{cat.current}</span>
             <span class="font-mono text-[11px] text-white/20"> / {cat.max}</span>
-            <span class="font-mono text-[10px] text-white/20"> pts</span>
+            <span class="font-mono text-[10px] text-white/20" data-ru=" очк."> pts</span>
           </div>
         </div>
       );
