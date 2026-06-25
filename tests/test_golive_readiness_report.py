@@ -101,61 +101,110 @@ def _make_minimal_env(base: Path) -> None:
 
 
 def _make_ready_env(base: Path) -> None:
-    """Write fixtures that should make overall_status() == READY."""
+    """Write fixtures that should make overall_status() == READY (score >= 80%)."""
     data = base / "data"
     bt = data / "backtest"
+    spa = base / "spa_core"
+    docs = base / "docs"
 
-    _write(
-        bt / "pre_paper_backtest_gate.json",
-        {"status": "PASS"},
-    )
-    _write(
-        bt / "paper_ready_gate.json",
-        {
-            "status": "READY",
-            "hardening_status": "PASS",
-            "expanded_universe_verification_status": "PASS",
-        },
-    )
-    _write(
-        bt / "owner_paper_acceptance.json",
-        {"accepted": True, "owner": "Yurii", "accepted_at": "2026-06-19T10:00:00"},
-    )
-    _write(
-        bt / "owner_paper_acceptance_gate.json",
-        {"status": "SIGNED", "blockers": []},
-    )
+    # ── Gates ─────────────────────────────────────────────────────────────────
+    _write(bt / "pre_paper_backtest_gate.json", {"status": "PASS"})
+    _write(bt / "paper_ready_gate.json", {
+        "status": "READY", "hardening_status": "PASS",
+        "expanded_universe_verification_status": "PASS",
+    })
+    _write(bt / "owner_paper_acceptance.json",
+           {"accepted": True, "owner": "Yurii", "accepted_at": "2026-06-19T10:00:00"})
+    _write(bt / "owner_paper_acceptance_gate.json", {"status": "SIGNED", "blockers": []})
+    _write(data / "gate_status.json", {"status": "PASS", "passed": 10, "total": 10})
+    _write(data / "kill_switch_status.json", {"locked": True, "status": "LOCKED"})
     # 100% clean sources
-    _write(
-        bt / "source_pipeline.json",
-        {"sources": {f"src_{i}": "clean_included" for i in range(10)}},
-    )
-    _write(
-        data / "golive_status.json",
-        {
-            "ready": True,
-            "passed": 26,
-            "total": 26,
-            "consecutive_ready_days": 30,
-            "checks": {k: True for k in [
-                "min_track_days_30", "gap_monitor_ok", "autopush_installed",
-                "http_server", "cycle_runner_exists", "multi_strategy_runner",
-                "safe_tx_builder", "promotion_engine", "adr022_exists",
-            ]},
-            "blockers": [],
-        },
-    )
-    _write(
-        data / "paper_trading_status.json",
-        {"virtual_capital": 100000, "is_demo": False},
-    )
+    _write(bt / "source_pipeline.json",
+           {"sources": {f"src_{i}": "clean_included" for i in range(10)}})
+
+    # ── GoLive status ─────────────────────────────────────────────────────────
+    _write(data / "golive_status.json", {
+        "ready": True, "passed": 26, "total": 26, "consecutive_ready_days": 30,
+        "checks": {k: True for k in [
+            "min_track_days_30", "gap_monitor_ok", "autopush_installed",
+            "http_server", "cycle_runner_exists", "multi_strategy_runner",
+            "safe_tx_builder", "promotion_engine", "adr022_exists",
+        ]},
+        "blockers": [],
+    })
+
+    # ── Financial ─────────────────────────────────────────────────────────────
+    _write(data / "paper_trading_status.json",
+           {"virtual_capital": 100000, "is_demo": False})
+    _write(data / "capital_config.json",
+           {"starting_capital": 100000, "currency": "USDC"})
     # 31 days equity curve
     entries = [{"date": f"2026-{m:02d}-{d:02d}", "equity": 100000 + i * 10}
                for i, (m, d) in enumerate([(5, j) for j in range(20, 31)]
                                            + [(6, j) for j in range(1, 21)])]
     _write(data / "equity_curve_daily.json", entries)
-    _write(data / "paper" / "evidence_v2.json",
-           {"total_evidence_points": 31.0})
+    _write(data / "paper" / "evidence_v2.json", {"total_evidence_points": 31.0})
+    # KYC / family fund onboarding doc (≥200 bytes)
+    kyc = docs / "legal" / "ONBOARDING_CHECKLIST.md"
+    kyc.parent.mkdir(parents=True, exist_ok=True)
+    kyc.write_text("# Family Fund Onboarding\n\n" + "KYC complete. " * 20)
+
+    # ── Evidence ──────────────────────────────────────────────────────────────
+    analytics = spa / "analytics"
+    analytics.mkdir(parents=True, exist_ok=True)
+    (analytics / "__init__.py").write_text("")
+    (analytics / "evidence_auto_calculator.py").write_text(
+        "# evidence_auto_calculator stub\nSCHEMA_VERSION = '1.0'\n"
+    )
+    (analytics / "t1_data_verifier.py").write_text("# t1 verifier stub\n")
+    (analytics / "fee_structure.py").write_text("# fee structure stub\n")
+    # paper_evidence_history.json: initialized with 20 seed days
+    seed_days = [{"date": f"2026-05-{i:02d}", "cycle_completed": True,
+                  "apy_verified": True, "risk_policy_passed": True, "is_seed": True}
+                 for i in range(1, 21)]
+    _write(data / "paper_evidence_history.json", {
+        "schema_version": "1.0", "initialized_at": "2026-05-01",
+        "SEED_DATA": True, "day_count": len(seed_days), "days": seed_days,
+        "target_pts": 30.0,
+    })
+    # paper_evidence.json: 20 real days
+    real_days = [{"date": f"2026-06-{i:02d}", "strategy_id": "S7",
+                  "apy_pct": 4.0, "equity_value": 100000 + i * 10}
+                 for i in range(1, 21)]
+    _write(data / "paper_evidence.json", {"days": real_days})
+
+    # ── Data Sources ──────────────────────────────────────────────────────────
+    utils = spa / "utils"
+    utils.mkdir(parents=True, exist_ok=True)
+    (utils / "__init__.py").write_text("")
+    (utils / "defillama.py").write_text("# defillama stub\n")
+    (base / "promotion_engine.py").write_text("# promotion engine stub\n")
+
+    # ── Risk policy ───────────────────────────────────────────────────────────
+    risk = spa / "risk"
+    risk.mkdir(parents=True, exist_ok=True)
+    (risk / "__init__.py").write_text("")
+    (risk / "policy.py").write_text("# risk policy stub\nclass RiskPolicy: pass\n")
+
+    # ── Documentation (≥200 bytes each, ≥3 ADRs) ──────────────────────────────
+    docs.mkdir(parents=True, exist_ok=True)
+    for fname, title in [
+        ("RISK_MANAGEMENT_POLICY.md", "Risk Management Policy"),
+        ("DEPLOYMENT_RUNBOOK.md", "Deployment Runbook"),
+        ("DATA_SOURCES_REGISTRY.md", "Data Sources Registry"),
+        ("FAMILY_FUND_ONBOARDING.md", "Family Fund Onboarding"),
+        ("API_REFERENCE.md", "API Reference"),
+        ("SECURITY_CHECKLIST.md", "Security Checklist"),
+        ("DISASTER_RECOVERY.md", "Disaster Recovery"),
+        ("TOKEN_ROTATION_RUNBOOK.md", "Token Rotation Runbook"),
+    ]:
+        (docs / fname).write_text(f"# {title}\n\n" + f"{title} content. " * 15)
+    adr_dir = docs / "adr"
+    adr_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(1, 4):
+        (adr_dir / f"ADR-00{i}.md").write_text(
+            f"# ADR-00{i}\n\n" + f"Architecture decision record {i}. " * 10
+        )
 
 
 # ── Test: CategoryScore ────────────────────────────────────────────────────────
