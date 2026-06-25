@@ -64,21 +64,26 @@ class BaseAnalytics(ABC):
         LLM FORBIDDEN — deterministic persistence only.
         """
         import os
+        # Atomic JSON write (tmp + os.replace) — every analytics subclass that
+        # persists to data/*.json goes through here, so a crash mid-write must
+        # never corrupt a state file. atomic_save uses the same
+        # json.dumps(..., indent=2, default=str) serialisation as before.
+        from spa_core.utils.atomic import atomic_save
         if data is None:
             data = getattr(self, "_data", {})
         try:
             if filename is not None:
                 path = self._default_path(filename)
-                path.write_text(json.dumps(data, indent=2, default=str))
+                atomic_save(data, str(path))
             else:
                 output_path = getattr(self, "OUTPUT_PATH", None)
                 if output_path and "/" in output_path:
                     resolved = self._path(output_path)
                     os.makedirs(os.path.dirname(resolved), exist_ok=True)
-                    Path(resolved).write_text(json.dumps(data, indent=2, default=str))
+                    atomic_save(data, str(resolved))
                 else:
                     path = self._default_path(filename)
-                    path.write_text(json.dumps(data, indent=2, default=str))
+                    atomic_save(data, str(path))
             return True
         except Exception:
             return False
