@@ -21,9 +21,7 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -31,6 +29,7 @@ from spa_core.backtesting.tier1 import deflated_sharpe as ds
 from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1.cost_model import net_of_cost_apy
 from spa_core.backtesting.tier1.tail_risk import strategy_tail_risk
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -306,11 +305,7 @@ def evaluate(write: bool = True) -> dict:
         "leaderboard_tier1": evaluated,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(verdict, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(verdict, str(_OUT))
     return verdict
 
 
