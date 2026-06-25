@@ -73,6 +73,23 @@ def main(argv=None) -> int:
     out_path = write_result(result, Path(args.out))
     print(f"\n[strategy_lab_backtest] wrote result JSON → {out_path}", file=sys.stderr)
 
+    # Refresh the LAB-SLEEVE walk-forward + capacity from the equity series we just wrote, so the
+    # promotion engine consumes CURRENT per-sleeve WF evidence (keyed by sleeve id) rather than
+    # stale data / the tournament file. Keeps the loop closed: backtest → lab-WF → promotion.
+    try:
+        from spa_core.strategy_lab import walk_forward as lab_wf  # noqa: E402
+        wf_rep = lab_wf.build_report(write=True, backtest=result)
+        print(
+            f"[strategy_lab_backtest] wrote lab-sleeve walk-forward → {lab_wf.DEFAULT_OUT} "
+            f"({wf_rep['n_sleeves']} sleeves)",
+            file=sys.stderr,
+        )
+    except Exception as exc:  # noqa: BLE001 — never block the backtest on the WF refresh
+        print(
+            f"[strategy_lab_backtest] WARNING: lab-sleeve walk-forward refresh failed: {exc}",
+            file=sys.stderr,
+        )
+
     if args.md:
         md_path = write_report(result, args.md)
         print(f"[strategy_lab_backtest] wrote markdown report → {md_path}", file=sys.stderr)
