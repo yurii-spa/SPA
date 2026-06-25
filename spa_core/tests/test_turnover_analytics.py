@@ -847,8 +847,13 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_atomic_write_pattern_present(self):
         source = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("os.replace", source)
-        self.assertIn("tempfile.mkstemp", source)
+        # Module uses atomic_save (centralised helper) OR raw tmp+os.replace pattern.
+        uses_atomic_save = "atomic_save" in source
+        uses_raw_atomic = "os.replace" in source and "tempfile.mkstemp" in source
+        self.assertTrue(
+            uses_atomic_save or uses_raw_atomic,
+            "Neither atomic_save nor tmp+os.replace atomic write pattern found in source",
+        )
 
     def test_content_fingerprint_imported_from_tear_sheet(self):
         # reuse-by-import marker: the source must import content_fingerprint
