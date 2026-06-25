@@ -26,7 +26,11 @@ from spa_core.strategy_lab.base import StrategyMetrics
 from spa_core.strategy_lab.metrics import compare_table
 
 # Display order: candidates first, baselines, benchmark (RWA floor) last.
-_ORDER = ("variant_n", "variant_d", "engine_a", "engine_b", "engine_c", "rwa_floor")
+_ORDER = (
+    "variant_n", "variant_d", "eth_lst_neutral", "eth_lst_staking",
+    "btc_neutral", "btc_lending_sleeve",
+    "engine_a", "engine_b", "engine_c", "rwa_sleeve", "rwa_floor",
+)
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
