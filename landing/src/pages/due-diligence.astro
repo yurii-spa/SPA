@@ -340,9 +340,19 @@ import Footer from '../components/Footer.astro';
             </tbody>
           </table>
         </div>
-        <p class="text-xs text-white/30 mt-3 font-mono" data-ru="Paper-день 15 от 2026-06-10 — цель 30+ дней (ADR-002)">
+        <p class="text-xs text-white/30 mt-3 font-mono" id="dd-paper-day" data-ru="Paper-день 15 от 2026-06-10 — цель 30+ дней (ADR-002)">
           Paper day 15 from 2026-06-10 — target 30+ days (ADR-002)
         </p>
+        <script is:inline>
+          // Self-computing paper-day so the figure never goes stale (start = 2026-06-10 UTC).
+          (function () {
+            var el = document.getElementById("dd-paper-day");
+            if (!el) return;
+            var days = Math.max(0, Math.floor((Date.now() - Date.UTC(2026, 5, 10)) / 86400000));
+            el.textContent = "Paper day " + days + " from 2026-06-10 — target 30+ days (ADR-002)";
+            el.setAttribute("data-ru", "Paper-день " + days + " от 2026-06-10 — цель 30+ дней (ADR-002)");
+          })();
+        </script>
       </div>
 
       <!-- What We Disclose -->
