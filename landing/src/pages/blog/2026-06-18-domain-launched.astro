@@ -5,10 +5,13 @@ import Footer from '../../components/Footer.astro';
 
 const post = {
   title: "earn-defi.com Launched",
+  titleRu: "Запуск earn-defi.com",
   date: "2026-06-18",
   tag: "Launch",
+  tagRu: "Запуск",
   tagColor: "text-green-400",
   summary: "The public landing site for SPA goes live on Cloudflare Pages. Institutional-grade presentation with live GoLive readiness tracking.",
+  summaryRu: "Публичный сайт SPA запущен на Cloudflare Pages. Презентация институционального уровня с отслеживанием готовности к go-live в реальном времени.",
 };
 ---
 
@@ -44,13 +47,13 @@ const post = {
     <!-- Header -->
     <section class="pt-16 pb-10">
       <div class="flex items-center gap-3 mb-4">
-        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>{post.tag}</span>
+        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`} data-ru={post.tagRu}>{post.tag}</span>
         <span class="text-xs text-white/25 font-mono">{post.date}</span>
       </div>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru={post.titleRu}>
         {post.title}
       </h1>
-      <p class="text-white/50 text-lg leading-relaxed">{post.summary}</p>
+      <p class="text-white/50 text-lg leading-relaxed" data-ru={post.summaryRu}>{post.summary}</p>
     </section>
 
     <!-- Body -->
@@ -58,10 +61,10 @@ const post = {
 
       <section>
         <p>
-          <a href="https://earn-defi.com" class="text-accent-400 hover:text-accent-300 underline underline-offset-2">earn-defi.com</a> is
+          <a href="https://earn-defi.com" class="text-accent-400 hover:text-accent-300 underline underline-offset-2">earn-defi.com</a> <span data-ru="теперь работает — публичное лицо SPA (Stablecoin Portfolio Algorithm). Сайт развёрнут на">is
           now live — the public face of SPA (Stablecoin Portfolio Algorithm). The site is deployed
-          on <strong class="text-white">Cloudflare Pages</strong> with automatic deployments from the
-          main branch. Build time: ~45 seconds. Global CDN propagation: instant.
+          on</span> <strong class="text-white">Cloudflare Pages</strong> <span data-ru="с автоматическими деплоями из ветки main. Время сборки: ~45 секунд. Глобальное распространение по CDN: мгновенное.">with automatic deployments from the
+          main branch. Build time: ~45 seconds. Global CDN propagation: instant.</span>
         </p>
       </section>
 
@@ -78,21 +81,21 @@ const post = {
             </thead>
             <tbody class="divide-y divide-white/5">
               {[
-                ['/', 'Hero — institutional pitch, GoLive widget, track record'],
-                ['/dashboard', 'Live paper trading metrics, equity curve, positions'],
-                ['/methodology', 'CPA approach, 4-state gate, evidence system'],
-                ['/strategies', 'Strategy profiles: Preserve, Core, Max Yield'],
-                ['/risk', 'Risk architecture, RiskPolicy v1.0 parameters'],
-                ['/security', 'Multisig, kill switch, execution isolation'],
-                ['/faq', 'Investor FAQ in Russian'],
-                ['/fees', 'Performance-aligned fee structure'],
-                ['/due-diligence', 'Full DD center for prospective investors'],
-                ['/status', 'System operational status'],
-                ['/blog', 'This page — public updates and changelog'],
-              ].map(([page, desc]) => (
+                ['/', 'Hero — institutional pitch, GoLive widget, track record', 'Hero — институциональный питч, виджет GoLive, track record'],
+                ['/dashboard', 'Live paper trading metrics, equity curve, positions', 'Метрики бумажной торговли в реальном времени, кривая капитала, позиции'],
+                ['/methodology', 'CPA approach, 4-state gate, evidence system', 'Подход CPA, гейт из 4 состояний, система доказательств'],
+                ['/strategies', 'Strategy profiles: Preserve, Core, Max Yield', 'Профили стратегий: Preserve, Core, Max Yield'],
+                ['/risk', 'Risk architecture, RiskPolicy v1.0 parameters', 'Архитектура рисков, параметры RiskPolicy v1.0'],
+                ['/security', 'Multisig, kill switch, execution isolation', 'Мультисиг, kill switch, изоляция исполнения'],
+                ['/faq', 'Investor FAQ in Russian', 'FAQ для инвесторов на русском'],
+                ['/fees', 'Performance-aligned fee structure', 'Структура комиссий, привязанная к результату'],
+                ['/due-diligence', 'Full DD center for prospective investors', 'Полный центр due diligence для потенциальных инвесторов'],
+                ['/status', 'System operational status', 'Операционный статус системы'],
+                ['/blog', 'This page — public updates and changelog', 'Эта страница — публичные обновления и журнал изменений'],
+              ].map(([page, desc, descRu]) => (
                 <tr>
                   <td class="px-5 py-3 font-mono text-xs text-accent-400">{page}</td>
-                  <td class="px-5 py-3 text-xs text-white/50">{desc}</td>
+                  <td class="px-5 py-3 text-xs text-white/50" data-ru={descRu}>{desc}</td>
                 </tr>
               ))}
             </tbody>
@@ -120,15 +123,15 @@ const post = {
         <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Принципы дизайна">Design Principles</p>
         <div class="space-y-2 text-sm">
           {[
-            'Dark-first — matches institutional product aesthetics; no jarring light flash on load',
-            'Performance-first — static output, no SSR, Cloudflare CDN globally distributed',
-            'Evidence-first — every claim on the site is backed by on-chain verifiable data',
-            'Progressive disclosure — summary on homepage, deep detail on sub-pages',
-            'No marketing noise — no "revolutionary" language, no inflated APY projections',
+            { en: 'Dark-first — matches institutional product aesthetics; no jarring light flash on load', ru: 'Тёмная тема в приоритете — соответствует эстетике институциональных продуктов; без резкой световой вспышки при загрузке' },
+            { en: 'Performance-first — static output, no SSR, Cloudflare CDN globally distributed', ru: 'Производительность в приоритете — статичный вывод, без SSR, глобально распределённый CDN Cloudflare' },
+            { en: 'Evidence-first — every claim on the site is backed by on-chain verifiable data', ru: 'Доказательства в приоритете — каждое утверждение на сайте подкреплено проверяемыми on-chain данными' },
+            { en: 'Progressive disclosure — summary on homepage, deep detail on sub-pages', ru: 'Постепенное раскрытие — сводка на главной, подробности на внутренних страницах' },
+            { en: 'No marketing noise — no "revolutionary" language, no inflated APY projections', ru: 'Никакого маркетингового шума — без «революционных» формулировок и завышенных прогнозов APY' },
           ].map(item => (
             <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
               <span class="text-green-400 flex-shrink-0 mt-0.5">›</span>
-              <span class="text-white/50">{item}</span>
+              <span class="text-white/50" data-ru={item.ru}>{item.en}</span>
             </div>
           ))}
         </div>
