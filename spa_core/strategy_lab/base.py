@@ -35,11 +35,17 @@ class MarketSnapshot:
 
     date: str  # ISO date "YYYY-MM-DD"
     eth_price_usd: Optional[float] = None
-    funding_rate_8h: Optional[float] = None          # perp funding per 8h interval (decimal, e.g. 0.0001)
+    funding_rate_8h: Optional[float] = None          # ETH perp funding per 8h interval (decimal, e.g. 0.0001)
     lrt_price_usd: Dict[str, float] = field(default_factory=dict)     # {"eeth": 3450.0, "ezeth": ...}
     lrt_eth_ratio: Dict[str, float] = field(default_factory=dict)     # {"eeth": 1.03} — for depeg detection
     restaking_apy: Dict[str, float] = field(default_factory=dict)     # {"eeth": 0.032} decimal annual
     defi_apy: Dict[str, float] = field(default_factory=dict)          # {protocol: apy_decimal}
+    # — BTC sleeve fields (parallel to the ETH ones; for btc_neutral / btc_lending_sleeve) —
+    btc_price_usd: Optional[float] = None            # BTC reference price (WBTC via DeFiLlama coins)
+    btc_funding_rate_8h: Optional[float] = None      # BTC perp (BTCUSDT) funding per 8h (5-venue median)
+    btc_wrapper_price_usd: Dict[str, float] = field(default_factory=dict)  # {"tbtc": 64000.0, "cbbtc": ...}
+    btc_wrapper_ratio: Dict[str, float] = field(default_factory=dict)      # {"tbtc": 0.999} wrapper/BTC (depeg)
+    btc_lending_apy: Dict[str, float] = field(default_factory=dict)        # {"tbtc": 0.004} decimal annual (the floor)
     gaps: set = field(default_factory=set)            # names of fields that were invalid/missing
     ff_filled: set = field(default_factory=set)       # names that were forward-filled (within limit)
 
@@ -64,6 +70,25 @@ class MarketSnapshot:
 
     def get_defi_apy(self, protocol: str) -> Tuple[Optional[float], bool]:
         v = self.defi_apy.get(protocol)
+        return v, v is not None
+
+    # — BTC accessors (parallel to the ETH ones) —
+    def get_btc_price(self) -> Tuple[Optional[float], bool]:
+        return self.btc_price_usd, self.btc_price_usd is not None
+
+    def get_btc_funding(self) -> Tuple[Optional[float], bool]:
+        return self.btc_funding_rate_8h, self.btc_funding_rate_8h is not None
+
+    def get_btc_wrapper_price(self, symbol: str) -> Tuple[Optional[float], bool]:
+        v = self.btc_wrapper_price_usd.get(symbol)
+        return v, v is not None
+
+    def get_btc_wrapper_ratio(self, symbol: str) -> Tuple[Optional[float], bool]:
+        v = self.btc_wrapper_ratio.get(symbol)
+        return v, v is not None
+
+    def get_btc_lending_apy(self, symbol: str) -> Tuple[Optional[float], bool]:
+        v = self.btc_lending_apy.get(symbol)
         return v, v is not None
 
     def require(self, getter_name: str, *args):
