@@ -187,8 +187,9 @@ class TestFetchPools(unittest.TestCase):
         mock_urlopen.return_value = _mock_urlopen(_make_pools_response(SAMPLE_POOLS))
         client = DeFiLlamaClient(cache_ttl=1)
         client.fetch_pools()
-        # Artificially expire the cache
-        client._pools_cache_time -= 2
+        # Artificially expire the v2 URL cache (key = POOL_URL)
+        for key in list(client._cache_timestamps):
+            client._cache_timestamps[key] -= 2
         client.fetch_pools()
         self.assertEqual(mock_urlopen.call_count, 2)
 
@@ -289,9 +290,16 @@ class TestSearch(unittest.TestCase):
 
     def _client_with_pools(self, pools=None):
         """Return a client whose cache is pre-loaded with *pools*."""
+        import json as _json
         client = DeFiLlamaClient()
-        client._pools_cache = pools if pools is not None else list(SAMPLE_POOLS)
+        _pools = pools if pools is not None else list(SAMPLE_POOLS)
+        client._pools_cache = _pools
         client._pools_cache_time = time.monotonic()
+        # Also pre-populate the v2 URL-keyed cache so fetch_pools() returns
+        # the pre-loaded data without hitting the network.
+        _payload = {"status": "success", "data": _pools}
+        client._cache[POOL_URL] = _payload
+        client._cache_timestamps[POOL_URL] = time.monotonic()
         return client
 
     def test_21_search_by_project(self):
@@ -376,8 +384,14 @@ class TestTopApy(unittest.TestCase):
 
     def _client_with_pools(self):
         client = DeFiLlamaClient()
-        client._pools_cache = list(SAMPLE_POOLS)
+        _pools = list(SAMPLE_POOLS)
+        client._pools_cache = _pools
         client._pools_cache_time = time.monotonic()
+        # Also pre-populate the v2 URL-keyed cache so search() → fetch_pools()
+        # returns the pre-loaded data without hitting the network.
+        _payload = {"status": "success", "data": _pools}
+        client._cache[POOL_URL] = _payload
+        client._cache_timestamps[POOL_URL] = time.monotonic()
         return client
 
     def test_31_top_apy_returns_sorted_list(self):
