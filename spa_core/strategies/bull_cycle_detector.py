@@ -449,9 +449,10 @@ class BullCycleDetector:
             state = self.detect()
             result = state.to_dict()
             if not dry_run:
-                self._output_path.parent.mkdir(parents=True, exist_ok=True)
-                with self._output_path.open("w") as fh:
-                    json.dump(result, fh, indent=2)
+                from spa_core.utils.atomic import atomic_save
+                # Atomic write (tmp + os.replace) — never leave a partial
+                # data/market_cycle.json state file on crash.
+                atomic_save(result, str(self._output_path), indent=2)
                 log.info("Market cycle written to %s", self._output_path)
             return result
         except Exception as exc:
