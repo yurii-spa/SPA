@@ -424,9 +424,10 @@ class TestCalculateVolatility:
 
     def test_constant_returns_have_zero_vol(self):
         result = calculate_volatility([0.001] * 50)
-        assert result["daily_vol"] == 0.0
-        assert result["annualized_vol"] == 0.0
-        assert result["vol_30d"] == 0.0
+        # Constant returns should have zero vol; allow tiny floating-point noise
+        assert math.isclose(result["daily_vol"], 0.0, abs_tol=1e-10), result["daily_vol"]
+        assert math.isclose(result["annualized_vol"], 0.0, abs_tol=1e-10), result["annualized_vol"]
+        assert math.isclose(result["vol_30d"], 0.0, abs_tol=1e-10), result["vol_30d"]
 
     def test_annualized_is_daily_times_sqrt_365(self):
         rets = [0.001, -0.002, 0.0015, 0.0, 0.003]
@@ -440,7 +441,7 @@ class TestCalculateVolatility:
         # 60 noisy points, then 30 constant points → trailing-30d vol is 0.
         rets = [0.01, -0.01] * 30 + [0.0005] * 30
         result = calculate_volatility(rets)
-        assert result["vol_30d"] == 0.0
+        assert math.isclose(result["vol_30d"], 0.0, abs_tol=1e-10), result["vol_30d"]
         assert result["daily_vol"] > 0.0
 
 
