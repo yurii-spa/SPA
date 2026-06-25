@@ -363,3 +363,122 @@ def test_strategy_loop_flag_propagates(tmp_path):
     assert st["strategy_loop_active"] is True
     trades = _load(tmp_path, "trades.json")
     assert trades[0]["strategy_loop_active"] is True
+
+
+# ─── ALLOC-002 oscillation regression (P0) ──────────────────────────────────
+
+
+# An over-diversified target (24 protocols) — what StrategyAllocator natively
+# emits because policy.py caps per-protocol concentration but NOT the protocol
+# *count*. Before the ALLOC-002 oscillation fix, the rebalance diff compared the
+# persisted ≤8 book against this fresh 24-book every cycle → a phantom ~$122K
+# rebalance, then a post-hoc collapse to ≤8 → endless 24↔8 churn.
+#
+# The book is built with real T1 anchors (so the RiskPolicy gate APPROVES it,
+# matching production where the gate let the 24-book through) plus many small
+# T2 satellites that push the protocol *count* past the policy_enforcer cap.
+_OVERDIV_T1 = {
+    "aave_v3": 30_000.0,
+    "compound_v3": 20_000.0,
+    "spark_susds": 10_000.0,
+}  # T1 = 60% → satisfies t1_min (55%)
+_OVERDIV_T2 = {f"proto_t2_{i:02d}": 1_500.0 for i in range(21)}  # 21 × $1.5k = $31.5k
+_OVERDIV_TARGET = {**_OVERDIV_T1, **_OVERDIV_T2}  # 24 protocols, ~91.5% deployed
+_OVERDIV_APY = {p: 4.0 + (i % 5) * 0.1 for i, p in enumerate(_OVERDIV_TARGET)}
+
+
+def _l1(a: dict, b: dict) -> float:
+    keys = set(a) | set(b)
+    return sum(abs(float(a.get(k, 0.0)) - float(b.get(k, 0.0))) for k in keys)
+
+
+def _overdiv_orch_fn(apy_map):
+    """Orchestrator fake that tiers the over-diversified universe correctly so
+    the RiskPolicy gate APPROVES the 24-book (mirrors production, where the gate
+    let the over-diversified target through before ALLOC-002 collapsed it)."""
+    def _fn(data_dir):
+        adapters = [
+            {
+                "protocol": p,
+                "apy_pct": apy_map[p],
+                "tvl_usd": 5e8,
+                "tier": "T1" if p in _OVERDIV_T1 else "T2",
+                "chain": "ethereum:{}".format(p),
+                "status": "ok",
+            }
+            for p in apy_map
+        ]
+        return SimpleNamespace(adapters=adapters, status="ok", data_freshness="live")
+
+    return _fn
+
+
+def _run_overdiv(tmp_path, *, now):
+    return cr.run_cycle(
+        data_dir=tmp_path,
+        now=now,
+        orchestrator_fn=_overdiv_orch_fn(_OVERDIV_APY),
+        allocator=_FakeAllocator(_OVERDIV_TARGET),
+        risk_scorer_fn=lambda d: None,
+        track_persister_fn=lambda d: None,
+    )
+
+
+def test_alloc002_no_oscillation_stable_allocation(tmp_path):
+    """Two consecutive cycles on identical market data must converge to a
+    STABLE ≤8-protocol book with near-zero turnover on the 2nd run.
+
+    Regression for the ALLOC-002 allocation oscillation: the raw allocator
+    target is collapsed to a deterministic policy-compliant book BEFORE the
+    rebalance diff, so an unchanged market produces ~zero phantom turnover.
+    """
+    now = datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc)
+
+    # Run 1 — converge from no prior book.
+    res1 = _run_overdiv(tmp_path, now=now)
+    assert res1.status == "ok"
+    pos1 = _load(tmp_path, "current_positions.json")["positions"]
+    # Count cap enforced natively in the cycle output (≤ policy max of 8).
+    assert len(pos1) <= 8, f"run1 persisted {len(pos1)} protocols, expected ≤8"
+
+    # Run 2 — identical market data, one day later.
+    res2 = _run_overdiv(
+        tmp_path, now=datetime(2026, 6, 12, 8, 0, tzinfo=timezone.utc)
+    )
+    assert res2.status == "ok"
+    pos2 = _load(tmp_path, "current_positions.json")["positions"]
+    assert len(pos2) <= 8, f"run2 persisted {len(pos2)} protocols, expected ≤8"
+
+    # Stable SET: the kept ≤8 protocols are identical across cycles (deterministic
+    # selection — no flip-flopping which 8 are kept).
+    assert set(pos1) == set(pos2), (
+        f"protocol set flipped between cycles: {set(pos1)} != {set(pos2)}"
+    )
+
+    # Near-zero turnover on the 2nd cycle (no phantom ~$122K rebalance). Allow a
+    # small band for rounding; the pre-fix value was ~$122,073.
+    turnover2 = _l1(pos1, pos2)
+    assert turnover2 < 200.0, (
+        f"2nd-cycle turnover ${turnover2:,.2f} — oscillation NOT eliminated"
+    )
+    assert res2.traded is False, "2nd cycle should not trade on unchanged market"
+
+
+def test_alloc002_compliant_book_passes_enforcer(tmp_path):
+    """The converged book must satisfy the policy_enforcer (≤8 count + caps)."""
+    from spa_core.risk.policy_enforcer import validate_positions
+
+    res = _run_overdiv(
+        tmp_path, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc)
+    )
+    assert res.status == "ok"
+    doc = _load(tmp_path, "current_positions.json")
+    pos = doc["positions"]
+    cap = float(doc.get("capital_usd", 100_000.0))
+    cash = cap - sum(pos.values())
+    check = validate_positions(positions=pos, capital_usd=cap, cash_usd=cash)
+    assert check.passed, (
+        "converged book violates enforcer: "
+        + str([v.rule for v in check.violations])
+    )
+    assert len(pos) <= 8
