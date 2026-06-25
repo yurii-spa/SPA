@@ -24,9 +24,12 @@ END = date(2026, 6, 20)
 
 @pytest.fixture()
 def store(tmp_path):
-    """A populated historical_apy store (synthetic) + a bound APYDatabase."""
+    """A populated historical_apy store (synthetic) + a bound APYDatabase.
+
+    Pins ``end=END`` so series dates are deterministic regardless of run date.
+    """
     data_dir = str(tmp_path)
-    fetcher.run(data_dir, days=365, force_synthetic=True, write=True)
+    fetcher.run(data_dir, days=365, force_synthetic=True, write=True, end=END)
     database = db.APYDatabase(data_dir=os.path.join(data_dir, "historical_apy"))
     return database
 
