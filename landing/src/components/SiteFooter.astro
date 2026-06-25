@@ -1,0 +1,62 @@
+---
+// SiteFooter.astro — canonical footer (spec §4.3). Rendered by Layout on every page.
+// 4-column structure, palette-tokened, link set is a superset of the header nav.
+---
+<footer class="site-footer">
+  <div class="footer-wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="fb-top">
+          <img src="/favicon.svg" alt="" aria-hidden="true" />
+          <span class="wm">SPA</span>
+        </div>
+        <p data-ru="Систематическая ончейн-доходность по стейблкоинам. Исследовательский проект в бумажной валидации с 10 июня 2026.">Systematic onchain stablecoin yield. Research project in paper validation since June 10, 2026.</p>
+        <span class="footer-status"><span class="d" aria-hidden="true"></span><span data-ru="Режим бумажной торговли">Paper Trading Mode</span></span>
+      </div>
+
+      <div class="footer-col">
+        <h5 data-ru="Исследование">Research</h5>
+        <a href="/methodology" data-ru="Методология">Methodology</a>
+        <a href="/due-diligence" data-ru="Доказательства">Evidence</a>
+        <a href="/track-record" data-ru="Трек-рекорд">Track Record</a>
+        <a href="/research" data-ru="Журнал исследований">Research journal</a>
+      </div>
+
+      <div class="footer-col">
+        <h5 data-ru="Документация">Documentation</h5>
+        <a href="/risk" data-ru="Риск">Risk</a>
+        <a href="/trust" data-ru="Доверие и безопасность">Trust &amp; Security</a>
+        <a href="/system" data-ru="Статус системы">System status</a>
+      </div>
+
+      <div class="footer-col">
+        <h5 data-ru="Правовое">Legal</h5>
+        <a href="/risk-disclosure" data-ru="Раскрытие рисков">Risk Disclosure</a>
+        <a href="/disclaimer" data-ru="Отказ от ответственности">Disclaimer</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span data-ru="© 2026 earn-defi.com · Не инвестиционный совет · Не регулируемая финансовая услуга · Исследовательский проект">© 2026 earn-defi.com · Not investment advice · Not a regulated financial service · Research project</span>
+      <span data-ru="Персональные данные не собираются и не хранятся.">No personal data collected or stored.</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer{border-top:1px solid var(--border); padding:64px 0 40px; background:var(--bg-base)}
+  .footer-wrap{max-width:1152px; margin:0 auto; padding:0 24px}
+  .footer-grid{display:grid; grid-template-columns:1.4fr repeat(3,1fr); gap:40px; margin-bottom:48px}
+  .footer-brand .fb-top{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .footer-brand .fb-top img{width:24px; height:24px}
+  .footer-brand .fb-top .wm{font-weight:700; color:var(--text-primary)}
+  .footer-brand p{font-size:.8125rem; color:var(--text-muted); line-height:1.55; max-width:300px; margin-bottom:14px}
+  .footer-status{display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:.6875rem; color:var(--warn)}
+  .footer-status .d{width:7px; height:7px; border-radius:50%; background:var(--warn); animation:pulse 3s ease-in-out infinite}
+  .footer-col h5{font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); margin-bottom:16px}
+  .footer-col a{display:block; font-size:.8125rem; color:var(--text-secondary); padding:6px 0; transition:color 120ms var(--ease)}
+  .footer-col a:hover{color:var(--text-primary)}
+  .footer-bottom{border-top:1px solid var(--border); padding-top:24px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; font-size:.75rem; color:var(--text-muted)}
+  @media (max-width:900px){ .footer-grid{grid-template-columns:1fr 1fr; gap:32px} }
+  @media (max-width:520px){ .footer-grid{grid-template-columns:1fr} }
+</style>
