@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-20T23:58:27.120383Z",
+  "generated_at": "2026-06-25T18:04:24.095208Z",
   "map_version": "1.0",
   "tier_bands": {
     "T1": [
@@ -15,10 +15,10 @@
       1.0
     ]
   },
-  "count": 32,
+  "count": 35,
   "count_by_tier": {
     "T1": 6,
-    "T2": 24,
+    "T2": 27,
     "T3": 2
   },
   "protocols": {
@@ -52,6 +52,11 @@
       "risk_score": 0.45,
       "note": "Aerodrome Base \u2014 AMM stable LP + AERO emissions"
     },
+    "cbbtc_lending": {
+      "tier": "T2",
+      "risk_score": 0.48,
+      "note": "cbBTC lending (Coinbase-wrapped BTC collateral) \u2014 advisory; BTC price volatility + centralized-custodian risk"
+    },
     "compound_v3": {
       "tier": "T1",
       "risk_score": 0.12,
@@ -76,6 +81,11 @@
       "tier": "T3",
       "risk_score": 0.68,
       "note": "Extra Finance XLend Base \u2014 isolated lending, small/new"
+    },
+    "fluid_arbitrum": {
+      "tier": "T2",
+      "risk_score": 0.38,
+      "note": "Fluid USDC lending on Arbitrum \u2014 same protocol +L2 sequencer/bridge risk; ~4.96% APY, ~$36.6M TVL"
     },
     "fluid_fusdc": {
       "tier": "T2",
@@ -161,6 +171,11 @@
       "tier": "T3",
       "risk_score": 0.65,
       "note": "Ethena sUSDe (T3 adapter) \u2014 depeg + 7d unstake cooldown"
+    },
+    "tbtc_lending": {
+      "tier": "T2",
+      "risk_score": 0.5,
+      "note": "tBTC lending (decentralized BTC collateral) \u2014 advisory; BTC price volatility + bridge/threshold-custody risk"
     },
     "usual_usd0pp": {
       "tier": "T2",
