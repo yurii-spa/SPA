@@ -140,6 +140,13 @@ MOCK_APY: Dict[str, float] = {
     "aave_v3_arbitrum":  0.046,
     "fluid":             0.062,
     "fluid_adapter":     0.062,
+    # Higher-yield real-series protocols (must cover every KNOWN_PROTOCOLS key).
+    "ethena_susde":      0.085,
+    "fluid_usdc_eth":    0.062,
+    "maple_syrup_usdc":  0.070,
+    "morpho_bbq_usdc":   0.060,
+    "pendle_pt_susde":   0.072,
+    "aave_v3_polygon":   0.044,
 }
 
 INITIAL_CAPITAL = 100_000.0
@@ -245,7 +252,7 @@ class MassTournament:
 
         Priority:
         1. Class that has ``def get_allocation`` in its body
-        2. Class whose name ends with 'Strategy' or matches S\d+ pattern
+        2. Class whose name ends with 'Strategy' or matches the S<number> pattern
         3. First public class that is not a config/mixin/helper
         """
         # Find all public class names
