@@ -154,7 +154,8 @@ def _milestone_message(ms_id: str, *, days: int | None, apy: float | None,
             f"GoLiveChecker: {passed}/{total} criteria pass.\n"
             "Every readiness criterion is green."
         )
-    return f"🎯 <b>SPA Milestone — {ms_id}</b>"
+    import html
+    return f"🎯 <b>SPA Milestone — {html.escape(str(ms_id), quote=False)}</b>"
 
 
 def check_milestones(
