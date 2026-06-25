@@ -27,13 +27,12 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1.tail_risk import PROTOCOL_TIER
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -200,11 +199,7 @@ def build_report(write: bool = True) -> dict:
         "strategies": strategies,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1attr_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(out, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(out, str(_OUT))
     return out
 
 
