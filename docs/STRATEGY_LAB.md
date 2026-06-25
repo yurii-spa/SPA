@@ -28,8 +28,10 @@ time-series for weeks/months.
 |---|---|---|---|
 | `variant_n` | neutral (β≈0) | LRT (eETH) spot + short ETH-perp hedge. Income = restaking yield + points ± funding. ETH price hedged out; residual = LRT/ETH depeg. | funding < X for N hours; LRT depeg > Y% |
 | `variant_d` | directional (β≈1) | Pure LRT, no hedge. Income = restaking + points + ETH price move. ISOLATED sleeve, outside the stablecoin mandate. | drawdown > Z% from peak |
+| `eth_lst_neutral` | neutral (β≈0) | **NEW — the SAFE ETH-yield sleeve.** PLAIN-staking LSTs (stETH/rETH, **NOT LRTs**) spot + short ETH-perp, β≈0. Income = staking yield ± funding. LSTs hug their ETH peg far tighter than LRTs → much smaller depeg residual than variant_n. The recommended ETH approach. | tighter LST depeg > Y%; funding < X for N hours |
+| `rwa_sleeve` | stable (T1) | **NEW — the realized RWA cash floor (allocatable, not a benchmark).** Holds tokenized US-Treasury funds (BUIDL/USYC/USDY/OUSG…) and accrues at the LIVE tokenized-T-bill yield (rwa_feed, TVL-weighted ~3.4%). Zero price vol, ~no drawdown — the lowest-risk T1 home for idle cash. Banks the floor, doesn't try to beat it. | — (zero-vol) |
 | `engine_a/b/c` | stable | Baselines wrapping the real Engine A ($100k base) / B (HY) / C (LP) sleeves. | risk-policy drawdown stop |
-| `rwa_floor` | benchmark | Risk-free floor (4.5% APY, zero vol). The bar every strategy must beat risk-adjusted. | — |
+| `rwa_floor` | benchmark | Risk-free floor — **live tokenized-T-bill yield (~3.4%, rwa_feed), no longer hardcoded**, zero vol. The bar every strategy must beat risk-adjusted. Reference row, not held. | — |
 
 All thresholds (X/Y/Z/N) live in the SSOT config — never hardcoded.
 
@@ -45,9 +47,10 @@ spa_core/strategy_lab/
   base.py            — Strategy ABC + MarketSnapshot + Position + StrategyMetrics + KillResult + InvalidDataError
   config.py          — SSOT loader (strategy_lab_config.json); risk LIMITS imported from spa_core.risk.policy (not duplicated)
   metrics.py         — net APY, maxDD, Sharpe/Sortino, β-to-ETH, funding drag, corr-to-stable, tail(ETH-20+flip), beats-RWA-floor
-  data/              — funding (median Binance+Bybit) · price (ETH/LRT via DeFiLlama coins) · restaking (DeFiLlama yields)
+  data/              — funding_feed (median across Binance/Bybit/OKX/KuCoin/Hyperliquid) · price (ETH/LST/LRT via DeFiLlama coins)
+                       · restaking/staking (DeFiLlama yields) · rwa_feed (LIVE tokenized-T-bill floor, TVL-weighted ~3.4%)
                        schema-validated, fail-CLOSED (raise on bad/empty; no silent defaults), ff-with-limit + gap flags
-  strategies/        — variant_n.py · variant_d.py · baselines.py (A/B/C/RWA wrappers)
+  strategies/        — variant_n.py · variant_d.py · eth_lst_neutral.py · rwa_sleeve.py · baselines.py (A/B/C/RWA wrappers)
   backtest.py        — shared harness: same capital + window + data, deterministic, costs, window-stress validation
   report.py          — comparative markdown table vs RWA floor
   paper.py           — live service: restart-survival, idempotent per day, fail-closed, kills→Telegram
@@ -55,8 +58,15 @@ spa_core/strategy_lab/
 
 ## Data layer (decisions)
 
-- **Sourcing:** live public keyless APIs. Funding = **median of Binance + Bybit** ETH-perp.
-  Prices (ETH + eETH/ezETH/weETH) = DeFiLlama coins. Restaking APY = DeFiLlama yields.
+- **Sourcing:** live public keyless APIs. Funding = **median across 5 venues — Binance, Bybit,
+  OKX, KuCoin, Hyperliquid** ETH-perp (Hyperliquid pays hourly → normalized to the 8h cadence of
+  the CEX venues before blending). Prices (ETH + eETH/ezETH/weETH + stETH/rETH) = DeFiLlama coins.
+  Restaking/staking APY = DeFiLlama yields.
+- **RWA floor = LIVE:** `data/rwa_feed.py` pulls the tokenized US-Treasury market (BUIDL/USYC/USDY/
+  OUSG/USTB/TBILL…, ~$15B) from DeFiLlama yields and returns the **TVL-weighted mean APY (~3.4%)** —
+  no longer a hardcoded literal. Fail-closed (raises `InvalidDataError` if no pool clears the $5M
+  TVL floor); callers (`config.rwa_floor_apy_pct`) decide whether to fall back to a committed literal.
+  Both `rwa_floor` (benchmark) and `rwa_sleeve` (allocatable) read this same live rate.
 - **Fail-closed:** a malformed/empty API response raises `InvalidDataError`; strategies go to a
   safe state — never a silent default.
 - **One source of truth:** backtest (historical) and paper (live) consume the SAME `MarketData`
