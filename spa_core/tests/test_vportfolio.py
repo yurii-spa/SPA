@@ -36,6 +36,26 @@ from spa_core.paper_trading.strategy_registry import (
     StrategyConfig,
 )
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_registry_status():
+    """Isolate tests from VPortfolioManager.kill()/promote() side effects.
+
+    kill()/promote() mutate STRATEGY_REGISTRY[sid].status in place on
+    process-wide StrategyConfig singletons; without restoring, e.g.
+    promote("S1") here leaks 'promoted' into unrelated downstream tests.
+    """
+    saved = {sid: cfg.status for sid, cfg in STRATEGY_REGISTRY.items()}
+    try:
+        yield
+    finally:
+        for sid, status in saved.items():
+            cfg = STRATEGY_REGISTRY.get(sid)
+            if cfg is not None:
+                cfg.status = status
+
 
 # ─── Helper factories ─────────────────────────────────────────────────────────
 
@@ -48,12 +68,30 @@ def _make_vp(sid: str = "S0", capital: float = 100_000.0) -> VPortfolio:
 
 def _sample_apy() -> dict:
     return {
-        "aave_v3":    3.5,
-        "compound_v3": 4.0,
-        "morpho_blue": 6.2,
-        "yearn_v3":   7.1,
-        "euler_v2":   6.8,
-        "maple":      5.5,
+        "aave_v3":          3.5,
+        "compound_v3":      4.0,
+        "morpho_blue":      6.2,
+        "yearn_v3":         7.1,
+        "euler_v2":         6.8,
+        "maple":            5.5,
+        # S8 protocols
+        "susde_spot":       14.0,
+        "perp_short_hedge": 8.0,
+        # S9 protocols
+        "aave_emode":       5.0,
+        # S22/S24 protocols that may appear
+        "fluid_usdc":       6.0,
+        "aave_v3_base":     4.5,
+        "compound_v3_base": 4.2,
+        "ethena_susde":     12.0,
+        "aave_v3_arb":      4.8,
+        # S10 Pendle YT
+        "pendle_yt":        18.0,
+        # S_BASIS funding harvest legs
+        "usdc_lend_leg":    5.0,
+        "perp_short_leg":   6.0,
+        # S23 Pendle PT Fixed Rate
+        "pendle_pt":        8.0,
     }
 
 
