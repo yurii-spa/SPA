@@ -295,10 +295,13 @@ class TestNormalizeAllocation(unittest.TestCase):
         self.assertIn("spark_susds", result)
         self.assertNotIn("sky_susds", result)
 
-    def test_aave_arbitrum_aliased_to_aave(self):
+    def test_aave_arbitrum_kept_as_own_series(self):
+        # aave_v3_arbitrum now has its own REAL per-chain series (PROTOCOL_ALIAS
+        # maps it to itself, not to the ETH-tracked aave_v3 proxy), so it must be
+        # preserved as a first-class key in the normalised allocation.
         raw = {"aave_v3_arbitrum": 0.5, "compound_v3": 0.5}
         result = MassTournament.normalize_allocation(raw)
-        self.assertIn("aave_v3", result)
+        self.assertIn("aave_v3_arbitrum", result)
 
     def test_pendle_pt_dropped(self):
         raw = {"pendle_pt": 0.5, "aave_v3": 0.5}
