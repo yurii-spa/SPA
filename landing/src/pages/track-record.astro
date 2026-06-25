@@ -67,6 +67,87 @@ import Disclaimer from '../components/Disclaimer.astro';
       </div>
     </section>
 
+    <!-- Proof of Reserves -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
+        <p class="text-xs text-white/25 font-mono">
+          <span data-ru="источник:">source:</span> <span id="por-src">static fallback</span>
+        </p>
+      </div>
+
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
+          <div>
+            <p class="text-lg font-semibold text-white mb-1" data-ru="Каждый доллар учтён — криптографически проверяемо">Every dollar accounted for, cryptographically verifiable</p>
+            <p class="text-sm text-white/45 max-w-xl leading-relaxed" data-ru="NAV пересчитывается из своих частей (вложено + кэш + начислено) и сверяется с заявленным капиталом. Это бумажное доказательство резервов: проверяемая методология на виртуальном портфеле $100k, не реальное кастоди.">
+              The NAV is recomputed from its parts (deployed + cash + accrued) and reconciled
+              against the reported equity. This is a paper proof-of-reserves: the verifiable
+              methodology on the virtual $100k book, not real custody.
+            </p>
+          </div>
+          <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-white/40 shrink-0">
+            <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
+            <span data-ru="загрузка…">loading…</span>
+          </div>
+        </div>
+
+        <!-- NAV breakdown: deployed + cash + accrued = equity -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div class="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Вложено">Deployed</p>
+            <p class="text-xl font-mono font-bold text-white" id="por-deployed">—</p>
+          </div>
+          <div class="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Кэш">Cash</p>
+            <p class="text-xl font-mono font-bold text-white" id="por-cash">—</p>
+          </div>
+          <div class="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Начислено">Accrued</p>
+            <p class="text-xl font-mono font-bold text-white" id="por-accrued">—</p>
+          </div>
+          <div class="rounded-lg border border-teal-500/20 bg-teal-500/[0.05] p-4">
+            <p class="text-xs text-teal-300/50 uppercase tracking-wider font-mono mb-2" data-ru="NAV (= капитал)">NAV (= equity)</p>
+            <p class="text-xl font-mono font-bold text-teal-400" id="por-nav">—</p>
+          </div>
+        </div>
+
+        <!-- reconciliation + meta row -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 px-4 py-3">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение сверки">Reconciliation delta</p>
+            <p class="text-sm font-mono text-white/70" id="por-delta">—</p>
+          </div>
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 px-4 py-3">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Позиций">Positions</p>
+            <p class="text-sm font-mono text-white/70" id="por-positions">—</p>
+          </div>
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 px-4 py-3">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Последняя проверка">Last verified</p>
+            <p class="text-sm font-mono text-white/70" id="por-ts">—</p>
+          </div>
+        </div>
+
+        <!-- verification hash -->
+        <div class="rounded-lg bg-black/30 border border-white/8 px-4 py-3">
+          <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Хэш проверки (NAV)">Verification hash (NAV)</p>
+            <span class="text-xs text-teal-300/60 font-mono" data-ru="проверяемо · защищено от подмены">verifiable · tamper-evident</span>
+          </div>
+          <p class="text-xs sm:text-sm font-mono text-teal-300/80 break-all" id="por-hash">—</p>
+          <p class="text-xs text-white/25 font-mono mt-1">
+            <span data-ru="компоненты:">components:</span> <span id="por-comphash" class="break-all">—</span>
+          </p>
+        </div>
+
+        <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="NAV = Σ(позиции по протоколам) + кэш + начисленный доход. components_hash = sha256 канонического JSON отсортированных позиций; nav_hash связывает NAV с его компонентами и временем. Любой может пересчитать опубликованный NAV из компонентов через nav_proof.verify_proof().">
+          NAV = Σ(per-protocol positions) + cash + accrued yield. components_hash = sha256 of the
+          canonical JSON of the sorted positions; nav_hash binds the NAV to its components and timestamp.
+          Anyone can recompute the published NAV from its components via nav_proof.verify_proof().
+        </p>
+      </div>
+    </section>
+
     <!-- Go-live progress -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Прогресс Go-Live">Go-live progress</p>
@@ -230,7 +311,44 @@ import Disclaimer from '../components/Disclaimer.astro';
         }).catch(function(){});
       }
 
-      function init(){ loadHealth(); loadFacts(); loadEvidence(); }
+      function fmtUsd(v){ return '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+      function isRu(){ try{ return (localStorage.getItem('spa_lang') || 'en') === 'ru'; }catch(e){ return false; } }
+
+      function loadNav(){
+        fetch(API + '/api/tier1/nav').then(function(r){ return r.json(); }).then(function(d){
+          if(!d || d.computed_nav_usd == null) return;
+          if(d.deployed_usd != null) setText('por-deployed', fmtUsd(d.deployed_usd));
+          if(d.cash_usd != null) setText('por-cash', fmtUsd(d.cash_usd));
+          if(d.accrued_yield_usd != null) setText('por-accrued', fmtUsd(d.accrued_yield_usd));
+          if(d.computed_nav_usd != null) setText('por-nav', fmtUsd(d.computed_nav_usd));
+
+          // reconciliation chip
+          var chip = document.getElementById('por-recon');
+          if(chip){
+            var ok = d.reconciliation_ok === true;
+            chip.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono shrink-0 border ' +
+              (ok ? 'bg-teal-500/10 border-teal-500/30 text-teal-300'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300');
+            chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + (ok ? 'bg-teal-400' : 'bg-amber-400') +
+              '" aria-hidden="true"></span>' +
+              (ok ? (isRu() ? 'сверено ✓' : 'reconciled ✓')
+                  : (isRu() ? 'расхождение ⚠' : 'delta ⚠'));
+          }
+
+          if(d.reconciliation_delta_usd != null){
+            var dp = d.reconciliation_delta_pct != null ? ' (' + Number(d.reconciliation_delta_pct).toFixed(4) + '%)' : '';
+            setText('por-delta', fmtUsd(d.reconciliation_delta_usd) + dp);
+          }
+          if(Array.isArray(d.positions)) setText('por-positions', String(d.positions.length));
+          var ts = d.ts || d.generated_at;
+          if(ts){ try{ setText('por-ts', new Date(ts).toISOString().replace('T',' ').slice(0,16) + 'Z'); }catch(e){ setText('por-ts', ts); } }
+          if(d.nav_hash){ setText('por-hash', d.nav_hash.slice(0,24) + '…' + d.nav_hash.slice(-8)); }
+          if(d.components_hash){ setText('por-comphash', d.components_hash.slice(0,16) + '…' + d.components_hash.slice(-8)); }
+          setText('por-src', 'live');
+        }).catch(function(){});
+      }
+
+      function init(){ loadHealth(); loadFacts(); loadEvidence(); loadNav(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
