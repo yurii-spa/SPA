@@ -33,14 +33,13 @@ from __future__ import annotations
 
 import json
 import math
-import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import pstdev
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.tier1 import oos as oos_mod
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _VERDICT = _ROOT / "data" / "tier1_verdict.json"
@@ -214,17 +213,7 @@ def _validated_ids() -> List[str]:
 
 
 def _atomic_write(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(payload, fh, indent=2, sort_keys=True)
-        # shutil.move-style atomic replace (CLAUDE.md: cross-device safe).
-        import shutil
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+    atomic_save(payload, str(path))
 
 
 def build_report(write: bool = True) -> dict:
