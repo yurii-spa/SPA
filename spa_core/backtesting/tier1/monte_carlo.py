@@ -28,14 +28,13 @@ data/tier1_verdict.json (validated set) + data/mass_tournament_results.json (all
 from __future__ import annotations
 
 import json
-import os
 import random
-import tempfile
 import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.tier1 import oos as oos_mod
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -252,11 +251,7 @@ def build_report(write: bool = True, n_paths: int = DEFAULT_N_PATHS,
         "strategies": rows,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1_mc_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(report, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(report, str(_OUT))
     return report
 
 
