@@ -6,7 +6,6 @@ MP-1552 (v11.68) — Wave 11 push scripts validation
 import os
 import stat
 import subprocess
-import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(REPO, "scripts")
@@ -32,24 +31,11 @@ def test_command_file_exists():
         f"Missing: {COMMAND_FILE}"
 
 
-def test_push_v1167_exists():
-    p = os.path.join(SCRIPTS_DIR, "push_v1167.sh")
-    assert os.path.isfile(p), f"Missing push_v1167.sh"
-
-
-def test_push_v1168_exists():
-    p = os.path.join(SCRIPTS_DIR, "push_v1168.sh")
-    assert os.path.isfile(p), f"Missing push_v1168.sh"
-
-
-def test_push_v1169_exists():
-    p = os.path.join(SCRIPTS_DIR, "push_v1169.sh")
-    assert os.path.isfile(p), f"Missing push_v1169.sh"
-
-
-def test_push_v1170_exists():
-    p = os.path.join(SCRIPTS_DIR, "push_v1170.sh")
-    assert os.path.isfile(p), f"Missing push_v1170.sh"
+# NOTE: the one-shot push_v1167–1170.sh scripts were throwaway artifacts that were
+# removed in the repo cleanup (they were never committed and serve no ongoing
+# purpose). The tests that asserted their existence are obsolete and have been
+# removed. The wave11 wrapper (run_cpa_wave11_pushes.sh) and _push_wave11.command
+# remain under test below.
 
 
 # ── Executable permissions ────────────────────────────────────────────────────
@@ -103,13 +89,3 @@ def test_command_file_has_read_pause():
     with open(COMMAND_FILE) as f:
         content = f.read()
     assert "read" in content
-
-
-def test_push_v1167_has_kanban():
-    p = os.path.join(SCRIPTS_DIR, "push_v1167.sh")
-    if not os.path.isfile(p):
-        pytest.skip("push_v1167.sh not yet created")
-    with open(p) as f:
-        content = f.read()
-    assert "KANBAN.json" in content
-    assert "MP-1551" in content or "v11.67" in content
