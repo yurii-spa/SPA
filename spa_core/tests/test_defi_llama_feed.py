@@ -52,6 +52,35 @@ from spa_core.adapters.morpho_blue import MorphoBlueAdapter  # noqa: E402
 from spa_core.adapters.euler_v2 import EulerV2Adapter       # noqa: E402
 from spa_core.adapters.maple import MapleAdapter            # noqa: E402
 
+import pytest  # noqa: E402
+import spa_core.feeds.defi_llama_feed as _dlf  # noqa: E402
+
+# Canonical (production) retry constants. The root tests/conftest.py mutates the
+# live module-level MAX_RETRIES/BACKOFF_BASE for speed in the *adapter* tests
+# (which hit the network-blocked urlopen). These tests, however, mock urlopen
+# directly and assert the real retry/backoff semantics, so we restore the true
+# source values for the duration of every test in this module.
+_REAL_MAX_RETRIES = 3
+_REAL_BACKOFF_BASE = 1.0
+
+
+@pytest.fixture(autouse=True)
+def _restore_retry_constants():
+    """Restore production MAX_RETRIES/BACKOFF_BASE for retry/backoff assertions."""
+    global MAX_RETRIES  # noqa: PLW0603 — rebind the test-module snapshot used in asserts
+    saved_retries = _dlf.MAX_RETRIES
+    saved_backoff = _dlf.BACKOFF_BASE
+    saved_module_snapshot = MAX_RETRIES
+    _dlf.MAX_RETRIES = _REAL_MAX_RETRIES
+    _dlf.BACKOFF_BASE = _REAL_BACKOFF_BASE
+    MAX_RETRIES = _REAL_MAX_RETRIES
+    try:
+        yield
+    finally:
+        _dlf.MAX_RETRIES = saved_retries
+        _dlf.BACKOFF_BASE = saved_backoff
+        MAX_RETRIES = saved_module_snapshot
+
 
 # ---------------------------------------------------------------------------
 # Helpers
