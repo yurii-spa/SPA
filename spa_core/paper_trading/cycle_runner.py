@@ -310,6 +310,86 @@ def _allocation_diff_usd(current: dict[str, float], target: dict[str, float]) ->
     return sum(abs(float(target.get(k, 0.0)) - float(current.get(k, 0.0))) for k in keys)
 
 
+def _compliant_target(
+    target_usd: dict[str, float],
+    capital_usd: float,
+    ddir: "Path",
+    write: bool,
+) -> tuple[dict[str, float], bool]:
+    """ALLOC-002: collapse the raw allocator target to a policy-compliant book
+    *before* the rebalance diff is computed.
+
+    ROOT-CAUSE FIX (allocation oscillation): ``StrategyAllocator.allocate()`` has
+    per-protocol concentration caps but NO protocol-*count* cap, so it natively
+    emits ~24 protocols. Previously the rebalance diff compared the persisted
+    ≤8-protocol book against this fresh 24-protocol target → always a large diff
+    → a phantom ~$122K rebalance every cycle, then ALLOC-002 collapsed the book
+    to ≤8 *after* the trade was already recorded. The next cycle's allocator
+    emitted 24 again → endless 24↔8 churn on an unchanged market.
+
+    This helper makes the count-capped, policy-compliant book the *target* the
+    diff is computed against. When the raw target already passes the enforcer it
+    is returned unchanged. When it violates (e.g. ``max_protocols`` / ``t1_min``)
+    we derive the compliant book from the DETERMINISTIC ``portfolio_rebalancer``
+    (``random.Random(42)`` candidate search + deterministic safe-fallback). Same
+    market data → same compliant book every cycle → held-compliant vs
+    new-compliant diff ≈ 0 (no phantom turnover).
+
+    Returns ``(compliant_target, was_collapsed)``. Fail-open: any error returns
+    the original target unchanged (ALLOC-002 post-check still guards the write).
+    """
+    try:
+        from spa_core.risk.policy_enforcer import validate_positions as _pe
+        _cash = capital_usd - sum(target_usd.values())
+        _chk = _pe(positions=target_usd, capital_usd=capital_usd, cash_usd=_cash)
+        if _chk.passed:
+            return target_usd, False
+        # Scope: this pre-diff collapse targets the OSCILLATION root cause —
+        # the protocol-*count* explosion (~24 protocols) that the allocator has
+        # no native cap for. Other policy violations (per-protocol concentration,
+        # t1_min, etc.) on an already-small book are left to the existing gate +
+        # post-write ALLOC-002 check (unchanged behaviour). We only intervene
+        # pre-diff when the count cap is breached, which is what flaps the diff.
+        _viol_rules = {v.rule for v in _chk.violations}
+        if "max_protocols" not in _viol_rules:
+            return target_usd, False
+        # Over-diversified raw target: derive the deterministic compliant book
+        # from the rebalancer.
+        from spa_core.tuner.portfolio_rebalancer import rebalance_portfolio as _rb
+        if _rb(capital_usd=capital_usd, data_dir=ddir, write=write, send_alert=False):
+            _pos = (
+                _read_json(ddir / POSITIONS_FILENAME, {}).get("positions", {}) or {}
+            )
+            if _pos:
+                _c = _pe(
+                    positions=_pos,
+                    capital_usd=capital_usd,
+                    cash_usd=capital_usd - sum(float(v) for v in _pos.values()),
+                )
+                if _c.passed:
+                    return {str(p): float(v) for p, v in _pos.items()}, True
+        # Rebalancer could not produce a compliant book (e.g. no adapter snapshot
+        # available). Fall back to the DETERMINISTIC known-good safe portfolio so
+        # the cycle output is STILL count-capped and stable — never the raw
+        # 24-protocol target. This is the same hardcoded book the rebalancer uses
+        # as its own fallback, validated below before adoption.
+        from spa_core.tuner.portfolio_rebalancer import (
+            _build_safe_fallback_positions as _safe,
+        )
+        _safe_pos, _safe_cash = _safe(capital_usd)
+        _safe_chk = _pe(
+            positions=_safe_pos, capital_usd=capital_usd, cash_usd=_safe_cash
+        )
+        if _safe_chk.passed:
+            return {str(p): float(v) for p, v in _safe_pos.items()}, True
+        # Even the safe fallback failed validation — keep raw target; the
+        # downstream ALLOC-002 post-check still guards the persisted write.
+        return target_usd, False
+    except Exception as exc:  # noqa: BLE001 — fail-open, never break the cycle
+        log.warning("ALLOC-002: pre-diff compliant collapse skipped (%s)", exc)
+        return target_usd, False
+
+
 def _next_trade_id(trades: list[dict]) -> str:
     """Next sequential trade id ``T001``, ``T002`` … based on existing records."""
     max_n = 0
@@ -1675,6 +1755,25 @@ def run_cycle(
                 )
         except Exception as _bge:  # never break the main cycle
             log.warning("ADR-025 base_gas_monitor check failed (%s) — cycle continues", _bge)
+
+    # ── ALLOC-002 (oscillation fix): collapse the raw allocator target to a
+    # policy-compliant ≤8-protocol book BEFORE the rebalance diff. The diff,
+    # the recorded trade, and effective_positions all use this compliant target
+    # so consecutive cycles on unchanged market data converge (near-zero
+    # turnover) instead of churning 24↔8 every cycle. Deterministic + fail-open.
+    # Skipped under fail-safe HOLD / policy-block (we are holding regardless).
+    _alloc002_pre_collapsed = False
+    if not _safety_failed and not policy_blocked:
+        target_usd, _alloc002_pre_collapsed = _compliant_target(
+            target_usd, capital_usd, ddir, write
+        )
+        if _alloc002_pre_collapsed:
+            notes.append(
+                "ALLOC-002: raw allocator target ({} protocols) collapsed to "
+                "compliant book ({} protocols) before rebalance diff.".format(
+                    len(target_usd), len(target_usd)
+                )
+            )
 
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
