@@ -49,15 +49,13 @@ CLI (__main__): prints the live-portfolio reverse-stress breakpoints.
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.tier1.stress import EXPLOIT_LOSS_PCT, stress_strategy
 from spa_core.backtesting.tier1.tail_risk import PROTOCOL_TIER, strategy_tail_risk
+from spa_core.utils.atomic import atomic_save
 
 REVERSE_STRESS_VERSION = "v1.0"
 
@@ -340,17 +338,8 @@ def _load_validated_strategy_ids(data_dir: Path) -> List[str]:
 
 
 def _atomic_write(path: Path, payload: dict) -> None:
-    """Atomic JSON write via tmp + shutil.move (cross-device safe in sandbox)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".reverse_stress_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, sort_keys=True)
-            f.write("\n")
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+    """Atomic JSON write — delegates to the shared atomic-save utility."""
+    atomic_save(payload, str(path))
 
 
 def build_report(write: bool = True,
