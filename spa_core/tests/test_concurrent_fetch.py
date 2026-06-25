@@ -75,12 +75,14 @@ _MOCK_API_BYTES = json.dumps(_MOCK_API_RESPONSE).encode()
 
 
 def _make_requests_mock(response_data: dict | None = None):
-    """Return a mock for requests.get that returns mock DeFiLlama data."""
+    """Return a mock for urllib.request.urlopen (context manager) returning mock DeFiLlama data."""
     data = response_data or _MOCK_API_RESPONSE
+    raw_bytes = json.dumps(data).encode()
+    # urlopen is used as: `with urlopen(url) as r: data = json.loads(r.read().decode())`
     mock_resp = MagicMock()
-    mock_resp.json.return_value = data
-    mock_resp.content = json.dumps(data).encode()
-    mock_resp.raise_for_status = MagicMock()
+    mock_resp.read.return_value = raw_bytes
+    mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+    mock_resp.__exit__ = MagicMock(return_value=False)
     return mock_resp
 
 
@@ -118,7 +120,7 @@ class TestConcurrentVsSequential(unittest.TestCase):
             "data_pipeline.defillama_fetcher.fetch_all_pools",
             return_value=mock_pools,
         ), patch(
-            "data_pipeline.defillama_fetcher.requests.get", return_value=mock_resp
+            "urllib.request.urlopen", return_value=mock_resp
         ):
             seq_result  = fetcher.fetch_pools()            # {"pools": {...}, "skipped": [...]}
             conc_result = fetcher.fetch_pools_concurrent()  # list[dict]
@@ -205,7 +207,7 @@ class TestCacheBehaviour(unittest.TestCase):
         mock_resp = _make_requests_mock()
 
         with patch(
-            "data_pipeline.defillama_fetcher.requests.get", return_value=mock_resp
+            "urllib.request.urlopen", return_value=mock_resp
         ) as mock_get:
             fetcher._fetch_main_pools()   # first call — network + writes cache
             fetcher._fetch_main_pools()   # second call — should read cache
@@ -231,7 +233,7 @@ class TestCacheBehaviour(unittest.TestCase):
 
         mock_resp = _make_requests_mock()
         with patch(
-            "data_pipeline.defillama_fetcher.requests.get", return_value=mock_resp
+            "urllib.request.urlopen", return_value=mock_resp
         ) as mock_get:
             fetcher._fetch_main_pools()
 
@@ -266,7 +268,7 @@ class TestPerfTimingLogged(unittest.TestCase):
 
         buf = io.StringIO()
         with redirect_stdout(buf), patch(
-            "data_pipeline.defillama_fetcher.requests.get", return_value=mock_resp
+            "urllib.request.urlopen", return_value=mock_resp
         ):
             # Exact snippet copied from export_data.py (section 2, if fetch: block)
             t0 = time.time()
