@@ -28,7 +28,7 @@ def test_props_title_defined(layout_src):
 def test_props_description_defined(layout_src):
     """description prop with default value is present."""
     assert "description" in layout_src
-    assert "Stablecoin Portfolio Algorithm" in layout_src
+    assert "systematic onchain stablecoin yield" in layout_src
 
 
 def test_props_ogImage_defined(layout_src):
@@ -91,9 +91,9 @@ def test_og_image(layout_src):
 
 
 def test_og_site_name(layout_src):
-    """og:site_name is set to SPA — Stablecoin Portfolio Algorithm."""
+    """og:site_name is set to SPA — systematic onchain stablecoin yield."""
     assert 'property="og:site_name"' in layout_src
-    assert "Stablecoin Portfolio Algorithm" in layout_src
+    assert "SPA — systematic onchain stablecoin yield" in layout_src
 
 
 # ── 6. Twitter Card ─────────────────────────────────────────────────────────
