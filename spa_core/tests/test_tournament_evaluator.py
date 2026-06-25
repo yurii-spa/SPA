@@ -55,6 +55,28 @@ from spa_core.paper_trading.vportfolio import (
 )
 from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_registry_status():
+    """Isolate tests from VPortfolioManager.kill()/promote() side effects.
+
+    kill()/promote() mutate STRATEGY_REGISTRY[sid].status in place, and those
+    StrategyConfig objects are process-wide singletons (also imported by other
+    test modules as S0_CONSERVATIVE_T1 / S1_BALANCED). Without restoring, a
+    kill("S0") here leaks 'killed' into unrelated downstream tests. Snapshot
+    every status and restore it after each test.
+    """
+    saved = {sid: cfg.status for sid, cfg in STRATEGY_REGISTRY.items()}
+    try:
+        yield
+    finally:
+        for sid, status in saved.items():
+            cfg = STRATEGY_REGISTRY.get(sid)
+            if cfg is not None:
+                cfg.status = status
+
 
 # ─── Helper factories ─────────────────────────────────────────────────────────
 
