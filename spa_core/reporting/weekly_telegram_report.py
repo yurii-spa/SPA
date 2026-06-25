@@ -41,12 +41,18 @@ CLI::
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+
+def _esc(value: Any) -> str:
+    """HTML-escape a dynamic value for parse_mode=HTML (``< > &`` would 400)."""
+    return html.escape(str(value), quote=False)
 
 log = logging.getLogger("spa.reporting.weekly_telegram")
 
@@ -325,7 +331,7 @@ def format_weekly_message(data: dict) -> str:
             sid = s.get("strategy_id", "?")
             name = STRATEGY_NAMES.get(sid, "")
             label = f"{sid} {name}".strip()
-            lines.append(f"{i}. {label}: {_fmt_pct(s.get('net_apy'))} APY")
+            lines.append(f"{i}. {_esc(label)}: {_fmt_pct(s.get('net_apy'))} APY")
         lines.append("")
 
     lines.append(f"🔄 Rebalances: {data.get('rebalances', 0)} (threshold triggers)")
