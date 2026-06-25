@@ -557,14 +557,24 @@ class TestPortfolioRebalancer(unittest.TestCase):
         )
 
     def test_real_positions_source_is_rebalancer(self):
-        """data/current_positions.json written by ALLOC-001 must have correct source."""
+        """data/current_positions.json must be written by a recognised code-owned writer.
+
+        Two legitimate writers exist: the canonical daily ``cycle_runner`` (which
+        refreshes positions at the end of each cycle — ALLOC-002) and the
+        standalone ``portfolio_rebalancer_v1`` (ALLOC-001). The file must carry
+        one of these sources — never a foreign/unknown writer.
+        """
         repo = Path(__file__).resolve().parents[1]
         pos_path = repo / "data" / "current_positions.json"
         if not pos_path.exists():
             self.skipTest("current_positions.json not found")
         doc = json.loads(pos_path.read_text())
-        self.assertEqual(doc.get("source"), "portfolio_rebalancer_v1",
-                         "source must be 'portfolio_rebalancer_v1' (written by ALLOC-001)")
+        self.assertIn(
+            doc.get("source"),
+            {"portfolio_rebalancer_v1", "cycle_runner"},
+            "source must be a recognised code-owned writer "
+            "(portfolio_rebalancer_v1 or cycle_runner)",
+        )
 
     # ── Telegram alert (mocked) ────────────────────────────────────────────
 
