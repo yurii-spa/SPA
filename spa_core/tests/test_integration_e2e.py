@@ -99,9 +99,9 @@ class TestFullPipelineWithMockDeFiLlama:
             f"deployed {state.deployed_usd} > capital {total}"
         )
 
-        # T2 total <= 35%
+        # T2 total <= 50% (ADR-019 raised cap from 35% to 50%)
         t2_pct = state.t2_allocation_pct()
-        assert t2_pct <= 0.35 + 1e-9, f"T2 allocation {t2_pct:.2%} > 35%"
+        assert t2_pct <= 0.50 + 1e-9, f"T2 allocation {t2_pct:.2%} > 50%"
 
         # No single protocol > 40%
         for pos in state.positions:
@@ -401,12 +401,13 @@ class TestGoLiveChecklistPaperDuration:
     """
 
     def test_paper_duration_pending_when_3_days(self):
-        from golive.checklist import check_paper_duration, _PENDING, MIN_PAPER_DAYS
+        from golive.checklist import (
+            check_paper_duration, _PENDING, MIN_PAPER_DAYS, PAPER_START_DATE,
+        )
 
         # Freeze time so that "today" is only 3 days after PAPER_START_DATE
-        fake_today = datetime.fromisoformat("2026-05-20").replace(
-            tzinfo=timezone.utc
-        ) + timedelta(days=3)
+        start = datetime.fromisoformat(PAPER_START_DATE).replace(tzinfo=timezone.utc)
+        fake_today = start + timedelta(days=3)
 
         with patch("golive.checklist._today", return_value=fake_today):
             result = check_paper_duration()
@@ -425,12 +426,13 @@ class TestGoLiveChecklistPaperDuration:
         real minimum.  Pulling MIN_PAPER_DAYS from the module keeps the test
         in lockstep with the policy.
         """
-        from golive.checklist import check_paper_duration, _PASS, MIN_PAPER_DAYS
+        from golive.checklist import (
+            check_paper_duration, _PASS, MIN_PAPER_DAYS, PAPER_START_DATE,
+        )
 
         # Freeze time so that exactly MIN_PAPER_DAYS days have elapsed.
-        fake_today = datetime.fromisoformat("2026-05-20").replace(
-            tzinfo=timezone.utc
-        ) + timedelta(days=MIN_PAPER_DAYS)
+        start = datetime.fromisoformat(PAPER_START_DATE).replace(tzinfo=timezone.utc)
+        fake_today = start + timedelta(days=MIN_PAPER_DAYS)
 
         with patch("golive.checklist._today", return_value=fake_today):
             result = check_paper_duration()
