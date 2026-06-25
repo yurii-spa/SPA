@@ -60,6 +60,11 @@ jobs:
         env:
           SPA_ENV: ci
 
+      - name: Strategy-as-config change-control guard
+        run: python3 scripts/check_strategy_configs.py
+        env:
+          SPA_ENV: ci
+
       - name: Tier-1 module smoke
         run: |
           python3 -c "import spa_core.backtesting.tier1.evaluator, spa_core.backtesting.tier1.gate, spa_core.backtesting.tier1.nav_proof, spa_core.governance.policy, spa_core.governance.ssot, spa_core.execution.readiness_audit, spa_core.audit.hash_chain"
@@ -73,7 +78,8 @@ jobs:
           import ast, os, sys
           forbidden = ['anthropic', 'openai', 'langchain', 'numpy', 'pandas']
           errors = []
-          for root, dirs, files in os.walk('spa_core/risk'):
+          for domain in ['spa_core/risk', 'spa_core/execution']:
+            for root, dirs, files in os.walk(domain):
               for f in files:
                   if f.endswith('.py'):
                       src = open(os.path.join(root, f)).read()
