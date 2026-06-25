@@ -37,12 +37,15 @@ def _pool(project="yearn-finance", symbol="USDC", chain="Ethereum",
 
 
 def _mock_get(pools, status="success"):
-    """Return a patch object for requests.get yielding the given pools payload."""
-    resp = mock.MagicMock()
-    resp.json.return_value = {"status": status, "data": pools}
-    resp.raise_for_status.return_value = None
+    """Return a patch object for urllib.request.urlopen yielding the given pools payload."""
+    import json as _json
+    payload_bytes = _json.dumps({"status": status, "data": pools}).encode("utf-8")
+    resp_cm = mock.MagicMock()
+    resp_cm.__enter__ = mock.Mock(return_value=resp_cm)
+    resp_cm.__exit__ = mock.Mock(return_value=False)
+    resp_cm.read.return_value = payload_bytes
     return mock.patch(
-        "spa_core.adapters.defillama_feed.requests.get", return_value=resp
+        "spa_core.adapters.defillama_feed.urllib.request.urlopen", return_value=resp_cm
     )
 
 
@@ -144,7 +147,7 @@ class TestValidation(unittest.TestCase):
 class TestGraceful(unittest.TestCase):
     def test_graceful_on_network_error(self):
         patcher = mock.patch(
-            "spa_core.adapters.defillama_feed.requests.get",
+            "spa_core.adapters.defillama_feed.urllib.request.urlopen",
             side_effect=Exception("boom"),
         )
         with patcher:
@@ -160,11 +163,14 @@ class TestGraceful(unittest.TestCase):
             self.assertIsNone(_feed().fetch_pool("yearn-finance", "USDC"))
 
     def test_graceful_on_malformed_response(self):
-        resp = mock.MagicMock()
-        resp.json.return_value = {"status": "success", "data": {"oops": 1}}
-        resp.raise_for_status.return_value = None
+        import json as _json
+        bad_bytes = _json.dumps({"status": "success", "data": {"oops": 1}}).encode("utf-8")
+        resp_cm = mock.MagicMock()
+        resp_cm.__enter__ = mock.Mock(return_value=resp_cm)
+        resp_cm.__exit__ = mock.Mock(return_value=False)
+        resp_cm.read.return_value = bad_bytes
         with mock.patch(
-            "spa_core.adapters.defillama_feed.requests.get", return_value=resp
+            "spa_core.adapters.defillama_feed.urllib.request.urlopen", return_value=resp_cm
         ):
             self.assertIsNone(_feed().fetch_pool("yearn-finance", "USDC"))
 
@@ -176,7 +182,7 @@ class TestGraceful(unittest.TestCase):
 
     def test_fetch_apy_and_tvl_none_on_failure(self):
         with mock.patch(
-            "spa_core.adapters.defillama_feed.requests.get",
+            "spa_core.adapters.defillama_feed.urllib.request.urlopen",
             side_effect=Exception("down"),
         ):
             f = _feed()
