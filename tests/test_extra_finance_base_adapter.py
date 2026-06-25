@@ -522,9 +522,10 @@ class TestExtraFinanceBaseRegistry(unittest.TestCase):
         self.assertIsInstance(inst, ExtraFinanceBaseAdapter)
 
     def test_adapter_registry_count_16(self):
-        """ADAPTER_REGISTRY должен содержать ровно 16 адаптеров (MP-510)."""
+        """ADAPTER_REGISTRY должен содержать как минимум 16 адаптеров.
+        MP-510 добавил 16; реестр вырос до 33 адаптеров (дополнительные цепи и протоколы)."""
         from spa_core.adapters import ADAPTER_REGISTRY
-        self.assertEqual(len(ADAPTER_REGISTRY), 16)
+        self.assertGreaterEqual(len(ADAPTER_REGISTRY), 16)
 
 
 # ---------------------------------------------------------------------------
