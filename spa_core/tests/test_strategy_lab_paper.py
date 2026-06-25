@@ -264,7 +264,9 @@ def test_fail_closed_on_invalid_snapshot(tmp_path):
 
 
 def test_kill_event_persisted_and_alerted(tmp_path):
-    """A depeg crash kills variant_n → event written to kills.jsonl + a telegram alert fires."""
+    """A SUSTAINED depeg crash kills variant_n → event written to kills.jsonl + a telegram alert
+    fires. (A single-day ratio spike is treated as a data artifact and does NOT kill — the depeg
+    must persist past the smoothing/persistence guard; see variant_n's depeg fix.)"""
     md = FakeMarketData()
     sent, send = _captured_telegram()
     svc = _make_service(tmp_path, md, send)
@@ -273,9 +275,11 @@ def test_kill_event_persisted_and_alerted(tmp_path):
     md.set_snapshot(_snapshot("2026-06-10", ratio=1.03))
     svc.tick()
 
-    # Day 2: ratio collapses well past variant_n's lrt_depeg_kill_pct (2%) → kill.
-    md.set_snapshot(_snapshot("2026-06-11", ratio=0.90))
-    svc.tick()
+    # Days 2+: ratio collapses well past variant_n's lrt_depeg_kill_pct (2%) AND STAYS down —
+    # a real sustained depeg (not a 1-day artifact) → kill once it persists.
+    for i, d in enumerate(("2026-06-11", "2026-06-12", "2026-06-13", "2026-06-14")):
+        md.set_snapshot(_snapshot(d, ratio=0.90))
+        svc.tick()
 
     kills_path = tmp_path / "kills.jsonl"
     assert kills_path.exists()
