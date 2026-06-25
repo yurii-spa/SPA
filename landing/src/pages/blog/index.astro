@@ -8,24 +8,33 @@ const posts = [
     slug: '2026-06-20-paper-trading-started',
     date: '2026-06-20',
     title: 'Paper Trading Phase Started',
+    titleRu: 'Начало фазы бумажной торговли',
     summary: 'SPA officially entered paper trading with $100,000 USDC virtual capital across 20 DeFi adapters on Ethereum and Base.',
+    summaryRu: 'SPA официально перешёл к бумажной торговле с виртуальным капиталом $100,000 USDC на 20 DeFi-адаптерах в сетях Ethereum и Base.',
     tag: 'Milestone',
+    tagRu: 'Веха',
     tagColor: 'text-accent-400',
   },
   {
     slug: '2026-06-19-architecture-audit',
     date: '2026-06-19',
     title: 'Internal Architecture Audit Completed',
+    titleRu: 'Завершён внутренний аудит архитектуры',
     summary: 'Comprehensive audit of all system components: adapters, RiskPolicy gates, GoLiveChecker, launchd daemons, and execution isolation.',
+    summaryRu: 'Всесторонний аудит всех компонентов системы: адаптеров, гейтов RiskPolicy, GoLiveChecker, демонов launchd и изоляции домена исполнения.',
     tag: 'Engineering',
+    tagRu: 'Инженерия',
     tagColor: 'text-teal-400',
   },
   {
     slug: '2026-06-18-domain-launched',
     date: '2026-06-18',
     title: 'earn-defi.com Launched',
+    titleRu: 'Запуск earn-defi.com',
     summary: 'The public landing site for SPA goes live on Cloudflare Pages. Institutional-grade presentation with live GoLive readiness tracking.',
+    summaryRu: 'Публичный сайт SPA запущен на Cloudflare Pages. Презентация институционального уровня с отслеживанием готовности к go-live в реальном времени.',
     tag: 'Launch',
+    tagRu: 'Запуск',
     tagColor: 'text-green-400',
   },
 ];
@@ -81,15 +90,15 @@ const posts = [
           class="block rounded-xl bg-white/[0.03] border border-white/10 p-6 hover:border-white/25 hover:bg-white/[0.05] transition-all group"
         >
           <div class="flex items-center gap-3 mb-3">
-            <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>
+            <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`} data-ru={post.tagRu}>
               {post.tag}
             </span>
             <span class="text-xs text-white/20 font-mono">{post.date}</span>
           </div>
-          <h2 class="text-base sm:text-lg font-semibold text-white mb-2 group-hover:text-accent-300 transition-colors">
+          <h2 class="text-base sm:text-lg font-semibold text-white mb-2 group-hover:text-accent-300 transition-colors" data-ru={post.titleRu}>
             {post.title}
           </h2>
-          <p class="text-sm text-white/50 leading-relaxed">{post.summary}</p>
+          <p class="text-sm text-white/50 leading-relaxed" data-ru={post.summaryRu}>{post.summary}</p>
           <p class="mt-4 text-xs text-accent-400 font-mono group-hover:translate-x-1 transition-transform inline-block" data-ru="Читать далее →">
             Read more →
           </p>
