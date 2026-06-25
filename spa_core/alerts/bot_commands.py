@@ -111,7 +111,24 @@ def _atomic_write_json(path: Path, obj) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
     atomic_save(obj, str(path))
 def _api_post(token: str, method: str, payload: dict) -> dict:
-    """POST to Telegram Bot API. Returns parsed JSON. Raises on network/HTTP error."""
+    """POST to Telegram Bot API. Returns parsed JSON. Raises on network/HTTP error.
+
+    FLOOD GUARD: chat-bound ``sendMessage`` calls are routed through the canonical
+    shared cross-process rate limit (spa_core.alerts.telegram_client._rate_limit_ok)
+    so this legacy callback bot can never flood the chat (e.g. a runaway /start or
+    callback loop). Control calls (getUpdates/answerCallbackQuery) are not limited.
+    Excess sends are DROPPED + logged; the caller sees an ``{"ok": False}`` stub
+    instead of an exception (matches the fail-safe contract of the call sites).
+    """
+    if method == "sendMessage":
+        try:
+            from spa_core.alerts.telegram_client import _rate_limit_ok
+            if not _rate_limit_ok(str(payload.get("text", ""))):
+                log.warning("bot_commands send dropped by flood guard. preview=%r",
+                            str(payload.get("text", ""))[:80])
+                return {"ok": False, "dropped_by_flood_guard": True}
+        except Exception:
+            pass  # guard import/error must never block a legitimate send (fail-open)
     url = f"https://api.telegram.org/bot{token}/{method}"
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
