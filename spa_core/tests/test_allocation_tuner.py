@@ -74,15 +74,24 @@ def test_optimizer_returns_valid_weights():
 # ─── Тест 2: T1 constraint ───────────────────────────────────────────────────
 
 def test_t1_constraint_respected():
-    """Сумма T1-весов должна быть ≥ 55%."""
+    """T1-весов должно быть столько, сколько позволяют per_protocol_max × кол-во T1 адаптеров.
+
+    _GOOD_ADAPTERS содержит 2 T1-адаптера; per_protocol_max=0.25 → max T1 = 50%.
+    Оптимизатор обязан полностью использовать T1-ёмкость.
+    """
     tuner = _make_tuner()
     result = tuner.optimize(_GOOD_ADAPTERS, n_candidates=300)
 
     t1_ids = {a["id"] for a in _GOOD_ADAPTERS if a["tier"] == "T1"}
     t1_total = sum(result.optimal_weights.get(pid, 0.0) for pid in t1_ids)
 
-    assert t1_total >= 0.55 - 1e-4, (
-        f"T1 total {t1_total * 100:.2f}% < 55%"
+    # Max achievable T1 = len(t1_ids) × per_protocol_max = 2 × 0.25 = 0.50
+    # (t1_min=0.55 in constraints, but cap prevents exceeding 0.50 with 2 T1 adapters)
+    per_protocol_cap = tuner.constraints.per_protocol_max
+    max_achievable_t1 = len(t1_ids) * per_protocol_cap
+    expected_floor = min(tuner.constraints.t1_min, max_achievable_t1) - 1e-4
+    assert t1_total >= expected_floor, (
+        f"T1 total {t1_total * 100:.2f}% < expected floor {expected_floor * 100:.2f}%"
     )
 
 
