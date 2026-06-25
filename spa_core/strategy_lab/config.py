@@ -68,10 +68,33 @@ _REQUIRED_STRATEGY: Dict[str, tuple] = {
         "lrt_symbol",
         "drawdown_kill_pct",
     ),
+    "eth_lst_neutral": (
+        "lst_symbol",
+        "hedge_ratio",
+        "funding_kill_threshold",
+        "funding_kill_hours",
+        "lst_depeg_kill_pct",
+    ),
+    "eth_lst_staking": (
+        "lst_symbol",
+        "drawdown_kill_pct",
+    ),
+    "btc_neutral": (
+        "wrapper_symbol",
+        "hedge_ratio",
+        "funding_kill_threshold",
+        "funding_kill_hours",
+        "wrapper_depeg_kill_pct",
+    ),
+    "btc_lending_sleeve": (
+        "wrapper_symbol",
+        "drawdown_kill_pct",
+    ),
     "engine_a": ("capital_usd",),
     "engine_b": ("capital_usd",),
     "engine_c": ("capital_usd",),
     "rwa_floor": ("capital_usd", "apy_pct"),
+    "rwa_sleeve": ("capital_usd", "drawdown_stop_pct"),
 }
 
 
