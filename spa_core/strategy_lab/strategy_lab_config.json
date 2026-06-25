@@ -52,6 +52,39 @@
       "depeg_persist_ticks": 2,
       "depeg_doc": "TIGHT 1% LST depeg kill is measured on a depeg_median_window-tick trailing MEDIAN of the LST/ETH ratio and must persist depeg_persist_ticks consecutive ticks before killing. Without this, Aug-2024 DeFiLlama timestamp-misalignment artifacts (stETH spurious 0.95/1.14 ratio while the peg held ~1.0) FALSE-kill this safe sleeve. See docs/GLOBAL_AUDIT + memory historical-apy-axis-misaligned."
     },
+    "eth_lst_staking": {
+      "name": "ETH LST Staking (directional long stETH/rETH + staking yield)",
+      "doc": "Directional ETH staking: HOLD a plain-staking LST (stETH/rETH, NOT an LRT) and earn the staking APY (~2.5%) on top of full ETH price exposure (beta \u2248 1). The directional counterpart to the delta-neutral eth_lst_neutral. Isolated, paper-only, OUTSIDE the go-live track. Kill: drawdown stop. T2, advisory.",
+      "mandate": "directional",
+      "is_advisory": true,
+      "tier": "T2",
+      "lst_symbol": "steth",
+      "drawdown_kill_pct": 25.0
+    },
+    "btc_neutral": {
+      "name": "BTC Neutral (market-neutral BTC funding carry: tBTC/cbBTC + BTC perp short)",
+      "doc": "Market-neutral BTC funding carry: long a SAFE wrapped-BTC spot (tBTC/cbBTC) + short BTC perp \u2192 beta \u2248 0 to BTC. Income = BTC perp funding (primary) + a small honest wrapped-BTC lending floor (~0-1.2%; BTC is rarely borrowed on-chain). Kills (fail-closed, reusing the eth_lst_neutral depeg-median-smoothing): negative funding below threshold for N hours; wrapper/BTC depeg beyond Y% on a SMOOTHED, PERSISTENT signal (rejects 1-day DeFiLlama artifacts). We hold only the SAFE wrappers and AVOID WBTC (wrapper risk). T2, advisory.",
+      "mandate": "neutral",
+      "is_advisory": true,
+      "tier": "T2",
+      "wrapper_symbol": "tbtc",
+      "hedge_ratio": 1.0,
+      "funding_kill_threshold": -0.0003,
+      "funding_kill_hours": 24,
+      "wrapper_depeg_kill_pct": 2.0,
+      "depeg_median_window": 3,
+      "depeg_persist_ticks": 2,
+      "depeg_doc": "Wrapper-depeg kill is measured on a depeg_median_window-tick trailing MEDIAN of the wrapper/BTC ratio and must persist depeg_persist_ticks consecutive ticks before killing \u2014 rejecting 1-day DeFiLlama daily-granularity timestamp-misalignment artifacts while still catching a REAL sustained wrapper depeg. Same root + remedy as eth_lst_neutral / variant_n."
+    },
+    "btc_lending_sleeve": {
+      "name": "BTC Lending Sleeve (hold tBTC/cbBTC + earn the lending floor)",
+      "doc": "Directional BTC + lending floor: HOLD a SAFE wrapped-BTC token (tBTC/cbBTC) and earn the wrapped-BTC lending APY (~0-1.2%, honest \u2014 BTC is rarely borrowed on-chain) on top of full BTC price exposure (beta \u2248 1 to BTC). Honest framing: this is 'hold BTC + earn the floor', low yield. Isolated, paper-only, OUTSIDE the go-live track. Kill: drawdown stop. We hold only the SAFE wrappers and AVOID WBTC. T2, advisory.",
+      "mandate": "directional",
+      "is_advisory": true,
+      "tier": "T2",
+      "wrapper_symbol": "tbtc",
+      "drawdown_kill_pct": 25.0
+    },
     "engine_a": {
       "name": "Engine A \u2014 Stable base book",
       "mandate": "stable",
