@@ -741,7 +741,8 @@ def test_d6_red_flags_critical(good_dir, monkeypatch):
 
 def test_d6_red_flags_external_advisory(good_dir, monkeypatch):
     # A CRITICAL flag on a NON-held (external) protocol is market intel → advisory
-    # WARNING, not a system CRITICAL.
+    # INFO, not a risk-gate WARNING. It must NOT escalate the d6 domain: external
+    # red flags are not a defect of SPA's risk gates (held flags are the real signal).
     _write(good_dir / "data", "red_flags.json",
            {"red_flags": [{"protocol": "some_external_proto", "severity": "CRITICAL",
                            "message": "boom"}]})
@@ -749,7 +750,9 @@ def test_d6_red_flags_external_advisory(good_dir, monkeypatch):
     prelude(mon)
     _patch_killswitch(mon, monkeypatch)
     res = mon.check_d6_risk_gates()
-    assert by_id(res, "d6.red_flags").status == WARNING
+    # The red-flags sub-check itself is advisory INFO (rank 1 < WARNING rank 2), so
+    # it cannot escalate the d6 domain — only the held-protocol path (above) can.
+    assert by_id(res, "d6.red_flags").status == INFO
 
 
 def test_d6_red_flags_unreadable_warns(good_dir, monkeypatch):
