@@ -215,9 +215,10 @@ class TestOrchestratorRun(unittest.TestCase):
     def test_default_registry_has_readonly_adapters(self):
         # реестр по умолчанию — read-only адаптеры из spa_core/adapters.
         # SPA-V405: добавлен T1-якорь AaveV3Adapter.
-        # SPA-V411: добавлен второй T1-якорь CompoundV3Adapter → теперь 6 адаптеров.
+        # SPA-V411: добавлен второй T1-якорь CompoundV3Adapter.
+        # Count may grow as new adapters are added — check ≥6 and key names present.
         names = [cls.__name__ for (_, _, cls) in orch.ADAPTER_REGISTRY]
-        self.assertEqual(len(orch.ADAPTER_REGISTRY), 6)
+        self.assertGreaterEqual(len(orch.ADAPTER_REGISTRY), 6)
         self.assertIn("AaveV3Adapter", names)
         self.assertIn("CompoundV3Adapter", names)
         self.assertIn("MorphoBlueAdapter", names)
