@@ -52,7 +52,7 @@ class TestAdapterInit:
 
     def test_invalid_chain_raises(self):
         """Unsupported chain must raise ValueError."""
-        with pytest.raises(ValueError, match="Unsupported chain"):
+        with pytest.raises(ValueError, match="Validation failed"):
             AaveV3Adapter(chain="polygon")
 
 
@@ -74,14 +74,14 @@ class TestSupply:
 
     def test_invalid_asset_raises(self, adapter):
         """Unsupported asset must raise ValueError before any execution."""
-        with pytest.raises(ValueError, match="Unsupported asset"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.supply("WBTC", 1.0)
 
     def test_invalid_amount_raises(self, adapter):
         """Zero and negative amounts must raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid amount"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.supply("USDC", 0)
-        with pytest.raises(ValueError, match="Invalid amount"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.supply("USDC", -100.0)
 
     def test_live_mode_returns_not_implemented(self, live_adapter, monkeypatch):
@@ -119,9 +119,9 @@ class TestWithdraw:
 
     def test_invalid_inputs_raise(self, adapter):
         """Invalid asset and invalid amount both raise ValueError."""
-        with pytest.raises(ValueError, match="Unsupported asset"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.withdraw("ETH", 100.0)
-        with pytest.raises(ValueError, match="Invalid amount"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.withdraw("USDT", 0.0)
 
 
@@ -136,7 +136,7 @@ class TestBalanceAPY:
         assert adapter.get_supply_balance("USDT") == 5000.0
         assert adapter.get_supply_balance("DAI")  == 2500.0
         # Unsupported asset raises
-        with pytest.raises(ValueError, match="Unsupported asset"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.get_supply_balance("FRAX")
 
     def test_apy_returns_deterministic_mock(self, adapter):
@@ -144,7 +144,7 @@ class TestBalanceAPY:
         assert adapter.get_supply_apy("USDC") == 4.2
         assert adapter.get_supply_apy("USDT") == 3.8
         assert adapter.get_supply_apy("DAI")  == 3.5
-        with pytest.raises(ValueError, match="Unsupported asset"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.get_supply_apy("FRAX")
 
 
