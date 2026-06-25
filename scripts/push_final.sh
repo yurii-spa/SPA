@@ -127,7 +127,6 @@ echo "── 5/5  Прочие plists и скрипты ────────
 _push "Plists и deploy-скрипты" \
   "chore: all plists + agent_status + push scripts + kill_switch reset" \
   scripts/com.spa.analytics_tier_c.plist \
-  scripts/com.spa.daily-paper-report.plist \
   scripts/com.spa.checkpoint-7day.plist \
   scripts/com.spa.fund-api.plist \
   scripts/com.spa.autopush.plist \
