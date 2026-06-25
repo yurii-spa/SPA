@@ -65,6 +65,21 @@ def _config(drawdown_kill_pct: float = 25.0) -> dict:
                 "funding_kill_hours": 24,
                 "lst_depeg_kill_pct": 1.0,
             },
+            "eth_lst_staking": {
+                "lst_symbol": "steth",
+                "drawdown_kill_pct": drawdown_kill_pct,
+            },
+            "btc_neutral": {
+                "wrapper_symbol": "tbtc",
+                "hedge_ratio": 1.0,
+                "funding_kill_threshold": -0.0003,
+                "funding_kill_hours": 24,
+                "wrapper_depeg_kill_pct": 2.0,
+            },
+            "btc_lending_sleeve": {
+                "wrapper_symbol": "tbtc",
+                "drawdown_kill_pct": drawdown_kill_pct,
+            },
             "engine_a": {"capital_usd": 100000, "apy_pct": 4.5},
             "engine_b": {"capital_usd": 20000},
             "engine_c": {"capital_usd": 10000},
@@ -110,14 +125,23 @@ def _calm_snapshots(n: int = 20):
 
 
 def _mk(date, eth_price, funding, ratio, restaking):
+    # Carry the ETH legs (eeth LRT + steth LST) AND a parallel BTC leg (tbtc wrapper) so the
+    # ETH-staking + BTC strategies are genuinely exercised in the shared harness, not killed on
+    # missing data. BTC moves with ETH here (a correlated stress window) at a ~$60k base.
+    btc_price = eth_price * 20.0
     return MarketSnapshot(
         date=date,
         eth_price_usd=eth_price,
         funding_rate_8h=funding,
-        lrt_price_usd={"eeth": eth_price * ratio},
-        lrt_eth_ratio={"eeth": ratio},
-        restaking_apy={"eeth": restaking},
+        lrt_price_usd={"eeth": eth_price * ratio, "steth": eth_price * 1.0},
+        lrt_eth_ratio={"eeth": ratio, "steth": 1.0},
+        restaking_apy={"eeth": restaking, "steth": 0.026},
         defi_apy={"aave_v3": 0.045, "morpho": 0.07},
+        btc_price_usd=btc_price,
+        btc_funding_rate_8h=funding,
+        btc_wrapper_price_usd={"tbtc": btc_price * 1.0},
+        btc_wrapper_ratio={"tbtc": 1.0},
+        btc_lending_apy={"tbtc": 0.004},
     )
 
 
@@ -131,7 +155,8 @@ def test_run_backtest_all_six_strategies():
 
     strategies = result["strategies"]
     assert set(strategies) == {
-        "variant_n", "variant_d", "eth_lst_neutral",
+        "variant_n", "variant_d", "eth_lst_neutral", "eth_lst_staking",
+        "btc_neutral", "btc_lending_sleeve",
         "engine_a", "engine_b", "engine_c", "rwa_floor",
         "rwa_sleeve",
     }
