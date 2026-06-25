@@ -232,7 +232,11 @@ def _synthetic_fallback(protocol_key: str, tier: str, days: int = 730) -> list[d
     import random
     import math
 
-    rng = random.Random(hash(protocol_key) & 0xFFFFFFFF)
+    # Deterministic seed: Python's builtin hash() of a str is salted per-process
+    # (PYTHONHASHSEED), so seeding with it makes the synthetic curve differ every
+    # run. Use a stable character-based hash (mirrors professional_backtest.py).
+    _proto_hash = sum(ord(c) * (i + 1) for i, c in enumerate(protocol_key)) & 0xFFFFFFFF
+    rng = random.Random(_proto_hash)
     base_apy = _FALLBACK_APY.get(protocol_key, 4.5)
     base_tvl = _FALLBACK_TVL.get(protocol_key, 20_000_000)
 
