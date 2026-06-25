@@ -43,10 +43,18 @@ VALID = {
             "points_apy_assumption": 0.03,
         },
         "variant_d": {"lrt_symbol": "eeth", "drawdown_kill_pct": 25.0},
+        "eth_lst_neutral": {
+            "lst_symbol": "steth",
+            "hedge_ratio": 1.0,
+            "funding_kill_threshold": -0.0003,
+            "funding_kill_hours": 24,
+            "lst_depeg_kill_pct": 1.0,
+        },
         "engine_a": {"capital_usd": 100000},
         "engine_b": {"capital_usd": 20000},
         "engine_c": {"capital_usd": 10000},
         "rwa_floor": {"capital_usd": 100000, "apy_pct": 4.5},
+        "rwa_sleeve": {"capital_usd": 100000, "drawdown_stop_pct": 1.0},
     },
 }
 
