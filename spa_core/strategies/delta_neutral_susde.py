@@ -32,10 +32,26 @@ P&L (LEVERAGE_STRATEGIES.md §1.2):
   Base:        sUSDe 15% + GMX funding 1% - gas/friction 1% = 15% net
   Bear:        strategy inactive → 0% for S8 position
 
+⚠️ FUNDING-CARRY RISK (the structural kill risk for this sleeve)
+  The sUSDe carry is NOT a stablecoin yield — it is *positive perp funding*. Ethena's
+  sUSDe earns staking yield + the ETH-perp short funding rate. When perp funding flips
+  NEGATIVE and stays there, the short LEG PAYS instead of receiving, the carry inverts,
+  and the "delta-neutral" position bleeds. A single negative print is noise; a *sustained*
+  flip (multiple consecutive funding settlements below a threshold) is the real kill risk
+  (see RESEARCH_EXPANSION_2026-06-25.md §3B). We therefore:
+    1) CAP the sleeve weight (configurable MAX_CAPITAL_PCT) — it is a higher-risk T2 carry,
+       never the whole book — and
+    2) KILL on sustained negative funding: funding < FUNDING_KILL_THRESHOLD for
+       ≥ FUNDING_KILL_HOURS consecutive hours → de-risk / flag kill (mirrors the
+       Variant-N funding-kill pattern in spa_core/strategy_lab/strategies/variant_n.py).
+  The kill is a DETERMINISTIC gate (LLM FORBIDDEN) and is FAIL-CLOSED: missing/invalid
+  funding data triggers the kill, it never silently continues.
+
 Риски:
   - Ethena smart contract: cap 20% портфеля
   - sUSDe depeg: auto-exit при 0.5% deviation
   - Funding turns negative: immediate deactivation → T1 rotation
+  - Sustained negative funding (carry inversion): consecutive-period kill (see above)
   - Counterparty (GMX): hedge position only, not main capital
 
 Ограничения:
@@ -75,8 +91,23 @@ EXECUTION_FRICTION: float = 0.005         # 0.5%/year gas + slippage proxy
 TOTAL_COST_DEFAULT: float = PERP_BORROW_RATE_DEFAULT + EXECUTION_FRICTION  # 2.5%/year
 
 # Position limits
-MAX_CAPITAL_PCT: float = 0.20          # max 20% of portfolio in S8
+# ── ALLOCATION CAP ──────────────────────────────────────────────────────────────
+# sUSDe is a higher-risk *carry* (funding-dependent), NOT a base stablecoin yield, so its
+# weight in the book is hard-capped. This is the configurable cap referenced by the research
+# (RESEARCH_EXPANSION_2026-06-25.md §3B "keep sUSDe as a capped T2 sleeve"). It also matches
+# RiskPolicy's per-protocol T2 cap (≤20%). Tune via the `max_capital_pct` constructor arg —
+# never hardcode a different number at a call site.
+MAX_CAPITAL_PCT: float = 0.20          # max 20% of portfolio in S8 (configurable cap)
 MIN_CAPITAL_USD: float = 10_000.0      # minimum viable position size
+
+# ── NEGATIVE-FUNDING KILL (deterministic gate, LLM FORBIDDEN, FAIL-CLOSED) ───────
+# Mirrors the Variant-N funding-kill (spa_core/strategy_lab/strategies/variant_n.py): the
+# sleeve de-risks / flags kill when perp funding stays below a threshold X for ≥ N consecutive
+# HOURS. The carry inverts on sustained negative funding — that is the structural kill risk.
+# Thresholds are config, not magic numbers; override per-instance via constructor args.
+FUNDING_KILL_THRESHOLD: float = 0.0    # X: funding (8h rate, decimal) below this is "sub-threshold"
+FUNDING_KILL_HOURS: float = 24.0       # N: consecutive sub-threshold hours before the kill fires
+HOURS_PER_FUNDING_OBSERVATION: float = 8.0  # one perp funding settlement = 8h (Binance/Bybit/OKX/KuCoin)
 
 # Allocations (within S8 position): 50% spot sUSDe, 50% notional short hedge
 INTERNAL_ALLOC_SUSDE: float = 0.50
@@ -162,12 +193,22 @@ class DeltaNeutralSUSDeStrategy:
         capital: float,
         max_capital_pct: float = MAX_CAPITAL_PCT,
         rng_seed: Optional[int] = None,
+        funding_kill_threshold: float = FUNDING_KILL_THRESHOLD,
+        funding_kill_hours: float = FUNDING_KILL_HOURS,
+        hours_per_funding_observation: float = HOURS_PER_FUNDING_OBSERVATION,
     ) -> None:
         """
         Args:
             capital: total portfolio USD value
-            max_capital_pct: max fraction for S8 strategy (0.20 = 20%)
+            max_capital_pct: max fraction for S8 strategy (0.20 = 20%) — the configurable
+                allocation cap; the sleeve weight can never exceed this.
             rng_seed: optional seed for reproducible scenario simulation
+            funding_kill_threshold: X — funding (8h decimal rate) below this counts as a
+                sub-threshold observation toward the negative-funding kill (default 0.0).
+            funding_kill_hours: N — consecutive sub-threshold HOURS before the kill fires
+                (default 24h ≈ three 8h settlements). Config, not a magic number.
+            hours_per_funding_observation: hours represented by one funding observation
+                (one perp settlement = 8h on Binance/Bybit/OKX/KuCoin).
         """
         if capital <= 0:
             raise ValueError(f"capital must be positive, got {capital}")
@@ -175,11 +216,22 @@ class DeltaNeutralSUSDeStrategy:
             raise ValueError(
                 f"max_capital_pct must be in (0, 1], got {max_capital_pct}"
             )
+        if funding_kill_hours <= 0:
+            raise ValueError(f"funding_kill_hours must be positive, got {funding_kill_hours}")
+        if hours_per_funding_observation <= 0:
+            raise ValueError(
+                f"hours_per_funding_observation must be positive, got {hours_per_funding_observation}"
+            )
 
         self.capital: float = float(capital)
         self.max_capital_pct: float = float(max_capital_pct)
         self.max_capital_usd: float = self.capital * self.max_capital_pct
         self._rng: random.Random = random.Random(rng_seed)
+
+        # Funding-kill config (deterministic gate; LLM FORBIDDEN)
+        self.funding_kill_threshold: float = float(funding_kill_threshold)
+        self.funding_kill_hours: float = float(funding_kill_hours)
+        self.hours_per_funding_observation: float = float(hours_per_funding_observation)
 
         # State tracking
         self._active: bool = False
@@ -187,6 +239,11 @@ class DeltaNeutralSUSDeStrategy:
         self._cumulative_yield_usd: float = 0.0
         self._days_active: int = 0
         self._days_inactive: int = 0
+
+        # Negative-funding kill state (fail-closed)
+        self._sub_threshold_hours: float = 0.0  # consecutive hours funding < kill threshold
+        self._killed: bool = False
+        self._kill_reason: str = ""
 
     # ─── Gate / activation ────────────────────────────────────────────────────
 
@@ -258,6 +315,141 @@ class DeltaNeutralSUSDeStrategy:
             "failed_gates": failed,
             "blockers": failed,
         }
+
+    # ─── Allocation cap ────────────────────────────────────────────────────────
+
+    def enforce_allocation_cap(
+        self,
+        requested_pct: Optional[float] = None,
+        requested_usd: Optional[float] = None,
+    ) -> dict:
+        """Clamp a requested sUSDe allocation to the configured cap (max_capital_pct).
+
+        sUSDe is a higher-risk funding carry, so its weight is hard-capped. Pass EITHER a
+        requested fraction-of-book (`requested_pct`) OR an absolute USD amount
+        (`requested_usd`); the larger of the two intents is honoured but never above the cap.
+        Defaults to the cap itself when nothing is requested.
+
+        Args:
+            requested_pct: desired sleeve weight as a fraction of the book (0.30 = 30%).
+            requested_usd: desired sleeve size in USD.
+
+        Returns:
+            dict: {capped, requested_pct, allowed_pct, allowed_usd, cap_pct, cap_usd}
+        """
+        cap_pct = self.max_capital_pct
+        cap_usd = self.max_capital_usd
+
+        if requested_pct is None and requested_usd is not None:
+            requested_pct = (requested_usd / self.capital) if self.capital > 0 else 0.0
+        if requested_pct is None:
+            requested_pct = cap_pct
+        requested_pct = max(0.0, float(requested_pct))
+
+        allowed_pct = min(requested_pct, cap_pct)
+        allowed_usd = self.capital * allowed_pct
+        return {
+            "capped": requested_pct > cap_pct,
+            "requested_pct": requested_pct,
+            "requested_usd": self.capital * requested_pct,
+            "allowed_pct": allowed_pct,
+            "allowed_usd": allowed_usd,
+            "cap_pct": cap_pct,
+            "cap_usd": cap_usd,
+        }
+
+    # ─── Negative-funding kill (deterministic, LLM FORBIDDEN, FAIL-CLOSED) ───────
+
+    def funding_kill_check(
+        self,
+        funding_rate: Optional[float],
+        hours_observed: Optional[float] = None,
+    ) -> dict:
+        """Stateful negative-funding kill — mirrors Variant-N (variant_n.kill_check).
+
+        Each call represents ONE funding observation worth `hours_observed` hours (default:
+        `hours_per_funding_observation`, i.e. one 8h perp settlement). Consecutive
+        sub-threshold time is accumulated across calls; the streak RESETS the moment funding
+        recovers to ≥ threshold. The kill fires when the accumulated sub-threshold time
+        reaches `funding_kill_hours` (N).
+
+        FAIL-CLOSED: a missing / non-finite funding datapoint (None, NaN, inf) triggers the
+        kill immediately — it never silently continues, never fabricates a value.
+
+        Once killed the strategy stays killed (safe-hold) until `reset_state()`.
+
+        Args:
+            funding_rate: latest perp funding (8h decimal rate, e.g. from FundingFeed.latest()).
+                A SHORT receives funding when this is positive, pays when negative.
+            hours_observed: hours this observation represents (default = one settlement).
+
+        Returns:
+            dict: {triggered, reason, sub_threshold_hours, threshold, kill_hours, funding_rate}
+        """
+        hours = (
+            self.hours_per_funding_observation if hours_observed is None
+            else float(hours_observed)
+        )
+
+        if self._killed:
+            return self._kill_result(funding_rate)
+
+        # (c) FAIL-CLOSED on invalid datapoint.
+        if funding_rate is None or not math.isfinite(float(funding_rate)):
+            self._killed = True
+            self._kill_reason = f"fail-closed: invalid funding datapoint {funding_rate!r}"
+            return self._kill_result(funding_rate)
+
+        funding = float(funding_rate)
+        if funding < self.funding_kill_threshold:
+            self._sub_threshold_hours += hours
+        else:
+            self._sub_threshold_hours = 0.0  # streak resets when funding recovers
+
+        if self._sub_threshold_hours >= self.funding_kill_hours:
+            self._killed = True
+            self._kill_reason = (
+                f"funding {funding:+.6f} < {self.funding_kill_threshold} for "
+                f"{self._sub_threshold_hours:.0f}h ≥ {self.funding_kill_hours:.0f}h "
+                f"(carry inverted)"
+            )
+        return self._kill_result(funding)
+
+    def _kill_result(self, funding_rate) -> dict:
+        return {
+            "triggered": self._killed,
+            "reason": self._kill_reason,
+            "sub_threshold_hours": self._sub_threshold_hours,
+            "threshold": self.funding_kill_threshold,
+            "kill_hours": self.funding_kill_hours,
+            "funding_rate": funding_rate,
+        }
+
+    @property
+    def is_killed(self) -> bool:
+        """True once the negative-funding kill (or a fail-closed datapoint) has fired."""
+        return self._killed
+
+    def funding_signal_from_feed(self, feed=None) -> Optional[float]:
+        """Read the latest median 8h funding from the 5-venue FundingFeed (signal source).
+
+        The funding signal source is spa_core.strategy_lab.data.funding_feed.FundingFeed —
+        the median of Binance/Bybit/OKX/KuCoin/Hyperliquid 8h funding. Injectable for tests.
+
+        Returns the latest 8h funding (decimal), or None on any feed failure so the caller's
+        funding_kill_check fails CLOSED (None → kill). No fabricated fallback.
+
+        Args:
+            feed: an object exposing `latest() -> (date, rate)`; defaults to a live FundingFeed.
+        """
+        try:
+            if feed is None:
+                from spa_core.strategy_lab.data.funding_feed import FundingFeed
+                feed = FundingFeed()
+            _date, rate = feed.latest()
+            return float(rate)
+        except Exception:
+            return None  # fail-closed: caller treats None as a kill trigger
 
     # ─── Yield calculations ───────────────────────────────────────────────────
 
@@ -366,6 +558,29 @@ class DeltaNeutralSUSDeStrategy:
             }
         """
         cap = capital_deployed if capital_deployed is not None else self.max_capital_usd
+
+        # Negative-funding kill (deterministic, fail-closed). Once killed, the sleeve
+        # de-risks: no new yield accrues, capital rotates to T1 safe harbor.
+        if self._killed:
+            self._days_inactive += 1
+            self._active = False
+            return {
+                "active": False,
+                "daily_return_pct": 0.0,
+                "yield_usd": 0.0,
+                "gross_yield_annual": 0.0,
+                "net_yield_annual": 0.0,
+                "capital_deployed": cap,
+                "market_regime": market_regime,
+                "gate_passed": False,
+                "reason": "funding_kill_active",
+                "susde_apy": susde_apy,
+                "funding_rate_annual": funding_rate_annual,
+                "perp_borrow_rate": perp_borrow_rate,
+                "killed": True,
+                "kill_reason": self._kill_reason,
+            }
+
         active = self.is_active(susde_apy, funding_rate_annual, market_regime)
 
         if active:
@@ -601,7 +816,10 @@ class DeltaNeutralSUSDeStrategy:
             dict с полями protocol_id, strategy_id, allocations,
             target_apy_min, target_apy_max, active, etc.
         """
-        active = self.is_active(susde_apy, funding_rate_annual, market_regime)
+        active = (
+            self.is_active(susde_apy, funding_rate_annual, market_regime)
+            and not self._killed
+        )
         net = self.net_yield(susde_apy, funding_rate_annual) if active else 0.0
         gross = self.gross_yield(susde_apy, funding_rate_annual) if active else 0.0
 
@@ -628,6 +846,17 @@ class DeltaNeutralSUSDeStrategy:
                 "susde_apy_min": SUSDE_APY_GATE,
                 "funding_rate_min": FUNDING_RATE_GATE,
                 "required_regime": "bull",
+            },
+            "allocation_cap": {
+                "max_capital_pct": self.max_capital_pct,
+                "max_capital_usd": self.max_capital_usd,
+            },
+            "funding_kill": {
+                "threshold": self.funding_kill_threshold,
+                "kill_hours": self.funding_kill_hours,
+                "sub_threshold_hours": self._sub_threshold_hours,
+                "killed": self._killed,
+                "kill_reason": self._kill_reason,
             },
             "metadata": {
                 "strategy_class": "DeltaNeutralSUSDeStrategy",
@@ -834,12 +1063,15 @@ class DeltaNeutralSUSDeStrategy:
         }
 
     def reset_state(self) -> None:
-        """Сброс внутреннего состояния для новой симуляции."""
+        """Сброс внутреннего состояния для новой симуляции (включая funding-kill)."""
         self._active = False
         self._days_in_bull = 0
         self._cumulative_yield_usd = 0.0
         self._days_active = 0
         self._days_inactive = 0
+        self._sub_threshold_hours = 0.0
+        self._killed = False
+        self._kill_reason = ""
         self._rng = random.Random(None)
 
     # ─── dunder ───────────────────────────────────────────────────────────────
