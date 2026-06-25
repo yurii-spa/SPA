@@ -25,8 +25,12 @@ def _keychain_proc(stdout: str = "", returncode: int = 0) -> mock.Mock:
 class _FakeResp:
     """Minimal stand-in for the urlopen context manager."""
 
-    def __init__(self, status: int = 200):
+    def __init__(self, status: int = 200, body: dict | None = None):
         self.status = status
+        self._body = body
+
+    def read(self):
+        return json.dumps(self._body or {}).encode("utf-8")
 
     def __enter__(self):
         return self
@@ -327,3 +331,93 @@ def test_run_cycle_alerts_quiet_when_nothing_to_send(tmp_path):
         sent = cycle_runner._run_cycle_alerts(tmp_path, date="2026-06-10")
     assert sent == {}
     send.assert_not_called()
+
+
+# ─── alert_history.json audit trail (observability) ──────────────────────────
+
+
+@pytest.fixture
+def _history_to_tmp(tmp_path, monkeypatch):
+    """Redirect alert_history.json to a tmp file and enable recording under pytest."""
+    hist = tmp_path / "alert_history.json"
+    monkeypatch.setattr(telegram_client, "_HISTORY_STATE", hist)
+    monkeypatch.setenv("SPA_ALERT_HISTORY_TEST", "1")
+    return hist
+
+
+def _read_hist(path):
+    return json.loads(path.read_text())
+
+
+def test_alert_history_records_success_with_message_id(_history_to_tmp):
+    with _patch_creds(), mock.patch.object(
+        telegram_client.urllib.request, "urlopen",
+        return_value=_FakeResp(200, {"ok": True, "result": {"message_id": 777}}),
+    ):
+        assert telegram_client.send_message("🟢 *SPA Go-Live*\nx") is True
+
+    doc = _read_hist(_history_to_tmp)
+    assert doc["schema_version"] == 1
+    assert doc["source"] == "telegram_client"
+    assert doc["count"] == 1
+    e = doc["entries"][0]
+    assert e["ok"] is True
+    assert e["message_id"] == 777
+    assert e["type"] == "golive"
+    assert "ts" in e and "preview" in e
+    assert "error" not in e
+
+
+def test_alert_history_records_failure_with_error(_history_to_tmp):
+    err = urllib.error.HTTPError(
+        "https://api.telegram.org", 500, "Server Error", {}, None
+    )
+    with _patch_creds(), mock.patch.object(
+        telegram_client.urllib.request, "urlopen", side_effect=err
+    ):
+        assert telegram_client.send_message("hi") is False
+
+    e = _read_hist(_history_to_tmp)["entries"][0]
+    assert e["ok"] is False
+    assert "500" in e["error"]
+    assert "message_id" not in e
+
+
+def test_alert_history_records_missing_credentials(_history_to_tmp):
+    with mock.patch.object(
+        telegram_client, "get_bot_token",
+        side_effect=EnvironmentError("Telegram credentials not found in Keychain"),
+    ):
+        assert telegram_client.send_message("hi") is False
+
+    e = _read_hist(_history_to_tmp)["entries"][0]
+    assert e["ok"] is False
+    assert "Keychain" in e["error"]
+
+
+def test_alert_history_is_ring_buffered(_history_to_tmp, monkeypatch):
+    monkeypatch.setattr(telegram_client, "HISTORY_MAX", 3)
+    with _patch_creds(), mock.patch.object(
+        telegram_client.urllib.request, "urlopen",
+        return_value=_FakeResp(200, {"result": {"message_id": 1}}),
+    ):
+        for i in range(5):
+            telegram_client.send_message(f"msg {i}")
+
+    doc = _read_hist(_history_to_tmp)
+    assert doc["count"] == 3  # capped
+    assert len(doc["entries"]) == 3
+    assert doc["entries"][-1]["preview"] == "msg 4"  # newest retained
+
+
+def test_alert_history_disabled_under_pytest_by_default(tmp_path, monkeypatch):
+    """Without SPA_ALERT_HISTORY_TEST the recorder is a no-op under pytest."""
+    hist = tmp_path / "alert_history.json"
+    monkeypatch.setattr(telegram_client, "_HISTORY_STATE", hist)
+    monkeypatch.delenv("SPA_ALERT_HISTORY_TEST", raising=False)
+    with _patch_creds(), mock.patch.object(
+        telegram_client.urllib.request, "urlopen",
+        return_value=_FakeResp(200, {"result": {"message_id": 1}}),
+    ):
+        assert telegram_client.send_message("hi") is True
+    assert not hist.exists()
