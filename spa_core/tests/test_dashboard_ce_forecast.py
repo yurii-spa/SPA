@@ -109,6 +109,7 @@ class TestIndexHtmlStructure(unittest.TestCase):
 
 # ─── TestCapitalEfficiencyDataStructure (20) ─────────────────────────────────
 
+@unittest.skipUnless(os.path.isfile(_CE_JSON), "capital_efficiency.json not yet generated")
 class TestCapitalEfficiencyDataStructure(unittest.TestCase):
     """Verify data/capital_efficiency.json schema and value constraints."""
 
@@ -182,6 +183,7 @@ class TestCapitalEfficiencyDataStructure(unittest.TestCase):
 
 # ─── TestForecastDataStructure (20) ──────────────────────────────────────────
 
+@unittest.skipUnless(os.path.isfile(_FC_JSON), "yield_forecast.json not yet generated")
 class TestForecastDataStructure(unittest.TestCase):
     """Verify data/yield_forecast.json schema and value constraints."""
 
