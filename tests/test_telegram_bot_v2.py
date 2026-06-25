@@ -248,7 +248,7 @@ def test_unknown_command_shows_help(bot):
     bot.handle_update({"update_id": 2, "message": {"text": "/frobnicate",
                                                    "chat": {"id": 999}}})
     text = _last_text(bot)
-    assert "SPA Bot v2.0" in text  # help/welcome text
+    assert "SPA Bot v2" in text  # help/welcome text (version may be 2.0 or 2.1)
 
 
 def test_callback_query_answered_and_dispatched(bot):
