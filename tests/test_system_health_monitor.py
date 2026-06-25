@@ -541,9 +541,9 @@ def test_d2_gzip_decompressed(good_dir, monkeypatch):
 # DOMAIN 4 — External services (network mocked)
 # ---------------------------------------------------------------------------
 def test_d4_all_ok(good_dir, monkeypatch):
-    def fake_http(url, timeout=10, want_headers=False):
+    def fake_http(url, timeout=10, want_headers=False, extra_headers=None):
         if want_headers:
-            return 200, b"{}", {"x-ratelimit-remaining": "4000"}
+            return 200, b"{}", {"x-ratelimit-remaining": "4000", "x-ratelimit-limit": "5000"}
         return 200, b"ok", {}
     monkeypatch.setattr(shm, "_http_get", fake_http)
     mon = make_mon(good_dir)
@@ -554,11 +554,11 @@ def test_d4_all_ok(good_dir, monkeypatch):
 
 
 def test_d4_independent_failures_isolated(good_dir, monkeypatch):
-    def fake_http(url, timeout=10, want_headers=False):
+    def fake_http(url, timeout=10, want_headers=False, extra_headers=None):
         if "earn-defi" in url:
             raise OSError("down")
         if want_headers:
-            return 200, b"{}", {"x-ratelimit-remaining": "4000"}
+            return 200, b"{}", {"x-ratelimit-remaining": "4000", "x-ratelimit-limit": "5000"}
         return 200, b"ok", {}
     monkeypatch.setattr(shm, "_http_get", fake_http)
     mon = make_mon(good_dir)
@@ -569,15 +569,36 @@ def test_d4_independent_failures_isolated(good_dir, monkeypatch):
 
 
 def test_d4_github_rate_low_warns(good_dir, monkeypatch):
-    def fake_http(url, timeout=10, want_headers=False):
+    # Authenticated (5000 ceiling) but remaining genuinely exhausted -> WARNING.
+    import spa_core.utils.keychain as _kc
+    monkeypatch.setattr(_kc, "get_github_pat", lambda: "ghp_fake")
+
+    def fake_http(url, timeout=10, want_headers=False, extra_headers=None):
         if want_headers:
-            return 200, b"{}", {"x-ratelimit-remaining": "10"}
+            return 200, b"{}", {"x-ratelimit-remaining": "10", "x-ratelimit-limit": "5000"}
         return 200, b"ok", {}
     monkeypatch.setattr(shm, "_http_get", fake_http)
     mon = make_mon(good_dir)
     prelude(mon)
     res = mon.check_d4_external()
     assert by_id(res, "d4.github_rate").status == WARNING
+
+
+def test_d4_github_rate_unauthenticated_advisory(good_dir, monkeypatch):
+    # No PAT (CI/sandbox): anonymous 60-ceiling is below the 100 floor by design,
+    # so a "low" reading there is advisory (INFO), not a system WARNING.
+    import spa_core.utils.keychain as _kc
+    monkeypatch.setattr(_kc, "get_github_pat", lambda: None)
+
+    def fake_http(url, timeout=10, want_headers=False, extra_headers=None):
+        if want_headers:
+            return 200, b"{}", {"x-ratelimit-remaining": "57", "x-ratelimit-limit": "60"}
+        return 200, b"ok", {}
+    monkeypatch.setattr(shm, "_http_get", fake_http)
+    mon = make_mon(good_dir)
+    prelude(mon)
+    res = mon.check_d4_external()
+    assert by_id(res, "d4.github_rate").status == INFO
 
 
 # ---------------------------------------------------------------------------
