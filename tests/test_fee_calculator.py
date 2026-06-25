@@ -636,12 +636,26 @@ class TestImportHygiene(unittest.TestCase):
         return m
 
     def test_no_forbidden_external_libs(self):
+        # Inspect THIS module's own source for forbidden imports rather than the
+        # global sys.modules table. sys.modules is process-wide and is polluted
+        # by unrelated analytics tests that import e.g. `requests` to assert it
+        # is optional — that has nothing to do with whether fee_calculator
+        # itself pulls in a forbidden dependency. Source inspection mirrors the
+        # sibling test_no_execution_domain_import / test_no_risk_domain_import.
+        import re
         m = self._get_module()
+        src = open(m.__file__).read()
         forbidden = ["requests", "web3", "numpy", "pandas", "scipy",
                      "openai", "anthropic", "aiohttp", "httpx"]
         for lib in forbidden:
-            self.assertNotIn(lib, sys.modules or {},
-                             msg=f"Forbidden lib '{lib}' was imported")
+            pattern = re.compile(
+                rf"^\s*(?:import\s+{re.escape(lib)}\b|from\s+{re.escape(lib)}\b)",
+                re.MULTILINE,
+            )
+            self.assertIsNone(
+                pattern.search(src),
+                msg=f"Forbidden lib '{lib}' is imported by fee_calculator",
+            )
 
     def test_no_execution_domain_import(self):
         m = self._get_module()
