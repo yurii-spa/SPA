@@ -13,6 +13,7 @@ CLI:
 """
 from __future__ import annotations
 
+import html
 import json
 import logging
 import os
@@ -117,7 +118,9 @@ def format_milestone_message(milestones: list[dict], progress: dict) -> str:
         label = ms.get("label", ms.get("id", "Unknown milestone"))
         ms_id = ms.get("id", "")
         lines.append("")
-        lines.append(f"✅ <b>{label}</b>")
+        # HTML-escape the milestone label: it is data and may contain < > & which
+        # would break Telegram's HTML parser (a 400). Underscores are HTML-safe.
+        lines.append(f"✅ <b>{html.escape(str(label), quote=False)}</b>")
         # Brief human-readable description per milestone id
         desc = _milestone_description(ms_id)
         if desc:
