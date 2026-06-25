@@ -42,7 +42,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.strategies.delta_neutral_susde import (
     EXECUTION_FRICTION,
+    FUNDING_KILL_HOURS,
+    FUNDING_KILL_THRESHOLD,
     FUNDING_RATE_GATE,
+    HOURS_PER_FUNDING_OBSERVATION,
     INTERNAL_ALLOC_PERP,
     INTERNAL_ALLOC_SUSDE,
     MAX_CAPITAL_PCT,
@@ -819,6 +822,188 @@ class TestImportHygiene(unittest.TestCase):
             py_compile.compile(src, doraise=True)
         except py_compile.PyCompileError as e:
             self.fail(f"Compilation failed: {e}")
+
+
+# ─── T101–T110: Allocation cap enforcement ───────────────────────────────────
+
+class TestAllocationCap(unittest.TestCase):
+    """T101–T110: enforce_allocation_cap clamps the sUSDe sleeve weight to the cap."""
+
+    def setUp(self):
+        self.s = _make(capital=100_000, max_pct=0.20)
+
+    def test_T101_over_cap_request_is_clamped_pct(self):
+        r = self.s.enforce_allocation_cap(requested_pct=0.30)
+        self.assertTrue(r["capped"])
+        self.assertAlmostEqual(r["allowed_pct"], 0.20, places=8)
+        self.assertAlmostEqual(r["allowed_usd"], 20_000.0, places=4)
+
+    def test_T102_under_cap_request_passes_through(self):
+        r = self.s.enforce_allocation_cap(requested_pct=0.10)
+        self.assertFalse(r["capped"])
+        self.assertAlmostEqual(r["allowed_pct"], 0.10, places=8)
+        self.assertAlmostEqual(r["allowed_usd"], 10_000.0, places=4)
+
+    def test_T103_at_cap_boundary_not_flagged(self):
+        r = self.s.enforce_allocation_cap(requested_pct=0.20)
+        self.assertFalse(r["capped"])
+        self.assertAlmostEqual(r["allowed_pct"], 0.20, places=8)
+
+    def test_T104_over_cap_request_usd_is_clamped(self):
+        r = self.s.enforce_allocation_cap(requested_usd=50_000)
+        self.assertTrue(r["capped"])
+        self.assertAlmostEqual(r["allowed_usd"], 20_000.0, places=4)
+
+    def test_T105_default_request_is_the_cap(self):
+        r = self.s.enforce_allocation_cap()
+        self.assertAlmostEqual(r["allowed_pct"], 0.20, places=8)
+        self.assertAlmostEqual(r["allowed_usd"], 20_000.0, places=4)
+
+    def test_T106_negative_request_floored_to_zero(self):
+        r = self.s.enforce_allocation_cap(requested_pct=-0.5)
+        self.assertAlmostEqual(r["allowed_pct"], 0.0, places=8)
+
+    def test_T107_custom_cap_respected(self):
+        s = _make(capital=100_000, max_pct=0.15)
+        r = s.enforce_allocation_cap(requested_pct=0.50)
+        self.assertAlmostEqual(r["allowed_pct"], 0.15, places=8)
+        self.assertAlmostEqual(r["allowed_usd"], 15_000.0, places=4)
+
+    def test_T108_cap_never_exceeds_configured(self):
+        for req in (0.0, 0.05, 0.20, 0.25, 1.0):
+            r = self.s.enforce_allocation_cap(requested_pct=req)
+            self.assertLessEqual(r["allowed_pct"], self.s.max_capital_pct + 1e-12)
+
+    def test_T109_cap_constant_is_config_not_hardcoded_at_callsite(self):
+        # Cap comes from the instance config, not a literal.
+        self.assertEqual(self.s.max_capital_pct, MAX_CAPITAL_PCT)
+
+    def test_T110_vportfolio_exposes_cap(self):
+        vp = self.s.to_vportfolio_format()
+        self.assertIn("allocation_cap", vp)
+        self.assertAlmostEqual(vp["allocation_cap"]["max_capital_pct"], 0.20, places=8)
+
+
+# ─── T111–T126: Negative-funding kill ────────────────────────────────────────
+
+class TestFundingKill(unittest.TestCase):
+    """T111–T126: deterministic, fail-closed negative-funding kill (Variant-N pattern)."""
+
+    def setUp(self):
+        # 24h kill window, 8h per observation → 3 consecutive sub-threshold obs to kill.
+        self.s = _make()
+
+    def test_T111_positive_funding_no_kill(self):
+        for _ in range(10):
+            r = self.s.funding_kill_check(0.0001)
+        self.assertFalse(r["triggered"])
+        self.assertFalse(self.s.is_killed)
+
+    def test_T112_kill_fires_after_N_periods_not_before(self):
+        # threshold 0.0, kill at 24h, 8h/obs → needs 3 sub-threshold obs.
+        r1 = self.s.funding_kill_check(-0.001)   # 8h
+        self.assertFalse(r1["triggered"])
+        r2 = self.s.funding_kill_check(-0.001)   # 16h
+        self.assertFalse(r2["triggered"])
+        r3 = self.s.funding_kill_check(-0.001)   # 24h → fires
+        self.assertTrue(r3["triggered"])
+
+    def test_T113_kill_not_before_exact_boundary(self):
+        # 2 obs = 16h < 24h → no kill yet
+        self.s.funding_kill_check(-0.001)
+        r = self.s.funding_kill_check(-0.001)
+        self.assertFalse(r["triggered"])
+        self.assertAlmostEqual(r["sub_threshold_hours"], 16.0, places=6)
+
+    def test_T114_streak_resets_on_recovery(self):
+        self.s.funding_kill_check(-0.001)   # 8h
+        self.s.funding_kill_check(-0.001)   # 16h
+        r = self.s.funding_kill_check(0.0005)  # recovers → reset
+        self.assertEqual(r["sub_threshold_hours"], 0.0)
+        self.assertFalse(r["triggered"])
+        # Now two more negatives should NOT kill (streak was reset)
+        self.s.funding_kill_check(-0.001)   # 8h
+        r2 = self.s.funding_kill_check(-0.001)  # 16h
+        self.assertFalse(r2["triggered"])
+
+    def test_T115_positive_funding_never_kills_long_run(self):
+        for _ in range(100):
+            r = self.s.funding_kill_check(0.0003)
+        self.assertFalse(r["triggered"])
+
+    def test_T116_fail_closed_on_none(self):
+        r = self.s.funding_kill_check(None)
+        self.assertTrue(r["triggered"])
+        self.assertIn("fail-closed", r["reason"])
+
+    def test_T117_fail_closed_on_nan(self):
+        r = self.s.funding_kill_check(float("nan"))
+        self.assertTrue(r["triggered"])
+        self.assertIn("fail-closed", r["reason"])
+
+    def test_T118_fail_closed_on_inf(self):
+        r = self.s.funding_kill_check(float("inf"))
+        self.assertTrue(r["triggered"])
+
+    def test_T119_killed_stays_killed(self):
+        self.s.funding_kill_check(None)  # kill immediately
+        r = self.s.funding_kill_check(0.05)  # even great funding can't un-kill
+        self.assertTrue(r["triggered"])
+
+    def test_T120_reset_clears_kill(self):
+        self.s.funding_kill_check(None)
+        self.assertTrue(self.s.is_killed)
+        self.s.reset_state()
+        self.assertFalse(self.s.is_killed)
+        self.assertEqual(self.s._sub_threshold_hours, 0.0)
+
+    def test_T121_killed_simulate_day_zero_yield(self):
+        self.s.funding_kill_check(None)  # kill
+        result = self.s.simulate_day(0.18, 0.12, "bull")  # would normally be active
+        self.assertFalse(result["active"])
+        self.assertEqual(result["yield_usd"], 0.0)
+        self.assertEqual(result["reason"], "funding_kill_active")
+
+    def test_T122_killed_vportfolio_inactive(self):
+        self.s.funding_kill_check(None)
+        vp = self.s.to_vportfolio_format(susde_apy=0.18, funding_rate_annual=0.12, market_regime="bull")
+        self.assertFalse(vp["active"])
+        self.assertTrue(vp["funding_kill"]["killed"])
+
+    def test_T123_custom_threshold_below_zero(self):
+        # Tolerate small negative funding (threshold -0.0005); -0.0002 is NOT sub-threshold.
+        s = DeltaNeutralSUSDeStrategy(capital=100_000, funding_kill_threshold=-0.0005)
+        for _ in range(10):
+            r = s.funding_kill_check(-0.0002)
+        self.assertFalse(r["triggered"])
+
+    def test_T124_custom_kill_hours(self):
+        # 8h kill window, 8h/obs → first sub-threshold obs kills.
+        s = DeltaNeutralSUSDeStrategy(capital=100_000, funding_kill_hours=8.0)
+        r = s.funding_kill_check(-0.001)
+        self.assertTrue(r["triggered"])
+
+    def test_T125_funding_signal_from_feed_reads_latest(self):
+        class FakeFeed:
+            def latest(self):
+                return ("2026-06-25", -0.0009)
+        rate = self.s.funding_signal_from_feed(feed=FakeFeed())
+        self.assertAlmostEqual(rate, -0.0009, places=8)
+
+    def test_T126_funding_signal_fail_closed_on_feed_error(self):
+        class BrokenFeed:
+            def latest(self):
+                raise RuntimeError("no venue returned data")
+        rate = self.s.funding_signal_from_feed(feed=BrokenFeed())
+        self.assertIsNone(rate)  # None → caller's funding_kill_check fails closed
+        # End-to-end: a None signal kills the sleeve.
+        r = self.s.funding_kill_check(rate)
+        self.assertTrue(r["triggered"])
+
+    def test_T127_config_constants_exposed(self):
+        self.assertEqual(FUNDING_KILL_THRESHOLD, 0.0)
+        self.assertEqual(FUNDING_KILL_HOURS, 24.0)
+        self.assertEqual(HOURS_PER_FUNDING_OBSERVATION, 8.0)
 
 
 if __name__ == "__main__":
