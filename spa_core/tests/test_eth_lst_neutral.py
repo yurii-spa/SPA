@@ -138,12 +138,18 @@ def test_funding_recovers_resets_streak():
 
 # ── depeg kill at Y% (tighter than the LRT variant) ──────────────────────────────────────────
 def test_depeg_kill_at_threshold():
+    # A SUSTAINED depeg below the (tight) Y% kill fires — once it persists past the smoothing
+    # window/persistence guard (which exists to reject 1-day DeFiLlama misalignment artifacts).
     s = EthLstNeutral()
     s.init(CAP, _config(lst_depeg_kill_pct=1.0))
     s.step(_mk(_date(0), 3000.0, 0.0001, 1.0, 0.026))          # entry ratio 1.0
-    bad = _mk(_date(1), 3000.0, 0.0001, 0.985, 0.026)          # ratio -1.5% > 1.0% kill
-    s.step(bad)
-    kr = s.kill_check(bad)
+    kr = None
+    for i in range(1, 6):                                      # ratio stays -1.5% (sustained)
+        bad = _mk(_date(i), 3000.0, 0.0001, 0.985, 0.026)     # -1.5% > 1.0% kill
+        s.step(bad)
+        kr = s.kill_check(bad)
+        if kr.triggered:
+            break
     assert kr.triggered
     assert "depeg" in kr.reason.lower()
 
@@ -158,15 +164,54 @@ def test_small_depeg_below_threshold_survives():
     assert not kr.triggered
 
 
+def test_one_day_depeg_artifact_does_not_kill():
+    # The FALSE-depeg fix: a lone 1-day ratio spike (a DeFiLlama daily-granularity timestamp-
+    # misalignment artifact — e.g. stETH showed 0.95/1.14 in Aug-2024 while the peg held ~1.0)
+    # must NOT trip the tight kill. The peg recovers the next tick → no sustained depeg.
+    s = EthLstNeutral()
+    s.init(CAP, _config(lst_depeg_kill_pct=1.0))
+    s.step(_mk(_date(0), 3000.0, 0.0001, 1.0, 0.026))         # entry ratio 1.0
+    # Reproduce the Aug-2024 stETH artifact sequence around a held peg.
+    triggered = False
+    for i, r in enumerate((1.0156, 0.9479, 1.1399, 0.9705, 1.0093, 1.0), start=1):
+        bad = _mk(_date(i), 3000.0, 0.0001, r, 0.026)
+        s.step(bad)
+        if s.kill_check(bad).triggered:
+            triggered = True
+            break
+    assert triggered is False  # no single-day artifact may kill the safe hedged sleeve
+
+
+def test_sustained_depeg_still_kills():
+    # A REAL multi-day depeg (like ezETH's Apr-2024 event) MUST still trigger the kill — the
+    # smoothing/persistence guard rejects 1-day artifacts, not sustained depegs.
+    s = EthLstNeutral()
+    s.init(CAP, _config(lst_depeg_kill_pct=1.0))
+    s.step(_mk(_date(0), 3000.0, 0.0001, 1.0, 0.026))         # entry ratio 1.0
+    triggered = False
+    for i, r in enumerate((0.99, 0.95, 0.90, 0.88, 0.87), start=1):  # drops AND STAYS down
+        bad = _mk(_date(i), 3000.0, 0.0001, r, 0.026)
+        s.step(bad)
+        if s.kill_check(bad).triggered:
+            triggered = True
+            break
+    assert triggered is True
+
+
 def test_tighter_than_lrt_variant():
-    # An 1.5% depeg KILLS the LST sleeve (1.0% kill) but would NOT kill variant_n (2.0% kill):
-    # proves the LST kill is tighter, reflecting LSTs' smaller depeg tail.
+    # A SUSTAINED 1.5% depeg KILLS the LST sleeve (1.0% kill) but would NOT kill variant_n
+    # (2.0% kill): proves the LST kill is tighter, reflecting LSTs' smaller depeg tail.
     s = EthLstNeutral()
     s.init(CAP, _config(lst_depeg_kill_pct=1.0))
     s.step(_mk(_date(0), 3000.0, 0.0001, 1.0, 0.026))
-    bad = _mk(_date(1), 3000.0, 0.0001, 0.985, 0.026)  # -1.5%
-    s.step(bad)
-    assert s.kill_check(bad).triggered  # killed at 1.0%
+    triggered = False
+    for i in range(1, 6):
+        bad = _mk(_date(i), 3000.0, 0.0001, 0.985, 0.026)  # -1.5% sustained
+        s.step(bad)
+        if s.kill_check(bad).triggered:
+            triggered = True
+            break
+    assert triggered  # killed at 1.0% once sustained
     # (variant_n's 2.0% threshold would NOT have fired at 1.5% — the tighter sleeve is safer.)
 
 
