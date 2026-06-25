@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    Rates-Desk live paper service (hourly, ADVISORY) — mirrors com.spa.strategy_lab_paper.
+    Module: spa_core.strategy_lab.rates_desk.paper_rates
+    Service: paper-trades the VALIDATED FixedCarry sleeve (the only GO sleeve) on the LIVE
+             rate-surface every tick → grows a forward carry track + feeds the proof chain.
+             Restart-survival (book state restored, not zeroed); idempotent per UTC day;
+             fail-CLOSED (no usable PT quote → no advance, gap recorded, prior state untouched).
+    ADVISORY ONLY: is_advisory=True throughout — simulates carry, moves NO live capital,
+                   never touches the go-live track.
+    Schedule: hourly (StartInterval 3600) + RunAtLoad (matches strategy_lab_paper).
+    Writes:   data/rates_desk/paper/{rates_desk_fixed_carry_state.json,
+              rates_desk_fixed_carry_series.json, status.json} (atomic writes).
+    Exit:     0 = success (tick or recorded gap).
+    CLI:      python3 -m spa_core.strategy_lab.rates_desk.paper_rates  (one tick)
+    Install:
+      cp scripts/com.spa.rates_desk_paper.plist ~/Library/LaunchAgents/
+      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spa.rates_desk_paper.plist
+      launchctl kickstart -k gui/$(id -u)/com.spa.rates_desk_paper
+    -->
+
+    <key>Label</key>
+    <string>com.spa.rates_desk_paper</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.strategy_lab.rates_desk.paper_rates</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartInterval</key>
+    <integer>3600</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Do not relaunch while a previous tick is still running -->
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rates_desk_paper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rates_desk_paper.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+    </dict>
+</dict>
+</plist>

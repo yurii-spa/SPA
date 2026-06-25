@@ -77,6 +77,9 @@ track record (30 честных дней → go-live). Финмодель — `M
 | `com.spa.cloudflared` | KeepAlive | ✅ |
 | `com.spa.morning_digest` | 08:05 UTC | ⚠️ exit=1 (Telegram issue) |
 | `com.spa.system_briefing` | каждые 30 мин | ✅ NEW |
+| `com.spa.strategy_lab_paper` | каждый час | ✅ |
+| `com.spa.refusal` | 05:45 local (advisory) | ✅ |
+| `com.spa.rates_desk_paper` | каждый час (advisory) | ✅ NEW |
 
 Переустановить все: `bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh`
 
@@ -185,6 +188,33 @@ stdlib-only, детерминированный, LLM запрещён в risk/ki
   НЕ хардкод; fail-closed, fallback на committed-литерал только если фид недоступен.
 - Live paper: `com.spa.strategy_lab_paper` (launchd, hourly, restart-survival) →
   `scripts/strategy_lab_paper.py`; backtest → `scripts/strategy_lab_backtest.py`.
+
+---
+
+## 📐 Rates Desk (NEW, 2026-06-26 — validated thesis-#1 build)
+
+`spa_core/strategy_lab/rates_desk/` — **on-chain rates/basis sleeve**: собирает живой fixed/implied-rate
+`RateSurface` (Pendle PT / lending / boros) и прогоняет каждый underlying через **refusal-first** гейт.
+Тезис: edge = risk-adjusted fair-value модель, которая **харвестит реальный mispriced carry и ОТКАЗЫВАЕТСЯ**
+от yield, который лишь компенсация хвостового риска (ezETH / over-levered-USDe паттерн). stdlib-only,
+детерминированный, **LLM запрещён** в risk/kill, **fail-CLOSED**. Полный док — `docs/RATES_DESK.md`.
+
+- **Движок:** `feeds.build_surface` (live `RateSurface`) → `FairValueEngine` (kind-aware baseline − 5
+  структурных хейркатов → fair implied yield) → **refusal-first гейт** `rate_policy.py` (`evaluate_entry` /
+  `evaluate_hold`, композируется ПОД глобальным `RiskPolicy`, только строже) → `OpportunityEngine.scan`.
+- **4 trade-shape** (`contracts.TradeShape`): `FIXED_CARRY` (A, PT-to-maturity — **единственный валидированный/live-paper**),
+  `LEVERED_CARRY` (B), `BASIS_HEDGE` (C — **BLOCKED-NO-HEDGE**, отложен: CEX-leg не построен), `RATE_MATRIX` (D).
+- **Sleeves** (`sleeves.py`, все `Strategy` ABC, `IS_ADVISORY=True`): `FixedCarrySleeve` (Phase-0, GO),
+  + Phase-1 `BasisHedgeSleeve` / `LeveredCarrySleeve` / `RateMatrixSleeve` (research-only до прохождения гейта).
+- **Валидация GO** (`docs/RATES_DESK_VALIDATION.md`): Assertion 1 (refusal fired early) = **PASS** —
+  toxic LRT PT-книги отказаны structural-причинами по реальной 2024–2026 истории; Assertion 2 (survivor book
+  beats ~3.4% RWA floor risk-adjusted across stress) = **GO** — carry leg реален → **fundable**.
+- **Агент:** `com.spa.rates_desk_paper` (launchd, hourly, RunAtLoad, restart-survival, idempotent per UTC day)
+  → `python3 -m spa_core.strategy_lab.rates_desk.paper_rates` (один tick) → растущий forward carry track в
+  `data/rates_desk/paper/` + кормит proof-chain (entries И refusals). Advisory: капитал не двигает, go-live трек не трогает.
+  Дневной refusal-scorer — отдельный `com.spa.refusal` → `data/refusal_status.json`.
+- **API** (`spa_core/api/server.py`): `/api/rates-desk/surface`, `/api/rates-desk/opportunities`,
+  `/api/rates-desk/decisions` (entries + refusals + proof_hash), `/api/refusal` (per-underlying SAFE/WATCH/REFUSE/UNKNOWN).
 
 ---
 
@@ -318,4 +348,10 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 
 ---
 
-*Обновлено: 2026-06-25 (v12.84 — docs audit: state-table sync 16/30·$100,180·27/29, ~42 агента; реестр **35 адаптеров** (+BTC tbtc/cbbtc advisory); добавлены секции **Strategy Lab** (eth_lst_neutral + rwa_sleeve + 5-venue funding + real RWA floor ~3.4%) и **Сайт** (unified design system, /track-record /research /system /disclaimer /app, EN|RU); source of truth = launchctl/SYSTEM_BRIEFING; agent_health честно зелёный).*
+*Обновлено: 2026-06-26 (v12.85 — добавлена секция **Rates Desk** (validated thesis-#1: RateSurface +
+FairValueEngine refusal-first гейт + 4 trade-shape + FixedCarry GO; новый агент `com.spa.rates_desk_paper`
+hourly advisory live-paper + `/api/rates-desk/*`; док `docs/RATES_DESK.md`); agent-table: +strategy_lab_paper
+/refusal/rates_desk_paper). v12.84 — docs audit: state-table sync 16/30·$100,180·27/29, ~42 агента; реестр
+**35 адаптеров** (+BTC tbtc/cbbtc advisory); секции **Strategy Lab** (eth_lst_neutral + rwa_sleeve + 5-venue
+funding + real RWA floor ~3.4%) и **Сайт** (unified design system, /track-record /research /system /disclaimer
+/app, EN|RU); source of truth = launchctl/SYSTEM_BRIEFING; agent_health честно зелёный.*

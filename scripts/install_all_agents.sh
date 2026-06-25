@@ -257,6 +257,15 @@ install_agent \
     "com.spa.refusal" \
     "1"
 
+# 22c. Rates-Desk live paper service — hourly single-tick; paper-trades the VALIDATED FixedCarry
+#      sleeve (thesis-#1 GO) on the LIVE rate-surface into a growing forward carry track + proof
+#      chain; restart-survival (book restored, not zeroed), idempotent per UTC day, fail-CLOSED.
+#      ADVISORY ONLY: simulates carry, moves no live capital, never touches the go-live track.
+install_agent \
+    "$REPO/scripts/com.spa.rates_desk_paper.plist" \
+    "com.spa.rates_desk_paper" \
+    "1"
+
 echo ""
 echo "--- LIVE SERVICES (KeepAlive — API / tunnels / dashboards) ---"
 
@@ -416,6 +425,7 @@ echo "  uptime_monitor:    tail -f /tmp/spa_uptime_monitor.log"
 echo "  cloudflared:       tail -f /tmp/spa_cloudflared.log"
 echo "  apiserver:         tail -f /tmp/spa_api.log"
 echo "  strategy_lab:      tail -f $REPO/logs/strategy_lab_paper.err"
+echo "  rates_desk_paper:  tail -f $REPO/logs/rates_desk_paper.log"
 echo ""
 
 if [[ "$FAIL_COUNT" -gt 0 ]]; then
