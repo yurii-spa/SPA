@@ -37,14 +37,31 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.strategy_lab.base import InvalidDataError, MarketSnapshot
+from spa_core.strategy_lab.data.btc_lending_feed import BtcLendingFeed
 from spa_core.strategy_lab.data.funding_feed import FundingFeed
-from spa_core.strategy_lab.data.price_feed import LRT_SYMBOLS, PriceFeed
+from spa_core.strategy_lab.data.price_feed import (
+    BTC_REF_SYMBOL,
+    BTC_WRAPPER_SYMBOLS,
+    RATIO_SYMBOLS,
+    PriceFeed,
+)
 from spa_core.strategy_lab.data.restaking_feed import RestakingFeed
 
 _ROOT = Path(__file__).resolve().parents[3]  # …/SPA_Claude
 _CACHE_DIR = _ROOT / "data" / "market_data"
 
 FF_LIMIT_DAYS = 2
+
+
+def _try_btc(fn):
+    """Run a BTC-feed fetch; on ANY failure return {} (fail-OPEN at the data layer). A BTC feed
+    gap (e.g. wrapper history that doesn't reach the window start, or a transient API error) must
+    NOT crash an ETH-centric refresh — the BTC STRATEGIES still fail-CLOSED per-tick on the
+    resulting snapshot gaps. ETH feeds are NOT wrapped (they remain fail-closed, as before)."""
+    try:
+        return fn() or {}
+    except Exception:  # noqa: BLE001 — degrade to empty so the ETH path is unaffected
+        return {}
 
 
 # ── atomic JSON cache helpers ───────────────────────────────────────────────────────────────
@@ -125,10 +142,16 @@ class MarketData:
         ff_limit_days: int = FF_LIMIT_DAYS,
         price_span: int = 90,
         window: Optional[tuple] = None,
+        btc_funding_feed: Optional[FundingFeed] = None,
+        btc_lending_feed: Optional[BtcLendingFeed] = None,
     ):
         self._funding = funding_feed or FundingFeed()
         self._price = price_feed or PriceFeed()
         self._restaking = restaking_feed or RestakingFeed()
+        # BTC perp funding = the SAME 5-venue median feed, built for the BTC perp. BTC lending =
+        # the wrapped-BTC supply-yield floor (tBTC/cbBTC). Both injectable for hermetic tests.
+        self._btc_funding = btc_funding_feed or FundingFeed(symbol="BTC")
+        self._btc_lending = btc_lending_feed or BtcLendingFeed()
         self._defi_series = defi_apy_series or {}
         self._cache_dir = Path(cache_dir) if cache_dir else _CACHE_DIR
         self._ff_limit = ff_limit_days
@@ -143,6 +166,11 @@ class MarketData:
         self._ratio_series: Dict[str, Dict[str, float]] = {}   # {lrt_sym: {date: ratio}}
         self._restaking_latest: Dict[str, float] = {}          # {sym: apy} (point-in-time fallback)
         self._restaking_series: Dict[str, Dict[str, float]] = {}  # {sym: {date: apy}} (deep history)
+        # BTC series (parallel to the ETH ones)
+        self._btc_funding_series: Dict[str, float] = {}        # {date: median 8h BTC funding}
+        self._btc_ratio_series: Dict[str, Dict[str, float]] = {}  # {wrapper_sym: {date: ratio}}
+        self._btc_lending_latest: Dict[str, float] = {}        # {sym: apy} (point-in-time fallback)
+        self._btc_lending_series: Dict[str, Dict[str, float]] = {}  # {sym: {date: apy}} (deep history)
         self._loaded = False
 
     # ── paths ────────────────────────────────────────────────────────────────────────────
@@ -164,6 +192,9 @@ class MarketData:
         ratios = _read_json(self._p("ratios"))
         restaking = _read_json(self._p("restaking"))
         defi = _read_json(self._p("defi"))
+        btc_funding = _read_json(self._p("btc_funding"))
+        btc_ratios = _read_json(self._p("btc_ratios"))
+        btc_lending = _read_json(self._p("btc_lending"))
         if funding is None or prices is None:
             return False
         self._funding_series = {k: float(v) for k, v in funding.get("series", {}).items()}
@@ -187,6 +218,21 @@ class MarketData:
                 proto: {d: float(a) for d, a in s.items()}
                 for proto, s in defi["series"].items()
             }
+        # BTC series (optional — absent on an ETH-only cache; left empty → snapshot gaps)
+        self._btc_funding_series = {
+            k: float(v) for k, v in ((btc_funding or {}).get("series", {}) or {}).items()
+        }
+        self._btc_ratio_series = {
+            sym: {d: float(p) for d, p in s.items()}
+            for sym, s in ((btc_ratios or {}).get("series", {}) or {}).items()
+        }
+        self._btc_lending_latest = {
+            k: float(v) for k, v in ((btc_lending or {}).get("apys", {}) or {}).items()
+        }
+        self._btc_lending_series = {
+            sym: {d: float(a) for d, a in s.items()}
+            for sym, s in ((btc_lending or {}).get("series", {}) or {}).items()
+        }
         return True
 
     def refresh(self, start: Optional[str] = None, end: Optional[str] = None) -> None:
@@ -200,6 +246,14 @@ class MarketData:
         win = (start, end) if (start is not None and end is not None) else self._window
         restaking_series: Dict[str, Dict[str, float]] = {}
         restaking_latest: Dict[str, float] = {}
+        # BTC series — fail-OPEN at refresh (a BTC feed gap must NOT crash an ETH-centric run;
+        # the BTC strategies fail-CLOSED per-tick on the resulting snapshot gaps). The wrapped-BTC
+        # tokens' on-chain price history may start AFTER the ETH window opens (tBTC/cbBTC are
+        # younger), so a partial BTC series is normal and expected.
+        btc_funding: Dict[str, float] = {}
+        btc_ratio_hist: Dict[str, Dict[str, float]] = {}
+        btc_lending_series: Dict[str, Dict[str, float]] = {}
+        btc_lending_latest: Dict[str, float] = {}
         if win:
             s, e = win
             funding = self._funding.history(start_date=s, end_date=e)
@@ -210,11 +264,22 @@ class MarketData:
             restaking_latest = {
                 sym: ser[max(ser)] for sym, ser in restaking_series.items() if ser
             }
+            btc_funding = _try_btc(lambda: self._btc_funding.history(start_date=s, end_date=e))
+            btc_ratio_hist = _try_btc(
+                lambda: self._price.history_btc_ratios(start_date=s, end_date=e)
+            )
+            btc_lending_series = _try_btc(lambda: self._btc_lending.history(s, e))
+            btc_lending_latest = {
+                sym: ser[max(ser)] for sym, ser in (btc_lending_series or {}).items() if ser
+            }
         else:
             funding = self._funding.history()
             price_hist = self._price.history(span=self._price_span)
             ratio_hist = self._price.history_ratios(span=self._price_span)
             restaking_latest = self._restaking.apys()
+            btc_funding = _try_btc(lambda: self._btc_funding.history())
+            btc_ratio_hist = _try_btc(lambda: self._price.history_btc_ratios(span=self._price_span))
+            btc_lending_latest = _try_btc(lambda: self._btc_lending.apys())
 
         ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
         _atomic_write_json(self._p("funding"), {"generated_at": ts, "series": funding})
@@ -223,6 +288,12 @@ class MarketData:
         _atomic_write_json(
             self._p("restaking"),
             {"generated_at": ts, "apys": restaking_latest, "series": restaking_series},
+        )
+        _atomic_write_json(self._p("btc_funding"), {"generated_at": ts, "series": btc_funding})
+        _atomic_write_json(self._p("btc_ratios"), {"generated_at": ts, "series": btc_ratio_hist})
+        _atomic_write_json(
+            self._p("btc_lending"),
+            {"generated_at": ts, "apys": btc_lending_latest, "series": btc_lending_series},
         )
         if self._defi_series:
             _atomic_write_json(
@@ -234,6 +305,10 @@ class MarketData:
         self._ratio_series = ratio_hist
         self._restaking_latest = restaking_latest
         self._restaking_series = restaking_series
+        self._btc_funding_series = btc_funding
+        self._btc_ratio_series = btc_ratio_hist
+        self._btc_lending_latest = btc_lending_latest
+        self._btc_lending_series = btc_lending_series
         self._loaded = True
 
     # ── assembly ───────────────────────────────────────────────────────────────────────────
@@ -268,8 +343,8 @@ class MarketData:
             if eth_ff:
                 snap.ff_filled.add("eth_price_usd")
 
-        # lrt prices (map) — only the LRT symbols (eth handled above)
-        lrt_price_map = {s: self._price_series[s] for s in LRT_SYMBOLS if s in self._price_series}
+        # staked-ETH-token prices (map) — LRTs AND LSTs (eth handled above)
+        lrt_price_map = {s: self._price_series[s] for s in RATIO_SYMBOLS if s in self._price_series}
         vals, ff_keys, gap_keys = _ff_lookup_map(lrt_price_map, date, self._ff_limit)
         snap.lrt_price_usd = vals
         for k in ff_keys:
@@ -300,6 +375,63 @@ class MarketData:
             snap.restaking_apy = dict(self._restaking_latest)
             if not self._restaking_latest:
                 snap.gaps.add("restaking_apy")
+
+        # ── BTC sleeve fields (parallel to the ETH ones) ──────────────────────────────────
+        # btc price (scalar) — the WBTC reference price from the same price series.
+        btc_series = self._price_series.get(BTC_REF_SYMBOL, {})
+        btc_price, btc_ff = _ff_lookup(btc_series, date, self._ff_limit)
+        if btc_price is None:
+            snap.gaps.add("btc_price_usd")
+        else:
+            snap.btc_price_usd = btc_price
+            if btc_ff:
+                snap.ff_filled.add("btc_price_usd")
+
+        # btc funding (scalar)
+        btc_funding, btc_f_ff = _ff_lookup(self._btc_funding_series, date, self._ff_limit)
+        if btc_funding is None:
+            snap.gaps.add("btc_funding_rate_8h")
+        else:
+            snap.btc_funding_rate_8h = btc_funding
+            if btc_f_ff:
+                snap.ff_filled.add("btc_funding_rate_8h")
+
+        # wrapped-BTC prices (map) — tBTC / cbBTC from the same price series.
+        wrapper_price_map = {
+            s: self._price_series[s] for s in BTC_WRAPPER_SYMBOLS if s in self._price_series
+        }
+        vals, ff_keys, gap_keys = _ff_lookup_map(wrapper_price_map, date, self._ff_limit)
+        snap.btc_wrapper_price_usd = vals
+        for k in ff_keys:
+            snap.ff_filled.add(f"btc_wrapper_price_usd.{k}")
+        for k in gap_keys:
+            snap.gaps.add(f"btc_wrapper_price_usd.{k}")
+
+        # wrapper/btc ratios (map) — the wrapper-depeg signal.
+        vals, ff_keys, gap_keys = _ff_lookup_map(self._btc_ratio_series, date, self._ff_limit)
+        snap.btc_wrapper_ratio = vals
+        for k in ff_keys:
+            snap.ff_filled.add(f"btc_wrapper_ratio.{k}")
+        for k in gap_keys:
+            snap.gaps.add(f"btc_wrapper_ratio.{k}")
+
+        # btc lending apy (map) — prefer the per-date deep series with forward-fill; fall back to
+        # the point-in-time latest applied to every date when no deep series exists.
+        if self._btc_lending_series:
+            vals, ff_keys, gap_keys = _ff_lookup_map(
+                self._btc_lending_series, date, self._ff_limit
+            )
+            snap.btc_lending_apy = vals
+            for k in ff_keys:
+                snap.ff_filled.add(f"btc_lending_apy.{k}")
+            for k in gap_keys:
+                snap.gaps.add(f"btc_lending_apy.{k}")
+            if not vals:
+                snap.gaps.add("btc_lending_apy")
+        elif self._btc_lending_latest:
+            snap.btc_lending_apy = dict(self._btc_lending_latest)
+        else:
+            snap.gaps.add("btc_lending_apy")
 
         # defi apy (map) — optional caller-supplied per-date series
         if self._defi_series:
