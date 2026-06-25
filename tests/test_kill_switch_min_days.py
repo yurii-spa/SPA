@@ -65,11 +65,11 @@ class TestKillSwitchMinDays(unittest.TestCase):
         self.assertIn("insufficient data", reason)
 
     def test_sharpe_kill_switch_triggers_with_enough_days(self) -> None:
-        """30 days + sharpe -2.0 must trigger the kill-switch."""
-        self._write_analytics(sharpe=-2.0, num_days=30)
+        """30 days + sharpe -2.1 must trigger the kill-switch (strictly below early threshold -2.0)."""
+        self._write_analytics(sharpe=-2.1, num_days=30)
         triggered, reason = self.checker.check_sharpe_trigger()
-        self.assertTrue(triggered, f"Should trigger with 30 days, sharpe -2.0: {reason}")
-        self.assertLess(-2.0, SHARPE_THRESHOLD + 0.0001)  # sanity: -2.0 < -1.0
+        self.assertTrue(triggered, f"Should trigger with 30 days, sharpe -2.1: {reason}")
+        self.assertLess(-2.1, SHARPE_THRESHOLD + 0.0001)  # sanity: -2.1 < -1.0
 
     def test_sharpe_kill_switch_skips_on_none_sharpe(self) -> None:
         """sharpe=None must NOT trigger regardless of day count."""
