@@ -908,6 +908,8 @@ def test_demo_main_runs():
     mod = os.path.join(
         _ROOT, "spa_core", "analytics",
         "defi_protocol_fixed_vs_floating_yield_decision_analyzer.py")
-    res = subprocess.run([sys.executable, mod], capture_output=True, text=True)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(_ROOT)
+    res = subprocess.run([sys.executable, mod], capture_output=True, text=True, env=env)
     assert res.returncode == 0
     assert "decision_score" in res.stdout
