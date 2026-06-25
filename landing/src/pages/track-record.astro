@@ -28,22 +28,22 @@ import Disclaimer from '../components/Disclaimer.astro';
     <!-- Live metric strip -->
     <section class="pb-10">
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+        <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
           <p class="text-2xl font-mono font-bold text-white" id="tr-equity">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="виртуальные $100k">virtual $100k base</p>
         </div>
-        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+        <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
           <p class="text-2xl font-mono font-bold text-teal-400" id="tr-apy">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
         </div>
-        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+        <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
           <p class="text-2xl font-mono font-bold text-white" id="tr-dd">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="с начала трека">since track start</p>
         </div>
-        <div class="rounded-xl border border-white/8 bg-white/[0.03] p-5">
+        <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Дней трека">Track days</p>
           <p class="text-2xl font-mono font-bold text-accent-400" id="tr-days">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="реальных · 30 для go-live">real · 30 for go-live</p>
@@ -52,14 +52,14 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Equity curve -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
         <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Кривая капитала (бумажная)">Equity curve (paper)</p>
         <p class="text-xs text-white/25 font-mono">
           <span data-ru="источник:">source:</span> <span id="tr-spark-src">static fallback</span>
         </p>
       </div>
-      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
         <svg id="tr-spark" viewBox="0 0 800 200" preserveAspectRatio="none" class="w-full h-48" role="img" aria-label="Paper equity curve"></svg>
         <p class="text-xs text-white/30 mt-3 text-center" id="tr-spark-note" data-ru="Кривая загружается из живого фида доказательств. При офлайне показывается последний статический снимок.">
           Curve loads from the live evidence feed. When offline, the last static snapshot is shown.
@@ -68,7 +68,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Proof of Reserves -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
         <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
         <p class="text-xs text-white/25 font-mono">
@@ -76,7 +76,7 @@ import Disclaimer from '../components/Disclaimer.astro';
         </p>
       </div>
 
-      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div>
             <p class="text-lg font-semibold text-white mb-1" data-ru="Каждый доллар учтён — криптографически проверяемо">Every dollar accounted for, cryptographically verifiable</p>
@@ -86,7 +86,7 @@ import Disclaimer from '../components/Disclaimer.astro';
               methodology on the virtual $100k book, not real custody.
             </p>
           </div>
-          <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-white/40 shrink-0">
+          <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-surface-2 border border-border-strong text-xs font-mono text-white/40 shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
             <span data-ru="загрузка…">loading…</span>
           </div>
@@ -94,15 +94,15 @@ import Disclaimer from '../components/Disclaimer.astro';
 
         <!-- NAV breakdown: deployed + cash + accrued = equity -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          <div class="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+          <div class="rounded-lg border border-border bg-bg-surface p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Вложено">Deployed</p>
             <p class="text-xl font-mono font-bold text-white" id="por-deployed">—</p>
           </div>
-          <div class="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+          <div class="rounded-lg border border-border bg-bg-surface p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Кэш">Cash</p>
             <p class="text-xl font-mono font-bold text-white" id="por-cash">—</p>
           </div>
-          <div class="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+          <div class="rounded-lg border border-border bg-bg-surface p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Начислено">Accrued</p>
             <p class="text-xl font-mono font-bold text-white" id="por-accrued">—</p>
           </div>
@@ -114,22 +114,22 @@ import Disclaimer from '../components/Disclaimer.astro';
 
         <!-- reconciliation + meta row -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <div class="rounded-lg bg-white/[0.02] border border-white/8 px-4 py-3">
+          <div class="rounded-lg bg-bg-surface border border-border px-4 py-3">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение сверки">Reconciliation delta</p>
             <p class="text-sm font-mono text-white/70" id="por-delta">—</p>
           </div>
-          <div class="rounded-lg bg-white/[0.02] border border-white/8 px-4 py-3">
+          <div class="rounded-lg bg-bg-surface border border-border px-4 py-3">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Позиций">Positions</p>
             <p class="text-sm font-mono text-white/70" id="por-positions">—</p>
           </div>
-          <div class="rounded-lg bg-white/[0.02] border border-white/8 px-4 py-3">
+          <div class="rounded-lg bg-bg-surface border border-border px-4 py-3">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Последняя проверка">Last verified</p>
             <p class="text-sm font-mono text-white/70" id="por-ts">—</p>
           </div>
         </div>
 
         <!-- verification hash -->
-        <div class="rounded-lg bg-black/30 border border-white/8 px-4 py-3">
+        <div class="rounded-lg bg-black/30 border border-border px-4 py-3">
           <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Хэш проверки (NAV)">Verification hash (NAV)</p>
             <span class="text-xs text-teal-300/60 font-mono" data-ru="проверяемо · защищено от подмены">verifiable · tamper-evident</span>
@@ -149,10 +149,10 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Go-live progress -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Прогресс Go-Live">Go-live progress</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Критерии GoLiveChecker">GoLiveChecker criteria</div>
           <div class="flex items-end gap-2 mb-3">
             <span class="text-5xl font-mono font-bold text-amber-400" id="tr-gates-pass">—</span>
@@ -163,7 +163,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           </div>
           <p class="text-white/50 text-sm" data-ru="детерминированные критерии (ADR-002) — все должны пройти до go-live">deterministic criteria (ADR-002) — all must pass before go-live</p>
         </div>
-        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Честные дни трека">Honest track days</div>
           <div class="flex items-end gap-2 mb-3">
             <span class="text-5xl font-mono font-bold text-accent-400" id="tr-days-2">—</span>
@@ -178,10 +178,10 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- The honest-track narrative -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Как мы считаем честность">How we count honesty</p>
       <div class="space-y-3">
-        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+        <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
           <p class="text-sm text-white/55 leading-relaxed">
             <span class="text-white/80 font-semibold" data-ru="real_days, не сырые бары.">real_days, not raw bars.</span>
             <span data-ru="Трек-дни отсчитываются от PAPER_REAL_START (10 июня 2026). Всё, что было до — демо и признано недействительным. Мы не считаем доперезагрузочные бары как трек: число дней привязано к реальному старту, а не к длине файла equity.">
@@ -190,7 +190,7 @@ import Disclaimer from '../components/Disclaimer.astro';
               the day count is anchored to the real start, not the length of the equity file.</span>
           </p>
         </div>
-        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+        <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
           <p class="text-sm text-white/55 leading-relaxed">
             <span class="text-white/80 font-semibold" data-ru="Заметка о реконструированном дне.">Reconstructed-day note.</span>
             <span data-ru="Если автономный цикл пропустил день (например, при перезагрузке хоста), пропуск фиксируется gap_monitor, а пробел заполняется реконструированным баром — он помечается, а не выдаётся за живой. Непрерывность за 30 дней — отдельный критерий go-live.">
@@ -199,7 +199,7 @@ import Disclaimer from '../components/Disclaimer.astro';
               passed off as live. 30-day continuity is itself a separate go-live criterion.</span>
           </p>
         </div>
-        <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
+        <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
           <p class="text-sm text-white/55 leading-relaxed">
             <span class="text-white/80 font-semibold" data-ru="Бумажная, переменная, не прогноз.">Paper, variable, not a forecast.</span>
             <span data-ru="Все цифры отражают симулированную торговлю на виртуальном портфеле $100,000 USDC. Симуляция не учитывает реальное проскальзывание, влияние на ликвидность и риск исполнения смарт-контрактов. Прошлая бумажная доходность ничего не гарантирует.">
@@ -212,18 +212,18 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Cross-links -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Углубиться">Go deeper</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <a href="/methodology" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+        <a href="/methodology" class="group rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
           <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Методология">Methodology</p>
           <p class="text-xs text-white/35" data-ru="Как движок принимает решения, детерминированно">How the engine decides, deterministically</p>
         </a>
-        <a href="/system" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+        <a href="/system" class="group rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
           <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Система">System</p>
           <p class="text-xs text-white/35" data-ru="Живые операционные поверхности и парк агентов">Live operational surfaces &amp; agent fleet</p>
         </a>
-        <a href="/app" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+        <a href="/app" class="group rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
           <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Дашборд ↗">Dashboard ↗</p>
           <p class="text-xs text-white/35" data-ru="Полный живой дашборд, обновляется ежедневно">The full live dashboard, updated daily</p>
         </a>
