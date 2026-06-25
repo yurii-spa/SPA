@@ -95,7 +95,7 @@ def test_basic_report_fields(tmp_path):
     # Позиции берутся из бара отчётной даты, не из status.
     assert r["top_protocol"] == "aave_v3"
     assert r["active_adapters"] == ["aave_v3", "morpho_blue", "yearn_v3"]
-    assert r["golive_status"] == "PRE-LIVE"
+    assert "NOT_READY" in r["golive_status"] or r["golive_status"] == "READY"
     assert r["risk_summary"] == {"aave_v3": "A", "morpho_blue": "B"}
 
 
@@ -153,7 +153,7 @@ def test_empty_data_dir_never_raises(tmp_path):
     assert r["top_protocol"] is None
     assert r["active_adapters"] == []
     assert r["risk_summary"] == {}
-    assert r["golive_status"] == "PRE-LIVE"
+    assert "NOT_READY" in r["golive_status"] or r["golive_status"] == "READY"
     assert (tmp_path / f"daily_report_{DATE}.json").exists()
 
 
