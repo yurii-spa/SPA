@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # install_all_agents.sh — Установка ВСЕХ критических SPA LaunchAgents
+# v1364 (2026-06-25) — SRE audit: added 18 loaded-but-uninstalled agents
+#   (apiserver/httpserver/bot_commands/dashboard_watcher, hy_cycle/lp_cycle,
+#    portfolio/peg/red_flag/governance/base_gas/sky/bts monitors,
+#    analytics_tier_b/c, checkpoint-7day, weekly_backup) → reboot-survivable.
 # v1362 (2026-06-22) — полный список агентов, формат [OK]/[SKIP]/[FAIL]
 #
 # Запуск: bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh
@@ -86,7 +90,7 @@ install_agent() {
 }
 
 echo "=============================================="
-echo " SPA LaunchAgents Installer v1362 (2026-06-22)"
+echo " SPA LaunchAgents Installer v1364 (2026-06-25)"
 echo "=============================================="
 echo ""
 echo "REPO:       $REPO"
@@ -245,6 +249,127 @@ install_agent \
     "com.spa.strategy_lab_paper" \
     "1"
 
+echo ""
+echo "--- LIVE SERVICES (KeepAlive — API / tunnels / dashboards) ---"
+
+# 23. API server — uvicorn :8765 (api.earn-defi.com via cloudflared); was NOT in
+#     installer before → would silently vanish after a clean reinstall/reboot.
+install_agent \
+    "$REPO/scripts/com.spa.apiserver.plist" \
+    "com.spa.apiserver" \
+    "1"
+
+# 24. HTTP server — stdlib family-fund/static server (legacy :8765 sibling)
+install_agent \
+    "$REPO/scripts/com.spa.httpserver.plist" \
+    "com.spa.httpserver" \
+    "1"
+
+# 25. Bot commands — Telegram bot command poller (long-running)
+install_agent \
+    "$REPO/scripts/com.spa.bot_commands.plist" \
+    "com.spa.bot_commands" \
+    "1"
+
+# 26. Dashboard watcher — polls live API → Telegram alerts (every 5 min)
+install_agent \
+    "$REPO/scripts/com.spa.dashboard_watcher.plist" \
+    "com.spa.dashboard_watcher" \
+    "1"
+
+echo ""
+echo "--- ENGINE SLEEVES (HY / LP separate paper books) ---"
+
+# 27. HY/carry sleeve daily cycle (plist in launchd/)
+install_agent \
+    "$REPO/launchd/com.spa.hy_cycle.plist" \
+    "com.spa.hy_cycle" \
+    "1"
+
+# 28. LP sleeve daily cycle (plist in launchd/)
+install_agent \
+    "$REPO/launchd/com.spa.lp_cycle.plist" \
+    "com.spa.lp_cycle" \
+    "1"
+
+echo ""
+echo "--- PROTOCOL & PORTFOLIO MONITORS (cron) ---"
+
+# 29. Portfolio monitor
+install_agent \
+    "$REPO/scripts/com.spa.portfolio_monitor.plist" \
+    "com.spa.portfolio_monitor" \
+    "1"
+
+# 30. Peg monitor (stablecoin peg drift)
+install_agent \
+    "$REPO/scripts/com.spa.peg_monitor.plist" \
+    "com.spa.peg_monitor" \
+    "1"
+
+# 31. Red-flag monitor
+install_agent \
+    "$REPO/scripts/com.spa.red_flag_monitor.plist" \
+    "com.spa.red_flag_monitor" \
+    "1"
+
+# 32. Governance watcher
+install_agent \
+    "$REPO/scripts/com.spa.governance_watcher.plist" \
+    "com.spa.governance_watcher" \
+    "1"
+
+# 33. Base gas monitor
+install_agent \
+    "$REPO/scripts/com.spa.base_gas_monitor.plist" \
+    "com.spa.base_gas_monitor" \
+    "1"
+
+# 34. Sky/sUSDS monitor (GSM Pause Delay watch)
+install_agent \
+    "$REPO/scripts/com.spa.sky_monitor.plist" \
+    "com.spa.sky_monitor" \
+    "1"
+
+# 35. BTS feed
+install_agent \
+    "$REPO/scripts/com.spa.bts-feed.plist" \
+    "com.spa.bts-feed" \
+    "1"
+
+# 36. BTS monitor
+install_agent \
+    "$REPO/scripts/com.spa.bts-monitor.plist" \
+    "com.spa.bts-monitor" \
+    "1"
+
+echo ""
+echo "--- ANALYTICS & BACKUP (cron) ---"
+
+# 37. Analytics tier B
+install_agent \
+    "$REPO/scripts/com.spa.analytics_tier_b.plist" \
+    "com.spa.analytics_tier_b" \
+    "1"
+
+# 38. Analytics tier C
+install_agent \
+    "$REPO/scripts/com.spa.analytics_tier_c.plist" \
+    "com.spa.analytics_tier_c" \
+    "1"
+
+# 39. 7-day checkpoint
+install_agent \
+    "$REPO/scripts/com.spa.checkpoint-7day.plist" \
+    "com.spa.checkpoint-7day" \
+    "1"
+
+# 40. Weekly backup
+install_agent \
+    "$REPO/scripts/com.spa.weekly_backup.plist" \
+    "com.spa.weekly_backup" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
@@ -275,7 +400,8 @@ echo "  tournament_engine: tail -f /tmp/spa_tournament_engine.log"
 echo "  cycle_health:      tail -f /tmp/spa_cycle_health.log"
 echo "  uptime_monitor:    tail -f /tmp/spa_uptime_monitor.log"
 echo "  cloudflared:       tail -f /tmp/spa_cloudflared.log"
-echo "  morning_digest:    tail -f $REPO/logs/morning_digest_stdout.log"
+echo "  apiserver:         tail -f /tmp/spa_api.log"
+echo "  strategy_lab:      tail -f $REPO/logs/strategy_lab_paper.err"
 echo ""
 
 if [[ "$FAIL_COUNT" -gt 0 ]]; then
