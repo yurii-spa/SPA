@@ -292,7 +292,17 @@ def run_backtest(
     g = cfg["global"]
     initial_capital = float(g["initial_capital"])
     seed = int(g["seed"])
-    floor_apy = float(g["rwa_floor_apy_pct"])
+    # The RWA floor is the LIVE tokenized-T-bill yield (rwa_feed, cached), falling back to THIS
+    # config's committed literal when the feed is unavailable. So the report header, the stable-
+    # benchmark return series, and every beats_rwa_floor decision compare against the REAL
+    # ~3.3–3.5% floor, not the hardcoded literal. Honors an explicitly-injected config's literal
+    # as the fallback (hermetic backtests stay deterministic when offline).
+    _literal_floor = float(g["rwa_floor_apy_pct"])
+    try:
+        from spa_core.strategy_lab.data.rwa_feed import current_rwa_floor_pct
+        floor_apy = float(current_rwa_floor_pct()) if lab_config._USE_LIVE_RWA_FLOOR else _literal_floor
+    except Exception:  # noqa: BLE001 — feed unavailable → conservative committed literal
+        floor_apy = _literal_floor
     settles = int(g["funding_settles_per_day"])
 
     # 1) snapshots (injected or loaded over the window)
