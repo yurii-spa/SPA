@@ -1020,6 +1020,8 @@ def test_demo_main_runs():
     mod = os.path.join(
         _ROOT, "spa_core", "analytics",
         "defi_protocol_tvl_yield_elasticity_analyzer.py")
-    res = subprocess.run([sys.executable, mod], capture_output=True, text=True)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(_ROOT)
+    res = subprocess.run([sys.executable, mod], capture_output=True, text=True, env=env)
     assert res.returncode == 0
     assert "elasticity_score" in res.stdout
