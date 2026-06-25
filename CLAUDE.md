@@ -31,7 +31,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 ---
 
-## 📊 Текущее состояние (2026-06-24)
+## 📊 Текущее состояние (2026-06-25)
 
 > ⚠️ Живые цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин) + `data/golive_status.json` +
 > `data/paper_trading_status.json`. Таблица ниже — снимок, может дрейфовать.
@@ -39,17 +39,17 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Поле | Значение |
 |---|---|
 | Реальный трек | начат **2026-06-10** (всё до — демо, недействительно) |
-| Дней трека | **15/30** (15 ещё нужно, target go-live **~2026-07-09**) |
-| Капитал | **$100,170.40** (+0.17% за 15д) |
-| Daily yield | **$9.88/день** · APY сегодня ~3.6% |
+| Дней трека | **16/30** (14 ещё нужно, target go-live **~2026-07-09**) |
+| Капитал | **$100,180.31** (+0.18% за 16д) |
+| Daily yield | **$9.91/день** · APY сегодня ~3.6% (regime VOLATILE) |
 | GoLive | ⛔ **27/29 pass** — NOT READY (2 time-gated блокера) |
-| Sprint | **v12.82** · Done: **1358** · Backlog: 0 |
-| Агенты | ✅ **~42 загружено** (agent_health crit=0; источник истины — `launchctl list \| grep spa` / SYSTEM_BRIEFING, НЕ это число) |
+| Sprint | **v12.83** · Done: **1358** · Backlog: 0 |
+| Агенты | ✅ **~42 загружено** (`launchctl list \| grep spa` = 42; agent_health crit=0; источник истины — launchctl / SYSTEM_BRIEFING, НЕ это число) |
 | Repo | `yurii-spa/SPA` (GitHub) |
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
 
 **GoLive блокеры (оба — просто ожидание 30 трек-дней, нечего чинить кодом):**
-- `gap_monitor_30d`: 15/30 трек-дней (15 дней просто ждать)
+- `gap_monitor_30d`: 16/30 трек-дней (14 дней просто ждать)
 - `min_track_days_30`: то же что gap_monitor
 - (`autopush_installed` теперь **PASS** на реальном Mac; в sandbox/CI всегда fails — проверяй через `launchctl list | grep spa`)
 
@@ -135,14 +135,20 @@ docs/tournament.html                       — live страница на сай
 
 ## 📈 Адаптеры (spa_core/adapters/)
 
-Реестр — `ADAPTER_REGISTRY` в `spa_core/adapters/__init__.py`. **33 адаптера в реестре** (live-feed `num_adapters_live` в `paper_trading_status.json` ~34).
+Реестр — `ADAPTER_REGISTRY` в `spa_core/adapters/__init__.py`. **35 адаптеров в реестре** (live-feed `num_adapters_live` в `paper_trading_status.json` ~34).
 **Read-only домен** — никогда не пишет в `data/adapter_status.json` (execution-домен).
+Проверка количества: `python3 -c "from spa_core.adapters import ADAPTER_REGISTRY; print(len(ADAPTER_REGISTRY))"`.
 
 | Tier | Протоколы |
 |---|---|
 | T1 | Aave V3 (ETH/ARB/OP/POLY/BASE), Compound V3, Morpho Steakhouse, Spark sUSDS |
-| T2 | Morpho Blue, Yearn V3, Euler V2, Maple, Fluid, sFRAX, sDAI, Ethena sUSDe, Ondo USDY, Pendle PT/YT, Aerodrome LP |
+| T2 | Morpho Blue, Yearn V3, Euler V2, Maple, Fluid, sFRAX, sDAI, Ethena sUSDe, Ondo USDY, Pendle PT/YT, Aerodrome LP, **BTC-lending** |
 | T3 | Points farming (advisory), leverage looping (IS_ADVISORY=True) |
+
+**BTC lending (NEW, 2026-06-25):** read-only `tbtc_lending` + `cbbtc_lending` (`spa_core/adapters/btc_lending.py`,
+T2, `IS_ADVISORY=True`/`RESEARCH_ONLY=True`). Честный **~0% APY** — BTC почти не *занимают* on-chain
+(utilization ~2–6%, supply APY ~0–1.2%). WBTC исключён (BitGo→BiT Global governance overhang),
+LBTC-restaking отклонён (points/airdrop-leverage). Advisory → никогда не аллоцирует live.
 
 APY feed: `spa_core/adapters/defillama_feed.py` (DeFiLlama, TTL 300с).
 Sky/sUSDS: `sky_susds` — 0% до подтверждённого GSM Pause Delay ≥ 48h (on-chain).
@@ -155,6 +161,40 @@ Sky/sUSDS: `sky_susds` — 0% до подтверждённого GSM Pause Dela
 Оркестратор: `spa_core/paper_trading/multi_strategy_runner.py`.
 
 Все новые стратегии (S71+) имеют `IS_ADVISORY=True` — simulate only, не открывают live позиции.
+
+---
+
+## 🧪 Strategy Lab (NEW, 2026-06-25)
+
+`spa_core/strategy_lab/` — несколько yield-стратегий и sleeve'ов прогоняются через **один общий
+backtest-harness** + **один live paper-сервис** (без капитала) для честного risk-adjusted сравнения
+против RWA-floor. Pluggable `Strategy` ABC (`base.py`); harness не меняется при добавлении стратегии.
+stdlib-only, детерминированный, LLM запрещён в risk/kill. Полный док — `docs/STRATEGY_LAB.md`.
+
+| id | что это |
+|---|---|
+| `variant_n` | LRT (eETH) спот + short ETH-perp, β≈0 (hedged) |
+| `variant_d` | чистый LRT, без хеджа, β≈1 (directional, изолированный sleeve) |
+| `eth_lst_neutral` | **NEW — SAFE hedged ETH**: PLAIN LST (stETH/rETH, НЕ LRT) + short perp, β≈0; рекомендуемый ETH-подход (LST ближе к пегу → меньше depeg-residual) |
+| `rwa_sleeve` | **NEW — T1 RWA cash-floor**: держит tokenized-T-bills (BUIDL/USYC/USDY…), accrues по live-ставке; реализованный floor, не бенчмарк |
+| baselines | `engine_a/b/c` (реальные Engine A/B/C) + `rwa_floor` (zero-vol бенчмарк) |
+
+- **5-venue funding feed** (`data/funding_feed.py`): медиана Binance / Bybit / OKX / KuCoin / Hyperliquid
+  (HL hourly→8h нормализуется), ~2 года истории через пагинацию keyless-endpoint'ов.
+- **Real RWA floor** (`data/rwa_feed.py`): live tokenized-T-bills (~$15B рынок), TVL-weighted ≈ **~3.4%** —
+  НЕ хардкод; fail-closed, fallback на committed-литерал только если фид недоступен.
+- Live paper: `com.spa.strategy_lab_paper` (launchd, hourly, restart-survival) →
+  `scripts/strategy_lab_paper.py`; backtest → `scripts/strategy_lab_backtest.py`.
+
+---
+
+## 🌐 Сайт (rebuilt 2026-06-25, unified design system)
+
+Лендинг (`landing/`, Astro → CF Pages, **earn-defi.com**) пересобран на едином дизайн-системе —
+`docs/SITE_DESIGN_SYSTEM.md`. Канонические `SiteHeader`/`SiteFooter` в `Layout.astro` на каждой
+странице (NOT touch — пушится параллельно). Console-homepage, новые страницы `/track-record`,
+`/research`, `/system`, `/disclaimer`; приложение на `/app` (раньше `/dashboard`); публичная
+Proof-of-Reserves поверхность. Двуязычно (EN|RU) по всему сайту.
 
 ---
 
@@ -278,4 +318,4 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 
 ---
 
-*Обновлено: 2026-06-25 (v12.83 — docs audit: state-table sync 15/30·$100,170·27/29, ~42 агента, реестр 33 адаптера; source of truth = launchctl/SYSTEM_BRIEFING; system_briefing доустановлен; daily_cycle canonical runner + ALLOC-002; HY/LP sleeves активированы; agent_health честно зелёный).*
+*Обновлено: 2026-06-25 (v12.84 — docs audit: state-table sync 16/30·$100,180·27/29, ~42 агента; реестр **35 адаптеров** (+BTC tbtc/cbbtc advisory); добавлены секции **Strategy Lab** (eth_lst_neutral + rwa_sleeve + 5-venue funding + real RWA floor ~3.4%) и **Сайт** (unified design system, /track-record /research /system /disclaimer /app, EN|RU); source of truth = launchctl/SYSTEM_BRIEFING; agent_health честно зелёный).*
