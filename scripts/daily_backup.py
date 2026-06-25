@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""
+scripts/daily_backup.py — DAILY full snapshot of ALL data/*.json (+ *.jsonl) state.
+
+WHY: SPA runs on a single Mac mini (SPOF). The DR primitive
+spa_core/backtesting/tier1/dr_backup.py snapshots only ~10 hand-picked CRITICAL_FILES
+and was NEVER wired to a schedule, so data/backups/ had no reliable recent snapshots —
+a prior corruption lost real data because the last usable backup was stale. This module
+is the broad, scheduled safety net: it captures EVERY data/*.json and data/*.jsonl into a
+single integrity-checked gzip tar each day, atomically, with 30-day retention.
+
+Scope (deliberately broad): all of data/*.json and data/*.jsonl at the top level of data/.
+This includes the critical state (equity_curve_daily, golive_status, paper_trading_status,
+trades, current_positions, gap_monitor, paper_evidence_history, strategy_*, tier1_*, etc.)
+plus the audit chain/trail jsonl files. The archive name is DATE-stamped
+(spa_state_YYYY-MM-DD.tar.gz) so at most one snapshot per day is kept and re-runs overwrite
+that day's archive deterministically.
+
+stdlib-only · atomic (build temp tar in same dir, shutil.move into place) · deterministic
+(manifest member mtime pinned to 0; identical inputs → identical member set).
+
+Usage:
+  python3 scripts/daily_backup.py                # create today's snapshot + prune
+  python3 scripts/daily_backup.py --dry-run      # show what would be captured
+  python3 scripts/daily_backup.py --verify PATH  # re-hash an archive against its manifest
+  python3 scripts/daily_backup.py --retention 30 # keep last N daily archives (default 30)
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+import argparse
+import datetime
+import glob
+import hashlib
+import json
+import os
+import shutil
+import sys
+import tarfile
+import tempfile
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DATA = os.path.join(_REPO_ROOT, "data")
+_BACKUPS = os.path.join(_DATA, "backups")
+
+ARCHIVE_PREFIX = "spa_state_"
+ARCHIVE_SUFFIX = ".tar.gz"
+MANIFEST_NAME = "backup_manifest.json"
+DEFAULT_RETENTION = 30
+_CHUNK = 1 << 20  # 1 MiB
+
+
+def _today() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+
+
+def _archive_path(date_str: str) -> str:
+    return os.path.join(_BACKUPS, f"{ARCHIVE_PREFIX}{date_str}{ARCHIVE_SUFFIX}")
+
+
+def _sha256_file(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(_CHUNK), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _collect_sources() -> list:
+    """All top-level data/*.json and data/*.jsonl, sorted for determinism."""
+    files = []
+    for pattern in ("*.json", "*.jsonl"):
+        files.extend(glob.glob(os.path.join(_DATA, pattern)))
+    files = [f for f in files if os.path.isfile(f)]
+    return sorted(files)
+
+
+def snapshot(date_str: str = "", dry_run: bool = False) -> dict:
+    """Create a DATE-stamped gzip-tar of all data/*.json + *.jsonl, with embedded manifest.
+
+    Returns a report dict. Atomic: tar built in a temp file in the backups dir, then
+    shutil.move into the final name (matches the project's cross-device-safe convention).
+    """
+    date_str = date_str or _today()
+    sources = _collect_sources()
+
+    entries = []
+    total = 0
+    for src in sources:
+        rel = os.path.relpath(src, _DATA)  # e.g. "trades.json"
+        size = os.path.getsize(src)
+        entries.append({"name": rel, "sha256": _sha256_file(src), "size": size})
+        total += size
+
+    manifest = {
+        "schema": "spa_daily_backup/v1",
+        "llm_forbidden": True,
+        "date": date_str,
+        "created_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "file_count": len(entries),
+        "total_bytes": total,
+        "files": entries,
+    }
+    manifest_bytes = json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
+
+    report = {
+        "date": date_str,
+        "archive": _archive_path(date_str),
+        "file_count": len(entries),
+        "total_bytes": total,
+        "manifest_sha256": _sha256_bytes(manifest_bytes),
+        "written": False,
+    }
+
+    if dry_run:
+        return report
+
+    os.makedirs(_BACKUPS, exist_ok=True)
+    final = _archive_path(date_str)
+    fd, tmp = tempfile.mkstemp(dir=_BACKUPS, suffix=".tar.gz.tmp")
+    os.close(fd)
+    try:
+        with tarfile.open(tmp, "w:gz") as tar:
+            info = tarfile.TarInfo(name=MANIFEST_NAME)
+            info.size = len(manifest_bytes)
+            info.mtime = 0  # deterministic
+            tar.addfile(info, fileobj=_BytesReader(manifest_bytes))
+            for e in entries:
+                tar.add(os.path.join(_DATA, e["name"]), arcname=e["name"], recursive=False)
+        shutil.move(tmp, final)  # cross-device-safe atomic replace
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+    report["written"] = True
+    return report
+
+
+class _BytesReader:
+    def __init__(self, data: bytes):
+        self._data = data
+        self._pos = 0
+
+    def read(self, n: int = -1) -> bytes:
+        if n is None or n < 0:
+            chunk = self._data[self._pos:]
+            self._pos = len(self._data)
+            return chunk
+        chunk = self._data[self._pos:self._pos + n]
+        self._pos += len(chunk)
+        return chunk
+
+
+def verify(path: str) -> dict:
+    """Re-hash every data member in the archive and compare to the embedded manifest."""
+    with tarfile.open(path, "r:gz") as tar:
+        try:
+            mf = tar.getmember(MANIFEST_NAME)
+        except KeyError:
+            return {"valid": False, "error": "manifest missing"}
+        f = tar.extractfile(mf)
+        manifest = json.loads(f.read().decode("utf-8"))
+        expected = {e["name"]: e for e in manifest["files"]}
+        mismatches = []
+        for name, meta in expected.items():
+            try:
+                m = tar.getmember(name)
+            except KeyError:
+                mismatches.append({"name": name, "reason": "missing in tar"})
+                continue
+            data = tar.extractfile(m).read()
+            if _sha256_bytes(data) != meta["sha256"]:
+                mismatches.append({"name": name, "reason": "sha256 mismatch"})
+    return {
+        "valid": len(mismatches) == 0,
+        "archive": path,
+        "file_count": len(expected),
+        "mismatches": mismatches,
+    }
+
+
+def prune(retention: int = DEFAULT_RETENTION) -> list:
+    """Keep only the newest *retention* DATE-stamped daily archives. Returns removed paths."""
+    pattern = os.path.join(_BACKUPS, f"{ARCHIVE_PREFIX}????-??-??{ARCHIVE_SUFFIX}")
+    archives = sorted(glob.glob(pattern))  # YYYY-MM-DD sorts chronologically
+    removed = []
+    if len(archives) > retention:
+        for old in archives[:-retention]:
+            try:
+                os.remove(old)
+                removed.append(old)
+            except OSError:
+                pass
+    return removed
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="SPA daily data/*.json snapshot")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--verify", metavar="PATH", help="verify an archive and exit")
+    ap.add_argument("--retention", type=int, default=DEFAULT_RETENTION)
+    args = ap.parse_args()
+
+    if args.verify:
+        rep = verify(args.verify)
+        print(json.dumps(rep, indent=2))
+        return 0 if rep.get("valid") else 1
+
+    rep = snapshot(dry_run=args.dry_run)
+    if args.dry_run:
+        print(f"[DRY-RUN] would snapshot {rep['file_count']} files "
+              f"({rep['total_bytes']} bytes) → {rep['archive']}")
+        return 0
+
+    vrep = verify(rep["archive"])
+    removed = prune(args.retention)
+    size = os.path.getsize(rep["archive"])
+    print(f"[OK] daily backup {rep['date']}: {rep['file_count']} files, "
+          f"archive {size} bytes → {rep['archive']}")
+    print(f"[{'VERIFIED' if vrep['valid'] else 'FAIL'}] integrity: "
+          f"{vrep['file_count']} members re-hashed, "
+          f"{len(vrep.get('mismatches', []))} mismatches")
+    if removed:
+        print(f"[PRUNE] removed {len(removed)} archive(s) beyond retention={args.retention}")
+    return 0 if vrep["valid"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
