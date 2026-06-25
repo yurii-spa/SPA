@@ -106,12 +106,20 @@ def compute_sharpe(returns: list[float], min_obs: int = 30) -> float | None:
 
     Returns None if len(returns) < min_obs.
     Daily returns expected as percentage points (e.g. 0.0087 for 0.0087%).
+
+    Zero-volatility edge case: a constant non-zero return has no risk, so the
+    Sharpe diverges — we return +/-inf with the sign of the mean. Only a series
+    that is also zero-mean (e.g. all 0.0) is genuinely undefined → None.
     """
     if len(returns) < min_obs:
         return None
     mu = _mean(returns)
     sigma = _std(returns)
     if sigma == 0.0:
+        if mu > 0:
+            return math.inf
+        if mu < 0:
+            return -math.inf
         return None
     return (mu / sigma) * math.sqrt(365.0)
 
