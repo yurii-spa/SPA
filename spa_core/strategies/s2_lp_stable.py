@@ -172,8 +172,11 @@ class LPStableStrategy:
         В реальности берётся из price oracle.
         Здесь: детерминированная функция дня (псевдо-реалистично).
         """
-        # Используем hash строки для детерминированного "случайного" отклонения
-        seed = hash(protocol_key + day_str) % 1000
+        # Стабильный (между запусками) хэш строки. Builtin hash() для str солится
+        # per-process (PYTHONHASHSEED) → результат бэктеста не воспроизводим.
+        # Char-based хэш даёт тот же диапазон 0–9 и истинный детерминизм.
+        _s = protocol_key + day_str
+        seed = (sum(ord(c) * (i + 1) for i, c in enumerate(_s)) & 0xFFFFFFFF) % 1000
         # Типичное peg отклонение USDC/USDT: 0.01–0.05%
         deviation = (seed % 10) * 0.005  # 0–0.045%
         return deviation
