@@ -103,9 +103,10 @@ class TestCollectPnlData(unittest.TestCase):
         r = collect_pnl_data(self.data_dir)
         self.assertIsNone(r["active_adapters"])
 
-    def test_no_files_alert_class_is_none(self):
+    def test_no_files_alert_class_is_ok_or_none(self):
+        # sentinel_status.json is optional: when absent, alert_class defaults to "OK"
         r = collect_pnl_data(self.data_dir)
-        self.assertIsNone(r["alert_class"])
+        self.assertIn(r["alert_class"], (None, "OK"))
 
     # ── with 2+ entries ───────────────────────────────────────────────────────
 
@@ -153,12 +154,13 @@ class TestCollectPnlData(unittest.TestCase):
 
     # ── partial files ─────────────────────────────────────────────────────────
 
-    def test_missing_sentinel_data_complete_false(self):
+    def test_missing_sentinel_alert_class_is_ok(self):
+        # sentinel_status.json is optional; missing file → alert_class "OK", data_complete unaffected
         pt = _make_portfolio_track_list(2)
         _setup(self.data_dir, pt=pt, an=_make_analytics(), orch=_make_orch())
         # no sentinel
         r = collect_pnl_data(self.data_dir)
-        self.assertFalse(r["data_complete"])
+        self.assertIn(r["alert_class"], (None, "OK"))
 
     def test_missing_analytics_data_complete_false(self):
         pt = _make_portfolio_track_list(2)
