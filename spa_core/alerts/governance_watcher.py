@@ -811,9 +811,10 @@ class GovernanceWatcher:
                 },
             }
             if not dry_run:
-                self.output_file.parent.mkdir(parents=True, exist_ok=True)
-                with self.output_file.open("w") as fh:
-                    json.dump(result, fh, indent=2)
+                from spa_core.utils.atomic import atomic_save
+                # Atomic write (tmp + os.replace) — never leave a partial
+                # data/governance_proposals.json state file on crash.
+                atomic_save(result, str(self.output_file), indent=2)
                 log.info("Governance proposals written to %s", self.output_file)
             return result
         except Exception as exc:
