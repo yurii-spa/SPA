@@ -1,7 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
-import Footer from '../components/Footer.astro';
 ---
 
 <Layout
@@ -11,28 +10,6 @@ import Footer from '../components/Footer.astro';
 >
 
   <!-- Nav -->
-  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
-    <div class="flex items-center gap-2">
-      <a href="/" class="flex items-center gap-2">
-        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
-        <span class="font-semibold text-white tracking-tight">SPA</span>
-      </a>
-      <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/50" data-ru="Методология">Methodology</span>
-    </div>
-    <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/" class="hover:text-white transition-colors hidden sm:inline" data-ru="Главная">Home</a>
-      <a href="/strategies" class="hover:text-white transition-colors hidden sm:inline" data-ru="Стратегии">Strategies</a>
-      <a
-        href="/dashboard"
-        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
-        data-ru="Дашборд ↗"
-      >
-        Dashboard ↗
-      </a>
-    </div>
-  </nav>
-
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Hero -->
@@ -562,6 +539,4 @@ import Footer from '../components/Footer.astro';
   </main>
 
   <Disclaimer />
-  <Footer />
-
 </Layout>
