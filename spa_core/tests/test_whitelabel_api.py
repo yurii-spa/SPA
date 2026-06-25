@@ -1084,11 +1084,15 @@ class TestCLI(WhitelabelBase):
         # запуск файла как скрипта: работает и без fastapi
         # (python3 -m spa_core.api.whitelabel_api — эквивалент при
         # установленном fastapi из существующего api/__init__.py)
+        import os
         self.write_sources()
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(REPO_ROOT)
         proc = subprocess.run(
             [sys.executable, str(MODULE_PATH),
              "--check", "--data-dir", str(self.data_dir)],
             capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=120,
+            env=env,
         )
         self.assertEqual(proc.returncode, 0)
         self.assertNotIn("Traceback", proc.stderr)
