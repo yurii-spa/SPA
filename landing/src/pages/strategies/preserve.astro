@@ -49,7 +49,7 @@ const global = strategies.global;
         Preserve Strategy
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        {preserve.tagline}. Tier 1 protocols only — maximum stability, minimum complexity.
+        <span data-ru={preserve.taglineRu}>{preserve.tagline}</span>. <span data-ru="Только протоколы Tier 1 — максимальная стабильность, минимум сложности.">Tier 1 protocols only — maximum stability, minimum complexity.</span>
       </p>
     </section>
 
@@ -62,7 +62,7 @@ const global = strategies.global;
             <span class="text-5xl font-mono font-bold text-accent-400">~6%</span>
             <span class="text-sm text-white/30 font-mono">APY</span>
           </div>
-          <p class="text-xs text-white/25 mt-2">{preserve.target_apy_note}</p>
+          <p class="text-xs text-white/25 mt-2" data-ru={preserve.target_apy_note_ru}>{preserve.target_apy_note}</p>
         </div>
       </div>
     </section>
@@ -112,7 +112,7 @@ const global = strategies.global;
         Allocators prioritising stability and capital preservation over yield optimisation.
       </p>
       <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
-        <p class="text-sm text-white/50 leading-relaxed">
+        <p class="text-sm text-white/50 leading-relaxed" data-ru={preserve.descriptionRu}>
           {preserve.description}
         </p>
       </div>
@@ -166,16 +166,16 @@ const global = strategies.global;
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          'Use leverage',
-          'Use looping',
-          'Allocate to Tier 2+ protocols',
-          'Chase extreme APY',
-          'Bypass RiskPolicy gates',
-          'Make discretionary overrides',
+          { en: 'Use leverage', ru: 'Использовать плечо' },
+          { en: 'Use looping', ru: 'Использовать лупинг' },
+          { en: 'Allocate to Tier 2+ protocols', ru: 'Размещать средства в протоколах Tier 2 и выше' },
+          { en: 'Chase extreme APY', ru: 'Гнаться за экстремальным APY' },
+          { en: 'Bypass RiskPolicy gates', ru: 'Обходить гейты RiskPolicy' },
+          { en: 'Make discretionary overrides', ru: 'Принимать произвольные переопределения' },
         ].map((item) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
             <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
-            <span class="text-sm text-white/50">{item}</span>
+            <span class="text-sm text-white/50" data-ru={item.ru}>{item.en}</span>
           </div>
         ))}
       </div>
