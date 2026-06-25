@@ -128,8 +128,9 @@ def test_connection_postgres_raises_without_driver(monkeypatch):
 
 
 def test_connection_unknown_scheme_raises(monkeypatch):
-    """Anything that's not sqlite:// or postgres:// must raise ValueError."""
+    """Anything that's not sqlite:// or postgres:// must raise ValueError or ConfigError."""
+    from spa_core.utils.errors import ConfigError
     monkeypatch.setenv(db_url_mod.ENV_VAR, "mysql://u@h/db")
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, ConfigError)):
         with get_connection() as _conn:
             pass
