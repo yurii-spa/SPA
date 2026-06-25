@@ -558,10 +558,11 @@ class AdaptiveMonitor:
                 "schedule": items,
             }
             if not dry_run and output_path is not None:
+                from spa_core.utils.atomic import atomic_save
                 p = Path(output_path)
-                p.parent.mkdir(parents=True, exist_ok=True)
-                with p.open("w") as fh:
-                    json.dump(result, fh, indent=2)
+                # Atomic write (tmp + os.replace) — never leave a partial
+                # data/monitor_schedule.json state file on crash.
+                atomic_save(result, str(p), indent=2)
                 log.info("monitor schedule written to %s", p)
             return result
         except Exception as exc:
