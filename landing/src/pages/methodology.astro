@@ -23,7 +23,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 1. What SPA Does -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что делает SPA">What SPA Does</p>
       <p class="text-white/60 leading-relaxed" data-ru="SPA — это автономный оптимизатор доходности для ончейн-стейблкоинов. Он ежедневно сканирует протоколы кредитования DeFi из вайтлиста, применяет детерминированный риск-гейт к каждой предлагаемой аллокации и ребалансирует между протоколами, когда дрейф превышает порог. В пути исполнения нет дискреционного вмешательства человека. В пути исполнения нет LLM.">
         SPA is an autonomous yield optimizer for onchain stablecoins. It runs daily scans of
@@ -34,7 +34,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 2. What SPA Does Not Do -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что SPA НЕ делает">What SPA Does Not Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
@@ -45,7 +45,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           { en: 'Does not hold non-stablecoin assets', ru: 'Не держит активы, отличные от стейблкоинов' },
           { en: 'Does not make discretionary overrides', ru: 'Не делает дискреционных переопределений' },
         ].map((item) => (
-          <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
             <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
             <span class="text-sm text-white/50" data-ru={item.ru}>{item.en}</span>
           </div>
@@ -54,7 +54,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 3. Daily APY Scan -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Ежедневный скан APY">Daily APY Scan</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Каждый день SPA выполняет полный скан поддерживаемых протоколов для сбора текущих данных о доходности.">
         Every day, SPA executes a full scan of supported protocols to collect current yield data.
@@ -67,7 +67,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           { label: 'Schedule', labelRu: 'Расписание', value: 'Daily cycle (automated via scheduler)', valueRu: 'Ежедневный цикл (автоматически через планировщик)' },
           { label: 'Output', labelRu: 'Результат', value: 'Timestamped JSON log per cycle', valueRu: 'JSON-лог с временной меткой на каждый цикл' },
         ].map((row) => (
-          <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-4 py-3 rounded-lg bg-bg-surface border border-border">
             <span class="text-xs text-white/30 font-mono uppercase tracking-wider w-32 flex-shrink-0" data-ru={row.labelRu}>{row.label}</span>
             <span class="text-sm text-white/60" data-ru={row.valueRu}>{row.value}</span>
           </div>
@@ -76,25 +76,25 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 4. Data Sources -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Источники данных">Data Sources</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Основной">Primary</p>
           <p class="text-sm text-white/60">DeFiLlama Yields API</p>
           <p class="text-xs text-white/30 mt-1" data-ru="Агрегированные APY/TVL по всем поддерживаемым пулам">Aggregated APY/TVL across all supported pools</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Ончейн">On-Chain</p>
           <p class="text-sm text-white/60" data-ru="Адаптеры протоколов (read-only)">Protocol adapters (read-only)</p>
           <p class="text-xs text-white/30 mt-1" data-ru="Прямое чтение контрактов для верификации позиций">Direct contract reads for position verification</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Оракулы">Oracles</p>
           <p class="text-sm text-white/60">Chainlink / Pyth price feeds</p>
           <p class="text-xs text-white/30 mt-1" data-ru="Проверка обеспечения для стратегии Max Yield">Collateral checks for Max Yield strategy</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Логирование">Logging</p>
           <p class="text-sm text-white/60" data-ru="Все источники данных логируются на каждый цикл">All data sources logged per cycle</p>
           <p class="text-xs text-white/30 mt-1" data-ru="Полный аудит-трейл в JSON с временными метками">Full audit trail in timestamped JSON</p>
@@ -103,13 +103,13 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 5. Protocol Adapters -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Адаптеры протоколов">Protocol Adapters</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="У каждого поддерживаемого протокола есть отдельный read-only адаптер. Адаптеры нормализуют APY, TVL и метаданные пулов в стандартный формат для движка аллокации. На этапе скана нет доступа на запись.">
         Each supported protocol has a dedicated read-only adapter. Adapters normalize APY, TVL,
         and pool metadata into a standard format for the allocation engine. No write access at scan stage.
       </p>
-      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
         <p class="text-xs text-white/30 font-mono mb-4" data-ru="ТЕКУЩИЙ РЕЕСТР АДАПТЕРОВ — 10+ адаптеров">CURRENT ADAPTER REGISTRY — 10+ adapters</p>
         <div class="flex flex-wrap gap-2">
           {[
@@ -117,7 +117,7 @@ import Disclaimer from '../components/Disclaimer.astro';
             'Compound V3', 'Yearn V3', 'Euler V2', 'Sky/sUSDS', 'Spark', 'sFRAX',
             'Pendle PT', 'Maple', 'Morpho Steakhouse',
           ].map((adapter) => (
-            <span class="px-2.5 py-1.5 rounded border border-white/10 bg-white/[0.03] text-white/50 font-mono text-xs">
+            <span class="px-2.5 py-1.5 rounded border border-border-strong bg-bg-surface text-white/50 font-mono text-xs">
               {adapter}
             </span>
           ))}
@@ -126,15 +126,15 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 6. RiskPolicy v1.0 Parameters -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4" data-ru="Параметры RiskPolicy v1.0">RiskPolicy v1.0 Parameters</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Детерминированный, жёстко прописанный гейт. Ни человек, ни ИИ, ни стратегия не могут переопределить эти параметры.">
         A deterministic, hard-coded gate. No human, no AI, no strategy can override these parameters.
       </p>
-      <div class="overflow-x-auto rounded-xl border border-white/10">
+      <div class="overflow-x-auto rounded-xl border border-border-strong">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-white/10 bg-white/[0.03]">
+            <tr class="border-b border-border-strong bg-bg-surface">
               <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
               <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
             </tr>
@@ -178,7 +178,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 7. Risk-Gated Rebalancing -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Ребалансировка с риск-гейтом">Risk-Gated Rebalancing</p>
       <div class="space-y-4">
         {[
@@ -188,7 +188,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           { en: 'Blocked rebalances visible in Dashboard → Risk Blocks tab', ru: 'Заблокированные ребалансировки видны в Дашборде → вкладка Risk Blocks' },
           { en: 'Human cannot override blocked rebalance in paper trading phase', ru: 'Человек не может переопределить заблокированную ребалансировку на этапе paper trading' },
         ].map((item) => (
-          <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
             <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
             <span class="text-sm text-white/50" data-ru={item.ru}>{item.en}</span>
           </div>
@@ -197,7 +197,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 8. Strategy Tournament -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Турнир стратегий">Strategy Tournament</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed">
         <span data-ru="Несколько стратегий работают параллельно и оцениваются по результату с поправкой на риск. Результат турнира носит">Multiple strategies run in parallel and are evaluated on risk-adjusted performance.
@@ -205,19 +205,19 @@ import Disclaimer from '../components/Disclaimer.astro';
         No strategy can override the gate.</span>
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Участники">Participants</p>
           <p class="text-sm text-white/60" data-ru="Несколько стратегий работают параллельно на paper">Multiple strategies run in parallel on paper</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Оценка">Scoring</p>
           <p class="text-sm text-white/60" data-ru="APY с поправкой на риск (взвешенный по Sharpe)">Risk-adjusted APY (Sharpe-weighted)</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Продвижение">Promotion</p>
           <p class="text-sm text-white/60" data-ru="Лучшие участники продвигаются в paper track record">Top performers promoted to paper track record</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Текущий лидер">Current Leader</p>
           <p class="text-sm text-white/60" data-ru="Стратегия Core — текущий победитель турнира">Core strategy — current tournament winner</p>
         </div>
@@ -225,14 +225,14 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Strategy Profiles -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Профили стратегий">Strategy Profiles</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="SPA предлагает три профиля стратегий: Preserve, Core и Max Yield. У каждого свой целевой профиль риск/доходность и статус валидации.">
         SPA offers three strategy profiles: Preserve, Core, and Max Yield. Each has a distinct
         risk/return target and validation status.
       </p>
       <div class="space-y-4">
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-800 text-xs text-green-400 font-medium">
               <span class="w-1.5 h-1.5 rounded-full bg-green-400" aria-hidden="true"></span>
@@ -242,7 +242,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           </div>
           <p class="text-xs text-white/40" data-ru="На paper-трекинге с 10 июня 2026. Проверенные данные о производительности доступны на дашборде.">Paper tracked since June 10, 2026. Verified performance data available on dashboard.</p>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <div class="flex items-center gap-3 mb-2">
             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 font-medium">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
@@ -256,13 +256,13 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Assets -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Поддерживаемые активы">Supported Assets</p>
       <p class="text-sm text-white/40 mb-4 leading-relaxed" data-ru="SPA работает исключительно со стейблкоинами. Минимальный набор активов для приватного MVP:">
         SPA operates exclusively with stablecoins. Minimum asset set for private MVP:
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3">USDT</p>
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
@@ -275,7 +275,7 @@ import Disclaimer from '../components/Disclaimer.astro';
             </li>
           </ul>
         </div>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3">USDC</p>
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
@@ -288,18 +288,18 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 9. Compounding and Logging -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Реинвестирование и логирование">Compounding & Logging</p>
       <div class="space-y-3">
-        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
           <span class="text-sm text-white/50" data-ru="Доходность реинвестируется ежедневно (условно в paper-режиме)">Yields compound daily (notional in paper mode)</span>
         </div>
-        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
           <span class="text-sm text-white/50" data-ru="Каждый цикл создаёт JSON-лог с временной меткой">Every cycle produces a timestamped JSON log</span>
         </div>
-        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
           <span class="text-sm text-white/50" data-ru="Логи доступны в Дашборде → вкладка Trades">Logs available in Dashboard → Trades tab</span>
         </div>
@@ -307,9 +307,9 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 10. GoLiveChecker -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">GoLiveChecker</p>
-      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <div class="flex items-center justify-between mb-4">
           <span class="text-sm text-white/60 font-medium" data-ru="Статус критериев">Criteria Status</span>
           <span class="text-sm font-mono text-white">20<span class="text-white/30"> / 26 pass</span></span>
@@ -326,18 +326,18 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 11. Versioning / Changelog -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Версионирование и changelog">Versioning & Changelog</p>
       <div class="space-y-3">
-        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
           <span class="text-sm text-white/50" data-ru="RiskPolicy версионируется (сейчас v1.0)">RiskPolicy is versioned (currently v1.0)</span>
         </div>
-        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
           <span class="text-sm text-white/50" data-ru="Изменения требуют задокументированного ADR (Architecture Decision Record)">Changes require a documented ADR (Architecture Decision Record)</span>
         </div>
-        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+        <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
           <span class="text-sm text-white/50" data-ru="Все ADR логируются в репозитории с полным обоснованием">All ADRs logged in repository with full rationale</span>
         </div>
@@ -345,7 +345,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- CPA: Capital Preservation Algorithm -->
-    <section id="cpa" class="py-10 border-t border-white/5">
+    <section id="cpa" class="py-10 border-t border-border">
       <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4" data-ru="Алгоритм сохранения капитала (CPA)">Capital Preservation Algorithm (CPA)</p>
       <p class="text-sm text-white/40 mb-8 leading-relaxed" data-ru="CPA — это многоуровневый фреймворк валидации, который управляет переходом стратегий от исследования к живому капиталу. Каждый шаг требует проверяемых point-in-time доказательств — никаких задним числом подогнанных данных, никакого послезнания.">
         CPA is a layered validation framework that governs how strategies move from research to live capital.
@@ -355,7 +355,7 @@ import Disclaimer from '../components/Disclaimer.astro';
       <!-- CPA 1: Point-in-Time Evidence -->
       <div id="evidence" class="mb-10">
         <p class="text-sm text-white/60 font-medium mb-3" data-ru="Что такое point-in-time доказательства?">What is Point-in-Time Evidence?</p>
-        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="SPA использует только данные, которые были бы доступны на дату симуляции. Протокол, запущенный в 2023 году, невидим для бэктеста 2022 года — без исключений. Это устраняет look-ahead bias — самую частую причину завышенной доходности бэктестов в DeFi.">
             SPA uses only data that would have been available on the simulation date. A protocol
             launched in 2023 is invisible to a 2022 backtest — no exceptions. This eliminates
@@ -382,7 +382,7 @@ import Disclaimer from '../components/Disclaimer.astro';
               stateRu: 'Гейт бэктеста',
               desc: 'Point-in-time simulation over historical on-chain data. CLEAN_INCLUDED sources only. No forward-looking inputs.',
               descRu: 'Point-in-time симуляция на исторических ончейн-данных. Только источники CLEAN_INCLUDED. Никаких опережающих вводных.',
-              color: 'border-white/10',
+              color: 'border-border-strong',
             },
             {
               stage: '02',
@@ -409,7 +409,7 @@ import Disclaimer from '../components/Disclaimer.astro';
               color: 'border-accent-500/30',
             },
           ].map((gate) => (
-            <div class={`rounded-xl bg-white/[0.03] border ${gate.color} p-4`}>
+            <div class={`rounded-xl bg-bg-surface border ${gate.color} p-4`}>
               <span class="text-xs text-white/20 font-mono mb-2 block"><span data-ru="Этап">Stage</span> {gate.stage}</span>
               <p class="text-xs text-white/70 font-semibold mb-2" data-ru={gate.stateRu}>{gate.state}</p>
               <p class="text-xs text-white/40 leading-relaxed" data-ru={gate.descRu}>{gate.desc}</p>
@@ -426,10 +426,10 @@ import Disclaimer from '../components/Disclaimer.astro';
       <!-- CPA 3: Source Quality Framework -->
       <div class="mb-10">
         <p class="text-sm text-white/60 font-medium mb-3" data-ru="Фреймворк качества источников">Source Quality Framework</p>
-        <div class="overflow-x-auto rounded-xl border border-white/10">
+        <div class="overflow-x-auto rounded-xl border border-border-strong">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-white/10 bg-white/[0.03]">
+              <tr class="border-b border-border-strong bg-bg-surface">
                 <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Состояние">State</th>
                 <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Значение">Meaning</th>
                 <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Примеры">Examples</th>
@@ -464,7 +464,7 @@ import Disclaimer from '../components/Disclaimer.astro';
       <!-- CPA 4: Why 86.97% Cash Drag? -->
       <div class="mb-10">
         <p class="text-sm text-white/60 font-medium mb-3" data-ru="Почему 86.97% cash drag?">Why 86.97% Cash Drag?</p>
-        <div class="rounded-xl bg-white/[0.03] border border-amber-500/20 p-5">
+        <div class="rounded-xl bg-bg-surface border border-amber-500/20 p-5">
           <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="В строгом point-in-time режиме за период 2022–2026 большинство DeFi-протоколов ещё не было запущено или у них не было проверяемых ончейн-данных на дату симуляции. CPA не экстраполирует и не предполагает ретроактивную доступность.">
             In strict point-in-time mode across 2022–2026, most DeFi protocols had not yet launched
             or lacked verifiable on-chain data at the simulation date. CPA does not extrapolate
@@ -490,7 +490,7 @@ import Disclaimer from '../components/Disclaimer.astro';
       <div>
         <p class="text-sm text-white/60 font-medium mb-3" data-ru="Исследовательские vs продакшн-стратегии">Research vs Production Strategies</p>
         <div class="space-y-3">
-          <div class="rounded-xl bg-white/[0.03] border border-orange-500/20 p-5">
+          <div class="rounded-xl bg-bg-surface border border-orange-500/20 p-5">
             <div class="flex items-center gap-3 mb-2">
               <span class="px-2 py-0.5 rounded text-xs font-mono bg-orange-500/10 text-orange-400 border border-orange-500/20">RESEARCH_ONLY</span>
               <span class="text-sm text-white/70 font-medium">RS-001 · RS-002</span>
@@ -502,7 +502,7 @@ import Disclaimer from '../components/Disclaimer.astro';
               <span data-ru="data source is identified and audited. Evidence-точки за исследовательские дни оцениваются в 0.3 (против 1.0 за чистые дни).">data source is identified and audited. Evidence points from research days score 0.3 (vs 1.0 for clean days).</span>
             </p>
           </div>
-          <div class="rounded-xl bg-white/[0.03] border border-green-500/20 p-5">
+          <div class="rounded-xl bg-bg-surface border border-green-500/20 p-5">
             <div class="flex items-center gap-3 mb-2">
               <span class="px-2 py-0.5 rounded text-xs font-mono bg-green-500/10 text-green-400 border border-green-500/20">CLEAN_INCLUDED</span>
               <span class="text-sm text-white/70 font-medium" data-ru="S0–S9 (стратегии Core)">S0–S9 (Core strategies)</span>
@@ -519,17 +519,17 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Footer Links -->
-    <section class="py-16 border-t border-white/5">
+    <section class="py-16 border-t border-border">
       <div class="text-center">
         <p class="text-sm text-white/30 mb-6" data-ru="Продолжите свою проверку (due diligence)">Continue your due diligence</p>
         <div class="flex flex-wrap items-center justify-center gap-4">
-          <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Раскрытие рисков">
+          <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Раскрытие рисков">
             Risk Disclosure
           </a>
-          <a href="/fees" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Структура комиссий">
+          <a href="/fees" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Структура комиссий">
             Fee Structure
           </a>
-          <a href="/strategies" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Все стратегии">
+          <a href="/strategies" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Все стратегии">
             All Strategies
           </a>
         </div>
