@@ -31,31 +31,33 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 ---
 
-## 📊 Текущее состояние (2026-06-22)
+## 📊 Текущее состояние (2026-06-24)
+
+> ⚠️ Живые цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин) + `data/golive_status.json` +
+> `data/paper_trading_status.json`. Таблица ниже — снимок, может дрейфовать.
 
 | Поле | Значение |
 |---|---|
 | Реальный трек | начат **2026-06-10** (всё до — демо, недействительно) |
-| Дней трека | **13/30** (17 ещё нужно, target go-live **~2026-07-09**) |
-| Капитал | **$100,149.54** (+0.15% за 13д) |
-| Daily yield | **$13.44/день** · APY сегодня ~4.9% |
-| GoLive | ⛔ **26/29 pass** — NOT READY (3 блокера) |
+| Дней трека | **15/30** (15 ещё нужно, target go-live **~2026-07-09**) |
+| Капитал | **$100,170.40** (+0.17% за 15д) |
+| Daily yield | **$9.88/день** · APY сегодня ~3.6% |
+| GoLive | ⛔ **27/29 pass** — NOT READY (2 time-gated блокера) |
 | Sprint | **v12.82** · Done: **1358** · Backlog: 0 |
-| Агенты | ✅ **~37 загружено** (agent_health crit=0; источник истины — `launchctl list \| grep spa` / SYSTEM_BRIEFING, НЕ это число) |
-| Push queue | 7 скриптов v1357–v1363 ждут autopush (~90 мин цикл) |
+| Агенты | ✅ **~42 загружено** (agent_health crit=0; источник истины — `launchctl list \| grep spa` / SYSTEM_BRIEFING, НЕ это число) |
 | Repo | `yurii-spa/SPA` (GitHub) |
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
 
-**GoLive блокеры:**
-- `gap_monitor_30d`: 13/30 трек-дней (17 дней просто ждать)
-- `autopush_installed`: always fails in sandbox/CI — на реальном Mac проверяй через `launchctl list | grep spa`
+**GoLive блокеры (оба — просто ожидание 30 трек-дней, нечего чинить кодом):**
+- `gap_monitor_30d`: 15/30 трек-дней (15 дней просто ждать)
 - `min_track_days_30`: то же что gap_monitor
+- (`autopush_installed` теперь **PASS** на реальном Mac; в sandbox/CI всегда fails — проверяй через `launchctl list | grep spa`)
 
 ---
 
 ## ⚙️ LaunchAgents (установлены 2026-06-22, FAIL=0)
 
-~37 агентов в `~/Library/LaunchAgents/` — переживают перезагрузку. Таблица ниже —
+~42 агента в `~/Library/LaunchAgents/` — переживают перезагрузку. Таблица ниже —
 лишь ключевые; полный актуальный список ВСЕГДА `launchctl list | grep spa` (это число
 дрейфует, не доверяй ему — доверяй launchctl/SYSTEM_BRIEFING). `com.spa.system_briefing`
 доустановлен 2026-06-24.
@@ -133,7 +135,7 @@ docs/tournament.html                       — live страница на сай
 
 ## 📈 Адаптеры (spa_core/adapters/)
 
-Реестр — `ADAPTER_REGISTRY` в `spa_core/adapters/__init__.py`. **27 адаптеров live.**
+Реестр — `ADAPTER_REGISTRY` в `spa_core/adapters/__init__.py`. **33 адаптера в реестре** (live-feed `num_adapters_live` в `paper_trading_status.json` ~34).
 **Read-only домен** — никогда не пишет в `data/adapter_status.json` (execution-домен).
 
 | Tier | Протоколы |
@@ -218,7 +220,7 @@ security find-generic-password -s TELEGRAM_CHAT_ID_SPA -w
 
 | Файл | Что |
 |---|---|
-| `golive_status.json` | 29 критериев GoLive (26/29 pass, NOT READY) |
+| `golive_status.json` | 29 критериев GoLive (27/29 pass, NOT READY) |
 | `gap_monitor.json` | Непрерывность трека (13/30 дней) |
 | `trades.json` | Виртуальные трейды (ring-buffer 500) |
 | `equity_curve_daily.json` | Дневная equity (ring-buffer 365) |
@@ -276,4 +278,4 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 
 ---
 
-*Обновлено: 2026-06-24 (v12.83 — ~37 агентов загружено, source of truth = launchctl/SYSTEM_BRIEFING; system_briefing доустановлен; daily_cycle canonical runner + ALLOC-002; HY/LP sleeves активированы; agent_health честно зелёный).*
+*Обновлено: 2026-06-25 (v12.83 — docs audit: state-table sync 15/30·$100,170·27/29, ~42 агента, реестр 33 адаптера; source of truth = launchctl/SYSTEM_BRIEFING; system_briefing доустановлен; daily_cycle canonical runner + ALLOC-002; HY/LP sleeves активированы; agent_health честно зелёный).*
