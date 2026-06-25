@@ -125,6 +125,10 @@ class PaperService:
         else:
             self._telegram_send = self._default_telegram_send
 
+        # Tracks the last UTC day we refreshed live market data on, so a single tick refreshes at
+        # most once per calendar day (hourly launchd ticks must NOT re-fetch the network 24×/day).
+        self._last_md_refresh_day: Optional[str] = None
+
         # Build the strategy set, then RESTORE persisted state (restart-survival).
         self._strategies: Dict[str, Strategy] = self._build_strategies()
         self._restore_all()
@@ -266,6 +270,30 @@ class PaperService:
             log.warning("telegram send failed: %s", exc)
             return False
 
+    # ── live market-data refresh (once per UTC day) ───────────────────────────────────────
+    def _refresh_market_data_if_due(self, utc_day: str) -> None:
+        """Refresh the live market-data cache at most once per UTC day.
+
+        The cached series' newest date only advances when the feeds are re-fetched. The hourly
+        launchd tick must therefore trigger a refresh so ``latest()`` returns the current day's
+        snapshot — but only the FIRST tick of each UTC day (subsequent same-day ticks reuse the
+        cache, so we do not hammer the network 24×/day).
+
+        Duck-typed: a market-data object WITHOUT a ``refresh`` method (e.g. the test FakeMarketData,
+        whose date is driven directly via the injected snapshot) is left untouched. Fail-CLOSED:
+        a refresh that raises propagates to the caller, which records a gap and does not advance —
+        so a network failure never fabricates a date. On success we mark the day done; we only
+        re-fetch the same day if a prior refresh FAILED (left the marker un-advanced)."""
+        if self._last_md_refresh_day == utc_day:
+            return
+        refresh = getattr(self._md, "refresh", None)
+        if not callable(refresh):
+            # No refresh surface (injected fake): the snapshot's date is supplied directly.
+            self._last_md_refresh_day = utc_day
+            return
+        refresh()  # may raise → fail-closed in tick() (gap, no advance, marker stays un-advanced)
+        self._last_md_refresh_day = utc_day
+
     # ── the tick ──────────────────────────────────────────────────────────────────────────
     def tick(self) -> dict:
         """Advance ALL strategies one tick on the LATEST live market snapshot.
@@ -278,6 +306,11 @@ class PaperService:
         """
         date = _utc_today()
         try:
+            # ROOT-CAUSE FIX: refresh live market data once per UTC day BEFORE reading latest().
+            # Without this the cached series' max() date is frozen at first-load, so latest().date
+            # never advances → every hourly tick is "same day" → the series stays n=1. Refreshing
+            # here advances the latest available data date so the forward track actually grows.
+            self._refresh_market_data_if_due(date)
             snapshot = self._md.latest()
             if snapshot is None or not getattr(snapshot, "date", None):
                 raise InvalidDataError("latest() returned no usable snapshot")
