@@ -16,7 +16,7 @@
     "rwa_floor_apy_pct": 4.5
   },
   "promotion": {
-    "_doc": "Thresholds for promotion.py — the deterministic decision layer that scores each lab sleeve and assigns a pipeline STAGE (REJECT / BACKTEST_PASS / PAPER_CANDIDATE) along RESEARCH→BACKTEST→WALK-FORWARD→PAPER→CANARY→FULL. Fail-CLOSED: any missing criterion fails. NEVER hardcode these in code. RiskPolicy is the gate; LLM FORBIDDEN.",
+    "_doc": "Thresholds for promotion.py \u2014 the deterministic decision layer that scores each lab sleeve and assigns a pipeline STAGE (REJECT / BACKTEST_PASS / PAPER_CANDIDATE) along RESEARCH\u2192BACKTEST\u2192WALK-FORWARD\u2192PAPER\u2192CANARY\u2192FULL. Fail-CLOSED: any missing criterion fails. NEVER hardcode these in code. RiskPolicy is the gate; LLM FORBIDDEN.",
     "max_drawdown_band_pct": 15.0,
     "wf_consistency_min_pct": 70.0,
     "min_capacity_aum_usd": 1000000.0,
@@ -52,7 +52,7 @@
     },
     "eth_lst_neutral": {
       "name": "ETH LST Neutral (delta-neutral stETH/rETH + perp short)",
-      "doc": "The SAFE ETH-yield sleeve: PLAIN-STAKING LST (stETH/rETH, NOT LRTs) hedged with a short ETH perp → beta ≈ 0. Income = staking yield ± funding. LSTs barely depeg vs the LRTs that died in 2024, so the depeg kill (lst_depeg_kill_pct) is TIGHTER than variant_n's. T2, advisory until canary.",
+      "doc": "The SAFE ETH-yield sleeve: PLAIN-STAKING LST (stETH/rETH, NOT LRTs) hedged with a short ETH perp \u2192 beta \u2248 0. Income = staking yield \u00b1 funding. LSTs barely depeg vs the LRTs that died in 2024, so the depeg kill (lst_depeg_kill_pct) is TIGHTER than variant_n's. T2, advisory until canary.",
       "mandate": "neutral",
       "is_advisory": true,
       "tier": "T2",
@@ -132,6 +132,50 @@
       "capital_usd": 100000,
       "apy_pct": 3.4,
       "drawdown_stop_pct": 1.0
+    }
+  },
+  "capacity": {
+    "_doc": "Per-sleeve capacity (max-safe-AUM) inputs for spa_core/strategy_lab/walk_forward.py. max_safe_aum_usd = market_tvl_usd * max_pool_pct (default 2%). market_tvl_usd is the aggregate depth of the venue(s) the sleeve deploys into (conservative, documented figures, NOT a live feed \u2014 deterministic). A sleeve with NO entry here gets capacity None \u2192 its promotion capacity criterion stays PENDING (fail-closed).",
+    "max_pool_pct": 0.02,
+    "rwa_sleeve": {
+      "market_tvl_usd": 15000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "engine_a": {
+      "market_tvl_usd": 15000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "engine_b": {
+      "market_tvl_usd": 2000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "engine_c": {
+      "market_tvl_usd": 2000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "variant_n": {
+      "market_tvl_usd": 5000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "variant_d": {
+      "market_tvl_usd": 5000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "eth_lst_neutral": {
+      "market_tvl_usd": 5000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "eth_lst_staking": {
+      "market_tvl_usd": 5000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "btc_neutral": {
+      "market_tvl_usd": 5000000000.0,
+      "max_pool_pct": 0.02
+    },
+    "btc_lending_sleeve": {
+      "market_tvl_usd": 5000000000.0,
+      "max_pool_pct": 0.02
     }
   }
 }
