@@ -141,6 +141,35 @@ def _atomic_append_jsonl(path: Path, line: str) -> None:
             raise
 
 
+def _verify_entry_hash(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Verify records in the canonical ``entry_hash`` scheme owned by hash_chain.
+
+    Mirrors :func:`spa_core.audit.hash_chain.verify_chain` so an explicitly
+    supplied chain file (not the default path) is still checked with the real
+    recompute — genuine tampering is caught, not just accepted. Returns the
+    same ``{"valid", "length", "broken_at"}`` shape as hash_chain.verify_chain.
+    """
+    from spa_core.audit import hash_chain as _hc
+
+    expected_prev = _hc.GENESIS_PREV
+    for idx, e in enumerate(records):
+        if e.get("seq") != idx:
+            return {"valid": False, "length": len(records), "broken_at": idx}
+        if e.get("prev_hash") != expected_prev:
+            return {"valid": False, "length": len(records), "broken_at": idx}
+        recomputed = _hc.compute_entry_hash(
+            e.get("seq"),
+            e.get("ts"),
+            e.get("event_type"),
+            e.get("payload"),
+            e.get("prev_hash"),
+        )
+        if recomputed != e.get("entry_hash"):
+            return {"valid": False, "length": len(records), "broken_at": idx}
+        expected_prev = e["entry_hash"]
+    return {"valid": True, "length": len(records), "broken_at": None}
+
+
 def _read_last_chain_hash(path: Path) -> str:
     """Return the ``chain_hash`` of the last record, or GENESIS_HASH if empty."""
     if not path.exists():
@@ -238,9 +267,37 @@ def verify_chain(
         log.info("audit_chain: no chain file at %s — nothing to verify", path)
         return True
 
-    prev_hash = GENESIS_HASH
     records = read_chain(filepath=path)
 
+    # ------------------------------------------------------------------ #
+    # Schema detection — the canonical on-disk chain at data/audit_chain.jsonl
+    # is owned and written by spa_core.audit.hash_chain (the runtime writer,
+    # see execution.reconciliation), which uses the ``entry_hash`` scheme
+    # (sha256 over canonical {seq,ts,event_type,payload,prev_hash}).  This
+    # signer module's native ``chain_hash`` scheme is a SEPARATE, older format.
+    # Both targeted the same file, so verifying a hash_chain-format file with
+    # the chain_hash recompute reported a *false* tamper.
+    #
+    # When the records are in the canonical ``entry_hash`` format we delegate
+    # to the single source-of-truth verifier in hash_chain so there is one
+    # real integrity implementation and genuine tampering is still caught.
+    # ------------------------------------------------------------------ #
+    if records and "entry_hash" in records[0] and "chain_hash" not in records[0]:
+        from spa_core.audit import hash_chain as _hc
+
+        result = _hc.verify_chain() if path == _hc._chain_path() else _verify_entry_hash(records)
+        if not result.get("valid", False):
+            idx = result.get("broken_at", -1)
+            msg = f"audit chain tampered at record {idx} (entry_hash scheme)"
+            log.error("AuditChainTamperedError: %s", msg)
+            raise AuditChainTamperedError(msg, record_index=idx)
+        log.info(
+            "audit_chain: verified %d records (entry_hash scheme) — chain intact",
+            len(records),
+        )
+        return True
+
+    prev_hash = GENESIS_HASH
     for idx, record in enumerate(records):
         actual_hash = record.get("chain_hash", "")
         # Re-compute over the record without the chain_hash field
