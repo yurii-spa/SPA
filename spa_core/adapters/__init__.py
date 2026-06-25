@@ -45,6 +45,11 @@ from .usual_usd0pp_adapter import UsualUSD0PPAdapter  # MP-1227
 # MP-1250: Pendle PT fixed-rate adapters (T2, DeFiLlama feed + fallback, maturity-aware)
 from .pendle_pt_susde_adapter import PendlePTSusdeAdapter  # MP-1250
 from .pendle_pt_usdc_adapter import PendlePTUsdcAdapter    # MP-1250
+# RESEARCH_EXPANSION_2026-06-25 §1: Bitcoin lending (tBTC + cbBTC supply yield) —
+# READ-ONLY/advisory T2. Honest: safe BTC lending pays ~0–1.2% (BTC rarely
+# borrowed); the real risk is the WRAPPER, so we use tBTC (decentralized) +
+# cbBTC (regulated) ONLY and AVOID WBTC / LBTC-restaking.
+from .btc_lending import TbtcLendingAdapter, CbbtcLendingAdapter  # BTC deposit (T2, advisory)
 # MP-448: Aave V3 Base chain T2 adapter (Coinbase L2, ~$400M USDC TVL)
 try:
     from .aave_v3_base_adapter import AaveV3BaseAdapter
@@ -155,6 +160,8 @@ ADAPTER_REGISTRY = [
     ("usual_usd0pp",     "T2", UsualUSD0PPAdapter),     # MP-1227
     ("pendle_pt_susde",  "T2", PendlePTSusdeAdapter),   # MP-1250
     ("pendle_pt_usdc",   "T2", PendlePTUsdcAdapter),    # MP-1250
+    ("tbtc_lending",     "T2", TbtcLendingAdapter),     # BTC deposit (tBTC, decentralized) — advisory
+    ("cbbtc_lending",    "T2", CbbtcLendingAdapter),    # BTC deposit (cbBTC, regulated)    — advisory
 ]
 
 # MP-448/MP-450: добавляем Base адаптеры если импорт успешен
@@ -216,6 +223,8 @@ __all__ = [
     "UsualUSD0PPAdapter",     # MP-1227
     "PendlePTSusdeAdapter",   # MP-1250
     "PendlePTUsdcAdapter",    # MP-1250
+    "TbtcLendingAdapter",     # BTC deposit (tBTC, decentralized) — advisory T2
+    "CbbtcLendingAdapter",    # BTC deposit (cbBTC, regulated)    — advisory T2
     "AaveV3BaseAdapter",
     "MorphoBlueBaseAdapter",
     "MoonwellBaseAdapter",
