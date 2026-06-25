@@ -56,10 +56,12 @@ class TestReportGeneration:
         report = report_module["generate_multi_engine_report"](output_path=tmp_path / "r.json")
         assert report.engines["A"].equity >= 0
 
-    def test_engine_b_equity_zero_pending(self, report_module, tmp_path):
-        """Engine B equity = 0, status = PENDING (новый sleeve)"""
+    def test_engine_b_equity_nonneg_pending(self, report_module, tmp_path):
+        """Engine B (HY/Carry sleeve, activated 2026-06-23): equity >= 0 and
+        go-live still PENDING during the 30-day track. (Was equity==0 before the
+        sleeve was activated — see 'HY/LP sleeves activated' 2026-06-23.)"""
         report = report_module["generate_multi_engine_report"](output_path=tmp_path / "r.json")
-        assert report.engines["B"].equity == 0.0
+        assert report.engines["B"].equity >= 0.0
         assert report.engines["B"].golive_status == "PENDING"
 
     def test_overall_risk_present(self, report_module, tmp_path):
@@ -109,10 +111,12 @@ class TestReportGeneration:
             assert "equity" in data["engines"][eng]
             assert "golive_status" in data["engines"][eng]
 
-    def test_engine_c_equity_zero_pending(self, report_module, tmp_path):
-        """Engine C equity = 0, status = PENDING (новый sleeve)"""
+    def test_engine_c_equity_nonneg_pending(self, report_module, tmp_path):
+        """Engine C (LP sleeve, activated 2026-06-23): equity >= 0 and go-live
+        still PENDING during the 30-day track. (Was equity==0 before the sleeve
+        was activated — see 'HY/LP sleeves activated' 2026-06-23.)"""
         report = report_module["generate_multi_engine_report"](output_path=tmp_path / "r.json")
-        assert report.engines["C"].equity == 0.0
+        assert report.engines["C"].equity >= 0.0
         assert report.engines["C"].golive_status == "PENDING"
 
 
