@@ -13,6 +13,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.init_db import init_database
 from message_bus.bus import MessageBus
+try:
+    from spa_core.utils.errors import RegistryError as _RegistryError
+except ImportError:
+    _RegistryError = None
 from message_bus.topics import Priority, Topic
 
 # ─── Runner ───────────────────────────────────────────────────────────────────
@@ -45,10 +49,11 @@ run("Publish::returns_uuid_string", test_publish_returns_id)
 
 def test_publish_invalid_topic():
     bus = make_bus()
+    _expected = (ValueError,) + ((_RegistryError,) if _RegistryError else ())
     try:
         bus.publish("UNKNOWN_TOPIC", "agent", {})
-        assert False, "Should raise ValueError"
-    except ValueError:
+        assert False, "Should raise ValueError or RegistryError"
+    except _expected:
         pass
 run("Publish::raises_on_invalid_topic", test_publish_invalid_topic)
 
