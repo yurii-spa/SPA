@@ -32,12 +32,11 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.backtesting.tier1 import oos as oos_mod
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -367,18 +366,7 @@ def build_report(write: bool = True) -> dict:
         "live_portfolio": live,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1wf_")
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(report, f, indent=2)
-            os.replace(tmp, _OUT)
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+        atomic_save(report, str(_OUT))
     return report
 
 
