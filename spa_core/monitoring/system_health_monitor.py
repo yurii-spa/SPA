@@ -203,10 +203,15 @@ def _age_hours(raw: Any) -> Optional[float]:
     return (_now() - dt).total_seconds() / 3600.0
 
 
-def _http_get(url: str, timeout: int = NET_TIMEOUT, want_headers: bool = False):
+def _http_get(url: str, timeout: int = NET_TIMEOUT, want_headers: bool = False,
+              extra_headers: Optional[dict] = None):
     """GET a URL. Returns (status_code, body_bytes_or_None, headers_dict).
-    gzip is sniffed via magic bytes and decompressed (DeFiLlama hazard)."""
-    req = urllib.request.Request(url, headers={"User-Agent": "spa-health/1.0"})
+    gzip is sniffed via magic bytes and decompressed (DeFiLlama hazard).
+    ``extra_headers`` (e.g. Authorization) merge on top of the default UA."""
+    hdrs = {"User-Agent": "spa-health/1.0"}
+    if extra_headers:
+        hdrs.update(extra_headers)
+    req = urllib.request.Request(url, headers=hdrs)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         status = getattr(resp, "status", None)
         if status is None:
@@ -717,20 +722,48 @@ class SystemHealthMonitor:
 
     def _probe_github_rate(self) -> CheckResult:
         D = "d4_external"
+        # Authenticate via Keychain PAT when available: the autopush pipeline uses
+        # the same authenticated token (ceiling 5000/hr), so this probe must measure
+        # the budget actually consumed by the system — NOT the anonymous 60/hr pool,
+        # which is structurally below GITHUB_RATE_FLOOR (100) and would WARN forever.
+        extra_headers = None
+        authed = False
         try:
-            status, body, hdrs = _http_get(GITHUB_API_RATE, timeout=NET_TIMEOUT, want_headers=True)
+            from spa_core.utils.keychain import get_github_pat
+            pat = get_github_pat()
+            if pat:
+                extra_headers = {"Authorization": f"Bearer {pat}"}
+                authed = True
+        except Exception:                  # noqa: BLE001 — Keychain absent (CI/sandbox)
+            extra_headers = None
+        try:
+            status, body, hdrs = _http_get(GITHUB_API_RATE, timeout=NET_TIMEOUT,
+                                           want_headers=True, extra_headers=extra_headers)
             remaining = hdrs.get("x-ratelimit-remaining")
-            if remaining is None and body:
+            limit_hdr = hdrs.get("x-ratelimit-limit")
+            if (remaining is None or limit_hdr is None) and body:
                 try:
-                    remaining = json.loads(body.decode()).get("rate", {}).get("remaining")
+                    rate = json.loads(body.decode()).get("rate", {})
+                    remaining = remaining if remaining is not None else rate.get("remaining")
+                    limit_hdr = limit_hdr if limit_hdr is not None else rate.get("limit")
                 except Exception:          # noqa: BLE001
-                    remaining = None
+                    pass
             rem = int(remaining) if remaining is not None else None
+            limit = int(limit_hdr) if limit_hdr is not None else None
+            # Unauthenticated ceiling is 60/hr — strictly below the 100 floor, so a
+            # "low" reading there is an expected environment property (no PAT), not a
+            # system fault. Report it as INFO/advisory rather than a domain WARNING.
+            if not authed and limit is not None and limit <= GITHUB_RATE_FLOOR:
+                return CheckResult("d4.github_rate", D, INFO,
+                                   f"GitHub rate unauthenticated ({rem}/{limit}) — no PAT, advisory",
+                                   value=rem, expected=limit)
             if rem is not None and rem <= GITHUB_RATE_FLOOR:
                 return CheckResult("d4.github_rate", D, WARNING,
-                                   f"GitHub rate-limit low ({rem})", value=rem)
+                                   f"GitHub rate-limit low ({rem}/{limit})", value=rem,
+                                   expected=limit)
             return CheckResult("d4.github_rate", D, OK,
-                               f"GitHub rate-limit ok ({rem})", value=rem)
+                               f"GitHub rate-limit ok ({rem}/{limit})", value=rem,
+                               expected=limit)
         except Exception as exc:           # noqa: BLE001
             return CheckResult("d4.github_rate", D, WARNING, "GitHub rate API unreachable", error=repr(exc))
 
