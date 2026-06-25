@@ -21,10 +21,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Optional
+
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -113,11 +113,7 @@ def build_gate(write: bool = True) -> dict:
         "live_vs_backtest": _live_divergence(verdict),
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1gate_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(gate, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(gate, str(_OUT))
     return gate
 
 
