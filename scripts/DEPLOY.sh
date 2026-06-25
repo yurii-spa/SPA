@@ -191,7 +191,6 @@ if [ "$SKIP_PUSH" = "0" ]; then
     scripts/deploy_all.sh \
     scripts/agent_status.sh \
     scripts/com.spa.analytics_tier_c.plist \
-    scripts/com.spa.daily-paper-report.plist \
     scripts/com.spa.checkpoint-7day.plist \
     scripts/com.spa.fund-api.plist \
     scripts/com.spa.autopush.plist \
