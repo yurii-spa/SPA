@@ -61,7 +61,10 @@ def test_shipped_config_loads_and_validates():
     # spa_core/strategy_lab/strategy_lab_config.json and data/strategy_lab_config.json.
     assert g["window_start"] == "2024-06-05"
     assert g["window_end"] == "2026-06-24"
-    assert cfg.rwa_floor_apy_pct() == 4.5
+    # The committed literal is now the conservative OFFLINE FALLBACK (live feed off → literal).
+    # The live path (default on) is covered in test_strategy_lab_rwa.py with injected fetchers.
+    assert g["rwa_floor_apy_pct"] == 4.5
+    assert cfg.rwa_floor_apy_pct(live=False) == 4.5
 
 
 def test_strategy_config_blocks():
