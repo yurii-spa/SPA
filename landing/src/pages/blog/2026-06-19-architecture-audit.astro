@@ -5,10 +5,13 @@ import Footer from '../../components/Footer.astro';
 
 const post = {
   title: "Internal Architecture Audit Completed",
+  titleRu: "Завершён внутренний аудит архитектуры",
   date: "2026-06-19",
   tag: "Engineering",
+  tagRu: "Инженерия",
   tagColor: "text-teal-400",
   summary: "Comprehensive audit of all system components: adapters, RiskPolicy gates, GoLiveChecker, launchd daemons, and execution isolation.",
+  summaryRu: "Всесторонний аудит всех компонентов системы: адаптеров, гейтов RiskPolicy, GoLiveChecker, демонов launchd и изоляции домена исполнения.",
 };
 ---
 
@@ -44,13 +47,13 @@ const post = {
     <!-- Header -->
     <section class="pt-16 pb-10">
       <div class="flex items-center gap-3 mb-4">
-        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>{post.tag}</span>
+        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`} data-ru={post.tagRu}>{post.tag}</span>
         <span class="text-xs text-white/25 font-mono">{post.date}</span>
       </div>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru={post.titleRu}>
         {post.title}
       </h1>
-      <p class="text-white/50 text-lg leading-relaxed">{post.summary}</p>
+      <p class="text-white/50 text-lg leading-relaxed" data-ru={post.summaryRu}>{post.summary}</p>
     </section>
 
     <!-- Body -->
@@ -71,53 +74,67 @@ const post = {
           {[
             {
               area: 'Adapter Domain',
+              areaRu: 'Домен адаптеров',
               status: 'PASS',
               color: 'text-green-400',
               detail: 'All read-only adapters verified. Zero cross-domain imports from execution/. DeFiLlama feed with TTL-300s cache validated.',
+              detailRu: 'Все read-only адаптеры проверены. Ноль кросс-доменных импортов из execution/. Фид DeFiLlama с кэшем TTL-300s подтверждён.',
             },
             {
               area: 'RiskPolicy v1.0',
+              areaRu: 'RiskPolicy v1.0',
               status: 'PASS',
               color: 'text-green-400',
               detail: 'Deterministic gate confirmed. No LLM calls, no override paths. Snapshot archived in spa_core/risk/versions/.',
+              detailRu: 'Детерминированный гейт подтверждён. Никаких вызовов LLM, никаких путей переопределения. Снимок заархивирован в spa_core/risk/versions/.',
             },
             {
               area: 'GoLiveChecker',
+              areaRu: 'GoLiveChecker',
               status: 'PASS',
               color: 'text-green-400',
               detail: '29 criteria verified. gate locks functional. gap_monitor integration confirmed.',
+              detailRu: '29 критериев проверены. Блокировки гейта работают. Интеграция с gap_monitor подтверждена.',
             },
             {
               area: 'launchd Daemons',
+              areaRu: 'Демоны launchd',
               status: 'PARTIAL',
               color: 'text-amber-400',
               detail: 'com.spa.daily_cycle and com.spa.httpserver active. com.spa.autopush NOT installed — fix pending (mp009_fix_launchd.command).',
+              detailRu: 'com.spa.daily_cycle и com.spa.httpserver активны. com.spa.autopush НЕ установлен — исправление в ожидании (mp009_fix_launchd.command).',
             },
             {
               area: 'Atomic Writes',
+              areaRu: 'Атомарные записи',
               status: 'PASS',
               color: 'text-green-400',
               detail: 'All state files use tmp + os.replace pattern. No direct open(..., "w") on JSON state files.',
+              detailRu: 'Все файлы состояния используют паттерн tmp + os.replace. Никакого прямого open(..., "w") на JSON-файлах состояния.',
             },
             {
               area: 'Secrets Policy',
+              areaRu: 'Политика секретов',
               status: 'PASS',
               color: 'text-green-400',
               detail: 'PAT stored in macOS Keychain only. Zero tokens in files post-incident remediation.',
+              detailRu: 'PAT хранится только в Keychain macOS. Ноль токенов в файлах после устранения инцидента.',
             },
             {
               area: 'Domain Isolation',
+              areaRu: 'Изоляция доменов',
               status: 'PASS',
               color: 'text-green-400',
               detail: 'execution/ not importable from read-only code. LLM_FORBIDDEN enforced for risk/execution/monitoring.',
+              detailRu: 'execution/ невозможно импортировать из read-only кода. LLM_FORBIDDEN применяется для risk/execution/monitoring.',
             },
           ].map(item => (
             <div class="rounded-xl bg-white/[0.03] border border-white/8 p-4">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-sm text-white font-medium">{item.area}</span>
+                <span class="text-sm text-white font-medium" data-ru={item.areaRu}>{item.area}</span>
                 <span class={`text-xs font-mono ${item.color}`}>{item.status}</span>
               </div>
-              <p class="text-xs text-white/40 leading-relaxed">{item.detail}</p>
+              <p class="text-xs text-white/40 leading-relaxed" data-ru={item.detailRu}>{item.detail}</p>
             </div>
           ))}
         </div>
@@ -128,14 +145,14 @@ const post = {
         <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Ключевые выводы">Key Findings</p>
         <div class="space-y-3 text-sm">
           <p>
-            The architecture is sound for paper trading. The primary blocker for GoLiveChecker is
-            not a design issue but an operational one: <code class="font-mono text-amber-400 text-xs bg-white/5 px-1.5 py-0.5 rounded">com.spa.autopush</code> daemon
-            is not installed, which blocks the <code class="font-mono text-white/50 text-xs">autopush_installed</code> criterion.
+            <span data-ru="Архитектура надёжна для бумажной торговли. Основной блокер для GoLiveChecker — не проблема дизайна, а операционная: демон">The architecture is sound for paper trading. The primary blocker for GoLiveChecker is
+            not a design issue but an operational one:</span> <code class="font-mono text-amber-400 text-xs bg-white/5 px-1.5 py-0.5 rounded">com.spa.autopush</code> <span data-ru="не установлен, что блокирует критерий">daemon
+            is not installed, which blocks the</span> <code class="font-mono text-white/50 text-xs">autopush_installed</code><span data-ru=".">.</span>
           </p>
           <p>
-            The domain isolation between <code class="font-mono text-white/60 text-xs">spa_core/adapters/</code> (read-only)
-            and <code class="font-mono text-white/60 text-xs">spa_core/execution/</code> is correctly enforced.
-            No cross-contamination was found in 800+ test files.
+            <span data-ru="Изоляция доменов между">The domain isolation between</span> <code class="font-mono text-white/60 text-xs">spa_core/adapters/</code> <span data-ru="(read-only) и">(read-only)
+            and</span> <code class="font-mono text-white/60 text-xs">spa_core/execution/</code> <span data-ru="корректно обеспечена. Никакого перекрёстного загрязнения не обнаружено в 800+ тестовых файлах.">is correctly enforced.
+            No cross-contamination was found in 800+ test files.</span>
           </p>
           <p data-ru="RiskPolicy v1.0 не имеет ни одного пути для дискреционного переопределения. Аварийный выключатель при просадке 5% и лимиты на протокол (40% T1, 20% T2) жёстко зашиты в код и неприкосновенны на протяжении всего периода бумажной торговли.">
             RiskPolicy v1.0 has zero discretionary override paths. The kill switch at 5% drawdown
