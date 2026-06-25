@@ -6,72 +6,102 @@ import Footer from '../components/Footer.astro';
 const faqs = [
   {
     id: 'faq-what-is-spa',
-    q: 'Что такое SPA?',
-    a: 'SPA (Stablecoin Preservation Algorithm) — алгоритмическая стратегия DeFi, направленная на сохранение капитала и стабильный доход. Мы работаем исключительно со стейблкоинами, минимизируя волатильность. Система работает автономно: ежедневный цикл собирает живые данные APY/TVL из whitelisted-протоколов, прогоняет их через детерминированный RiskPolicy и ребалансирует портфель.',
-    label: 'Продукт',
+    q: 'What is SPA?',
+    qRu: 'Что такое SPA?',
+    a: 'SPA (Stablecoin Preservation Algorithm) is an algorithmic DeFi strategy focused on capital preservation and steady yield. We work exclusively with stablecoins to minimise volatility. The system operates autonomously: a daily cycle collects live APY/TVL data from whitelisted protocols, runs it through a deterministic RiskPolicy, and rebalances the portfolio.',
+    aRu: 'SPA (Stablecoin Preservation Algorithm) — алгоритмическая стратегия DeFi, направленная на сохранение капитала и стабильный доход. Мы работаем исключительно со стейблкоинами, минимизируя волатильность. Система работает автономно: ежедневный цикл собирает живые данные APY/TVL из whitelisted-протоколов, прогоняет их через детерминированный RiskPolicy и ребалансирует портфель.',
+    label: 'Product',
+    labelRu: 'Продукт',
     labelColor: 'text-accent-400',
   },
   {
     id: 'faq-minimum',
-    q: 'Какова минимальная сумма инвестиций?',
-    a: 'Условия обсуждаются индивидуально при onboarding. Поддерживаются USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через запрос доступа — публичных лимитов нет.',
-    label: 'Условия',
+    q: 'What is the minimum investment amount?',
+    qRu: 'Какова минимальная сумма инвестиций?',
+    a: 'Terms are negotiated individually during onboarding. USDT (TRC-20, ERC-20) and USDC (ERC-20) are supported. Entry is by access request — there are no public limits.',
+    aRu: 'Условия обсуждаются индивидуально при onboarding. Поддерживаются USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через запрос доступа — публичных лимитов нет.',
+    label: 'Terms',
+    labelRu: 'Условия',
     labelColor: 'text-teal-400',
   },
   {
     id: 'faq-returns',
-    q: 'Каков ожидаемый доход?',
-    a: 'Наша цель — 8–25% годовых в зависимости от рыночного режима. Это консервативная оценка на основе исторических данных. Прошлые результаты не гарантируют будущих доходов. В периоды высокого рыночного стресса или сжатия доходностей система автоматически уходит в кэш, сохраняя капитал.',
-    label: 'Доход',
+    q: 'What is the expected return?',
+    qRu: 'Каков ожидаемый доход?',
+    a: 'Our target is 8–25% annually depending on the market regime. This is a conservative estimate based on historical data. Past performance does not guarantee future returns. During periods of high market stress or yield compression, the system automatically moves to cash, preserving capital.',
+    aRu: 'Наша цель — 8–25% годовых в зависимости от рыночного режима. Это консервативная оценка на основе исторических данных. Прошлые результаты не гарантируют будущих доходов. В периоды высокого рыночного стресса или сжатия доходностей система автоматически уходит в кэш, сохраняя капитал.',
+    label: 'Returns',
+    labelRu: 'Доход',
     labelColor: 'text-accent-400',
   },
   {
     id: 'faq-lockup',
-    q: 'Есть ли lock-up период?',
-    a: 'Lock-up периода нет. Вывод средств обрабатывается по запросу. Стандартное время обработки — обычно в течение 1 рабочего дня, но крупные выводы или выводы, требующие расформирования позиций, могут занять до 5 рабочих дней. Комиссия за вывод не планируется для MVP.',
-    label: 'Условия',
+    q: 'Is there a lock-up period?',
+    qRu: 'Есть ли lock-up период?',
+    a: 'There is no lock-up period. Withdrawals are processed on request. Standard processing time is usually within 1 business day, but large withdrawals or those requiring positions to be unwound may take up to 5 business days. No withdrawal fee is planned for the MVP.',
+    aRu: 'Lock-up периода нет. Вывод средств обрабатывается по запросу. Стандартное время обработки — обычно в течение 1 рабочего дня, но крупные выводы или выводы, требующие расформирования позиций, могут занять до 5 рабочих дней. Комиссия за вывод не планируется для MVP.',
+    label: 'Terms',
+    labelRu: 'Условия',
     labelColor: 'text-teal-400',
   },
   {
     id: 'faq-fees',
-    q: 'Как работает комиссия?',
-    a: 'Структура комиссий предоставляется индивидуально по итогам KYC и согласования договора. Мы не публикуем единую тарифную сетку — условия зависят от суммы, срока и стратегии. Свяжитесь с нами через контактную форму для получения индивидуального предложения.',
-    label: 'Условия',
+    q: 'How do fees work?',
+    qRu: 'Как работает комиссия?',
+    a: 'The fee structure is provided individually after KYC and contract negotiation. We do not publish a single rate card — terms depend on the amount, the term, and the strategy. Contact us via the contact form to receive a personalised offer.',
+    aRu: 'Структура комиссий предоставляется индивидуально по итогам KYC и согласования договора. Мы не публикуем единую тарифную сетку — условия зависят от суммы, срока и стратегии. Свяжитесь с нами через контактную форму для получения индивидуального предложения.',
+    label: 'Terms',
+    labelRu: 'Условия',
     labelColor: 'text-teal-400',
   },
   {
     id: 'faq-cpa',
-    q: 'Что такое CPA методология?',
-    a: 'Capital Preservation Algorithm (CPA) — наш подход к бэктестингу, использующий Point-in-Time данные. Только протоколы, существовавшие на дату симуляции, включаются в расчёт. Это устраняет look-ahead bias — наиболее распространённую причину завышенных результатов бэктестов в DeFi. Каждый протокол в whitelist-е несёт поле launch_date — симулятор отклоняет любой протокол, дата запуска которого позже даты симуляции.',
-    label: 'Методология',
+    q: 'What is the CPA methodology?',
+    qRu: 'Что такое CPA методология?',
+    a: 'Capital Preservation Algorithm (CPA) is our approach to backtesting using Point-in-Time data. Only protocols that existed on the simulation date are included in the calculation. This eliminates look-ahead bias — the most common cause of overstated backtest results in DeFi. Every protocol in the whitelist carries a launch_date field — the simulator rejects any protocol whose launch date is later than the simulation date.',
+    aRu: 'Capital Preservation Algorithm (CPA) — наш подход к бэктестингу, использующий Point-in-Time данные. Только протоколы, существовавшие на дату симуляции, включаются в расчёт. Это устраняет look-ahead bias — наиболее распространённую причину завышенных результатов бэктестов в DeFi. Каждый протокол в whitelist-е несёт поле launch_date — симулятор отклоняет любой протокол, дата запуска которого позже даты симуляции.',
+    label: 'Methodology',
+    labelRu: 'Методология',
     labelColor: 'text-accent-400',
   },
   {
     id: 'faq-cash',
-    q: 'Почему у вас 86.97% кэша в бэктесте?',
-    a: 'В 2022–2023 большинство DeFi-протоколов ещё не существовали или не имели верифицированной on-chain истории. Наша строгая Point-in-Time методология честно отражает это: мы не используем ретроспективные данные, не экстраполируем и не делаем допущений. Капитал, который нельзя разместить в CLEAN_INCLUDED-протокол, хранится как USDC. Это честнее, чем показывать нереалистичную доходность, задним числом включая протоколы, которых ещё не было.',
-    label: 'Методология',
+    q: 'Why do you hold 86.97% cash in the backtest?',
+    qRu: 'Почему у вас 86.97% кэша в бэктесте?',
+    a: 'In 2022–2023 most DeFi protocols did not yet exist or had no verified on-chain history. Our strict Point-in-Time methodology reflects this honestly: we do not use retrospective data, we do not extrapolate, and we make no assumptions. Capital that cannot be allocated to a CLEAN_INCLUDED protocol is held as USDC. This is more honest than showing unrealistic returns by retroactively including protocols that did not yet exist.',
+    aRu: 'В 2022–2023 большинство DeFi-протоколов ещё не существовали или не имели верифицированной on-chain истории. Наша строгая Point-in-Time методология честно отражает это: мы не используем ретроспективные данные, не экстраполируем и не делаем допущений. Капитал, который нельзя разместить в CLEAN_INCLUDED-протокол, хранится как USDC. Это честнее, чем показывать нереалистичную доходность, задним числом включая протоколы, которых ещё не было.',
+    label: 'Methodology',
+    labelRu: 'Методология',
     labelColor: 'text-accent-400',
   },
   {
     id: 'faq-security',
-    q: 'Как защищены мои средства?',
-    a: 'Используется Gnosis Safe (multisig) — ни одна транзакция не проходит без подтверждения нескольких подписантов. Встроен kill switch с автоматическим выводом при просадке портфеля ≥ 5%. Ежедневный мониторинг всех позиций логируется в неизменяемый JSON-журнал. Доступ к execution-домену изолирован от read-only аналитики.',
-    label: 'Безопасность',
+    q: 'How are my funds protected?',
+    qRu: 'Как защищены мои средства?',
+    a: 'A Gnosis Safe (multisig) is used — no transaction goes through without confirmation from multiple signers. A built-in kill switch automatically withdraws when portfolio drawdown reaches ≥ 5%. Daily monitoring of all positions is logged to an immutable JSON journal. Access to the execution domain is isolated from read-only analytics.',
+    aRu: 'Используется Gnosis Safe (multisig) — ни одна транзакция не проходит без подтверждения нескольких подписантов. Встроен kill switch с автоматическим выводом при просадке портфеля ≥ 5%. Ежедневный мониторинг всех позиций логируется в неизменяемый JSON-журнал. Доступ к execution-домену изолирован от read-only аналитики.',
+    label: 'Security',
+    labelRu: 'Безопасность',
     labelColor: 'text-green-400',
   },
   {
     id: 'faq-launch',
-    q: 'Когда запуск?',
-    a: 'Мы проходим Paper Trading — 30-дневный период накопления доказательств с виртуальным капиталом $100,000 USDC. Трек запущен 2026-06-10. После прохождения GoLiveChecker (26 критериев), непрерывности gap_monitor 30 дней и ручного review Owner — планируем live запуск ориентировочно 2026-07-09.',
-    label: 'Запуск',
+    q: 'When is the launch?',
+    qRu: 'Когда запуск?',
+    a: 'We are going through Paper Trading — a 30-day evidence-gathering period with $100,000 USDC of virtual capital. The track started on 2026-06-10. After passing the GoLiveChecker (26 criteria), 30 days of gap_monitor continuity, and a manual Owner review, we plan to go live around 2026-07-09.',
+    aRu: 'Мы проходим Paper Trading — 30-дневный период накопления доказательств с виртуальным капиталом $100,000 USDC. Трек запущен 2026-06-10. После прохождения GoLiveChecker (26 критериев), непрерывности gap_monitor 30 дней и ручного review Owner — планируем live запуск ориентировочно 2026-07-09.',
+    label: 'Launch',
+    labelRu: 'Запуск',
     labelColor: 'text-amber-400',
   },
   {
     id: 'faq-apply',
-    q: 'Как подать заявку?',
-    a: 'Свяжитесь с нами через контактную форму на сайте. Мы проводим KYC вручную и рассматриваем каждую заявку индивидуально. После одобрения вы получите договор инвестора и инструкции по onboarding.',
-    label: 'Процесс',
+    q: 'How do I apply?',
+    qRu: 'Как подать заявку?',
+    a: 'Contact us via the contact form on the site. We perform KYC manually and review each application individually. Once approved, you will receive an investor agreement and onboarding instructions.',
+    aRu: 'Свяжитесь с нами через контактную форму на сайте. Мы проводим KYC вручную и рассматриваем каждую заявку индивидуально. После одобрения вы получите договор инвестора и инструкции по onboarding.',
+    label: 'Process',
+    labelRu: 'Процесс',
     labelColor: 'text-teal-400',
   },
 ];
@@ -111,12 +141,12 @@ const faqs = [
 
     <!-- Header -->
     <section class="pt-16 pb-10">
-      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Документация">Документация</p>
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Документация">Documentation</p>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Часто задаваемые вопросы">
-        Часто задаваемые вопросы
+        Frequently Asked Questions
       </h1>
       <p class="text-white/50 text-lg leading-relaxed max-w-2xl" data-ru="Всё, что нужно знать перед тем, как стать участником SPA Family Fund.">
-        Всё, что нужно знать перед тем, как стать участником SPA Family Fund.
+        Everything you need to know before becoming a member of the SPA Family Fund.
       </p>
 
       <!-- Quick nav anchors -->
@@ -141,7 +171,7 @@ const faqs = [
         >
           <!-- Label + number -->
           <div class="flex items-center gap-3 mb-3">
-            <span class={`text-xs font-mono uppercase tracking-wider ${faq.labelColor}`}>
+            <span class={`text-xs font-mono uppercase tracking-wider ${faq.labelColor}`} data-ru={faq.labelRu}>
               {faq.label}
             </span>
             <span class="text-xs text-white/15 font-mono">#{String(i + 1).padStart(2, '0')}</span>
@@ -149,7 +179,7 @@ const faqs = [
 
           <!-- Q: question -->
           <h2 class="text-base sm:text-lg font-semibold text-white mb-3 leading-snug">
-            <span class="text-white/20 font-mono text-xs mr-2">Q:</span>{faq.q}
+            <span class="text-white/20 font-mono text-xs mr-2">Q:</span><span data-ru={faq.qRu}>{faq.q}</span>
           </h2>
 
           <!-- Divider -->
@@ -157,7 +187,7 @@ const faqs = [
 
           <!-- A: answer -->
           <p class="text-sm text-white/55 leading-relaxed">
-            <span class="text-white/20 font-mono text-xs mr-2">A:</span>{faq.a}
+            <span class="text-white/20 font-mono text-xs mr-2">A:</span><span data-ru={faq.aRu}>{faq.a}</span>
           </p>
         </div>
       ))}
@@ -166,11 +196,11 @@ const faqs = [
     <!-- Contact CTA -->
     <section class="py-12 border-t border-white/5">
       <div class="rounded-xl bg-white/[0.02] border border-white/8 p-8 text-center">
-        <p class="text-xs text-white/30 font-mono uppercase tracking-widest mb-3" data-ru="Остались вопросы?">Остались вопросы?</p>
-        <h2 class="text-xl font-semibold text-white mb-3" data-ru="Свяжитесь с нами">Свяжитесь с нами</h2>
+        <p class="text-xs text-white/30 font-mono uppercase tracking-widest mb-3" data-ru="Остались вопросы?">Still have questions?</p>
+        <h2 class="text-xl font-semibold text-white mb-3" data-ru="Свяжитесь с нами">Get in touch</h2>
         <p class="text-sm text-white/50 mb-6 max-w-sm mx-auto leading-relaxed" data-ru="Мы проводим KYC вручную и рассматриваем каждого инвестора индивидуально. Ответим в течение 24 часов.">
-          Мы проводим KYC вручную и рассматриваем каждого инвестора индивидуально.
-          Ответим в течение 24 часов.
+          We perform KYC manually and review every investor individually.
+          We respond within 24 hours.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-3">
           <a
@@ -193,19 +223,19 @@ const faqs = [
     <!-- Related links -->
     <section class="py-12 border-t border-white/5">
       <div class="text-center">
-        <p class="text-sm text-white/30 mb-6" data-ru="Изучите подробнее">Изучите подробнее</p>
+        <p class="text-sm text-white/30 mb-6" data-ru="Изучите подробнее">Explore further</p>
         <div class="flex flex-wrap items-center justify-center gap-3">
           <a href="/methodology" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Методология">
-            Методология
+            Methodology
           </a>
           <a href="/risk" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Риски">
-            Риски
+            Risk
           </a>
           <a href="/security" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Безопасность">
-            Безопасность
+            Security
           </a>
           <a href="/fees" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Комиссии">
-            Комиссии
+            Fees
           </a>
           <a href="/dashboard" class="px-4 py-2 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Дашборд">
             Dashboard
