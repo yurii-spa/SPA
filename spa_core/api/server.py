@@ -562,6 +562,30 @@ def get_strategy_lab():
     }
 
 
+@app.get("/api/strategy-lab/promotion", tags=["strategy_lab"])
+def get_strategy_lab_promotion():
+    """Strategy-Lab promotion engine verdicts — data/strategy_lab_promotion.json.
+
+    The deterministic decision layer: each lab sleeve scored on the multi-criterion rubric and
+    assigned a pipeline STAGE (REJECT / BACKTEST_PASS / PAPER_CANDIDATE) along
+    RESEARCH -> BACKTEST -> WALK-FORWARD -> PAPER -> CANARY -> FULL.
+
+    Read-only, graceful: served VERBATIM from the file; returns an empty payload (not an error)
+    when the JSON is missing/corrupt, mirroring /api/strategy-lab and the tier1 handlers.
+    """
+    raw = _load_json("strategy_lab_promotion.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "strategy_lab_promotion",
+            "rwa_floor_pct": None,
+            "n_sleeves": 0,
+            "stage_counts": {},
+            "sleeves": [],
+        }
+    return raw
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
