@@ -196,10 +196,15 @@ def test_above_threshold_funding_never_kills():
 
 # ── depeg kill at Y% ─────────────────────────────────────────────────────────────────────────
 def test_depeg_kill_fires_at_Y_pct():
+    # A SUSTAINED depeg beyond Y% fires once it persists past the smoothing/persistence guard
+    # (that guard rejects 1-day DeFiLlama timestamp-misalignment artifacts, not real depegs).
     s = new_strat()  # depeg kill 2.0%, entry ratio 1.03
     s.step(snap("2026-06-10", ratio=1.03))  # entry ratio = 1.03
-    # drop ratio by >2%: 1.03 * (1 - 0.025) = 1.00425
-    k = s.kill_check(snap("2026-06-11", ratio=1.03 * 0.975))
+    k = None
+    for d in range(11, 16):  # ratio stays -2.5% (sustained, beyond the 2% kill)
+        k = s.kill_check(snap(f"2026-06-{d}", ratio=1.03 * 0.975))
+        if k.triggered:
+            break
     assert k.triggered is True
     assert "depeg" in k.reason.lower()
 
@@ -209,6 +214,32 @@ def test_small_depeg_does_not_kill():
     s.step(snap("2026-06-10", ratio=1.03))
     k = s.kill_check(snap("2026-06-11", ratio=1.03 * 0.99))  # -1% < 2%
     assert k.triggered is False
+
+
+def test_one_day_depeg_artifact_does_not_kill():
+    # FALSE-depeg fix: a lone 1-day ratio spike (a DeFiLlama daily-granularity timestamp-
+    # misalignment artifact — eeth showed spurious 0.95/1.14 in Aug-2024 while the peg held)
+    # must NOT trip the depeg kill. The peg recovers the next tick → no sustained depeg.
+    s = new_strat()  # entry ratio 1.03, kill 2.0%
+    s.step(snap("2026-06-10", ratio=1.03))
+    triggered = False
+    for i, r in enumerate((1.0156, 0.9479, 1.1399, 0.9705, 1.03), start=11):
+        if s.kill_check(snap(f"2026-06-{i}", ratio=r)).triggered:
+            triggered = True
+            break
+    assert triggered is False
+
+
+def test_sustained_depeg_still_kills():
+    # A REAL multi-day depeg MUST still trigger the kill (the guard rejects 1-day artifacts only).
+    s = new_strat()
+    s.step(snap("2026-06-10", ratio=1.03))
+    triggered = False
+    for i, r in enumerate((1.00, 0.95, 0.92, 0.90), start=11):  # drops AND STAYS down
+        if s.kill_check(snap(f"2026-06-{i}", ratio=r)).triggered:
+            triggered = True
+            break
+    assert triggered is True
 
 
 def test_depeg_shows_as_residual_loss():
