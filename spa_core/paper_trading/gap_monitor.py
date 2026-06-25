@@ -147,7 +147,8 @@ def check_gaps() -> dict:
             if k in e:
                 try:
                     return datetime.fromisoformat(e[k].replace("Z", "+00:00"))
-                except:
+                except (ValueError, AttributeError, TypeError):
+                    # Unparseable/non-string timestamp for this key — try the next.
                     pass
         return None
 
