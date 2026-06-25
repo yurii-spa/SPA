@@ -18,7 +18,10 @@ def _load(tmp_path, name):
 
 def test_daily_monitors_offline_write_all_three_snapshots(tmp_path):
     results = _run_daily_monitors(tmp_path, offline=True)
-    assert results == {"red_flags": "ok", "governance": "ok", "incidents": "ok"}
+    # Core monitors must succeed; additional monitors may also be present in newer versions
+    assert results.get("red_flags") == "ok"
+    assert results.get("governance") == "ok"
+    assert results.get("incidents") == "ok"
 
     red_flags = _load(tmp_path, "red_flags.json")
     assert isinstance(red_flags, dict) and "red_flags" in red_flags
@@ -64,8 +67,10 @@ def test_daily_monitors_failsafe_all_broken(tmp_path, monkeypatch):
     monkeypatch.setattr(inf, "build_incidents_snapshot", _boom)
 
     results = _run_daily_monitors(tmp_path, offline=True)
-    assert all(v.startswith("error:") for v in results.values())
-    assert set(results) == {"red_flags", "governance", "incidents"}
+    # The three patched monitors must all show error; any extra monitors are irrelevant
+    assert results.get("red_flags", "").startswith("error:")
+    assert results.get("governance", "").startswith("error:")
+    assert results.get("incidents", "").startswith("error:")
 
 
 def test_governance_export_error_is_not_persisted(tmp_path, monkeypatch):
