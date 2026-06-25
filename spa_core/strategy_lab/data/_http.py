@@ -22,14 +22,23 @@ class FetchError(RuntimeError):
     (which is a *schema* failure on a successfully fetched body)."""
 
 
-def http_fetch(url: str, timeout: int = DEFAULT_TIMEOUT) -> Any:
+def http_fetch(url: str, timeout: int = DEFAULT_TIMEOUT, post_json: Any = None) -> Any:
     """Fetch `url` and return parsed JSON. Raises FetchError on any network/transport/parse
     failure. Pins Accept-Encoding: gzip and decompresses manually (urllib does not auto-decode
-    when we set the header), matching the repo's DeFiLlama feed convention."""
+    when we set the header), matching the repo's DeFiLlama feed convention.
+
+    If `post_json` is given, issues a POST with a JSON body (Content-Type: application/json) —
+    used by venues whose query is a request body (e.g. Hyperliquid's /info endpoint). The
+    fragment part of `url` (after '#') is stripped before the request — it only carries routing
+    hints for the test FakeFetcher and is not part of the real network address."""
     try:
-        req = urllib.request.Request(
-            url, headers={"Accept-Encoding": "gzip", "User-Agent": _UA}
-        )
+        net_url = url.split("#", 1)[0]
+        headers = {"Accept-Encoding": "gzip", "User-Agent": _UA}
+        data = None
+        if post_json is not None:
+            data = json.dumps(post_json).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(net_url, data=data, headers=headers)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
         if raw[:2] == b"\x1f\x8b":
