@@ -473,18 +473,22 @@ class TestKSTest:
         assert "ks_verdict" in result
 
     def test_run_ks_test_direct_two_values(self, fit_mod):
-        """_run_ks_test with 2 values should return (stat, pval) not None."""
-        stat, pval = fit_mod["_run_ks_test"]([0.04, 0.06], 0.05, 0.01)
+        """_run_ks_test with >=2 values returns a populated KS result dict."""
+        res = fit_mod["_run_ks_test"]([0.04, 0.06], 0.05, 0.01)
+        stat = res["ks_statistic"]
+        pval = res["ks_pvalue"]
         assert stat is not None
         assert pval is not None
         assert 0.0 <= stat <= 1.0
         assert 0.0 <= pval <= 1.0
+        assert res["ks_verdict"] in ("consistent", "diverging")
 
     def test_run_ks_test_empty_list_returns_none(self, fit_mod):
-        """_run_ks_test with empty list returns (None, None)."""
-        stat, pval = fit_mod["_run_ks_test"]([], 0.05, 0.01)
-        assert stat is None
-        assert pval is None
+        """_run_ks_test with empty list returns the insufficient_data result."""
+        res = fit_mod["_run_ks_test"]([], 0.05, 0.01)
+        assert res["ks_statistic"] is None
+        assert res["ks_pvalue"] is None
+        assert res["ks_verdict"] == "insufficient_data"
 
 
 # ---------------------------------------------------------------------------
@@ -858,9 +862,15 @@ class TestLLMForbiddenP2:
 
     def test_no_hardcoded_secrets_in_any_bee_file(self, project_root):
         """No hardcoded tokens/passwords in any BEE file."""
+        import re
         bee_dir = project_root / "spa_core" / "bee"
+        # OpenAI-style key: 'sk-' must be at a token boundary and followed by a
+        # long run of key chars. A bare 'sk-' substring (e.g. inside 'risk-free')
+        # is NOT a secret, so anchor on a real key shape to avoid false positives.
+        api_key_re = re.compile(r"(?<![A-Za-z])sk-[A-Za-z0-9]{16,}")
         for py_file in bee_dir.glob("*.py"):
             content = py_file.read_text()
             # Check for common secret patterns
             assert "ghp_" not in content, f"{py_file.name}: possible GitHub PAT"
-            assert "sk-" not in content, f"{py_file.name}: possible API key (sk-...)"
+            assert not api_key_re.search(content), \
+                f"{py_file.name}: possible API key (sk-...)"
