@@ -21,6 +21,17 @@ import subprocess
 
 from spa_core.utils.errors import ConfigError
 
+
+class KeychainConfigError(ConfigError, RuntimeError):
+    """Missing/invalid JWT secret.
+
+    Subclasses BOTH ConfigError (structured SPAError adoption, MP-1415) and
+    RuntimeError so the documented `get_jwt_secret` contract — "RuntimeError if
+    the secret is not found" — holds for callers/tests that catch RuntimeError,
+    while keeping the rich ConfigError payload (key/reason/code).
+    """
+
+
 KEYCHAIN_SERVICE = "FAMILY_FUND_JWT_SECRET"
 ENV_FALLBACK = "FAMILY_FUND_JWT_SECRET"
 MIN_SECRET_LEN = 32
@@ -61,7 +72,7 @@ def get_jwt_secret() -> str:
         secret = os.environ.get(ENV_FALLBACK)
         source = "env"
     if not secret:
-        raise ConfigError(
+        raise KeychainConfigError(
             KEYCHAIN_SERVICE,
             "JWT secret not found. Add it to the Keychain:\n"
             f"  security add-generic-password -s {KEYCHAIN_SERVICE} "
