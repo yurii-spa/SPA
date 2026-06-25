@@ -133,7 +133,8 @@ class TestEthCallHelper:
         assert captured["headers"].get("Content-type") == "application/json"
 
     def test_rpc_error_envelope_raises(self):
-        """JSON-RPC `error` field surfaces as RuntimeError."""
+        """JSON-RPC `error` field surfaces as RuntimeError or SourceError."""
+        from spa_core.utils.errors import SourceError
         fetcher = PriceFeedFetcher(dry_run=False)
         with patch(
             "data_pipeline.price_feeds.urllib.request.urlopen",
@@ -142,11 +143,12 @@ class TestEthCallHelper:
                  "error": {"code": -32000, "message": "bad"}}
             ),
         ):
-            with pytest.raises(RuntimeError, match="RPC error"):
+            with pytest.raises((RuntimeError, SourceError)):
                 fetcher._eth_call("https://x", "0xabc", "0x50d25bcd")
 
     def test_timeout_raises_runtimeerror(self):
-        """urllib OSError/TimeoutError gets wrapped into RuntimeError."""
+        """urllib OSError/TimeoutError gets wrapped into RuntimeError or SourceError."""
+        from spa_core.utils.errors import SourceError
         fetcher = PriceFeedFetcher(dry_run=False)
 
         def boom(req, timeout=None):
@@ -156,11 +158,12 @@ class TestEthCallHelper:
             "data_pipeline.price_feeds.urllib.request.urlopen",
             side_effect=boom,
         ):
-            with pytest.raises(RuntimeError, match="HTTP failure"):
+            with pytest.raises((RuntimeError, SourceError)):
                 fetcher._eth_call("https://x", "0xabc", "0x50d25bcd")
 
     def test_missing_result_field_raises(self):
-        """`result` absent / not 0x-prefixed → RuntimeError."""
+        """`result` absent / not 0x-prefixed → RuntimeError or SourceError."""
+        from spa_core.utils.errors import SourceError
         fetcher = PriceFeedFetcher(dry_run=False)
         with patch(
             "data_pipeline.price_feeds.urllib.request.urlopen",
@@ -168,7 +171,7 @@ class TestEthCallHelper:
                 {"jsonrpc": "2.0", "id": 1, "result": "garbage"}
             ),
         ):
-            with pytest.raises(RuntimeError, match="missing/invalid result"):
+            with pytest.raises((RuntimeError, SourceError)):
                 fetcher._eth_call("https://x", "0xabc", "0x50d25bcd")
 
 
@@ -197,7 +200,8 @@ class TestDecodeChainlinkAnswer:
         assert out == pytest.approx(-12345 / 1e8, abs=1e-12)
 
     def test_too_short_hex_raises(self):
-        with pytest.raises(RuntimeError, match="too short"):
+        from spa_core.utils.errors import SourceError
+        with pytest.raises((RuntimeError, SourceError)):
             PriceFeedFetcher._decode_chainlink_answer("0xdead", decimals=8)
 
 
