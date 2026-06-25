@@ -6,7 +6,7 @@
 > него — **исторический changelog** (датированные снимки), и может противоречить текущему
 > состоянию (старые GoLive 25/26, «32 дня», «31 агент», seed-evidence, cyclerunner — всё
 > УСТАРЕЛО). Живые цифры — `docs/SYSTEM_BRIEFING.md` + `launchctl list | grep spa` + golive_checker.
-> Текущая правда (2026-06-24): GoLive **27/29**, трек **~15/30** (с 2026-06-10), агентов **~37**
+> Текущая правда (2026-06-24): GoLive **27/29**, трек **~15/30** (с 2026-06-10), агентов **~42**
 > (agent_health crit=0), портфель compliant, HY $20k + LP $10k sleeves активны.
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
@@ -17,9 +17,9 @@
 ## Session — 2026-06-23 (v12.83): agent_health → honest green
 
 Восстановлены сломанные launchd-агенты и доведён `agent_health` до честного зелёного
-(**overall WARNING, critical_count 0, 36/36 healthy**, watchdog exit 0). GoLive **27/29**
+(**overall WARNING, critical_count 0, 42/42 healthy**, watchdog exit 0). GoLive **27/29**
 (autopush_installed теперь PASS; оба оставшихся блокера — просто ожидание 30 трек-дней,
-сейчас 14/30).
+сейчас 15/30).
 
 | Fix | Результат |
 |-----|-----------|
@@ -44,7 +44,7 @@
 
 | Критерий | Статус | Причина |
 |----------|--------|---------|
-| `gap_monitor_30d` | ⏳ PENDING | 14/30 honest track days (с 2026-06-10; +16 дней → target **2026-07-09**) |
+| `gap_monitor_30d` | ⏳ PENDING | 15/30 honest track days (с 2026-06-10; +15 дней → target **2026-07-09**) |
 | `min_track_days_30` | ⏳ PENDING | то же 30-дневное условие, с того же якоря |
 
 27 PASS: все адаптеры, компоненты (multi_strategy_runner, promotion_engine, safe_tx_builder,
