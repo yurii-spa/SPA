@@ -564,7 +564,7 @@ class GoLiveChecker:
         if last_sent != today:
             blockers.append(
                 f"telegram_alert_today: last daily alert was {last_sent or 'never'} "
-                f"(today is {today}) — check com.spa.daily-paper-report launchd plist"
+                f"(today is {today}) — check com.spa.telegram_daily launchd plist"
             )
             return False
         return True
