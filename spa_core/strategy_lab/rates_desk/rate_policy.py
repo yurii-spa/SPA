@@ -1,0 +1,329 @@
+"""
+spa_core/strategy_lab/rates_desk/rate_policy.py — the REFUSAL-FIRST rates-desk gate.
+
+This is where the whole edge lives: a deterministic gate that REFUSES tail-comp BEFORE it ever looks
+at the economics. A book can have a spectacular quoted rate and still be vetoed because its tail
+haircut says the rate is just risk premium you'll pay back.
+
+HARD INVARIANT — refusal before economics. evaluate_entry runs the checks in this exact order and
+SHORT-CIRCUITS on the first failure:
+
+  (1) TAIL_VETO        total_haircut > max_total_haircut          (the fair-value REFUSE)
+  (2) UNDERLYING_DEPEG peg_distance  > max_peg_distance
+  (3) ORACLE_STALE     oracle_staleness > tolerance
+  (4) STABLE_DEPEG     debt/quote stable depeg > tolerance
+  (5) FUNDING_FLIP     neg-funding streak >= kill (hysteresis via KillState.neg_funding_streak)
+  (6) ECONOMICS        net_edge >= hurdle  AND  fair-cleared edge persists
+  (7) SIZE             approved = min(requested, max_size_frac_of_exit * exit_liquidity); a size that
+                       collapses below min_tradeable_size_usd is a SIZE_FLOOR refuse.
+
+evaluate_hold is the continuous-kill side: each tick re-checks depeg, carry/basis compression,
+funding flip, maturity buffer, utilization trap, and concentration — and returns a NEW KillState.
+
+COMPOSITION: this RatePolicy composes UNDER the global spa_core.risk.policy.RiskPolicy. It is only
+ever MORE restrictive — a RatePolicy approval is necessary but NOT sufficient; the global RiskPolicy
+still has to approve the resulting position. (See compose_under_global_policy.)
+
+PURE: every function is f(inputs, as_of, state) → (result, new_state). No clock, no IO, no RNG.
+fail-CLOSED: any malformed input refuses. LLM-FORBIDDEN. Every GateResult.detail + the
+YieldDecomposition are string-exact / hashable for the proof chain.
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Optional, Tuple
+
+from spa_core.strategy_lab.rates_desk.contracts import (
+    D0,
+    GateResult,
+    KillReason,
+    KillState,
+    Opportunity,
+    RatePolicyParams,
+    RateQuote,
+    TradeShape,
+    UnderlyingRisk,
+    YieldDecomposition,
+)
+from spa_core.strategy_lab.rates_desk.fair_value_engine import FairValueEngine, _safe_decimal
+
+
+def _refused(reason: KillReason, opp: Opportunity, decomp: YieldDecomposition,
+             net_edge: Decimal, detail: dict) -> GateResult:
+    """Build a fail-CLOSED REFUSED GateResult (approved=False, size 0). Centralized so every refusal
+    path is byte-identical."""
+    return GateResult(
+        approved=False,
+        reason=reason,
+        as_of=opp.quote.as_of,
+        underlying=opp.quote.underlying,
+        shape=opp.shape,
+        net_edge=net_edge,
+        approved_size_usd=D0,
+        decomposition=decomp,
+        detail={k: str(v) for k, v in detail.items()},
+    )
+
+
+def evaluate_entry(
+    opp: Opportunity,
+    risk: UnderlyingRisk,
+    debt_asset_price: Decimal,
+    exit_liquidity: Decimal,
+    params: RatePolicyParams,
+    state: KillState,
+    engine: Optional[FairValueEngine] = None,
+    trailing_yield: Optional[Decimal] = None,
+    boros_forward: Optional[Decimal] = None,
+) -> Tuple[GateResult, KillState]:
+    """REFUSAL-FIRST entry gate. Returns (GateResult, new KillState).
+
+    `debt_asset_price` is the spot of the debt/quote stable (1.0 == pegged) used by the STABLE_DEPEG
+    veto. `exit_liquidity` is the one-tick exit capacity used for both the liquidity haircut and the
+    SIZE cap. `state` carries the funding-flip hysteresis streak in.
+
+    PURE / fail-CLOSED. The first failing veto short-circuits — economics are NEVER consulted on a
+    book that failed a tail/structural veto."""
+    eng = engine or FairValueEngine(params)
+    q: RateQuote = opp.quote
+    as_of = q.as_of
+
+    # ── update funding-flip hysteresis streak FIRST (so it's threaded out even on early refusals) ──
+    fneg = _safe_decimal(risk.funding_neg_frac_90d)
+    # a "flip tick" = funding is negative the majority of the recent window (hostile carry regime)
+    flip_tick = (fneg is not None and fneg >= Decimal("0.5"))
+    new_streak = (state.neg_funding_streak + 1) if flip_tick else 0
+    next_state = KillState(
+        neg_funding_streak=new_streak,
+        killed=False,
+        kill_reason=KillReason.NONE,
+        last_as_of=as_of,
+        entry_carry=None,
+    )
+
+    # ── the fair-value decomposition (needed by veto 1 + economics) ──
+    decomp = eng.fair(
+        risk=risk,
+        kind=q.kind,
+        tenor_seconds=q.tenor_seconds,
+        hedge_available=q.hedge_available,
+        position_size_usd=opp.requested_size_usd,
+        exit_liquidity_usd=exit_liquidity,
+        as_of=as_of,
+        trailing_yield=trailing_yield,
+        boros_forward=boros_forward,
+    )
+
+    # (1) TAIL_VETO — the fair-value REFUSE. Vetoes EVERYTHING regardless of how good the quote is.
+    if decomp.total_haircut > params.max_total_haircut:
+        return _refused(KillReason.TAIL_VETO, opp, decomp, decomp.fair_yield - q.quoted_rate, {
+            "total_haircut": decomp.total_haircut,
+            "max_total_haircut": params.max_total_haircut,
+            "note": "tail-comp veto: quoted rate is risk premium, not carry",
+        }), next_state
+
+    # (2) UNDERLYING_DEPEG (a negative peg distance is malformed → fail-CLOSED)
+    peg = _safe_decimal(risk.peg_distance)
+    if peg is None or peg < 0 or peg > params.max_peg_distance:
+        return _refused(KillReason.UNDERLYING_DEPEG, opp, decomp, decomp.fair_yield - q.quoted_rate, {
+            "peg_distance": "malformed" if peg is None else peg,
+            "max_peg_distance": params.max_peg_distance,
+        }), next_state
+
+    # (3) ORACLE_STALE
+    stale = risk.oracle_staleness_seconds
+    if not isinstance(stale, int) or stale < 0 or stale > params.max_oracle_staleness_s:
+        return _refused(KillReason.ORACLE_STALE, opp, decomp, decomp.fair_yield - q.quoted_rate, {
+            "oracle_staleness_seconds": stale,
+            "max_oracle_staleness_s": params.max_oracle_staleness_s,
+        }), next_state
+
+    # (4) STABLE_DEPEG — the debt/quote stable must hold its peg.
+    dp = _safe_decimal(debt_asset_price)
+    if dp is None or (Decimal("1") - dp).copy_abs() > params.max_stable_depeg:
+        return _refused(KillReason.STABLE_DEPEG, opp, decomp, decomp.fair_yield - q.quoted_rate, {
+            "debt_asset_price": "malformed" if dp is None else dp,
+            "max_stable_depeg": params.max_stable_depeg,
+        }), next_state
+
+    # (5) FUNDING_FLIP — hysteresis: only kill after a sustained negative-funding streak.
+    if new_streak >= params.funding_flip_streak_kill:
+        return _refused(KillReason.FUNDING_FLIP, opp, decomp, decomp.fair_yield - q.quoted_rate, {
+            "neg_funding_streak": new_streak,
+            "funding_flip_streak_kill": params.funding_flip_streak_kill,
+        }), next_state
+
+    # ── only NOW do economics matter (refusal-first invariant satisfied) ──
+    # (6) ECONOMICS — net edge = quoted_rate - fair_yield - cost. Must clear the hurdle AND the carry
+    #     must persist (edge after cost is positive, i.e. the quote actually beats fair value + cost).
+    qr = _safe_decimal(q.quoted_rate)
+    if qr is None:
+        return _refused(KillReason.ECONOMICS, opp, decomp, D0, {
+            "quoted_rate": "malformed",
+        }), next_state
+    net_edge = qr - decomp.fair_yield - params.cost_buffer
+    if net_edge < params.edge_hurdle or net_edge <= D0:
+        return _refused(KillReason.ECONOMICS, opp, decomp, net_edge, {
+            "net_edge": net_edge,
+            "edge_hurdle": params.edge_hurdle,
+            "fair_yield": decomp.fair_yield,
+            "quoted_rate": qr,
+            "cost_buffer": params.cost_buffer,
+        }), next_state
+
+    # (7) SIZE — bound by exit capacity. Never take more than a fraction of one-tick exit liquidity.
+    exitl = _safe_decimal(exit_liquidity)
+    req = _safe_decimal(opp.requested_size_usd)
+    if exitl is None or req is None or exitl <= 0 or req <= 0:
+        return _refused(KillReason.SIZE_FLOOR, opp, decomp, net_edge, {
+            "exit_liquidity": "malformed" if exitl is None else exitl,
+            "requested_size_usd": "malformed" if req is None else req,
+        }), next_state
+    cap = params.max_size_frac_of_exit * exitl
+    approved_size = min(req, cap)
+    if approved_size < params.min_tradeable_size_usd:
+        return _refused(KillReason.SIZE_FLOOR, opp, decomp, net_edge, {
+            "approved_size_usd": approved_size,
+            "min_tradeable_size_usd": params.min_tradeable_size_usd,
+            "exit_cap": cap,
+        }), next_state
+
+    # APPROVED. Record the locked carry on the state for compression tracking on the hold side.
+    approved_state = KillState(
+        neg_funding_streak=new_streak,
+        killed=False,
+        kill_reason=KillReason.NONE,
+        last_as_of=as_of,
+        entry_carry=net_edge,
+    )
+    result = GateResult(
+        approved=True,
+        reason=KillReason.NONE,
+        as_of=as_of,
+        underlying=q.underlying,
+        shape=opp.shape,
+        net_edge=net_edge,
+        approved_size_usd=approved_size,
+        decomposition=decomp,
+        detail={
+            "net_edge": str(net_edge),
+            "approved_size_usd": str(approved_size),
+            "exit_cap": str(cap),
+            "fair_yield": str(decomp.fair_yield),
+            "quoted_rate": str(qr),
+        },
+    )
+    return result, approved_state
+
+
+def evaluate_hold(
+    opp: Opportunity,
+    risk: UnderlyingRisk,
+    debt_asset_price: Decimal,
+    exit_liquidity: Decimal,
+    current_carry: Decimal,
+    params: RatePolicyParams,
+    state: KillState,
+    engine: Optional[FairValueEngine] = None,
+) -> Tuple[GateResult, KillState]:
+    """Continuous-kill gate for a HELD position. REFUSAL-FIRST again: structural/peg kills precede
+    the economic compression kill. Returns (GateResult, new KillState). `current_carry` is the carry
+    the position is now realizing (vs state.entry_carry for compression).
+
+    A GateResult here means: approved=True → keep holding; approved=False → UNWIND (reason gives why).
+    PURE / fail-CLOSED."""
+    eng = engine or FairValueEngine(params)
+    q = opp.quote
+    as_of = q.as_of
+
+    fneg = _safe_decimal(risk.funding_neg_frac_90d)
+    flip_tick = (fneg is not None and fneg >= Decimal("0.5"))
+    new_streak = (state.neg_funding_streak + 1) if flip_tick else 0
+
+    decomp = eng.fair(
+        risk=risk, kind=q.kind, tenor_seconds=q.tenor_seconds, hedge_available=q.hedge_available,
+        position_size_usd=opp.requested_size_usd, exit_liquidity_usd=exit_liquidity, as_of=as_of,
+    )
+
+    def _kill(reason: KillReason, detail: dict) -> Tuple[GateResult, KillState]:
+        ns = KillState(neg_funding_streak=new_streak, killed=True, kill_reason=reason,
+                       last_as_of=as_of, entry_carry=state.entry_carry)
+        return _refused(reason, opp, decomp, current_carry, detail), ns
+
+    # (a) UNDERLYING_DEPEG — unwind on a peg break (negative peg = malformed → fail-CLOSED).
+    peg = _safe_decimal(risk.peg_distance)
+    if peg is None or peg < 0 or peg > params.max_peg_distance:
+        return _kill(KillReason.UNDERLYING_DEPEG, {
+            "peg_distance": "malformed" if peg is None else peg, "max": params.max_peg_distance})
+
+    # (b) STABLE_DEPEG — debt/quote stable broke peg.
+    dp = _safe_decimal(debt_asset_price)
+    if dp is None or (Decimal("1") - dp).copy_abs() > params.max_stable_depeg:
+        return _kill(KillReason.STABLE_DEPEG, {
+            "debt_asset_price": "malformed" if dp is None else dp, "max": params.max_stable_depeg})
+
+    # (c) ORACLE_STALE
+    stale = risk.oracle_staleness_seconds
+    if not isinstance(stale, int) or stale < 0 or stale > params.max_oracle_staleness_s:
+        return _kill(KillReason.ORACLE_STALE, {
+            "oracle_staleness_seconds": stale, "max": params.max_oracle_staleness_s})
+
+    # (d) MATURITY_BUFFER — too close to maturity to safely hold/roll.
+    if not isinstance(q.tenor_seconds, int) or q.tenor_seconds <= params.maturity_buffer_seconds:
+        return _kill(KillReason.MATURITY_BUFFER, {
+            "tenor_seconds": q.tenor_seconds, "buffer": params.maturity_buffer_seconds})
+
+    # (e) UTILIZATION_TRAP — pool too utilized to exit (levered/lending legs).
+    util = _safe_decimal(q.utilization)
+    if util is not None and util > params.max_hold_utilization:
+        return _kill(KillReason.UTILIZATION_TRAP, {
+            "utilization": util, "max": params.max_hold_utilization})
+
+    # (f) CONCENTRATION — position too large vs current exit liquidity OR borrower concentration.
+    topb = _safe_decimal(risk.top_borrower_share)
+    exitl = _safe_decimal(exit_liquidity)
+    req = _safe_decimal(opp.requested_size_usd)
+    over_borrower = (topb is not None and topb > params.max_hold_concentration)
+    over_exit = (exitl is not None and req is not None and exitl > 0
+                 and (req / exitl) > params.max_size_frac_of_exit)
+    if over_borrower or over_exit:
+        return _kill(KillReason.CONCENTRATION, {
+            "top_borrower_share": "malformed" if topb is None else topb,
+            "size_vs_exit": "n/a" if (exitl is None or req is None or exitl <= 0) else (req / exitl),
+            "max_borrower": params.max_hold_concentration,
+            "max_size_frac_of_exit": params.max_size_frac_of_exit})
+
+    # (g) FUNDING_FLIP — sustained negative-funding streak.
+    if new_streak >= params.funding_flip_streak_kill:
+        return _kill(KillReason.FUNDING_FLIP, {
+            "neg_funding_streak": new_streak, "kill": params.funding_flip_streak_kill})
+
+    # (h) CARRY_COMPRESSION — the locked carry/basis has compressed away (economic kill, LAST).
+    cc = _safe_decimal(current_carry)
+    entry = state.entry_carry
+    if cc is None:
+        return _kill(KillReason.CARRY_COMPRESSION, {"current_carry": "malformed"})
+    if entry is not None and entry > D0:
+        if cc < entry * params.carry_compression_frac:
+            return _kill(KillReason.CARRY_COMPRESSION, {
+                "current_carry": cc, "entry_carry": entry,
+                "compression_frac": params.carry_compression_frac})
+
+    # HOLD.
+    keep_state = KillState(neg_funding_streak=new_streak, killed=False, kill_reason=KillReason.NONE,
+                           last_as_of=as_of, entry_carry=state.entry_carry)
+    result = GateResult(
+        approved=True, reason=KillReason.NONE, as_of=as_of, underlying=q.underlying, shape=opp.shape,
+        net_edge=cc, approved_size_usd=opp.requested_size_usd, decomposition=decomp,
+        detail={"action": "hold", "current_carry": str(cc)},
+    )
+    return result, keep_state
+
+
+def compose_under_global_policy(rate_result: GateResult, global_approved: bool) -> bool:
+    """The composition rule, made explicit: a position may move capital ONLY IF the RatePolicy gate
+    approved it AND the global RiskPolicy approved it. The RatePolicy is strictly MORE restrictive —
+    it can VETO what the global policy would allow, but can never permit what the global policy
+    forbids. (AND, never OR.)"""
+    return bool(rate_result.approved and global_approved)
