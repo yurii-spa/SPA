@@ -16,12 +16,11 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import tempfile
 from pathlib import Path
 
 from spa_core.backtesting.tier1.tail_risk import risk_adjusted_net_apy, strategy_tail_risk
 from spa_core.backtesting.tier1.stress import stress_strategy
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -116,11 +115,7 @@ def build(write: bool = True) -> dict:
         "packages": packages,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1pkg_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(out, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(out, str(_OUT))
     return out
 
 
