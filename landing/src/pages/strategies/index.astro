@@ -2,7 +2,6 @@
 import Layout from '../../layouts/Layout.astro';
 import StrategyCard from '../../components/StrategyCard.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
-import Footer from '../../components/Footer.astro';
 import strategies from '../../data/strategy_config.json';
 ---
 
@@ -12,28 +11,6 @@ import strategies from '../../data/strategy_config.json';
 >
 
   <!-- Nav -->
-  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
-    <div class="flex items-center gap-2">
-      <a href="/" class="flex items-center gap-2">
-        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
-        <span class="font-semibold text-white tracking-tight">SPA</span>
-      </a>
-      <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/50" data-ru="Стратегии">Strategies</span>
-    </div>
-    <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/" class="hover:text-white transition-colors hidden sm:inline" data-ru="Главная">Home</a>
-      <a href="/risk-disclosure" class="hover:text-white transition-colors hidden sm:inline" data-ru="Раскрытие рисков">Risk Disclosure</a>
-      <a
-        href="/dashboard"
-        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
-        data-ru="Дашборд ↗"
-      >
-        Dashboard ↗
-      </a>
-    </div>
-  </nav>
-
   <!-- Hero -->
   <section class="py-24 px-4 sm:px-6 lg:px-8">
     <div class="max-w-6xl mx-auto">
@@ -81,6 +58,4 @@ import strategies from '../../data/strategy_config.json';
   </section>
 
   <Disclaimer />
-  <Footer />
-
 </Layout>
