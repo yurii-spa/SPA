@@ -113,6 +113,8 @@ PROTOCOL_RISK_SCORES: dict[str, dict[str, Any]] = {
     "moonwell_base":    {"tier": "T2", "risk_score": 0.45, "note": "Moonwell Base — smaller Base lending market"},
     "velodrome_optimism":{"tier": "T2", "risk_score": 0.45, "note": "Velodrome Optimism — cross-chain AMM LP + VELO emissions"},
     "aerodrome_base":   {"tier": "T2", "risk_score": 0.45, "note": "Aerodrome Base — AMM stable LP + AERO emissions"},
+    "tbtc_lending":     {"tier": "T2", "risk_score": 0.50, "note": "tBTC lending (decentralized BTC collateral) — advisory; BTC price volatility + bridge/threshold-custody risk"},
+    "cbbtc_lending":    {"tier": "T2", "risk_score": 0.48, "note": "cbBTC lending (Coinbase-wrapped BTC collateral) — advisory; BTC price volatility + centralized-custodian risk"},
 
     # ── T3 — speculative / isolated / depeg-exposed (risk_score > 0.60) ───────
     "susde":            {"tier": "T3", "risk_score": 0.65, "note": "Ethena sUSDe (T3 adapter) — depeg + 7d unstake cooldown"},
