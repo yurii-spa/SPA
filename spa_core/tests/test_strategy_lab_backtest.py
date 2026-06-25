@@ -58,10 +58,18 @@ def _config(drawdown_kill_pct: float = 25.0) -> dict:
                 "lrt_symbol": "eeth",
                 "drawdown_kill_pct": drawdown_kill_pct,
             },
+            "eth_lst_neutral": {
+                "lst_symbol": "steth",
+                "hedge_ratio": 1.0,
+                "funding_kill_threshold": -0.0003,
+                "funding_kill_hours": 24,
+                "lst_depeg_kill_pct": 1.0,
+            },
             "engine_a": {"capital_usd": 100000, "apy_pct": 4.5},
             "engine_b": {"capital_usd": 20000},
             "engine_c": {"capital_usd": 10000},
             "rwa_floor": {"capital_usd": 100000, "apy_pct": 4.5},
+            "rwa_sleeve": {"capital_usd": 100000, "apy_pct": 3.4, "drawdown_stop_pct": 1.0},
         },
     }
 
@@ -123,7 +131,9 @@ def test_run_backtest_all_six_strategies():
 
     strategies = result["strategies"]
     assert set(strategies) == {
-        "variant_n", "variant_d", "engine_a", "engine_b", "engine_c", "rwa_floor",
+        "variant_n", "variant_d", "eth_lst_neutral",
+        "engine_a", "engine_b", "engine_c", "rwa_floor",
+        "rwa_sleeve",
     }
     # Equal capital: every strategy was init'd at the SAME initial_capital. equity_first is
     # the post-first-tick value (day-1 accrual differs per strategy), so we assert it is
@@ -230,8 +240,9 @@ def test_report_renders():
     assert "rwa_floor" in md
     # the kill summary mentions a killed strategy
     assert "killed on" in md.lower()
-    # all six ids appear in the table
-    for sid in ("variant_n", "variant_d", "engine_a", "engine_b", "engine_c", "rwa_floor"):
+    # all strategy ids appear in the table
+    for sid in ("variant_n", "variant_d", "engine_a", "engine_b", "engine_c",
+                "rwa_floor", "rwa_sleeve"):
         assert sid in md
 
 
