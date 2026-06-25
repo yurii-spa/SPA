@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    RWA Collateral Safety Board (daily, ADVISORY)
+    Module: spa_core.strategy_lab.rwa_backstop.safety_board
+    Function: measures the whole tokenized-RWA collateral universe from LIVE DeFiLlama /pools data
+              with the §SPA-RRB-validated LiquidationNAVEngine, writes a per-asset
+              LIQUID/THIN/REDEMPTION_ONLY/UNSAFE verdict + marketing-vs-LiqNAV gap %
+              to data/rwa_safety_board.json (atomic).
+    ADVISORY / RESEARCH ONLY: never lends, never trades, never touches the go-live track.
+    Schedule: daily 05:50 local (after com.spa.refusal 05:45, before the 08:00 UTC daily_cycle) + RunAtLoad.
+    Writes:  data/rwa_safety_board.json (atomic write)
+    Exit:    0 = success, non-0 = internal error.
+    CLI:     python3 -m spa_core.strategy_lab.rwa_backstop.safety_board
+    Install:
+      cp scripts/com.spa.rwa_safety_board.plist ~/Library/LaunchAgents/
+      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spa.rwa_safety_board.plist
+      launchctl kickstart -k gui/$(id -u)/com.spa.rwa_safety_board
+    -->
+
+    <key>Label</key>
+    <string>com.spa.rwa_safety_board</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.strategy_lab.rwa_backstop.safety_board</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>5</integer>
+        <key>Minute</key>
+        <integer>50</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Не запускать повторно если предыдущий ещё не завершился -->
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rwa_safety_board.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rwa_safety_board.err</string>
+</dict>
+</plist>

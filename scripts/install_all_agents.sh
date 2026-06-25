@@ -257,6 +257,16 @@ install_agent \
     "com.spa.refusal" \
     "1"
 
+# 22b2. RWA Collateral Safety Board — daily 05:50 local (before daily_cycle); measures the whole
+#       tokenized-RWA collateral universe from LIVE DeFiLlama data with the §SPA-RRB-validated
+#       LiquidationNAVEngine → per-asset LIQUID/THIN/REDEMPTION_ONLY/UNSAFE verdict + marketing-vs-
+#       LiqNAV gap % → data/rwa_safety_board.json. ADVISORY / RESEARCH ONLY: never lends / trades /
+#       touches the go-live track.
+install_agent \
+    "$REPO/scripts/com.spa.rwa_safety_board.plist" \
+    "com.spa.rwa_safety_board" \
+    "1"
+
 # 22c. Rates-Desk live paper service — hourly single-tick; paper-trades the VALIDATED FixedCarry
 #      sleeve (thesis-#1 GO) on the LIVE rate-surface into a growing forward carry track + proof
 #      chain; restart-survival (book restored, not zeroed), idempotent per UTC day, fail-CLOSED.

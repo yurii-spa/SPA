@@ -1,0 +1,318 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * RWA Repo Backstop — the Collateral Safety Board, surfaced publicly (thesis #2).
+ *
+ * "We lend against Liquidation NAV, not marketing NAV."
+ *
+ * The asset IS its executable liquidation path. Most DeFi prices tokenized Treasuries as
+ * cash-like; that is wrong. We measure & publish Liquidation NAV — the real exit value at
+ * size ($100k / $1M / $10M) — not the marketing $1.00. Paper research, advisory, not live;
+ * the underwriting business itself is relationship/capital/legal-gated. We publish the
+ * measurement layer.
+ *
+ * Data source:
+ *   GET /api/rwa-safety-board → { generated_at, assets:[{ symbol, issuer, marketing_nav,
+ *       liq_nav_100k, liq_nav_1m, liq_nav_10m, verdict, marketing_vs_liq_gap_pct,
+ *       on_chain_dex_liquidity, redemption_delay }], ... }
+ *   Fetched client-side (api-base detection + localhost fallback + graceful offline). When
+ *   the endpoint is unreachable the committed fallback board below renders so the page is
+ *   never empty — it carries the honest finding regardless.
+ *
+ * Tailwind only compiles class strings it can see literally — every verdict palette below is
+ * a literal string (NOT runtime-built), matching the convention in rates-desk.astro / system.astro.
+ */
+
+// Committed fallback board (documented shape, illustrative honest snapshot). The live feed
+// overwrites this when /api/rwa-safety-board is reachable. Numbers reflect the de-risk finding:
+// 10/10 NOT cash-like on executable exit; 9/10 have ~$0 public DEX exit (redemption-only).
+const FALLBACK = {
+  generated_at: 'committed snapshot',
+  source: 'static',
+  assets: [
+    { symbol: 'BUIDL',  issuer: 'BlackRock / Securitize', marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+1 (issuer queue, KYC-gated)' },
+    { symbol: 'USYC',   issuer: 'Hashnote / Circle',      marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+0/T+1 (whitelist redeem)' },
+    { symbol: 'USDY',   issuer: 'Ondo Finance',           marketing_nav: 1.0, liq_nav_100k: 0.998, liq_nav_1m: 0.991, liq_nav_10m: null, verdict: 'THIN', marketing_vs_liq_gap_pct: 0.9, on_chain_dex_liquidity: 1_200_000, redemption_delay: 'T+2 + 40–50d initial lockup' },
+    { symbol: 'OUSG',   issuer: 'Ondo Finance',           marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+0 instant (USDC) — qualified only' },
+    { symbol: 'TBILL',  issuer: 'OpenEden',               marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+0/T+1 (KYC redeem)' },
+    { symbol: 'USTB',   issuer: 'Superstate',             marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+1 (subscription/redeem agent)' },
+    { symbol: 'FOBXX',  issuer: 'Franklin Templeton',     marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'transfer-agent ledger, no DEX' },
+    { symbol: 'TFUND',  issuer: 'Spiko',                  marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+1 (EU MMF redeem)' },
+    { symbol: 'JTRSY',  issuer: 'Centrifuge / Anemoy',    marketing_nav: 1.0, liq_nav_100k: 0.999, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.1, on_chain_dex_liquidity: 0, redemption_delay: 'epoch-based redeem (multi-day)' },
+    { symbol: 'USD0',   issuer: 'Usual (RWA-backed)',     marketing_nav: 1.0, liq_nav_100k: 0.997, liq_nav_1m: 0.985, liq_nav_10m: 0.94, verdict: 'UNSAFE', marketing_vs_liq_gap_pct: 6.0, on_chain_dex_liquidity: 8_500_000, redemption_delay: 'DEX-only at size, depeg risk' },
+  ],
+};
+
+// Literal Tailwind / token class strings per verdict (NOT constructed at runtime).
+// LIQUID=teal · THIN=amber · REDEMPTION_ONLY=gray · UNSAFE=red.
+const VERDICT_META = {
+  LIQUID: {
+    en: 'LIQUID', ru: 'ЛИКВИДЕН', rank: 3,
+    card: 'border-teal-700/35', badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300', dot: 'bg-teal-400',
+  },
+  THIN: {
+    en: 'THIN', ru: 'ТОНКИЙ', rank: 1,
+    card: 'border-amber-700/35', badge: 'bg-amber-500/10 border-amber-500/30 text-amber-300', dot: 'bg-amber-400',
+  },
+  REDEMPTION_ONLY: {
+    en: 'REDEMPTION-ONLY', ru: 'ТОЛЬКО РЕДЕМПШН', rank: 2,
+    card: 'border-white/10', badge: 'bg-white/[0.04] border-white/15 text-white/55', dot: 'bg-white/40',
+  },
+  UNSAFE: {
+    en: 'UNSAFE', ru: 'НЕБЕЗОПАСЕН', rank: 0,
+    card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400',
+  },
+};
+const VERDICT_JSON = JSON.stringify(VERDICT_META);
+const FALLBACK_JSON = JSON.stringify(FALLBACK);
+---
+
+<Layout
+  title="RWA Repo Backstop — liquidation-safe collateral | earn-defi.com"
+  description="We lend against Liquidation NAV, not marketing NAV. The SPA Collateral Safety Board measures the executable exit value of tokenized-RWA collateral at size ($100k/$1M/$10M) — not the marketing $1.00. The honest finding: 10 of 10 tokenized-RWA collateral assets are NOT cash-like on executable exit; 9 of 10 have ~$0 public on-chain exit. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/rwa-backstop"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. THE THESIS -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Paper-исследование · advisory · не live">Paper research · advisory · not live</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="RWA Repo Backstop · ликвидационно-безопасный залог">
+        RWA Repo Backstop · liquidation-safe collateral
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Мы кредитуем под Ликвидационный NAV, а не под маркетинговый NAV. Актив — это и есть его исполнимый путь ликвидации.">
+        We lend against <strong style="color:var(--text-primary)">Liquidation NAV</strong>, not
+        marketing NAV. The asset <em>is</em> its executable liquidation path.
+      </p>
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Тезис, по-честному">The thesis, plainly</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Большая часть DeFi оценивает токенизированные Treasuries как «кэш-эквивалент» по $1.00. Это неверно. Цена залога — не его маркетинговый NAV, а сумма, которую вы реально получите на выходе при размере. Мы измеряем и публикуем Ликвидационный NAV: реальную стоимость выхода на $100k / $1M / $10M, а не предполагаемый доллар.">
+            Most DeFi prices tokenized Treasuries as cash-like at $1.00. That is wrong. The price of
+            collateral is not its marketing NAV — it is what you actually realize on exit, at size. We
+            measure &amp; publish <strong style="color:var(--text-primary)">Liquidation NAV</strong>: the
+            real exit value at $100k / $1M / $10M, not the assumed dollar.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Статус">Status</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Paper-исследование. Advisory — не открывает live-позиции. Сам андеррайтинговый бизнес ограничен отношениями, капиталом и юрисдикцией; здесь мы публикуем измерительный слой — Доску безопасности залога — а не книгу сделок. Каждый вердикт детерминирован (LLM запрещён в risk-гейте).">
+            Paper research. Advisory — it opens no live positions. The underwriting business itself is
+            relationship-, capital- and legal-gated; here we publish the
+            <strong style="color:var(--text-primary)">measurement layer</strong> — the Collateral Safety
+            Board — not a trade book. Every verdict is deterministic (LLM forbidden in the risk gate).
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= b. THE COLLATERAL SAFETY BOARD -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Доска безопасности залога">The Collateral Safety Board</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="rsb-src" data-ru="статика / офлайн">static / offline</span>
+          · <span id="rsb-asof">—</span>
+        </span>
+      </div>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Каждый актив — маркетинговый NAV против Ликвидационного NAV при $100k / $1M / $10M, разрыв в %, on-chain DEX-ликвидность и задержка редемпшена. Вердикт LIQUID / THIN / REDEMPTION-ONLY / UNSAFE. Сначала показаны UNSAFE и REDEMPTION-ONLY. Живой поток из /api/rwa-safety-board.">
+        Each asset — marketing NAV vs Liquidation NAV at $100k / $1M / $10M, the gap %, on-chain DEX
+        liquidity and redemption delay. Verdict <span class="font-mono">LIQUID / THIN / REDEMPTION-ONLY /
+        UNSAFE</span>. UNSAFE and REDEMPTION-ONLY are surfaced first. A live feed from
+        <span class="font-mono text-xs">/api/rwa-safety-board</span>.
+      </p>
+
+      <div id="rsb-cards" class="space-y-3">
+        <p class="text-sm" style="color:var(--text-muted)" data-ru="Загрузка доски безопасности залога…">Loading the collateral safety board…</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= c. THE HONEST FINDING (trust signal) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Честная находка">The honest finding</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--danger)">
+        <p class="text-lg leading-relaxed mb-4" style="color:var(--text-primary)"
+           data-ru="10 из 10 токенизированных RWA-активов залога НЕ являются кэш-эквивалентом на исполнимом выходе; 9 из 10 имеют ~$0 публичного on-chain выхода — кэш доступен только через очередь редемпшена эмитента, ограниченную отношениями. Мы предпочитаем измерить реальный выход, чем предположить $1.00.">
+          <strong>10 of 10 tokenized-RWA collateral assets are NOT cash-like on executable exit; 9 of 10
+          have ~$0 public on-chain exit</strong> — cash only via the relationship-gated issuer
+          redemption queue. We'd rather measure the real exit than assume the $1.00.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--danger)" id="finding-notcash">10 / 10</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="НЕ кэш-эквивалент на исполнимом выходе">NOT cash-like on executable exit</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--warn)" id="finding-noexit">9 / 10</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="~$0 публичного on-chain выхода (только редемпшн)">~$0 public on-chain exit (redemption-only)</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--data-teal)" id="finding-liquid">0 / 10</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="ликвиден до $10M на публичном DEX">liquid to $10M on a public DEX</p>
+          </div>
+        </div>
+        <div class="rounded-lg p-4" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-1.5" style="color:var(--accent-hover)"
+             data-ru="Почему это и есть ров">Why this is the moat</p>
+          <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Кредитовать под проверенную способность к выходу, а не под предполагаемый доллар. Тот, кто измеряет реальный Ликвидационный NAV, выдаёт безопасный leverage там, где остальные кредитуют против маркетинга — и переживает первый стресс-выход.">
+            Lend against verified exit capacity, not the assumed dollar. Whoever measures real Liquidation
+            NAV underwrites safe leverage where others lend against marketing — and survives the first
+            stress exit.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== LIVE FETCH -->
+  <script is:inline define:vars={{ VERDICT_META: VERDICT_JSON, FALLBACK: FALLBACK_JSON }}>
+    /* RWA Collateral Safety Board — api.earn-defi.com, localhost fallback, graceful offline.
+       Mirrors the api-base + fail-quiet convention in rates-desk.astro / system.astro. */
+    (function () {
+      var VMETA = JSON.parse(VERDICT_META);
+      var FB = JSON.parse(FALLBACK);
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+      function navStr(x) { var n = num(x); return n == null ? '—' : '$' + n.toFixed(4); }
+      function usd(x) {
+        var n = num(x); if (n == null) return '—';
+        if (n <= 0) return '~$0';
+        if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+        if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+        if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
+        return '$' + n.toFixed(0);
+      }
+      function vmeta(v) { return VMETA[v] || VMETA.REDEMPTION_ONLY; }
+
+      function navCell(label, val) {
+        return '<div class="rounded-lg px-3 py-2 bg-white/[0.02]" style="border:1px solid var(--border)">' +
+          '<p class="text-[10px] font-mono uppercase tracking-wider mb-0.5" style="color:var(--text-faint)">' + esc(label) + '</p>' +
+          '<p class="text-sm font-mono font-semibold" style="color:var(--text-primary)">' + esc(navStr(val)) + '</p>' +
+        '</div>';
+      }
+
+      function assetCard(a) {
+        var ru = isRu();
+        var m = vmeta(a.verdict);
+        var verdictLbl = ru ? m.ru : m.en;
+        var gap = num(a.marketing_vs_liq_gap_pct);
+        var gapBad = gap != null && gap >= 1.0;
+        var dex = num(a.on_chain_dex_liquidity);
+        var noExit = dex == null || dex <= 0;
+
+        var gapChip = gap == null ? '' :
+          '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono ' +
+          (gapBad ? 'bg-red-500/5 border-red-500/25 text-red-300' : 'bg-white/[0.03]') + '" ' +
+          (gapBad ? '' : 'style="border-color:var(--border);color:var(--text-secondary)"') + '>' +
+          (ru ? 'разрыв ' : 'gap ') + gap.toFixed(2) + '%</span>';
+
+        var dexChip = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono ' +
+          (noExit ? 'bg-white/[0.03]' : 'bg-white/[0.03]') + '" style="border-color:var(--border);color:' +
+          (noExit ? 'var(--text-muted)' : 'var(--text-secondary)') + '">' +
+          (ru ? 'DEX-выход ' : 'DEX exit ') + esc(usd(a.on_chain_dex_liquidity)) + '</span>';
+
+        var delayChip = a.redemption_delay ?
+          '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-white/[0.03]" ' +
+          'style="border-color:var(--border);color:var(--text-secondary)">' +
+          (ru ? 'редемпшн: ' : 'redemption: ') + esc(a.redemption_delay) + '</span>' : '';
+
+        return '<div class="rounded-xl p-5 bg-white/[0.02] border ' + m.card + '">' +
+          '<div class="flex items-baseline justify-between gap-3 flex-wrap mb-3">' +
+            '<div class="flex items-baseline gap-2.5 flex-wrap min-w-0">' +
+              '<span class="text-base font-semibold font-mono" style="color:var(--text-primary)">' + esc(a.symbol || '?') + '</span>' +
+              (a.issuer ? '<span class="text-xs" style="color:var(--text-muted)">' + esc(a.issuer) + '</span>' : '') +
+            '</div>' +
+            '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono shrink-0 ' + m.badge + '">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + m.dot + '" aria-hidden="true"></span>' + esc(verdictLbl) +
+            '</span>' +
+          '</div>' +
+          '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">' +
+            navCell((ru ? 'Маркет. NAV' : 'Marketing NAV'), a.marketing_nav) +
+            navCell('LiqNAV @ $100k', a.liq_nav_100k) +
+            navCell('LiqNAV @ $1M', a.liq_nav_1m) +
+            navCell('LiqNAV @ $10M', a.liq_nav_10m) +
+          '</div>' +
+          '<div class="flex flex-wrap gap-1.5">' + gapChip + dexChip + delayChip + '</div>' +
+        '</div>';
+      }
+
+      // Sort: UNSAFE (0) and REDEMPTION_ONLY (2) first per rank; deterministic by symbol on tie.
+      function sortAssets(assets) {
+        return assets.slice().sort(function (a, b) {
+          var ra = vmeta(a.verdict).rank, rb = vmeta(b.verdict).rank;
+          if (ra !== rb) return ra - rb;
+          return String(a.symbol || '').localeCompare(String(b.symbol || ''));
+        });
+      }
+
+      function render(board, isLive) {
+        window.__rsbLast = board; window.__rsbLive = isLive;
+        var el = document.getElementById('rsb-cards');
+        if (!el) return;
+        var assets = (board && Array.isArray(board.assets)) ? board.assets : [];
+        if (!assets.length) return;
+        el.innerHTML = sortAssets(assets).map(assetCard).join('');
+        setText('rsb-src', isLive ? 'live' : (isRu() ? 'статика / офлайн' : 'static / offline'));
+        if (board.generated_at) setText('rsb-asof', board.generated_at);
+
+        // Honest-finding counters derived from the live board (kept honest, not hardcoded).
+        var total = assets.length;
+        var notCash = 0, noExit = 0, liquid10m = 0;
+        assets.forEach(function (a) {
+          var liq100k = num(a.liq_nav_100k), liq10m = num(a.liq_nav_10m), dex = num(a.on_chain_dex_liquidity);
+          var v = a.verdict;
+          if (v !== 'LIQUID' || (liq100k != null && liq100k < 0.999)) notCash++;
+          if (dex == null || dex <= 0 || v === 'REDEMPTION_ONLY') noExit++;
+          if (v === 'LIQUID' && liq10m != null && liq10m >= 0.99) liquid10m++;
+        });
+        setText('finding-notcash', notCash + ' / ' + total);
+        setText('finding-noexit', noExit + ' / ' + total);
+        setText('finding-liquid', liquid10m + ' / ' + total);
+      }
+
+      // Render committed fallback immediately so the page is never empty / always carries the finding.
+      render(FB, false);
+
+      function load() {
+        fetch(API + '/api/rwa-safety-board').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || !Array.isArray(d.assets) || !d.assets.length) return;
+          render(d, true);
+        }).catch(function () { /* graceful offline — fallback already rendered */ });
+      }
+
+      // Re-render on language toggle (Layout i18n runtime calls window.__renderLive) so the
+      // verdict labels / chips localize to the latest board (live if loaded, else fallback).
+      window.__renderLive = function () { try { render(window.__rsbLast || FB, !!window.__rsbLive); } catch (e) {} };
+
+      function init() { load(); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>

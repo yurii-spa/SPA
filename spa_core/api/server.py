@@ -610,6 +610,32 @@ def get_refusal():
     return raw
 
 
+@app.get("/api/rwa-safety-board", tags=["strategy_lab"])
+def get_rwa_safety_board():
+    """RWA Collateral Safety Board — data/rwa_safety_board.json.
+
+    Per-asset daily verdict (LIQUID / THIN / REDEMPTION_ONLY / UNSAFE) on whether tokenized-RWA
+    collateral has a REAL executable on-chain exit, plus the quantified marketing-vs-Liquidation-NAV
+    gap %. Produced by the §SPA-RRB-validated LiquidationNAVEngine run on live DeFiLlama data.
+    ADVISORY / RESEARCH only — never lends / trades / touches the go-live track.
+
+    Read-only, graceful: served VERBATIM from the file; returns an empty payload (not an error)
+    when the JSON is missing/corrupt, mirroring /api/refusal and the other strategy_lab handlers.
+    """
+    raw = _load_json("rwa_safety_board.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "rwa_backstop_liquidation_nav",
+            "advisory": True,
+            "research_only": True,
+            "verdict_counts": {},
+            "n_assets": 0,
+            "assets": [],
+        }
+    return raw
+
+
 @app.get("/api/rates-desk/surface", tags=["strategy_lab"])
 def get_rates_desk_surface():
     """Rates-Desk current RateSurface — data/rates_desk/rate_surface.json.
