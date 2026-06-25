@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.allocator import allocation_models as m
 from spa_core.allocator.allocator import AllocationResult, StrategyAllocator
+from spa_core.utils.errors import AllocationError
 
 
 def make_adapters() -> list[dict]:
@@ -126,7 +127,12 @@ class TestStrategyAllocator(unittest.TestCase):
 
     def _allocator(self, adapters):
         write_status(self.status, adapters)
-        return StrategyAllocator(status_path=self.status)
+        # Pass a non-existent registry path so tests only see the explicitly
+        # provided adapters, not the real adapter_registry.json on disk.
+        return StrategyAllocator(
+            status_path=self.status,
+            registry_path=self.dir / "_no_registry.json",
+        )
 
     def test_t2_cap_enforced(self):
         # 4×T2 equal weight = 0.25 каждый > 0.20 cap → каждый капается на 0.20.
@@ -209,7 +215,8 @@ class TestStrategyAllocator(unittest.TestCase):
 
     def test_unknown_model_raises(self):
         alloc = self._allocator(make_adapters())
-        with self.assertRaises(ValueError):
+        # allocate() raises AllocationError (subclass of SPAError/Exception) for unknown model
+        with self.assertRaises((ValueError, AllocationError)):
             alloc.allocate(model="moon_math")
 
     def test_save_writes_valid_json(self):
@@ -224,7 +231,10 @@ class TestStrategyAllocator(unittest.TestCase):
         self.assertIn("expected_apy_pct", loaded)
 
     def test_missing_status_file_returns_empty(self):
-        alloc = StrategyAllocator(status_path=self.dir / "nope.json")
+        alloc = StrategyAllocator(
+            status_path=self.dir / "nope.json",
+            registry_path=self.dir / "_no_registry.json",  # isolate from real registry
+        )
         res = alloc.allocate(model="equal_weight")
         self.assertEqual(res.target_weights, {})
 
