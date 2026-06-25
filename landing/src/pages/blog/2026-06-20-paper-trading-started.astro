@@ -5,10 +5,13 @@ import Footer from '../../components/Footer.astro';
 
 const post = {
   title: "Paper Trading Phase Started",
+  titleRu: "Начало фазы бумажной торговли",
   date: "2026-06-20",
   tag: "Milestone",
+  tagRu: "Веха",
   tagColor: "text-accent-400",
   summary: "SPA officially entered paper trading with $100,000 USDC virtual capital across 20 DeFi adapters on Ethereum and Base.",
+  summaryRu: "SPA официально перешёл к бумажной торговле с виртуальным капиталом $100,000 USDC на 20 DeFi-адаптерах в сетях Ethereum и Base.",
 };
 ---
 
@@ -44,13 +47,13 @@ const post = {
     <!-- Header -->
     <section class="pt-16 pb-10">
       <div class="flex items-center gap-3 mb-4">
-        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`}>{post.tag}</span>
+        <span class={`text-xs font-mono uppercase tracking-wider ${post.tagColor}`} data-ru={post.tagRu}>{post.tag}</span>
         <span class="text-xs text-white/25 font-mono">{post.date}</span>
       </div>
-      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru={post.titleRu}>
         {post.title}
       </h1>
-      <p class="text-white/50 text-lg leading-relaxed">{post.summary}</p>
+      <p class="text-white/50 text-lg leading-relaxed" data-ru={post.summaryRu}>{post.summary}</p>
     </section>
 
     <!-- Body -->
@@ -58,10 +61,10 @@ const post = {
 
       <section>
         <p>
-          After completing our Backtest Gate and Pre-Paper Gate validations, SPA has officially entered the
-          <strong class="text-white">Paper Trading Phase</strong> as of June 10, 2026.
-          All cycles now run with <code class="font-mono text-accent-400 text-sm bg-white/5 px-1.5 py-0.5 rounded">is_demo: false</code> —
-          meaning every trade, rebalance, and yield accrual is part of the official 30-day evidence track.
+          <span data-ru="После прохождения валидаций Backtest Gate и Pre-Paper Gate SPA официально перешёл в">After completing our Backtest Gate and Pre-Paper Gate validations, SPA has officially entered the</span>
+          <strong class="text-white" data-ru="фазу бумажной торговли">Paper Trading Phase</strong> <span data-ru="с 10 июня 2026 года. Все циклы теперь выполняются с">as of June 10, 2026.
+          All cycles now run with</span> <code class="font-mono text-accent-400 text-sm bg-white/5 px-1.5 py-0.5 rounded">is_demo: false</code> <span data-ru="— то есть каждая сделка, ребалансировка и начисление доходности входят в официальный 30-дневный track доказательств.">—
+          meaning every trade, rebalance, and yield accrual is part of the official 30-day evidence track.</span>
         </p>
       </section>
 
@@ -93,13 +96,13 @@ const post = {
             is that no real capital moves on-chain.
           </p>
           <p>
-            Each clean daily cycle contributes <strong class="text-white">1.0 evidence point</strong> toward
+            <span data-ru="Каждый чистый дневной цикл добавляет">Each clean daily cycle contributes</span> <strong class="text-white" data-ru="1.0 балл доказательств">1.0 evidence point</strong> <span data-ru="к порогу в 30 баллов, необходимому для перехода GoLiveChecker в статус READY. Циклы в условиях экстремального рынка оцениваются в 1.5 балла.">toward
             the 30-point threshold required for GoLiveChecker to reach READY status.
-            Cycles during extreme-market conditions score 1.5 points.
+            Cycles during extreme-market conditions score 1.5 points.</span>
           </p>
           <p>
-            The GoLiveChecker evaluates 29 criteria. Current status: <strong class="text-white">27/29 pass</strong>.
-            Target go-live: <strong class="text-white">July 2026</strong> (ADR-002).
+            <span data-ru="GoLiveChecker оценивает 29 критериев. Текущий статус:">The GoLiveChecker evaluates 29 criteria. Current status:</span> <strong class="text-white" data-ru="пройдено 27/29">27/29 pass</strong><span data-ru=". Целевой go-live:">.
+            Target go-live:</span> <strong class="text-white" data-ru="июль 2026">July 2026</strong> <span data-ru="(ADR-002).">(ADR-002).</span>
           </p>
         </div>
       </section>
@@ -125,15 +128,15 @@ const post = {
         <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что дальше">What's Next</p>
         <div class="space-y-2 text-sm">
           {[
-            'Accumulate 30 clean daily evidence cycles (ETA: ~July 10, 2026)',
-            'Reach 26/26 GoLiveChecker criteria',
-            'gap_monitor: 30 consecutive days without gaps',
-            'Owner manual review + ADR-002 sign-off',
-            'Go-live: estimated July 2026',
+            { en: 'Accumulate 30 clean daily evidence cycles (ETA: ~July 10, 2026)', ru: 'Накопить 30 чистых дневных циклов доказательств (ETA: ~10 июля 2026)' },
+            { en: 'Reach 26/26 GoLiveChecker criteria', ru: 'Достичь 26/26 критериев GoLiveChecker' },
+            { en: 'gap_monitor: 30 consecutive days without gaps', ru: 'gap_monitor: 30 дней подряд без пропусков' },
+            { en: 'Owner manual review + ADR-002 sign-off', ru: 'Ручная проверка владельцем + утверждение ADR-002' },
+            { en: 'Go-live: estimated July 2026', ru: 'Go-live: ориентировочно июль 2026' },
           ].map(item => (
             <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
               <span class="text-accent-400 flex-shrink-0 mt-0.5">›</span>
-              <span class="text-white/50">{item}</span>
+              <span class="text-white/50" data-ru={item.ru}>{item.en}</span>
             </div>
           ))}
         </div>
