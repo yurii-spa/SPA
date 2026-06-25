@@ -514,6 +514,54 @@ def get_tier1_regime():
     })
 
 
+@app.get("/api/strategy-lab", tags=["strategy_lab"])
+def get_strategy_lab():
+    """Strategy-Lab comparative backtest — data/strategy_lab_backtest.json.
+
+    Projects the lab backtest result into the flat shape the site /strategies page consumes:
+    {strategies:[{id,name,mandate,net_apy_pct,max_drawdown_pct,sharpe,beta_to_eth,
+    funding_drag_pct,beats_rwa_floor,killed,kill_reason}], rwa_floor_pct, window_start,
+    window_end, generated_at}.
+
+    Read-only, graceful: returns an empty {} payload (not an error) when the backtest JSON is
+    missing/corrupt, mirroring the tier1 handlers. Values are passed through VERBATIM from the
+    file — no recomputation here. (TTL is the file's own generated_at; the lab refreshes it.)
+    """
+    raw = _load_json("strategy_lab_backtest.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "strategies": [], "rwa_floor_pct": None,
+            "window_start": None, "window_end": None, "generated_at": None,
+        }
+    manifest = raw.get("manifest", {}) or {}
+    kills = raw.get("kills", {}) or {}
+    strategies = []
+    for sid, blk in (raw.get("strategies", {}) or {}).items():
+        m = blk.get("metrics", {}) or {}
+        extra = m.get("extra", {}) or {}
+        kill = blk.get("kill") or kills.get(sid)
+        strategies.append({
+            "id": blk.get("id", sid),
+            "name": blk.get("name", sid),
+            "mandate": blk.get("mandate", ""),
+            "net_apy_pct": m.get("net_apy_pct"),
+            "max_drawdown_pct": m.get("max_drawdown_pct"),
+            "sharpe": m.get("sharpe"),
+            "beta_to_eth": m.get("beta_to_eth"),
+            "funding_drag_pct": m.get("funding_drag_pct"),
+            "beats_rwa_floor": m.get("beats_rwa_floor"),
+            "killed": bool(kill) or bool(extra.get("killed")),
+            "kill_reason": (kill or {}).get("reason") if isinstance(kill, dict) else None,
+        })
+    return {
+        "strategies": strategies,
+        "rwa_floor_pct": manifest.get("rwa_floor_apy_pct"),
+        "window_start": manifest.get("window_start"),
+        "window_end": manifest.get("window_end"),
+        "generated_at": manifest.get("generated_at"),
+    }
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
