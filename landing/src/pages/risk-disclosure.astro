@@ -17,7 +17,7 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Header -->
     <div class="mb-12">
-      <p class="text-xs text-amber-400/70 font-mono uppercase tracking-widest mb-3" data-ru="Юридическое · Регуляторное">Legal · Regulatory</p>
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Юридическое · Регуляторное">Legal · Regulatory</p>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Раскрытие рисков">Risk Disclosure</h1>
       <p class="text-white/40 text-sm" data-ru="Последнее обновление: 18 июня 2026 · SPA — Smart Passive Aggregator · earn-defi.com">
         Last updated: June 18, 2026 · SPA — Smart Passive Aggregator · earn-defi.com
@@ -39,7 +39,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 1. Paper Trading Status -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="1. Статус бумажной торговли">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="1. Статус бумажной торговли">
           1. Paper Trading Status
         </h2>
         <p>
@@ -67,7 +67,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 2. Investment Risk Warning -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="2. Общее предупреждение об инвестиционных рисках">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="2. Общее предупреждение об инвестиционных рисках">
           2. General Investment Risk Warning
         </h2>
         <p>
@@ -85,47 +85,47 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 3. DeFi-Specific Risks -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="3. Риски, специфичные для DeFi">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="3. Риски, специфичные для DeFi">
           3. DeFi-Specific Risks
         </h2>
         <p data-ru="Следующие риски специфичны для протоколов децентрализованных финансов:">The following risks are specific to decentralized finance protocols:</p>
         <div class="mt-4 space-y-4">
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск смарт-контрактов">Smart Contract Risk</h3>
             <p data-ru="DeFi-протоколы управляются смарт-контрактами, которые могут содержать ошибки, уязвимости или непредвиденные взаимодействия. Даже проаудированные контракты подвергались эксплойтам. SPA отслеживает только протоколы с несколькими независимыми аудитами, но это не гарантирует безопасность.">DeFi protocols are governed by smart contracts which may contain bugs, vulnerabilities,
             or unforeseen interactions. Even audited contracts have been exploited. SPA monitors
             only protocols with multiple independent audits, but this does not guarantee safety.</p>
           </div>
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск оракулов">Oracle Risk</h3>
             <p data-ru="DeFi-протоколы полагаются на ценовые оракулы для определения стоимости активов. Манипуляция оракулом или его сбой могут привести к некорректным ликвидациям, потере средств или неплатёжеспособности протокола.">DeFi protocols rely on price oracles to determine asset values. Oracle manipulation
             or failure can result in incorrect liquidations, loss of funds, or protocol insolvency.</p>
           </div>
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск ликвидности">Liquidity Risk</h3>
             <p data-ru="В стрессовых рыночных условиях ликвидность DeFi-протокола может значительно снизиться, делая невозможным выход из позиций по выгодным ценам или вообще.">In stressed market conditions, DeFi protocol liquidity can drop significantly,
             making it impossible to exit positions at favorable prices or at all.</p>
           </div>
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск потери привязки стейблкоина">Stablecoin De-pegging Risk</h3>
             <p data-ru="Стейблкоины могут потерять привязку к базовому активу. USDC регулируется Circle и обеспечен резервами в долларах США, но регуляторные действия или нехватка резервов могут повлиять на стабильность привязки.">Stablecoins may lose their peg to the underlying asset. USDC is regulated by
             Circle and backed by US dollar reserves, but regulatory actions or reserve shortfalls
             could impact peg stability.</p>
           </div>
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск управления протоколом">Protocol Governance Risk</h3>
             <p data-ru="Параметры DeFi-протокола, включая модели процентных ставок, коэффициенты обеспечения и лимиты риска, контролируются держателями токенов управления. Решения управления могут негативно повлиять на доходность и безопасность.">DeFi protocol parameters, including interest rate models, collateral factors, and
             risk limits, are controlled by governance token holders. Governance decisions can
             adversely affect yield and safety.</p>
           </div>
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Волатильность APY">APY Volatility</h3>
             <p data-ru="Доходность в DeFi сильно изменчива и зависит от рыночных условий, утилизации протокола и стимулирующих вознаграждений. Историческая или смоделированная APY не предсказывает будущую доходность. RiskPolicy SPA ограничивает APY диапазоном от 1% до 30%, чтобы избежать экстремальных выбросов, но доходность внутри этого диапазона может быстро меняться.">DeFi yields are highly variable and depend on market conditions, protocol utilization,
             and reward incentives. Historical or simulated APY does not predict future yields.
             SPA's RiskPolicy gates APY between 1% and 30% to avoid extreme outliers, but yields
             within this range can change rapidly.</p>
           </div>
-          <div class="rounded-lg bg-white/3 border border-white/8 p-4">
+          <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Отсутствие защиты вкладов">No Deposit Protection</h3>
             <p><span data-ru="Средства, размещённые в DeFi-протоколах,">Funds deposited in DeFi protocols are</span> <strong class="text-white/70" data-ru="не покрываются">not covered</strong> <span data-ru="никакой схемой компенсации инвесторам, схемой гарантирования вкладов или государственной программой страхования. Для DeFi нет эквивалента защиты FDIC или FSCS.">by
             any investor compensation scheme, deposit guarantee scheme, or government insurance
@@ -136,7 +136,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 4. Risk Mitigation Measures -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="4. Система снижения рисков SPA">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="4. Система снижения рисков SPA">
           4. SPA's Risk Mitigation Framework
         </h2>
         <p data-ru="Следующие меры контроля встроены в RiskPolicy v1.0. Они снижают — но не устраняют — риск:">
@@ -161,7 +161,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 5. Regulatory Status -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="5. Регуляторный статус">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="5. Регуляторный статус">
           5. Regulatory Status
         </h2>
         <p>
@@ -178,7 +178,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 6. Jurisdictional Notice -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="6. Юрисдикционное уведомление">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="6. Юрисдикционное уведомление">
           6. Jurisdictional Notice
         </h2>
         <p data-ru="Это личный исследовательский проект. Никакой капитал не управляется и не привлекается. Этот сайт предназначен только для информационных и образовательных целей.">
@@ -195,7 +195,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 7. Not Financial Advice -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="7. Не является финансовой или юридической консультацией">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="7. Не является финансовой или юридической консультацией">
           7. Not Financial or Legal Advice
         </h2>
         <p data-ru="Ничто на этом сайте, дашборде, в API или связанных коммуникациях не является финансовой консультацией, инвестиционной консультацией, юридической консультацией или налоговой консультацией. Предоставляемая информация служит только информационным и образовательным целям.">
@@ -212,7 +212,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 8. Data and Privacy -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="8. Конфиденциальность">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="8. Конфиденциальность">
           8. Privacy
         </h2>
         <p data-ru="Этот сайт не собирает и не хранит персональные данные. Это статический информационный сайт — здесь нет учётных записей, нет форм сбора персональной информации и нет аналитики, отслеживающей отдельных пользователей.">
@@ -224,7 +224,7 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- 9. Changes -->
       <section>
-        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-white/8" data-ru="9. Изменения в данном раскрытии">
+        <h2 class="text-base font-semibold text-white mb-3 pb-2 border-b border-border" data-ru="9. Изменения в данном раскрытии">
           9. Changes to This Disclosure
         </h2>
         <p data-ru="Данное раскрытие рисков может обновляться по мере перехода платформы от бумажной торговли к боевой, при изменении регуляторных требований или при выявлении новых рисков. Существенные изменения будут отмечены на главной странице с датированным уведомлением. Продолжение использования платформы после изменений означает принятие обновлённого раскрытия.">
@@ -236,7 +236,7 @@ import Layout from '../layouts/Layout.astro';
       </section>
 
       <!-- Signature -->
-      <div class="pt-8 border-t border-white/8 text-white/25 text-xs">
+      <div class="pt-8 border-t border-border text-white/25 text-xs">
         <p>SPA — Smart Passive Aggregator · earn-defi.com</p>
         <p class="mt-1" data-ru="Версия документа 1.0 · Действует с 18 июня 2026">Document version 1.0 · Effective June 18, 2026</p>
       </div>
