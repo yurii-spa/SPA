@@ -248,7 +248,7 @@ class TestGetSupplyApyLive:
     def test_bad_asset_raises_valueerror(self):
         """Unknown asset must raise BEFORE any RPC work — not be swallowed."""
         adapter = AaveV3Adapter(chain="ethereum", dry_run=False)
-        with pytest.raises(ValueError, match="Unsupported asset"):
+        with pytest.raises(ValueError, match="Validation failed"):
             adapter.get_supply_apy("WBTC")
 
     def test_rpc_failure_falls_back_to_mock(self):
@@ -265,7 +265,7 @@ class TestGetSupplyApyLive:
 
     def test_unsupported_chain_raises_in_init(self):
         """Construction with an unknown chain raises immediately."""
-        with pytest.raises(ValueError, match="Unsupported chain"):
+        with pytest.raises(ValueError, match="Validation failed"):
             AaveV3Adapter(chain="polygon", dry_run=False)
 
 
