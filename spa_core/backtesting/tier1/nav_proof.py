@@ -23,10 +23,10 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Optional
+
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -220,16 +220,7 @@ def build_proof(write: bool = True) -> dict:
         "nav_hash": nav_hash,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(_DATA), prefix=".tier1_nav_")
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(proof, f, indent=2)
-            os.replace(tmp, _OUT)
-        except Exception:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-            raise
+        atomic_save(proof, str(_OUT))
     return proof
 
 
