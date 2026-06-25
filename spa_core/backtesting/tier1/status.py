@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import tempfile
 from pathlib import Path
+
+from spa_core.utils.atomic import atomic_save
 
 _DATA = Path(__file__).resolve().parents[3] / "data"
 _OUT = _DATA / "tier1_status.json"
@@ -65,11 +65,7 @@ def build(write: bool = True, alert: bool = False) -> dict:
         "health": "OK" if not problems else "ATTENTION",
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1status_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(status, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(status, str(_OUT))
     if alert and problems:
         try:
             from spa_core.alerts.telegram_client import send_message
