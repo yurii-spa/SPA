@@ -52,6 +52,11 @@ from spa_core.strategy_lab.base import MarketSnapshot, Strategy, StrategyMetrics
 from spa_core.strategy_lab.data.market_data import MarketData
 from spa_core.strategy_lab.metrics import compute_metrics
 from spa_core.strategy_lab.strategies.baselines import build_baselines
+from spa_core.strategy_lab.strategies.btc_lending_sleeve import BtcLendingSleeve
+from spa_core.strategy_lab.strategies.btc_neutral import BtcNeutral
+from spa_core.strategy_lab.strategies.eth_lst_neutral import EthLstNeutral
+from spa_core.strategy_lab.strategies.eth_lst_staking import EthLstStaking
+from spa_core.strategy_lab.strategies.rwa_sleeve import RwaSleeve
 from spa_core.strategy_lab.strategies.variant_d import VariantD
 from spa_core.strategy_lab.strategies.variant_n import VariantN
 
@@ -63,8 +68,13 @@ ETH_DD_MIN_PCT = 10.0      # require ≥1 ETH peak-to-trough drawdown bigger tha
 EQUITY_SAMPLE_MAX = 400    # cap the per-strategy equity series stored in JSON
 
 # Strategy build order (variants first, then baselines, RWA floor last as the benchmark row).
-_VARIANT_IDS = ("variant_n", "variant_d")
+_VARIANT_IDS = (
+    "variant_n", "variant_d", "eth_lst_neutral", "eth_lst_staking",
+    "btc_neutral", "btc_lending_sleeve",
+)
 _BASELINE_IDS = ("engine_a", "engine_b", "engine_c", "rwa_floor")
+# Allocatable T1 sleeves (NOT baselines, NOT the benchmark). Run alongside, at equal capital.
+_SLEEVE_IDS = ("rwa_sleeve",)
 
 
 # ── atomic JSON write (repo rule #4) ──────────────────────────────────────────────────────────
@@ -110,12 +120,51 @@ def build_strategy_set(cfg: dict, initial_capital: float) -> Dict[str, Strategy]
     vd.init(initial_capital, _merged_strategy_config(global_cfg, strategies_cfg["variant_d"]))
     out["variant_d"] = vd
 
+    # ETH LST Neutral — the SAFE hedged ETH-yield candidate (plain-staking LST + short perp).
+    # Reads its thresholds + the global cost/funding params from the same merged config dict.
+    eln = EthLstNeutral()
+    eln.init(
+        initial_capital,
+        _merged_strategy_config(global_cfg, strategies_cfg["eth_lst_neutral"]),
+    )
+    out["eth_lst_neutral"] = eln
+
+    # ETH LST Staking — directional ETH-staking counterpart (long LST, β ≈ 1, drawdown stop).
+    els = EthLstStaking()
+    els.init(
+        initial_capital,
+        _merged_strategy_config(global_cfg, strategies_cfg["eth_lst_staking"]),
+    )
+    out["eth_lst_staking"] = els
+
+    # BTC Neutral — market-neutral BTC funding carry (wrapped-BTC spot + short BTC perp, β ≈ 0).
+    bn = BtcNeutral()
+    bn.init(
+        initial_capital,
+        _merged_strategy_config(global_cfg, strategies_cfg["btc_neutral"]),
+    )
+    out["btc_neutral"] = bn
+
+    # BTC Lending Sleeve — directional BTC + lending floor (hold wrapped-BTC, β ≈ 1, drawdown stop).
+    bls = BtcLendingSleeve()
+    bls.init(
+        initial_capital,
+        _merged_strategy_config(global_cfg, strategies_cfg["btc_lending_sleeve"]),
+    )
+    out["btc_lending_sleeve"] = bls
+
     # Baselines — built by their factory, then RE-init'd at the SAME capital for equal footing.
     baselines = build_baselines(cfg)
     for bid in _BASELINE_IDS:
         strat = baselines[bid]
         strat.init(initial_capital, strategies_cfg[bid])  # equal-capital re-init
         out[bid] = strat
+
+    # Allocatable T1 sleeve(s) — built directly (not baseline factory), init'd at SAME capital.
+    # Fail-CLOSED: the config block must exist (it carries capital_usd + the sleeve drawdown stop).
+    rs = RwaSleeve()
+    rs.init(initial_capital, strategies_cfg["rwa_sleeve"])
+    out["rwa_sleeve"] = rs
     return out
 
 
@@ -326,7 +375,7 @@ def run_backtest(
 
     per_strategy: Dict[str, dict] = {}
     kills: Dict[str, dict] = {}
-    for sid in (*_VARIANT_IDS, *_BASELINE_IDS):
+    for sid in (*_VARIANT_IDS, *_BASELINE_IDS, *_SLEEVE_IDS):
         strat = strategies[sid]
         equity_series, daily_returns, events, kill_event, positions = _run_one(
             strat, snaps, initial_capital
