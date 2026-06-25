@@ -1844,8 +1844,17 @@ def run_cycle(
                 "ts": run_ts,
                 "type": "rebalance",
                 "from_allocation": {p: round(v, 2) for p, v in current_positions.items()},
+                # ALLOC-002: target_usd here is the COMPLIANT (count-capped ≤8)
+                # book — same object the diff & effective_positions use — so the
+                # recorded to_allocation matches what is actually held.
                 "to_allocation": {p: round(v, 2) for p, v in target_usd.items()},
                 "diff_usd": round(diff_usd, 2),
+                # Real rebalance turnover in USD: one-sided gross capital actually
+                # relocated this cycle (L1 distance / 2 — each dollar leaving pool
+                # A and entering pool B is counted once, not twice). Used downstream
+                # to estimate transaction cost / slippage. ~0 on a stable cycle
+                # (no phantom churn after ALLOC-002), >0 on a real rebalance.
+                "delta_abs": round(diff_usd / 2.0, 2),
                 "reason": "orchestrator_cycle",
                 "model_used": model_used,
                 "strategy_loop_active": strategy_loop_active,
@@ -1868,6 +1877,7 @@ def run_cycle(
                 {
                     "trade_id": trade_id,
                     "diff_usd": round(diff_usd, 2),
+                    "delta_abs": round(diff_usd / 2.0, 2),
                     "from_allocation": {p: round(v, 2) for p, v in current_positions.items()},
                     "to_allocation": {p: round(v, 2) for p, v in target_usd.items()},
                 },
