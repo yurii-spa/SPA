@@ -72,6 +72,17 @@ def _rate_limit_ok(text: str = "") -> bool:
         return True  # fail-open: never block a legitimate send on a guard error
 
 
+def flood_guard_ok(text: str = "") -> bool:
+    """Public flood-guard check for callers that do their OWN HTTP send.
+
+    Modules that POST to Telegram directly (with their own per-instance or env
+    credentials) must still honour the shared cross-process rate limit. They
+    call this BEFORE sending: ``False`` → drop the message (already logged).
+    Disabled under pytest (see ``_rate_limit_ok``). Fail-open on guard error.
+    """
+    return _rate_limit_ok(text)
+
+
 def _read_keychain(service: str) -> str:
     """Read one generic password from the macOS Keychain. Raises EnvironmentError."""
     try:
