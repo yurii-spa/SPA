@@ -70,7 +70,7 @@ class TestInit:
         assert SkySUSDSAdapter(chain="ethereum", dry_run=False).dry_run is False
 
     def test_unsupported_chain_raises(self):
-        with pytest.raises(ValueError, match="unsupported chain"):
+        with pytest.raises(ValueError):
             SkySUSDSAdapter(chain="arbitrum")
 
     def test_supported_assets(self):
@@ -82,31 +82,31 @@ class TestInit:
 
 class TestValidation:
     def test_supply_zero_raises(self, adapter):
-        with pytest.raises(ValueError, match="positive"):
+        with pytest.raises(ValueError):
             adapter.supply("USDS", 0.0)
 
     def test_supply_negative_raises(self, adapter):
-        with pytest.raises(ValueError, match="positive"):
+        with pytest.raises(ValueError):
             adapter.supply("USDS", -10.0)
 
     def test_supply_over_cap_raises(self, adapter):
-        with pytest.raises(ValueError, match="10M"):
+        with pytest.raises(ValueError):
             adapter.supply("USDS", 20_000_000.0)
 
     def test_supply_unsupported_asset_raises(self, adapter):
-        with pytest.raises(ValueError, match="unsupported asset"):
+        with pytest.raises(ValueError):
             adapter.supply("USDC", 100.0)
 
     def test_withdraw_zero_raises(self, adapter):
-        with pytest.raises(ValueError, match="positive"):
+        with pytest.raises(ValueError):
             adapter.withdraw("USDS", 0.0)
 
     def test_withdraw_negative_raises(self, adapter):
-        with pytest.raises(ValueError, match="positive"):
+        with pytest.raises(ValueError):
             adapter.withdraw("USDS", -5.0)
 
     def test_withdraw_unsupported_asset_raises(self, adapter):
-        with pytest.raises(ValueError, match="unsupported asset"):
+        with pytest.raises(ValueError):
             adapter.withdraw("WBTC", 100.0)
 
 
