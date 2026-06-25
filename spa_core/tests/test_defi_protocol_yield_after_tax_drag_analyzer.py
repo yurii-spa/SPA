@@ -742,6 +742,8 @@ def test_demo_main_runs():
     mod = os.path.join(
         _ROOT, "spa_core", "analytics",
         "defi_protocol_yield_after_tax_drag_analyzer.py")
-    res = subprocess.run([sys.executable, mod], capture_output=True, text=True)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(_ROOT)
+    res = subprocess.run([sys.executable, mod], capture_output=True, text=True, env=env)
     assert res.returncode == 0
     assert "after_tax_efficiency_score" in res.stdout
