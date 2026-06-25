@@ -104,6 +104,12 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 # Paper trading start date (Day 0) — see CLAUDE.md / go-live criterion 1.
 # Real track started 2026-06-10 (all data before this date is demo/invalid after teardown).
 PAPER_START_DATE = "2026-06-10"
+# Canonical real-track anchor (date object). The honest track NEVER starts before
+# this date. `_summarize` computes real_days / first_real_date strictly off this
+# anchor so an ad-hoc cycle run over a legacy (unflagged) curve can never inflate
+# the real-track length by counting pre-teardown warmup bars. See
+# golive_checker.PAPER_REAL_START (same date) — the two must agree.
+PAPER_REAL_START_DATE = datetime.strptime(PAPER_START_DATE, "%Y-%m-%d").date()
 CAPITAL_USD = 100_000.0
 
 TRADES_FILENAME = "trades.json"
@@ -476,15 +482,35 @@ def _rebuild_summary(daily: list[dict]) -> dict:
         mean = sum(vals) / len(vals)
         vol = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5
 
-    # S0.1: first_date = первая РЕАЛЬНАЯ запись (not is_warmup), не warmup.
-    # first_real_date — явный псевдоним для GoLive-чекеров.
-    real_daily = [d for d in daily if not d.get("is_warmup", False)]
-    first_real_date = real_daily[0].get("date") if real_daily else daily[0].get("date")
+    # S0.1: a bar counts toward the REAL track record only when it is
+    # (a) dated ON OR AFTER PAPER_REAL_START_DATE (the post-teardown anchor) AND
+    # (b) not explicitly flagged is_warmup. The DATE anchor is authoritative and
+    # comes first: a legacy curve whose pre-teardown bars lack an is_warmup flag
+    # (the 2026-06-25 corruption: real_days jumped to 32, first_real drifted to
+    # 2026-05-21) can NEVER inflate real_days — first_real_date is clamped to
+    # PAPER_REAL_START_DATE and warmup bars are excluded by date regardless of flag.
+    def _bar_date(d: dict):
+        try:
+            return datetime.strptime(str(d.get("date"))[:10], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+
+    real_daily = [
+        d
+        for d in daily
+        if not d.get("is_warmup", False)
+        and (_bar_date(d) is not None and _bar_date(d) >= PAPER_REAL_START_DATE)
+    ]
+    if real_daily:
+        first_real_date = real_daily[0].get("date")
+    else:
+        # No real bars yet — report the anchor, never an earlier (warmup) date.
+        first_real_date = PAPER_REAL_START_DATE.isoformat()
 
     return {
         "num_days": len(daily),
-        # Honest track length = non-warmup bars only (pre-2026-06-10 warmup/demo
-        # bars excluded). Consumers should display real_days, not num_days.
+        # Honest track length = bars dated >= PAPER_REAL_START and not is_warmup.
+        # Pre-2026-06-10 warmup/demo bars excluded. Display real_days, not num_days.
         "real_days": len(real_daily),
         "num_snapshots": len(daily),
         "start_equity": round(start_equity, 2),
