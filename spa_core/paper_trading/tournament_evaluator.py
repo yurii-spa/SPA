@@ -178,7 +178,14 @@ def compute_sharpe(
 
     Sharpe = (mean_daily_return - rf_daily) / std_daily * sqrt(365)
 
-    Returns None если < 2 наблюдений или std=0.
+    Returns None если < 2 наблюдений.
+
+    Zero-variance (std == 0) edge case: a constant excess return has no risk, so
+    the mathematically correct Sharpe diverges. We return +/-inf with the sign of
+    the mean excess return (positive returns → +inf, negative → -inf), and None
+    only when the mean is also zero (no signal at all). Returning a signed
+    infinity — rather than None — keeps the metric monotonic for ranking and
+    avoids silently dropping a flawless-but-degenerate series.
     """
     if len(daily_returns) < 2:
         return None
@@ -187,6 +194,11 @@ def compute_sharpe(
     m = _mean(excess)
     s = _std(excess)
     if s <= 0:
+        # Zero volatility: infinite Sharpe in the direction of the mean.
+        if m > 0:
+            return math.inf
+        if m < 0:
+            return -math.inf
         return None
     return m / s * math.sqrt(365.0)
 
