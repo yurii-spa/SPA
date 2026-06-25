@@ -27,7 +27,14 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO))
 
 # ---------------------------------------------------------------------------
-# Patch Telegram before any import of alert modules
+# Patch Telegram before any import of alert modules.
+#
+# This patch lives in sys.modules; without a matching stop it would leak a
+# MagicMock telegram_client into every test that runs after this module (e.g.
+# test_protocol_report's send_protocol_report would see a send_message that
+# always returns True). setUpModule/tearDownModule (honoured by both unittest
+# and pytest) scope the patch to this module's run only, restoring the real
+# telegram_client afterwards.
 # ---------------------------------------------------------------------------
 _tg_patcher = unittest.mock.patch.dict(
     "sys.modules",
@@ -37,13 +44,28 @@ _tg_patcher = unittest.mock.patch.dict(
         ),
     },
 )
-_tg_patcher.start()
 
+
+def setUpModule():
+    """Start the sys.modules patch before this module's tests run."""
+    _tg_patcher.start()
+
+
+def tearDownModule():
+    """Stop the patch so the real telegram_client is restored for the rest of
+    the test session (prevents cross-module pollution)."""
+    _tg_patcher.stop()
+
+
+# Import under the patch so module-level references resolve against the mock,
+# then stop it; setUpModule re-applies it for the duration of the run.
+_tg_patcher.start()
 from spa_core.alerts.apy_drift_alert import (  # noqa: E402
     APY_DRIFT_THRESHOLD,
     LOOKBACK_DAYS,
     APYDriftAlert,
 )
+_tg_patcher.stop()
 
 
 def _make_alert(tmp_path: pathlib.Path) -> APYDriftAlert:
