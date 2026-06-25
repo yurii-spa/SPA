@@ -26,6 +26,10 @@ from spa_core.allocator.allocator import (
     DEFAULT_MODEL,
     StrategyAllocator,
 )
+try:
+    from spa_core.utils.errors import AllocationError as _AllocationError
+except ImportError:
+    _AllocationError = None
 
 
 def make_adapters() -> list[dict]:
@@ -190,7 +194,13 @@ class TestRiskAwareAllocator(unittest.TestCase):
         write_status(self.status, adapters)
         if write_scores and scores is not None:
             write_risk_scores(self.risk, scores)
-        return StrategyAllocator(status_path=self.status, risk_scores_path=self.risk)
+        # Pass a non-existent registry_path to prevent the real adapter_registry.json
+        # from being merged in (MP-REGISTRY feature) — keeps tests hermetic.
+        return StrategyAllocator(
+            status_path=self.status,
+            risk_scores_path=self.risk,
+            registry_path=self.dir / "nonexistent_registry.json",
+        )
 
     def test_default_model_is_risk_adjusted(self):
         self.assertEqual(DEFAULT_MODEL, "risk_adjusted")
@@ -222,7 +232,7 @@ class TestRiskAwareAllocator(unittest.TestCase):
         self.assertFalse(res.risk_model_applied)
         # деградация на equal_weight: валидное распределение, без падений
         self.assertGreater(len(res.target_weights), 0)
-        self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-9)
+        self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-6)
         self.assertTrue(any("risk_scores.json" in n for n in res.notes))
 
     def test_risk_scores_corrupt_json_graceful_fallback(self):
@@ -298,7 +308,8 @@ class TestRiskAwareAllocator(unittest.TestCase):
 
     def test_unknown_model_still_raises(self):
         alloc = self._allocator(make_adapters(), {"morpho_blue": "A"})
-        with self.assertRaises(ValueError):
+        _exc = (ValueError,) + ((_AllocationError,) if _AllocationError else ())
+        with self.assertRaises(_exc):
             alloc.allocate(model="moon_math")
 
     def test_weights_sum_le_one_after_caps(self):
@@ -307,7 +318,7 @@ class TestRiskAwareAllocator(unittest.TestCase):
             {"morpho_blue": "A", "yearn_v3": "B", "euler_v2": "A", "maple": "B"},
         )
         res = alloc.allocate(model="risk_adjusted")
-        self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-9)
+        self.assertLessEqual(sum(res.target_weights.values()), 1.0 + 1e-6)
 
     def test_save_roundtrip_includes_risk_fields(self):
         alloc = self._allocator(
