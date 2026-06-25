@@ -89,8 +89,13 @@ def _today() -> str:
 
 
 def _days_to_golive() -> int:
+    # Must mirror progress_tracker.build_progress_report, which anchors on the
+    # UTC calendar date (datetime.now(timezone.utc)). Using local date.today()
+    # here caused a 1-day off-by-one whenever local time and UTC straddle a day
+    # boundary.
     from datetime import date as _date
-    return (_date.fromisoformat(GO_LIVE_TARGET_DATE) - _date.today()).days
+    today_utc = _date.fromisoformat(_today())
+    return (_date.fromisoformat(GO_LIVE_TARGET_DATE) - today_utc).days
 
 
 # ---------------------------------------------------------------------------
