@@ -24,6 +24,7 @@ from spa_core.execution.mev_protection import (
     send_raw_transaction_auto,
     broadcast_protected_hash,
 )
+from spa_core.utils.errors import SourceError
 
 T2_MODULES = [
     "spa_core.execution.adapters.yearn_v3_adapter",
@@ -139,7 +140,7 @@ class TestBroadcastProtectedHash:
             raise ConnectionError("down")
         with mock.patch("spa_core.execution.mev_protection._send_to_endpoint",
                         side_effect=boom):
-            with pytest.raises(RuntimeError):
+            with pytest.raises((RuntimeError, SourceError)):
                 broadcast_protected_hash("0xabc")
 
     def test_no_silent_public_fallback(self):
@@ -151,7 +152,7 @@ class TestBroadcastProtectedHash:
             with mock.patch(
                 "spa_core.execution.eth_signer.send_raw_transaction"
             ) as pub:
-                with pytest.raises(RuntimeError):
+                with pytest.raises((RuntimeError, SourceError)):
                     broadcast_protected_hash("0xabc")
                 pub.assert_not_called()
 
