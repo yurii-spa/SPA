@@ -223,9 +223,9 @@ import Footer from '../components/Footer.astro';
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Турнир стратегий">Strategy Tournament</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed">
-        Multiple strategies run in parallel and are evaluated on risk-adjusted performance.
-        Tournament output is <strong class="text-white/60">advisory-only</strong> — all allocation decisions still go through RiskPolicy gate.
-        No strategy can override the gate.
+        <span data-ru="Несколько стратегий работают параллельно и оцениваются по результату с поправкой на риск. Результат турнира носит">Multiple strategies run in parallel and are evaluated on risk-adjusted performance.
+        Tournament output is</span> <strong class="text-white/60" data-ru="только рекомендательный характер">advisory-only</strong> <span data-ru="— все решения об аллокации всё равно проходят через риск-гейт RiskPolicy. Ни одна стратегия не может переопределить гейт.">— all allocation decisions still go through RiskPolicy gate.
+        No strategy can override the gate.</span>
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -385,11 +385,11 @@ import Footer from '../components/Footer.astro';
             look-ahead bias, the most common cause of inflated backtest returns in DeFi.
           </p>
           <p class="text-xs text-white/30 leading-relaxed">
-            Example: GMX launched Q3 2021. Any simulation dated before that launch treats GMX as
+            <span data-ru="Пример: GMX запущен в Q3 2021. Любая симуляция с датой до этого запуска считает GMX несуществующим, даже если исторические данные APY были опубликованы позже. Вайтлист ограничен по дате на уровне каждого протокола. Каждая запись в point-in-time вайтлисте содержит поле">Example: GMX launched Q3 2021. Any simulation dated before that launch treats GMX as
             non-existent, even if historical APY data was later published. The whitelist is
-            date-gated per protocol. Each entry in the point-in-time whitelist carries a
-            <span class="font-mono">launch_date</span> field — the backtest engine rejects any
-            protocol whose launch date is after the simulation date.
+            date-gated per protocol. Each entry in the point-in-time whitelist carries a</span>
+            <span class="font-mono">launch_date</span> <span data-ru="— движок бэктеста отклоняет любой протокол, дата запуска которого позже даты симуляции.">field — the backtest engine rejects any
+            protocol whose launch date is after the simulation date.</span>
           </p>
         </div>
       </div>
@@ -494,17 +494,17 @@ import Footer from '../components/Footer.astro';
             or assume retroactive availability.
           </p>
           <p class="text-sm text-white/50 leading-relaxed mb-3">
-            The result is a high cash drag — capital that cannot be deployed to a
-            <span class="font-mono text-white/60">CLEAN_INCLUDED</span> protocol is held as USDC.
+            <span data-ru="В результате возникает высокий cash drag — капитал, который нельзя разместить в протокол со статусом">The result is a high cash drag — capital that cannot be deployed to a</span>
+            <span class="font-mono text-white/60">CLEAN_INCLUDED</span> <span data-ru=", удерживается в USDC. Это сделано намеренно: лучше признать ограниченную возможность размещения, чем завышать историческую доходность с помощью протоколов, которые ещё не были проверяемы на дату симуляции.">protocol is held as USDC.
             This is intentional: it is better to acknowledge limited deployment opportunity than
             to overstate historical returns using protocols that were not yet verifiable at the
-            simulation date.
+            simulation date.</span>
           </p>
           <p class="text-xs text-white/30 leading-relaxed">
-            A 13% average deployed allocation (86.97% cash) is the honest answer for the
-            2022–2026 period. As CPA sources are audited and promoted from
-            <span class="font-mono">PENDING</span> to <span class="font-mono">CLEAN_INCLUDED</span>,
-            the deployable universe grows and cash drag falls.
+            <span data-ru="Средняя размещённая аллокация 13% (86.97% в кэше) — это честный ответ для периода 2022–2026. По мере того как источники CPA проходят аудит и переводятся из статуса">A 13% average deployed allocation (86.97% cash) is the honest answer for the
+            2022–2026 period. As CPA sources are audited and promoted from</span>
+            <span class="font-mono">PENDING</span> <span data-ru="в">to</span> <span class="font-mono">CLEAN_INCLUDED</span><span data-ru=", доступная вселенная для размещения растёт, а cash drag снижается.">,
+            the deployable universe grows and cash drag falls.</span>
           </p>
         </div>
       </div>
@@ -519,10 +519,10 @@ import Footer from '../components/Footer.astro';
               <span class="text-sm text-white/70 font-medium">RS-001 · RS-002</span>
             </div>
             <p class="text-xs text-white/40 leading-relaxed">
-              RS-001 and RS-002 are tagged <span class="font-mono text-orange-400">RESEARCH_ONLY</span>.
+              <span data-ru="RS-001 и RS-002 помечены как">RS-001 and RS-002 are tagged</span> <span class="font-mono text-orange-400">RESEARCH_ONLY</span><span data-ru=". Их значения APY — это прогнозы на основе модельных допущений, а не проверенные исторические данные. Они не могут быть продвинуты в paper trading, пока не будет определён и проверен источник данных">.
               Their APY figures are forward projections based on model assumptions — not verified historical
-              data. They cannot be promoted to paper trading until a <span class="font-mono">CLEAN_INCLUDED</span>
-              data source is identified and audited. Evidence points from research days score 0.3 (vs 1.0 for clean days).
+              data. They cannot be promoted to paper trading until a</span> <span class="font-mono">CLEAN_INCLUDED</span>
+              <span data-ru="data source is identified and audited. Evidence-точки за исследовательские дни оцениваются в 0.3 (против 1.0 за чистые дни).">data source is identified and audited. Evidence points from research days score 0.3 (vs 1.0 for clean days).</span>
             </p>
           </div>
           <div class="rounded-xl bg-white/[0.03] border border-green-500/20 p-5">
@@ -531,10 +531,10 @@ import Footer from '../components/Footer.astro';
               <span class="text-sm text-white/70 font-medium" data-ru="S0–S9 (стратегии Core)">S0–S9 (Core strategies)</span>
             </div>
             <p class="text-xs text-white/40 leading-relaxed">
-              Production strategies use only <span class="font-mono text-green-400">CLEAN_INCLUDED</span>
-              data sources. Each allocation target has on-chain verifiable APY history and a confirmed
+              <span data-ru="Продакшн-стратегии используют только источники данных">Production strategies use only</span> <span class="font-mono text-green-400">CLEAN_INCLUDED</span>
+              <span data-ru="data sources. У каждой цели аллокации есть проверяемая ончейн история APY и подтверждённая дата запуска. Это стратегии, пригодные для накопления доказательств в paper trading (1.0 точки за чистый день, 1.5 за день экстремального рынка) и в конечном итоге для размещения живого капитала.">data sources. Each allocation target has on-chain verifiable APY history and a confirmed
               launch date. These are the strategies eligible for paper trading evidence accumulation
-              (1.0 point per clean day, 1.5 per extreme-market day) and eventual live capital deployment.
+              (1.0 point per clean day, 1.5 per extreme-market day) and eventual live capital deployment.</span>
             </p>
           </div>
         </div>
