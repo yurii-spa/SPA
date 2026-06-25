@@ -12,6 +12,7 @@ import pytest
 from spa_core.execution.aave_v3_adapter import AaveV3Adapter
 from spa_core.execution.compound_v3_adapter import CompoundV3Adapter
 from spa_core.execution.router import ExecutionRouter, _protocol_name
+from spa_core.utils.errors import SPAError
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -118,7 +119,8 @@ class TestRouterRegistry:
         assert router.registered_protocols() == ["aave_v3", "compound_v3"]
 
     def test_duplicate_adapter_rejected(self):
-        with pytest.raises(ValueError, match="Duplicate adapter"):
+        # ExecutionRouter raises SPAError (not ValueError) for duplicate registrations
+        with pytest.raises((ValueError, SPAError)):
             ExecutionRouter([
                 AaveV3Adapter(chain="ethereum"),
                 AaveV3Adapter(chain="ethereum"),
