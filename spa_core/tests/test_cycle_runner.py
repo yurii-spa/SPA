@@ -96,6 +96,47 @@ def test_full_cycle_writes_trade(tmp_path):
     assert trades[0]["to_allocation"]["aave_v3"] == 40000.0
 
 
+def test_trade_records_delta_abs_not_none(tmp_path):
+    # Regression: every trade record had delta_abs missing → r.get("delta_abs")
+    # was None for all rows, so real rebalance $ size (for txn cost / slippage)
+    # was never captured. delta_abs must be a NUMBER, never None.
+    res = _run(tmp_path, APY, TARGET)
+    assert res.traded is True
+    trades = _load(tmp_path, "trades.json")
+    t = trades[0]
+    assert t["delta_abs"] is not None
+    assert isinstance(t["delta_abs"], (int, float))
+    # First-ever cycle deploys the full book from cash → real turnover > 0.
+    assert t["delta_abs"] > 0
+    # Semantics: one-sided gross turnover = L1 distance / 2.
+    assert t["delta_abs"] == pytest.approx(t["diff_usd"] / 2.0)
+
+
+def test_delta_abs_equals_real_dollars_moved(tmp_path):
+    # Establish positions == TARGET, then a real swap on the next cycle.
+    _run(tmp_path, APY, TARGET)
+    changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    res = _run(
+        tmp_path,
+        APY,
+        changed,
+        now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc),
+    )
+    assert res.traded is True
+    trades = _load(tmp_path, "trades.json")
+    t = trades[-1]
+    # Compute expected real $ moved directly from the from/to books recorded.
+    frm = t["from_allocation"]
+    to = t["to_allocation"]
+    keys = set(frm) | set(to)
+    l1 = sum(abs(to.get(k, 0.0) - frm.get(k, 0.0)) for k in keys)
+    assert t["delta_abs"] is not None
+    assert t["delta_abs"] == pytest.approx(round(l1 / 2.0, 2))
+    assert t["delta_abs"] > 0
+    # to_allocation is the compliant book (≤8 protocols), consistent w/ ALLOC-002.
+    assert len(t["to_allocation"]) <= 8
+
+
 def test_idempotent_no_trade_when_allocation_unchanged(tmp_path):
     # First cycle establishes positions == target.
     _run(tmp_path, APY, TARGET)
