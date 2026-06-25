@@ -35,7 +35,13 @@ class _FakeTelegramClient:
     def send_message_with_keyboard(self, *a, **kw): return True
 
 
-# We patch at import time to avoid network dependency
+# We patch the telegram transport/format modules with MagicMocks to avoid any
+# network dependency. CRITICAL: the patch MUST be reverted at module teardown —
+# it lives in sys.modules and would otherwise leak the MagicMocks into every
+# other test that imports telegram_client / telegram_format_ru (poisoning
+# test_telegram_formatting, test_tournament_engine, etc.). setUpModule /
+# tearDownModule are honoured by both unittest and pytest, so the patch is
+# scoped to this module's run only (order-independent).
 import unittest.mock as _mock
 _tc_patcher = _mock.patch.dict(
     "sys.modules",
@@ -50,9 +56,34 @@ _tc_patcher = _mock.patch.dict(
         ),
     }
 )
-_tc_patcher.start()
 
+
+def setUpModule():
+    """Start the sys.modules patch before this module's tests run."""
+    _tc_patcher.start()
+    # alert_manager binds the (now-mocked) telegram modules at import time.
+    global _am
+    import importlib
+    import spa_core.alerts.alert_manager as _am_mod
+    _am = importlib.reload(_am_mod)
+
+
+def tearDownModule():
+    """Revert the sys.modules patch so the real modules are restored for the
+    rest of the test session (prevents cross-module pollution)."""
+    _tc_patcher.stop()
+    # Re-import alert_manager against the real telegram modules so any later
+    # test that imports it sees the genuine bindings.
+    import importlib
+    import spa_core.alerts.alert_manager as _am_mod
+    importlib.reload(_am_mod)
+
+
+# Import under the patch so module-level references resolve; setUpModule reloads
+# it once the patch is active to guarantee the mocked bindings during tests.
+_tc_patcher.start()
 import spa_core.alerts.alert_manager as _am
+_tc_patcher.stop()
 import tempfile
 
 
@@ -271,5 +302,5 @@ class TestAlertStatePersistence(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    _tc_patcher.stop()
+    # setUpModule/tearDownModule manage the patch lifecycle under the runner.
     unittest.main(verbosity=2)
