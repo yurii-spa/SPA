@@ -47,15 +47,15 @@ import Footer from '../components/Footer.astro';
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80" data-ru="Фаза бумажной торговли:">Paper trading phase:</strong> no live contracts deployed &mdash; no smart contract attack surface on live funds.</p>
+          <p><strong class="text-white/80" data-ru="Фаза бумажной торговли:">Paper trading phase:</strong> <span data-ru="живые контракты не развёрнуты — нет поверхности атаки на смарт-контракты для реальных средств.">no live contracts deployed &mdash; no smart contract attack surface on live funds.</span></p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80" data-ru="До запуска:">Pre-go-live:</strong> external audit planned before any live contract deployment.</p>
+          <p><strong class="text-white/80" data-ru="До запуска:">Pre-go-live:</strong> <span data-ru="внешний аудит запланирован до развёртывания любого live-контракта.">external audit planned before any live contract deployment.</span></p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80" data-ru="Выбор протоколов:">Protocol selection:</strong> only audited, TVL-proven protocols (see <a href="/due-diligence" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/due-diligence</a> for whitelist).</p>
+          <p><strong class="text-white/80" data-ru="Выбор протоколов:">Protocol selection:</strong> <span data-ru="только проаудированные, проверенные по TVL протоколы (см.">only audited, TVL-proven protocols (see</span> <a href="/due-diligence" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/due-diligence</a> <span data-ru="для вайтлиста).">for whitelist).</span></p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
@@ -109,27 +109,27 @@ import Footer from '../components/Footer.astro';
           <tbody class="text-white/55">
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">DNSSEC</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> on earn-defi.com (Cloudflare)</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> <span data-ru="на earn-defi.com (Cloudflare)">on earn-defi.com (Cloudflare)</span></td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70" data-ru="Прокси Cloudflare">Cloudflare Proxy</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Активен">Active</span> &mdash; DDoS mitigation, WAF</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Активен">Active</span> <span data-ru="&mdash; защита от DDoS, WAF">&mdash; DDoS mitigation, WAF</span></td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">HTTPS</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Принудительно">Enforced</span> &mdash; HTTP redirects to HTTPS</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Принудительно">Enforced</span> <span data-ru="&mdash; HTTP перенаправляется на HTTPS">&mdash; HTTP redirects to HTTPS</span></td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">HSTS</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> via Cloudflare</td>
+              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> <span data-ru="через Cloudflare">via Cloudflare</span></td>
             </tr>
             <tr class="border-b border-white/5">
               <td class="p-3 text-white/70">RegistryLock</td>
-              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> &mdash; check with registrar before go-live</td>
+              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> <span data-ru="&mdash; уточнить у регистратора до go-live">&mdash; check with registrar before go-live</span></td>
             </tr>
             <tr>
               <td class="p-3 text-white/70" data-ru="Записи CAA">CAA Records</td>
-              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> &mdash; planned before go-live</td>
+              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> <span data-ru="&mdash; запланировано до go-live">&mdash; planned before go-live</span></td>
             </tr>
           </tbody>
         </table>
@@ -217,11 +217,11 @@ import Footer from '../components/Footer.astro';
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> connect only to verify on-chain positions &mdash; never to sign arbitrary transactions.</p>
+            <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> <span data-ru="подключайтесь только для проверки ончейн-позиций — никогда для подписи произвольных транзакций.">connect only to verify on-chain positions &mdash; never to sign arbitrary transactions.</span></p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p>Always verify contract addresses before interacting (see <a href="/emergency-withdrawal" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/emergency-withdrawal</a>).</p>
+            <p><span data-ru="Всегда проверяйте адреса контрактов перед взаимодействием (см.">Always verify contract addresses before interacting (see</span> <a href="/emergency-withdrawal" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/emergency-withdrawal</a><span data-ru=").">).</span></p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
@@ -260,7 +260,7 @@ import Footer from '../components/Footer.astro';
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> approve only the minimum necessary amount.</p>
+          <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> <span data-ru="одобряйте только минимально необходимую сумму.">approve only the minimum necessary amount.</span></p>
         </div>
         <div class="flex gap-3">
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
@@ -321,7 +321,7 @@ import Footer from '../components/Footer.astro';
         </div>
       </div>
       <p class="text-sm text-white/40 mt-6">
-        Official communication: <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a> | GitHub repository
+        <span data-ru="Официальная коммуникация:">Official communication:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a> <span data-ru="| репозиторий GitHub">| GitHub repository</span>
       </p>
     </section>
 
