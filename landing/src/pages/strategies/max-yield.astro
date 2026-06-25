@@ -61,8 +61,8 @@ const global = strategies.global;
         Max Yield Strategy
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        {maxYield.tagline}. Advanced vault mechanics and optimised lending strategies
-        for experienced allocators. No open liquidation risk by default in v1.0.
+        <span data-ru={maxYield.taglineRu}>{maxYield.tagline}</span>. <span data-ru="Продвинутая механика хранилищ и оптимизированные стратегии кредитования для опытных инвесторов. Без открытого риска ликвидации по умолчанию в v1.0.">Advanced vault mechanics and optimised lending strategies
+        for experienced allocators. No open liquidation risk by default in v1.0.</span>
       </p>
     </section>
 
@@ -75,7 +75,7 @@ const global = strategies.global;
             <span class="text-5xl font-mono font-bold text-accent-400">~15%</span>
             <span class="text-sm text-white/30 font-mono">APY</span>
           </div>
-          <p class="text-xs text-white/25 mt-2">{maxYield.target_apy_note}</p>
+          <p class="text-xs text-white/25 mt-2" data-ru={maxYield.target_apy_note_ru}>{maxYield.target_apy_note}</p>
         </div>
       </div>
     </section>
@@ -125,7 +125,7 @@ const global = strategies.global;
         Experienced allocators accepting higher volatility and drawdown for yield upside.
       </p>
       <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
-        <p class="text-sm text-white/50 leading-relaxed">
+        <p class="text-sm text-white/50 leading-relaxed" data-ru={maxYield.descriptionRu}>
           {maxYield.description}
         </p>
       </div>
@@ -204,14 +204,14 @@ const global = strategies.global;
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          'Expose to open liquidation risk by default (v1.0)',
-          'Allocate without risk gate approval',
-          'Bypass RiskPolicy deterministic gate',
-          'Override kill switch in any scenario',
+          { en: 'Expose to open liquidation risk by default (v1.0)', ru: 'Создавать открытый риск ликвидации по умолчанию (v1.0)' },
+          { en: 'Allocate without risk gate approval', ru: 'Размещать средства без одобрения риск-гейта' },
+          { en: 'Bypass RiskPolicy deterministic gate', ru: 'Обходить детерминированный гейт RiskPolicy' },
+          { en: 'Override kill switch in any scenario', ru: 'Переопределять kill switch в любом сценарии' },
         ].map((item) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
             <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
-            <span class="text-sm text-white/50">{item}</span>
+            <span class="text-sm text-white/50" data-ru={item.ru}>{item.en}</span>
           </div>
         ))}
       </div>
