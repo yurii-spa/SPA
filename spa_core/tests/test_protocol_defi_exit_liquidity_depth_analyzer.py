@@ -874,6 +874,8 @@ class TestImportHygiene(unittest.TestCase):
             "json", "math", "os", "tempfile", "time",
             "typing", "__future__", "abc", "collections",
             "functools", "itertools", "re", "sys",
+            # Internal project modules are allowed (not external pip packages)
+            "spa_core",
         }
         source = _MODULE_PATH.read_text(encoding="utf-8")
         tree = ast.parse(source)
