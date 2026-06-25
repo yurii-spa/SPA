@@ -2259,10 +2259,10 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <div class="db-full" id="tearsheet-summary-block" style="margin-bottom:18px;display:none">
     <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
       <span data-ru="📄 Профессиональная сводка">📄 Professional Tear Sheet</span>
-      <a id="tearsheet-link" href="docs/reports/backtest_tearsheet.html" target="_blank"
-         style="font-size:12px;font-weight:600;color:#185FA5;text-decoration:none">
-        View Full Tear Sheet →
-      </a>
+      <span id="tearsheet-link" data-ru="Полные метрики ниже"
+         style="font-size:12px;font-weight:600;color:var(--spa-text-3,#888)">
+        Full metrics below ↓
+      </span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:4px 0 8px">
       <!-- Best strategy -->
@@ -2302,7 +2302,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
 // ── Tear Sheet Summary loader (MP-1356) ──────────────────────────────────
 (function() {
   function loadTearSheetSummary() {
-    fetch('data/tear_sheet_summary.json?_=' + Date.now())
+    fetch((typeof BASE !== 'undefined' ? BASE : 'data') + '/tear_sheet_summary.json?_=' + Date.now())
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(d) {
         if (!d) return;
@@ -11362,14 +11362,13 @@ function renderGoLiveReport(data) {
   const lastGen = data.generated_at ? data.generated_at.slice(0,16).replace('T',' ') : 'Unknown';
   const daysLeft = data.days_remaining != null ? data.days_remaining : '—';
   const filename = data.filename || '';
-  const dataDir = BASE.replace('/api','').replace(/\/data$/, '') + '/data/';
   el.innerHTML = `<div style="flex:1">
     <div style="font-size:14px;font-weight:500">Latest Investor Report</div>
     <div style="font-size:12px;color:#888;margin-top:2px">Generated: ${lastGen} · ${data.status || 'available'}</div>
     <div style="font-size:12px;color:#888">Validity: ${daysLeft} days remaining</div>
   </div>
   ${filename
-    ? `<a href="data/${filename}" download class="pdf-btn" style="text-decoration:none">📄 Download Investor Report</a>`
+    ? `<a href="${(typeof BASE !== 'undefined' ? BASE : 'data')}/${filename}" download class="pdf-btn" style="text-decoration:none">📄 Download Investor Report</a>`
     : '<span style="color:#aaa;font-size:13px">No report file yet</span>'}`;
 }
 
@@ -12859,7 +12858,7 @@ async function loadBEEEvidence() {
 
   try {
     // ── 1. Safety report (counterfactual gate analysis) ──────────────────────
-    const safetyRes = await fetch('data/bee/safety_report.json?t=' + Date.now());
+    const safetyRes = await fetch((typeof BASE !== 'undefined' ? BASE : 'data') + '/bee/safety_report.json?t=' + Date.now());
     let safetyHTML = '<p class="bee-disclaimer bee-error-val">Safety report not available</p>';
     if (safetyRes.ok) {
       const s = await safetyRes.json();
@@ -12915,7 +12914,7 @@ async function loadBEEEvidence() {
     }
 
     // ── 2. Backtest vs live fit ───────────────────────────────────────────────
-    const fitRes = await fetch('data/bee/backtest_live_fit.json?t=' + Date.now());
+    const fitRes = await fetch((typeof BASE !== 'undefined' ? BASE : 'data') + '/bee/backtest_live_fit.json?t=' + Date.now());
     let fitHTML = '<p class="bee-disclaimer bee-error-val">Backtest fit data not available</p>';
     if (fitRes.ok) {
       const f = await fitRes.json();
@@ -12960,7 +12959,7 @@ async function loadBEEEvidence() {
     // ── 3. Benchmark (optional — file may not exist yet) ─────────────────────
     let benchHTML = '';
     try {
-      const benchRes = await fetch('data/bee/benchmark_result.json?t=' + Date.now());
+      const benchRes = await fetch((typeof BASE !== 'undefined' ? BASE : 'data') + '/bee/benchmark_result.json?t=' + Date.now());
       if (benchRes.ok) {
         const b = await benchRes.json();
         if (b && b.verdict) {
@@ -12983,7 +12982,7 @@ async function loadBEEEvidence() {
     // ── 4. Failure boundary (optional — file may not exist yet) ──────────────
     let failHTML = '';
     try {
-      const failRes = await fetch('data/bee/failure_boundary.json?t=' + Date.now());
+      const failRes = await fetch((typeof BASE !== 'undefined' ? BASE : 'data') + '/bee/failure_boundary.json?t=' + Date.now());
       if (failRes.ok) {
         const fb = await failRes.json();
         const total    = fb.total_scenarios ?? 0;
