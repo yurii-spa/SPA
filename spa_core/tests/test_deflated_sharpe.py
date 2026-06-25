@@ -611,8 +611,12 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_atomic_write_pattern(self) -> None:
         src = _MODULE_PATH.read_text(encoding="utf-8")
-        self.assertIn("tempfile.mkstemp", src)
-        self.assertIn("os.replace", src)
+        uses_atomic_save = "atomic_save" in src
+        uses_raw_atomic = "tempfile.mkstemp" in src and "os.replace" in src
+        self.assertTrue(
+            uses_atomic_save or uses_raw_atomic,
+            "Module must use atomic_save() or the raw tempfile.mkstemp+os.replace pattern",
+        )
 
     def test_math_funcs_are_imported_objects(self) -> None:
         # The reused functions must be the SAME objects as in probabilistic_sharpe.
