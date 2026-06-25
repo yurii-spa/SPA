@@ -131,6 +131,7 @@ def test_allocate_end_to_end_respects_limits(tmp_path):
     a = StrategyAllocator(
         status_path=status,
         risk_scores_path=tmp_path / "missing_risk_scores.json",
+        registry_path=tmp_path / "_no_registry.json",  # isolate from real registry
         allocation_model="equal_weight",
         strategy_loop_enabled=False,
     )
