@@ -15,28 +15,8 @@
   <!-- Subtle background gradient — no animation to keep LCP fast -->
   <div class="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#0d1520] to-[#0a0a0a] pointer-events-none" aria-hidden="true"></div>
 
-  <!-- Top nav -->
-  <nav class="absolute top-10 left-0 right-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
-    <div class="flex items-center gap-2">
-      <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
-      <span class="font-semibold text-white tracking-tight">SPA</span>
-      <span class="hidden sm:inline text-xs text-white/30 font-mono ml-1">earn-defi.com</span>
-    </div>
-    <div class="flex items-center gap-6 text-sm text-white/50">
-      <a href="/methodology" class="hover:text-white transition-colors hidden sm:inline" data-ru="Методология">Methodology</a>
-      <a href="/risk" class="hover:text-white transition-colors hidden sm:inline" data-ru="Риск">Risk</a>
-      <a href="/packages" class="hover:text-white transition-colors hidden sm:inline" data-ru="Пакеты">Packages</a>
-      <a href="/agents" class="hover:text-white transition-colors hidden md:inline" data-ru="Агенты">Agents</a>
-      <a href="/tournament" class="hover:text-white transition-colors hidden lg:inline" data-ru="Турнир">Tournament</a>
-      <a
-        href="/app"
-        class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
-        data-ru="Дашборд ↗"
-      >
-        Dashboard ↗
-      </a>
-    </div>
-  </nav>
+  <!-- Top nav removed — canonical SiteHeader (Layout) now owns site chrome.
+       This component is retired/unused; index.astro is the Console homepage. -->
 
   <!-- Hero content -->
   <div class="relative max-w-5xl mx-auto w-full">
