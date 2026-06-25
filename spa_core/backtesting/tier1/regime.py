@@ -24,15 +24,13 @@ All rolling statistics are pure-Python. Writes data/tier1_regime.json atomically
 from __future__ import annotations
 
 import datetime as _dt
-import json
 import math  # noqa: F401  (stdlib-only contract; available for downstream math)
-import os
 import statistics
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.backtesting.tier1 import oos as oos_mod
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -285,11 +283,7 @@ def build_report(write: bool = True, window: int = WINDOW) -> dict:
         "axis_end": series[-1][0] if series else None,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(_DATA), prefix=".tier1regime_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(out, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(out, str(_OUT))
     return out
 
 
