@@ -16,6 +16,12 @@ from __future__ import annotations
 
 import pytest
 
+# Skip entire module if eth_account is not installed (optional dependency)
+eth_account = pytest.importorskip(
+    "eth_account",
+    reason="eth_account not installed — install eth-account>=0.10.0 to run these tests",
+)
+
 from spa_core.execution import eth_signer
 
 
