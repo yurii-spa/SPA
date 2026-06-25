@@ -10,6 +10,7 @@ Pure stdlib. Offline-safe. Atomic writes. LLM FORBIDDEN.
 from __future__ import annotations
 
 import datetime
+import html
 import logging
 from typing import Dict, List, Optional
 
@@ -54,20 +55,29 @@ class MorningDigest(BaseAnalytics):
     # ------------------------------------------------------------------
 
     def compose(self) -> str:
-        """Build the morning digest message string."""
+        """Build the morning digest message string.
+
+        Never raises: every data helper is wrapped so a missing/renamed/corrupt
+        state file degrades to a neutral default rather than crashing the digest.
+        Dynamic values (strategy IDs like ``aave_v3``, alert text) are
+        HTML-escaped so the message is safe under ``parse_mode="HTML"`` — the
+        legacy Telegram Markdown parser 400s on ``_`` and ``<>``.
+        """
         today = datetime.date.today().isoformat()
 
-        golive_score = self._get_golive_score()
-        evidence = self._get_evidence_progress()
-        best_apy = self._get_best_apy()
-        best_strategy = self._get_best_strategy()
-        alerts = self._get_pending_alerts()
+        golive_score = self._safe(self._get_golive_score, 0)
+        evidence = self._safe(
+            self._get_evidence_progress, {"effective_cycles": 0.0, "target": 30.0}
+        )
+        best_apy = self._safe(self._get_best_apy, 0.0)
+        best_strategy = self._safe(self._get_best_strategy, "—")
+        alerts = self._safe(self._get_pending_alerts, [])
 
         lines = [
             f"☀️ SPA Morning Digest — {today}",
             "",
             f"📊 GoLive Score: {golive_score}/100",
-            f"📈 Best APY: {best_apy:.2%} ({best_strategy})",
+            f"📈 Best APY: {best_apy:.2%} ({html.escape(str(best_strategy))})",
             f"🧾 Evidence: {evidence['effective_cycles']:.1f}/{evidence['target']} pts",
             "",
         ]
@@ -75,12 +85,25 @@ class MorningDigest(BaseAnalytics):
         if alerts:
             lines.append(f"⚠️ Alerts: {len(alerts)} active")
             for a in alerts[:3]:
-                msg = a.get("message", str(a))
-                lines.append(f"  • {msg[:60]}")
+                msg = a.get("message", str(a)) if isinstance(a, dict) else str(a)
+                lines.append(f"  • {html.escape(msg[:60])}")
         else:
             lines.append("✅ No active alerts")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _safe(fn, default):
+        """Call ``fn()`` and return its result, or ``default`` on any error.
+
+        Fail-safe wrapper so a single missing/corrupt data file can never abort
+        the whole digest. Deterministic — LLM FORBIDDEN.
+        """
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - intentional broad fail-safe
+            log.warning("morning_digest helper %s failed: %s", getattr(fn, "__name__", fn), exc)
+            return default
 
     def send(self) -> bool:
         """Compose and send the morning digest via Telegram. Fail-safe."""
@@ -88,9 +111,11 @@ class MorningDigest(BaseAnalytics):
             from spa_core.alerts.telegram_client import send_message  # type: ignore
 
             msg = self.compose()
-            result = send_message(msg)
+            result = send_message(msg, parse_mode="HTML")
 
-            self._data["last_sent"] = datetime.datetime.utcnow().isoformat()
+            self._data["last_sent"] = datetime.datetime.now(
+                datetime.timezone.utc
+            ).isoformat()
             self._data["last_digest"] = msg
             self._data["send_count"] = self._data.get("send_count", 0) + 1
             self.save()
@@ -255,11 +280,25 @@ class MorningDigest(BaseAnalytics):
 if __name__ == "__main__":
     import sys
 
-    base = "." if len(sys.argv) < 2 else sys.argv[1]
+    args = sys.argv[1:]
+    # --dry / --check: compose and print WITHOUT sending to Telegram (used by
+    # tests/CI and for safe manual inspection). Any non-flag arg is base_dir.
+    dry = any(a in ("--dry", "--check", "--dry-run") for a in args)
+    positional = [a for a in args if not a.startswith("-")]
+    base = positional[0] if positional else "."
+
     digest = MorningDigest(base_dir=base)
     msg = digest.compose()
     print(msg)
     print()
+
+    if dry:
+        print("dry-run → not sent")
+        sys.exit(0)
+
     ok = digest.send()
     print(f"send() → {ok}")
-    sys.exit(0 if ok else 1)
+    # Telegram delivery is best-effort and fail-safe: a failed send (e.g. no
+    # Keychain creds, network down, flood guard) must NOT crash the launchd
+    # agent with exit=1. The digest's job — composing the message — succeeded.
+    sys.exit(0)
