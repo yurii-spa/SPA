@@ -2020,6 +2020,101 @@ body:not(.night) .bee-disclaimer { color: #777; }
     <div id="t1-packages" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
       <div style="text-align:center;padding:16px;color:#aaa;font-size:13px;grid-column:1/-1">Loading Tier-1 packages…</div>
     </div>
+
+    <!-- ── DEEP TIER-1 METRICS (additive) ───────────────────────────────── -->
+
+    <!-- Validation verdict -->
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--spa-text-3);text-transform:uppercase;margin:20px 0 8px">Validation Verdict
+      <span class="spa-tip" data-tip="Deflated-Sharpe / PSR after multiple-testing correction, out-of-sample hold, and net-of-cost APY ranking over the tournament. Regime flags DEGENERATE_MOCK when stablecoin data is near-constant (Sharpe untrustworthy).">?</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:6px">
+      <div class="db-metric">
+        <div class="db-metric-label">Regime / Data Quality</div>
+        <div class="db-metric-value" id="t1-verdict-regime" style="font-size:18px">—</div>
+        <div class="db-metric-sub" id="t1-verdict-dq">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Validated Strategies</div>
+        <div class="db-metric-value" id="t1-verdict-validated" style="font-size:18px">—</div>
+        <div class="db-metric-sub" id="t1-verdict-source">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Top Net-APY (ranked)</div>
+        <div class="db-metric-value" id="t1-verdict-topapy" style="font-size:18px">—</div>
+        <div class="db-metric-sub" id="t1-verdict-topdsr">—</div>
+      </div>
+    </div>
+    <div id="t1-verdict-note" style="font-size:11px;color:var(--spa-text-3);margin-bottom:16px"></div>
+
+    <!-- Reverse stress + Walk-forward -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--spa-text-3);text-transform:uppercase;margin-bottom:8px">Reverse Stress (live portfolio)
+          <span class="spa-tip" data-tip="Inverse stress: the minimal shock that breaches the loss tolerance. Depeg breakpoint = smallest cross-position depeg that breaches; exploit sleeves = how many T2/T3 sleeves must be hacked to breach.">?</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="db-metric">
+            <div class="db-metric-label">Depeg Breakpoint</div>
+            <div class="db-metric-value" id="t1-rs-depeg" style="font-size:18px">—</div>
+            <div class="db-metric-sub" id="t1-rs-fragile">—</div>
+          </div>
+          <div class="db-metric">
+            <div class="db-metric-label">Exploit Sleeves to Breach</div>
+            <div class="db-metric-value" id="t1-rs-sleeves" style="font-size:18px">—</div>
+            <div class="db-metric-sub" id="t1-rs-protos">—</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--spa-text-3);text-transform:uppercase;margin-bottom:8px">Walk-Forward (live portfolio)
+          <span class="spa-tip" data-tip="Rolling train/test out-of-sample windows. Consistency = % of windows that hold; wf_robust passes when the strategy generalises out-of-sample.">?</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="db-metric">
+            <div class="db-metric-label">OOS Consistency</div>
+            <div class="db-metric-value" id="t1-wf-consistency" style="font-size:18px">—</div>
+            <div class="db-metric-sub" id="t1-wf-robust">—</div>
+          </div>
+          <div class="db-metric">
+            <div class="db-metric-label">Max Safe AUM</div>
+            <div class="db-metric-value" id="t1-wf-aum" style="font-size:18px">—</div>
+            <div class="db-metric-sub" id="t1-wf-windows">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk limits + Execution readiness + Governance -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:4px">
+      <div class="db-metric">
+        <div class="db-metric-label">Concentration (HHI)
+          <span class="spa-tip" data-tip="Herfindahl-Hirschman index of portfolio weights vs the hhi_max limit. Lower = better diversified; effective holdings ≈ 1/HHI.">?</span>
+        </div>
+        <div class="db-metric-value" id="t1-lim-hhi" style="font-size:18px">—</div>
+        <div class="db-metric-sub" id="t1-lim-passes">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">VaR / CVaR (95%)
+          <span class="spa-tip" data-tip="Principal Value-at-Risk and Conditional VaR at 95% for the top validated strategy — expected and tail loss under the scenario calibration.">?</span>
+        </div>
+        <div class="db-metric-value" id="t1-var-95" style="font-size:18px">—</div>
+        <div class="db-metric-sub" id="t1-var-tail">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Execution Readiness
+          <span class="spa-tip" data-tip="Go/no-go posture for live execution and the honest non-code blockers (custody, audit, track record, mode flag).">?</span>
+        </div>
+        <div class="db-metric-value" id="t1-exec-posture" style="font-size:16px">—</div>
+        <div class="db-metric-sub" id="t1-exec-blockers">—</div>
+      </div>
+      <div class="db-metric">
+        <div class="db-metric-label">Governance / Dual-Control
+          <span class="spa-tip" data-tip="Dual-control posture for human actions. ADVISORY in paper mode until an on-chain multisig (2-of-3) enforces signer thresholds.">?</span>
+        </div>
+        <div class="db-metric-value" id="t1-gov-posture" style="font-size:16px">—</div>
+        <div class="db-metric-sub" id="t1-gov-note">—</div>
+      </div>
+    </div>
   </div>
 
 </div><!-- /tab-overview -->
@@ -4579,12 +4674,19 @@ async function _t1Get(path) {
   } catch (_) { return null; }
 }
 async function loadTier1() {
-  // Fetch all 4 endpoints in parallel; render each independently.
-  const [pkgs, nav, gate, facts] = await Promise.all([
+  // Fetch all endpoints in parallel; render each independently (graceful "—").
+  const [pkgs, nav, gate, facts, verdict, rstress, wforward, limits, vard, execr, gov] = await Promise.all([
     _t1Get('/api/tier1/packages'),
     _t1Get('/api/tier1/nav'),
     _t1Get('/api/tier1/gate'),
     _t1Get('/api/ssot/facts'),
+    _t1Get('/api/tier1/verdict'),
+    _t1Get('/api/tier1/reverse-stress'),
+    _t1Get('/api/tier1/walk-forward'),
+    _t1Get('/api/tier1/limits'),
+    _t1Get('/api/tier1/var'),
+    _t1Get('/api/execution/readiness'),
+    _t1Get('/api/governance'),
   ]);
 
   // ── NAV / proof-of-reserves ──
@@ -4657,6 +4759,108 @@ async function loadTier1() {
       pkgEl.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;font-size:13px;grid-column:1/-1">Tier-1 data unavailable</div>';
     }
   }
+
+  // ── DEEP METRICS ──────────────────────────────────────────────────────────
+  const _set = (id, html) => { const e = document.getElementById(id); if (e) e.innerHTML = html; };
+  const POS = 'var(--spa-pos)', NEG = 'var(--spa-neg)', DIM = 'var(--spa-text-3)';
+
+  // ── Validation verdict ──
+  if (verdict && typeof verdict === 'object' && !verdict.detail) {
+    const dq = verdict.data_quality || {};
+    const trust = dq.trustworthy;
+    _set('t1-verdict-regime', verdict.regime || '—');
+    _set('t1-verdict-dq', dq.status
+      ? '<span style="color:' + (trust ? POS : NEG) + '">' + (trust ? '✅ ' : '⚠️ ') + dq.status + '</span>'
+        + (dq.median_sharpe != null ? ' · med Sharpe ' + _t1Fmt(dq.median_sharpe, 1) : '')
+      : '—');
+    _set('t1-verdict-validated', verdict.validated_count != null ? String(verdict.validated_count) : '—');
+    const ds = verdict.data_source || {};
+    _set('t1-verdict-source', (verdict.ranking_metric ? verdict.ranking_metric.replace(/_/g, ' ') : '—')
+      + (ds.matched != null ? ' · ' + ds.matched + ' protocols' : '')
+      + (ds.max_days != null ? ' · ' + ds.max_days + 'd' : ''));
+    const lb = Array.isArray(verdict.leaderboard_tier1) ? verdict.leaderboard_tier1 : [];
+    const top = lb[0];
+    if (top) {
+      _set('t1-verdict-topapy', _t1Fmt(top.net_apy_pct, 2, '%'));
+      _set('t1-verdict-topdsr',
+        '<span style="color:' + (top.dsr_passes ? POS : NEG) + '">' + (top.dsr_passes ? '✅' : '⚠️') + ' DSR</span>'
+        + ' · <span style="color:' + (top.oos_holds ? POS : NEG) + '">' + (top.oos_holds ? '✅' : '⚠️') + ' OOS</span>'
+        + (top.tier1_grade ? ' · grade ' + top.tier1_grade : ''));
+    } else { _set('t1-verdict-topapy', '—'); _set('t1-verdict-topdsr', '—'); }
+    _set('t1-verdict-note', verdict.honest_note ? String(verdict.honest_note) : '');
+  }
+
+  // ── Reverse stress (live portfolio) ──
+  if (rstress && rstress.strategies && rstress.strategies.live_portfolio) {
+    const rs = rstress.strategies.live_portfolio.reverse_stress || {};
+    _set('t1-rs-depeg', rs.depeg_breakpoint_pct != null ? _t1Fmt(rs.depeg_breakpoint_pct, 2, '%') : '—');
+    _set('t1-rs-fragile', rs.most_fragile_scenario
+      ? 'most fragile: <span style="color:' + NEG + '">' + rs.most_fragile_scenario + '</span>'
+        + (rs.forward_worst_case_pct != null ? ' · worst ' + _t1Fmt(rs.forward_worst_case_pct, 2, '%') : '')
+      : '—');
+    _set('t1-rs-sleeves', rs.exploit_sleeves_to_breach != null ? String(rs.exploit_sleeves_to_breach) : '—');
+    const ep = Array.isArray(rs.exploit_breakpoint_protocols) ? rs.exploit_breakpoint_protocols : [];
+    _set('t1-rs-protos', ep.length ? ep.join(', ') : '—');
+  }
+
+  // ── Walk-forward (live portfolio) ──
+  if (wforward && wforward.live_portfolio) {
+    const wf = wforward.live_portfolio.walk_forward || {};
+    _set('t1-wf-consistency', wf.consistency_pct != null ? _t1Fmt(wf.consistency_pct, 1, '%') : '—');
+    _set('t1-wf-robust', wf.wf_robust != null
+      ? '<span style="color:' + (wf.wf_robust ? POS : NEG) + '">' + (wf.wf_robust ? '✅ robust' : '⚠️ not robust') + '</span>'
+      : '—');
+    const safeAum = wf.max_safe_aum_usd != null ? wf.max_safe_aum_usd : wf.max_safe_aum;
+    _set('t1-wf-aum', safeAum != null
+      ? '$' + Number(safeAum).toLocaleString('en-US', {maximumFractionDigits:0})
+      : (wf.coverage != null ? _t1Fmt(wf.coverage * 100, 1, '% cov') : '—'));
+    _set('t1-wf-windows', wf.n_windows != null
+      ? wf.n_windows + ' windows · ' + (wf.train || '?') + '/' + (wf.test || '?') + ' train/test'
+      : '—');
+  }
+
+  // ── Risk limits (HHI) ──
+  if (limits && limits.current_portfolio) {
+    const cp = limits.current_portfolio;
+    const lim = limits.limits || {};
+    _set('t1-lim-hhi', cp.hhi != null ? _t1Fmt(cp.hhi, 3) : '—');
+    _set('t1-lim-passes', (cp.passes != null
+      ? '<span style="color:' + (cp.passes ? POS : NEG) + '">' + (cp.passes ? '✅ within limits' : '⚠️ ' + (cp.breach_count || 0) + ' breach') + '</span>'
+      : '—')
+      + (lim.hhi_max != null ? ' · max ' + _t1Fmt(lim.hhi_max, 2) : '')
+      + (cp.effective_holdings != null ? ' · ' + _t1Fmt(cp.effective_holdings, 1) + ' eff' : ''));
+  }
+
+  // ── VaR / CVaR (top validated strategy) ──
+  if (vard && Array.isArray(vard.strategies) && vard.strategies.length) {
+    const v0 = vard.strategies[0];
+    const r = (v0 && v0.risk) || {};
+    const var95 = r.principal_var_95 != null ? r.principal_var_95 : r.yield_var_95;
+    _set('t1-var-95', var95 != null ? _t1Fmt(var95, 2, '%') : '—');
+    _set('t1-var-tail', (r.tail_risk_pct != null ? 'tail ' + _t1Fmt(r.tail_risk_pct, 2, '%') : '—')
+      + (r.principal_expected_loss_pct != null ? ' · E[loss] ' + _t1Fmt(r.principal_expected_loss_pct, 2, '%') : ''));
+  }
+
+  // ── Execution readiness ──
+  if (execr && execr.posture) {
+    const ready = execr.ready_for_live;
+    _set('t1-exec-posture', '<span style="color:' + (ready ? POS : DIM) + '">' + execr.posture + '</span>');
+    const bl = Array.isArray(execr.live_blockers) ? execr.live_blockers : [];
+    _set('t1-exec-blockers', ready
+      ? '<span style="color:' + POS + '">✅ ready for live</span>'
+      : (bl.length ? '<span style="color:' + NEG + '">' + bl.length + ' blocker' + (bl.length > 1 ? 's' : '') + '</span>: ' + bl[0] : 'not ready'));
+  }
+
+  // ── Governance / dual-control ──
+  if (gov && gov.dual_control_posture) {
+    const dc = gov.dual_control_posture;
+    _set('t1-gov-posture', '<span style="color:' + (dc.enforced ? POS : DIM) + '">'
+      + (dc.enforced ? '✅ enforced' : '○ ' + (dc.mechanism || 'advisory')) + '</span>');
+    _set('t1-gov-note', dc.signers != null
+      ? dc.signers + ' signers · threshold ' + (dc.threshold != null ? dc.threshold : '—')
+      : (gov.version ? 'policy ' + gov.version : '—'));
+  }
+
   _t1Loaded = true;
 }
 
