@@ -249,6 +249,14 @@ install_agent \
     "com.spa.strategy_lab_paper" \
     "1"
 
+# 22b. Rates-Desk Refusal Engine — daily 05:45 local (before daily_cycle); scores every tracked
+#      underlying from LIVE data with the §8-validated tail-risk scorer → data/refusal_status.json.
+#      ADVISORY ONLY: never trades / never touches the go-live track.
+install_agent \
+    "$REPO/scripts/com.spa.refusal.plist" \
+    "com.spa.refusal" \
+    "1"
+
 echo ""
 echo "--- LIVE SERVICES (KeepAlive — API / tunnels / dashboards) ---"
 

@@ -186,6 +186,54 @@ const surfaces = [
       </p>
     </section>
 
+    <!-- Risk refusal — what we won't hold -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Отказ по риску · что мы НЕ держим">Risk refusal · what we won't hold</p>
+        <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="ref-src">offline</span></p>
+      </div>
+      <h2 class="text-2xl sm:text-3xl font-bold text-white mb-3 leading-tight" data-ru="Активы, которые мы ОТКАЗЫВАЕМСЯ держать — и почему">
+        The assets we REFUSE to hold — and why
+      </h2>
+
+      <!-- Honest framing banner (the core trust signal) -->
+      <div class="rounded-xl border border-red-700/40 bg-red-500/[0.06] p-5 mb-6 flex items-start gap-3">
+        <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-red-500/15 border border-red-500/30 flex items-center justify-center text-xs text-red-400" aria-hidden="true">!</span>
+        <div>
+          <p class="text-sm font-semibold text-red-200 mb-1" data-ru="Бумажное исследование · измерительный/advisory движок · не финсовет">Paper research · a measurement / advisory engine · not financial advice</p>
+          <p class="text-sm text-white/60 leading-relaxed" data-ru="Большинство yield-продуктов рекламируют APY. Мы публикуем активы, которые ОТКАЗЫВАЕМСЯ держать, и почему — движок риска, который пометил токсичные рестейкинг-токены (типа ezETH) ДО их обвала, проверенный на 2 годах данных, включая реальные события депега. Мы скорее упустим доходность, чем будем держать книгу, которая взорвётся.">
+            Most yield products advertise APY. We publish the assets we REFUSE and why — a risk engine that
+            flagged toxic restaking tokens (ezETH-type) before they collapsed, validated on 2 years of data
+            including real depeg events. We'd rather miss yield than hold a book that blows up.
+          </p>
+          <p class="text-xs text-white/40 leading-relaxed mt-2" data-ru="Это измерительный/advisory движок, а не гарантия. Он оценивает tail-риск каждого доходного актива и выдаёт вердикт SAFE / WATCH / REFUSE / UNKNOWN. Источник: /api/refusal.">
+            This is a measurement / advisory engine, not a guarantee. It scores the tail risk of each
+            yield-bearing asset and emits a verdict of SAFE / WATCH / REFUSE / UNKNOWN. Source: /api/refusal.
+          </p>
+        </div>
+      </div>
+
+      <!-- Verdict legend + thresholds -->
+      <div class="flex flex-wrap items-center gap-2 mb-5 text-[11px] font-mono">
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-teal-500/10 border-teal-500/30 text-teal-300"><span class="w-1.5 h-1.5 rounded-full bg-teal-400" aria-hidden="true"></span><span data-ru="БЕЗОПАСЕН">SAFE</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-amber-500/10 border-amber-500/30 text-amber-300"><span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span><span data-ru="НАБЛЮДЕНИЕ">WATCH</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-red-500/10 border-red-500/30 text-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden="true"></span><span data-ru="ОТКАЗ">REFUSE</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-white/5 border-white/15 text-white/40"><span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="НЕИЗВЕСТНО">UNKNOWN</span></span>
+        <span class="text-white/25" id="ref-thresholds"></span>
+      </div>
+
+      <!-- Refusal rows (rendered by script) -->
+      <div id="ref-rows" class="space-y-3">
+        <p class="text-sm text-white/30" data-ru="Загрузка вердиктов движка отказа… При офлайне живые значения недоступны.">Loading refusal-engine verdicts… When offline, live values are unavailable.</p>
+      </div>
+
+      <p class="text-xs text-white/30 mt-6 leading-relaxed" data-ru="tail_score (0–1) — нормированная оценка хвостового риска: депег, downside-волатильность, режим фондирования. REFUSE/WATCH сверху. Вердикты — advisory; реальный детерминированный гейт исполнения — RiskPolicy (LLM запрещён). Источник: GET /api/refusal.">
+        tail_score (0–1) is the normalised tail-risk score: depeg, downside volatility, funding regime.
+        REFUSE/WATCH are listed first. Verdicts are advisory; the live deterministic execution gate is the
+        RiskPolicy (LLM forbidden). Source: GET /api/refusal.
+      </p>
+    </section>
+
     <!-- Proof of Reserves (provenance plane) -->
     <section class="py-10 border-t border-white/5">
       <div class="flex items-baseline justify-between mb-6 flex-wrap gap-2">
@@ -381,7 +429,81 @@ const surfaces = [
         }).catch(function(){});
       }
 
-      function init(){ loadAgents(); loadNav(); loadPromotion(); }
+      /* Risk refusal engine — /api/refusal, graceful offline. */
+      /* Explicit class strings (Tailwind only compiles literal classes). */
+      var VERDICT_META = {
+        SAFE:    { en: 'SAFE',    ru: 'БЕЗОПАСЕН',  border: 'border-teal-700/40',  badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300',  dot: 'bg-teal-400',  bar: 'bg-teal-400/70',  order: 3 },
+        WATCH:   { en: 'WATCH',   ru: 'НАБЛЮДЕНИЕ', border: 'border-amber-700/40', badge: 'bg-amber-500/10 border-amber-500/30 text-amber-300', dot: 'bg-amber-400', bar: 'bg-amber-400/70', order: 1 },
+        REFUSE:  { en: 'REFUSE',  ru: 'ОТКАЗ',      border: 'border-red-700/45',   badge: 'bg-red-500/10 border-red-500/30 text-red-300',     dot: 'bg-red-400',   bar: 'bg-red-400/80',   order: 0 },
+        UNKNOWN: { en: 'UNKNOWN', ru: 'НЕИЗВЕСТНО', border: 'border-white/10',     badge: 'bg-white/5 border-white/15 text-white/40',         dot: 'bg-white/30',  bar: 'bg-white/30',     order: 2 }
+      };
+
+      function refusalRow(u){
+        var ru = isRu();
+        var v = String(u.verdict || 'UNKNOWN').toUpperCase();
+        var meta = VERDICT_META[v] || VERDICT_META.UNKNOWN;
+        var score = (typeof u.tail_score === 'number') ? Math.max(0, Math.min(1, u.tail_score)) : null;
+        var scorePct = score != null ? Math.round(score * 100) : 0;
+        var scoreLbl = score != null ? score.toFixed(2) : '—';
+        var m = u.metrics || {};
+        var metricBits = [];
+        if(m.depeg_pct != null) metricBits.push((ru ? 'депег ' : 'depeg ') + Number(m.depeg_pct).toFixed(2) + '%');
+        if(m.dd_vol != null) metricBits.push((ru ? 'downside-vol ' : 'downside-vol ') + Number(m.dd_vol).toFixed(2));
+        if(m.funding_regime != null) metricBits.push((ru ? 'фондирование: ' : 'funding: ') + esc(m.funding_regime));
+        var metricStr = metricBits.length ? metricBits.join(' · ') : '—';
+        var verdictLbl = ru ? meta.ru : meta.en;
+        return '<div class="rounded-xl border ' + meta.border + ' bg-white/[0.02] p-4">' +
+          '<div class="flex items-baseline justify-between gap-3 flex-wrap mb-2.5">' +
+            '<span class="text-sm font-semibold text-white font-mono">' + esc(u.symbol || '?') + '</span>' +
+            '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono shrink-0 ' + meta.badge + '">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + meta.dot + '" aria-hidden="true"></span>' + esc(verdictLbl) +
+            '</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 mb-2.5">' +
+            '<span class="text-[11px] font-mono text-white/30 w-16 shrink-0">' + (ru ? 'tail-риск' : 'tail-risk') + '</span>' +
+            '<span class="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden"><span class="block h-full rounded-full ' + meta.bar + '" style="width:' + scorePct + '%"></span></span>' +
+            '<span class="text-[11px] font-mono text-white/50 w-10 text-right shrink-0">' + scoreLbl + '</span>' +
+          '</div>' +
+          '<p class="text-xs text-white/50 leading-relaxed mb-1.5">' + esc(u.reason || '') + '</p>' +
+          '<p class="text-[11px] font-mono text-white/30">' + metricStr + '</p>' +
+        '</div>';
+      }
+
+      function renderRefusal(d){
+        var ru = isRu();
+        var rowsEl = document.getElementById('ref-rows');
+        if(!rowsEl) return;
+        var ul = Array.isArray(d.underlyings) ? d.underlyings.slice() : [];
+        if(!ul.length){
+          rowsEl.innerHTML = '<p class="text-sm text-white/30">' +
+            (ru ? 'Вердикты движка отказа недоступны (офлайн или нет данных).' : 'Refusal-engine verdicts unavailable (offline or no data).') + '</p>';
+          return;
+        }
+        // Sort REFUSE/WATCH first, then by tail_score descending.
+        ul.sort(function(a, b){
+          var oa = (VERDICT_META[String(a.verdict || 'UNKNOWN').toUpperCase()] || VERDICT_META.UNKNOWN).order;
+          var ob = (VERDICT_META[String(b.verdict || 'UNKNOWN').toUpperCase()] || VERDICT_META.UNKNOWN).order;
+          if(oa !== ob) return oa - ob;
+          return (b.tail_score || 0) - (a.tail_score || 0);
+        });
+        rowsEl.innerHTML = ul.map(refusalRow).join('');
+        // Thresholds line (optional).
+        var th = d.thresholds;
+        if(th && typeof th === 'object'){
+          var bits = Object.keys(th).map(function(k){ return esc(k) + ': ' + esc(th[k]); });
+          if(bits.length) setText('ref-thresholds', '· ' + bits.join(' · '));
+        }
+      }
+
+      function loadRefusal(){
+        fetch(API + '/api/refusal').then(function(r){ return r.json(); }).then(function(d){
+          if(!d || typeof d !== 'object' || !Array.isArray(d.underlyings)) return;
+          renderRefusal(d);
+          if(d.underlyings.length) setText('ref-src', 'live');
+        }).catch(function(){});
+      }
+
+      function init(){ loadAgents(); loadNav(); loadPromotion(); loadRefusal(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();

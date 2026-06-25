@@ -57,6 +57,19 @@ STAGE_REJECT = "REJECT"
 STAGE_BACKTEST_PASS = "BACKTEST_PASS"
 STAGE_PAPER_CANDIDATE = "PAPER_CANDIDATE"
 
+# ── advisory: which live underlyings each crypto sleeve is exposed to ──────────────────────────
+# Used ONLY to attach the Rates-Desk refusal verdict as OBSERVABILITY on a sleeve record. This is
+# advisory enrichment: it NEVER changes a sleeve's score, stage, or the gate. A sleeve not listed
+# here simply gets no refusal advisory (e.g. the stable engines have no LST/LRT underlying).
+_SLEEVE_UNDERLYINGS: Dict[str, List[str]] = {
+    "eth_lst_neutral": ["steth"],
+    "eth_lst_staking": ["steth"],
+    "variant_n": ["ezeth", "eeth", "weeth"],
+    "variant_d": ["ezeth", "eeth", "weeth"],
+    "btc_neutral": [],     # BTC sleeve — no ETH LST/LRT refusal axis (kept for forward-compat)
+    "btc_lending_sleeve": [],
+}
+
 # Default promotion thresholds — the fail-CLOSED fallback used ONLY if the SSOT config lacks a
 # "promotion" block (so a fresh clone / hermetic test still runs). The SSOT block is primary.
 _DEFAULT_PROMOTION = {
@@ -408,6 +421,43 @@ def _rs_for_sleeve(sleeve_id: str, rs_doc: Optional[dict]) -> Optional[dict]:
     return None
 
 
+# ── advisory: Rates-Desk refusal verdict enrichment (observability ONLY) ──────────────────────
+def _refusal_advisory(sleeve_id: str) -> Optional[dict]:
+    """Look up the live Rates-Desk refusal verdict for a sleeve's underlying(s) and return an
+    ADVISORY summary, or None when the sleeve has no LST/LRT underlying.
+
+    This is OBSERVABILITY: the returned dict is attached to the sleeve record for the dashboard /
+    operator to see "this sleeve's underlying is currently flagged WATCH/REFUSE by the validated
+    tail-risk scorer". It is NEVER read by score_sleeve()/promotion_verdict() — it cannot change a
+    stage. The refusal engine itself is fail-closed and advisory; if its status file is absent the
+    verdicts come back UNKNOWN. Imported lazily so a missing rates_desk module can never break the
+    promotion gate."""
+    symbols = _SLEEVE_UNDERLYINGS.get(sleeve_id)
+    if not symbols:
+        return None
+    try:
+        from spa_core.strategy_lab.rates_desk.refusal_engine import refusal_verdict
+    except Exception:  # noqa: BLE001 — advisory must never break the gate
+        return None
+    verdicts = []
+    worst = "SAFE"
+    rank = {"SAFE": 0, "WATCH": 1, "UNKNOWN": 2, "REFUSE": 3}
+    for sym in symbols:
+        v = refusal_verdict(sym)
+        verdicts.append({"symbol": sym, "verdict": v.get("verdict"),
+                         "tail_score": v.get("tail_score")})
+        if rank.get(v.get("verdict", "UNKNOWN"), 2) > rank.get(worst, 0):
+            worst = v.get("verdict", "UNKNOWN")
+    flagged = worst in ("WATCH", "REFUSE")
+    return {
+        "worst_verdict": worst,
+        "flagged": flagged,
+        "underlyings": verdicts,
+        "note": ("ADVISORY (does not affect promotion stage) — Rates-Desk tail-risk verdict on "
+                 "this sleeve's underlying(s)"),
+    }
+
+
 # ── full report ──────────────────────────────────────────────────────────────────────────────
 def build_report(
     write: bool = True,
@@ -476,6 +526,11 @@ def build_report(
             sleeve = dict(score)
             sleeve["stage"] = verdict["stage"]
             sleeve["reason"] = verdict["reason"]
+            # ADVISORY enrichment ONLY — surface the live Rates-Desk refusal verdict for this
+            # sleeve's underlying(s). It does NOT and cannot change the stage above.
+            adv = _refusal_advisory(sid)
+            if adv is not None:
+                sleeve["refusal_advisory"] = adv
             sleeves.append(sleeve)
 
     stage_counts: Dict[str, int] = {

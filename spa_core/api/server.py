@@ -586,6 +586,30 @@ def get_strategy_lab_promotion():
     return raw
 
 
+@app.get("/api/refusal", tags=["strategy_lab"])
+def get_refusal():
+    """Rates-Desk advisory refusal engine — data/refusal_status.json.
+
+    Per-underlying daily tail-risk verdict (SAFE / WATCH / REFUSE / UNKNOWN) from the §8-validated
+    scorer run on live data. ADVISORY only — never trades / never touches the go-live track.
+
+    Read-only, graceful: served VERBATIM from the file; returns an empty payload (not an error)
+    when the JSON is missing/corrupt, mirroring /api/strategy-lab and the tier1 handlers.
+    """
+    raw = _load_json("refusal_status.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "rates_desk_refusal_engine",
+            "advisory": True,
+            "latest_date": None,
+            "thresholds": {},
+            "verdict_counts": {},
+            "underlyings": [],
+        }
+    return raw
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
