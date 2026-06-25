@@ -23,6 +23,44 @@ interface Props {
 
 const { strategy } = Astro.props;
 
+// RU translations keyed by strategy.id — the source data (strategy_config.json)
+// is English-only, so per-strategy Russian strings live here and are bound to data-ru.
+interface StrategyRu {
+  tagline: string;
+  status_label: string;
+  who_for: string;
+  description: string;
+  target_apy_note: string;
+  risk_level_label: string;
+}
+const strategyRu: Record<string, StrategyRu> = {
+  'preserve': {
+    tagline: 'Доходность с фокусом на сохранение капитала',
+    status_label: 'Целевой профиль — валидация в ожидании',
+    who_for: 'Аллокаторы, ставящие сохранение капитала выше оптимизации доходности.',
+    description: 'Только протоколы Tier 1. Без looping, без плеча. Повышенный денежный буфер. Более строгий отбор протоколов. Валидация в ожидании — бумажный трекинг ещё не начат.',
+    target_apy_note: 'Целевой профиль — валидация в ожидании. Не в бумажном треке. Переменный APY, не гарантирован.',
+    risk_level_label: 'Ниже риск',
+  },
+  'core': {
+    tagline: 'Системная, риск-гейтированная доходность DeFi — в бумажном треке с июня 2026',
+    status_label: 'В бумажном треке',
+    who_for: 'Семейные офисы и частные аллокаторы, ищущие системную, прозрачную доходность DeFi.',
+    description: 'Tier 1 + отдельные протоколы Tier 2. Детерминированная риск-гейтированная ребалансировка. Публичный бумажный трек-рекорд с 10 июня 2026.',
+    target_apy_note: 'Целевой диапазон; фактический бумажный APY ~3.6% с 10 июня 2026. Переменный, не гарантирован.',
+    risk_level_label: 'Средний риск',
+  },
+  'max-yield': {
+    tagline: 'Продвинутые механики для более высокой толерантности к доходности',
+    status_label: 'Скоро',
+    who_for: 'Опытные аллокаторы, принимающие повышенную волатильность ради потенциала доходности.',
+    description: 'Продвинутые механики хранилищ и оптимизированные стратегии кредитования. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.',
+    target_apy_note: 'Целевой профиль — валидация в ожидании. Не в бумажном треке. Переменный APY, не гарантирован. Возможна потеря капитала.',
+    risk_level_label: 'Выше риск',
+  },
+};
+const ru: StrategyRu | undefined = strategyRu[strategy.id];
+
 const statusStyles: Record<string, string> = {
   'paper-tracked': 'bg-green-500/10 text-green-400 border border-green-800',
   'target-profile': 'bg-blue-600/10 text-blue-400 border border-blue-800',
@@ -41,21 +79,21 @@ const isDisabled = strategy.status === 'coming-soon';
       {strategy.status === 'live' && (
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
       )}
-      {strategy.status_label}
+      <span data-ru={ru?.status_label}>{strategy.status_label}</span>
     </span>
   </div>
 
   <!-- Name + tagline -->
   <h3 class="text-xl font-bold text-white mb-1">{strategy.name}</h3>
-  <p class="text-sm text-white/50 mb-6">{strategy.tagline}</p>
+  <p class="text-sm text-white/50 mb-6" data-ru={ru?.tagline}>{strategy.tagline}</p>
 
   <!-- APY -->
   <div class="mb-6">
     <div class="flex items-baseline gap-1">
       <span class="text-4xl font-mono font-bold text-white">{strategy.target_apy}%</span>
-      <span class="text-sm text-white/30 font-mono">APY</span>
+      <span class="text-sm text-white/30 font-mono" data-ru="APY">APY</span>
     </div>
-    <p class="text-[11px] text-white/25 mt-1 leading-relaxed">{strategy.target_apy_note}</p>
+    <p class="text-[11px] text-white/25 mt-1 leading-relaxed" data-ru={ru?.target_apy_note}>{strategy.target_apy_note}</p>
   </div>
 
   <!-- Risk bars -->
@@ -77,22 +115,22 @@ const isDisabled = strategy.status === 'coming-soon';
           ></span>
         ))}
       </div>
-      <span class="text-xs text-white/40">{strategy.risk_level_label}</span>
+      <span class="text-xs text-white/40" data-ru={ru?.risk_level_label}>{strategy.risk_level_label}</span>
     </div>
   </div>
 
   <!-- Description -->
-  <p class="text-sm text-white/40 leading-relaxed mb-6 flex-grow">{strategy.description}</p>
+  <p class="text-sm text-white/40 leading-relaxed mb-6 flex-grow" data-ru={ru?.description}>{strategy.description}</p>
 
   <!-- Who it's for -->
   <div class="mb-6">
-    <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2">Who it's for</p>
-    <p class="text-sm text-white/50">{strategy.who_for}</p>
+    <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2" data-ru="Для кого">Who it's for</p>
+    <p class="text-sm text-white/50" data-ru={ru?.who_for}>{strategy.who_for}</p>
   </div>
 
   <!-- Yield sources -->
   <div class="mb-8">
-    <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2">Yield sources</p>
+    <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2" data-ru="Источники доходности">Yield sources</p>
     <div class="flex flex-wrap gap-1.5">
       {strategy.yield_sources.map((source: string) => (
         <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-white/5 text-white/40 border border-white/8">
@@ -104,13 +142,14 @@ const isDisabled = strategy.status === 'coming-soon';
 
   <!-- CTA -->
   {isDisabled ? (
-    <span class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-white/10 text-white/25 text-sm font-medium cursor-not-allowed mt-auto">
+    <span class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-white/10 text-white/25 text-sm font-medium cursor-not-allowed mt-auto" data-ru="Скоро">
       Coming Soon
     </span>
   ) : (
     <a
       href={strategy.path}
       class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors shadow-lg shadow-accent-500/20 mt-auto"
+      data-ru="Подробнее о стратегии"
     >
       View Strategy Details
     </a>
