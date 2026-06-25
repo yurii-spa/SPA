@@ -43,6 +43,19 @@ from spa_core.reporting.pdf_report import (
     generate_pdf_report,
 )
 
+# reportlab is an OPTIONAL dependency (the SPA runtime is stdlib-only). When it
+# is not installed, the tests that actually render a PDF are SKIPPED rather than
+# failed — the pure-stdlib helper tests still run. Do NOT add reportlab as a dep.
+try:  # pragma: no cover - import probe
+    import reportlab  # noqa: F401
+    HAS_REPORTLAB = True
+except ImportError:  # pragma: no cover
+    HAS_REPORTLAB = False
+
+_REQUIRES_REPORTLAB = unittest.skipUnless(
+    HAS_REPORTLAB, "reportlab not installed (optional PDF dependency)"
+)
+
 # ─── Fixture helpers ──────────────────────────────────────────────────────────
 
 _DATE = "2026-06-10"
@@ -160,6 +173,7 @@ def _populate_all(data_dir: Path, date: str = _DATE) -> None:
 # ─── Test cases ───────────────────────────────────────────────────────────────
 
 
+@_REQUIRES_REPORTLAB
 class TestGeneratePdfCreatesFile(unittest.TestCase):
     """test_generate_pdf_creates_file — verifies the PDF lands on disk."""
 
@@ -175,6 +189,7 @@ class TestGeneratePdfCreatesFile(unittest.TestCase):
             self.assertGreater(os.path.getsize(pdf_path), 0, "PDF is empty")
 
 
+@_REQUIRES_REPORTLAB
 class TestPdfIsValidPdf(unittest.TestCase):
     """test_pdf_is_valid_pdf — first bytes must be %PDF."""
 
@@ -188,6 +203,7 @@ class TestPdfIsValidPdf(unittest.TestCase):
             self.assertEqual(magic, b"%PDF", f"Bad magic bytes: {magic!r}")
 
 
+@_REQUIRES_REPORTLAB
 class TestGeneratePdfReturnsAbsolutePath(unittest.TestCase):
     """test_generate_pdf_returns_abs — returned string must be an absolute path."""
 
@@ -202,6 +218,7 @@ class TestGeneratePdfReturnsAbsolutePath(unittest.TestCase):
             )
 
 
+@_REQUIRES_REPORTLAB
 class TestOutputDirCreated(unittest.TestCase):
     """test_output_dir_created — data/reports/ is created when absent."""
 
@@ -215,6 +232,7 @@ class TestOutputDirCreated(unittest.TestCase):
             self.assertTrue(reports_dir.is_dir(), "reports/ should be created")
 
 
+@_REQUIRES_REPORTLAB
 class TestPdfReportWithMockData(unittest.TestCase):
     """test_pdf_report_with_mock_data — full generation with realistic mock data."""
 
@@ -235,6 +253,7 @@ class TestPdfReportWithMockData(unittest.TestCase):
             self.assertIn(f"investor_report_{_DATE}.pdf", pdf_path)
 
 
+@_REQUIRES_REPORTLAB
 class TestMissingDailyReport(unittest.TestCase):
     """test_missing_daily_report — no daily_report_*.json → graceful, no crash."""
 
@@ -254,6 +273,7 @@ class TestMissingDailyReport(unittest.TestCase):
                 self.fail(f"generate_pdf_report raised unexpectedly: {exc}")
 
 
+@_REQUIRES_REPORTLAB
 class TestMissingAnalytics(unittest.TestCase):
     """test_missing_analytics — no analytics_summary.json → graceful, no crash."""
 
@@ -272,6 +292,7 @@ class TestMissingAnalytics(unittest.TestCase):
                 self.fail(f"generate_pdf_report raised unexpectedly: {exc}")
 
 
+@_REQUIRES_REPORTLAB
 class TestMissingGolive(unittest.TestCase):
     """test_missing_golive — no golive_status.json → graceful, no crash."""
 
@@ -290,6 +311,7 @@ class TestMissingGolive(unittest.TestCase):
                 self.fail(f"generate_pdf_report raised unexpectedly: {exc}")
 
 
+@_REQUIRES_REPORTLAB
 class TestGenerateLatestReport(unittest.TestCase):
     """test_generate_latest_report — picks the latest daily_report_*.json."""
 
