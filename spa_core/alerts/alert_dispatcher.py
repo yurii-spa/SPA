@@ -389,24 +389,56 @@ class AlertDispatcher:
 
         text = _format_telegram_message(alert)
 
-        # FLOOD-GUARD: the env-var gate above is preserved (configured check),
-        # but the actual HTTP send is routed through the canonical rate-limited
-        # client so this dispatcher shares the cross-process flood guard.
+        # FLOOD-GUARD: honour the shared cross-process rate limit before sending.
+        # We POST directly with the env-var credentials (preserving the configured
+        # check above), so call the guard explicitly rather than routing through
+        # telegram_client.send_message (which reads its own Keychain credentials).
         try:
-            from spa_core.alerts.telegram_client import send_message
-            ok = send_message(text, parse_mode="HTML")
-            if ok:
-                log.info(
-                    "Telegram alert sent [%s] %s",
-                    alert.level.name,
-                    alert.title,
-                )
-            else:
-                log.warning(
-                    "Telegram send returned False alert_id=%s",
-                    alert.correlation_id,
-                )
-            return ok
+            from spa_core.alerts.telegram_client import flood_guard_ok
+            if not flood_guard_ok(text):
+                return False
+        except Exception:  # noqa: BLE001 — guard error must never block a send
+            pass
+
+        url = _TELEGRAM_API_BASE.format(token=token)
+        payload_bytes = json.dumps(
+            {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            }
+        ).encode("utf-8")
+
+        try:
+            req = urllib.request.Request(
+                url,
+                data=payload_bytes,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                ok = resp.status == 200
+                if ok:
+                    log.info(
+                        "Telegram alert sent [%s] %s",
+                        alert.level.name,
+                        alert.title,
+                    )
+                else:
+                    log.warning(
+                        "Telegram unexpected status=%d alert_id=%s",
+                        resp.status,
+                        alert.correlation_id,
+                    )
+                return ok
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            log.error("Telegram HTTPError %d: %s", exc.code, body)
+            return False
+        except urllib.error.URLError as exc:
+            log.error("Telegram URLError: %s", exc.reason)
+            return False
         except Exception as exc:  # noqa: BLE001
             log.error("Telegram unexpected error: %s", exc)
             return False
