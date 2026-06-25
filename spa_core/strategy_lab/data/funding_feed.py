@@ -65,34 +65,55 @@ from typing import Callable, Dict, List, Optional, Tuple
 from spa_core.strategy_lab.base import InvalidDataError
 from spa_core.strategy_lab.data._http import http_fetch
 
-# ── single-page (most-recent) URLs ─────────────────────────────────────────────────────────
-BINANCE_URL = "https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit={limit}"
+# ── per-symbol venue tickers ───────────────────────────────────────────────────────────────
+# The five venues each name the ETH/BTC perp differently. A FundingFeed is built for ONE asset
+# (default "ETH" → ETHUSDT etc.); pass symbol="BTC" for the BTCUSDT perp. Hyperliquid uses the
+# bare coin ("ETH"/"BTC") in its POST body. Adding a new asset = one row here.
+VENUE_TICKERS: Dict[str, Dict[str, str]] = {
+    "ETH": {
+        "binance": "ETHUSDT",
+        "bybit": "ETHUSDT",
+        "okx": "ETH-USDT-SWAP",
+        "kucoin": "ETHUSDTM",
+        "hyperliquid": "ETH",
+    },
+    "BTC": {
+        "binance": "BTCUSDT",
+        "bybit": "BTCUSDT",
+        "okx": "BTC-USDT-SWAP",
+        "kucoin": "XBTUSDTM",   # KuCoin futures uses XBT for Bitcoin
+        "hyperliquid": "BTC",
+    },
+}
+
+# ── single-page (most-recent) URL templates (the venue ticker is filled per-asset) ──────────
+BINANCE_URL = "https://fapi.binance.com/fapi/v1/fundingRate?symbol={sym}&limit={limit}"
 BYBIT_URL = (
     "https://api.bybit.com/v5/market/funding/history"
-    "?category=linear&symbol=ETHUSDT&limit={limit}"
+    "?category=linear&symbol={sym}&limit={limit}"
 )
 OKX_URL = (
     "https://www.okx.com/api/v5/public/funding-rate-history"
-    "?instId=ETH-USDT-SWAP&limit={limit}"
+    "?instId={sym}&limit={limit}"
 )
 KUCOIN_URL = (
     "https://api-futures.kucoin.com/api/v1/contract/funding-rates"
-    "?symbol=ETHUSDTM&from={start_ms}&to={end_ms}"
+    "?symbol={sym}&from={start_ms}&to={end_ms}"
 )
 HYPERLIQUID_URL = "https://api.hyperliquid.xyz/info"  # POST body carries the query
 
-# ── paginated (deep history) URLs ──────────────────────────────────────────────────────────
+# ── paginated (deep history) URL templates ─────────────────────────────────────────────────
 BINANCE_PAGE_URL = (
     "https://fapi.binance.com/fapi/v1/fundingRate"
-    "?symbol=ETHUSDT&startTime={start_ms}&limit={limit}"
+    "?symbol={sym}&startTime={start_ms}&limit={limit}"
 )
 BYBIT_PAGE_URL = (
     "https://api.bybit.com/v5/market/funding/history"
-    "?category=linear&symbol=ETHUSDT&startTime={start_ms}&endTime={end_ms}&limit={limit}"
+    "?category=linear&symbol={sym}&startTime={start_ms}&endTime={end_ms}&limit={limit}"
 )
 OKX_PAGE_URL = (
     "https://www.okx.com/api/v5/public/funding-rate-history"
-    "?instId=ETH-USDT-SWAP&after={after_ms}&limit={limit}"
+    "?instId={sym}&after={after_ms}&limit={limit}"
 )
 # KuCoin takes the whole window directly (shares KUCOIN_URL).
 
@@ -332,7 +353,11 @@ def _try_venue(fn: Callable[[], Dict[str, List[float]]]) -> Dict[str, List[float
 
 # ── public API ────────────────────────────────────────────────────────────────────────────
 class FundingFeed:
-    """Median ETH-perp 8h funding across Binance + Bybit + OKX + KuCoin + Hyperliquid.
+    """Median perp 8h funding across Binance + Bybit + OKX + KuCoin + Hyperliquid, for ONE asset.
+
+    `symbol` selects the perp asset: "ETH" (default — back-compat, the ETHUSDT perp) or "BTC"
+    (the BTCUSDT perp). The 5-venue median + Hyperliquid hourly→8h normalization are identical
+    for both; only the per-venue ticker differs (see VENUE_TICKERS).
 
     Inject `fetcher` (url->json) in tests. Per-venue failures are tolerated (median of the rest);
     the call only raises if NO venue produced data."""
@@ -343,24 +368,36 @@ class FundingFeed:
         limit: int = 200,
         page_delay_s: float = PAGE_DELAY_S,
         max_pages: int = MAX_PAGES,
+        symbol: str = "ETH",
     ):
         self._fetch = fetcher or http_fetch
         self._limit = limit
         self._page_delay = page_delay_s
         self._max_pages = max_pages
+        sym = (symbol or "ETH").upper()
+        if sym not in VENUE_TICKERS:
+            raise InvalidDataError(
+                f"funding: unsupported symbol {symbol!r} (known: {sorted(VENUE_TICKERS)})"
+            )
+        self._symbol = sym
+        self._tickers = VENUE_TICKERS[sym]
 
     # ── Hyperliquid POST helper (its query is a JSON body, not a query string) ──────────────
     def _fetch_hyperliquid(self, start_ms: int) -> object:
-        """POST {"type":"fundingHistory","coin":"ETH","startTime":<ms>} to the HL info endpoint.
+        """POST {"type":"fundingHistory","coin":<ETH|BTC>,"startTime":<ms>} to the HL info
+        endpoint.
 
         The injected test fetcher only takes a url string, so encode the query into the url as a
         fragment the FakeFetcher can route on ('hyperliquid'); the REAL http_fetch path issues a
         proper POST. We detect the real fetcher by capability, not type."""
-        body = {"type": "fundingHistory", "coin": "ETH", "startTime": int(start_ms)}
+        coin = self._tickers["hyperliquid"]
+        body = {"type": "fundingHistory", "coin": coin, "startTime": int(start_ms)}
         if self._fetch is http_fetch:
             return http_fetch(HYPERLIQUID_URL, post_json=body)
-        # injected (test) fetcher: pass a routable url carrying the startTime
-        return self._fetch(f"{HYPERLIQUID_URL}#fundingHistory&startTime={int(start_ms)}")
+        # injected (test) fetcher: pass a routable url carrying the coin + startTime
+        return self._fetch(
+            f"{HYPERLIQUID_URL}#fundingHistory&coin={coin}&startTime={int(start_ms)}"
+        )
 
     # ── history (single-page default + deep paginated window) ───────────────────────────────
     def history(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, float]:
@@ -374,11 +411,14 @@ class FundingFeed:
         if start_date is None and end_date is None:
             now_ms = int(time.time() * 1000)
             day_ago = now_ms - _DAY_MS
-            binance = _try_venue(lambda: _parse_binance(self._fetch(BINANCE_URL.format(limit=self._limit))))
-            bybit = _try_venue(lambda: _parse_bybit(self._fetch(BYBIT_URL.format(limit=self._limit))))
-            okx = _try_venue(lambda: _parse_okx(self._fetch(OKX_URL.format(limit=self._limit))))
-            kucoin = _try_venue(lambda: _parse_kucoin(
-                self._fetch(KUCOIN_URL.format(start_ms=day_ago - 7 * _DAY_MS, end_ms=now_ms))))
+            binance = _try_venue(lambda: _parse_binance(
+                self._fetch(BINANCE_URL.format(sym=self._tickers["binance"], limit=self._limit))))
+            bybit = _try_venue(lambda: _parse_bybit(
+                self._fetch(BYBIT_URL.format(sym=self._tickers["bybit"], limit=self._limit))))
+            okx = _try_venue(lambda: _parse_okx(
+                self._fetch(OKX_URL.format(sym=self._tickers["okx"], limit=self._limit))))
+            kucoin = _try_venue(lambda: _parse_kucoin(self._fetch(KUCOIN_URL.format(
+                sym=self._tickers["kucoin"], start_ms=day_ago - 7 * _DAY_MS, end_ms=now_ms))))
             hyperliquid = _try_venue(lambda: _parse_hyperliquid(
                 self._fetch_hyperliquid(now_ms - 7 * _DAY_MS)))
             merged = _merge_median([binance, bybit, okx, kucoin, hyperliquid])
@@ -417,7 +457,9 @@ class FundingFeed:
         cursor_ms = _to_ms(d0)
         rows: Dict[int, float] = {}
         for _ in range(self._max_pages):
-            url = BINANCE_PAGE_URL.format(start_ms=cursor_ms, limit=BINANCE_PAGE_LIMIT)
+            url = BINANCE_PAGE_URL.format(
+                sym=self._tickers["binance"], start_ms=cursor_ms, limit=BINANCE_PAGE_LIMIT
+            )
             page = _rows_binance(self._fetch(url))  # schema-validates / raises
             new_max = cursor_ms
             for ts_ms, rate in page:
@@ -444,7 +486,8 @@ class FundingFeed:
         rows: Dict[int, float] = {}
         for _ in range(self._max_pages):
             url = BYBIT_PAGE_URL.format(
-                start_ms=start_ms, end_ms=window_end_ms, limit=BYBIT_PAGE_LIMIT
+                sym=self._tickers["bybit"], start_ms=start_ms, end_ms=window_end_ms,
+                limit=BYBIT_PAGE_LIMIT,
             )
             page = _rows_bybit(self._fetch(url))  # schema-validates / raises
             earliest = min(ts for ts, _ in page)
@@ -469,7 +512,9 @@ class FundingFeed:
         cursor_ms = _to_ms(d1) + _DAY_MS  # ask for records older than the day after d1
         rows: Dict[int, float] = {}
         for _ in range(self._max_pages):
-            url = OKX_PAGE_URL.format(after_ms=cursor_ms, limit=OKX_PAGE_LIMIT)
+            url = OKX_PAGE_URL.format(
+                sym=self._tickers["okx"], after_ms=cursor_ms, limit=OKX_PAGE_LIMIT
+            )
             page = _rows_okx(self._fetch(url))  # schema-validates / raises
             earliest = min(ts for ts, _ in page)
             for ts_ms, rate in page:
@@ -490,7 +535,7 @@ class FundingFeed:
         Schema-validated; de-dup by ts_ms."""
         start_ms = _to_ms(d0)
         end_ms = _to_ms(d1) + _DAY_MS
-        url = KUCOIN_URL.format(start_ms=start_ms, end_ms=end_ms)
+        url = KUCOIN_URL.format(sym=self._tickers["kucoin"], start_ms=start_ms, end_ms=end_ms)
         page = _rows_kucoin(self._fetch(url))  # schema-validates / raises
         rows: Dict[int, float] = {}
         for ts_ms, rate in page:
