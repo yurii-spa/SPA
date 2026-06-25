@@ -9,11 +9,18 @@ Keyless public endpoints:
 
 Tokens (canonical mainnet contracts):
   WETH  (ETH ref) 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+  --- LRTs (restaking — higher yield, higher depeg tail; see variant_n/variant_d) ---
   eETH            0x35fA164735182de50811E8e2E824cFb9B6118ac2
   weETH           0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee
   ezETH           0xbf5495Efe5DB9ce00f80364C8B423567e58d2110
+  --- LSTs (plain staking — the SAFE path; far tighter depeg than LRTs) ---
+  stETH (Lido)        0xae7ab96520DE3A18E5e111B5EaAb095312D7fe84
+  rETH  (Rocket Pool) 0xae78736Cd615f374D3085123A210448E74Fc6393
 
-Also computes lrt_eth_ratio = lrt_price / eth_price for depeg detection.
+Also computes lrt_eth_ratio = token_price / eth_price for depeg detection. Both LRTs AND LSTs
+flow through the SAME ratio map (the snapshot field is named lrt_eth_ratio for back-compat, but
+it carries any staked-ETH token: the eth_lst_neutral strategy reads steth/reth from it). LSTs
+sit much closer to 1.0 and barely depeg vs the LRTs that died in the 2024 crashes.
 
 FAIL-CLOSED: missing/empty/unparseable price → InvalidDataError. No silent default.
 """
@@ -31,11 +38,30 @@ CHAIN = "ethereum"
 # symbol key (lowercase, as used in MarketSnapshot) -> contract address
 TOKENS: Dict[str, str] = {
     "eth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",   # WETH = ETH reference
+    # LRTs (restaking)
     "eeth": "0x35fA164735182de50811E8e2E824cFb9B6118ac2",
     "weeth": "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
     "ezeth": "0xbf5495Efe5DB9ce00f80364C8B423567e58d2110",
+    # LSTs (plain staking — the SAFE hedged-yield path)
+    "steth": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fe84",   # Lido stETH
+    "reth": "0xae78736Cd615f374D3085123A210448E74Fc6393",    # Rocket Pool rETH
+    # --- BTC reference + SAFE wrapped-BTC tokens (for the BTC sleeves) ---
+    # WBTC is used ONLY as a BTC PRICE reference (deepest oracle source); it is deliberately
+    # NOT a holdable wrapper here (see adapters/btc_lending.py — WBTC excluded for wrapper risk).
+    "btc": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",     # WBTC = BTC price reference
+    "tbtc": "0x18084fbA666a33d37592fA2633fD49a74DD93a88",    # tBTC (Threshold, decentralized)
+    "cbbtc": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",   # cbBTC (Coinbase, regulated)
 }
-LRT_SYMBOLS = ("eeth", "weeth", "ezeth")  # everything except the eth reference
+LRT_SYMBOLS = ("eeth", "weeth", "ezeth")  # restaking tokens
+LST_SYMBOLS = ("steth", "reth")           # plain-staking tokens (the SAFE path)
+# Every staked-ETH token (LRT + LST) gets a price + an X/ETH ratio in the snapshot. The ratio
+# map field is historically named lrt_eth_ratio but carries BOTH groups.
+RATIO_SYMBOLS = LRT_SYMBOLS + LST_SYMBOLS
+
+# BTC reference symbol + the SAFE wrapped-BTC tokens. Each wrapper gets a price + a wrapper/BTC
+# ratio (for btc_neutral's wrapper-depeg check). WBTC ("btc") is the reference, NOT a wrapper.
+BTC_REF_SYMBOL = "btc"
+BTC_WRAPPER_SYMBOLS = ("tbtc", "cbbtc")
 
 CURRENT_URL = "https://coins.llama.fi/prices/current/{ids}"
 CHART_URL = "https://coins.llama.fi/chart/{id}?span={span}&period=1d"
@@ -82,7 +108,23 @@ def _ratios(prices: Dict[str, float]) -> Dict[str, float]:
         raise InvalidDataError("coins price: eth reference price missing for ratio")
     return {
         sym: round(prices[sym] / eth, 8)
-        for sym in LRT_SYMBOLS
+        for sym in RATIO_SYMBOLS
+        if sym in prices
+    }
+
+
+def _btc_ratios(prices: Dict[str, float]) -> Dict[str, float]:
+    """{wrapper_sym: wrapper/BTC ratio} — the wrapper-depeg signal for the BTC sleeves.
+
+    Computed against the BTC reference price (WBTC). If the reference is absent the wrapper
+    ratios are simply empty (the BTC sleeves fail-CLOSED downstream on a missing ratio); we do
+    NOT raise here so an ETH-only run is unaffected by a missing BTC reference."""
+    btc = prices.get(BTC_REF_SYMBOL)
+    if not btc:
+        return {}
+    return {
+        sym: round(prices[sym] / btc, 8)
+        for sym in BTC_WRAPPER_SYMBOLS
         if sym in prices
     }
 
@@ -102,12 +144,13 @@ class PriceFeed:
 
     # ── current (live) ──────────────────────────────────────────────────────────────────
     def current(self) -> Dict[str, object]:
-        """Return {"prices": {sym: usd}, "ratios": {lrt_sym: lrt/eth}}. Schema-validates every
-        token; raises InvalidDataError on any missing/invalid price."""
+        """Return {"prices": {sym: usd}, "ratios": {lrt_sym: lrt/eth},
+        "btc_ratios": {wrapper_sym: wrapper/btc}}. Schema-validates every token; raises
+        InvalidDataError on any missing/invalid price."""
         ids = ",".join(_coin_id(a) for a in TOKENS.values())
         coins = _validate_coins(self._fetch(CURRENT_URL.format(ids=ids)))
         prices = {sym: _extract_price(coins, addr, sym) for sym, addr in TOKENS.items()}
-        return {"prices": prices, "ratios": _ratios(prices)}
+        return {"prices": prices, "ratios": _ratios(prices), "btc_ratios": _btc_ratios(prices)}
 
     # ── historical ──────────────────────────────────────────────────────────────────────
     def history(
@@ -188,12 +231,33 @@ class PriceFeed:
         hist = self.history(span=span, start_date=start_date, end_date=end_date)
         eth = hist.get("eth", {})
         ratios: Dict[str, Dict[str, float]] = {}
-        for sym in LRT_SYMBOLS:
+        for sym in RATIO_SYMBOLS:
             series = hist.get(sym, {})
             ratios[sym] = {
                 d: round(series[d] / eth[d], 8)
                 for d in series
                 if d in eth and eth[d]
+            }
+        return ratios
+
+    def history_btc_ratios(
+        self,
+        span: int = 90,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Dict[str, float]]:
+        """Return {wrapper_sym: {date: wrapper/btc ratio}} aligned on shared dates with the BTC
+        reference. The wrapper-depeg signal for btc_neutral. A wrapper/reference with no shared
+        dates is simply an empty series (the sleeve fail-CLOSEs on a missing ratio downstream)."""
+        hist = self.history(span=span, start_date=start_date, end_date=end_date)
+        btc = hist.get(BTC_REF_SYMBOL, {})
+        ratios: Dict[str, Dict[str, float]] = {}
+        for sym in BTC_WRAPPER_SYMBOLS:
+            series = hist.get(sym, {})
+            ratios[sym] = {
+                d: round(series[d] / btc[d], 8)
+                for d in series
+                if d in btc and btc[d]
             }
         return ratios
 
