@@ -96,9 +96,9 @@ shipped_local = промежуточный статус, не финальный
 
 ### Пуш в GitHub
 - Autopush: `com.spa.autopush` каждые 90 минут забирает всё из `~/Documents/SPA_Claude`
-- **Статус (2026-06-12):** autopush НЕ установлен — plist-шаблон с заглушкой PYTHON_PATH
-- **Разовый фикс:** `bash ~/Documents/SPA_Claude/mp009_fix_launchd.command`
-- После фикса агенты никогда не упоминают пуш в отчётах — он происходит автоматически
+- **Статус (2026-06-23):** autopush УСТАНОВЛЕН и работает (`autopush_installed` PASS в golive_checker; heartbeat — `logs/auto_push.log`)
+- **Если на новом хосте не установлен:** `bash ~/Documents/SPA_Claude/mp009_fix_launchd.command`
+- Агенты никогда не упоминают пуш в отчётах — он происходит автоматически
 
 ### Спринты
 - Каждый спринт = один MP-xxx тикет из KANBAN.json
@@ -130,7 +130,7 @@ shipped_local = промежуточный статус, не финальный
 | com.spa.cloudflared | always-on | — |
 | com.spa.agent_health | каждые 60 мин | /tmp/spa_agent_health.log |
 | com.spa.cycle_health | каждые 5 мин | /tmp/spa_cycle_health.log |
-| **Итого агентов** | **31** | data/agent_health.json |
+| **Итого агентов** | **~42** (источник истины: `launchctl list \| grep spa` / `data/agent_health.json`) | data/agent_health.json |
 
 **PAT в Keychain:** `security find-generic-password -s GITHUB_PAT_SPA -w`
 **Ротация PAT:** `bash setup_pat.sh`
@@ -181,13 +181,15 @@ shipped_local = промежуточный статус, не финальный
 
 ---
 
-## 📊 СОСТОЯНИЕ ПРОЕКТА (обновляется автоматически)
+## 📊 СОСТОЯНИЕ ПРОЕКТА
 
-- **Спринт:** v4.47 (последний завершённый)
-- **Done:** 91 задача
-- **Backlog:** MP-017, UA-004, UA-006 (USER ACTION) + MP-126..135 (code-ready)
-- **Track start:** 2026-06-10
-- **Go-live:** ~2026-08-01
+> ⚠️ Живые цифры — `docs/SYSTEM_BRIEFING.md` + `KANBAN.json` (sprint/done) + `data/golive_status.json`.
+> Значения ниже — снимок, может устаревать; не доверяй им для оперативных решений.
+
+- **Спринт:** см. `KANBAN.json` (на 2026-06-24 — v12.82, Done **1358**)
+- **Track start:** 2026-06-10 (~15/30 честных дней)
+- **GoLive:** 27/29 — NOT READY (2 time-gated блокера)
+- **Go-live target:** ~2026-07-09 (30 честных дней трека)
 
 ---
 
@@ -221,7 +223,7 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 **Критические периодические (должны быть loaded, exit=0):**
 - `com.spa.daily_cycle` — 08:00 ежедн. (CORE: equity, rebalance, GoLive)
 - `com.spa.autopush` — каждые 90 мин (push в GitHub)
-- `com.spa.agent_health` — каждые 60 мин (мониторинг всех 31 агентов)
+- `com.spa.agent_health` — каждые 60 мин (мониторинг всех ~42 агентов)
 - `com.spa.cycle_health` — каждые 5 мин (gap, equity anomaly, freshness)
 - `com.spa.cycle_gap_monitor` — каждые 5 мин (gap_monitor.json heartbeat)
 
@@ -279,7 +281,7 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 > Before flagging anything as a bug, check `data/AUDIT_BASELINE.json`. Items listed there are known states, not defects.
 
 ### Mac-only checks (false negatives in Linux sandbox)
-- `com.spa.autopush.plist` — GoLiveChecker checks `~/Library/LaunchAgents/`. In Linux sandbox `~` ≠ `/Users/yuriikulieshov`, so check always fails. **On Mac host: 26/26 is correct.**
+- `com.spa.autopush.plist` — GoLiveChecker checks `~/Library/LaunchAgents/`. In Linux sandbox `~` ≠ `/Users/yuriikulieshov`, so check always fails. **On Mac host `autopush_installed` PASSes (current gate v6.0: 27/29).**
 - Any `launchctl` or `launchd` command — macOS only.
 
 ### Missing files that are intentionally absent
