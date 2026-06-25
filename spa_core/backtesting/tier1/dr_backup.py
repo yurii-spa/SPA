@@ -30,12 +30,12 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
-import os
 import shutil
 import tarfile
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.utils.atomic import atomic_write_via_tmp
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data"
@@ -147,11 +147,9 @@ def snapshot(write: bool = True, ts: Optional[str] = None) -> dict:
 
     backups = _backup_dir()
     backups.mkdir(parents=True, exist_ok=True)
-    # Atomic: build into a temp tar in the SAME dir, then os.replace into final name.
-    fd, tmp = tempfile.mkstemp(dir=str(backups), prefix=".dr_", suffix=ARCHIVE_SUFFIX)
-    os.close(fd)
-    try:
-        with tarfile.open(tmp, "w:gz") as tar:
+    # Atomic: build into a temp tar in the SAME dir, then rename into the final name.
+    with atomic_write_via_tmp(str(_archive_path(ts))) as tmp:
+        with tarfile.open(str(tmp), "w:gz") as tar:
             # Manifest first so it is cheap to read back.
             info = tarfile.TarInfo(name=MANIFEST_NAME)
             info.size = len(manifest_bytes)
@@ -161,12 +159,7 @@ def snapshot(write: bool = True, ts: Optional[str] = None) -> dict:
                 src = data / e["name"]
                 # Store under the same relative path; arcname keeps the bee/ subdir.
                 tar.add(str(src), arcname=e["name"], recursive=False)
-        os.replace(tmp, str(_archive_path(ts)))
-        report["written"] = True
-    except Exception:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-        raise
+    report["written"] = True
     return report
 
 
@@ -305,14 +298,9 @@ def restore(path, dest_dir) -> dict:
                     continue
                 target.parent.mkdir(parents=True, exist_ok=True)
                 # Atomic per-file write into dest.
-                fd, tmp = tempfile.mkstemp(dir=str(target.parent), prefix=".rst_")
-                try:
-                    with os.fdopen(fd, "wb") as w:
+                with atomic_write_via_tmp(str(target)) as tmp:
+                    with open(str(tmp), "wb") as w:
                         shutil.copyfileobj(f, w)
-                    os.replace(tmp, str(target))
-                finally:
-                    if os.path.exists(tmp):
-                        os.unlink(tmp)
                 out["restored"].append(member.name)
             out["ok"] = expected.issubset(set(out["restored"])) if expected else bool(out["restored"])
     except (tarfile.TarError, OSError, ValueError) as exc:
