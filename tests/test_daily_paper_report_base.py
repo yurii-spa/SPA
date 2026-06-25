@@ -59,8 +59,11 @@ class TestBaseChainReport(unittest.TestCase):
                         f"adapter_status.json not found: {status_path}")
         with open(status_path) as f:
             data = json.load(f)
+        # v1: adapters at top level; v2: nested under data["adapters"]
+        adapter_pool = data.get("adapters", {}) if isinstance(data.get("adapters"), dict) else {}
+        search_space = {**data, **adapter_pool}
         base_items = [
-            k for k, v in data.items()
+            k for k, v in search_space.items()
             if isinstance(v, dict) and v.get("chain") == "base"
         ]
         self.assertGreater(
