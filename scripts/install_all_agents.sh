@@ -370,6 +370,12 @@ install_agent \
     "com.spa.weekly_backup" \
     "1"
 
+# 41. Daily data/*.json backup (pre-cycle snapshot, 30-day retention)
+install_agent \
+    "$REPO/scripts/com.spa.daily_backup.plist" \
+    "com.spa.daily_backup" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
