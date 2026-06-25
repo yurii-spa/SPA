@@ -210,7 +210,7 @@ class TestCheckNewPosition:
         assert any("Concentration" in v for v in result.violations)
 
     def test_reject_t2_total_limit(self, policy):
-        """Отклонить если T2 совокупно > 35%."""
+        """Отклонить если T2 совокупно > 50% (ADR-019)."""
         state = PortfolioState(
             total_capital_usd=10_000.0,
             positions=[
@@ -218,7 +218,7 @@ class TestCheckNewPosition:
                     protocol_key="maple-usdc-ethereum",
                     tier="T2",
                     asset="USDC",
-                    amount_usd=2_000.0,
+                    amount_usd=3_000.0,  # 30% T2
                     apy_at_open=8.0,
                     current_apy=8.0,
                 ),
@@ -226,18 +226,18 @@ class TestCheckNewPosition:
                     protocol_key="euler-v2-usdc-ethereum",
                     tier="T2",
                     asset="USDC",
-                    amount_usd=1_500.0,
+                    amount_usd=2_000.0,  # 20% T2 → итого 50%
                     apy_at_open=7.0,
                     current_apy=7.0,
                 ),
             ],
         )
-        # Уже 35% T2, попытка добавить ещё
+        # Уже 50% T2, попытка добавить ещё
         result = policy.check_new_position(
             state=state,
             protocol_key="yearn-v3-usdc-ethereum",
             tier="T2",
-            amount_usd=500.0,  # Итого 40% > 35%
+            amount_usd=500.0,  # Итого 55% > 50%
             current_apy=6.5,
             tvl_usd=10_000_000.0,
         )
