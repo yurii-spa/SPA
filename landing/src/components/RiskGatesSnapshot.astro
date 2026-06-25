@@ -32,11 +32,11 @@ const riskParams = [
 
     <!-- Header -->
     <div class="mb-12 max-w-2xl">
-      <p class="text-teal-400 text-sm font-mono uppercase tracking-widest mb-3">Risk Parameters</p>
-      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+      <p class="text-teal-400 text-sm font-mono uppercase tracking-widest mb-3" data-ru="Параметры риска">Risk Parameters</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Жёстко зашитые риск-гейты">
         Hard-Coded Risk Gates
       </h2>
-      <p class="text-white/50 leading-relaxed">
+      <p class="text-white/50 leading-relaxed" data-ru="RiskPolicy v1.0 детерминирована и не может быть переопределена. Ни человек, ни ИИ, ни стратегия не могут обойти эти лимиты. Каждое нарушение публично логируется.">
         RiskPolicy v1.0 is deterministic and non-overridable. No human, no AI, no strategy
         can bypass these limits. Every breach is logged publicly.
       </p>
@@ -47,26 +47,26 @@ const riskParams = [
 
       <div class="rounded-xl border border-teal-500/20 bg-teal-500/5 p-6 text-center">
         <div class="text-3xl font-mono font-bold text-white mb-2">$5M+</div>
-        <div class="text-sm text-white/60 font-medium mb-1">TVL Floor</div>
-        <div class="text-xs text-white/30">Minimum TVL per pool</div>
+        <div class="text-sm text-white/60 font-medium mb-1" data-ru="Минимум TVL">TVL Floor</div>
+        <div class="text-xs text-white/30" data-ru="Минимальный TVL на пул">Minimum TVL per pool</div>
       </div>
 
       <div class="rounded-xl border border-teal-500/20 bg-teal-500/5 p-6 text-center">
         <div class="text-3xl font-mono font-bold text-white mb-2">40%</div>
-        <div class="text-sm text-white/60 font-medium mb-1">Per-Protocol Cap</div>
-        <div class="text-xs text-white/30">Max single protocol (T1)</div>
+        <div class="text-sm text-white/60 font-medium mb-1" data-ru="Лимит на протокол">Per-Protocol Cap</div>
+        <div class="text-xs text-white/30" data-ru="Макс. доля одного протокола (T1)">Max single protocol (T1)</div>
       </div>
 
       <div class="rounded-xl border border-teal-500/20 bg-teal-500/5 p-6 text-center">
         <div class="text-3xl font-mono font-bold text-white mb-2">&ge; 5%</div>
-        <div class="text-sm text-white/60 font-medium mb-1">Cash Buffer</div>
-        <div class="text-xs text-white/30">Always held in reserve</div>
+        <div class="text-sm text-white/60 font-medium mb-1" data-ru="Денежный буфер">Cash Buffer</div>
+        <div class="text-xs text-white/30" data-ru="Всегда удерживается в резерве">Always held in reserve</div>
       </div>
 
       <div class="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
         <div class="text-3xl font-mono font-bold text-red-400 mb-2">-5%</div>
-        <div class="text-sm text-white/60 font-medium mb-1">Kill Switch</div>
-        <div class="text-xs text-white/30">Drawdown &rarr; close all positions</div>
+        <div class="text-sm text-white/60 font-medium mb-1" data-ru="Kill switch">Kill Switch</div>
+        <div class="text-xs text-white/30" data-ru="Просадка &rarr; закрыть все позиции">Drawdown &rarr; close all positions</div>
       </div>
 
     </div>
@@ -76,7 +76,7 @@ const riskParams = [
       <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-mono bg-teal-500/10 text-teal-400 border border-teal-500/20 flex-shrink-0">
         LLM_FORBIDDEN
       </span>
-      <p class="text-sm text-white/40 leading-relaxed">
+      <p class="text-sm text-white/40 leading-relaxed" data-ru="Риск-движок, слой исполнения и системы мониторинга содержат ноль обращений к LLM. Prompt injection в распределение капитала рассматривается как критический вектор атаки. Каждый параметр выше восходит к детерминированному правилу, а не к выводу модели.">
         The risk engine, execution layer, and monitoring systems contain zero LLM calls.
         Prompt injection into capital allocation is treated as a critical attack vector.
         Every parameter above traces to a deterministic rule — not a model output.
