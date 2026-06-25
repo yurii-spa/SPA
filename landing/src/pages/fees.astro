@@ -26,7 +26,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 1. Paper Phase Notice -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Текущий этап">Current Phase</p>
       <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 mb-6">
         <p class="text-white/70 leading-relaxed mb-4">
@@ -43,38 +43,38 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 2. Fee Components -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Компоненты комиссии (иллюстративно)">Fee Components (Illustrative)</p>
       <div class="space-y-3">
-        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium" data-ru="Комиссия за управление">Management Fee</p>
             <p class="text-xs text-white/40" data-ru="Годовая комиссия на активы под управлением. Покрывает инфраструктуру, мониторинг и отчётность.">Annual fee on assets under management. Covers infrastructure, monitoring, and reporting.</p>
           </div>
         </div>
-        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium" data-ru="Комиссия за результат">Performance Fee</p>
             <p class="text-xs text-white/40" data-ru="Взимается только с чистой прибыли выше high-water mark. Согласует интересы.">Charged only on net profits above the high-water mark. Aligns incentives.</p>
           </div>
         </div>
-        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium" data-ru="High-Water Mark">High-Water Mark</p>
             <p class="text-xs text-white/40" data-ru="Нет комиссии за результат, пока не восстановлен прежний пик портфеля. Без повторного взимания при восстановлении.">No performance fee until previous portfolio peak is recovered. No double-charging on recoveries.</p>
           </div>
         </div>
-        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium" data-ru="Без комиссии за вывод">No Withdrawal Fee</p>
             <p class="text-xs text-white/40" data-ru="Комиссии за вывод средств не взимаются (иллюстративно).">No fees charged on withdrawals (illustrative).</p>
           </div>
         </div>
-        <div class="flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-accent-400 flex-shrink-0">&#10003;</span>
           <div>
             <p class="text-sm text-white/80 font-medium" data-ru="Без lock-up">No Lock-Up</p>
@@ -85,9 +85,9 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 3. High-Water Mark -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="High-Water Mark">High-Water Mark</p>
-      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <p class="text-white/60 leading-relaxed" data-ru="High-water mark — это прежнее пиковое значение портфеля. Комиссия за результат взимается только с прибыли выше этой отметки. Если портфель снижается, комиссия за результат не взимается, пока прежний пик не восстановлен. Это согласует интересы управляющего с результатами — доход только с реальной прибыли.">
           The high-water mark is the previous peak value of the portfolio. Performance fee is only
           charged on profits above this mark. If the portfolio declines, no performance fee is
@@ -98,9 +98,9 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 4. Illustrative Example -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Как это работает — концептуальный пример">How It Works &mdash; Conceptual Example</p>
-      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm">
           <div>
             <div class="text-white/30 uppercase tracking-wider text-[10px] font-mono mb-2" data-ru="Год 1: портфель растёт">Year 1: Portfolio grows</div>
@@ -126,7 +126,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 5. Paper Trading Period -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Период бумажной торговли">Paper Trading Period</p>
       <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 flex items-start gap-3">
         <span class="text-amber-400 flex-shrink-0 mt-0.5">&#9888;</span>
@@ -143,7 +143,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- 6. FAQ -->
-    <section class="py-10 border-t border-white/5">
+    <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Часто задаваемые вопросы">Frequently Asked Questions</p>
       <div class="space-y-6">
 
@@ -174,17 +174,17 @@ import Disclaimer from '../components/Disclaimer.astro';
     </section>
 
     <!-- Continue links -->
-    <section class="pb-16 border-t border-white/5 pt-10">
+    <section class="pb-16 border-t border-border pt-10">
       <div class="text-center">
         <p class="text-sm text-white/30 mb-6" data-ru="Продолжить чтение">Continue reading</p>
         <div class="flex flex-wrap items-center justify-center gap-4">
-          <a href="/methodology" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Методология">
+          <a href="/methodology" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Методология">
             Methodology
           </a>
-          <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Раскрытие рисков">
+          <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Раскрытие рисков">
             Risk Disclosure
           </a>
-          <a href="/app" class="px-5 py-2.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Дашборд">
+          <a href="/app" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Дашборд">
             Dashboard
           </a>
         </div>
