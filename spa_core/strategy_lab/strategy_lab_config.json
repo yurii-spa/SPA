@@ -25,6 +25,9 @@
       "funding_kill_threshold": -0.0003,
       "funding_kill_hours": 24,
       "lrt_depeg_kill_pct": 2.0,
+      "depeg_median_window": 3,
+      "depeg_persist_ticks": 2,
+      "depeg_doc": "Depeg kill is measured on a depeg_median_window-tick trailing MEDIAN of the LRT/ETH ratio and must persist depeg_persist_ticks consecutive ticks before killing. This rejects 1-day DeFiLlama daily-granularity timestamp-misalignment artifacts (lone ratio spikes up/down) while still catching a REAL sustained depeg. See docs/GLOBAL_AUDIT + memory historical-apy-axis-misaligned.",
       "points_apy_assumption": 0.03
     },
     "variant_d": {
@@ -33,6 +36,21 @@
       "is_advisory": true,
       "lrt_symbol": "eeth",
       "drawdown_kill_pct": 25.0
+    },
+    "eth_lst_neutral": {
+      "name": "ETH LST Neutral (delta-neutral stETH/rETH + perp short)",
+      "doc": "The SAFE ETH-yield sleeve: PLAIN-STAKING LST (stETH/rETH, NOT LRTs) hedged with a short ETH perp → beta ≈ 0. Income = staking yield ± funding. LSTs barely depeg vs the LRTs that died in 2024, so the depeg kill (lst_depeg_kill_pct) is TIGHTER than variant_n's. T2, advisory until canary.",
+      "mandate": "neutral",
+      "is_advisory": true,
+      "tier": "T2",
+      "lst_symbol": "steth",
+      "hedge_ratio": 1.0,
+      "funding_kill_threshold": -0.0003,
+      "funding_kill_hours": 24,
+      "lst_depeg_kill_pct": 1.0,
+      "depeg_median_window": 3,
+      "depeg_persist_ticks": 2,
+      "depeg_doc": "TIGHT 1% LST depeg kill is measured on a depeg_median_window-tick trailing MEDIAN of the LST/ETH ratio and must persist depeg_persist_ticks consecutive ticks before killing. Without this, Aug-2024 DeFiLlama timestamp-misalignment artifacts (stETH spurious 0.95/1.14 ratio while the peg held ~1.0) FALSE-kill this safe sleeve. See docs/GLOBAL_AUDIT + memory historical-apy-axis-misaligned."
     },
     "engine_a": {
       "name": "Engine A \u2014 Stable base book",
@@ -58,6 +76,16 @@
       "is_advisory": true,
       "capital_usd": 100000,
       "apy_pct": 4.5
+    },
+    "rwa_sleeve": {
+      "name": "RWA Sleeve \u2014 tokenized T-bill cash floor (T1)",
+      "doc": "Allocatable T1 cash-floor sleeve: HOLDS tokenized US Treasuries (BUIDL/USYC/USDY/OUSG) and accrues at the LIVE rwa_feed floor rate. Distinct from the rwa_floor benchmark row \u2014 this is the realized floor a portfolio can park cash in. apy_pct is only an offline last-resort; the live floor (rwa_floor_apy_pct) is the primary rate.",
+      "mandate": "stable",
+      "is_advisory": true,
+      "tier": "T1",
+      "capital_usd": 100000,
+      "apy_pct": 3.4,
+      "drawdown_stop_pct": 1.0
     }
   }
 }
