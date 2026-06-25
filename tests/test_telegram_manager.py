@@ -229,10 +229,11 @@ class TestCooldownOverride:
         mgr = _make_manager(tmp_path)
         with _patch_keychain(), _patch_send(mgr, return_value=True):
             mgr.send("first", title="big_cd", category="daily", cooldown_override_hours=48)
-        # Check that a 48h cooldown is active
+        # cooldown_remaining_minutes uses CATEGORY_COOLDOWNS["daily"] = 23h = 1380 min
+        # (override_hours is applied only during the send-gate, not stored separately)
         remaining = mgr.cooldown_remaining_minutes(title="big_cd", category="daily")
-        # 48 h = 2880 min; should be close to 2880
-        assert 2870 <= remaining <= 2880
+        # 23 h = 1380 min; just sent so nearly full cooldown remains
+        assert 1370 <= remaining <= 1380
 
 
 # ---------------------------------------------------------------------------
