@@ -1,4 +1,8 @@
 ---
+import SiteHeader from '../components/SiteHeader.astro';
+import PaperStrip from '../components/PaperStrip.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
 interface Props {
   title: string;
   description?: string;
@@ -37,7 +41,7 @@ const schemaData = JSON.stringify({
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#0A0C10" />
 
     <!-- Canonical -->
     <link rel="canonical" href={pageUrl} />
@@ -52,7 +56,7 @@ const schemaData = JSON.stringify({
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImageAbsolute} />
-    <meta property="og:site_name" content="SPA — Stablecoin Portfolio Algorithm" />
+    <meta property="og:site_name" content="SPA — systematic onchain stablecoin yield" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -60,77 +64,64 @@ const schemaData = JSON.stringify({
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageAbsolute} />
 
-    <!-- Fonts: Inter via Google Fonts -->
+    <!-- Fonts: Inter + JetBrains Mono (spec §3.2 — load BOTH) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
 
     <!-- Schema.org -->
     <script type="application/ld+json" set:html={schemaData} />
 
-    <!-- Prevent flash of unstyled dark content -->
-    <style>
-      html { background-color: #0a0a0a; }
-
-      /* Site-wide EN|RU language toggle (fixed top-right) */
-      #spa-lang-toggle {
-        position: fixed;
-        top: 14px;
-        right: 14px;
-        z-index: 9999;
-        display: inline-flex;
-        align-items: center;
-        gap: 1px;
-        padding: 2px;
-        border-radius: 9999px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        font-size: 11px;
-        line-height: 1;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    <!-- Unified design tokens (docs/SITE_DESIGN_SYSTEM.md §3) — applied globally so the
+         whole site inherits one palette/type/radius/shadow system. -->
+    <style is:global>
+      :root{
+        /* Backgrounds — single near-black scale */
+        --bg-base:#0A0C10; --bg-surface:#11141A; --bg-surface-2:#181C24; --bg-elevated:#1E232C;
+        --border:#232934; --border-strong:#313945;
+        /* Text */
+        --text-primary:#E8EAF0; --text-secondary:#A6ADBB; --text-muted:#6B7280; --text-faint:#444B57;
+        /* Brand accent — indigo */
+        --accent:#5B8DEF; --accent-hover:#79A4F5; --accent-dim:#2C4A8A; --accent-bg:rgba(91,141,239,0.10);
+        /* Secondary accent — quant teal */
+        --data-teal:#36C2B4;
+        /* Semantic */
+        --ok:#34D399; --warn:#F2B53C; --danger:#F26D6D; --info:#5B8DEF;
+        /* Type */
+        --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+        --font-mono:'JetBrains Mono','SFMono-Regular',ui-monospace,monospace;
+        /* Radius */
+        --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:24px; --r-full:9999px;
+        /* Shadow */
+        --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 4px 16px rgba(0,0,0,.45);
+        --shadow-cta:0 6px 20px rgba(91,141,239,.25);
+        /* Motion */
+        --ease:cubic-bezier(.4,0,.2,1);
       }
-      #spa-lang-toggle button {
-        appearance: none;
-        background: transparent;
-        border: 0;
-        cursor: pointer;
-        color: rgba(255, 255, 255, 0.5);
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        padding: 5px 10px;
-        border-radius: 9999px;
-        transition: color 0.15s, background 0.15s;
-      }
-      #spa-lang-toggle button:hover { color: rgba(255, 255, 255, 0.85); }
-      #spa-lang-toggle button.spa-lang-active {
-        color: #fff;
-        background: rgba(255, 255, 255, 0.12);
-      }
-      #spa-lang-toggle .spa-lang-sep {
-        color: rgba(255, 255, 255, 0.2);
-        padding: 0 1px;
-        user-select: none;
+      html { background-color: var(--bg-base); }
+      body { background: var(--bg-base); color: var(--text-secondary); font-family: var(--font-sans); }
+      @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+      @media (prefers-reduced-motion:reduce){
+        *{animation:none !important; transition:none !important; scroll-behavior:auto !important}
       }
     </style>
   </head>
 
-  <body class="bg-[#0a0a0a] text-white antialiased">
-    <!-- Site-wide EN|RU language toggle (wired by /i18n.js) -->
-    <div id="spa-lang-toggle" role="group" aria-label="Language">
-      <button type="button" data-lang="en" aria-pressed="true">EN</button>
-      <span class="spa-lang-sep" aria-hidden="true">|</span>
-      <button type="button" data-lang="ru" aria-pressed="false">RU</button>
-    </div>
+  <body class="text-text-secondary antialiased" style="background:var(--bg-base)">
+    <!-- Canonical chrome on EVERY page that uses Layout (spec §4). -->
+    <SiteHeader />
+    <PaperStrip />
 
     <slot />
 
+    <SiteFooter />
+
     <!-- i18n runtime INLINED (external /i18n.js was shadowed by the CF soft-404 → served
-         HTML instead of JS, which broke the toggle). Inlining guarantees it always runs. -->
+         HTML instead of JS, which broke the toggle). Inlining guarantees it always runs.
+         Toggle now lives inside SiteHeader (#spa-lang-toggle); same runtime wires it. -->
     <script is:inline>
       (function () {
         "use strict";
@@ -144,9 +135,9 @@ const schemaData = JSON.stringify({
           var nodes = document.querySelectorAll("[data-ru]");
           for (var i = 0; i < nodes.length; i++) {
             var el = nodes[i];
-            if (!el.hasAttribute("data-en-orig")) el.setAttribute("data-en-orig", el.textContent);
-            if (lang === "ru") { var ru = el.getAttribute("data-ru"); if (ru != null) el.textContent = ru; }
-            else { var en = el.getAttribute("data-en-orig"); if (en != null) el.textContent = en; }
+            if (!el.hasAttribute("data-en-orig")) el.setAttribute("data-en-orig", el.innerHTML);
+            if (lang === "ru") { var ru = el.getAttribute("data-ru"); if (ru != null) el.innerHTML = ru; }
+            else { var en = el.getAttribute("data-en-orig"); if (en != null) el.innerHTML = en; }
           }
         }
         function updateToggleState(lang) {
@@ -163,6 +154,7 @@ const schemaData = JSON.stringify({
           storeLang(lang);
           try { document.documentElement.setAttribute("lang", lang); } catch (e) {}
           applyTranslations(lang); updateToggleState(lang);
+          if (window.__renderLive) { try { window.__renderLive(); } catch (e) {} }
         }
         function wireToggle() {
           var t = document.getElementById("spa-lang-toggle");
