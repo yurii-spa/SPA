@@ -17,7 +17,11 @@ Coverage:
 import pytest
 
 from spa_core.strategy_lab.base import InvalidDataError, MarketSnapshot
-from spa_core.strategy_lab.data.funding_feed import FundingFeed, BINANCE_URL, BYBIT_URL
+from spa_core.strategy_lab.data.funding_feed import (
+    FundingFeed, BINANCE_URL, BYBIT_URL,
+    _rows_binance, _rows_bybit, _rows_okx, _rows_kucoin, _rows_hyperliquid,
+    _parse_hyperliquid, _hl_8h_by_date, HL_HOURS_PER_8H,
+)
 from spa_core.strategy_lab.data.price_feed import PriceFeed, TOKENS, CHAIN
 from spa_core.strategy_lab.data.restaking_feed import RestakingFeed
 from spa_core.strategy_lab.data.market_data import MarketData
@@ -78,51 +82,171 @@ def good_pools():
     ]}
 
 
-# ── FUNDING: schema validation raises ─────────────────────────────────────────────────────────
+# canonical good payloads for the new venues ---------------------------------------------------
+def good_okx(rate="0.00020000", day_ms=1782288000000):
+    # OKX: code is a STRING "0"; fundingTime is a STRING ms; 8h settlement
+    return {"code": "0", "msg": "", "data": [
+        {"instId": "ETH-USDT-SWAP", "fundingRate": rate, "fundingTime": str(day_ms),
+         "realizedRate": rate},
+    ]}
+
+
+def good_kucoin(rate=0.00025, day_ms=1782288000000):
+    # KuCoin: code is a STRING "200000"; fundingRate is a FLOAT; timepoint is an int ms; 8h
+    return {"code": "200000", "data": [
+        {"symbol": "ETHUSDTM", "fundingRate": rate, "timepoint": day_ms},
+    ]}
+
+
+def good_hyperliquid(rate="0.0000125", day_ms=1782288000000, hours=24):
+    # Hyperliquid: HOURLY list; fundingRate is a STRING; time is int ms. Anchor to the UTC
+    # midnight of day_ms so all `hours` entries fall on the SAME UTC date.
+    midnight = (day_ms // 86400000) * 86400000
+    return [
+        {"coin": "ETH", "fundingRate": rate, "premium": "-0.0003", "time": midnight + h * 3600000}
+        for h in range(hours)
+    ]
+
+
+# ── FUNDING: per-venue PARSER schema validation RAISES (fail-CLOSED at venue level) ────────────
+# NOTE: history() now degrades gracefully (median of whoever returned), so a single bad venue no
+# longer aborts the whole call. Schema validation is still strict — proven at the parser level.
 def test_funding_binance_not_list_raises():
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": {"oops": 1}, "bybit": good_bybit()}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_binance({"oops": 1})
 
 
 def test_funding_binance_empty_list_raises():
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": [], "bybit": good_bybit()}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_binance([])
 
 
 def test_funding_binance_missing_rate_raises():
-    bad = [{"symbol": "ETHUSDT", "fundingTime": 1782288000000}]  # no fundingRate
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": bad, "bybit": good_bybit()}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_binance([{"symbol": "ETHUSDT", "fundingTime": 1782288000000}])
 
 
 def test_funding_binance_empty_rate_raises():
-    bad = [{"symbol": "ETHUSDT", "fundingTime": 1782288000000, "fundingRate": ""}]
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": bad, "bybit": good_bybit()}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_binance([{"symbol": "ETHUSDT", "fundingTime": 1782288000000, "fundingRate": ""}])
 
 
 def test_funding_bybit_retcode_nonzero_raises():
-    bad = {"retCode": 10001, "retMsg": "bad", "result": {"list": []}}
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": good_binance(), "bybit": bad}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_bybit({"retCode": 10001, "retMsg": "bad", "result": {"list": []}})
 
 
 def test_funding_bybit_empty_list_raises():
-    bad = {"retCode": 0, "result": {"list": []}}
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": good_binance(), "bybit": bad}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_bybit({"retCode": 0, "result": {"list": []}})
 
 
 def test_funding_bybit_missing_result_raises():
-    f = FundingFeed(fetcher=FakeFetcher({"fapi.binance": good_binance(), "bybit": {"retCode": 0}}))
     with pytest.raises(InvalidDataError):
-        f.history()
+        _rows_bybit({"retCode": 0})
+
+
+# OKX parser schema validation -----------------------------------------------------------------
+def test_funding_okx_bad_code_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_okx({"code": "50011", "msg": "rate limit", "data": []})
+
+
+def test_funding_okx_not_dict_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_okx([1, 2, 3])
+
+
+def test_funding_okx_empty_data_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_okx({"code": "0", "data": []})
+
+
+def test_funding_okx_missing_rate_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_okx({"code": "0", "data": [{"fundingTime": "1782288000000"}]})
+
+
+def test_funding_okx_bad_time_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_okx({"code": "0", "data": [{"fundingRate": "0.0001", "fundingTime": "notms"}]})
+
+
+def test_funding_okx_good_parses():
+    rows = _rows_okx(good_okx("0.0002", 1782288000000))
+    assert rows == [(1782288000000, pytest.approx(0.0002))]
+
+
+# KuCoin parser schema validation --------------------------------------------------------------
+def test_funding_kucoin_bad_code_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_kucoin({"code": "400100", "msg": "bad", "data": []})
+
+
+def test_funding_kucoin_empty_data_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_kucoin({"code": "200000", "data": []})
+
+
+def test_funding_kucoin_missing_rate_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_kucoin({"code": "200000", "data": [{"timepoint": 1782288000000}]})
+
+
+def test_funding_kucoin_bad_time_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_kucoin({"code": "200000", "data": [{"fundingRate": 0.0001, "timepoint": "x"}]})
+
+
+def test_funding_kucoin_good_parses():
+    rows = _rows_kucoin(good_kucoin(0.00025, 1782288000000))
+    assert rows == [(1782288000000, pytest.approx(0.00025))]
+
+
+# Hyperliquid parser schema validation ---------------------------------------------------------
+def test_funding_hyperliquid_not_list_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_hyperliquid({"oops": 1})
+
+
+def test_funding_hyperliquid_empty_list_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_hyperliquid([])
+
+
+def test_funding_hyperliquid_missing_rate_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_hyperliquid([{"coin": "ETH", "time": 1782288000000}])
+
+
+def test_funding_hyperliquid_bad_time_raises():
+    with pytest.raises(InvalidDataError):
+        _rows_hyperliquid([{"coin": "ETH", "fundingRate": "0.0000125", "time": "nope"}])
+
+
+# Hyperliquid HOURLY → 8h normalization --------------------------------------------------------
+def test_funding_hyperliquid_hourly_to_8h_normalization():
+    # 24 hourly entries of 0.0000125 on one UTC day → sum = 24*0.0000125 = 0.0003;
+    # per-8h = 0.0003 / 3 = 0.0001. Comparable to an 8h venue's per-period rate.
+    day_ms = 1782288000000  # 00:00 UTC
+    payload = good_hyperliquid("0.0000125", day_ms, hours=24)
+    by_date = _parse_hyperliquid(payload)
+    (date, vals), = by_date.items()
+    assert len(vals) == 1  # one 8h-equivalent observation per HL day
+    assert vals[0] == pytest.approx(0.0003 / HL_HOURS_PER_8H)
+    assert vals[0] == pytest.approx(0.0001)
+
+
+def test_funding_hyperliquid_normalization_sums_per_day():
+    # Two distinct hourly rates on the same day sum, then /3.
+    day_ms = 1782288000000
+    payload = [
+        {"coin": "ETH", "fundingRate": "0.00001", "premium": "0", "time": day_ms},
+        {"coin": "ETH", "fundingRate": "0.00002", "premium": "0", "time": day_ms + 3600000},
+    ]
+    out = _hl_8h_by_date(dict((r["time"], float(r["fundingRate"])) for r in payload))
+    (date, vals), = out.items()
+    assert vals[0] == pytest.approx((0.00001 + 0.00002) / HL_HOURS_PER_8H)
 
 
 # ── FUNDING: median of two venues ─────────────────────────────────────────────────────────────
@@ -153,6 +277,64 @@ def test_funding_median_robust_to_outlier():
     series = FundingFeed(fetcher=FakeFetcher({"fapi.binance": binance, "bybit": bybit})).history()
     (date, val), = series.items()
     assert val == pytest.approx(0.0001)
+
+
+def test_funding_median_across_all_five_venues():
+    # Five venues, one 8h-equivalent observation each on the same day:
+    #   binance 0.0001, bybit 0.0003, okx 0.0002, kucoin 0.00025, HL 0.0001 (from 24×0.0000125/3)
+    # union (sorted) = [0.0001, 0.0001, 0.0002, 0.00025, 0.0003] → median = 0.0002
+    day_ms = 1782288000000
+    routes = {
+        "fapi.binance": good_binance("0.00010000", day_ms),
+        "bybit": good_bybit("0.00030000", day_ms),
+        "okx.com": good_okx("0.00020000", day_ms),
+        "kucoin": good_kucoin(0.00025, day_ms),
+        "hyperliquid": good_hyperliquid("0.0000125", day_ms, hours=24),
+    }
+    series = FundingFeed(fetcher=FakeFetcher(routes)).history()
+    assert len(series) == 1
+    (date, val), = series.items()
+    assert val == pytest.approx(0.0002)
+
+
+def test_funding_one_venue_down_uses_median_of_rest():
+    # OKX route raises (down); the median is taken over the other four venues.
+    # remaining union = [binance 0.0001, bybit 0.0003, kucoin 0.00025, HL 0.0001] sorted
+    #   = [0.0001, 0.0001, 0.00025, 0.0003] → median = (0.0001 + 0.00025)/2 = 0.000175
+    day_ms = 1782288000000
+    routes = {
+        "fapi.binance": good_binance("0.00010000", day_ms),
+        "bybit": good_bybit("0.00030000", day_ms),
+        "okx.com": InvalidDataError("okx down"),
+        "kucoin": good_kucoin(0.00025, day_ms),
+        "hyperliquid": good_hyperliquid("0.0000125", day_ms, hours=24),
+    }
+    series = FundingFeed(fetcher=FakeFetcher(routes)).history()
+    (date, val), = series.items()
+    assert val == pytest.approx((0.0001 + 0.00025) / 2)
+
+
+def test_funding_only_one_venue_alive_still_returns():
+    # Four venues missing/raising, only bybit returns → median = bybit's single value (no raise).
+    day_ms = 1782288000000
+    routes = {
+        "fapi.binance": InvalidDataError("down"),
+        "bybit": good_bybit("0.00030000", day_ms),
+        "okx.com": InvalidDataError("down"),
+        "kucoin": InvalidDataError("down"),
+        "hyperliquid": InvalidDataError("down"),
+    }
+    series = FundingFeed(fetcher=FakeFetcher(routes)).history()
+    (date, val), = series.items()
+    assert val == pytest.approx(0.0003)
+
+
+def test_funding_all_venues_down_raises():
+    # Every venue raises → merged series empty → fail-CLOSED.
+    routes = {k: InvalidDataError("down")
+              for k in ("fapi.binance", "bybit", "okx.com", "kucoin", "hyperliquid")}
+    with pytest.raises(InvalidDataError):
+        FundingFeed(fetcher=FakeFetcher(routes)).history()
 
 
 def test_funding_latest_returns_most_recent():
@@ -499,15 +681,97 @@ def test_funding_pagination_stops_at_window_bounds():
     assert "2024-06-10" not in series  # beyond end_date → excluded
 
 
-def test_funding_pagination_bad_page_raises():
-    # A malformed second binance page (not a list) must raise InvalidDataError (fail-closed).
-    page1 = [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-01") + i, "fundingRate": "0.0001"}
-             for i in range(1000)]  # full → forces a second fetch
-    page2 = {"oops": "not a list"}
-    bybit_pg = {"retCode": 0, "result": {"list": [
-        {"symbol": "ETHUSDT", "fundingRate": "0.0001", "fundingRateTimestamp": str(_ms("2024-06-01"))},
-    ]}}
-    fetcher = PagedFetcher({"fapi.binance": [page1, page2], "bybit": bybit_pg})
+def test_funding_pagination_okx_walks_backward():
+    # OKX paginates DESCENDING via `after`: page1 = 100 full rows whose EARLIEST is still well
+    # inside the (wide) window → loop continues; page2 = the tail down to start_date.
+    # 100 × 8h ≈ 33 days, so a window of ~2024-04-01..2024-06-10 keeps page1 above start.
+    page1 = {"code": "0", "data": [
+        {"fundingRate": "0.0002", "fundingTime": str(_ms("2024-06-10") - i * 28_800_000)}
+        for i in range(100)
+    ]}
+    page2 = {"code": "0", "data": [
+        {"fundingRate": "0.0002", "fundingTime": str(_ms("2024-04-01"))},
+    ]}
+    fetcher = PagedFetcher({
+        "okx.com": [page1, page2],
+        "fapi.binance": InvalidDataError("isolate okx"),
+        "bybit": InvalidDataError("isolate okx"),
+        "kucoin": InvalidDataError("isolate okx"),
+        "hyperliquid": InvalidDataError("isolate okx"),
+    })
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
+    series = feed.history(start_date="2024-04-01", end_date="2024-06-10")
+    assert "2024-06-10" in series
+    assert "2024-04-01" in series  # tail came from page2
+    # OKX paged at least twice (full first page forced a second `after` fetch)
+    assert sum("okx.com" in u for u in fetcher.calls) >= 2
+
+
+def test_funding_pagination_kucoin_single_window_call():
+    # KuCoin returns the whole window in ONE call (no pagination loop).
+    fetcher = PagedFetcher({
+        "kucoin": {"code": "200000", "data": [
+            {"symbol": "ETHUSDTM", "fundingRate": 0.0002, "timepoint": _ms("2024-06-01")},
+            {"symbol": "ETHUSDTM", "fundingRate": 0.0002, "timepoint": _ms("2024-06-02")}]},
+        "fapi.binance": [{"symbol": "ETHUSDT", "fundingTime": _ms("2024-06-01"), "fundingRate": "0.0002"}],
+        "bybit": {"retCode": 0, "result": {"list": [
+            {"symbol": "ETHUSDT", "fundingRate": "0.0002", "fundingRateTimestamp": str(_ms("2024-06-01"))}]}},
+        "okx.com": {"code": "0", "data": [
+            {"fundingRate": "0.0002", "fundingTime": str(_ms("2024-06-01"))}]},
+        "hyperliquid": [{"coin": "ETH", "fundingRate": "0.0000125", "time": _ms("2024-06-01")}],
+    })
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
+    series = feed.history(start_date="2024-06-01", end_date="2024-06-02")
+    assert "2024-06-01" in series and "2024-06-02" in series
+    assert sum("kucoin" in u for u in fetcher.calls) == 1  # exactly one window call
+
+
+def test_funding_pagination_hyperliquid_walks_forward_and_normalizes():
+    # HL paginates ascending HOURLY; a full day (24 entries) → normalized to one 8h-equiv/day.
+    hl_day = [{"coin": "ETH", "fundingRate": "0.0000125", "premium": "0",
+               "time": _ms("2024-06-01") + h * 3600000} for h in range(24)]
+    fetcher = PagedFetcher({
+        "hyperliquid": [hl_day],  # one page that IS a list → wrap so it isn't split per-row
+        "fapi.binance": InvalidDataError("down"),  # isolate HL contribution
+        "bybit": InvalidDataError("down"),
+        "okx.com": InvalidDataError("down"),
+        "kucoin": InvalidDataError("down"),
+    })
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=3)
+    series = feed.history(start_date="2024-06-01", end_date="2024-06-01")
+    # only HL alive → median = HL 8h-equiv = 24*0.0000125/3 = 0.0001
+    assert series["2024-06-01"] == pytest.approx(0.0001)
+
+
+def test_funding_pagination_one_venue_bad_others_carry():
+    # Binance pages are malformed (raises internally) but OTHER venues return → call SUCCEEDS
+    # with the median of the survivors (graceful degradation in the paginated path too).
+    fetcher = PagedFetcher({
+        "fapi.binance": {"oops": "bad"},  # _paginate_binance raises → contributes {}
+        "bybit": {"retCode": 0, "result": {"list": [
+            {"symbol": "ETHUSDT", "fundingRate": "0.0003", "fundingRateTimestamp": str(_ms("2024-06-01"))}]}},
+        "okx.com": {"code": "0", "data": [
+            {"fundingRate": "0.0001", "fundingTime": str(_ms("2024-06-01"))}]},
+        "kucoin": {"code": "200000", "data": [
+            {"symbol": "ETHUSDTM", "fundingRate": 0.0002, "timepoint": _ms("2024-06-01")}]},
+        "hyperliquid": InvalidDataError("down"),
+    })
+    feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=5)
+    series = feed.history(start_date="2024-06-01", end_date="2024-06-01")
+    # survivors on the day: bybit 0.0003, okx 0.0001, kucoin 0.0002 → median 0.0002
+    assert series["2024-06-01"] == pytest.approx(0.0002)
+
+
+def test_funding_pagination_all_venues_bad_raises():
+    # If EVERY venue fails for the window, the merged series is empty → fail-CLOSED (raises).
+    # (A single bad venue degrades gracefully; that is covered separately below.)
+    fetcher = PagedFetcher({
+        "fapi.binance": {"oops": "not a list"},
+        "bybit": {"retCode": 10001, "result": {"list": []}},
+        "okx.com": {"code": "50011", "data": []},
+        "kucoin": {"code": "400", "data": []},
+        "hyperliquid": {"oops": 1},
+    })
     feed = FundingFeed(fetcher=fetcher, page_delay_s=0, max_pages=10)
     with pytest.raises(InvalidDataError):
         feed.history(start_date="2024-06-01", end_date="2024-06-30")
