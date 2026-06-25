@@ -113,6 +113,41 @@ const surfaces = [
       </div>
     </section>
 
+    <!-- Proof of Reserves (provenance plane) -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex items-baseline justify-between mb-6 flex-wrap gap-2">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
+        <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="sys-por-src">static fallback</span></p>
+      </div>
+      <a href="/track-record" class="group block rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+        <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+          <p class="text-sm font-medium text-white group-hover:text-white/90" data-ru="Верифицируемый NAV — каждый доллар учтён, криптографически проверяемо">Verifiable NAV — every dollar accounted for, cryptographically verifiable</p>
+          <span id="sys-por-recon" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-white/40 shrink-0">
+            <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
+            <span data-ru="загрузка…">loading…</span>
+          </span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div>
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="NAV (бумажный)">NAV (paper)</p>
+            <p class="text-lg font-mono font-bold text-teal-400" id="sys-por-nav">—</p>
+          </div>
+          <div>
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение">Delta</p>
+            <p class="text-lg font-mono font-bold text-white/70" id="sys-por-delta">—</p>
+          </div>
+          <div>
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Хэш проверки">Verification hash</p>
+            <p class="text-sm font-mono text-teal-300/70 break-all" id="sys-por-hash">—</p>
+          </div>
+        </div>
+        <p class="text-xs text-white/30 mt-4" data-ru="NAV = вложено + кэш + начислено, сверяется с заявленным капиталом. Бумажное доказательство резервов (методология на виртуальном портфеле $100k, не реальное кастоди). Полная панель → /track-record">
+          NAV = deployed + cash + accrued, reconciled against reported equity. Paper proof-of-reserves
+          (methodology on the virtual $100k book, not real custody). Full panel → /track-record
+        </p>
+      </a>
+    </section>
+
     <!-- Daily cycle -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Ежедневный цикл">The daily cycle</p>
@@ -154,7 +189,28 @@ const surfaces = [
         }).catch(function(){});
       }
 
-      function init(){ loadAgents(); }
+      function fmtUsd(v){ return '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+      function isRu(){ try{ return (localStorage.getItem('spa_lang') || 'en') === 'ru'; }catch(e){ return false; } }
+
+      function loadNav(){
+        fetch(API + '/api/tier1/nav').then(function(r){ return r.json(); }).then(function(d){
+          if(!d || d.computed_nav_usd == null) return;
+          setText('sys-por-nav', fmtUsd(d.computed_nav_usd));
+          if(d.reconciliation_delta_usd != null) setText('sys-por-delta', fmtUsd(d.reconciliation_delta_usd));
+          if(d.nav_hash) setText('sys-por-hash', d.nav_hash.slice(0,20) + '…' + d.nav_hash.slice(-6));
+          var chip = document.getElementById('sys-por-recon');
+          if(chip){
+            var ok = d.reconciliation_ok === true;
+            chip.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono shrink-0 border ' +
+              (ok ? 'bg-teal-500/10 border-teal-500/30 text-teal-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300');
+            chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + (ok ? 'bg-teal-400' : 'bg-amber-400') + '" aria-hidden="true"></span>' +
+              (ok ? (isRu() ? 'сверено ✓' : 'reconciled ✓') : (isRu() ? 'расхождение ⚠' : 'delta ⚠'));
+          }
+          setText('sys-por-src', 'live');
+        }).catch(function(){});
+      }
+
+      function init(){ loadAgents(); loadNav(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
