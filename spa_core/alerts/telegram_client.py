@@ -23,6 +23,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 log = logging.getLogger("spa.alerts.telegram_client")
@@ -41,6 +42,80 @@ RETRIES = 1  # one retry on network error → two attempts total
 # visible in the log without spamming the chat. Fail-open (a guard error never blocks sends).
 _RATE_STATE = Path(__file__).resolve().parents[2] / "data" / ".telegram_rate.json"
 MAX_MSGS_PER_MIN = 12
+
+# ── Alert history (append-only audit trail) ──────────────────────────────────
+# Every send outcome is recorded here for observability: {ts, type, ok, message_id|error}.
+# Ring-buffer capped at HISTORY_MAX so the file never grows unbounded. Atomic write via
+# os.replace. Fail-open: a history error NEVER blocks or fails a send. Disabled under
+# pytest unless SPA_ALERT_HISTORY_TEST is set (so tests don't pollute the live file).
+_HISTORY_STATE = Path(__file__).resolve().parents[2] / "data" / "alert_history.json"
+HISTORY_MAX = 500
+
+
+def _classify(text: str) -> str:
+    """Best-effort alert type from the message text (cheap, prefix-based)."""
+    t = (text or "")
+    head = t.lstrip()[:64]
+    if "Go-Live" in head or "Go-Live" in t[:120]:
+        return "golive"
+    if "Gap" in head:
+        return "gap"
+    if "Важные события" in head or "red flag" in t.lower()[:120]:
+        return "red_flag"
+    if "Tournament" in head or "Турнир" in head:
+        return "tournament"
+    if "подключён" in t[:120] or "startup" in t.lower()[:64]:
+        return "startup"
+    if "SPA —" in head or "SPA " in head:
+        return "daily_summary"
+    return "other"
+
+
+def _record_history(text: str, ok: bool, message_id=None, error: str | None = None) -> None:
+    """Append one send outcome to the ring-buffered alert_history.json. Never raises."""
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
+        "SPA_ALERT_HISTORY_TEST"
+    ):
+        return
+    try:
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "type": _classify(text),
+            "ok": bool(ok),
+            "preview": (text or "")[:80],
+        }
+        if message_id is not None:
+            entry["message_id"] = message_id
+        if error:
+            entry["error"] = str(error)[:200]
+
+        try:
+            doc = json.loads(_HISTORY_STATE.read_text())
+            if not isinstance(doc, dict):
+                doc = {}
+        except Exception:
+            doc = {}
+        entries = doc.get("entries")
+        if not isinstance(entries, list):
+            entries = []
+        entries.append(entry)
+        entries = entries[-HISTORY_MAX:]
+
+        doc = {
+            "schema_version": 1,
+            "source": "telegram_client",
+            "updated_at": entry["ts"],
+            "count": len(entries),
+            "max_entries": HISTORY_MAX,
+            "entries": entries,
+        }
+        _HISTORY_STATE.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(_HISTORY_STATE.parent), prefix=".alerthist_")
+        with os.fdopen(fd, "w") as f:
+            json.dump(doc, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, _HISTORY_STATE)
+    except Exception:  # noqa: BLE001 — observability must never break a send
+        log.debug("alert_history record failed", exc_info=True)
 
 
 def _rate_limit_ok(text: str = "") -> bool:
@@ -121,15 +196,18 @@ def get_chat_id() -> str:
 def _post_message(payload_dict: dict) -> bool:
     """Internal: POST a sendMessage payload. Shared by send_message and
     send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
+    text = payload_dict.get("text", "")
     # FLOOD GUARD: a shared cross-process rate limit so NO sender (any agent) can flood
     # Telegram. Excess messages are DROPPED + logged with a preview (identifies the flooder).
-    if not _rate_limit_ok(payload_dict.get("text", "")):
+    if not _rate_limit_ok(text):
+        _record_history(text, ok=False, error="flood_guard_dropped")
         return False
     try:
         token = get_bot_token()
         chat_id = get_chat_id()
     except EnvironmentError as exc:
         log.warning("Telegram send skipped: %s", exc)
+        _record_history(text, ok=False, error=str(exc))
         return False
 
     payload_dict["chat_id"] = chat_id
@@ -150,6 +228,13 @@ def _post_message(payload_dict: dict) -> bool:
             )
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
                 if resp.status == 200:
+                    msg_id = None
+                    try:
+                        body = json.loads(resp.read().decode("utf-8"))
+                        msg_id = (body.get("result") or {}).get("message_id")
+                    except Exception:  # noqa: BLE001 — body parse is best-effort
+                        pass
+                    _record_history(text, ok=True, message_id=msg_id)
                     return True
                 last_err = RuntimeError(f"HTTP status {resp.status}")
         except urllib.error.HTTPError as exc:
@@ -162,6 +247,7 @@ def _post_message(payload_dict: dict) -> bool:
                 payload = json.dumps(payload_dict).encode("utf-8")
                 continue
             log.warning("Telegram API error %s: %s", exc.code, exc.reason)
+            _record_history(text, ok=False, error=f"HTTP {exc.code}: {exc.reason}")
             return False
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             last_err = exc
@@ -169,6 +255,7 @@ def _post_message(payload_dict: dict) -> bool:
             last_err = exc
 
     log.warning("Telegram send failed after %d attempt(s): %s", 1 + RETRIES, last_err)
+    _record_history(text, ok=False, error=str(last_err))
     return False
 
 
