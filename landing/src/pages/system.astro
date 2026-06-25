@@ -1,0 +1,162 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+// The 8 architectural planes (spec: Tier-1 8-plane build).
+const planes = [
+  { en: 'Validation', ru: 'Валидация', desc_en: 'Deflated Sharpe, PSR, min track length on every result', desc_ru: 'Deflated Sharpe, PSR, мин. длина трека на каждом результате' },
+  { en: 'Risk', ru: 'Риск', desc_en: 'Deterministic RiskPolicy gate — no LLM, cannot be overridden', desc_ru: 'Детерминированный гейт RiskPolicy — без LLM, не переопределить' },
+  { en: 'Audit', ru: 'Аудит', desc_en: 'Append-only audit trail of every cycle and decision', desc_ru: 'Только-добавление: аудит-трейл каждого цикла и решения' },
+  { en: 'Execution readiness', ru: 'Готовность исполнения', desc_en: 'Pre-trade checks before any live capital deployment', desc_ru: 'Предторговые проверки до ввода реального капитала' },
+  { en: 'Governance', ru: 'Управление', desc_en: 'Owner review gates, ADR-tracked policy changes', desc_ru: 'Гейты review Owner, изменения политики через ADR' },
+  { en: 'SSOT', ru: 'Единый источник истины', desc_en: 'Single source of truth mirrored to the site', desc_ru: 'Единый источник истины, зеркалится на сайт' },
+  { en: 'Disaster recovery', ru: 'Аварийное восстановление', desc_en: 'NAV reconciliation, state recovery after host restart', desc_ru: 'Сверка NAV, восстановление состояния после рестарта' },
+  { en: 'Anomaly detection', ru: 'Детекция аномалий', desc_en: 'APY-spike, threat-reactor, kill-switch on critical threats', desc_ru: 'Всплески APY, threat-reactor, kill-switch при критич. угрозах' },
+];
+
+// Live operational surfaces (standalone apps in public/, plus /app).
+const surfaces = [
+  { href: '/app', en: 'Live dashboard', ru: 'Живой дашборд', desc_en: 'Canonical dashboard — equity, positions, go-live', desc_ru: 'Канонический дашборд — капитал, позиции, go-live' },
+  { href: '/agents', en: 'Agent fleet', ru: 'Парк агентов', desc_en: 'The autonomous launchd agents that run the machine', desc_ru: 'Автономные launchd-агенты, управляющие системой' },
+  { href: '/tournament', en: 'Strategy tournament', ru: 'Турнир стратегий', desc_en: 'Backtest → paper → live promotion pipeline', desc_ru: 'Конвейер промоушена backtest → paper → live' },
+  { href: '/control', en: 'Control plane', ru: 'Плоскость управления', desc_en: 'Tier-1 control surface — the 8 planes in one view', desc_ru: 'Tier-1 управление — 8 плоскостей в одном виде' },
+  { href: '/packages', en: 'Risk-tier packages', ru: 'Пакеты по риск-уровням', desc_en: 'Unified Preserve / Core / Max-Yield taxonomy', desc_ru: 'Единая таксономия Preserve / Core / Max-Yield' },
+];
+---
+
+<Layout
+  title="System — How the Machine Runs | earn-defi.com"
+  description="The SPA system hub: the 8-plane Tier-1 architecture, live operational surfaces (dashboard, agent fleet, tournament, control plane), and live agent fleet status from api.earn-defi.com."
+  canonical="https://earn-defi.com/system"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-700/40 text-xs text-teal-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" aria-hidden="true"></span>
+        <span data-ru="Машина, работающая автономно">The machine, running autonomously</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Система">
+        System
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Как устроена машина: восьмиплоскостная Tier-1 архитектура, живые операционные поверхности и парк автономных агентов, переживающих перезагрузку.">
+        How the machine is built: the eight-plane Tier-1 architecture, the live operational
+        surfaces, and the fleet of autonomous agents that survive a reboot.
+      </p>
+    </section>
+
+    <!-- Live agent fleet status -->
+    <section class="pb-10">
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Парк агентов · в реальном времени">Agent fleet · live</p>
+          <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="sys-src">offline</span></p>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Всего">Total</p>
+            <p class="text-2xl font-mono font-bold text-white" id="sys-total">—</p>
+          </div>
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Здоровых">Healthy</p>
+            <p class="text-2xl font-mono font-bold text-emerald-400" id="sys-healthy">—</p>
+          </div>
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Внимание">Warning</p>
+            <p class="text-2xl font-mono font-bold text-amber-400" id="sys-warn">—</p>
+          </div>
+          <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Критич.">Critical</p>
+            <p class="text-2xl font-mono font-bold text-red-400" id="sys-crit">—</p>
+          </div>
+        </div>
+        <p class="text-xs text-white/30 mt-4" data-ru="Статус читается из живого heartbeat агентов (agent_health, ежечасно). При офлайне поля показывают «—».">
+          Status reads from the live agent heartbeat (agent_health, hourly). When offline, fields show "—".
+        </p>
+      </div>
+    </section>
+
+    <!-- 8-plane architecture -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Восьмиплоскостная архитектура (Tier-1)">Eight-plane architecture (Tier-1)</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed max-w-2xl" data-ru="Каждая плоскость — независимый, детерминированный слой защиты. Цикл fail-safe: если любая плоскость падает, торговля не идёт.">
+        Each plane is an independent, deterministic safety layer. The cycle is fail-safe:
+        if any plane fails, no trade goes through.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {planes.map((p, i) => (
+          <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+            <div class="flex items-center gap-3 mb-1.5">
+              <span class="flex-shrink-0 w-6 h-6 rounded-md bg-teal-500/10 border border-teal-500/25 flex items-center justify-center text-xs text-teal-400 font-mono">{i + 1}</span>
+              <p class="text-sm font-semibold text-white" data-ru={p.ru}>{p.en}</p>
+            </div>
+            <p class="text-xs text-white/40 leading-relaxed pl-9" data-ru={p.desc_ru}>{p.desc_en}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Live operational surfaces -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Живые операционные поверхности">Live operational surfaces</p>
+      <div class="space-y-3">
+        {surfaces.map((s) => (
+          <a href={s.href} class="group flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] px-5 py-4 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-white group-hover:text-white/90" data-ru={s.ru}>{s.en}</p>
+              <p class="text-xs text-white/35 mt-0.5" data-ru={s.desc_ru}>{s.desc_en}</p>
+            </div>
+            <span class="text-white/20 group-hover:text-accent-400 transition-colors flex-shrink-0">→</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- Daily cycle -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Ежедневный цикл">The daily cycle</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5 font-mono text-xs text-white/55 leading-relaxed overflow-x-auto">
+        <span class="text-teal-400">08:00 UTC</span> · adapter orchestrator (read-only) → live APY/TVL<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ multi-strategy runner (S0–S77, tournament)<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ allocator → target allocation with caps<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ <span class="text-amber-400">RiskPolicy gate (deterministic, LLM forbidden)</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ virtual rebalance → daily yield accrual<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ <span class="text-accent-400">GoLiveChecker → 29 criteria</span>
+      </div>
+      <p class="text-xs text-white/30 mt-4" data-ru="Стек: Python 3, только stdlib в runtime. Атомарные записи во все state-файлы. Агенты установлены через launchd и переживают перезагрузку.">
+        Stack: Python 3, stdlib-only at runtime. Atomic writes to all state files. Agents are
+        installed via launchd and survive reboots.
+      </p>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <script is:inline>
+    /* Live agent fleet — api.earn-defi.com, localhost fallback, graceful offline. */
+    (function(){
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function setText(id, txt){ var el = document.getElementById(id); if(el){ el.textContent = txt; } }
+
+      function loadAgents(){
+        fetch(API + '/api/live/agents').then(function(r){ return r.json(); }).then(function(d){
+          if(!d || d.status === 'no_data' || d.status === 'error') return;
+          var total = d.total_agents, healthy = d.healthy_count, warn = d.warning_count, crit = d.critical_count;
+          if(total != null) setText('sys-total', total);
+          if(healthy != null) setText('sys-healthy', healthy);
+          if(warn != null) setText('sys-warn', warn);
+          if(crit != null) setText('sys-crit', crit);
+          if(total != null) setText('sys-src', 'live');
+        }).catch(function(){});
+      }
+
+      function init(){ loadAgents(); }
+      if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>
