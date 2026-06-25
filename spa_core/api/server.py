@@ -610,6 +610,81 @@ def get_refusal():
     return raw
 
 
+@app.get("/api/rates-desk/surface", tags=["strategy_lab"])
+def get_rates_desk_surface():
+    """Rates-Desk current RateSurface — data/rates_desk/rate_surface.json.
+
+    The assembled fixed/implied-rate surface (PT / lending / boros RateQuotes + per-underlying risk +
+    the honest per-underlying hedge_available map) from feeds.build_surface. Read-only, graceful: served
+    VERBATIM from the file; returns an empty payload (not an error) when the JSON is missing/corrupt,
+    mirroring /api/strategy-lab and the tier1 handlers.
+    """
+    raw = _load_json("rates_desk/rate_surface.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None, "as_of": None, "mode": None,
+            "hedge_available": {}, "quotes": [], "underlying_risk": {},
+        }
+    return raw
+
+
+@app.get("/api/rates-desk/opportunities", tags=["strategy_lab"])
+def get_rates_desk_opportunities():
+    """Rates-Desk current opportunity scan — the four trade shapes ranked by net_edge.
+
+    Built from the cached RateSurface (data/rates_desk/rate_surface.json) via the pure OpportunityEngine
+    (NO risk veto — that is the gate's job). Read-only, graceful: returns an empty payload (not an error)
+    when the surface is missing/corrupt or the scan cannot be built, mirroring the other handlers.
+    """
+    raw = _load_json("rates_desk/rate_surface.json", {})
+    empty = {"generated_at": None, "as_of": None, "n_opportunities": 0, "opportunities": []}
+    if not raw or not isinstance(raw, dict) or not raw.get("quotes"):
+        return empty
+    try:
+        from spa_core.strategy_lab.rates_desk.surface_io import scan_cached_surface
+        return scan_cached_surface(raw)
+    except Exception as e:  # noqa: BLE001 — graceful, never 500 the dashboard
+        log.warning(f"rates-desk opportunities scan failed: {e}")
+        return empty
+
+
+@app.get("/api/rates-desk/decisions", tags=["strategy_lab"])
+def get_rates_desk_decisions(limit: int = Query(default=50, ge=1, le=500)):
+    """Rates-Desk recent decision log — data/rates_desk/decision_log.jsonl (incl. REFUSALS).
+
+    The public "what we traded AND what we refused + why" record: each entry is a hashed gate verdict
+    (ENTRY or REFUSAL) with its proof_hash + the yield decomposition. Read-only, graceful: returns an
+    empty list when the log is absent. Most recent last.
+    """
+    path = (_DATA_DIR / "rates_desk" / "decision_log.jsonl")
+    rows = []
+    if path.exists():
+        try:
+            for ln in path.read_text(encoding="utf-8").splitlines():
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    rows.append(json.loads(ln))
+                except json.JSONDecodeError:
+                    continue
+        except OSError as e:
+            log.warning(f"rates-desk decision log read failed: {e}")
+    rows = rows[-limit:]
+    counts = {"ENTRY": 0, "REFUSAL": 0}
+    for r in rows:
+        k = r.get("kind")
+        if k in counts:
+            counts[k] += 1
+    return {
+        "generated_at": _now(),
+        "model": "rates_desk_decision_log",
+        "n_decisions": len(rows),
+        "counts": counts,
+        "decisions": rows,
+    }
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """

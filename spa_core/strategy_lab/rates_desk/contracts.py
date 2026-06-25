@@ -209,6 +209,8 @@ class KillState:
     kill_reason: KillReason = KillReason.NONE
     last_as_of: str = ""             # the as_of of the last evaluation (audit)
     entry_carry: Optional[Decimal] = None  # the carry/basis locked at entry (compression baseline)
+    high_util_since: Optional[int] = None  # epoch-seconds the pool first crossed max utilization
+                                           # (continuous utilization-trap tracking); None == not high
 
     def proof(self) -> Dict[str, str]:
         return {
@@ -217,6 +219,7 @@ class KillState:
             "kill_reason": self.kill_reason.value,
             "last_as_of": self.last_as_of,
             "entry_carry": "" if self.entry_carry is None else str(self.entry_carry),
+            "high_util_since": "" if self.high_util_since is None else str(self.high_util_since),
         }
 
 
@@ -247,6 +250,10 @@ class RatePolicyParams:
     carry_compression_frac: Decimal = Decimal("0.5")  # locked carry compressed below this frac of entry → kill
     maturity_buffer_seconds: int = 86400 * 2          # within 2 days of maturity → MATURITY_BUFFER unwind
     max_hold_utilization: Decimal = Decimal("0.97")   # pool utilization above this → UTILIZATION_TRAP
+    max_utilization_seconds: int = 0                  # util must stay above max CONTINUOUSLY this long
+                                                      # before UTILIZATION_TRAP fires. DEFAULT 0 == fire on
+                                                      # the first high tick (back-compat); set > 0 to require
+                                                      # a sustained streak (transient-spike hysteresis).
     max_hold_concentration: Decimal = Decimal("0.40") # single-borrower share above this → CONCENTRATION
 
     # — haircut coefficients (k_*): haircut = k * normalized_risk, each clamped [0, cap] —

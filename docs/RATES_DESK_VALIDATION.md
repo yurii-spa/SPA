@@ -84,3 +84,24 @@ Stress-window survival (book mean APY must beat the floor THROUGH each event):
 > _Note on Sharpe: Locked held-to-maturity carry has near-zero downside variance by construction, so its Sharpe is structurally inflated (degenerate) — it is reported as a not-noise check only; the verdict rests on the realized book APY beating the floor in-sample, out-of-sample, and in every stress window._
 
 > **GO — the survivor carry book beats the RWA floor risk-adjusted across the full deep window (real stress + multiple maturities). Carry leg is real → fundable.**
+
+<!-- BEGIN rates-desk 4-sleeve validation (backtest_rates) -->
+
+## Full 4-sleeve validation (backtest_rates replay)
+
+_Replay of all four rates-desk sleeves over the DEEP historical RateSurface (2024-01-09→2026-06-25, 899 days, $100,000 each). Deterministic (same data → same result), PURE pricing/policy, fail-CLOSED. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.backtest_rates`._
+
+RWA floor: **3.4%/yr**. Boros hedge venue: **OFF — all False (honest)**.
+
+| sleeve | shape | net APY %/yr | beats floor | max DD % | deflated Sharpe (passes 0.95) | kills | refusals | stage |
+|---|---|---:|:--:|---:|---:|---:|---:|---|
+| Fixed Carry (PT→maturity) | `fixed_carry` | 23.7819 | yes | 0.000 | 1.0 (yes) | 20 | 1649 | **PAPER_CANDIDATE** |
+| Levered Carry (borrow stable, buy PT) | `levered_carry` | 26.4398 | yes | 0.000 | 1.0 (yes) | 27 | 2201 | **PAPER_CANDIDATE** |
+| Basis Hedge (PT vs Boros funding) | `basis_hedge` | 0.0000 | n/a (blocked) | 0.000 | n/a | 0 | 0 | **BLOCKED-NO-HEDGE** |
+| Rate Matrix (argmax venue) | `rate_matrix` | 11.7469 | yes | 0.000 | 1.0 (yes) | 174 | 3258 | **PAPER_CANDIDATE** |
+
+> **BasisHedge — BLOCKED-NO-HEDGE.** BASIS_HEDGE unavailable — BorosFeed.HEDGE_ENABLED is False (no keyless forward-funding venue), so the shape never forms. Reported honestly as zero opportunities, never fabricated.
+
+> The desk's whole edge is visible in the **refusals** column: the gate refused the toxic restaking (LRT) books on most days — the carry sleeves only ever held the harvestable stable-synth PTs. Net APY is the locked-at-entry carry held to maturity (degenerate-Sharpe near-zero downside by construction — the verdict rests on beating the floor across stress, see Assertion 2 above).
+
+<!-- END rates-desk 4-sleeve validation (backtest_rates) -->

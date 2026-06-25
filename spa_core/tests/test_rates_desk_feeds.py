@@ -17,6 +17,7 @@ per the brief §1-2:
 from __future__ import annotations
 
 import json
+import socket
 from decimal import Decimal
 
 import pytest
@@ -28,6 +29,54 @@ from spa_core.strategy_lab.rates_desk.contracts import (
     UnderlyingKind,
     UnderlyingRisk,
 )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# NETWORK ISOLATION (CI-safe, deterministic-order-safe)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# Root cause of the historical live-test flake: the feeds default to the SHARED real fetcher
+# (feeds._http_fetch → urllib.urlopen). A *_live_* test that is constructed without an injected
+# fetcher (or where one path falls through to the default) reaches the live Pendle/DeFiLlama endpoint.
+# Whether that endpoint answered depended on (a) network availability in the runner and (b) which
+# earlier test had already warmed/poisoned the live snapshot — i.e. an intra-module live-network
+# coupling that only surfaced under deterministic collection order, not under -p randomly. The two
+# guards below remove BOTH degrees of freedom: every test in this module is forbidden from opening a
+# real socket (so any accidental fall-through to the default fetcher fails LOUDLY and deterministically
+# instead of flaking), and the live-mode tests skip cleanly when the endpoint is genuinely unreachable.
+
+_REAL_SOCKET_CONNECT = socket.socket.connect
+_REAL_CREATE_CONNECTION = socket.create_connection
+
+
+@pytest.fixture(autouse=True)
+def _no_real_network(monkeypatch):
+    """Module-wide: forbid real outbound sockets. The whole suite is PURE (every feed gets an injected
+    fetcher); a real connection means a test accidentally fell through to feeds._http_fetch. Turn that
+    latent live coupling into a deterministic, order-independent failure."""
+
+    def _blocked(*_a, **_k):  # pragma: no cover - only hit on a regression
+        raise RuntimeError(
+            "real network access is forbidden in test_rates_desk_feeds: a feed fell through to the "
+            "default _http_fetch instead of using an injected fetcher")
+
+    monkeypatch.setattr(socket.socket, "connect", _blocked, raising=True)
+    monkeypatch.setattr(socket, "create_connection", _blocked, raising=True)
+    yield
+
+
+def _network_available(host: str = "8.8.8.8", port: int = 53, timeout: float = 0.5) -> bool:
+    """Best-effort liveness probe that bypasses the autouse guard by calling the SAVED real
+    socket.connect directly (the guard patches socket.socket.connect, which create_connection uses
+    internally). Lets a live-mode test SKIP on a CI box with no egress instead of erroring. Never raises."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        _REAL_SOCKET_CONNECT(sock, (host, port))
+        return True
+    except OSError:
+        return False
+    finally:
+        sock.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -166,6 +215,19 @@ def test_pendle_feed_live_active_endpoint():
 def test_pendle_feed_live_fail_closed_bad_payload():
     feed = feeds.PendleMarketFeed(fetcher=lambda url: "not an object")
     with pytest.raises(feeds.FeedError):
+        feed.quotes_live("2026-01-01")
+
+
+def test_pendle_feed_live_default_fetcher_skips_when_offline():
+    """A PendleMarketFeed built WITHOUT an injected fetcher uses the live endpoint. In CI (no egress)
+    this must SKIP, never fail — proving the suite does not REQUIRE live network. The autouse network
+    guard also guarantees it can never silently succeed against a real socket."""
+    if not _network_available():
+        pytest.skip("no network egress — live Pendle endpoint unreachable (CI-safe skip)")
+    # Network is up but the autouse guard still forbids real sockets inside the suite, so the live
+    # call is expected to be blocked deterministically rather than reaching out.
+    feed = feeds.PendleMarketFeed()  # default real fetcher
+    with pytest.raises((RuntimeError, feeds.FeedError, OSError)):
         feed.quotes_live("2026-01-01")
 
 
@@ -470,3 +532,105 @@ def test_build_surface_without_lending():
         include_lending=False,
     )
     assert all(q.venue is RateVenue.PENDLE_PT for q in quotes)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# FIX 2 — KillState.high_util_since: continuous utilization-trap tracking (evaluate_hold)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# The brief's evaluate_hold must fire UTILIZATION_TRAP only when utilization stays above the ceiling
+# CONTINUOUSLY for >= max_utilization_seconds. high_util_since (epoch of first crossing) carries that
+# streak across ticks PURELY (state in → state out). These tests prove: a single high tick does NOT
+# trap; the streak accrues across ticks with advancing as_of; the trap fires once the duration is met;
+# and a tick that drops back below the ceiling RESETS the streak.
+from dataclasses import replace  # noqa: E402
+
+from spa_core.strategy_lab.rates_desk.contracts import (  # noqa: E402
+    KillReason,
+    KillState,
+    Opportunity,
+    RatePolicyParams,
+    TradeShape,
+)
+from spa_core.strategy_lab.rates_desk.rate_policy import evaluate_hold  # noqa: E402
+
+
+_D = Decimal
+# require a sustained 1-day high-utilization streak before trapping (vs the back-compat default of 0)
+_UTIL_PARAMS = replace(RatePolicyParams(), max_utilization_seconds=86400)
+
+
+def _util_risk(as_of: str) -> UnderlyingRisk:
+    """A structurally HEALTHY underlying so the only thing that can kill is the utilization trap."""
+    return UnderlyingRisk(
+        underlying="susde", as_of=as_of,
+        nav_redemption_value=_D("1"), market_price=_D("1.0003"), peg_distance=_D("0.0003"),
+        peg_vol_30d=_D("0.001"), redemption_sla_seconds=86400, reserve_fund_ratio=_D("0.05"),
+        funding_neg_frac_90d=_D("0.05"), oracle_kind="chainlink", oracle_staleness_seconds=300,
+        nested_protocol_count=1, top_borrower_share=_D("0.1"),
+    )
+
+
+def _util_hold_opp(as_of: str, util: str) -> Opportunity:
+    q = RateQuote(
+        underlying="susde", kind=UnderlyingKind.STABLE_SYNTH, venue=RateVenue.PENDLE_PT, protocol="p",
+        market_id="pt-susde", tenor_seconds=86400 * 60, as_of=as_of,
+        quoted_rate=_D("0.09"), tvl_usd=_D("5e7"), exit_liquidity_usd=_D("2e6"),
+        hedge_available=True, utilization=_D(util), ltv=_D("0"),
+    )
+    return Opportunity(quote=q, shape=TradeShape.FIXED_CARRY, requested_size_usd=_D("100000"))
+
+
+def _hold(as_of: str, util: str, state: KillState):
+    opp = _util_hold_opp(as_of, util)
+    return evaluate_hold(opp, _util_risk(as_of), _D("1"), opp.quote.exit_liquidity_usd,
+                         _D("0.05"), _UTIL_PARAMS, state)
+
+
+def test_util_trap_single_high_tick_does_not_fire():
+    """One tick above the ceiling must HOLD (not trap) and STAMP high_util_since for the streak."""
+    res, ns = _hold("2026-06-01", "0.99", KillState(entry_carry=_D("0.05")))
+    assert res.approved is True
+    assert res.reason == KillReason.NONE
+    assert ns.high_util_since is not None  # crossing recorded
+
+
+def test_util_trap_fires_only_after_continuous_duration():
+    """High utilization sustained ACROSS ticks for >= max_utilization_seconds → UTILIZATION_TRAP."""
+    # tick 1 (day 0): first crossing → hold, streak stamped
+    r1, s1 = _hold("2026-06-01", "0.99", KillState(entry_carry=_D("0.05")))
+    assert r1.approved is True
+    since = s1.high_util_since
+    # tick 2 (~12h later, still < 1 day continuous) → still HOLD, same streak anchor
+    r2, s2 = _hold("2026-06-01T12:00:00+00:00", "0.99", s1)
+    assert r2.approved is True
+    assert s2.high_util_since == since  # anchor carried forward, not re-stamped
+    # tick 3 (day 1, >= 86400s continuous) → TRAP fires
+    r3, s3 = _hold("2026-06-02", "0.99", s2)
+    assert r3.approved is False
+    assert r3.reason == KillReason.UTILIZATION_TRAP
+    assert s3.killed is True
+
+
+def test_util_trap_resets_when_utilization_drops():
+    """A tick back below the ceiling clears the streak; a later spike restarts the clock from scratch."""
+    # build up a streak
+    _, s1 = _hold("2026-06-01", "0.99", KillState(entry_carry=_D("0.05")))
+    assert s1.high_util_since is not None
+    # utilization recovers → streak cleared
+    r2, s2 = _hold("2026-06-01T12:00:00+00:00", "0.50", s1)
+    assert r2.approved is True
+    assert s2.high_util_since is None
+    # a new spike a day later does NOT instantly trap (clock restarted, elapsed 0 < window)
+    r3, s3 = _hold("2026-06-02", "0.99", s2)
+    assert r3.approved is True
+    assert r3.reason == KillReason.NONE
+    assert s3.high_util_since is not None
+
+
+def test_util_trap_default_params_fire_immediately_backcompat():
+    """With the default max_utilization_seconds=0, a single high tick traps immediately (back-compat)."""
+    opp = _util_hold_opp("2026-06-01", "0.99")
+    res, ns = evaluate_hold(opp, _util_risk("2026-06-01"), _D("1"), opp.quote.exit_liquidity_usd,
+                            _D("0.05"), RatePolicyParams(), KillState(entry_carry=_D("0.05")))
+    assert res.approved is False
+    assert res.reason == KillReason.UTILIZATION_TRAP

@@ -31,6 +31,7 @@ YieldDecomposition are string-exact / hashable for the proof chain.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 from typing import Optional, Tuple
 
@@ -47,6 +48,26 @@ from spa_core.strategy_lab.rates_desk.contracts import (
     YieldDecomposition,
 )
 from spa_core.strategy_lab.rates_desk.fair_value_engine import FairValueEngine, _safe_decimal
+
+
+def _as_of_epoch(as_of: str) -> Optional[int]:
+    """PURE as_of (ISO date / timestamp string) → UTC epoch-seconds. Date-only strings anchor at
+    00:00:00 UTC; full timestamps are honored. Never reads the clock. Returns None on a malformed
+    as_of (fail-CLOSED: callers treat None as 'cannot measure duration')."""
+    if not isinstance(as_of, str) or not as_of:
+        return None
+    s = as_of.strip()
+    try:
+        if len(s) <= 10:
+            d = datetime.date.fromisoformat(s[:10])
+            dt = datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc)
+        else:
+            dt = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+        return int(dt.timestamp())
+    except (ValueError, TypeError):
+        return None
 
 
 def _refused(reason: KillReason, opp: Opportunity, decomp: YieldDecomposition,
@@ -241,6 +262,21 @@ def evaluate_hold(
     flip_tick = (fneg is not None and fneg >= Decimal("0.5"))
     new_streak = (state.neg_funding_streak + 1) if flip_tick else 0
 
+    # ── continuous utilization-trap tracking (compute the NEW high_util_since up-front so it threads
+    #    out of EVERY return path, kill or hold — pure state in → state out) ──
+    now_ts = _as_of_epoch(as_of)
+    util = _safe_decimal(q.utilization)
+    util_high = (util is not None and util > params.max_hold_utilization)
+    if not util_high:
+        # utilization has dropped to/below the ceiling → the streak resets.
+        next_high_util_since: Optional[int] = None
+    elif state.high_util_since is not None:
+        # already in a high streak → carry the original crossing timestamp forward.
+        next_high_util_since = state.high_util_since
+    else:
+        # FIRST tick crossing the ceiling → stamp it (None when as_of is unparseable: fail-CLOSED below).
+        next_high_util_since = now_ts
+
     decomp = eng.fair(
         risk=risk, kind=q.kind, tenor_seconds=q.tenor_seconds, hedge_available=q.hedge_available,
         position_size_usd=opp.requested_size_usd, exit_liquidity_usd=exit_liquidity, as_of=as_of,
@@ -248,7 +284,8 @@ def evaluate_hold(
 
     def _kill(reason: KillReason, detail: dict) -> Tuple[GateResult, KillState]:
         ns = KillState(neg_funding_streak=new_streak, killed=True, kill_reason=reason,
-                       last_as_of=as_of, entry_carry=state.entry_carry)
+                       last_as_of=as_of, entry_carry=state.entry_carry,
+                       high_util_since=next_high_util_since)
         return _refused(reason, opp, decomp, current_carry, detail), ns
 
     # (a) UNDERLYING_DEPEG — unwind on a peg break (negative peg = malformed → fail-CLOSED).
@@ -274,11 +311,22 @@ def evaluate_hold(
         return _kill(KillReason.MATURITY_BUFFER, {
             "tenor_seconds": q.tenor_seconds, "buffer": params.maturity_buffer_seconds})
 
-    # (e) UTILIZATION_TRAP — pool too utilized to exit (levered/lending legs).
-    util = _safe_decimal(q.utilization)
-    if util is not None and util > params.max_hold_utilization:
-        return _kill(KillReason.UTILIZATION_TRAP, {
-            "utilization": util, "max": params.max_hold_utilization})
+    # (e) UTILIZATION_TRAP — pool too utilized to exit (levered/lending legs). HYSTERESIS: a single
+    #     high-utilization tick does NOT kill; utilization must stay above max CONTINUOUSLY for at
+    #     least params.max_utilization_seconds. next_high_util_since (computed up-front) is the epoch
+    #     the streak began; we fire only once (now - since) >= the window. fail-CLOSED: if as_of is
+    #     unparseable while utilization is high we cannot measure the duration → kill immediately.
+    if util_high:
+        if now_ts is None or next_high_util_since is None:
+            return _kill(KillReason.UTILIZATION_TRAP, {
+                "utilization": util, "max": params.max_hold_utilization,
+                "note": "as_of unparseable — cannot measure high-util duration (fail-closed)"})
+        elapsed = now_ts - next_high_util_since
+        if elapsed >= params.max_utilization_seconds:
+            return _kill(KillReason.UTILIZATION_TRAP, {
+                "utilization": util, "max": params.max_hold_utilization,
+                "high_util_since": next_high_util_since, "elapsed_seconds": elapsed,
+                "max_utilization_seconds": params.max_utilization_seconds})
 
     # (f) CONCENTRATION — position too large vs current exit liquidity OR borrower concentration.
     topb = _safe_decimal(risk.top_borrower_share)
@@ -310,9 +358,11 @@ def evaluate_hold(
                 "current_carry": cc, "entry_carry": entry,
                 "compression_frac": params.carry_compression_frac})
 
-    # HOLD.
+    # HOLD. (high_util_since threaded forward: utilization is still high but has not yet been high
+    # long enough to trap — the streak keeps accruing across ticks.)
     keep_state = KillState(neg_funding_streak=new_streak, killed=False, kill_reason=KillReason.NONE,
-                           last_as_of=as_of, entry_carry=state.entry_carry)
+                           last_as_of=as_of, entry_carry=state.entry_carry,
+                           high_util_since=next_high_util_since)
     result = GateResult(
         approved=True, reason=KillReason.NONE, as_of=as_of, underlying=q.underlying, shape=opp.shape,
         net_edge=cc, approved_size_usd=opp.requested_size_usd, decomposition=decomp,
