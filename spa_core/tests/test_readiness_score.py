@@ -163,27 +163,23 @@ def test_feed_health_maps_status_to_score(monkeypatch):
 
 
 def test_mev_coverage_status_thresholds(monkeypatch):
-    import spa_core.execution.adapter_status as ast
-
     def _mk(pct):
         return lambda: {
             "mev_protection": {"coverage": {"coverage_pct": pct, "routed": 1, "total": 2}},
             "live_apy_enabled": False,
         }
 
-    monkeypatch.setattr(ast, "build_status_document", _mk(90))
+    monkeypatch.setattr(rs, "_read_adapter_status_json", _mk(90))
     assert rs._mev_coverage_component()["status"] == "ok"
-    monkeypatch.setattr(ast, "build_status_document", _mk(60))
+    monkeypatch.setattr(rs, "_read_adapter_status_json", _mk(60))
     assert rs._mev_coverage_component()["status"] == "warn"
-    monkeypatch.setattr(ast, "build_status_document", _mk(10))
+    monkeypatch.setattr(rs, "_read_adapter_status_json", _mk(10))
     assert rs._mev_coverage_component()["status"] == "degraded"
 
 
 def test_live_apy_false_is_warn_50(monkeypatch):
-    import spa_core.execution.adapter_status as ast
-
     monkeypatch.setattr(
-        ast, "build_status_document",
+        rs, "_read_adapter_status_json",
         lambda: {"live_apy_enabled": False, "mev_protection": {"coverage": {}}},
     )
     rec = rs._live_apy_component()
@@ -193,10 +189,8 @@ def test_live_apy_false_is_warn_50(monkeypatch):
 
 
 def test_live_apy_true_is_ok_100(monkeypatch):
-    import spa_core.execution.adapter_status as ast
-
     monkeypatch.setattr(
-        ast, "build_status_document",
+        rs, "_read_adapter_status_json",
         lambda: {"live_apy_enabled": True, "mev_protection": {"coverage": {}}},
     )
     rec = rs._live_apy_component()
@@ -225,13 +219,12 @@ def test_build_never_raises_when_all_sources_fail(monkeypatch):
     """Make every underlying source raise; the real helpers must swallow it and
     build must still return a valid document with all components unknown."""
     import spa_core.alerts.feed_health_summary as fhs
-    import spa_core.execution.adapter_status as ast
 
     def _boom(*_a, **_k):
         raise RuntimeError("nope")
 
     monkeypatch.setattr(fhs, "build_summary_document", _boom)
-    monkeypatch.setattr(ast, "build_status_document", _boom)
+    monkeypatch.setattr(rs, "_read_adapter_status_json", _boom)
     doc = rs.build_readiness_score_document()
     assert doc["overall_status"] == "unknown"
     assert doc["overall_score"] == 0.0
