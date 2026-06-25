@@ -442,6 +442,78 @@ def get_tier1_status():
     })
 
 
+@app.get("/api/tier1/reverse-stress", tags=["tier1"])
+def get_tier1_reverse_stress():
+    """Inverse stress test — minimal shock that breaches loss tolerance — data/tier1_reverse_stress.json."""
+    return _load_json("tier1_reverse_stress.json", {
+        "generated_at": _now(), "model": "tier1_reverse_stress", "strategies": {},
+    })
+
+
+@app.get("/api/tier1/walk-forward", tags=["tier1"])
+def get_tier1_walk_forward():
+    """Walk-forward out-of-sample validation (consistency, robustness, capacity) — data/tier1_walk_forward.json."""
+    return _load_json("tier1_walk_forward.json", {
+        "generated_at": _now(), "model": "tier1_walk_forward", "strategies": {},
+    })
+
+
+@app.get("/api/tier1/correlation", tags=["tier1"])
+def get_tier1_correlation():
+    """Cross-strategy / package correlation matrix — data/tier1_correlation.json."""
+    return _load_json("tier1_correlation.json", {
+        "generated_at": _now(), "model": "tier1_correlation", "packages": {},
+    })
+
+
+@app.get("/api/tier1/monte-carlo", tags=["tier1"])
+def get_tier1_monte_carlo():
+    """Block-bootstrap Monte-Carlo path simulation — data/tier1_monte_carlo.json."""
+    return _load_json("tier1_monte_carlo.json", {
+        "generated_at": _now(), "model": "tier1_monte_carlo", "strategies": {},
+    })
+
+
+@app.get("/api/tier1/var", tags=["tier1"])
+def get_tier1_var():
+    """Value-at-Risk / CVaR (yield + principal) per validated strategy — data/tier1_var.json."""
+    return _load_json("tier1_var.json", {
+        "generated_at": _now(), "model": "tier1_var", "strategies": [],
+    })
+
+
+@app.get("/api/tier1/limits", tags=["tier1"])
+def get_tier1_limits():
+    """Risk-limit gate (HHI, concentration, tier aggregates, cash floor) — data/tier1_limits.json."""
+    return _load_json("tier1_limits.json", {
+        "generated_at": _now(), "model": "tier1_limits", "limits": {}, "current_portfolio": {},
+    })
+
+
+@app.get("/api/tier1/attribution", tags=["tier1"])
+def get_tier1_attribution():
+    """In-sample vs out-of-sample return attribution — data/tier1_attribution.json."""
+    return _load_json("tier1_attribution.json", {
+        "generated_at": _now(), "model": "tier1_attribution", "strategies": {},
+    })
+
+
+@app.get("/api/tier1/benchmark", tags=["tier1"])
+def get_tier1_benchmark():
+    """Strategy returns vs Aave / risk-free benchmark — data/tier1_benchmark.json."""
+    return _load_json("tier1_benchmark.json", {
+        "generated_at": _now(), "model": "tier1_benchmark", "results": {},
+    })
+
+
+@app.get("/api/tier1/regime", tags=["tier1"])
+def get_tier1_regime():
+    """Market regime classification + per-regime yield — data/tier1_regime.json."""
+    return _load_json("tier1_regime.json", {
+        "generated_at": _now(), "model": "tier1_regime", "current": None, "labels": [],
+    })
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
