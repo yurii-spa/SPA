@@ -212,7 +212,7 @@ def health():
     """
     return {
         "status": "ok",
-        "version": "v0.16",
+        "version": app.version,
         "timestamp": _now(),
     }
 
@@ -844,7 +844,7 @@ def v1_status():
 @app.get("/api/v1/golive", tags=["v1"])
 def v1_golive():
     """
-    GoLive readiness report — 26 criteria.
+    GoLive readiness report — full criteria set (currently 29, v6.0).
     Reads from data/golive_status.json (written by GoLiveChecker each cycle).
     Falls back to running GoLiveReadinessReport inline if file is missing.
     """
@@ -872,12 +872,19 @@ def v1_golive():
 def v1_adapters():
     """
     All registered adapters with tier and live APY.
-    Uses ADAPTER_REGISTRY from spa_core/adapters/adapter_registry.py.
+    Uses ADAPTER_REGISTRY (the populated registry) from spa_core/adapters/__init__.py.
     """
     try:
-        from spa_core.adapters.adapter_registry import REGISTRY
+        # ADAPTER_REGISTRY is a list of (protocol_key, tier, adapter_class) tuples.
+        # NOTE: do NOT use spa_core.adapters.adapter_registry.REGISTRY — that dict
+        # is left empty (no decorator registrations) so it yields zero adapters.
+        from spa_core.adapters import ADAPTER_REGISTRY
         result = []
-        for name, cls in REGISTRY.items():
+        for entry in ADAPTER_REGISTRY:
+            try:
+                name, tier, cls = entry
+            except (ValueError, TypeError):
+                continue
             try:
                 instance = cls()
                 apy = None
@@ -891,15 +898,21 @@ def v1_adapters():
                         apy = instance.get_apy()
                     except Exception:
                         apy = None
-                tier = getattr(instance, "TIER", getattr(cls, "TIER", "?"))
                 result.append({
                     "name": name,
-                    "tier": tier,
+                    "tier": getattr(instance, "TIER", tier),
                     "apy": apy,
-                    "research_only": getattr(instance, "RESEARCH_ONLY", False),
+                    "research_only": getattr(
+                        instance, "RESEARCH_ONLY",
+                        getattr(instance, "IS_ADVISORY", False),
+                    ),
                 })
             except Exception as adapter_err:
                 log.debug(f"Adapter entry error for {name!r}: {adapter_err}")
+                # Still surface the adapter (from registry tuple) even if it
+                # can't be instantiated / priced, so the site shows the roster.
+                result.append({"name": name, "tier": tier, "apy": None,
+                               "research_only": False})
         return {"adapters": result, "count": len(result), "timestamp": _now()}
     except Exception as e:
         log.warning(f"/api/v1/adapters error: {e}")
@@ -1198,11 +1211,17 @@ async def get_tournament_status():
     leaderboard = mass.get("leaderboard", [])
     top3 = leaderboard[:3]
 
+    # strategy_tournament.json uses "shadow_active_strategies"; older/other
+    # producers used "active_strategies". Accept both so the count isn't always 0.
+    active = (tournament.get("shadow_active_strategies")
+              or tournament.get("active_strategies")
+              or [])
+
     return JSONResponse(
         {
             "total_backtested":  mass.get("strategies_tested", 0),
             "total_skipped":     mass.get("strategies_skipped", 0),
-            "paper_phase_count": len(tournament.get("active_strategies", [])),
+            "paper_phase_count": len(active),
             "top3":              top3,
             "server_time":       _now(),
             "live":              True,
