@@ -44,12 +44,24 @@ CLI::
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+
+def _esc(value: Any) -> str:
+    """HTML-escape a dynamic value for parse_mode=HTML.
+
+    Protocol/strategy/display names are external data and may contain ``< > &``
+    which would break Telegram's HTML parser (a 400). Underscores are HTML-safe
+    (the ``_`` problem is Markdown-only). Static template markup is never passed
+    through here — only interpolated dynamic strings.
+    """
+    return html.escape(str(value), quote=False)
 
 log = logging.getLogger("spa.reporting.daily_telegram")
 
@@ -423,7 +435,7 @@ def format_daily_message(data: dict) -> str:
     if isinstance(best, dict):
         sid = best.get("strategy_id", "?")
         napy = best.get("net_apy")
-        lines.append(f"🏆 Best strategy today: {sid} ({_fmt_pct(napy)} APY)")
+        lines.append(f"🏆 Best strategy today: {_esc(sid)} ({_fmt_pct(napy)} APY)")
     lines.append("")
 
     # Positions block — sorted by USD descending, cash last.
@@ -444,7 +456,7 @@ def format_daily_message(data: dict) -> str:
         pct = (val / equity_base * 100) if equity_base else 0.0
         apy_p = m.get("apy")
         apy_str = f" — {apy_p:.1f}% APY" if isinstance(apy_p, (int, float)) else ""
-        lines.append(f"  • {name}: ${val:,.0f} ({pct:.1f}%){apy_str}")
+        lines.append(f"  • {_esc(name)}: ${val:,.0f} ({pct:.1f}%){apy_str}")
     rest = ordered[MAX_POSITION_LINES:]
     if rest:
         rest_usd = sum(v for _, v in rest)
@@ -508,10 +520,10 @@ def format_daily_message(data: dict) -> str:
             lines.append(f"  ✅ Gas: {gas.get('gwei', 0.0):.2f} Gwei (normal)")
         for row in bc.get("adapters", []):
             if row.get("suspended"):
-                lines.append(f"  🚫 {row['label']} [{row['tier']}]: SUSPENDED")
+                lines.append(f"  🚫 {_esc(row['label'])} [{_esc(row['tier'])}]: SUSPENDED")
             else:
                 lines.append(
-                    f"  📊 {row['label']} [{row['tier']}]: {row['apy']:.1f}% APY (monitoring)"
+                    f"  📊 {_esc(row['label'])} [{_esc(row['tier'])}]: {row['apy']:.1f}% APY (monitoring)"
                 )
         lines.append("  ℹ️ Phase 1: monitoring without capital → until 2026-07-12")
 
