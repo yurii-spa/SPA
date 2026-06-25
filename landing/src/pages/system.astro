@@ -113,6 +113,79 @@ const surfaces = [
       </div>
     </section>
 
+    <!-- Promotion pipeline (the honest decision layer) -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Конвейер промоушена · Strategy Lab">Promotion pipeline · Strategy Lab</p>
+        <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="promo-src">offline</span></p>
+      </div>
+      <p class="text-sm text-white/40 mb-5 leading-relaxed max-w-2xl" data-ru="Решающий слой исследований: какие исследовательские sleeve'ы переходят backtest → paper → live и почему. Промоушен — это детерминированный риск-гейт, а не воронка продаж. Мы публикуем то, что ПРОВАЛИВАЕТСЯ, а не только то, что проходит.">
+        The research decision layer: which research sleeves graduate backtest → paper → live, and why.
+        Promotion is a deterministic risk gate, not a sales funnel. We publish what FAILS, not just what passes.
+      </p>
+
+      <!-- Honest framing banner -->
+      <div class="rounded-xl border border-amber-700/40 bg-amber-500/[0.06] p-5 mb-6 flex items-start gap-3">
+        <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xs text-amber-400" aria-hidden="true">!</span>
+        <div>
+          <p class="text-sm font-semibold text-amber-200 mb-1" data-ru="Бумажное исследование · advisory · не в проде. Честный вывод:">Paper research · advisory · not live. The honest finding:</p>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Только стабильные sleeve'ы достигают PAPER_CANDIDATE. Крипто-sleeve'ы (ETH/BTC) ОТКЛОНЕНЫ — они не обыгрывают безрисковый порог ~3.4% с поправкой на риск. Промоушен детерминирован: чистая арифметика по критериям, без LLM, не переопределяется.">
+            Only the stable sleeves reach PAPER_CANDIDATE. The crypto (ETH/BTC) sleeves are REJECTED — they
+            do not beat the ~3.4% risk-free floor on a risk-adjusted basis. The gate is deterministic: pure
+            arithmetic over the criteria, no LLM, cannot be overridden.
+          </p>
+        </div>
+      </div>
+
+      <!-- The pipeline stepper -->
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5 mb-6">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Лестница промоушена">The promotion ladder</p>
+        <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1">
+          {['RESEARCH', 'BACKTEST', 'WALK-FORWARD', 'PAPER', 'CANARY', 'FULL'].map((stage, i, arr) => (
+            <>
+              <div class="flex-shrink-0 flex flex-col items-center gap-1.5">
+                <span class={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono ${i <= 3 ? 'bg-teal-500/10 border-teal-500/30 text-teal-300' : 'bg-white/[0.02] border-white/10 text-white/30'}`}>{i + 1}</span>
+                <span class={`text-[10px] sm:text-xs font-mono whitespace-nowrap ${i <= 3 ? 'text-white/60' : 'text-white/30'}`}>{stage}</span>
+              </div>
+              {i < arr.length - 1 && <span class={`flex-1 min-w-[12px] h-px ${i < 3 ? 'bg-teal-500/30' : 'bg-white/10'}`} aria-hidden="true"></span>}
+            </>
+          ))}
+        </div>
+        <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="Стадии после backtest достигаются только при прохождении гейта. Текущая фаза трека — paper; ни один sleeve не идёт в live, пока трек не подтверждён. RWA-порог, против которого всё измеряется:">
+          Stages past backtest are only reached by clearing the gate. The current track phase is paper; no sleeve
+          goes live until the track is confirmed. RWA floor everything is measured against:
+          <span class="font-mono text-teal-300" id="promo-floor">—</span>
+        </p>
+      </div>
+
+      <!-- Stage summary counts -->
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="rounded-lg bg-white/[0.02] border border-emerald-700/30 p-4">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Кандидат в paper">Paper candidate</p>
+          <p class="text-2xl font-mono font-bold text-emerald-400" id="promo-cnt-paper">—</p>
+        </div>
+        <div class="rounded-lg bg-white/[0.02] border border-teal-700/30 p-4">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Прошёл backtest">Backtest pass</p>
+          <p class="text-2xl font-mono font-bold text-teal-300" id="promo-cnt-backtest">—</p>
+        </div>
+        <div class="rounded-lg bg-white/[0.02] border border-red-700/30 p-4">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Отклонён">Rejected</p>
+          <p class="text-2xl font-mono font-bold text-red-400" id="promo-cnt-reject">—</p>
+        </div>
+      </div>
+
+      <!-- Per-sleeve verdicts, grouped by stage (rendered by script) -->
+      <div id="promo-groups" class="space-y-6">
+        <p class="text-sm text-white/30" data-ru="Загрузка вердиктов промоушена… При офлайне показываются критерии, но не живые значения.">Loading promotion verdicts… When offline, the criteria are shown but not live values.</p>
+      </div>
+
+      <p class="text-xs text-white/30 mt-6 leading-relaxed" data-ru="Критерии (детерминированы, из SSOT-конфига): обыгрывает порог · просадка в пределах · не убит реальным риском · устойчивость walk-forward · ёмкость · положительный net APY. data-gap kill (отсутствующее значение фида) толерируется как fail-closed safe-hold, не как риск-провал. Источник: spa_core/strategy_lab/promotion.py → /api/strategy-lab/promotion.">
+        Criteria (deterministic, from the SSOT config): beats floor · drawdown within band · not killed by real risk ·
+        walk-forward consistency · capacity · positive net APY. A data-gap kill (a missing feed value) is tolerated as
+        a fail-closed safe-hold, not a risk failure. Source: spa_core/strategy_lab/promotion.py → /api/strategy-lab/promotion.
+      </p>
+    </section>
+
     <!-- Proof of Reserves (provenance plane) -->
     <section class="py-10 border-t border-white/5">
       <div class="flex items-baseline justify-between mb-6 flex-wrap gap-2">
@@ -210,7 +283,105 @@ const surfaces = [
         }).catch(function(){});
       }
 
-      function init(){ loadAgents(); loadNav(); }
+      /* Promotion pipeline — /api/strategy-lab/promotion, graceful offline. */
+      function esc(s){ var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+      /* Explicit class strings (NOT constructed at runtime — Tailwind only compiles literal classes). */
+      var STAGE_META = {
+        PAPER_CANDIDATE: { en: 'Paper candidate', ru: 'Кандидат в paper', border: 'border-emerald-700/30', dot: 'bg-emerald-400', text: 'text-emerald-300' },
+        BACKTEST_PASS:   { en: 'Backtest pass',   ru: 'Прошёл backtest', border: 'border-teal-700/30',    dot: 'bg-teal-400',    text: 'text-teal-300' },
+        REJECT:          { en: 'Rejected',        ru: 'Отклонён',        border: 'border-red-700/30',     dot: 'bg-red-400',     text: 'text-red-300' }
+      };
+      // Criterion key → bilingual label.
+      var CRIT_LABELS = {
+        beats_rwa_floor:      { en: 'beats floor', ru: 'обыгрывает порог' },
+        drawdown_within_band: { en: 'drawdown',    ru: 'просадка' },
+        not_killed_real:      { en: 'not killed',  ru: 'не убит риском' },
+        walk_forward_robust:  { en: 'walk-forward',ru: 'walk-forward' },
+        capacity_sufficient:  { en: 'capacity',    ru: 'ёмкость' },
+        positive_net_apy:     { en: 'net APY',     ru: 'net APY' }
+      };
+      var CRIT_ORDER = ['beats_rwa_floor', 'drawdown_within_band', 'not_killed_real', 'walk_forward_robust', 'capacity_sufficient', 'positive_net_apy'];
+
+      function critChip(key, c){
+        var ru = isRu();
+        var lbl = CRIT_LABELS[key] ? (ru ? CRIT_LABELS[key].ru : CRIT_LABELS[key].en) : key;
+        var pending = c && c.pending === true;
+        var pass = c && c.pass === true;
+        var color, mark;
+        if(pending){ color = 'bg-white/5 border-white/15 text-white/40'; mark = '·'; }
+        else if(pass){ color = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'; mark = '✓'; }
+        else { color = 'bg-red-500/10 border-red-500/30 text-red-300'; mark = '✗'; }
+        var title = c && c.detail ? ' title="' + esc(c.detail) + '"' : '';
+        return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono ' + color + '"' + title + '>' + mark + ' ' + esc(lbl) + '</span>';
+      }
+
+      function sleeveCard(s){
+        var ru = isRu();
+        var meta = STAGE_META[s.stage] || { border: 'border-white/10' };
+        var crits = '';
+        CRIT_ORDER.forEach(function(k){ if(s.criteria && s.criteria[k]) crits += critChip(k, s.criteria[k]); });
+        var napy = (s.net_apy_pct != null) ? Number(s.net_apy_pct).toFixed(2) + '%' : '—';
+        var dd = (s.max_drawdown_pct != null) ? Number(s.max_drawdown_pct).toFixed(2) + '%' : '—';
+        var score = (s.score != null && s.max_score != null) ? s.score + '/' + s.max_score : '—';
+        return '<div class="rounded-xl border ' + meta.border + ' bg-white/[0.02] p-4">' +
+          '<div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">' +
+            '<div class="flex items-baseline gap-2 flex-wrap min-w-0">' +
+              '<span class="text-sm font-semibold text-white font-mono">' + esc(s.id) + '</span>' +
+              '<span class="text-xs text-white/35 font-mono">' + esc(s.mandate || '') + '</span>' +
+            '</div>' +
+            '<span class="text-xs font-mono text-white/50 shrink-0">' + (ru ? 'счёт ' : 'score ') + score +
+              ' · net APY ' + napy + ' · dd ' + dd + '</span>' +
+          '</div>' +
+          '<div class="flex flex-wrap gap-1.5 mb-2.5">' + crits + '</div>' +
+          '<p class="text-xs text-white/45 leading-relaxed">' + esc(s.reason || '') + '</p>' +
+        '</div>';
+      }
+
+      function renderPromotion(d){
+        var ru = isRu();
+        var floor = (d.rwa_floor_pct != null) ? Number(d.rwa_floor_pct).toFixed(2) + '%' : '—';
+        setText('promo-floor', floor);
+        var counts = d.stage_counts || {};
+        setText('promo-cnt-paper', counts.PAPER_CANDIDATE != null ? counts.PAPER_CANDIDATE : 0);
+        setText('promo-cnt-backtest', counts.BACKTEST_PASS != null ? counts.BACKTEST_PASS : 0);
+        setText('promo-cnt-reject', counts.REJECT != null ? counts.REJECT : 0);
+
+        var sleeves = Array.isArray(d.sleeves) ? d.sleeves : [];
+        var groupsEl = document.getElementById('promo-groups');
+        if(!groupsEl) return;
+        if(!sleeves.length){
+          groupsEl.innerHTML = '<p class="text-sm text-white/30">' +
+            (ru ? 'Вердикты промоушена недоступны (офлайн или нет данных).' : 'Promotion verdicts unavailable (offline or no data).') + '</p>';
+          return;
+        }
+        var order = ['PAPER_CANDIDATE', 'BACKTEST_PASS', 'REJECT'];
+        var html = '';
+        order.forEach(function(stage){
+          var group = sleeves.filter(function(s){ return s.stage === stage; });
+          if(!group.length) return;
+          var meta = STAGE_META[stage] || { dot: 'bg-white/30', text: 'text-white/50' };
+          var lbl = (ru ? meta.ru : meta.en) || stage;
+          html += '<div>' +
+            '<div class="flex items-center gap-2 mb-3">' +
+              '<span class="w-2 h-2 rounded-full ' + meta.dot + '" aria-hidden="true"></span>' +
+              '<p class="text-xs uppercase tracking-wider font-mono ' + meta.text + '">' + esc(lbl) + ' · ' + group.length + '</p>' +
+            '</div>' +
+            '<div class="space-y-3">' + group.map(sleeveCard).join('') + '</div>' +
+          '</div>';
+        });
+        groupsEl.innerHTML = html;
+      }
+
+      function loadPromotion(){
+        fetch(API + '/api/strategy-lab/promotion').then(function(r){ return r.json(); }).then(function(d){
+          if(!d || typeof d !== 'object') return;
+          renderPromotion(d);
+          if((Array.isArray(d.sleeves) && d.sleeves.length) || d.rwa_floor_pct != null) setText('promo-src', 'live');
+        }).catch(function(){});
+      }
+
+      function init(){ loadAgents(); loadNav(); loadPromotion(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
