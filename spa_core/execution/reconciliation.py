@@ -27,10 +27,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Optional
+
+from spa_core.utils.atomic import atomic_save
 
 _ROOT = Path(__file__).resolve().parents[2]
 _DATA = _ROOT / "data"
@@ -241,20 +241,13 @@ def _load_current() -> dict:
 
 
 def _atomic_write(doc: dict) -> None:
-    """Atomically write ``doc`` as indented JSON to the output path (tmp + os.replace)."""
+    """Atomically write ``doc`` as indented JSON to the output path.
+
+    Delegates to the shared :func:`spa_core.utils.atomic.atomic_save` helper so
+    the project has a single, audited atomic-write implementation.
+    """
     path = _out_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".execrecon_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(doc, f, indent=2, ensure_ascii=False)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    atomic_save(doc, str(path))
 
 
 # --------------------------------------------------------------------------- #
