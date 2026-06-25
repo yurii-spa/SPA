@@ -1,0 +1,118 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+// Field notes — pull the blog entries (the research journal). Keep newest first.
+const posts = [
+  { href: '/blog/2026-06-20-paper-trading-started', date: '2026-06-20',
+    en: 'Paper trading started — the real track begins',
+    ru: 'Бумажная торговля запущена — реальный трек начался' },
+  { href: '/blog/2026-06-19-architecture-audit', date: '2026-06-19',
+    en: 'Architecture audit — 8 planes, honest labeling',
+    ru: 'Аудит архитектуры — 8 плоскостей, честная маркировка' },
+  { href: '/blog/2026-06-18-domain-launched', date: '2026-06-18',
+    en: 'Domain launched — earn-defi.com goes live',
+    ru: 'Домен запущен — earn-defi.com в эфире' },
+];
+---
+
+<Layout
+  title="Research — Field Notes & Strategy Lab | earn-defi.com"
+  description="The SPA research hub: field notes (the lab journal), the deterministic methodology, research-stage strategies (RS-001 Anti-Crisis, RS-002 Cashflow LP), and the Strategy Lab tournament concept."
+  canonical="https://earn-defi.com/research"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-accent-500/10 border border-accent-700/40 text-xs text-accent-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-400" aria-hidden="true"></span>
+        <span data-ru="Открытая лабораторная тетрадь">An open lab notebook</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Исследование">
+        Research
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Журнал работы над честным треком в реальном времени, детерминированная методология и стратегии в стадии исследования. Транспарентность — это и есть продукт.">
+        The journal of building an honest track in public, the deterministic methodology,
+        and strategies still in research. Transparency is the product.
+      </p>
+    </section>
+
+    <!-- Field notes -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Полевые заметки">Field notes</p>
+      <div class="space-y-3">
+        {posts.map((p) => (
+          <a href={p.href} class="group flex items-baseline gap-4 rounded-lg border border-white/8 bg-white/[0.02] px-5 py-4 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+            <span class="text-xs text-white/30 font-mono flex-shrink-0 w-24">{p.date}</span>
+            <span class="text-sm text-white/70 group-hover:text-white" data-ru={p.ru}>{p.en}</span>
+            <span class="ml-auto text-white/20 group-hover:text-accent-400 transition-colors flex-shrink-0">→</span>
+          </a>
+        ))}
+      </div>
+      <div class="mt-4">
+        <a href="/blog" class="text-sm text-accent-400/70 hover:text-accent-400 transition-colors" data-ru="Все заметки журнала →">All journal entries →</a>
+      </div>
+    </section>
+
+    <!-- Methodology card -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Метод">The method</p>
+      <a href="/methodology" class="group block rounded-xl border border-white/10 bg-white/[0.03] p-6 hover:border-white/20 hover:bg-white/[0.05] transition-all">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-white mb-2 group-hover:text-white/90" data-ru="Методология">Methodology</h2>
+            <p class="text-sm text-white/50 leading-relaxed max-w-xl" data-ru="Детерминированный движок, гейты RiskPolicy без LLM, ежедневный цикл: скан APY → стратегии → аллокатор → риск-гейт → виртуальный ребаланс → начисление доходности → проверка go-live.">
+              The deterministic engine, LLM-free RiskPolicy gates, and the daily cycle:
+              APY scan → strategies → allocator → risk gate → virtual rebalance →
+              yield accrual → go-live check.
+            </p>
+          </div>
+          <span class="text-white/20 group-hover:text-accent-400 transition-colors text-xl flex-shrink-0">→</span>
+        </div>
+      </a>
+    </section>
+
+    <!-- Research-stage strategies -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Стратегии в стадии исследования">Research-stage strategies</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed max-w-2xl" data-ru="Эти стратегии — исследовательские проекции, не исторические доказательства. Они не принимают аллокации, пока не получат point-in-time данные и не пройдут строгий бэктест.">
+        These are research projections, not historical evidence. They accept no allocations
+        until they have point-in-time data and pass a strict backtest.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <a href="/strategies/research" class="group rounded-xl border border-orange-500/20 bg-orange-500/[0.04] p-5 hover:border-orange-500/40 transition-all">
+          <p class="text-xs text-orange-400/70 font-mono uppercase tracking-wider mb-2">RS-001</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Антикризисная корзина">Anti-Crisis Basket</p>
+          <p class="text-xs text-white/35" data-ru="цель 18.2% APY · проекция · умеренно-высокий риск">18.2% APY target · projection · moderate-high risk</p>
+        </a>
+        <a href="/strategies/research" class="group rounded-xl border border-red-500/20 bg-red-500/[0.04] p-5 hover:border-red-500/40 transition-all">
+          <p class="text-xs text-red-400/70 font-mono uppercase tracking-wider mb-2">RS-002</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Cashflow / Концентрированный LP">Cashflow / Concentrated LP</p>
+          <p class="text-xs text-white/35" data-ru="цель 29.24% брутто · до IL · агрессивный риск">29.24% gross target · before IL · aggressive risk</p>
+        </a>
+      </div>
+      <a href="/strategies/research" class="text-sm text-accent-400/70 hover:text-accent-400 transition-colors" data-ru="Полный разбор и оговорки по данным →">Full breakdown &amp; data caveats →</a>
+    </section>
+
+    <!-- Strategy Lab -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Лаборатория стратегий">Strategy Lab</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <h2 class="text-xl font-bold text-white mb-2" data-ru="Турнир стратегий">The strategy tournament</h2>
+        <p class="text-sm text-white/50 leading-relaxed max-w-2xl mb-5" data-ru="Каждая стратегия-кандидат проходит конвейер backtest → paper_30d → live. Промоушен только при выполнении критериев: Sharpe ≥ 1.5, ≥ 7 дней бумаги, APY ≥ 3%, просадка ≥ -15%. Новые стратегии стартуют как advisory (только симуляция) до подтверждения.">
+          Every candidate strategy runs a backtest → paper_30d → live pipeline. Promotion
+          requires Sharpe ≥ 1.5, ≥ 7 paper days, APY ≥ 3%, drawdown ≥ -15%. New strategies
+          start advisory (simulate-only) until proven.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="/tournament" class="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors" data-ru="Открыть турнир ↗">View the tournament ↗</a>
+          <a href="/strategies" class="inline-flex items-center gap-2 px-5 py-3 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white text-sm font-medium transition-all" data-ru="Действующие стратегии">Live strategies</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
