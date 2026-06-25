@@ -64,7 +64,7 @@ const global = strategies.global;
             <span class="text-5xl font-mono font-bold text-accent-400">4–6%</span>
             <span class="text-sm text-white/30 font-mono">APY</span>
           </div>
-          <p class="text-xs text-white/25 mt-2">Paper tracked since {global.paper_trading_start}. Variable APY, not guaranteed.</p>
+          <p class="text-xs text-white/25 mt-2"><span data-ru="Бумажный трек с">Paper tracked since</span> {global.paper_trading_start}. <span data-ru="Переменный APY, не гарантирован.">Variable APY, not guaranteed.</span></p>
         </div>
       </div>
     </section>
@@ -114,7 +114,7 @@ const global = strategies.global;
         Family offices and individual allocators seeking systematic, transparent DeFi yield.
       </p>
       <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
-        <p class="text-sm text-white/50 leading-relaxed">
+        <p class="text-sm text-white/50 leading-relaxed" data-ru={core.descriptionRu}>
           {core.description}
         </p>
       </div>
@@ -187,10 +187,10 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {core.does_not.map((item: string) => (
+        {core.does_not.map((item: string, i: number) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
             <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
-            <span class="text-sm text-white/50">{item}</span>
+            <span class="text-sm text-white/50" data-ru={core.does_not_ru?.[i]}>{item}</span>
           </div>
         ))}
       </div>
@@ -376,18 +376,18 @@ const global = strategies.global;
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начнётся реальная торговля?">When does live trading start?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            Target go-live is {global.go_live_target}. Activation requires all 26 GoLiveChecker
+            <span data-ru="Целевая дата запуска —">Target go-live is</span> {global.go_live_target}. <span data-ru="Активация требует выполнения всех 26 критериев GoLiveChecker в течение 7+ дней подряд, плюс 30-дневный непрерывный трек-рекорд и ручную проверку владельцем (ADR-002).">Activation requires all 26 GoLiveChecker
             criteria passing for 7+ consecutive days, plus a 30-day gap-free track record
-            and manual owner review (ADR-002).
+            and manual owner review (ADR-002).</span>
           </p>
         </div>
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Можно ли переопределить риск-политику?">Can the risk policy be overridden?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            No. RiskPolicy v1.0 is a deterministic, hard-coded gate. The code explicitly
-            prevents any agent, strategy, or human from overriding an <code class="text-white/50 font-mono text-xs">approved=False</code> decision.
-            Changing parameters requires a new ADR and version snapshot.
+            <span data-ru="Нет. RiskPolicy v1.0 — детерминированный, жёстко зашитый гейт. Код явно запрещает любому агенту, стратегии или человеку переопределить решение">No. RiskPolicy v1.0 is a deterministic, hard-coded gate. The code explicitly
+            prevents any agent, strategy, or human from overriding an</span> <code class="text-white/50 font-mono text-xs">approved=False</code> <span data-ru="Изменение параметров требует нового ADR и снимка версии.">decision.
+            Changing parameters requires a new ADR and version snapshot.</span>
           </p>
         </div>
 
