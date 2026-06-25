@@ -819,9 +819,38 @@ def _render_md(out: dict) -> str:
     return "\n".join(lines)
 
 
+# marker-delimited sections OTHER modules own (backtest_rates 4-sleeve, calibrate sweep, levered_stress
+# scrutiny). validation owns the assertion narrative + does a FULL doc rewrite, so it must PRESERVE
+# these blocks rather than clobber them (run-order independence).
+_PRESERVE_MARKERS = [
+    ("<!-- BEGIN rates-desk LeveredCarry stress scrutiny (levered_stress) -->",
+     "<!-- END rates-desk LeveredCarry stress scrutiny (levered_stress) -->"),
+    ("<!-- BEGIN rates-desk 4-sleeve validation (backtest_rates) -->",
+     "<!-- END rates-desk 4-sleeve validation (backtest_rates) -->"),
+    ("<!-- BEGIN rates-desk calibration sweep (calibrate) -->",
+     "<!-- END rates-desk calibration sweep (calibrate) -->"),
+]
+
+
+def _preserve_marker_blocks(new_md: str, existing: str) -> str:
+    """Carry forward any marker-delimited section that already exists in the doc but is NOT in the
+    freshly-rendered assertion markdown (so a validation rewrite never wipes the sibling modules'
+    sections). Deterministic; append-only for the preserved blocks."""
+    out = new_md.rstrip("\n")
+    for begin, end in _PRESERVE_MARKERS:
+        if begin in out:
+            continue  # validation already rendered it (it does not, today) → leave as-is
+        if begin in existing and end in existing:
+            block = existing[existing.index(begin): existing.index(end) + len(end)]
+            out = out + "\n\n" + block
+    return out + "\n"
+
+
 def main() -> int:
     out = run()
     md = _render_md(out)
+    existing = _DOC.read_text(encoding="utf-8") if _DOC.exists() else ""
+    md = _preserve_marker_blocks(md, existing)
     _atomic_write(_DOC, md)
     print(json.dumps(out, indent=2, default=str))
     print(f"\nWrote {_DOC}")

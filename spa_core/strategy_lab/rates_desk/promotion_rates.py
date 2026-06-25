@@ -71,6 +71,30 @@ def _atomic_write_json(path: Path, obj: Any) -> None:
             os.unlink(tmp)
 
 
+# stage strictness order (lower index = stricter). LeveredCarry's stage can only be made STRICTER by
+# the honest leverage stress, never looser.
+_STAGE_ORDER = ["REJECT", "BACKTEST_PASS", "PAPER_CANDIDATE"]
+
+
+def _stricter_stage(a: str, b: str) -> str:
+    """Return the STRICTER (lower-rank) of two pipeline stages. Unknown stages are treated as strictest
+    (fail-CLOSED — an unrecognised stage never silently promotes)."""
+    ia = _STAGE_ORDER.index(a) if a in _STAGE_ORDER else -1
+    ib = _STAGE_ORDER.index(b) if b in _STAGE_ORDER else -1
+    if ia < 0:
+        return a
+    if ib < 0:
+        return b
+    return a if ia <= ib else b
+
+
+def _safe_float(x) -> Optional[float]:
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
 def _read_json(path: Path) -> Optional[dict]:
     try:
         with open(path, "r", encoding="utf-8") as fh:
@@ -81,13 +105,23 @@ def _read_json(path: Path) -> Optional[dict]:
 
 
 # ── project a rates-desk sleeve block → the promotion.score_sleeve input record ────────────────────
-def _to_strategy_result(kind: str, blk: dict) -> dict:
+def _to_strategy_result(kind: str, blk: dict, stress_dd_pct: Optional[float] = None) -> dict:
     """Build the {id, mandate, metrics:{...}, kill} record promotion.score_sleeve reads from a
     rates-desk backtest sleeve block. A sleeve that took zero opportunities (e.g. BasisHedge) carries
-    a real kill marker so the rubric treats it honestly (it never scores a pass on no evidence)."""
+    a real kill marker so the rubric treats it honestly (it never scores a pass on no evidence).
+
+    `stress_dd_pct` (LeveredCarry): the HONEST levered-stress max drawdown from levered_stress.py. The
+    backtest_rates equity model is BLIND to leverage (it accrues carry on the base size and never marks
+    the borrow leg / levered PT to market → it reports DD 0.0% for a levered loop, an artifact). When a
+    real stress DD is supplied we use the WORSE of (backtest DD, stress DD) so the drawdown gate sees
+    the true levered risk — never the blind 0.0%."""
+    bt_dd = blk.get("max_drawdown_pct")
+    eff_dd = bt_dd
+    if stress_dd_pct is not None:
+        eff_dd = max(float(bt_dd or 0.0), float(stress_dd_pct))
     metrics = {
         "net_apy_pct": blk.get("net_apy_pct"),
-        "max_drawdown_pct": blk.get("max_drawdown_pct"),
+        "max_drawdown_pct": eff_dd,
         # the rates-desk floor decision is the backtest's own beats_floor + deflated-Sharpe pass:
         # both must hold for an honest risk-adjusted "beats the floor".
         "beats_rwa_floor": bool(blk.get("beats_floor") and blk.get("deflated_sharpe_passes_0_95")),
@@ -144,12 +178,17 @@ def _capacity_proxy(blk: dict) -> float:
 
 
 # ── build the report ────────────────────────────────────────────────────────────────────────────
+DEFAULT_LEVERED_STRESS = _DATA / "levered_stress.json"
+
+
 def build_report(
     write: bool = True,
     backtest: Optional[dict] = None,
     backtest_path: Optional[Path] = None,
     out_path: Optional[Path] = None,
     promotion_config: Optional[dict] = None,
+    levered_stress: Optional[dict] = None,
+    levered_stress_path: Optional[Path] = None,
 ) -> dict:
     """Score the four rates-desk sleeves on the lab promotion rubric, assign each a stage, and
     (optionally) write data/rates_desk/rates_desk_promotion.json atomically.
@@ -165,6 +204,14 @@ def build_report(
     thr = promotion_config if promotion_config is not None else lab_promotion.promotion_config()
     bt = backtest if backtest is not None else _read_json(
         Path(backtest_path) if backtest_path else DEFAULT_BACKTEST)
+    # HONEST levered DD overlay (the blind backtest DD is replaced by the real stress DD for LeveredCarry)
+    ls = levered_stress if levered_stress is not None else _read_json(
+        Path(levered_stress_path) if levered_stress_path else DEFAULT_LEVERED_STRESS)
+    levered_stress_dd = None
+    levered_stress_stage = None
+    if isinstance(ls, dict):
+        levered_stress_dd = _safe_float(ls.get("worst_loop_dd_pct"))
+        levered_stress_stage = ls.get("recommended_stage")
 
     generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     rwa_floor = None
@@ -202,7 +249,9 @@ def build_report(
                 })
                 continue
 
-            strategy_result = _to_strategy_result(kind, blk)
+            # LeveredCarry: feed the HONEST stress DD (the backtest DD is leverage-blind 0.0%).
+            stress_dd = levered_stress_dd if kind == "levered_carry" else None
+            strategy_result = _to_strategy_result(kind, blk, stress_dd_pct=stress_dd)
             wf = _wf_capacity_for(blk)
             score = lab_promotion.score_sleeve(
                 strategy_result, walk_forward=wf, reverse_stress=None,
@@ -216,6 +265,20 @@ def build_report(
             sleeve["refusals_count"] = blk.get("refusals_count", 0)
             sleeve["kills"] = blk.get("kills", 0)
             sleeve["hedge_available"] = bool(blk.get("hedge_available") is True)
+            # LeveredCarry stage is CAPPED at the honest stress verdict — a leverage stress DOWNGRADE
+            # (BACKTEST_PASS) can never be overridden up to PAPER_CANDIDATE by the leverage-blind
+            # backtest. fail-CLOSED: the stricter of (rubric stage, stress-recommended stage) wins.
+            if kind == "levered_carry" and levered_stress_stage:
+                sleeve["stress_dd_pct"] = stress_dd
+                sleeve["stress_recommended_stage"] = levered_stress_stage
+                sleeve["stage"] = _stricter_stage(sleeve["stage"], levered_stress_stage)
+                if sleeve["stage"] != verdict["stage"]:
+                    sleeve["reason"] = (f"{sleeve['stage']} — capped by honest leverage stress "
+                                        f"(worst-loop DD {stress_dd}%); " + verdict["reason"])
+                else:
+                    sleeve["reason"] = (verdict["reason"]
+                                        + f" · gated-leverage-dependent, 'last to enable' "
+                                          f"(stress DD {stress_dd}%, kills fire within band)")
             sleeves.append(sleeve)
 
     stage_counts: Dict[str, int] = {}

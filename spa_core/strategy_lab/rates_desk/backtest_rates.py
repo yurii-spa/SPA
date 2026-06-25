@@ -539,8 +539,11 @@ def _render_doc_section(result: dict, promotion: Optional[dict]) -> str:
     full per-sleeve table (net APY, beats-floor, deflated Sharpe, stage) + the honest BasisHedge note."""
     floor = result.get("rwa_floor_pct")
     stage_by_id = {}
+    stress_dd_by_id = {}
     if isinstance(promotion, dict):
         stage_by_id = {s.get("id"): s.get("stage") for s in promotion.get("sleeves", [])}
+        stress_dd_by_id = {s.get("id"): s.get("stress_dd_pct") for s in promotion.get("sleeves", [])
+                           if s.get("stress_dd_pct") is not None}
     lines: List[str] = [_DOC_BEGIN, ""]
     lines.append("## Full 4-sleeve validation (backtest_rates replay)\n")
     lines.append(
@@ -566,14 +569,26 @@ def _render_doc_section(result: dict, promotion: Optional[dict]) -> str:
                 if ds is not None else "—")
         beats = "yes" if s.get("beats_floor") else "no"
         stage = stage_by_id.get(sid, "—")
+        # LeveredCarry: the backtest DD is leverage-BLIND (0.0%); show the HONEST stress DD instead.
+        dd_val = s.get("max_drawdown_pct", 0.0)
+        dd_s = f"{dd_val:.3f}"
+        if sid in stress_dd_by_id:
+            dd_s = f"{float(stress_dd_by_id[sid]):.3f} (stress)"
         if s.get("blocked_no_hedge"):
             ds_s = "n/a"
             beats = "n/a (blocked)"
         lines.append(
             f"| {names[kind]} | `{kind}` | {s.get('net_apy_pct', 0.0):.4f} | {beats} | "
-            f"{s.get('max_drawdown_pct', 0.0):.3f} | {ds_s} | {s.get('kills', 0)} | "
+            f"{dd_s} | {ds_s} | {s.get('kills', 0)} | "
             f"{s.get('refusals_count', 0)} | **{stage}** |")
     lines.append("")
+    if stress_dd_by_id:
+        lines.append(
+            "> **LeveredCarry max DD is the HONEST levered-stress figure**, not the backtest's "
+            "leverage-blind 0.0% (the replay equity model accrues carry on the base size and never "
+            "marks the borrow leg / levered PT — see the LeveredCarry stress section). It keeps "
+            "PAPER_CANDIDATE only because the kill rules unwind every levered loop within the "
+            "drawdown band; it is GATED-LEVERAGE-DEPENDENT and 'last to enable' per the brief.\n")
     bh = result["sleeves"]["basis_hedge"]
     if bh.get("blocked_no_hedge"):
         lines.append(f"> **BasisHedge — BLOCKED-NO-HEDGE.** {bh.get('blocked_reason', '')}\n")

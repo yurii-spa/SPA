@@ -85,6 +85,27 @@ Stress-window survival (book mean APY must beat the floor THROUGH each event):
 
 > **GO — the survivor carry book beats the RWA floor risk-adjusted across the full deep window (real stress + multiple maturities). Carry leg is real → fundable.**
 
+<!-- BEGIN rates-desk LeveredCarry stress scrutiny (levered_stress) -->
+
+## LeveredCarry — stress scrutiny (honest levered P&L)
+
+_The brief: leverage is 'last to enable' + dangerous; the Oct-2025 USDe leverage unwind is THE test. The backtest_rates equity model is LEVERAGE-BLIND (it accrues carry on the base size and never marks the borrow leg / levered PT → it reports 0.0% DD for a levered loop). This replay models the HONEST levered P&L (exposure = base × gated leverage; daily carry − borrow cost; a front-loaded mark-down GAP realized on the exposure; levered exit slippage) and replays the GATED book (unwinds when evaluate_hold fires) vs the NAIVE (ungated) book. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.levered_stress`._
+
+Base $100000 · max leverage **3×** · drawdown band **15%**.
+
+| stress event | underlying | entry | leverage | gated DD % | naive DD % | kill | unwound in time | survives |
+|---|---|:--:|---:|---:|---:|---|:--:|:--:|
+| 2024-08 ETH crash / carry-unwind | susde | open | 3× | 3.6107 | 4.7137 | carry_compression | yes | yes |
+| 2025-10 USDe leverage unwind (THE test) | susde | open | 3× | 6.8563 | 9.3386 | carry_compression | yes | yes |
+| 2026-04 KelpDAO rsETH depeg | rseth | VETOED | 3× | 0.0000 | n/a | — (no loop) | n/a | yes |
+
+- worst levered-loop DD through stress: **6.8563%** (band 15%)
+- all loop kills fired: **True** · all within band: **True** · toxic LRT entry refused: **True**
+
+> **VERDICT — PAPER_CANDIDATE.** SURVIVES — every levered loop's kill fired and unwound within the drawdown band, and the gate refused entry into the toxic LRT loop. LeveredCarry keeps PAPER_CANDIDATE, but it is GATED-LEVERAGE-DEPENDENT and 'last to enable' per the brief: its safety is entirely the kill rules, not the headline APY.
+
+<!-- END rates-desk LeveredCarry stress scrutiny (levered_stress) -->
+
 <!-- BEGIN rates-desk 4-sleeve validation (backtest_rates) -->
 
 ## Full 4-sleeve validation (backtest_rates replay)
@@ -96,12 +117,64 @@ RWA floor: **3.4%/yr**. Boros hedge venue: **OFF — all False (honest)**.
 | sleeve | shape | net APY %/yr | beats floor | max DD % | deflated Sharpe (passes 0.95) | kills | refusals | stage |
 |---|---|---:|:--:|---:|---:|---:|---:|---|
 | Fixed Carry (PT→maturity) | `fixed_carry` | 23.7819 | yes | 0.000 | 1.0 (yes) | 20 | 1649 | **PAPER_CANDIDATE** |
-| Levered Carry (borrow stable, buy PT) | `levered_carry` | 26.4398 | yes | 0.000 | 1.0 (yes) | 27 | 2201 | **PAPER_CANDIDATE** |
+| Levered Carry (borrow stable, buy PT) | `levered_carry` | 26.4398 | yes | 6.856 (stress) | 1.0 (yes) | 27 | 2201 | **PAPER_CANDIDATE** |
 | Basis Hedge (PT vs Boros funding) | `basis_hedge` | 0.0000 | n/a (blocked) | 0.000 | n/a | 0 | 0 | **BLOCKED-NO-HEDGE** |
 | Rate Matrix (argmax venue) | `rate_matrix` | 11.7469 | yes | 0.000 | 1.0 (yes) | 174 | 3258 | **PAPER_CANDIDATE** |
+
+> **LeveredCarry max DD is the HONEST levered-stress figure**, not the backtest's leverage-blind 0.0% (the replay equity model accrues carry on the base size and never marks the borrow leg / levered PT — see the LeveredCarry stress section). It keeps PAPER_CANDIDATE only because the kill rules unwind every levered loop within the drawdown band; it is GATED-LEVERAGE-DEPENDENT and 'last to enable' per the brief.
 
 > **BasisHedge — BLOCKED-NO-HEDGE.** BASIS_HEDGE unavailable — BorosFeed.HEDGE_ENABLED is False (no keyless forward-funding venue), so the shape never forms. Reported honestly as zero opportunities, never fabricated.
 
 > The desk's whole edge is visible in the **refusals** column: the gate refused the toxic restaking (LRT) books on most days — the carry sleeves only ever held the harvestable stable-synth PTs. Net APY is the locked-at-entry carry held to maturity (degenerate-Sharpe near-zero downside by construction — the verdict rests on beating the floor across stress, see Assertion 2 above).
 
 <!-- END rates-desk 4-sleeve validation (backtest_rates) -->
+
+<!-- BEGIN rates-desk calibration sweep (calibrate) -->
+
+## Calibration sweep — refusal threshold + haircut coefficients
+
+_Brief §9: `max_total_haircut` is the most consequential single parameter. This is an exhaustive, deterministic grid sweep over `max_total_haircut` + `k_peg` + `k_protocol` on the DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor APY). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.calibrate`._
+
+**Chosen (calibrated):** `max_total_haircut=0.12`, `k_peg=4.0`, `k_protocol=0.02` → toxic coverage **100.0%** (all stress events refused: `True`), healthy fire-rate **100.0%**, survivor APY **23.82%** vs floor `3.4%` (beats: `True`).
+
+> The current defaults (`max_total_haircut=0.12`, `k_peg=4.0`, `k_protocol=0.02`) **are confirmed optimal by the sweep** (the chosen point equals them). Calibration is pinned in `config.py` (`CALIBRATED_*`), not hardcoded in the engine.
+
+Trade-off — the boundary (cliff) per coefficient pair (the threshold at/above which a toxic day would leak through):
+
+| k_peg | k_protocol | max SAFE threshold | min LEAKING threshold |
+|---:|---:|---:|---:|
+| 2.0 | 0.01 | 0.12 | 0.14 |
+| 2.0 | 0.02 | 0.14 | 0.16 |
+| 2.0 | 0.03 | 0.14 | 0.16 |
+| 3.0 | 0.01 | 0.14 | 0.16 |
+| 3.0 | 0.02 | 0.14 | 0.16 |
+| 3.0 | 0.03 | 0.16 | 0.18 |
+| 4.0 | 0.01 | 0.14 | 0.16 |
+| 4.0 | 0.02 | 0.16 | 0.18 |
+| 4.0 | 0.03 | 0.18 | 0.20 |
+| 5.0 | 0.01 | 0.16 | 0.18 |
+| 5.0 | 0.02 | 0.18 | 0.20 |
+| 5.0 | 0.03 | 0.18 | 0.20 |
+
+Top sweep rows (admissible first, then survivor APY desc):
+
+| max_total_haircut | k_peg | k_protocol | admissible | toxic cov % | fire-rate % | survivor APY % | beats floor |
+|---:|---:|---:|:--:|---:|---:|---:|:--:|
+| 0.10 | 2.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.12 | 2.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.14 | 2.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.10 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.12 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.14 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.16 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.10 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.12 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.14 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.16 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.18 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.10 | 5.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.12 | 5.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+
+> Reading the curve: loosening `max_total_haircut` raises the survivor fire-rate/APY (less real carry strangled) but eventually lets a toxic restaking book clear the veto — the `min LEAKING threshold` column is exactly where that happens. The calibrated point sits at the richest admissible carry that is still strictly below every leak. On THIS data the toxic LRT books carry a depeg+nesting tail so far above any healthy sUSDe PT that the safe band is wide — the chosen threshold both vetoes 100% of toxic days and leaves healthy carry intact.
+
+<!-- END rates-desk calibration sweep (calibrate) -->

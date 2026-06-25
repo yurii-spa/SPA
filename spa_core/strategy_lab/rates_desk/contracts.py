@@ -224,14 +224,32 @@ class KillState:
 
 
 # ── policy parameters ─────────────────────────────────────────────────────────────────────────────
+def _cal(name: str, fallback: str) -> "Decimal":
+    """Read a CALIBRATED_* constant from config.py as a Decimal (the calibration sweep's pinned value),
+    fail-CLOSED to the documented fallback if config is unavailable. Kept module-local so the policy
+    params stay Decimal-exact while their numeric values live in config.py (auditable / version-pinned,
+    not hardcoded in the engine). LLM-forbidden, pure."""
+    try:
+        from spa_core.strategy_lab.rates_desk import config as _cfg
+        return Decimal(str(getattr(_cfg, name)))
+    except Exception:  # noqa: BLE001 — fail-CLOSED to the documented default
+        return Decimal(fallback)
+
+
 @dataclass(frozen=True)
 class RatePolicyParams:
     """All RatePolicy thresholds in one frozen, version-pinned block (mirrors config.py constants but
     as Decimals so the whole policy path is Decimal-exact). The RatePolicy composes UNDER the global
     RiskPolicy and can only ever be MORE restrictive. Changing any value = a research-config change
-    (record before any capital)."""
+    (record before any capital).
+
+    The refusal threshold + haircut coefficients (`max_total_haircut`, `k_*`, `cap_*`) default to the
+    CALIBRATED values pinned in config.py (the calibration sweep's robust-center output, §9) via the
+    `_cal` factory — they are NOT hardcoded here, so a re-calibration updates config.py and the policy
+    follows. The literal fallbacks equal the committed calibrated values (fail-CLOSED)."""
     # — refusal-first vetoes —
-    max_total_haircut: Decimal = Decimal("0.12")      # total_haircut above this → TAIL_VETO (the REFUSE)
+    max_total_haircut: Decimal = field(  # total_haircut above this → TAIL_VETO (the REFUSE) — CALIBRATED
+        default_factory=lambda: _cal("CALIBRATED_MAX_TOTAL_HAIRCUT", "0.12"))
     max_peg_distance: Decimal = Decimal("0.01")       # |market-nav|/nav above this → UNDERLYING_DEPEG (1%)
     max_oracle_staleness_s: int = 3600                # oracle older than this → ORACLE_STALE (1h)
     max_stable_depeg: Decimal = Decimal("0.005")      # debt/quote stable depeg above this → STABLE_DEPEG (0.5%)
@@ -256,17 +274,17 @@ class RatePolicyParams:
                                                       # a sustained streak (transient-spike hysteresis).
     max_hold_concentration: Decimal = Decimal("0.40") # single-borrower share above this → CONCENTRATION
 
-    # — haircut coefficients (k_*): haircut = k * normalized_risk, each clamped [0, cap] —
-    k_peg: Decimal = Decimal("4.0")                   # peg_distance (fraction) -> APY haircut
-    cap_peg: Decimal = Decimal("0.10")
-    k_funding: Decimal = Decimal("0.10")              # funding_neg_frac_90d -> APY haircut
-    cap_funding: Decimal = Decimal("0.06")
-    k_oracle: Decimal = Decimal("0.04")               # oracle staleness fraction-of-tolerance -> haircut
-    cap_oracle: Decimal = Decimal("0.04")
-    k_liquidity: Decimal = Decimal("0.06")            # (size/exit) shortfall -> haircut
-    cap_liquidity: Decimal = Decimal("0.06")
-    k_protocol: Decimal = Decimal("0.02")             # nesting + concentration -> haircut
-    cap_protocol: Decimal = Decimal("0.05")
+    # — haircut coefficients (k_*): haircut = k * normalized_risk, each clamped [0, cap] — CALIBRATED —
+    k_peg: Decimal = field(default_factory=lambda: _cal("CALIBRATED_K_PEG", "4.0"))           # peg tail
+    cap_peg: Decimal = field(default_factory=lambda: _cal("CALIBRATED_CAP_PEG", "0.10"))
+    k_funding: Decimal = field(default_factory=lambda: _cal("CALIBRATED_K_FUNDING", "0.10"))  # fund overlay
+    cap_funding: Decimal = field(default_factory=lambda: _cal("CALIBRATED_CAP_FUNDING", "0.06"))
+    k_oracle: Decimal = field(default_factory=lambda: _cal("CALIBRATED_K_ORACLE", "0.04"))    # oracle stale
+    cap_oracle: Decimal = field(default_factory=lambda: _cal("CALIBRATED_CAP_ORACLE", "0.04"))
+    k_liquidity: Decimal = field(default_factory=lambda: _cal("CALIBRATED_K_LIQUIDITY", "0.06"))  # size/exit
+    cap_liquidity: Decimal = field(default_factory=lambda: _cal("CALIBRATED_CAP_LIQUIDITY", "0.06"))
+    k_protocol: Decimal = field(default_factory=lambda: _cal("CALIBRATED_K_PROTOCOL", "0.02"))  # nest+conc
+    cap_protocol: Decimal = field(default_factory=lambda: _cal("CALIBRATED_CAP_PROTOCOL", "0.05"))
 
     # — baseline-model parameters —
     tbill_rate: Decimal = Decimal("0.044")            # current 3m t-bill (STABLE_RWA baseline)

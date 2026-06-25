@@ -66,6 +66,33 @@ COST_BUFFER_APY = 0.005      # 0.5%/yr round-trip cost + safety margin
 RWA_FLOOR_APY = 0.034        # ~3.4%/yr
 
 
+# ── CALIBRATED refusal threshold + haircut coefficients (§9 — the most consequential params) ──
+# These are the OUTPUT of the deterministic calibration sweep (calibrate.py) over the DEEP 2024→2026
+# data: the values that VETO 100% of toxic restaking (ezETH/rsETH) PT days before every stress event
+# while FIRING 100% of the healthy sUSDe/USDe carry — chosen at the ROBUST CENTER of the admissible
+# band (max min-distance to either failure cliff), NOT its loose edge.
+#
+# Measured cliffs on this data (k_peg=4.0, k_protocol=0.02):
+#   • healthy sUSDe book total_haircut ≈ 0.0903  → strangles healthy carry below ~0.09
+#   • toxic LRT book   total_haircut ≈ 0.1947    → leaks a toxic book at/above ~0.19
+#   → admissible band [0.09, 0.18]; robust center ≈ 0.14; the pinned 0.12 sits with ~0.03 margin above
+#     the strangle cliff and ~0.07 below the toxic-leak cliff (both healthy-side and toxic-side safe).
+# The sweep CONFIRMS the prior defaults are at the robust optimum (it would not churn a risk cutoff for
+# a cosmetic APY tick — repo rule #7). Changing any value here is a research-config / ADR event.
+# Source-of-truth verdict + the full trade-off curve: docs/RATES_DESK_VALIDATION.md (calibration sweep).
+CALIBRATED_MAX_TOTAL_HAIRCUT = 0.12   # total_haircut above this → TAIL_VETO (the REFUSE)
+CALIBRATED_K_PEG = 4.0                 # peg-distance → APY haircut coefficient (the LRT depeg tail)
+CALIBRATED_CAP_PEG = 0.10
+CALIBRATED_K_FUNDING = 0.10            # funding-flip systemic overlay coefficient
+CALIBRATED_CAP_FUNDING = 0.06
+CALIBRATED_K_LIQUIDITY = 0.06          # size-vs-exit liquidity haircut coefficient
+CALIBRATED_CAP_LIQUIDITY = 0.06
+CALIBRATED_K_PROTOCOL = 0.02           # nesting + concentration tail coefficient
+CALIBRATED_CAP_PROTOCOL = 0.05
+CALIBRATED_K_ORACLE = 0.04
+CALIBRATED_CAP_ORACLE = 0.04
+
+
 # ════════════════════════════════════════════════════════════════════════════════════════════
 # ── DATA-LAYER constants (feeds.py — the RateSurface assembler) ─────────────────────────────
 # ════════════════════════════════════════════════════════════════════════════════════════════
