@@ -1,8 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
-import Footer from '../../components/Footer.astro';
-
 const post = {
   title: "earn-defi.com Launched",
   titleRu: "Запуск earn-defi.com",
@@ -22,26 +20,6 @@ const post = {
 >
 
   <!-- Nav -->
-  <nav class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
-    <div class="flex items-center gap-2">
-      <a href="/" class="flex items-center gap-2">
-        <img src="/favicon.svg" alt="" class="w-7 h-7" aria-hidden="true" />
-        <span class="font-semibold text-white tracking-tight">SPA</span>
-      </a>
-      <span class="text-white/15 mx-2">/</span>
-      <a href="/blog" class="text-sm text-white/50 hover:text-white transition-colors" data-ru="Блог">Blog</a>
-      <span class="text-white/15 mx-2">/</span>
-      <span class="text-sm text-white/30 hidden sm:inline" data-ru="Запуск домена">Domain Launch</span>
-    </div>
-    <a
-      href="/dashboard"
-      class="px-3 py-1.5 rounded-md border border-accent-500/50 text-accent-400 text-xs font-medium hover:border-accent-400 hover:text-accent-300 transition-all"
-      data-ru="Дашборд ↗"
-    >
-      Dashboard ↗
-    </a>
-  </nav>
-
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Header -->
@@ -150,6 +128,4 @@ const post = {
   </main>
 
   <Disclaimer />
-  <Footer />
-
 </Layout>
