@@ -240,7 +240,17 @@ class TestBuildReport(unittest.TestCase):
             self.assertIn(k, s)
 
     def test_engine_a_backtest_pass_variant_d_reject(self):
-        rep = build_report(write=False, backtest=self._bt(), config={"promotion": _THR})
+        # Hermetic: with NO walk-forward evidence (point both WF sources at non-existent files)
+        # engine_a clears the backtest but its WF/capacity criteria are PENDING → BACKTEST_PASS.
+        # (When the real lab-WF file is present engine_a correctly graduates to PAPER_CANDIDATE —
+        # covered by test_strategy_lab_walk_forward.TestPromotionConsumesLabWF.)
+        rep = build_report(
+            write=False,
+            backtest=self._bt(),
+            config={"promotion": _THR},
+            lab_walk_forward_path=Path(self.tmp) / "no_lab_wf.json",
+            walk_forward_path=Path(self.tmp) / "no_tournament_wf.json",
+        )
         by_id = {s["id"]: s for s in rep["sleeves"]}
         self.assertEqual(by_id["engine_a"]["stage"], STAGE_BACKTEST_PASS)
         self.assertEqual(by_id["variant_d"]["stage"], STAGE_REJECT)
