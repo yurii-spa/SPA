@@ -339,12 +339,12 @@ class BacktestReport(BaseReport):
         Creates parent directories as needed. Returns True on success.
         LLM FORBIDDEN — deterministic I/O only.
         """
-        import json as _json
+        from spa_core.utils.atomic import atomic_save
         try:
             full = self._path(self.OUTPUT_PATH)
-            os.makedirs(os.path.dirname(full), exist_ok=True)
-            with open(full, "w", encoding="utf-8") as fh:
-                _json.dump(self._report, fh, indent=2, default=str)
+            # Atomic write (tmp + os.replace) — never leave a partial data/*.json
+            # state file on crash. atomic_save uses default=str like the prior dump.
+            atomic_save(self._report, full, indent=2)
             return True
         except Exception:
             return False
@@ -355,12 +355,12 @@ class BacktestReport(BaseReport):
         Returns True on success.
         LLM FORBIDDEN — deterministic I/O only.
         """
+        from spa_core.utils.atomic import atomic_save_text
         try:
             md_rel = self.OUTPUT_PATH.replace(".json", ".md")
             full = self._path(md_rel)
-            os.makedirs(os.path.dirname(full), exist_ok=True)
-            with open(full, "w", encoding="utf-8") as fh:
-                fh.write(self.to_markdown())
+            # Atomic write (tmp + os.replace) — no partial markdown on crash.
+            atomic_save_text(self.to_markdown(), full)
             return True
         except Exception:
             return False
