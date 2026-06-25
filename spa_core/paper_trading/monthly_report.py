@@ -260,7 +260,10 @@ def _compute_sharpe(
 ) -> float:
     """Annualised Sharpe ratio using USDC 4 % p.a. as the risk-free rate.
 
-    Returns 0.0 when there are fewer than 2 observations or zero std-dev.
+    Returns 0.0 when there are fewer than 2 observations. For a zero-std-dev
+    series (no volatility) the Sharpe diverges, so — mirroring _compute_sortino's
+    10.0 cap when all returns beat the hurdle — we return a capped +/-10.0 in the
+    direction of the mean excess return (0.0 only when the mean excess is also 0).
     """
     if len(daily_returns_pct) < 2:
         return 0.0
@@ -271,6 +274,11 @@ def _compute_sharpe(
     variance = sum((r - mean_exc) ** 2 for r in excess) / (n - 1)
     std = math.sqrt(variance) if variance > 0 else 0.0
     if std == 0.0:
+        # Zero volatility → infinite Sharpe; cap at +/-10.0 like Sortino.
+        if mean_exc > 0:
+            return 10.0
+        if mean_exc < 0:
+            return -10.0
         return 0.0
     return mean_exc / std * math.sqrt(annualisation_days)
 
