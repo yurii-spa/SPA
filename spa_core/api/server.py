@@ -868,54 +868,82 @@ def v1_golive():
         return {"error": str(e), "timestamp": _now()}
 
 
+# ─── Adapters endpoint cache ──────────────────────────────────────────────────
+# Building the adapter roster makes a live blocking DeFiLlama/CoinGecko fetch per
+# adapter (~13s for 33 adapters). Without caching, every request blocks for the
+# full sweep and clients with a normal timeout (5–10s) see an empty/failed
+# response (HTTP 000). Cache the computed roster with a TTL so only the first
+# call after expiry pays the network cost; all others are served instantly.
+_ADAPTERS_CACHE: dict[str, Any] = {"data": None, "ts": 0.0}
+_ADAPTERS_TTL = 300.0  # seconds — matches DeFiLlama feed TTL
+
+
+def _build_adapters_roster() -> list:
+    """Build the full adapter roster (live APY per adapter). Blocking/slow."""
+    from spa_core.adapters import ADAPTER_REGISTRY
+    result = []
+    for entry in ADAPTER_REGISTRY:
+        try:
+            name, tier, cls = entry
+        except (ValueError, TypeError):
+            continue
+        try:
+            instance = cls()
+            apy = None
+            if hasattr(instance, "safe_apy"):
+                try:
+                    apy = instance.safe_apy()
+                except Exception:
+                    apy = None
+            elif hasattr(instance, "get_apy"):
+                try:
+                    apy = instance.get_apy()
+                except Exception:
+                    apy = None
+            result.append({
+                "name": name,
+                "tier": getattr(instance, "TIER", tier),
+                "apy": apy,
+                "research_only": getattr(
+                    instance, "RESEARCH_ONLY",
+                    getattr(instance, "IS_ADVISORY", False),
+                ),
+            })
+        except Exception as adapter_err:
+            log.debug(f"Adapter entry error for {name!r}: {adapter_err}")
+            # Still surface the adapter (from registry tuple) even if it
+            # can't be instantiated / priced, so the site shows the roster.
+            result.append({"name": name, "tier": tier, "apy": None,
+                           "research_only": False})
+    return result
+
+
 @app.get("/api/v1/adapters", tags=["v1"])
 def v1_adapters():
     """
     All registered adapters with tier and live APY.
     Uses ADAPTER_REGISTRY (the populated registry) from spa_core/adapters/__init__.py.
+
+    Served from a TTL cache so requests don't block on the full live-APY sweep.
     """
+    now = _time.time()
+    cached = _ADAPTERS_CACHE.get("data")
+    fresh = cached is not None and (now - _ADAPTERS_CACHE.get("ts", 0.0)) < _ADAPTERS_TTL
+    if fresh:
+        return {"adapters": cached, "count": len(cached),
+                "cached": True, "timestamp": _now()}
     try:
-        # ADAPTER_REGISTRY is a list of (protocol_key, tier, adapter_class) tuples.
-        # NOTE: do NOT use spa_core.adapters.adapter_registry.REGISTRY — that dict
-        # is left empty (no decorator registrations) so it yields zero adapters.
-        from spa_core.adapters import ADAPTER_REGISTRY
-        result = []
-        for entry in ADAPTER_REGISTRY:
-            try:
-                name, tier, cls = entry
-            except (ValueError, TypeError):
-                continue
-            try:
-                instance = cls()
-                apy = None
-                if hasattr(instance, "safe_apy"):
-                    try:
-                        apy = instance.safe_apy()
-                    except Exception:
-                        apy = None
-                elif hasattr(instance, "get_apy"):
-                    try:
-                        apy = instance.get_apy()
-                    except Exception:
-                        apy = None
-                result.append({
-                    "name": name,
-                    "tier": getattr(instance, "TIER", tier),
-                    "apy": apy,
-                    "research_only": getattr(
-                        instance, "RESEARCH_ONLY",
-                        getattr(instance, "IS_ADVISORY", False),
-                    ),
-                })
-            except Exception as adapter_err:
-                log.debug(f"Adapter entry error for {name!r}: {adapter_err}")
-                # Still surface the adapter (from registry tuple) even if it
-                # can't be instantiated / priced, so the site shows the roster.
-                result.append({"name": name, "tier": tier, "apy": None,
-                               "research_only": False})
-        return {"adapters": result, "count": len(result), "timestamp": _now()}
+        result = _build_adapters_roster()
+        _ADAPTERS_CACHE["data"] = result
+        _ADAPTERS_CACHE["ts"] = now
+        return {"adapters": result, "count": len(result),
+                "cached": False, "timestamp": _now()}
     except Exception as e:
         log.warning(f"/api/v1/adapters error: {e}")
+        # Serve a stale cache if we have one — better than empty.
+        if cached is not None:
+            return {"adapters": cached, "count": len(cached),
+                    "cached": True, "stale": True, "timestamp": _now()}
         # Fallback: serve adapter_status.json if available
         fallback = _load_json("adapter_status.json", None)
         if fallback is not None:
