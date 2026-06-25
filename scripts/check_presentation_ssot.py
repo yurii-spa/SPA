@@ -92,6 +92,13 @@ _RE_PAPER_DAY = re.compile(r"\bpaper\s+day\s+(\d{1,4})\b", re.IGNORECASE)
 # that is clearly ABOUT the GoLive gate (avoids false positives like a JS
 # comment "first 4 criteria" or generic "validation criteria" prose).
 _RE_GOLIVE_CONTEXT = re.compile(r"go.?live|golivechecker", re.IGNORECASE)
+# "NN criteria pending/remaining/left/outstanding/to go" is a REMAINDER count
+# (how many still need to pass), not a denominator total — never a divergence.
+_RE_CRITERIA_REMAINDER = re.compile(
+    r"\bcriteri(?:on|a)\s+"
+    r"(?:still\s+)?(?:pending|remaining|left|outstanding|to\s+go|unmet|failing)\b",
+    re.IGNORECASE,
+)
 # A dynamic placeholder id that fetches live values (don't flag content inside).
 _RE_DYNAMIC_ID = re.compile(
     r'id=["\'](?:hero-paper-day|hero-track-days|stat-paper|paper-status-strip'
@@ -132,6 +139,11 @@ def _scan_text(
         if isinstance(g_total, int) and _RE_GOLIVE_CONTEXT.search(line):
             for m in _RE_CRITERIA_TOTAL.finditer(line):
                 nn = int(m.group(1))
+                # Skip remainder phrasing ("2 criteria pending") — that is a
+                # count of what's left, not a claimed denominator total.
+                if _RE_CRITERIA_REMAINDER.match(line[m.end():].lstrip()) or \
+                   _RE_CRITERIA_REMAINDER.search(line[m.start():m.end() + 40]):
+                    continue
                 if nn != g_total:
                     divs.append(
                         {
