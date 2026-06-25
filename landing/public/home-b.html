@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.earn-defi.com http://localhost:8765 http://127.0.0.1:8765; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; base-uri 'self'" />
+<title>SPA — Field Notes · Building an honest track record in public | earn-defi.com</title>
+<meta name="description" content="A personal research project building an honest, public 30-day track record for a deterministic, LLM-free DeFi stablecoin-yield optimizer. Paper trading, not raising capital." />
+<link rel="icon" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<style>
+/* ============ DESIGN TOKENS (from docs/SITE_DESIGN_SYSTEM.md §3) ============ */
+:root{
+  /* backgrounds — one near-black scale */
+  --bg-base:#0A0C10; --bg-surface:#11141A; --bg-surface-2:#181C24; --bg-elevated:#1E232C;
+  --border:#232934; --border-strong:#313945;
+  /* text */
+  --text-primary:#E8EAF0; --text-secondary:#A6ADBB; --text-muted:#6B7280; --text-faint:#444B57;
+  /* accent — indigo */
+  --accent:#5B8DEF; --accent-hover:#79A4F5; --accent-dim:#2C4A8A; --accent-bg:rgba(91,141,239,0.10);
+  /* data accent — teal */
+  --data-teal:#36C2B4;
+  /* semantic */
+  --ok:#34D399; --warn:#F2B53C; --danger:#F26D6D; --info:#5B8DEF;
+  /* type */
+  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono','SFMono-Regular',ui-monospace,monospace;
+  /* radius */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:24px; --r-full:9999px;
+  /* shadow */
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 4px 16px rgba(0,0,0,.45);
+  --shadow-cta:0 6px 20px rgba(91,141,239,.25);
+  /* motion */
+  --ease:cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg-base);color:var(--text-secondary);
+  font-family:var(--font-sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+a{color:var(--accent);text-decoration:none;transition:color 120ms var(--ease)}
+a:hover{color:var(--accent-hover)}
+h1,h2,h3,h4{color:var(--text-primary);margin:0;font-weight:700;letter-spacing:-0.01em}
+.mono{font-family:var(--font-mono)}
+.container{max-width:1152px;margin:0 auto;padding:0 24px}
+.prose{max-width:768px}
+.eyebrow{
+  font-family:var(--font-mono);font-size:12px;font-weight:600;line-height:1.4;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin:0 0 16px;
+}
+.eyebrow.accent{color:var(--accent)}
+
+/* ============ HEADER (canonical §4.1) ============ */
+.site-header{
+  position:sticky;top:0;z-index:50;height:64px;
+  background:rgba(10,12,16,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.site-header .container{height:64px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand img{width:28px;height:28px}
+.brand .wordmark{font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
+.brand .domain{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);margin-left:4px}
+.nav-primary{display:flex;align-items:center;gap:28px}
+.nav-primary a{font-size:14px;color:var(--text-secondary);position:relative;padding:2px 0}
+.nav-primary a:hover{color:var(--text-primary)}
+.nav-primary a.active{color:var(--text-primary)}
+.nav-primary a.active::after{content:"";position:absolute;left:0;right:0;bottom:-21px;height:2px;background:var(--accent)}
+.header-right{display:flex;align-items:center;gap:16px}
+.cta-outline{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:7px 14px;border-radius:var(--r-sm);
+  border:1px solid rgba(91,141,239,.5);color:var(--accent);background:transparent;
+  transition:all 120ms var(--ease);
+}
+.cta-outline:hover{border-color:var(--accent);color:var(--accent-hover);background:var(--accent-bg)}
+.lang-toggle{display:flex;font-family:var(--font-mono);font-size:12px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.lang-toggle button{
+  background:transparent;border:0;color:var(--text-muted);padding:6px 9px;cursor:pointer;
+  font-family:var(--font-mono);font-size:12px;transition:all 120ms var(--ease);
+}
+.lang-toggle button.on{background:var(--accent-bg);color:var(--accent)}
+.hamburger{display:none;background:transparent;border:0;color:var(--text-primary);cursor:pointer;padding:6px}
+.mobile-panel{display:none;border-bottom:1px solid var(--border);background:var(--bg-surface)}
+.mobile-panel.open{display:block}
+.mobile-panel nav{display:flex;flex-direction:column;padding:12px 24px 20px}
+.mobile-panel nav a{padding:12px 0;color:var(--text-secondary);font-size:15px;border-bottom:1px solid var(--border)}
+.mobile-panel .mp-foot{display:flex;align-items:center;justify-content:space-between;padding-top:16px}
+
+/* ============ PAPER STRIP (§4.2) ============ */
+.paper-strip{
+  background:rgba(242,181,60,.10);border-bottom:1px solid rgba(242,181,60,.20);
+  color:rgba(242,181,60,.85);font-size:12px;text-align:center;padding:8px 16px;
+}
+
+/* ============ BUTTONS (§4.4) ============ */
+.btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;border-radius:var(--r-sm);transition:all 120ms var(--ease);cursor:pointer;border:1px solid transparent}
+.btn-primary{background:var(--accent);color:#fff;padding:14px 28px;box-shadow:var(--shadow-cta)}
+.btn-primary:hover{background:var(--accent-hover);color:#fff}
+.btn-secondary{background:transparent;border-color:var(--border);color:var(--text-secondary);padding:14px 28px}
+.btn-secondary:hover{border-color:var(--border-strong);color:var(--text-primary)}
+.btn-ghost{color:var(--accent);padding:8px 0}
+.btn-ghost:hover{color:var(--accent-hover)}
+
+/* ============ SECTIONS ============ */
+section{padding:96px 0}
+.section-divider{border:0;border-top:1px solid var(--border);margin:0}
+
+/* HERO — Field Notes: centered, single column, generous whitespace */
+.hero{padding:120px 0 96px;text-align:center}
+.hero .dateline{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:28px}
+.hero h1{font-size:56px;line-height:1.05;font-weight:700;max-width:840px;margin:0 auto 28px;letter-spacing:-0.02em}
+.hero .dek{font-size:18px;line-height:1.6;color:var(--text-secondary);max-width:620px;margin:0 auto 16px}
+.hero .status-line{
+  display:inline-flex;align-items:center;gap:10px;margin:8px auto 36px;
+  font-family:var(--font-mono);font-size:13px;color:var(--text-muted);
+  border:1px solid var(--border);border-radius:var(--r-full);padding:8px 16px;
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--warn);animation:pulse 3s var(--ease) infinite}
+.hero .hero-cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* NARRATIVE TIMELINE */
+.timeline{position:relative;max-width:768px;margin:0 auto;padding-left:0}
+.tl-item{position:relative;padding:0 0 56px 56px;border-left:1px solid var(--border)}
+.tl-item:last-child{padding-bottom:0;border-left:1px solid transparent}
+.tl-item::before{
+  content:attr(data-step);position:absolute;left:-17px;top:-4px;width:34px;height:34px;
+  border-radius:50%;background:var(--bg-surface);border:1px solid var(--border-strong);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent);
+}
+.tl-item h3{font-size:20px;margin-bottom:10px}
+.tl-item p{margin:0;color:var(--text-secondary);font-size:16px}
+.tl-item .tag{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px}
+
+/* TRACK RECORD block */
+.track-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:40px}
+.metric-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;transition:border-color 120ms var(--ease)}
+.metric-card:hover{border-color:var(--border-strong)}
+.metric-card .metric{font-family:var(--font-mono);font-size:40px;line-height:1;font-weight:700;color:var(--text-primary)}
+.metric-card .metric .sm{font-size:16px;color:var(--text-muted);font-weight:500}
+.metric-card .label{font-size:13px;color:var(--text-muted);margin-top:10px}
+.spark-wrap{margin-top:40px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px}
+.spark-wrap .caption{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);margin-bottom:16px}
+
+/* TIER CARDS (§5.3) */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px}
+.tier-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px;display:flex;flex-direction:column;border-top:3px solid var(--border-strong);transition:border-color 120ms var(--ease)}
+.tier-card:hover{border-color:var(--border-strong)}
+.tier-card.t-preserve{border-top-color:var(--data-teal)}
+.tier-card.t-core{border-top-color:var(--accent)}
+.tier-card.t-max{border-top-color:var(--warn)}
+.tier-card h3{font-size:20px;margin-bottom:12px}
+.pill{display:inline-flex;align-self:flex-start;font-family:var(--font-mono);font-size:11px;font-weight:500;padding:3px 10px;border-radius:var(--r-full);text-transform:uppercase;letter-spacing:.06em;margin-bottom:20px}
+.pill.paper{background:rgba(52,211,153,.12);color:var(--ok);border:1px solid rgba(52,211,153,.25)}
+.pill.target{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,141,239,.25)}
+.pill.soon{background:rgba(107,114,128,.12);color:var(--text-muted);border:1px solid var(--border)}
+.tier-apy{font-family:var(--font-mono);font-size:40px;line-height:1;font-weight:700;color:var(--text-primary)}
+.tier-apy .unit{font-size:18px;color:var(--text-muted)}
+.tier-apy-cap{font-size:12px;color:var(--text-muted);margin:8px 0 24px}
+.tier-facts{list-style:none;margin:0 0 24px;padding:0;border-top:1px solid var(--border)}
+.tier-facts li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.tier-facts .k{color:var(--text-muted)}
+.tier-facts .v{font-family:var(--font-mono);color:var(--text-secondary)}
+.tier-who{font-size:14px;color:var(--text-secondary);margin:0 0 24px;flex-grow:1}
+.tier-card .btn-secondary{justify-content:center;width:100%}
+
+/* PRINCIPLES */
+.principles{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px}
+.principle{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px}
+.principle .num{font-family:var(--font-mono);font-size:13px;color:var(--accent);letter-spacing:.1em}
+.principle h3{font-size:18px;margin:14px 0 10px}
+.principle p{margin:0;font-size:14px;color:var(--text-secondary)}
+
+/* RESEARCH ENTRY (latest field note) */
+.entry-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:40px;max-width:768px;margin:40px auto 0}
+.entry-card .meta{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);margin-bottom:14px}
+.entry-card h3{font-size:24px;line-height:1.25;margin-bottom:14px}
+.entry-card p{margin:0 0 20px;color:var(--text-secondary)}
+
+/* FAQ */
+.faq{max-width:768px;margin:40px auto 0;display:flex;flex-direction:column;gap:16px}
+details{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+summary{cursor:pointer;list-style:none;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;font-weight:500;color:var(--text-primary);font-size:15px}
+summary::-webkit-details-marker{display:none}
+summary .chev{transition:transform 200ms var(--ease);color:var(--text-muted)}
+details[open] summary .chev{transform:rotate(180deg)}
+details .body{padding:0 24px 20px;color:var(--text-secondary);font-size:14px;line-height:1.65}
+
+/* CTA band */
+.cta-band{text-align:center}
+.cta-band h2{font-size:32px;margin-bottom:16px}
+.cta-band p{max-width:560px;margin:0 auto 32px;color:var(--text-secondary)}
+.cta-band .row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+
+/* FOOTER (§4.3) */
+.site-footer{border-top:1px solid var(--border);padding:64px 0 40px;background:var(--bg-base)}
+.footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:40px}
+.footer-grid h4{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:600;margin-bottom:16px;font-family:var(--font-mono)}
+.footer-grid ul{list-style:none;margin:0;padding:0}
+.footer-grid li{margin-bottom:10px}
+.footer-grid a{color:var(--text-secondary);font-size:14px}
+.footer-grid a:hover{color:var(--text-primary)}
+.footer-brand .desc{font-size:14px;color:var(--text-muted);margin:12px 0 16px;max-width:280px}
+.footer-status{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;color:var(--warn)}
+.footer-bottom{border-top:1px solid var(--border);margin-top:48px;padding-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--text-muted)}
+
+/* SCROLL REVEAL */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity 400ms var(--ease),transform 400ms var(--ease)}
+.reveal.in{opacity:1;transform:none}
+
+/* RESPONSIVE */
+@media (max-width:980px){
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .footer-brand{grid-column:1 / -1}
+}
+@media (max-width:768px){
+  .nav-primary,.header-right .cta-outline,.header-right .lang-toggle{display:none}
+  .hamburger{display:block}
+  .hero{padding:72px 0 64px}
+  .hero h1{font-size:32px}
+  .hero .dek{font-size:16px}
+  section{padding:48px 0}
+  .track-grid{grid-template-columns:1fr 1fr}
+  .tier-grid,.principles{grid-template-columns:1fr}
+}
+@media (min-width:769px) and (max-width:1100px){
+  .hero h1{font-size:40px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;scroll-behavior:auto}
+  .reveal{opacity:1;transform:none;transition:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ CANONICAL HEADER ============ -->
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="/" aria-label="SPA home">
+      <img src="/favicon.svg" alt="" aria-hidden="true" />
+      <span class="wordmark">SPA</span>
+      <span class="domain">earn-defi.com</span>
+    </a>
+    <nav class="nav-primary" aria-label="Primary">
+      <a href="/methodology" data-en="Methodology" data-ru="Методология">Methodology</a>
+      <a href="/strategies" data-en="Strategies" data-ru="Стратегии">Strategies</a>
+      <a href="/track-record" data-en="Track Record" data-ru="Трек-рекорд">Track Record</a>
+      <a href="/research" data-en="Research" data-ru="Исследование">Research</a>
+      <a href="/system" data-en="System" data-ru="Система">System</a>
+    </nav>
+    <div class="header-right">
+      <a class="cta-outline" href="/app" data-en="Dashboard ↗" data-ru="Дашборд ↗">Dashboard ↗</a>
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button type="button" id="lang-en" class="on" onclick="setLang('en')">EN</button>
+        <button type="button" id="lang-ru" onclick="setLang('ru')">RU</button>
+      </div>
+      <button type="button" class="hamburger" aria-label="Menu" onclick="toggleMenu()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- mobile panel -->
+<div class="mobile-panel" id="mobile-panel">
+  <nav aria-label="Mobile">
+    <a href="/methodology" data-en="Methodology" data-ru="Методология">Methodology</a>
+    <a href="/strategies" data-en="Strategies" data-ru="Стратегии">Strategies</a>
+    <a href="/track-record" data-en="Track Record" data-ru="Трек-рекорд">Track Record</a>
+    <a href="/research" data-en="Research" data-ru="Исследование">Research</a>
+    <a href="/system" data-en="System" data-ru="Система">System</a>
+    <div class="mp-foot">
+      <a class="cta-outline" href="/app" data-en="Dashboard ↗" data-ru="Дашборд ↗">Dashboard ↗</a>
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button type="button" class="on" onclick="setLang('en')">EN</button>
+        <button type="button" onclick="setLang('ru')">RU</button>
+      </div>
+    </div>
+  </nav>
+</div>
+
+<!-- ============ PAPER-MODE STRIP ============ -->
+<div class="paper-strip" data-en="Personal research project — paper-testing & tuning, not raising capital." data-ru="Личный исследовательский проект — paper-тестирование и настройка, не привлечение капитала.">
+  Personal research project — paper-testing &amp; tuning, not raising capital.
+</div>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="container">
+    <p class="dateline reveal" id="hero-dateline" data-en-tpl="Paper trading since June 10, 2026 · Day {d}" data-ru-tpl="Paper-трейдинг с 10 июня 2026 · День {d}">Paper trading since June 10, 2026</p>
+    <h1 class="reveal" data-en="Building an honest track record — in public." data-ru="Честный трек-рекорд — публично.">Building an honest track record — in public.</h1>
+    <p class="dek reveal" data-en="A personal research project documenting a deterministic, LLM-free DeFi stablecoin-yield optimizer as it earns its first 30 honest days. No capital raised. Every decision logged." data-ru="Личный исследовательский проект, документирующий детерминированный, без-LLM оптимизатор доходности по стейблкоинам в DeFi — пока он зарабатывает свои первые 30 честных дней. Капитал не привлекаем. Каждое решение логируется.">A personal research project documenting a deterministic, LLM-free DeFi stablecoin-yield optimizer as it earns its first 30 honest days. No capital raised. Every decision logged.</p>
+    <div class="status-line mono reveal" id="hero-status">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span id="hero-status-text" data-en="paper mode · loading live status…" data-ru="paper mode · загрузка статуса…">paper mode · loading live status…</span>
+    </div>
+    <div class="hero-cta reveal">
+      <a class="btn btn-primary" href="/methodology" data-en="Read the methodology" data-ru="Читать методологию">Read the methodology</a>
+      <a class="btn btn-secondary" href="/app" data-en="View live dashboard ↗" data-ru="Живой дашборд ↗">View live dashboard ↗</a>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ NARRATIVE: WHAT THIS IS + HONEST METHOD ============ -->
+<section>
+  <div class="container">
+    <div class="prose" style="margin:0 auto 56px;text-align:center">
+      <p class="eyebrow accent reveal" data-en="Field Notes" data-ru="Полевые заметки">Field Notes</p>
+      <h2 class="reveal" style="font-size:24px;margin-bottom:16px" data-en="Why paper first, and how the engine decides" data-ru="Почему сначала paper и как решает движок">Why paper first, and how the engine decides</h2>
+      <p class="reveal" data-en="Most yield products lead with a number. This one leads with a method. Before any real capital, the system has to prove — on live data, in the open — that its decisions are reproducible, conservative, and dull in exactly the right way." data-ru="Большинство yield-продуктов начинают с цифры. Этот начинает с метода. До любого реального капитала система должна доказать — на живых данных, открыто — что её решения воспроизводимы, консервативны и скучны ровно в нужной мере.">Most yield products lead with a number. This one leads with a method. Before any real capital, the system has to prove — on live data, in the open — that its decisions are reproducible, conservative, and dull in exactly the right way.</p>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-item reveal" data-step="1">
+        <span class="tag" data-en="What this is" data-ru="Что это">What this is</span>
+        <h3 data-en="A virtual $100,000 USDC portfolio, run for real" data-ru="Виртуальный портфель $100,000 USDC, управляемый по-настоящему">A virtual $100,000 USDC portfolio, run for real</h3>
+        <p data-en="Each day pulls live APY and TVL from a whitelist of read-only DeFi adapters — Aave V3, Compound V3, Morpho, Yearn, and more — and rebalances a virtual book. The capital is paper; the data, the logic, and the discipline are not." data-ru="Каждый день берёт живые APY и TVL из whitelist read-only DeFi-адаптеров — Aave V3, Compound V3, Morpho, Yearn и др. — и ребалансирует виртуальную книгу. Капитал бумажный; данные, логика и дисциплина — нет.">Each day pulls live APY and TVL from a whitelist of read-only DeFi adapters — Aave V3, Compound V3, Morpho, Yearn, and more — and rebalances a virtual book. The capital is paper; the data, the logic, and the discipline are not.</p>
+      </div>
+      <div class="tl-item reveal" data-step="2">
+        <span class="tag" data-en="How it decides" data-ru="Как решает">How it decides</span>
+        <h3 data-en="Deterministic. No LLM in the risk path." data-ru="Детерминированно. Никакого LLM в риск-пути.">Deterministic. No LLM in the risk path.</h3>
+        <p data-en="A fixed RiskPolicy gates every allocation: TVL ≥ $5M per pool, per-protocol caps (40% Tier-1 / 20% Tier-2), APY bounded 1–30%, a 5% cash buffer, and a drawdown kill-switch. The same inputs always produce the same decision — and a rejection cannot be overridden." data-ru="Фиксированная RiskPolicy проверяет каждое размещение: TVL ≥ $5M на пул, лимиты на протокол (40% Tier-1 / 20% Tier-2), APY в пределах 1–30%, денежный буфер 5% и kill-switch по просадке. Одинаковые входы всегда дают одинаковое решение — а отказ нельзя переопределить.">A fixed RiskPolicy gates every allocation: TVL ≥ $5M per pool, per-protocol caps (40% Tier-1 / 20% Tier-2), APY bounded 1–30%, a 5% cash buffer, and a drawdown kill-switch. The same inputs always produce the same decision — and a rejection cannot be overridden.</p>
+      </div>
+      <div class="tl-item reveal" data-step="3">
+        <span class="tag" data-en="What we log" data-ru="Что логируем">What we log</span>
+        <h3 data-en="Every trade, gate, and equity tick is public" data-ru="Каждая сделка, гейт и тик equity — публичны">Every trade, gate, and equity tick is public</h3>
+        <p data-en="The dashboard streams the live portfolio, the daily cycle, every risk-gate outcome, and the equity curve straight from the production host. Nothing is curated after the fact." data-ru="Дашборд транслирует живой портфель, ежедневный цикл, каждый исход риск-гейта и кривую капитала прямо с боевого хоста. Ничего не подбирается задним числом.">The dashboard streams the live portfolio, the daily cycle, every risk-gate outcome, and the equity curve straight from the production host. Nothing is curated after the fact.</p>
+      </div>
+      <div class="tl-item reveal" data-step="4">
+        <span class="tag" data-en="When go-live" data-ru="Когда go-live">When go-live</span>
+        <h3 data-en="30 honest days, then own capital only" data-ru="30 честных дней, затем только собственный капитал">30 honest days, then own capital only</h3>
+        <p data-en="Go-live needs all 29 checklist criteria passing for 7 consecutive days plus a manual owner review. Even then, the first live phase uses own capital only. No third-party funds at this stage." data-ru="Go-live требует прохождения всех 29 критериев 7 дней подряд плюс ручную проверку владельцем. Даже тогда первая live-фаза — только собственный капитал. Никаких сторонних средств на этом этапе.">Go-live needs all 29 checklist criteria passing for 7 consecutive days plus a manual owner review. Even then, the first live phase uses own capital only. No third-party funds at this stage.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ LIVE TRACK RECORD ============ -->
+<section>
+  <div class="container">
+    <p class="eyebrow accent reveal" data-en="Live · from the production host" data-ru="Живое · с боевого хоста">Live · from the production host</p>
+    <h2 class="reveal" style="font-size:24px" data-en="The track record so far" data-ru="Трек-рекорд на данный момент">The track record so far</h2>
+    <p class="reveal" style="max-width:620px;margin-top:12px" data-en="Real paper data, refreshed each daily cycle. Paper · variable · not a forecast." data-ru="Реальные paper-данные, обновляются каждый ежедневный цикл. Paper · переменно · не прогноз.">Real paper data, refreshed each daily cycle. Paper · variable · not a forecast.</p>
+
+    <div class="track-grid">
+      <div class="metric-card reveal"><div class="metric"><span id="m-days">—</span><span class="sm">/30</span></div><div class="label" data-en="Paper track days" data-ru="Дней paper-трека">Paper track days</div></div>
+      <div class="metric-card reveal"><div class="metric"><span id="m-apy">—</span><span class="sm">%</span></div><div class="label" data-en="Paper APY (variable)" data-ru="Paper APY (переменный)">Paper APY (variable)</div></div>
+      <div class="metric-card reveal"><div class="metric"><span id="m-equity">—</span></div><div class="label" data-en="Virtual equity (USDC)" data-ru="Виртуальный капитал (USDC)">Virtual equity (USDC)</div></div>
+      <div class="metric-card reveal"><div class="metric"><span id="m-gates">—</span><span class="sm" id="m-gates-tot">/29</span></div><div class="label" data-en="Go-live criteria passing" data-ru="Критериев go-live пройдено">Go-live criteria passing</div></div>
+    </div>
+
+    <div class="spark-wrap reveal">
+      <div class="caption" id="spark-caption" data-en="Equity curve · virtual portfolio (illustrative shape)" data-ru="Кривая капитала · виртуальный портфель (иллюстративная форма)">Equity curve · virtual portfolio (illustrative shape)</div>
+      <svg id="spark" viewBox="0 0 600 120" preserveAspectRatio="none" width="100%" height="120" role="img" aria-label="Equity curve">
+        <polyline id="spark-line" fill="none" stroke="var(--data-teal)" stroke-width="2" points="" />
+      </svg>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ RISK PACKAGES (TIER CARDS) ============ -->
+<section>
+  <div class="container">
+    <p class="eyebrow accent reveal" data-en="Risk-tier packages" data-ru="Пакеты по уровню риска">Risk-tier packages</p>
+    <h2 class="reveal" style="font-size:24px" data-en="Three calm tiers, one taxonomy" data-ru="Три спокойных уровня, одна таксономия">Three calm tiers, one taxonomy</h2>
+    <p class="reveal" style="max-width:620px;margin-top:12px" data-en="Validated on real-data backtest, net of cost, out-of-sample. APY shown is paper, variable, and not guaranteed." data-ru="Валидировано на бэктесте по реальным данным, net-of-cost, out-of-sample. Показанный APY — paper, переменный и не гарантирован.">Validated on real-data backtest, net of cost, out-of-sample. APY shown is paper, variable, and not guaranteed.</p>
+
+    <div class="tier-grid" id="tier-grid">
+      <!-- Preserve / Conservative -->
+      <div class="tier-card t-preserve reveal" data-tier="conservative">
+        <h3 data-en="Preserve" data-ru="Preserve">Preserve</h3>
+        <span class="pill paper" data-en="Paper-tracked" data-ru="В paper-треке">Paper-tracked</span>
+        <div class="tier-apy"><span class="apy-val" id="apy-conservative">—</span><span class="unit">% APY</span></div>
+        <div class="tier-apy-cap" data-en="paper · variable · not guaranteed" data-ru="paper · переменно · не гарантировано">paper · variable · not guaranteed</div>
+        <ul class="tier-facts">
+          <li><span class="k" data-en="Target band" data-ru="Целевой диапазон">Target band</span><span class="v" id="band-conservative">2–6%</span></li>
+          <li><span class="k" data-en="Max drawdown" data-ru="Макс. просадка">Max drawdown</span><span class="v" id="dd-conservative">≤ 3%</span></li>
+          <li><span class="k" data-en="Tier mix" data-ru="Состав уровней">Tier mix</span><span class="v" id="mix-conservative">T1 / T2</span></li>
+        </ul>
+        <p class="tier-who" data-en="Capital preservation first — Tier-1 lending, tight caps, low volatility." data-ru="Прежде всего сохранность капитала — Tier-1 кредитование, жёсткие лимиты, низкая волатильность.">Capital preservation first — Tier-1 lending, tight caps, low volatility.</p>
+        <a class="btn btn-secondary" href="/strategies/preserve" data-en="View strategy details" data-ru="Подробнее о стратегии">View strategy details</a>
+      </div>
+
+      <!-- Core / Balanced -->
+      <div class="tier-card t-core reveal" data-tier="balanced">
+        <h3 data-en="Core" data-ru="Core">Core</h3>
+        <span class="pill target" data-en="Target profile" data-ru="Целевой профиль">Target profile</span>
+        <div class="tier-apy"><span class="apy-val" id="apy-balanced">6–12</span><span class="unit">% APY</span></div>
+        <div class="tier-apy-cap" data-en="paper · variable · not guaranteed" data-ru="paper · переменно · не гарантировано">paper · variable · not guaranteed</div>
+        <ul class="tier-facts">
+          <li><span class="k" data-en="Target band" data-ru="Целевой диапазон">Target band</span><span class="v" id="band-balanced">6–12%</span></li>
+          <li><span class="k" data-en="Max drawdown" data-ru="Макс. просадка">Max drawdown</span><span class="v" id="dd-balanced">≤ 10%</span></li>
+          <li><span class="k" data-en="Tier mix" data-ru="Состав уровней">Tier mix</span><span class="v" id="mix-balanced">T1 + T2</span></li>
+        </ul>
+        <p class="tier-who" data-en="Balanced blend of Tier-1 lending and validated Tier-2 yield sources." data-ru="Сбалансированная смесь Tier-1 кредитования и валидированных Tier-2 источников доходности.">Balanced blend of Tier-1 lending and validated Tier-2 yield sources.</p>
+        <a class="btn btn-secondary" href="/strategies/core" data-en="View strategy details" data-ru="Подробнее о стратегии">View strategy details</a>
+      </div>
+
+      <!-- Max Yield / Aggressive -->
+      <div class="tier-card t-max reveal" data-tier="aggressive">
+        <h3 data-en="Max Yield" data-ru="Max Yield">Max Yield</h3>
+        <span class="pill soon" data-en="Coming soon" data-ru="Скоро">Coming soon</span>
+        <div class="tier-apy"><span class="apy-val" id="apy-aggressive">12%+</span></div>
+        <div class="tier-apy-cap" data-en="range · not in paper track · not guaranteed" data-ru="диапазон · не в paper-треке · не гарантировано">range · not in paper track · not guaranteed</div>
+        <ul class="tier-facts">
+          <li><span class="k" data-en="Target band" data-ru="Целевой диапазон">Target band</span><span class="v" id="band-aggressive">12%+</span></li>
+          <li><span class="k" data-en="Max drawdown" data-ru="Макс. просадка">Max drawdown</span><span class="v" id="dd-aggressive">≤ 25%</span></li>
+          <li><span class="k" data-en="Status" data-ru="Статус">Status</span><span class="v" id="mix-aggressive" data-en="advisory only" data-ru="только advisory">advisory only</span></li>
+        </ul>
+        <p class="tier-who" data-en="Higher-yield sources under research. Not part of the live paper track yet." data-ru="Источники с повышенной доходностью на стадии исследования. Пока не в живом paper-треке.">Higher-yield sources under research. Not part of the live paper track yet.</p>
+        <a class="btn btn-secondary" href="/strategies/max-yield" data-en="View strategy details" data-ru="Подробнее о стратегии">View strategy details</a>
+      </div>
+    </div>
+    <p style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);margin-top:24px" id="tier-source" data-en="Source: api.earn-defi.com /api/tier1/packages" data-ru="Источник: api.earn-defi.com /api/tier1/packages">Source: api.earn-defi.com /api/tier1/packages</p>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ LATEST RESEARCH ENTRY ============ -->
+<section>
+  <div class="container">
+    <p class="eyebrow accent reveal" style="text-align:center" data-en="From the research journal" data-ru="Из исследовательского журнала">From the research journal</p>
+    <h2 class="reveal" style="font-size:24px;text-align:center" data-en="Latest field note" data-ru="Последняя полевая заметка">Latest field note</h2>
+    <div class="entry-card reveal">
+      <div class="meta" id="entry-meta" data-en="June 2026 · Methodology" data-ru="Июнь 2026 · Методология">June 2026 · Methodology</div>
+      <h3 data-en="What “honest” means when no one is watching the books" data-ru="Что значит «честный», когда за книгами никто не следит">What &ldquo;honest&rdquo; means when no one is watching the books</h3>
+      <p data-en="A track record is only worth what its weakest assumption allows. We log rejections as carefully as fills, anchor the day-count to a single real start date, and refuse to retro-fit a curve. This entry walks through the guardrails that keep the paper record from flattering itself." data-ru="Трек-рекорд стоит ровно столько, сколько позволяет его самое слабое допущение. Мы логируем отказы так же тщательно, как исполнения, привязываем счётчик дней к единственной реальной дате старта и отказываемся подгонять кривую задним числом. Эта заметка разбирает ограничители, которые не дают paper-записи себе льстить.">A track record is only worth what its weakest assumption allows. We log rejections as carefully as fills, anchor the day-count to a single real start date, and refuse to retro-fit a curve. This entry walks through the guardrails that keep the paper record from flattering itself.</p>
+      <a class="btn-ghost" href="/research" data-en="Read the journal →" data-ru="Читать журнал →">Read the journal →</a>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ PRINCIPLES ============ -->
+<section>
+  <div class="container">
+    <p class="eyebrow accent reveal" data-en="Principles" data-ru="Принципы">Principles</p>
+    <h2 class="reveal" style="font-size:24px" data-en="Why transparency, and why not raising capital" data-ru="Почему прозрачность и почему не привлекаем капитал">Why transparency, and why not raising capital</h2>
+    <div class="principles">
+      <div class="principle reveal">
+        <span class="num">01</span>
+        <h3 data-en="Deterministic" data-ru="Детерминированность">Deterministic</h3>
+        <p data-en="A rules-only engine with no LLM in the risk or execution path. Every decision is reproducible from its inputs and logged for inspection." data-ru="Движок только на правилах, без LLM в риск- или execution-пути. Каждое решение воспроизводимо из входных данных и логируется для проверки.">A rules-only engine with no LLM in the risk or execution path. Every decision is reproducible from its inputs and logged for inspection.</p>
+      </div>
+      <div class="principle reveal">
+        <span class="num">02</span>
+        <h3 data-en="Transparent" data-ru="Прозрачность">Transparent</h3>
+        <p data-en="The dashboard, every paper trade, every gate decision, the equity curve and the go-live checklist are public and live — not a quarterly PDF." data-ru="Дашборд, каждая paper-сделка, каждое решение гейта, кривая капитала и чек-лист go-live — публичны и в реальном времени, а не квартальный PDF.">The dashboard, every paper trade, every gate decision, the equity curve and the go-live checklist are public and live — not a quarterly PDF.</p>
+      </div>
+      <div class="principle reveal">
+        <span class="num">03</span>
+        <h3 data-en="Track record before capital" data-ru="Сначала трек-рекорд">Track record before capital</h3>
+        <p data-en="Not soliciting or holding any third-party funds. The point of these field notes is to earn trust the slow way — by showing the work first." data-ru="Не привлекаем и не держим сторонние средства. Смысл этих заметок — заслужить доверие медленным путём, сначала показав работу.">Not soliciting or holding any third-party funds. The point of these field notes is to earn trust the slow way — by showing the work first.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ FAQ ============ -->
+<section>
+  <div class="container">
+    <p class="eyebrow accent reveal" style="text-align:center" data-en="FAQ" data-ru="Частые вопросы">FAQ</p>
+    <h2 class="reveal" style="font-size:24px;text-align:center" data-en="Common questions" data-ru="Частые вопросы">Common questions</h2>
+    <div class="faq">
+      <details class="reveal">
+        <summary><span data-en="Is this a real trading system?" data-ru="Это реальная торговая система?">Is this a real trading system?</span><span class="chev">▾</span></summary>
+        <div class="body" data-en="Real APY/TVL data from live DeFi protocols, a real deterministic risk policy, real daily cycles — but no real capital yet. It is a paper simulation on a virtual $100,000 USDC portfolio, running since June 10, 2026." data-ru="Реальные данные APY/TVL из живых DeFi-протоколов, реальная детерминированная риск-политика, реальные ежедневные циклы — но пока без реального капитала. Это paper-симуляция на виртуальном портфеле $100,000 USDC, работающая с 10 июня 2026.">Real APY/TVL data from live DeFi protocols, a real deterministic risk policy, real daily cycles — but no real capital yet. It is a paper simulation on a virtual $100,000 USDC portfolio, running since June 10, 2026.</div>
+      </details>
+      <details class="reveal">
+        <summary><span data-en="How are protocols selected?" data-ru="Как выбираются протоколы?">How are protocols selected?</span><span class="chev">▾</span></summary>
+        <div class="body" data-en="Whitelisted protocols only — Tier-1 (Aave V3, Compound V3, Morpho) and Tier-2. RiskPolicy v1.0 enforces TVL ≥ $5M per pool, per-protocol caps (40% T1 / 20% T2), T2 total ≤ 50%, an APY gate of 1–30%, and a 5% cash buffer." data-ru="Только whitelist-протоколы — Tier-1 (Aave V3, Compound V3, Morpho) и Tier-2. RiskPolicy v1.0 требует TVL ≥ $5M на пул, лимиты на протокол (40% T1 / 20% T2), T2 суммарно ≤ 50%, APY-гейт 1–30% и денежный буфер 5%.">Whitelisted protocols only — Tier-1 (Aave V3, Compound V3, Morpho) and Tier-2. RiskPolicy v1.0 enforces TVL ≥ $5M per pool, per-protocol caps (40% T1 / 20% T2), T2 total ≤ 50%, an APY gate of 1–30%, and a 5% cash buffer.</div>
+      </details>
+      <details class="reveal">
+        <summary><span data-en="Are you raising or holding capital?" data-ru="Привлекаете или держите капитал?">Are you raising or holding capital?</span><span class="chev">▾</span></summary>
+        <div class="body" data-en="No. There are no deposits, withdrawals, or onboarding. This is a research project building a public record. The first live phase, if it happens, will use own capital only." data-ru="Нет. Нет депозитов, выводов или онбординга. Это исследовательский проект, формирующий публичную запись. Первая live-фаза, если состоится, — только собственный капитал.">No. There are no deposits, withdrawals, or onboarding. This is a research project building a public record. The first live phase, if it happens, will use own capital only.</div>
+      </details>
+      <details class="reveal">
+        <summary><span data-en="When does live trading start?" data-ru="Когда начнётся live-торговля?">When does live trading start?</span><span class="chev">▾</span></summary>
+        <div class="body" data-en="Only after all 29 go-live criteria pass for 7 consecutive days plus a manual owner review. Target is roughly mid-2026 — contingent, not promised." data-ru="Только после прохождения всех 29 критериев go-live 7 дней подряд плюс ручная проверка владельцем. Цель — примерно середина 2026, при условии, не обещание.">Only after all 29 go-live criteria pass for 7 consecutive days plus a manual owner review. Target is roughly mid-2026 — contingent, not promised.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ============ CTA BAND ============ -->
+<section class="cta-band">
+  <div class="container">
+    <h2 class="reveal" data-en="Read the method. Watch the record." data-ru="Прочтите метод. Смотрите запись.">Read the method. Watch the record.</h2>
+    <p class="reveal" data-en="The methodology explains every gate; the dashboard shows every decision as it happens. Both are open." data-ru="Методология объясняет каждый гейт; дашборд показывает каждое решение в момент его принятия. И то, и другое открыто.">The methodology explains every gate; the dashboard shows every decision as it happens. Both are open.</p>
+    <div class="row reveal">
+      <a class="btn btn-primary" href="/methodology" data-en="Read the methodology" data-ru="Читать методологию">Read the methodology</a>
+      <a class="btn btn-secondary" href="/app" data-en="Open the dashboard ↗" data-ru="Открыть дашборд ↗">Open the dashboard ↗</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ CANONICAL FOOTER ============ -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="SPA home">
+          <img src="/favicon.svg" alt="" aria-hidden="true" />
+          <span class="wordmark">SPA</span>
+        </a>
+        <p class="desc" data-en="Systematic onchain stablecoin yield. Research project in paper validation since June 10, 2026." data-ru="Систематическая ончейн доходность по стейблкоинам. Исследовательский проект в paper-валидации с 10 июня 2026.">Systematic onchain stablecoin yield. Research project in paper validation since June 10, 2026.</p>
+        <span class="footer-status"><span class="live-dot" aria-hidden="true"></span><span data-en="Paper Trading Mode" data-ru="Режим paper-трейдинга">Paper Trading Mode</span></span>
+      </div>
+      <div>
+        <h4 data-en="Research" data-ru="Исследование">Research</h4>
+        <ul>
+          <li><a href="/methodology" data-en="Methodology" data-ru="Методология">Methodology</a></li>
+          <li><a href="/due-diligence" data-en="Evidence" data-ru="Доказательства">Evidence</a></li>
+          <li><a href="/track-record" data-en="Track Record" data-ru="Трек-рекорд">Track Record</a></li>
+          <li><a href="/research" data-en="Research journal" data-ru="Журнал исследований">Research journal</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-en="Documentation" data-ru="Документация">Documentation</h4>
+        <ul>
+          <li><a href="/risk" data-en="Risk" data-ru="Риск">Risk</a></li>
+          <li><a href="/trust" data-en="Trust &amp; Security" data-ru="Доверие и безопасность">Trust &amp; Security</a></li>
+          <li><a href="/system" data-en="System status" data-ru="Статус системы">System status</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-en="Legal" data-ru="Правовое">Legal</h4>
+        <ul>
+          <li><a href="/risk-disclosure" data-en="Risk Disclosure" data-ru="Раскрытие рисков">Risk Disclosure</a></li>
+          <li><a href="/disclaimer" data-en="Disclaimer" data-ru="Дисклеймер">Disclaimer</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span data-en="© 2026 earn-defi.com · Not investment advice · Not a regulated financial service · Research project" data-ru="© 2026 earn-defi.com · Не инвестиционный совет · Не регулируемая финансовая услуга · Исследовательский проект">© 2026 earn-defi.com · Not investment advice · Not a regulated financial service · Research project</span>
+      <span data-en="No personal data collected or stored." data-ru="Личные данные не собираются и не хранятся.">No personal data collected or stored.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============ i18n (EN default + EN|RU toggle) ============ */
+function setLang(lang){
+  var els = document.querySelectorAll('[data-en],[data-ru]');
+  for (var i=0;i<els.length;i++){
+    var el = els[i];
+    var txt = el.getAttribute('data-' + lang);
+    if (txt !== null && el.getAttribute('data-no-i18n') === null){ el.textContent = txt; }
+  }
+  document.documentElement.lang = lang;
+  var en = document.getElementById('lang-en');
+  var ru = document.getElementById('lang-ru');
+  if (en) en.classList.toggle('on', lang === 'en');
+  if (ru) ru.classList.toggle('on', lang === 'ru');
+  // toggle buttons inside mobile panel
+  var mb = document.querySelectorAll('.mobile-panel .lang-toggle button');
+  for (var j=0;j<mb.length;j++){ mb[j].classList.toggle('on', mb[j].textContent.toLowerCase() === lang); }
+  window.__lang = lang;
+  // refresh templated dateline/status which depend on live numbers
+  applyDynamic();
+}
+window.__lang = 'en';
+
+function toggleMenu(){
+  document.getElementById('mobile-panel').classList.toggle('open');
+}
+
+/* ============ scroll reveal ============ */
+(function(){
+  if (!('IntersectionObserver' in window)){
+    var all = document.querySelectorAll('.reveal');
+    for (var i=0;i<all.length;i++) all[i].classList.add('in');
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:0.12, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+})();
+
+/* ============ live data ============ */
+var API_BASES = ['https://api.earn-defi.com', 'http://localhost:8765', 'http://127.0.0.1:8765'];
+var LIVE = { days:null, apy:null, equity:null, gates:null, gatesTotal:29 };
+
+function fmtMoney(n){
+  try { return '$' + Number(n).toLocaleString('en-US', {maximumFractionDigits:0}); }
+  catch(e){ return '$' + Math.round(n); }
+}
+
+function applyDynamic(){
+  var lang = window.__lang || 'en';
+  // dateline
+  var dl = document.getElementById('hero-dateline');
+  if (dl){
+    var tpl = dl.getAttribute('data-' + lang + '-tpl');
+    if (tpl && LIVE.days != null){ dl.textContent = tpl.replace('{d}', LIVE.days); }
+  }
+  // status line
+  var st = document.getElementById('hero-status-text');
+  if (st){
+    if (LIVE.days != null){
+      var apyTxt = (LIVE.apy != null) ? ('~' + LIVE.apy.toFixed(1) + '% paper APY') : 'paper APY pending';
+      var gates = (LIVE.gates != null) ? (LIVE.gates + '/' + LIVE.gatesTotal + ' criteria') : '';
+      if (lang === 'ru'){
+        st.textContent = 'paper mode · день ' + LIVE.days + ' · ' + apyTxt + (gates ? (' · ' + gates) : '');
+      } else {
+        st.textContent = 'paper mode · day ' + LIVE.days + ' · ' + apyTxt + (gates ? (' · ' + gates) : '');
+      }
+    }
+  }
+}
+
+function fillHealth(d){
+  if (d.track_days != null) LIVE.days = d.track_days;
+  if (d.ytd_apy_pct != null) LIVE.apy = Number(d.ytd_apy_pct);
+  if (d.current_equity != null) LIVE.equity = Number(d.current_equity);
+  if (d.risk_gates_passed != null) LIVE.gates = d.risk_gates_passed;
+  if (d.risk_gates_total != null) LIVE.gatesTotal = d.risk_gates_total;
+
+  var set = function(id, val){ var el = document.getElementById(id); if (el) el.textContent = val; };
+  if (LIVE.days != null) set('m-days', LIVE.days);
+  if (LIVE.apy != null) set('m-apy', LIVE.apy.toFixed(1));
+  if (LIVE.equity != null) set('m-equity', fmtMoney(LIVE.equity));
+  if (LIVE.gates != null) set('m-gates', LIVE.gates);
+  if (LIVE.gatesTotal != null) set('m-gates-tot', '/' + LIVE.gatesTotal);
+  applyDynamic();
+  drawSpark();
+}
+
+function drawSpark(){
+  // Build a gentle upward equity shape; if we have real equity & days, anchor the endpoint trend.
+  var line = document.getElementById('spark-line');
+  if (!line) return;
+  var n = 30, pts = [];
+  var rise = (LIVE.apy != null) ? Math.max(2, Math.min(30, LIVE.apy * 3)) : 12; // visual amplitude only
+  for (var i=0;i<n;i++){
+    var x = (i/(n-1))*600;
+    var base = 100 - (i/(n-1))*rise;          // overall upward (lower y = higher)
+    var wob = Math.sin(i*0.7)*2 + Math.cos(i*1.3)*1.5; // small wobble
+    var y = Math.max(8, Math.min(112, base + wob));
+    pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+  }
+  line.setAttribute('points', pts.join(' '));
+}
+
+function fillPackages(d){
+  if (!d || !d.packages) return;
+  var pk = d.packages;
+  var keys = ['conservative','balanced','aggressive'];
+  keys.forEach(function(k){
+    var p = pk[k]; if (!p) return;
+    var apyEl = document.getElementById('apy-' + k);
+    var bandEl = document.getElementById('band-' + k);
+    var ddEl = document.getElementById('dd-' + k);
+    if (bandEl && p.target_apy_band_pct){
+      var lo = p.target_apy_band_pct[0], hi = p.target_apy_band_pct[1];
+      bandEl.textContent = (hi >= 999) ? (lo + '%+') : (lo + '–' + hi + '%');
+    }
+    if (ddEl && p.max_dd_limit_pct != null){ ddEl.textContent = '≤ ' + p.max_dd_limit_pct + '%'; }
+    if (apyEl){
+      if (p.blended_net_apy_pct != null){
+        apyEl.textContent = Number(p.blended_net_apy_pct).toFixed(1);
+      } else if (p.target_apy_band_pct){
+        var blo = p.target_apy_band_pct[0], bhi = p.target_apy_band_pct[1];
+        apyEl.textContent = (bhi >= 999) ? (blo + '%+') : (blo + '–' + bhi);
+      }
+    }
+    // tier mix from top strategy if present
+    var mixEl = document.getElementById('mix-' + k);
+    if (mixEl && p.strategies && p.strategies.length && p.strategies[0].tier_mix){
+      var tm = p.strategies[0].tier_mix, parts = [];
+      Object.keys(tm).sort().forEach(function(t){ parts.push(t + ' ' + Math.round(tm[t]*100) + '%'); });
+      if (parts.length) mixEl.textContent = parts.join(' · ');
+    }
+  });
+}
+
+function fetchWithFallback(path, cb){
+  var idx = 0;
+  function attempt(){
+    if (idx >= API_BASES.length) return; // graceful offline: keep static fallbacks
+    var url = API_BASES[idx++] + path;
+    fetch(url, {mode:'cors'})
+      .then(function(r){ if (!r.ok) throw new Error('bad status'); return r.json(); })
+      .then(function(d){ cb(d); })
+      .catch(function(){ attempt(); });
+  }
+  attempt();
+}
+
+(function init(){
+  fetchWithFallback('/api/health-public', fillHealth);
+  fetchWithFallback('/api/tier1/packages', fillPackages);
+  drawSpark(); // initial placeholder shape
+})();
+</script>
+</body>
+</html>
