@@ -57,7 +57,10 @@ def test_shipped_config_loads_and_validates():
     assert c["global"]["initial_capital"] == 100000
     assert c["global"]["seed"] == 42
     g = cfg.global_config()
-    assert g["window_start"] == "2026-06-10"
+    # Deep backtest window (2024-06-05 → 2026-06-24); must match BOTH the committed
+    # spa_core/strategy_lab/strategy_lab_config.json and data/strategy_lab_config.json.
+    assert g["window_start"] == "2024-06-05"
+    assert g["window_end"] == "2026-06-24"
     assert cfg.rwa_floor_apy_pct() == 4.5
 
 
