@@ -302,5 +302,88 @@ class TestSend(unittest.TestCase):
             self.assertEqual(d._data["send_count"], 2)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Group H — robustness: compose never crashes; HTML-safe; dry-run
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRobustness(unittest.TestCase):
+
+    def test_H1_compose_with_all_data_files_missing(self):
+        # Regression for the launchd exit=1 crash: compose() must degrade to
+        # neutral defaults (not raise) when every data/*.json is absent.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = _make_digest(pathlib.Path(tmp))
+            with unittest.mock.patch.dict(
+                "sys.modules",
+                {"spa_core.analytics.golive_readiness_report": None},
+            ):
+                msg = d.compose()
+            self.assertIn("GoLive Score: 0/100", msg)
+            self.assertIn("Best APY: 0.00% (—)", msg)
+
+    def test_H2_compose_survives_helper_exception(self):
+        # If a single helper blows up, _safe swallows it and the digest still
+        # composes with the default for that field.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = _make_digest(pathlib.Path(tmp))
+            with unittest.mock.patch.object(
+                d, "_get_best_apy", side_effect=ValueError("boom")
+            ):
+                msg = d.compose()
+            self.assertIn("Best APY: 0.00%", msg)
+
+    def test_H3_compose_html_escapes_strategy_id(self):
+        # Strategy IDs / alert text are HTML-escaped so parse_mode="HTML" is
+        # safe (Markdown 400s on `_` and `<>`).
+        with tempfile.TemporaryDirectory() as tmp:
+            tp = pathlib.Path(tmp)
+            _write_json(tp, "data/tournament_results.json", {
+                "strategies": {"a<b>&_c": {"apy": 0.1}},
+            })
+            d = _make_digest(tp)
+            msg = d.compose()
+            self.assertNotIn("<b>", msg)
+            self.assertIn("&lt;b&gt;", msg)
+
+    def test_H4_compose_html_escapes_alert_message(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tp = pathlib.Path(tmp)
+            _write_json(tp, "data/apy_drift_alerts.json", {
+                "alerts": [{"message": "drift <script> & stuff"}],
+            })
+            d = _make_digest(tp)
+            msg = d.compose()
+            self.assertNotIn("<script>", msg)
+            self.assertIn("&lt;script&gt;", msg)
+
+    def test_H5_send_uses_html_parse_mode(self):
+        # send() must route through the canonical client with parse_mode="HTML".
+        with tempfile.TemporaryDirectory() as tmp:
+            d = _make_digest(pathlib.Path(tmp))
+            fake = unittest.mock.MagicMock(return_value=True)
+            with unittest.mock.patch.dict(
+                "sys.modules",
+                {"spa_core.alerts.telegram_client":
+                    unittest.mock.MagicMock(send_message=fake)},
+            ):
+                d.send()
+            fake.assert_called_once()
+            self.assertEqual(fake.call_args.kwargs.get("parse_mode"), "HTML")
+
+    def test_H6_dry_run_main_exits_zero_without_sending(self):
+        # `python -m spa_core.alerts.morning_digest --dry` composes + exits 0
+        # and never calls Telegram.
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = subprocess.run(
+                [sys.executable, "-m", "spa_core.alerts.morning_digest",
+                 "--dry", tmp],
+                cwd=str(_REPO), capture_output=True, text=True, timeout=60,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("dry-run", proc.stdout)
+            self.assertNotIn("send()", proc.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
