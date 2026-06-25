@@ -27,6 +27,8 @@ echo "[$(date -u '+%FT%TZ')] tier1 monte-carlo confidence intervals..."
 $PY -m spa_core.backtesting.tier1.monte_carlo
 echo "[$(date -u '+%FT%TZ')] tier1 VaR/CVaR/ES..."
 $PY -m spa_core.backtesting.tier1.var
+echo "[$(date -u '+%FT%TZ')] tier1 walk-forward (out-of-sample equity curve + capacity at AUM)..."
+$PY -m spa_core.backtesting.tier1.walk_forward_full
 echo "[$(date -u '+%FT%TZ')] tier1 verifiable NAV / proof-of-reserves..."
 $PY -m spa_core.backtesting.tier1.nav_proof
 echo "[$(date -u '+%FT%TZ')] tier1 risk limits (institutional overlay)..."
