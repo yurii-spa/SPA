@@ -6,7 +6,9 @@ Reads data/strategy_lab_config.json and exposes:
   - global_config()      -> the "global" block (capital, window, seed, cost params, rwa floor)
   - strategy_config(id)  -> a per-strategy config block (variant_n / variant_d / engine_* / rwa_floor)
   - risk_limits()        -> risk CAPS sourced from spa_core.risk.policy (NOT duplicated here)
-  - rwa_floor_apy_pct()  -> the risk-free RWA benchmark rate (config value)
+  - rwa_floor_apy_pct()  -> the risk-free RWA benchmark rate: LIVE tokenized-T-bill yield
+                            (spa_core.strategy_lab.data.rwa_feed) when available, else the
+                            committed config literal as a conservative fallback.
 
 Design rules:
   - stdlib-only, deterministic. LLM FORBIDDEN.
@@ -14,6 +16,13 @@ Design rules:
   - Fail-CLOSED: a missing required key raises ConfigError — never a silent default.
   - Risk LIMITS (TVL floor, concentration, drawdown stop, min cash) are NOT defined here.
     They are imported from spa_core.risk.policy (RiskConfig) so there is one source of truth.
+
+RWA floor (2026-06-25): the floor every strategy must beat is the REAL tokenized-Treasury
+yield (BUIDL/USYC/USDY/OUSG/USTB/TBILL — a ~$15B market at ~3.3–3.5%, per
+docs/RESEARCH_EXPANSION_2026-06-25.md), NOT the old hardcoded 4.5%. rwa_floor_apy_pct() now
+returns the live TVL-weighted rate from rwa_feed (cached, fresh). The literal kept in the JSON
+is ONLY a conservative fail-safe used when the feed is unavailable (network down / cache empty)
+— a backtest must never crash on a missing feed, so we fall back to the committed value.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -135,10 +144,36 @@ def strategy_config(strategy_id: str, path: Optional[str] = None) -> Dict[str, A
     return strategies[strategy_id]
 
 
-def rwa_floor_apy_pct(path: Optional[str] = None) -> float:
-    """The risk-free RWA benchmark APY (%). Config value — realistic ~4.5% stable yield
-    (DECISIONS.md 2026-06-21: blended T1/T2 ~4.1%, historical 3.5–5%)."""
-    return float(global_config(path)["rwa_floor_apy_pct"])
+# Flip to False to pin the floor to the committed literal (e.g. for a fully reproducible,
+# network-independent backtest run). Default True = use the live tokenized-T-bill feed.
+_USE_LIVE_RWA_FLOOR = os.environ.get("SPA_LAB_LIVE_RWA_FLOOR", "1") != "0"
+
+
+def rwa_floor_apy_pct(path: Optional[str] = None, live: Optional[bool] = None) -> float:
+    """The risk-free RWA benchmark APY (%).
+
+    Returns the LIVE tokenized-T-bill floor (TVL-weighted across BUIDL/USYC/USDY/OUSG/USTB/
+    TBILL via spa_core.strategy_lab.data.rwa_feed; ~$15B market at ~3.3–3.5%) when the feed is
+    available and fresh (cached). Falls back to the committed config literal
+    (global.rwa_floor_apy_pct) when the feed is unavailable — network down, empty cache, or a
+    fail-closed schema error — so a deterministic backtest is NEVER crashed by a missing feed.
+    The literal is the conservative fail-safe, not the primary source.
+
+    Args:
+        path: optional config override path (tests/hermetic). Bypasses the config cache.
+        live: force-enable (True) / disable (False) the live feed for this call; None → the
+              module default (env SPA_LAB_LIVE_RWA_FLOOR, default on).
+    """
+    literal = float(global_config(path)["rwa_floor_apy_pct"])
+    use_live = _USE_LIVE_RWA_FLOOR if live is None else bool(live)
+    if not use_live:
+        return literal
+    try:
+        # Imported lazily so the config module has no hard import-time dep on the feed/network.
+        from spa_core.strategy_lab.data.rwa_feed import current_rwa_floor_pct
+        return float(current_rwa_floor_pct())
+    except Exception:  # noqa: BLE001 — feed unavailable → conservative committed literal
+        return literal
 
 
 def risk_limits() -> Dict[str, float]:
