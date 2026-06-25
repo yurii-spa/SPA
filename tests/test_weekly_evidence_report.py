@@ -169,7 +169,7 @@ class TestGetWeekLabel:
     def test_format_week_01(self):
         label = get_week_label(date(2026, 1, 5))
         assert label.startswith("2026-W")
-        assert len(label) == 7  # YYYY-WNN
+        assert len(label) == 8  # YYYY-WNN = 4+1+1+2 = 8 chars (e.g. "2026-W02")
 
     def test_zero_padded_week(self):
         # Week 1 of a year should be zero-padded to W01
