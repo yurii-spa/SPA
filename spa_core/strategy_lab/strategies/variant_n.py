@@ -25,8 +25,23 @@ FUNDING-SIGN CONVENTION
 KILL CONDITIONS (FAIL-CLOSED)
   (a) funding_rate continuously below `funding_kill_threshold` (X) for ≥ `funding_kill_hours`
       (N) — consecutive sub-threshold time is accumulated across ticks (8h per settlement).
-  (b) LRT depeg: lrt_eth_ratio dropped > `lrt_depeg_kill_pct` (Y)% below the entry ratio.
+  (b) LRT depeg: lrt_eth_ratio dropped > `lrt_depeg_kill_pct` (Y)% below the entry ratio,
+      MEASURED ON A SMOOTHED SIGNAL and required to PERSIST (see below).
   (c) any required market datapoint invalid → triggered=True (never silently continue).
+
+DEPEG SIGNAL SMOOTHING (the FALSE-depeg fix — see docs/GLOBAL_AUDIT, memory note
+  "historical-apy-axis-misaligned"):
+  DeFiLlama daily /chart points for the LRT and for ETH are each the LAST intraday print
+  bucketed to the same UTC calendar day, but on a volatile crash day those two prints can land
+  at DIFFERENT intraday moments, so token/eth produces a SPURIOUS one-day ratio spike
+  (e.g. 0.95 → 1.14 → 0.97 on consecutive days while the peg actually held ~1.0). A naive
+  single-day depeg check fires a kill on this DATA ARTIFACT, dishonestly killing the hedged
+  sleeve. To keep REAL (sustained, multi-day) depegs detectable while ignoring 1-day artifacts:
+    - we evaluate the depeg on a SHORT TRAILING MEDIAN of the ratio (`depeg_median_window`
+      ticks) — a single outlier in either direction is rejected by the median; AND
+    - the depeg must PERSIST for ≥ `depeg_persist_ticks` consecutive ticks before killing —
+      a 1-day artifact does not persist; a real depeg does. Both are config values, never
+      hardcoded; if a config omits them, conservative defaults apply (window 3, persist 2).
 
 stdlib-only, deterministic.
 """
@@ -47,6 +62,24 @@ from spa_core.strategy_lab.base import (
 # Hours represented by ONE perp funding settlement (24h day / settlements-per-day).
 _HOURS_PER_DAY = 24.0
 
+# Conservative defaults for the depeg-signal smoothing/persistence (used only when a config
+# omits the keys — they MUST still let a real sustained depeg through while rejecting a 1-day
+# DeFiLlama timestamp-misalignment artifact).
+_DEFAULT_DEPEG_MEDIAN_WINDOW = 3   # trailing-median window (ticks) for the depeg signal
+_DEFAULT_DEPEG_PERSIST_TICKS = 2   # consecutive breaching ticks required before a kill
+
+
+def _trailing_median(values: List[float]) -> float:
+    """Deterministic median of the (already short) trailing window. Empty → 0.0."""
+    if not values:
+        return 0.0
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    if n % 2:
+        return s[mid]
+    return (s[mid - 1] + s[mid]) / 2.0
+
 
 class VariantN(Strategy):
     """Variant N — neutral/market-neutral restaking (delta-neutral LRT + short ETH perp)."""
@@ -63,6 +96,8 @@ class VariantN(Strategy):
         self._funding_kill_threshold: float = 0.0
         self._funding_kill_hours: float = 0.0
         self._lrt_depeg_kill_pct: float = 0.0
+        self._depeg_median_window: int = _DEFAULT_DEPEG_MEDIAN_WINDOW
+        self._depeg_persist_ticks: int = _DEFAULT_DEPEG_PERSIST_TICKS
         self._points_apy: float = 0.0
         self._funding_settles_per_day: int = 0
         self._gas_usd: float = 0.0
@@ -88,6 +123,8 @@ class VariantN(Strategy):
         self._cum_funding: float = 0.0      # cumulative funding P&L (USD); + = received
         self._perp_pnl: float = 0.0         # cumulative short-perp PRICE P&L (USD), realized+marked
         self._sub_threshold_hours: float = 0.0  # consecutive hours funding < kill threshold
+        self._ratio_window: List[float] = []    # trailing raw ratios (for the depeg median signal)
+        self._depeg_streak: int = 0             # consecutive ticks the SMOOTHED depeg breached Y
         self._initialised = False
         self._killed = False
         self._kill_reason = ""
@@ -101,6 +138,13 @@ class VariantN(Strategy):
         self._funding_kill_threshold = float(config["funding_kill_threshold"])
         self._funding_kill_hours = float(config["funding_kill_hours"])
         self._lrt_depeg_kill_pct = float(config["lrt_depeg_kill_pct"])
+        # Depeg-signal smoothing/persistence (config-sourced; conservative defaults if omitted).
+        self._depeg_median_window = max(
+            1, int(config.get("depeg_median_window", _DEFAULT_DEPEG_MEDIAN_WINDOW))
+        )
+        self._depeg_persist_ticks = max(
+            1, int(config.get("depeg_persist_ticks", _DEFAULT_DEPEG_PERSIST_TICKS))
+        )
         self._points_apy = float(config["points_apy_assumption"])
 
         # global-block params (cost + funding cadence) — passed through the same config dict
@@ -252,14 +296,30 @@ class VariantN(Strategy):
             )
             return KillResult(triggered=True, reason=self._kill_reason, ts=ts)
 
-        # (b) LRT depeg vs entry/peg ratio.
+        # (b) LRT depeg vs entry/peg ratio — on a SMOOTHED, PERSISTENT signal so a 1-day
+        #     DeFiLlama timestamp-misalignment artifact (a lone ratio spike up or down) does
+        #     NOT trip the kill, while a real SUSTAINED depeg still does.
+        #     Step 1: append this tick's raw ratio to a short trailing window (median rejects a
+        #             single outlier in either direction).
+        #     Step 2: measure the drop on the trailing MEDIAN, not the raw point.
+        #     Step 3: require the median-drop to PERSIST for ≥ depeg_persist_ticks consecutive
+        #             ticks; a 1-day artifact breaks the streak the next tick, a real depeg holds.
+        self._ratio_window.append(ratio)
+        if len(self._ratio_window) > self._depeg_median_window:
+            self._ratio_window = self._ratio_window[-self._depeg_median_window :]
         if self._lrt_entry_ratio > 0:
-            drop_pct = (self._lrt_entry_ratio - ratio) / self._lrt_entry_ratio * 100.0
+            smoothed = _trailing_median(self._ratio_window)
+            drop_pct = (self._lrt_entry_ratio - smoothed) / self._lrt_entry_ratio * 100.0
             if drop_pct > self._lrt_depeg_kill_pct:
+                self._depeg_streak += 1
+            else:
+                self._depeg_streak = 0  # streak resets when the smoothed peg recovers
+            if self._depeg_streak >= self._depeg_persist_ticks:
                 self._killed = True
                 self._kill_reason = (
                     f"LRT depeg {drop_pct:.2f}% > {self._lrt_depeg_kill_pct:.2f}% "
-                    f"(entry ratio {self._lrt_entry_ratio:.5f} → {ratio:.5f})"
+                    f"for {self._depeg_streak} ticks ≥ {self._depeg_persist_ticks} "
+                    f"(entry ratio {self._lrt_entry_ratio:.5f} → median {smoothed:.5f})"
                 )
                 return KillResult(triggered=True, reason=self._kill_reason, ts=ts)
 
@@ -283,6 +343,7 @@ class VariantN(Strategy):
                 "cash_usd": round(self._cash, 2),
                 "equity_usd": round(self._equity, 2),
                 "sub_threshold_hours": self._sub_threshold_hours,
+                "depeg_streak": self._depeg_streak,
                 "killed": self._killed,
                 "kill_reason": self._kill_reason,
             },
