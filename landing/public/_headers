@@ -40,6 +40,14 @@
   Cache-Control: no-cache
 /tournament
   Cache-Control: no-cache
+/home-gallery
+  Cache-Control: no-cache
+/home-a
+  Cache-Control: no-cache
+/home-b
+  Cache-Control: no-cache
+/home-c
+  Cache-Control: no-cache
 
 /api/*
   Cache-Control: no-cache, no-store, must-revalidate
