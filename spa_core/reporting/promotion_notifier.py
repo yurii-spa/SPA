@@ -109,15 +109,47 @@ class PromotionNotifier:
             log.warning("PromotionNotifier: credentials not configured — message not sent.")
             return False
 
-        # FLOOD-GUARD: route through the canonical rate-limited chokepoint so
-        # promotion alerts can never flood Telegram. Transport only — same HTML
-        # message. Credential presence is still checked above (test-overridable).
+        # FLOOD-GUARD: honour the shared cross-process rate limit before sending.
+        # We POST directly (own credentials), so we call the guard explicitly
+        # rather than routing through telegram_client.send_message (which would
+        # ignore these per-instance credentials).
         try:
-            from spa_core.alerts.telegram_client import send_message
-            ok = send_message(text, parse_mode="HTML")
-            if ok:
-                log.info("PromotionNotifier: message delivered.")
-            return ok
+            from spa_core.alerts.telegram_client import flood_guard_ok
+            if not flood_guard_ok(text):
+                return False
+        except Exception:  # noqa: BLE001 — guard import/error must never block a send
+            pass
+
+        url     = f"{_TELEGRAM_BASE}{token}/sendMessage"
+        payload = json.dumps({
+            "chat_id":                  chat_id,
+            "text":                     text,
+            "parse_mode":               "HTML",
+            "disable_web_page_preview": True,
+        }).encode("utf-8")
+
+        try:
+            req = urllib.request.Request(
+                url,
+                data    = payload,
+                headers = {"Content-Type": "application/json"},
+                method  = "POST",
+            )
+            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
+                ok = (resp.status == 200)
+                if ok:
+                    log.info("PromotionNotifier: message delivered.")
+                else:
+                    log.warning("PromotionNotifier: unexpected HTTP status %s.", resp.status)
+                return ok
+
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
+            log.warning("PromotionNotifier: HTTP error %s — %s", exc.code, body)
+            return False
+        except urllib.error.URLError as exc:
+            log.warning("PromotionNotifier: URL error — %s", exc.reason)
+            return False
         except Exception as exc:
             log.warning("PromotionNotifier: unexpected error — %s", exc)
             return False
