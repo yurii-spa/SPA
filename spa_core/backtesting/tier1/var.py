@@ -35,8 +35,6 @@ from __future__ import annotations
 import datetime
 import json
 import math
-import os
-import tempfile
 from pathlib import Path
 from statistics import NormalDist
 from typing import Dict, List, Optional, Sequence
@@ -46,6 +44,7 @@ from spa_core.backtesting.tier1.tail_risk import (
     PROTOCOL_TIER,
     strategy_tail_risk,
 )
+from spa_core.utils.atomic import atomic_save
 
 VAR_VERSION = "v1.0"
 DAYS_PER_YEAR = 365
@@ -351,11 +350,7 @@ def build_report(write: bool = True) -> dict:
         "strategies": strategies,
     }
     if write:
-        _DATA.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".tier1_var_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(report, f, indent=2)
-        os.replace(tmp, _OUT)
+        atomic_save(report, str(_OUT))
     return report
 
 
