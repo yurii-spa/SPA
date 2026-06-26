@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.telegram_bot</string>
+
+    <!-- The single interactive long-poll bot service. getUpdates offset
+         semantics require exactly ONE poller — this launchd agent is the sole
+         instance. Replaces the legacy com.spa.bot_commands. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.telegram.bot</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Long-poll daemon: start at load and keep alive across reboots/crashes. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Back off 30 s before relaunch on crash so a crash-loop can't spin. -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <!-- Logs live in the repo (survive reboot; /tmp is cleared). -->
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/telegram_bot.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/telegram_bot_err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+        <!-- Telegram bot token + owner chat id are read from macOS Keychain at
+             runtime (TELEGRAM_BOT_TOKEN_SPA / TELEGRAM_CHAT_ID_SPA);
+             NO secrets are stored in this file. -->
+    </dict>
+
+</dict>
+</plist>

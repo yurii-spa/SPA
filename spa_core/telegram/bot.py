@@ -155,6 +155,36 @@ class TelegramBot:
         self.api_base = "https://api.telegram.org/bot{}".format(self.token)
         self._offset = self._read_offset()
         self._fail_streak = 0
+        self._router = None  # lazily built (interactive menu router)
+
+    # ── Interactive menu router (drill-down via editMessageText) ────────────
+
+    def _get_router(self):
+        """Build (once) the interactive Router wired to a bot-backed transport."""
+        if self._router is None:
+            from spa_core.telegram.router import Router
+
+            bot = self
+
+            class _Transport:
+                """Adapt the bot's API to the Router's transport contract."""
+
+                @staticmethod
+                def send_message(chat_id, text, reply_markup):
+                    return bot.send_message(text, chat_id=chat_id,
+                                            reply_markup=reply_markup)
+
+                @staticmethod
+                def edit_message_text(chat_id, message_id, text, reply_markup):
+                    return bot.edit_message_text(chat_id, message_id, text,
+                                                 reply_markup=reply_markup)
+
+                @staticmethod
+                def answer_callback(callback_id):
+                    return bot._answer_callback(callback_id)
+
+            self._router = Router(_Transport(), self.chat_id)
+        return self._router
 
     # ── Telegram API ──────────────────────────────────────────────────────
 
@@ -201,7 +231,37 @@ class TelegramBot:
         return self._api_call("sendMessage", params)
 
     def _answer_callback(self, callback_query_id: str) -> None:
+        if not callback_query_id:
+            return
         self._api_call("answerCallbackQuery", {"callback_query_id": callback_query_id})
+
+    def edit_message_text(self, chat_id: str, message_id: Any, text: str,
+                          reply_markup: Optional[Dict] = None,
+                          parse_mode: str = "HTML") -> Optional[Dict]:
+        """editMessageText — drives the single evolving panel (in-place nav).
+
+        Fail-safe + flood-guarded. Telegram no-ops an identical edit, so
+        double-taps are free.
+        """
+        if not chat_id or message_id in (None, ""):
+            return None
+        try:
+            from spa_core.alerts.telegram_client import _rate_limit_ok
+            if not _rate_limit_ok(text):
+                log.warning("bot edit dropped by flood guard")
+                return None
+        except Exception:
+            pass
+        params: Dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": parse_mode,
+            "disable_web_page_preview": True,
+        }
+        if reply_markup is not None:
+            params["reply_markup"] = json.dumps(reply_markup)
+        return self._api_call("editMessageText", params)
 
     # ── Offset persistence ────────────────────────────────────────────────
 
@@ -806,16 +866,34 @@ class TelegramBot:
         else:
             handler(chat_id)
 
+    # callback prefixes handled by the legacy command dispatcher (not the menu router)
+    _LEGACY_CB_PREFIXES = ("detail_", "agents_detail", "/")
+
     def handle_update(self, update: Dict) -> None:
-        """Process one update — callback_query button or text message. Fail-safe."""
+        """Process one update — callback_query button or text message. Fail-safe.
+
+        Routes through the interactive menu Router (drill-down via
+        editMessageText, owner-auth, EN|RU). Legacy ``detail_``/``agents_detail``
+        and old ``/cmd`` callback buttons fall back to the v2 command dispatcher.
+        """
         try:
+            router = self._get_router()
+
             cq = update.get("callback_query")
             if isinstance(cq, dict):
-                self._answer_callback(str(cq.get("id", "")))
+                callback_id = str(cq.get("id", ""))
                 data = str(cq.get("data", ""))
-                chat_id = str(cq.get("message", {}).get("chat", {}).get("id", "")) or self.chat_id
-                if chat_id:
-                    self._dispatch(data, chat_id)
+                message = cq.get("message", {}) or {}
+                chat_id = str(message.get("chat", {}).get("id", "")) or self.chat_id
+                message_id = message.get("message_id")
+                # Legacy inline buttons (old keyboards) → keep old behaviour.
+                if data.startswith(self._LEGACY_CB_PREFIXES):
+                    self._answer_callback(callback_id)
+                    if chat_id and router.is_owner(chat_id):
+                        self._dispatch(data, chat_id)
+                    return
+                # New menu navigation → in-place editMessageText drill-down.
+                router.handle_callback(data, chat_id, message_id, callback_id)
                 return
 
             msg = update.get("message")
@@ -824,11 +902,8 @@ class TelegramBot:
                 chat_id = str(msg.get("chat", {}).get("id", "")) or self.chat_id
                 if not chat_id:
                     return
-                if text.startswith("/"):
-                    self._dispatch(text, chat_id)
-                else:
-                    # Bare text → welcome/help
-                    self.cmd_help(chat_id)
+                # Any command or bare text (re)spawns the Home panel as a new message.
+                router.handle_command(text if text.startswith("/") else "/menu", chat_id)
         except Exception as exc:  # noqa: BLE001 — never let one update crash the loop
             log.warning("handle_update failed: %s", exc)
 
