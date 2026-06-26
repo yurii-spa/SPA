@@ -30,6 +30,8 @@ from spa_core.backtesting.tier1.deflated_sharpe import (
     DAYS_PER_YEAR,
 )
 
+# moments is imported above and reused by sharpe()/volatility_pct() — single source.
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Local helpers (the bits not already in tier1)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -78,11 +80,31 @@ def volatility_pct(daily_returns: Sequence[float]) -> float:
     return round(std * math.sqrt(DAYS_PER_YEAR) * 100.0, 4)
 
 
-def sharpe(daily_returns: Sequence[float], rf_daily: float = 0.0) -> float:
-    """Annualized Sharpe (reuses tier1 sharpe_per_period + annualize_sharpe)."""
+def sharpe(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[float]:
+    """Annualized Sharpe (reuses tier1 sharpe_per_period + annualize_sharpe).
+
+    Returns ``None`` — NOT a giant finite number — for a locked-volatility book whose
+    return variance is only floating-point noise (a fixed-APY accrual: std ≈ 1e-20 while
+    mean ≈ 1e-7 → mean/std explodes to ~1e17). The Sharpe of a zero-variance series is
+    mathematically undefined; reporting 451,467,719 as a "Sharpe" is an honesty artifact
+    (it reads as a real risk-adjusted score). The guard is RELATIVE to the mean so it fires
+    on a constant accrual regardless of the APY level, but a genuinely low-vol-yet-noisy
+    book (real daily APY jitter) still gets a finite, honest Sharpe.
+    """
     rets = _clean(daily_returns)
     if len(rets) < 2:
-        return 0.0
+        return None
+    m = moments(rets)
+    std = m["std"]
+    mean = m["mean"]
+    # Undefined when there is no REAL dispersion. Absolute floor catches an exactly-flat
+    # book. The relative test fires when std is smaller than ~1ppm of |mean|: a fixed-rate
+    # accrual's only "variance" is float64 rounding noise (observed std/mean ≈ 1e-8 for the
+    # engine_a/b/c/rwa baselines → Sharpe ≈ 4.5e8…1.2e9, a pure artifact). A genuinely
+    # low-vol-yet-noisy book has daily APY jitter of basis points → std/mean ≳ 1e-3, far
+    # above this floor, so it still gets an honest finite Sharpe.
+    if std <= 1e-15 or (mean != 0.0 and std < abs(mean) * 1e-6):
+        return None
     return round(annualize_sharpe(sharpe_per_period(rets, rf_daily)), 4)
 
 

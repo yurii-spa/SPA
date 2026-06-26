@@ -384,6 +384,22 @@ def test_gap_monitor_30d_fails_with_fewer_dates(tmp_path):
     assert any("9/30" in b or "2/30" in b or "/30" in b for b in result.blockers)
 
 
+def test_reconstructed_bars_excluded_from_track_days(tmp_path):
+    """HONESTY (artifact class 6): a bar flagged reconstructed:true is an interpolated
+    placeholder and must NOT count toward the honest go-live track-day total. A curve of
+    30 dates where 5 are reconstructed must report 25 honest days, not 30."""
+    doc = _equity_doc_30d()
+    # Flag 5 of the 30 bars as reconstructed/interpolated.
+    for bar in doc["daily"][:5]:
+        bar["reconstructed"] = True
+    ddir = _make_full_data_dir(tmp_path, **{"equity_curve_daily.json": doc})
+    result = _check(ddir, home_dir=_fake_home_with_autopush(tmp_path))
+    # 25 honest < 30 → both time-gated checks fail and the count is honest (25, not 30).
+    assert result.real_track_days == 25
+    assert result.checks["min_track_days_30"] is False
+    assert any("25/30" in b for b in result.blockers)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Group 6: Infrastructure
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -249,10 +249,21 @@ class GoLiveChecker:
     # ── Honesty helper (MP-1228) ──────────────────────────────────────────────
 
     def _real_track_dates(self, daily: Any) -> list[str]:
-        """Unique equity-bar dates ON OR AFTER ``self.paper_start``.
+        """Unique equity-bar dates ON OR AFTER ``self.paper_start`` that are NOT
+        self-flagged as reconstructed/interpolated.
 
         Pre-teardown bars are demo/void per CLAUDE.md and must never inflate the
-        track-record length. Returns sorted ISO date strings.
+        track-record length.
+
+        HONESTY (artifact class 6 — reconstruction inflation): a bar carrying
+        ``reconstructed: true`` is an INTERPOLATED placeholder (no live cycle ran
+        that day; its equity is bounded-guess between two real bars). Counting an
+        interpolated bar toward "honest track days" is self-contradictory — it
+        cannot be evidence of a real paper-trading day. Such bars are excluded from
+        the count here so the go-live gate (min_track_days_30 / gap_monitor_30d) is
+        backed only by non-interpolated bars. (Whether flat-rate BACKFILL bars that
+        lack an explicit reconstructed flag should also be excluded is an operator
+        policy decision and is NOT changed here.)
         """
         if not isinstance(daily, list):
             return []
@@ -260,6 +271,8 @@ class GoLiveChecker:
         for bar in daily:
             if not isinstance(bar, dict) or not bar.get("date"):
                 continue
+            if bar.get("reconstructed") is True:
+                continue  # interpolated placeholder — not an honest track day
             ds = str(bar["date"])[:10]
             try:
                 d = datetime.strptime(ds, "%Y-%m-%d").date()

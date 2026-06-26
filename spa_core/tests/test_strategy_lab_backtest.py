@@ -170,8 +170,12 @@ def test_run_backtest_all_six_strategies():
         # full metric set present (not None for the core fields)
         assert m["net_apy_pct"] is not None, sid
         assert m["max_drawdown_pct"] is not None, sid
-        assert m["sharpe"] is not None, sid
         assert m["beats_rwa_floor"] is not None, sid
+        # HONESTY (artifact class 4): Sharpe is None for a locked-vol fixed-APY baseline
+        # (its return variance is float-noise only → a real Sharpe is undefined, NOT a giant
+        # finite number). It must be either a sane finite value or None — never astronomical.
+        sh = m["sharpe"]
+        assert sh is None or abs(sh) < 1e6, (sid, sh)
     assert result["manifest"]["equal_capital"] is True
     assert result["manifest"]["initial_capital"] == cap
 

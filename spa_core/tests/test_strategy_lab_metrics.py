@@ -38,6 +38,34 @@ def test_sharpe_known_series():
     assert abs(M.sharpe(rets) - round(expected, 4)) < 1e-3
 
 
+def test_sharpe_fixed_apy_accrual_is_undefined_not_giant():
+    """HONESTY GUARD (artifact class 4 — locked-vol Sharpe).
+
+    A fixed-APY accrual (engine_a/b/c, rwa_floor, rwa_sleeve baselines) has return variance
+    that is only floating-point rounding noise. The old code reported a Sharpe of ~451 million
+    / ~1.16 billion, which reads to a user as a real, astronomically-good risk-adjusted score.
+    A zero-variance series has an UNDEFINED Sharpe → must be None, never a giant finite number.
+    """
+    apy, eq, rets = 8.33, 100000.0, []
+    for _ in range(750):  # mirrors the lab backtest window length
+        gain = eq * (apy / 100.0) / 365.0
+        rets.append(gain / eq)
+        eq += gain
+    assert M.sharpe(rets) is None  # was ~1.16e9 before the fix
+
+
+def test_sharpe_exactly_constant_is_none():
+    assert M.sharpe([0.0001, 0.0001, 0.0001, 0.0001]) is None
+
+
+def test_sharpe_real_jitter_still_finite():
+    # A genuinely noisy low-vol book (real daily APY jitter of basis points, std/mean ~ 0.1)
+    # keeps an honest finite Sharpe — only float-noise-only series are nulled.
+    rets = [0.0001, 0.00012, 0.00009, 0.00011, 0.00008, 0.00013, 0.0001]
+    s = M.sharpe(rets)
+    assert s is not None and 0.0 < s < 1e6
+
+
 def test_sortino_penalizes_only_downside():
     # All non-negative returns vs rf=0 → no downside → 0.0 by our convention.
     assert M.sortino([0.001, 0.002, 0.0, 0.001]) == 0.0
