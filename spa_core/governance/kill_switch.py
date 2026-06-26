@@ -5,8 +5,12 @@
 переводит все позиции в Cash (allocation = {"cash": 1.0, все протоколы: 0.0}).
 
 Триггеры:
-1. drawdown_trigger  — просадка equity > 15% от максимума за последние 30 дней
-2. red_flags_trigger — более 5 активных красных флагов в data/red_flags.json
+1. drawdown_trigger  — просадка equity > 15% от максимума за последние 30 дней,
+                       считается СТРОГО по evidenced (real) барам — warmup /
+                       backfill / pre-anchor бары исключаются (N1 safety fix).
+2. red_flags_trigger — более 5 CRITICAL красных флагов на УДЕРЖИВАЕМЫХ протоколах
+                       в data/red_flags.json (advisory/WARN/bootstrap/внешние —
+                       не в счёт; N1 safety fix).
 3. manual_trigger    — файл data/kill_switch_active.json существует (создаётся вручную)
 4. sharpe_trigger    — Sharpe < -1.0 (из data/analytics_summary.json), но только
                        при наличии ≥30 дней данных (малая выборка → артефакт)
@@ -26,6 +30,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+
+# Honest-track evidence model — the single source of truth for which equity
+# bars are REAL (post-anchor, non-warmup, non-backfill, non-reconstructed).
+# A warmup bar's inflated equity must NEVER fabricate a drawdown that closes the
+# book (N1 safety fix), so the drawdown trigger computes peak/drawdown STRICTLY
+# over the evidenced series.
+from spa_core.paper_trading.track_evidence import (
+    PAPER_REAL_START,
+    evidenced_bars,
+)
 
 log = logging.getLogger("spa.kill_switch")
 
@@ -51,6 +65,7 @@ KILL_SWITCH_STATUS_FILENAME = "kill_switch_status.json"
 RED_FLAGS_FILENAME = "red_flags.json"
 ANALYTICS_FILENAME = "analytics_summary.json"
 ADAPTER_STATUS_FILENAME = "adapter_status.json"
+POSITIONS_FILENAME = "current_positions.json"
 
 # Fallback список протоколов, если adapter_status.json недоступен
 _KNOWN_PROTOCOLS = ["aave_v3", "compound_v3", "morpho_blue", "yearn_v3", "euler_v2", "maple", "sky_susds"]
@@ -92,6 +107,59 @@ def _read_json(path: Path, default: Any = None) -> Any:
         return default
 
 
+def _norm_protocol(name: Any) -> str:
+    """Canonicalize a protocol slug for cross-source comparison.
+
+    red_flags.json uses hyphen slugs (``ethena-susde``) while
+    current_positions.json uses underscore slugs (``aave_v3``). Lower-case and
+    collapse ``-``/``_``/space to a single ``_`` so the two namespaces line up.
+    """
+    return str(name).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def _load_held_protocols(data_dir: Path) -> set[str]:
+    """Return the set of CURRENTLY HELD protocol slugs (normalized).
+
+    A protocol is "held" iff it appears in ``current_positions.json`` with a
+    strictly positive USD position. Read-only; fail-CLOSED to an empty set when
+    the file is missing/unreadable (no held protocols → no held-protocol flag
+    can trigger the kill-switch). Cash / book-keeping keys are ignored.
+    """
+    doc = _read_json(data_dir / POSITIONS_FILENAME, None)
+    positions: Any = doc
+    if isinstance(doc, dict) and isinstance(doc.get("positions"), (dict, list)):
+        positions = doc["positions"]
+
+    held: set[str] = set()
+    if isinstance(positions, dict):
+        for proto, usd in positions.items():
+            if _norm_protocol(proto) in ("cash", "usdc", "usd"):
+                continue
+            try:
+                if float(usd) > 0:
+                    held.add(_norm_protocol(proto))
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(positions, list):
+        for entry in positions:
+            if not isinstance(entry, dict):
+                continue
+            proto = entry.get("protocol") or entry.get("slug") or entry.get("name")
+            if not proto or _norm_protocol(proto) in ("cash", "usdc", "usd"):
+                continue
+            amount = (
+                entry.get("usd")
+                if entry.get("usd") is not None
+                else entry.get("amount_usd", entry.get("size_pct", entry.get("weight")))
+            )
+            try:
+                if amount is None or float(amount) > 0:
+                    held.add(_norm_protocol(proto))
+            except (TypeError, ValueError):
+                held.add(_norm_protocol(proto))
+    return held
+
+
 # ─── KillSwitchChecker ────────────────────────────────────────────────────────
 
 
@@ -115,6 +183,13 @@ class KillSwitchChecker:
     def check_drawdown_trigger(self, equity_curve: list[dict]) -> tuple[bool, str]:
         """Просадка equity > DRAWDOWN_THRESHOLD_PCT% от максимума за 30 дней.
 
+        SAFETY (N1): peak/drawdown are computed STRICTLY over the *evidenced*
+        REAL series — warmup / seed / pre-PAPER_REAL_START / backfill /
+        reconstructed bars are excluded BEFORE the window is taken. A warmup
+        bar's inflated equity (e.g. a pre-teardown demo peak) must never
+        fabricate a drawdown that closes the honest go-live track. The drawdown
+        THRESHOLD value is intentionally LEFT UNCHANGED (owner-gated).
+
         Parameters
         ----------
         equity_curve : список дневных баров {"date": "...", "close_equity": float, ...}
@@ -126,10 +201,17 @@ class KillSwitchChecker:
         if not equity_curve or not isinstance(equity_curve, list):
             return False, "no equity data"
 
-        # Берём последние 30 точек
-        window = equity_curve[-LOOKBACK_DAYS:]
+        # Exclude warmup / pre-anchor / backfill / reconstructed bars so an
+        # inflated warmup peak cannot fabricate a drawdown (mirrors the honest
+        # real-series segregation used by system_health_monitor + track_evidence).
+        real_bars = evidenced_bars(equity_curve, paper_start=PAPER_REAL_START)
+        if not real_bars:
+            return False, "no evidenced equity data (warmup/backfill excluded)"
+
+        # Берём последние 30 ТРЕК-точек (после исключения warmup-баров)
+        window = real_bars[-LOOKBACK_DAYS:]
         if not window:
-            return False, "empty equity window"
+            return False, "empty evidenced equity window"
 
         try:
             closes = [float(bar.get("close_equity") or bar.get("equity") or 0.0)
@@ -139,7 +221,7 @@ class KillSwitchChecker:
 
         closes = [c for c in closes if c > 0]
         if len(closes) < 2:
-            return False, "insufficient equity data"
+            return False, "insufficient evidenced equity data (need ≥2 real bars)"
 
         peak = max(closes)
         current = closes[-1]
@@ -162,13 +244,25 @@ class KillSwitchChecker:
     # ── Trigger 2: red flags ──────────────────────────────────────────────────
 
     def check_red_flags_trigger(self) -> tuple[bool, str]:
-        """Более RED_FLAGS_THRESHOLD живых красных флагов в data/red_flags.json.
+        """Kill-switch on CRITICAL red flags affecting CURRENTLY HELD protocols.
 
-        Bootstrap/fallback данные игнорируются:
-        - Если doc.fallback_used=true ИЛИ doc.sources=["bootstrap"] →
-          все флаги считаются ненастоящими и kill_switch НЕ срабатывает.
-        - Отдельные флаги с f["bootstrap"]=True также исключаются из счётчика.
-        Поведение настраивается через data/risk_policy.json:
+        SAFETY (N1) — three bugs fixed so a ``red_flags.json`` full of advisory /
+        WARN / bootstrap flags can NEVER close the honest book, while a real
+        CRITICAL flag on a HELD protocol still does:
+
+        (a) **Membership-aware bootstrap guard.** The live writer emits MIXED
+            ``sources`` like ``["defillama","bootstrap","snapshot"]``, so the old
+            exact-list guard (``doc_sources == ["bootstrap"]``) NEVER matched.
+            Document-level ignore now fires only when EVERY source is bootstrap
+            (``set(sources) <= {"bootstrap"}``) or ``fallback_used`` is true.
+        (b) **Per-flag source filter.** ``RedFlag`` has NO ``bootstrap`` field —
+            it carries ``source``. A flag is excluded iff its OWN
+            ``source == "bootstrap"`` (was: the never-present ``f["bootstrap"]``).
+        (c) **CRITICAL-on-HELD only.** Only ``severity == "CRITICAL"`` flags on
+            protocols we ACTUALLY HOLD count toward the trigger. Advisory /
+            WARN / external-protocol flags must not close the book.
+
+        Configurable via ``data/risk_policy.json``:
           RED_FLAGS_IGNORE_BOOTSTRAP (bool, default True)
           RED_FLAGS_THRESHOLD        (int,  default 5)
 
@@ -192,18 +286,22 @@ class KillSwitchChecker:
         threshold: int = int(policy.get("RED_FLAGS_THRESHOLD", RED_FLAGS_THRESHOLD))
 
         if ignore_bootstrap:
-            # Документ-уровень: fallback_used=true или sources=["bootstrap"]
-            # означает, что все данные — дефолты/заглушки, а не живые.
+            # (a) Документ-уровень: fallback_used=true ИЛИ все источники bootstrap
+            # → данные — заглушки, не живые. MIXED sources (содержат не только
+            # bootstrap) НЕ считаются bootstrap-документом (см. live-писатель).
             doc_fallback = bool(doc.get("fallback_used", False))
             doc_sources = doc.get("sources", [])
             doc_is_bootstrap = (
-                isinstance(doc_sources, list) and doc_sources == ["bootstrap"]
+                isinstance(doc_sources, list)
+                and len(doc_sources) > 0
+                and set(doc_sources) <= {"bootstrap"}
             )
             if doc_fallback or doc_is_bootstrap:
                 log.warning(
-                    "red_flags: source=bootstrap / fallback_used=%s — "
+                    "red_flags: fallback_used=%s / all-bootstrap-sources=%s — "
                     "ignoring all %d flags for kill_switch (non-live data)",
                     doc_fallback,
+                    doc_is_bootstrap,
                     len(flags),
                 )
                 return False, (
@@ -211,22 +309,40 @@ class KillSwitchChecker:
                     f"(fallback_used={doc_fallback}, sources={doc_sources})"
                 )
 
-            # Флаг-уровень: исключаем флаги с явным признаком bootstrap
-            live_flags = [f for f in flags if not f.get("bootstrap", False)]
+            # (b) Флаг-уровень: исключаем флаги, чей СОБСТВЕННЫЙ source=bootstrap
+            # (RedFlag не имеет поля "bootstrap" — только "source").
+            live_flags = [
+                f for f in flags
+                if isinstance(f, dict) and f.get("source") != "bootstrap"
+            ]
         else:
-            live_flags = flags
+            live_flags = [f for f in flags if isinstance(f, dict)]
 
-        count = len(live_flags)
+        # (c) Только CRITICAL-флаги на УДЕРЖИВАЕМЫХ протоколах закрывают книгу.
+        # Advisory / WARN / флаги на внешних (не в портфеле) протоколах — НЕ в счёт.
+        held = _load_held_protocols(self.data_dir)
+        critical_on_held = [
+            f for f in live_flags
+            if str(f.get("severity", "")).upper() == "CRITICAL"
+            and _norm_protocol(f.get("protocol", "")) in held
+        ]
+
+        count = len(critical_on_held)
 
         if count > threshold:
+            protos = sorted({str(f.get("protocol", "")) for f in critical_on_held})
             reason = (
                 f"red_flags count {count} > {threshold} threshold "
-                f"(from {RED_FLAGS_FILENAME})"
+                f"(CRITICAL on held protocols: {protos}, from {RED_FLAGS_FILENAME})"
             )
             log.warning("KILL SWITCH red_flags trigger: %s", reason)
             return True, reason
 
-        return False, f"red_flags count {count} ≤ {threshold}"
+        return False, (
+            f"red_flags count {count} ≤ {threshold} "
+            f"(CRITICAL-on-held; {len(live_flags)} live flag(s), "
+            f"{len(held)} held protocol(s))"
+        )
 
     # ── Trigger 3: manual ────────────────────────────────────────────────────
 

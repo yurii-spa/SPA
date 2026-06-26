@@ -206,29 +206,48 @@ class CompoundV3Adapter(BaseAdapter):
     # Публичный APY API
     # ──────────────────────────────────────────────────────────────────────────
 
-    def get_apy(self) -> float:
-        """Возвращает APY в процентах (5.2, не 0.052).
+    def get_apy(self) -> Optional[float]:
+        """Возвращает живой APY в процентах (5.2, не 0.052), или ``None``.
 
         Источник: data/adapter_status.json → compound_v3_adapter.apy.
-        Fallback: DEFAULT_APY_PCT (5.2%).
+
+        N2 (track-honesty): compound_v3 — один из всего ДВУХ live T1-якорей.
+        Раньше при отсутствии/ошибке данных возвращался DEFAULT_APY_PCT (5.2%),
+        и оркестратор штамповал это как ``live_data=True`` — сфабрикованный
+        доход, который тихо раздувал go-live трек. Теперь поведение совпадает
+        с aave_v3: нет живых данных → ``None`` (не мок). Оркестратор увидит
+        ``apy is None`` и честно пометит протокол как ``no live data``.
+        """
+        return self._read_apy_from_status()
+
+    def get_apy_pct(self) -> Optional[float]:
+        """Синоним get_apy() — APY в процентах (совместимость с BaseAdapter-family)."""
+        return self.get_apy()
+
+    def _apy_for_simulation(self) -> float:
+        """APY (%) для advisory paper-симуляции (allocate/simulate_deposit/gap).
+
+        В отличие от ``get_apy()`` (canonical, источник для go-live трека —
+        честный ``None`` без живых данных), эти методы — read-only/advisory
+        симуляция и НЕ влияют на трек. Здесь допустим committed-литерал
+        DEFAULT_APY_PCT, чтобы симуляция оставалась детерминированной.
         """
         apy = self._read_apy_from_status()
         return apy if apy is not None else self.DEFAULT_APY_PCT
-
-    def get_apy_pct(self) -> float:
-        """Синоним get_apy() — APY в процентах (совместимость с BaseAdapter-family)."""
-        return self.get_apy()
 
     def get_yield_info(self) -> YieldInfo:
         """Возвращает нормализованный YieldInfo для оркестратора.
 
         YieldInfo.apy — decimal (0.052 для 5.2%), оркестратор умножает на 100.
+        ``apy is None`` при отсутствии живого фида — мок НЕ подставляется (N2),
+        чтобы сфабрикованный доход не попал в go-live трек.
         """
         apy_pct = self.get_apy()
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
-            apy=apy_pct / 100.0,   # YieldInfo ожидает десятичную дробь
+            # N2: None пробрасывается как None — оркестратор трактует как no-live-data.
+            apy=(apy_pct / 100.0) if apy_pct is not None else None,
             tvl_usd=float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
@@ -260,10 +279,16 @@ class CompoundV3Adapter(BaseAdapter):
     # ──────────────────────────────────────────────────────────────────────────
 
     def is_eligible(self) -> bool:
-        """True если peg здоров И APY в допустимом диапазоне [MIN_APY_PCT, MAX_APY_PCT]."""
+        """True если peg здоров И есть живой APY в [MIN_APY_PCT, MAX_APY_PCT].
+
+        N2: без живого APY (``get_apy() is None``) протокол НЕ eligible —
+        fail-closed (нельзя аллоцировать на основе сфабрикованного дохода).
+        """
         if not self.is_peg_healthy():
             return False
         apy = self.get_apy()
+        if apy is None:
+            return False
         return self.MIN_APY_PCT <= apy <= self.MAX_APY_PCT
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -283,7 +308,7 @@ class CompoundV3Adapter(BaseAdapter):
             morpho_apy = self._load_protocol_apy(
                 self._MORPHO_STATUS_KEY, _MORPHO_APY_FALLBACK
             )
-        return round(morpho_apy - self.get_apy(), 6)
+        return round(morpho_apy - self._apy_for_simulation(), 6)
 
     def vs_aave_gap(self, aave_apy: Optional[float] = None) -> float:
         """Разница APY: Compound − Aave (positive = Compound лучше).
@@ -297,7 +322,7 @@ class CompoundV3Adapter(BaseAdapter):
             aave_apy = self._load_protocol_apy(
                 self._AAVE_STATUS_KEY, _AAVE_APY_FALLBACK
             )
-        return round(self.get_apy() - aave_apy, 6)
+        return round(self._apy_for_simulation() - aave_apy, 6)
 
     def is_better_than_aave(self, aave_apy: Optional[float] = None) -> bool:
         """True если Compound APY превышает Aave APY более чем на 50 bps."""
@@ -331,7 +356,7 @@ class CompoundV3Adapter(BaseAdapter):
             raise ValueError(
                 f"allocate: capital_usd должен быть > 0, получено {capital_usd}"
             )
-        apy_pct = self.get_apy()
+        apy_pct = self._apy_for_simulation()
         self._allocated += capital_usd
         annual_yield = capital_usd * (apy_pct / 100.0)
 
@@ -370,7 +395,7 @@ class CompoundV3Adapter(BaseAdapter):
             raise ValueError(
                 f"simulate_deposit: amount_usd должен быть > 0, получено {amount_usd}"
             )
-        apy_pct = self.get_apy()
+        apy_pct = self._apy_for_simulation()
         self._allocated += amount_usd
         annual_yield = amount_usd * (apy_pct / 100.0)
 
@@ -476,16 +501,19 @@ class CompoundV3Adapter(BaseAdapter):
             Обязательные ключи: "status" ("ok" | "degraded"), "apy_pct",
             "apy_in_range", "tvl_floor_ok" и прочие метрики адаптера.
         """
-        apy_pct = self.get_apy()
         apy_from_file = self._read_apy_from_status()
+        # N2: report the simulation-resolved APY for the dashboard, but flag the
+        # source honestly so a fallback value is never mistaken for live data.
+        apy_pct = self._apy_for_simulation()
         apy_in_range = self.MIN_APY_PCT <= apy_pct <= self.MAX_APY_PCT
 
         return {
             "protocol": self.PROTOCOL,
-            "status": "ok" if apy_in_range else "degraded",
+            "status": "ok" if (apy_from_file is not None and apy_in_range) else "degraded",
             "apy_pct": apy_pct,
             "apy_in_range": apy_in_range,
             "apy_range": [self.MIN_APY_PCT, self.MAX_APY_PCT],
+            "live_data": apy_from_file is not None,
             "apy_source": "adapter_status" if apy_from_file is not None else "fallback",
             "tier": self.TIER,
             "tvl_usd": self.TVL_USD,
@@ -519,11 +547,13 @@ class CompoundV3Adapter(BaseAdapter):
             Полный снапшот состояния адаптера, включая peg_healthy, eligible,
             gap-метрики и paper-trading позицию.
         """
-        apy_pct = self.get_apy()
+        live_apy = self.get_apy()
+        apy_pct = self._apy_for_simulation()
         return {
             "protocol": self.PROTOCOL,
             "pool_id": self.pool_id,
             "name": "Compound V3 Comet USDC (Ethereum)",
+            "live_data": live_apy is not None,
             "tier": self.TIER,
             "chain": self.CHAIN,
             "chain_id": self.CHAIN_ID,

@@ -128,33 +128,33 @@ class TestAPYFromJSON:
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 5.1))
         assert adapter.get_apy() == pytest.approx(5.1)
 
-    def test_apy_fallback_when_no_file(self, tmp_path):
-        """Fallback 4.8 при отсутствии adapter_status.json."""
+    def test_no_live_data_when_no_file(self, tmp_path):
+        """N2: нет adapter_status.json → None (не сфабрикованный fallback)."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_empty(tmp_path))
-        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
+        assert adapter.get_apy() is None
 
-    def test_apy_fallback_when_no_compound_key(self, tmp_path):
-        """Fallback при отсутствии ключа compound_v3_adapter в JSON."""
+    def test_no_live_data_when_no_compound_key(self, tmp_path):
+        """N2: нет ключа compound_v3_adapter → None."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_no_compound(tmp_path))
-        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
+        assert adapter.get_apy() is None
 
-    def test_apy_fallback_when_invalid_json(self, tmp_path):
-        """Fallback при невалидном JSON (graceful)."""
+    def test_no_live_data_when_invalid_json(self, tmp_path):
+        """N2: невалидный JSON → None (graceful, без фабрикации)."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_invalid_json(tmp_path))
-        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
+        assert adapter.get_apy() is None
 
-    def test_apy_fallback_when_null_apy(self, tmp_path):
-        """Fallback когда compound_v3_adapter.apy = null (не числовой тип)."""
+    def test_no_live_data_when_null_apy(self, tmp_path):
+        """N2: compound_v3_adapter.apy = null → None."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_null_apy(tmp_path))
-        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
+        assert adapter.get_apy() is None
 
-    def test_apy_fallback_when_string_apy(self, tmp_path):
-        """Fallback когда compound_v3_adapter.apy = строка."""
+    def test_no_live_data_when_string_apy(self, tmp_path):
+        """N2: compound_v3_adapter.apy = строка → None."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_string_apy(tmp_path))
-        assert adapter.get_apy() == pytest.approx(CompoundV3Adapter.APY_FALLBACK)
+        assert adapter.get_apy() is None
 
     def test_apy_is_float(self, tmp_path):
-        """get_apy() всегда возвращает float."""
+        """get_apy() возвращает float при наличии живых данных."""
         adapter = CompoundV3Adapter(data_dir=_data_dir_with_apy(tmp_path, 4.8))
         assert isinstance(adapter.get_apy(), float)
 

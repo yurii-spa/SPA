@@ -38,20 +38,35 @@ def _make_equity_curve(
     drawdown_pct: float = 0.0,
     days: int = 10,
 ) -> list[dict]:
-    """Helper: equity curve с заданной просадкой от peak."""
+    """Helper: equity curve с заданной просадкой от peak.
+
+    Bars are dated ON OR AFTER PAPER_REAL_START (2026-06-10) and carry
+    ``source="cycle"`` / ``evidenced=True`` so they count as REAL evidenced
+    bars (the drawdown trigger now operates strictly over the evidenced series;
+    pre-anchor / warmup bars are excluded by design).
+    """
+    from datetime import date, timedelta
+    from spa_core.paper_trading.track_evidence import PAPER_REAL_START
+
     bars = []
     current = peak
+    base = PAPER_REAL_START
     for i in range(days - 1):
+        d = base + timedelta(days=i)
         bars.append({
-            "date": f"2026-05-{i + 1:02d}",
+            "date": d.isoformat(),
             "close_equity": round(current, 2),
             "open_equity": round(current, 2),
+            "source": "cycle",
+            "evidenced": True,
         })
     final = round(peak * (1.0 - drawdown_pct / 100.0), 2)
     bars.append({
-        "date": f"2026-05-{days:02d}",
+        "date": (base + timedelta(days=days - 1)).isoformat(),
         "close_equity": final,
         "open_equity": round(current, 2),
+        "source": "cycle",
+        "evidenced": True,
     })
     return bars
 
@@ -96,10 +111,29 @@ class TestDrawdownTrigger(unittest.TestCase):
         self.assertFalse(triggered)
 
     def test_drawdown_trigger_no_fire_single_bar(self) -> None:
-        """Один бар — нет предыдущего максимума, не сработать."""
-        curve = [{"date": "2026-06-01", "close_equity": 100_000.0}]
+        """Один evidenced бар — нет предыдущего максимума, не сработать."""
+        curve = [{"date": "2026-06-12", "close_equity": 100_000.0,
+                  "source": "cycle", "evidenced": True}]
         triggered, reason = self.checker.check_drawdown_trigger(curve)
         self.assertFalse(triggered)
+
+    def test_drawdown_excludes_warmup_bars(self) -> None:
+        """N1 SAFETY: inflated warmup peak must NOT fabricate a drawdown.
+
+        A pre-anchor warmup bar at $200k followed by real $100k bars would be a
+        50% drawdown if naively counted — but warmup bars are excluded, so the
+        real series (flat $100k) has 0% drawdown → NO trigger.
+        """
+        curve = [
+            {"date": "2026-05-01", "close_equity": 200_000.0, "is_warmup": True},
+        ]
+        for i in range(5):
+            curve.append({"date": f"2026-06-{10 + i:02d}",
+                          "close_equity": 100_000.0,
+                          "source": "cycle", "evidenced": True})
+        triggered, reason = self.checker.check_drawdown_trigger(curve)
+        self.assertFalse(triggered,
+                         f"warmup peak must not fabricate drawdown: {reason}")
 
     def test_drawdown_trigger_large_drawdown(self) -> None:
         """Просадка 50% — гарантированное срабатывание."""
@@ -108,14 +142,21 @@ class TestDrawdownTrigger(unittest.TestCase):
         self.assertTrue(triggered)
 
     def test_drawdown_uses_last_30_days(self) -> None:
-        """Окно 30 дней: пик вне окна не считается."""
-        # 50 баров: первые 20 с большим пиком, последние 30 нормальные
+        """Окно 30 дней: пик вне окна не считается (на evidenced барах)."""
+        from datetime import date, timedelta
+        from spa_core.paper_trading.track_evidence import PAPER_REAL_START
+
+        # 50 evidenced баров: первые 20 с большим пиком (вне 30-дн окна),
+        # последние 30 — нормальные. Все пост-anchor, source=cycle.
+        base = PAPER_REAL_START
         long_peak_bars = [
-            {"date": f"2026-04-{i + 1:02d}", "close_equity": 200_000.0}
+            {"date": (base + timedelta(days=i)).isoformat(),
+             "close_equity": 200_000.0, "source": "cycle", "evidenced": True}
             for i in range(20)
         ]
         normal_bars = [
-            {"date": f"2026-05-{i + 1:02d}", "close_equity": 99_000.0}
+            {"date": (base + timedelta(days=20 + i)).isoformat(),
+             "close_equity": 99_000.0, "source": "cycle", "evidenced": True}
             for i in range(30)
         ]
         # Текущая просадка от max в 30-дневном окне: max=99000, current=99000 → 0%
@@ -178,14 +219,30 @@ class TestRedFlagsTrigger(unittest.TestCase):
         self._tmp.cleanup()
 
     def _write_flags(self, count: int) -> None:
-        flags = [{"protocol": f"proto_{i}", "severity": "CRITICAL"} for i in range(count)]
+        """Write `count` CRITICAL flags on HELD protocols with LIVE sources.
+
+        N1: only CRITICAL flags on held protocols (live, non-bootstrap source)
+        count toward the trigger — so the fixture writes a current_positions.json
+        holding all those protocols and tags each flag source="defillama".
+        """
+        protos = [f"proto_{i}" for i in range(count)]
+        # Hold every protocol so the flags are "on held protocols".
+        _write_json(
+            self.data_dir / "current_positions.json",
+            {"positions": {p: 10_000.0 for p in protos}},
+        )
+        flags = [
+            {"protocol": p, "severity": "CRITICAL", "source": "defillama"}
+            for p in protos
+        ]
         _write_json(
             self.data_dir / "red_flags.json",
-            {"red_flags": flags, "generated_at": "2026-06-11T00:00:00Z"},
+            {"red_flags": flags, "sources": ["defillama"],
+             "fallback_used": False, "generated_at": "2026-06-11T00:00:00Z"},
         )
 
     def test_red_flags_trigger_fires(self) -> None:
-        """6 флагов > 5 — должна сработать."""
+        """6 CRITICAL флагов на held протоколах > 5 — должна сработать."""
         self._write_flags(6)
         triggered, reason = self.checker.check_red_flags_trigger()
         self.assertTrue(triggered, f"Expected trigger at 6 flags: {reason}")
@@ -203,10 +260,25 @@ class TestRedFlagsTrigger(unittest.TestCase):
         self.assertFalse(triggered)
 
     def test_red_flags_many_flags(self) -> None:
-        """100 флагов — гарантированное срабатывание."""
+        """100 CRITICAL флагов на held протоколах — гарантированное срабатывание."""
         self._write_flags(100)
         triggered, reason = self.checker.check_red_flags_trigger()
         self.assertTrue(triggered)
+
+    def test_red_flags_warn_unheld_no_fire(self) -> None:
+        """N1 SAFETY: 6 WARN флагов на НЕ-удерживаемых протоколах → НЕ сработать."""
+        flags = [
+            {"protocol": f"external_{i}", "severity": "WARN", "source": "defillama"}
+            for i in range(6)
+        ]
+        _write_json(
+            self.data_dir / "red_flags.json",
+            {"red_flags": flags, "sources": ["defillama"], "fallback_used": False},
+        )
+        # No positions file → nothing held.
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertFalse(triggered,
+                         f"WARN/unheld flags must not trigger: {reason}")
 
 
 class TestSharpeTrigger(unittest.TestCase):
@@ -438,6 +510,202 @@ class TestDrillScript(unittest.TestCase):
             f"STDOUT:\n{result.stdout}\n"
             f"STDERR:\n{result.stderr}",
         )
+
+
+class TestN1SafetyFix(unittest.TestCase):
+    """N10 — the safety-critical paths must be the best-tested.
+
+    Covers both false-trigger bugs (N1) AND confirms the real-crisis trigger is
+    preserved:
+      * mixed-source red_flags + bootstrap/WARN flags → NO trigger
+      * CRITICAL flag on a HELD protocol → DOES trigger
+      * CRITICAL on an UNHELD/external protocol → NO trigger
+      * inflated warmup bar → NO drawdown trigger
+      * real > threshold drawdown on evidenced bars → DOES trigger
+      * per-flag source == "bootstrap" filtered
+    Aims for ~full branch coverage of check_red_flags_trigger /
+    check_drawdown_trigger.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="spa_ks_n1_")
+        self.data_dir = Path(self._tmp.name)
+        self.checker = KillSwitchChecker(data_dir=self.data_dir)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _hold(self, *protocols: str) -> None:
+        _write_json(self.data_dir / "current_positions.json",
+                    {"positions": {p: 10_000.0 for p in protocols}})
+
+    def _flags(self, flags: list, *, sources=None, fallback_used=False) -> None:
+        _write_json(self.data_dir / "red_flags.json", {
+            "sources": sources if sources is not None else ["defillama"],
+            "fallback_used": fallback_used,
+            "red_flags": flags,
+        })
+
+    # ── (1) mixed-source + bootstrap/WARN flags → NO trigger ─────────────────
+
+    def test_mixed_source_bootstrap_warn_flags_no_trigger(self) -> None:
+        """MIXED sources + 6 WARN/bootstrap flags → NO trigger (bugs a+b+c)."""
+        self._hold("ethena_susde", "pendle_pt")
+        flags = [
+            {"protocol": "ethena-susde", "severity": "WARN", "source": "historical_apy"},
+            {"protocol": "pendle-pt", "severity": "WARN", "source": "defillama"},
+            {"protocol": "aave-v3", "severity": "WARN", "source": "snapshot"},
+            {"protocol": "euler-v2", "severity": "CRITICAL", "source": "bootstrap"},
+            {"protocol": "maple", "severity": "WARN", "source": "bootstrap"},
+            {"protocol": "compound-v3", "severity": "WARN", "source": "snapshot"},
+        ]
+        # MIXED sources — must NOT be treated as a bootstrap document (bug a).
+        self._flags(flags, sources=["defillama", "bootstrap", "snapshot"])
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertFalse(triggered, f"advisory/WARN/bootstrap must not trigger: {reason}")
+
+    def test_mixed_source_document_not_ignored_wholesale(self) -> None:
+        """A mixed-source doc is NOT short-circuited as bootstrap (bug a).
+
+        Reason must reflect the CRITICAL-on-held count path, not the
+        'flags ignored' document-level path.
+        """
+        self._hold("aave_v3")
+        self._flags(
+            [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "defillama"}],
+            sources=["defillama", "bootstrap"],
+        )
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertFalse(triggered)  # only 1 ≤ 5
+        self.assertNotIn("ignored", reason)
+        self.assertIn("CRITICAL-on-held", reason)
+
+    # ── (2) CRITICAL on HELD → trigger ───────────────────────────────────────
+
+    def test_critical_on_held_triggers(self) -> None:
+        """6 CRITICAL flags on a HELD protocol (live) → TRIGGER (real crisis)."""
+        self._hold("aave_v3")
+        flags = [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "defillama"}
+                 for _ in range(6)]
+        self._flags(flags, sources=["defillama"])
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertTrue(triggered, f"CRITICAL-on-held must trigger: {reason}")
+        self.assertIn("aave-v3", reason)
+
+    def test_critical_on_held_hyphen_underscore_normalized(self) -> None:
+        """Held slug 'aave_v3' matches flag slug 'aave-v3' (normalization)."""
+        self._hold("aave_v3")
+        flags = [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "defillama"}
+                 for _ in range(6)]
+        self._flags(flags, sources=["defillama"])
+        triggered, _ = self.checker.check_red_flags_trigger()
+        self.assertTrue(triggered)
+
+    # ── (3) CRITICAL on UNHELD/external → no trigger ─────────────────────────
+
+    def test_critical_on_unheld_no_trigger(self) -> None:
+        """6 CRITICAL flags on an UNHELD/external protocol → NO trigger."""
+        self._hold("aave_v3")  # we hold aave, NOT pendle
+        flags = [{"protocol": "pendle-pt", "severity": "CRITICAL", "source": "defillama"}
+                 for _ in range(6)]
+        self._flags(flags, sources=["defillama"])
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertFalse(triggered, f"CRITICAL on external protocol must not trigger: {reason}")
+
+    def test_no_positions_file_nothing_held(self) -> None:
+        """No current_positions.json → nothing held → CRITICAL flags don't trigger."""
+        flags = [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "defillama"}
+                 for _ in range(6)]
+        self._flags(flags, sources=["defillama"])
+        triggered, _ = self.checker.check_red_flags_trigger()
+        self.assertFalse(triggered)
+
+    # ── (4) per-flag source == "bootstrap" filtered ──────────────────────────
+
+    def test_per_flag_bootstrap_source_filtered(self) -> None:
+        """6 CRITICAL-on-held flags but each source='bootstrap' → filtered → no trigger (bug b)."""
+        self._hold("aave_v3")
+        flags = [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "bootstrap"}
+                 for _ in range(6)]
+        self._flags(flags, sources=["defillama"])  # doc mixed but flags bootstrap
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertFalse(triggered, f"per-flag bootstrap source must be filtered: {reason}")
+
+    def test_mix_live_and_bootstrap_source_only_live_counts(self) -> None:
+        """6 live CRITICAL-on-held + 10 bootstrap-source → effective 6 → trigger."""
+        self._hold("aave_v3")
+        live = [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "defillama"}
+                for _ in range(6)]
+        boot = [{"protocol": "aave-v3", "severity": "CRITICAL", "source": "bootstrap"}
+                for _ in range(10)]
+        self._flags(live + boot, sources=["defillama"])
+        triggered, reason = self.checker.check_red_flags_trigger()
+        self.assertTrue(triggered)
+        self.assertIn("6", reason)
+
+    # ── (5) drawdown: warmup excluded, real drawdown triggers ────────────────
+
+    def test_warmup_bar_no_drawdown_trigger(self) -> None:
+        """Inflated warmup bar ($200k) + flat real $100k → NO drawdown trigger."""
+        curve = [{"date": "2026-05-15", "close_equity": 200_000.0, "is_warmup": True}]
+        for i in range(5):
+            curve.append({"date": f"2026-06-{10 + i:02d}", "close_equity": 100_000.0,
+                          "source": "cycle", "evidenced": True})
+        triggered, reason = self.checker.check_drawdown_trigger(curve)
+        self.assertFalse(triggered, f"warmup peak must not fabricate drawdown: {reason}")
+
+    def test_real_drawdown_above_threshold_triggers(self) -> None:
+        """Real -18% drawdown on evidenced bars → TRIGGER (threshold unchanged)."""
+        curve = []
+        for i in range(10):
+            curve.append({"date": f"2026-06-{10 + i:02d}", "close_equity": 100_000.0,
+                          "source": "cycle", "evidenced": True})
+        curve.append({"date": "2026-06-20", "close_equity": 82_000.0,
+                      "source": "cycle", "evidenced": True})  # -18%
+        triggered, reason = self.checker.check_drawdown_trigger(curve)
+        self.assertTrue(triggered, f"real -18% drawdown must trigger: {reason}")
+        self.assertIn("drawdown", reason.lower())
+
+    def test_all_warmup_no_evidenced_no_trigger(self) -> None:
+        """Curve of ONLY warmup bars → no evidenced data → no trigger."""
+        curve = [{"date": "2026-05-0{}".format(i + 1), "close_equity": 200_000.0 - i * 50_000,
+                  "is_warmup": True} for i in range(3)]
+        triggered, reason = self.checker.check_drawdown_trigger(curve)
+        self.assertFalse(triggered)
+        self.assertIn("evidenced", reason.lower())
+
+    def test_threshold_value_unchanged(self) -> None:
+        """OWNER-GATED: the drawdown threshold constant is preserved (15.0)."""
+        self.assertEqual(DRAWDOWN_THRESHOLD_PCT, 15.0)
+
+
+class TestLiveDataDoesNotFalseTrigger(unittest.TestCase):
+    """Sanity check against the REAL repo data/ — must not false-trigger.
+
+    The live red_flags.json (advisory/WARN/bootstrap flags) and
+    equity_curve_daily.json (warmup bars) must NOT activate the kill-switch.
+    """
+
+    def test_live_red_flags_do_not_trigger(self) -> None:
+        repo_data = Path(__file__).resolve().parents[2] / "data"
+        if not (repo_data / "red_flags.json").exists():
+            self.skipTest("live red_flags.json not present")
+        checker = KillSwitchChecker(data_dir=repo_data)
+        triggered, reason = checker.check_red_flags_trigger()
+        self.assertFalse(triggered,
+                         f"live red_flags must not trigger kill-switch: {reason}")
+
+    def test_live_equity_curve_no_drawdown_trigger(self) -> None:
+        repo_data = Path(__file__).resolve().parents[2] / "data"
+        eq = repo_data / "equity_curve_daily.json"
+        if not eq.exists():
+            self.skipTest("live equity_curve_daily.json not present")
+        doc = json.loads(eq.read_text(encoding="utf-8"))
+        daily = doc.get("daily") if isinstance(doc, dict) else []
+        checker = KillSwitchChecker(data_dir=repo_data)
+        triggered, reason = checker.check_drawdown_trigger(daily or [])
+        self.assertFalse(triggered,
+                         f"live equity (warmup bars) must not fabricate drawdown: {reason}")
 
 
 if __name__ == "__main__":

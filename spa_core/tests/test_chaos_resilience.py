@@ -496,7 +496,14 @@ def test_kill_switch_manual_trigger_via_tuple(tmp_path):
 def test_kill_switch_drawdown_trigger_via_tuple(tmp_path):
     """A >15% drawdown equity curve → (True, reason) with the drawdown reason."""
     checker = KillSwitchChecker(data_dir=str(tmp_path))
-    curve = [{"close_equity": 100000.0}, {"close_equity": 80000.0}]  # -20%
+    # Bars must be dated post-anchor + evidenced so the drawdown trigger (which
+    # now operates strictly over the REAL evidenced series) sees them.
+    curve = [
+        {"date": "2026-06-12", "close_equity": 100000.0,
+         "source": "cycle", "evidenced": True},
+        {"date": "2026-06-13", "close_equity": 80000.0,
+         "source": "cycle", "evidenced": True},  # -20%
+    ]
     active, reason = checker.is_kill_switch_active(equity_curve=curve)
     assert active is True
     assert "drawdown" in reason.lower()

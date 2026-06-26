@@ -409,16 +409,60 @@ def _next_trade_id(trades: list[dict]) -> str:
     return f"T{max_n + 1:03d}"
 
 
+# ── N3: APY accrual guardrail ──────────────────────────────────────────────────
+# A single normalizer guards every accrual against a cross-file unit mismatch.
+# Some code paths treat APY as a PERCENT (adapter_status.apy → 5.2 == 5.2%),
+# others as a DECIMAL (adapter_registry.live_apy → 0.052). If a decimal value
+# ever reaches accrual as if it were a percent — or, worse, a percent is fed
+# where a decimal*100 was expected — the track can be off by 100×. We fail
+# CLOSED: any APY% outside [0, 100] is rejected (excluded from accrual) and
+# logged, so a single bad value can never silently 100× the go-live track.
+APY_ACCRUAL_MIN_PCT: float = 0.0
+APY_ACCRUAL_MAX_PCT: float = 100.0
+
+
+def _normalize_accrual_apy(pool: str, apy: object) -> "float | None":
+    """Return a sane APY% for accrual, or ``None`` to exclude the pool.
+
+    Fail-closed: a non-numeric, NaN/inf, or out-of-[0,100]% value (e.g. 520 from
+    a decimal/percent mix-up, or a raw decimal 0.052 that's harmlessly low but
+    not unit-safe) is rejected with a WARNING rather than accrued as-is. A bad
+    APY must never reach ``equity_curve_daily.json``.
+    """
+    if isinstance(apy, bool) or not isinstance(apy, (int, float)):
+        log.warning("accrual guardrail: %s APY non-numeric (%r) — excluded", pool, apy)
+        return None
+    val = float(apy)
+    if val != val or val in (float("inf"), float("-inf")):  # NaN / inf
+        log.warning("accrual guardrail: %s APY not finite (%r) — excluded", pool, apy)
+        return None
+    if val < APY_ACCRUAL_MIN_PCT or val > APY_ACCRUAL_MAX_PCT:
+        log.warning(
+            "accrual guardrail: %s APY %.4f%% outside [%.0f, %.0f]%% "
+            "(possible decimal/percent unit mismatch — 100x risk) — REJECTED",
+            pool, val, APY_ACCRUAL_MIN_PCT, APY_ACCRUAL_MAX_PCT,
+        )
+        return None
+    return val
+
+
 def _accrue_daily_yield(
     positions: dict[str, float], apy_map: dict[str, float]
 ) -> float:
-    """Sum one day of yield across positions: Σ pos_usd × apy% / 100 / 365."""
+    """Sum one day of yield across positions: Σ pos_usd × apy% / 100 / 365.
+
+    N3: every APY is run through ``_normalize_accrual_apy`` (fail-closed) before
+    it can contribute to the daily yield, so an out-of-range value never lands
+    in the equity curve.
+    """
     total = 0.0
     for pool, usd in positions.items():
-        apy = apy_map.get(pool)
-        if apy is None or not isinstance(usd, (int, float)):
+        if not isinstance(usd, (int, float)) or isinstance(usd, bool):
             continue
-        total += float(usd) * float(apy) / 100.0 / 365.0
+        apy = _normalize_accrual_apy(pool, apy_map.get(pool))
+        if apy is None:
+            continue
+        total += float(usd) * apy / 100.0 / 365.0
     return total
 
 
@@ -574,6 +618,7 @@ def _upsert_equity_point(
     positions: dict[str, float],
     apy_map: dict[str, float],
     run_ts: str,
+    accrual_source: str = "live",
 ) -> tuple[dict, float, float, float]:
     """Append or refresh today's daily bar, idempotently per UTC day.
 
@@ -632,6 +677,11 @@ def _upsert_equity_point(
         # source="cycle".
         "source": "cycle",
         "evidenced": True,
+        # N3(b): "live" when the day's yield was accrued from a live feed, or
+        # "fallback" when it was derived from a fallback file (adapter_status.json
+        # / adapter_registry.json). Makes the track auditable for fabricated /
+        # fallback accrual — a bar of mostly-fallback yield is NOT unimpeachable.
+        "accrual_source": "fallback" if accrual_source == "fallback" else "live",
     }
     daily.append(bar)
     daily = daily[-MAX_EQUITY_POINTS:]  # ring-buffer
@@ -1206,6 +1256,9 @@ def run_cycle(
     orch_status = getattr(orch, "status", "ok")
     apy_map = _live_apy_map(adapters)
     live = bool(apy_map) and orch_status != "no_live_data"
+    # N3(b): pools whose APY came from a FALLBACK file (not the live feed) — used
+    # to stamp the equity bar's accrual_source so a fallback-accrued day is auditable.
+    _fallback_apy_pools: set[str] = set()
 
     # ── MP-413: merge fallback APY values for adapters NOT in orchestrator ──
     # The orchestrator covers: aave_v3, compound_v3, morpho_blue, yearn_v3,
@@ -1231,6 +1284,7 @@ def run_cycle(
                 _fallback_apy = _entry.get("apy")
                 if isinstance(_fallback_apy, (int, float)) and _fallback_apy > 0:
                     apy_map[_proto_key] = float(_fallback_apy)
+                    _fallback_apy_pools.add(str(_proto_key))  # N3(b)
                     log.debug(
                         "MP-413 apy_map[%s]=%.4f (adapter_status.json fallback)",
                         _proto_key,
@@ -1261,6 +1315,7 @@ def run_cycle(
                 _yr_fb = _yrv.get("live_apy") or _yrv.get("fallback_apy")
                 if isinstance(_yr_fb, (int, float)) and _yr_fb > 0:
                     apy_map[_yrk] = float(_yr_fb) * 100.0  # fraction → pct
+                    _fallback_apy_pools.add(str(_yrk))  # N3(b)
                     log.debug(
                         "P0-B1 apy_map[%s]=%.3f%% (registry fallback, yield accrual)",
                         _yrk,
@@ -2007,6 +2062,13 @@ def run_cycle(
         else 0.0
     )
     equity_doc = equity_doc if isinstance(equity_doc, dict) else {}
+    # N3(b): the day is "fallback"-accrued if there was no live feed at all, or
+    # if any DEPLOYED position drew its APY from a fallback file rather than live.
+    _accrual_source = (
+        "fallback"
+        if (not live or any(p in _fallback_apy_pools for p in effective_positions))
+        else "live"
+    )
     equity_doc, close_equity, daily_yield, daily_return_pct = _upsert_equity_point(
         equity_doc,
         date=today,
@@ -2014,6 +2076,7 @@ def run_cycle(
         positions=effective_positions,
         apy_map=apy_map,
         run_ts=run_ts,
+        accrual_source=_accrual_source,
     )
 
     days = _days_running(today, paper_start_date)

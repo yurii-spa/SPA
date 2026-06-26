@@ -231,6 +231,51 @@ class TestOrchestratorRun(unittest.TestCase):
         self.assertEqual(tiers["CompoundV3Adapter"], "T1")
 
 
+# ─── N2: compound_v3 не фабрикует APY через оркестратор ─────────────────────────
+
+
+class TestCompoundV3NoFabricatedAPY(unittest.TestCase):
+    """N2: пустой status compound_v3 → no-live-data в оркестраторе, НЕ 5.2%."""
+
+    def _run_compound(self, data_dir: str) -> dict:
+        from spa_core.adapters.compound_v3_adapter import CompoundV3Adapter
+
+        # Подменяем _data_dir на пустой каталог, чтобы adapter_status.json
+        # отсутствовал → нет живого APY.
+        cls = type(
+            "_CompoundEmpty",
+            (CompoundV3Adapter,),
+            {"__init__": lambda self: CompoundV3Adapter.__init__(self, data_dir=data_dir)},
+        )
+        now = datetime.now(timezone.utc)
+        return orch._run_one_adapter(
+            "compound_v3", "T1", cls, now.isoformat(), now
+        )
+
+    def test_empty_status_marks_no_live_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rec = self._run_compound(tmp)  # no adapter_status.json present
+        self.assertFalse(rec["live_data"])
+        self.assertIsNone(rec["apy_pct"])
+        self.assertEqual(rec["status"], "error")
+        self.assertEqual(rec["error"], "live_feed_unavailable")
+
+    def test_empty_status_does_not_fabricate_52(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rec = self._run_compound(tmp)
+        # The fabricated 5.2% must never reach the track as live data.
+        self.assertNotEqual(rec["apy_pct"], 5.2)
+
+    def test_live_status_is_passed_through(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "adapter_status.json").write_text(
+                json.dumps({"compound_v3_adapter": {"apy": 4.8}}), encoding="utf-8"
+            )
+            rec = self._run_compound(tmp)
+        self.assertTrue(rec["live_data"])
+        self.assertAlmostEqual(rec["apy_pct"], 4.8, places=4)
+
+
 # ─── Тесты записи на диск ───────────────────────────────────────────────────────
 
 

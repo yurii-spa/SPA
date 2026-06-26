@@ -43,17 +43,23 @@ def _write_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
 
 
-def _make_flag(category="apy_spike", source_field="defillama", bootstrap_field=False):
-    """Возвращает dict одного красного флага."""
+def _make_flag(category="apy_spike", source_field="defillama", bootstrap_field=False,
+               protocol="test-protocol", severity="CRITICAL"):
+    """Возвращает dict одного красного флага.
+
+    N1: the kill-switch now counts only CRITICAL flags on HELD protocols whose
+    OWN ``source != "bootstrap"``. The default fixture therefore emits a
+    CRITICAL flag on ``test-protocol`` (held — see ``_write_flags`` below) with a
+    live source. ``bootstrap_field=True`` sets ``source="bootstrap"`` so the
+    per-flag bootstrap filter (b) excludes it.
+    """
     flag = {
-        "protocol": "test-protocol",
+        "protocol": protocol,
         "category": category,
-        "severity": "WARN",
+        "severity": severity,
         "message": "test flag",
-        "source": source_field,
+        "source": "bootstrap" if bootstrap_field else source_field,
     }
-    if bootstrap_field:
-        flag["bootstrap"] = True
     return flag
 
 
@@ -72,9 +78,24 @@ def _make_doc(flags, fallback_used=False, sources=None):
 class TestRedFlagsGate(unittest.TestCase):
     """Unit-тесты для KillSwitchChecker.check_red_flags_trigger()."""
 
+    # Protocols that the fixtures hold so their CRITICAL flags count (N1: the
+    # gate only counts CRITICAL flags on HELD protocols). Covers the default
+    # fixture protocol plus every protocol used by the incident-scenario doc.
+    _HELD = {
+        "test-protocol": 10_000.0,
+        "ethena-susde": 10_000.0,
+        "pendle-pt": 10_000.0,
+        "aave-v3": 10_000.0,
+        "compound-v3": 10_000.0,
+        "euler-v2": 10_000.0,
+    }
+
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.data_dir = Path(self.tmp)
+        # Hold the fixture protocols so CRITICAL-on-held logic counts them.
+        _write_json(self.data_dir / "current_positions.json",
+                    {"positions": dict(self._HELD)})
 
     def tearDown(self):
         import shutil
@@ -520,6 +541,9 @@ class TestRedFlagsGateIntegration(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.data_dir = Path(self.tmp)
+        # Hold the fixture protocol so CRITICAL-on-held logic counts it (N1).
+        _write_json(self.data_dir / "current_positions.json",
+                    {"positions": {"test-protocol": 10_000.0}})
 
     def tearDown(self):
         import shutil

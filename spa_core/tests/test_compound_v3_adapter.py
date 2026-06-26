@@ -146,17 +146,18 @@ class TestInit(unittest.TestCase):
 class TestAPY(unittest.TestCase):
     """14 тестов — get_apy, fallback, JSON override."""
 
-    def test_fallback_no_file(self):
+    def test_no_live_data_no_file_returns_none(self):
+        # N2: no live feed → honest None, NEVER a fabricated 5.2% (go-live track honesty).
         a = _no_file()
-        self.assertAlmostEqual(a.get_apy(), 5.2)
+        self.assertIsNone(a.get_apy())
 
-    def test_fallback_no_section(self):
+    def test_no_live_data_no_section_returns_none(self):
         a = _no_section()
-        self.assertAlmostEqual(a.get_apy(), 5.2)
+        self.assertIsNone(a.get_apy())
 
-    def test_fallback_no_apy_field(self):
+    def test_no_live_data_no_apy_field_returns_none(self):
         a = _make_adapter(apy=None)
-        self.assertAlmostEqual(a.get_apy(), 5.2)
+        self.assertIsNone(a.get_apy())
 
     def test_json_override(self):
         a = _make_adapter(apy=4.8)
@@ -185,7 +186,7 @@ class TestAPY(unittest.TestCase):
             json.dumps({"compound_v3_adapter": {"apy": True}}), encoding="utf-8"
         )
         a = CompoundV3Adapter(data_dir=tmp)
-        self.assertAlmostEqual(a.get_apy(), 5.2)  # fallback
+        self.assertIsNone(a.get_apy())  # N2: invalid → no live data, not fabricated
 
     def test_string_apy_ignored(self):
         tmp = tempfile.mkdtemp()
@@ -193,7 +194,7 @@ class TestAPY(unittest.TestCase):
             json.dumps({"compound_v3_adapter": {"apy": "5.2"}}), encoding="utf-8"
         )
         a = CompoundV3Adapter(data_dir=tmp)
-        self.assertAlmostEqual(a.get_apy(), 5.2)  # fallback
+        self.assertIsNone(a.get_apy())  # N2: invalid → no live data, not fabricated
 
     def test_zero_apy_accepted(self):
         a = _make_adapter(apy=0.0)
@@ -318,10 +319,10 @@ class TestEligibility(unittest.TestCase):
         a = _make_adapter(apy=31.0)
         self.assertFalse(a.is_eligible())
 
-    def test_fallback_apy_eligible(self):
-        # Default fallback 5.2 is within [1.0, 30.0]
+    def test_no_live_data_not_eligible(self):
+        # N2: no live APY → fail-closed, NOT eligible (no allocating on a fabricated yield).
         a = _no_file()
-        self.assertTrue(a.is_eligible())
+        self.assertFalse(a.is_eligible())
 
     def test_peg_depeg_overrides_valid_apy(self):
         a = _make_adapter(apy=10.0, usdc_price=1.10)
@@ -383,10 +384,11 @@ class TestYieldInfo(unittest.TestCase):
     def test_exit_latency(self):
         self.assertEqual(self.yi.exit_latency_hours, 0.0)
 
-    def test_apy_fallback_decimal(self):
+    def test_apy_none_when_no_live_data(self):
+        # N2: YieldInfo.apy is None when no live feed — orchestrator marks no-live-data.
         a = _no_file()
         yi = a.get_yield_info()
-        self.assertAlmostEqual(yi.apy, 0.052, places=6)
+        self.assertIsNone(yi.apy)
 
 
 # ─── TestAllocate ─────────────────────────────────────────────────────────────

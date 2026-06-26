@@ -440,10 +440,20 @@ class TestDrawdownIndependent(unittest.TestCase):
         self._tmp.cleanup()
 
     def _make_curve(self, peak: float, current: float, n: int = 31) -> list[dict]:
+        # Bars dated post-anchor (>= PAPER_REAL_START) + evidenced, so the
+        # drawdown trigger (now strictly over the REAL evidenced series) sees
+        # them. Pre-anchor / warmup bars are intentionally excluded.
+        from datetime import timedelta
+        from spa_core.paper_trading.track_evidence import PAPER_REAL_START
+        base = PAPER_REAL_START
         bars = []
         for i in range(n - 1):
-            bars.append({"date": f"2026-05-{i+1:02d}", "close_equity": peak})
-        bars.append({"date": f"2026-06-{n:02d}", "close_equity": current})
+            bars.append({"date": (base + timedelta(days=i)).isoformat(),
+                         "close_equity": peak,
+                         "source": "cycle", "evidenced": True})
+        bars.append({"date": (base + timedelta(days=n - 1)).isoformat(),
+                     "close_equity": current,
+                     "source": "cycle", "evidenced": True})
         return bars
 
     # E-1

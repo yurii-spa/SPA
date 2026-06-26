@@ -161,6 +161,46 @@ def test_accrue_zero_apy_contributes_nothing():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Group 1b — N3 APY accrual guardrail (fail-closed on out-of-range APY)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def test_guardrail_rejects_out_of_range_apy_decimal_percent_mixup():
+    """520% (e.g. a 5.2 decimal mistakenly *100'd, or a unit bug) is REJECTED.
+
+    A 100x unit bug must never silently 100x the go-live track: the bad pool
+    contributes ZERO, only the sane pool accrues.
+    """
+    positions = {"bug": 100_000.0, "ok": 100_000.0}
+    apy_map = {"bug": 520.0, "ok": 4.0}  # 520% is out of [0,100] → rejected
+    result = _accrue_daily_yield(positions, apy_map)
+    expected = 100_000 * 4.0 / 100 / 365  # only the sane pool
+    assert math.isclose(result, expected, rel_tol=1e-9)
+
+
+def test_guardrail_normalizer_returns_none_for_out_of_range():
+    assert cr._normalize_accrual_apy("p", 520.0) is None
+    assert cr._normalize_accrual_apy("p", -1.0) is None
+    assert cr._normalize_accrual_apy("p", float("nan")) is None
+    assert cr._normalize_accrual_apy("p", float("inf")) is None
+    assert cr._normalize_accrual_apy("p", "5.2") is None  # non-numeric
+    assert cr._normalize_accrual_apy("p", True) is None  # bool rejected
+
+
+def test_guardrail_accepts_in_range_apy():
+    assert cr._normalize_accrual_apy("p", 0.0) == 0.0
+    assert cr._normalize_accrual_apy("p", 5.2) == 5.2
+    assert cr._normalize_accrual_apy("p", 100.0) == 100.0
+
+
+def test_guardrail_logs_when_rejecting(caplog):
+    import logging
+    with caplog.at_level(logging.WARNING, logger="spa.cycle_runner"):
+        cr._normalize_accrual_apy("compound_v3", 520.0)
+    assert any("520" in r.message or "unit mismatch" in r.message for r in caplog.records)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Group 2 — _last_trade_id_from_file unit tests  (P0-B2 helper)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -512,6 +552,41 @@ def test_equity_curve_daily_written_with_yield(tmp_path):
         assert math.isclose(
             last_bar["daily_yield_usd"], result.daily_yield_usd, rel_tol=1e-4
         )
+
+
+def test_equity_bar_flagged_fallback_when_position_uses_registry_apy(tmp_path):
+    """N3(b): a deployed position whose APY came from a fallback file → bar is
+    stamped accrual_source="fallback" (the track is auditable for fallback accrual)."""
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04, "tier": 1},
+        "compound_v3": {"fallback_apy": 0.05, "tier": 1},
+    })
+    _write_positions(tmp_path, {"aave_v3": 40_000.0, "compound_v3": 30_000.0})
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    # Only aave_v3 is live; compound_v3 yield comes from the registry fallback.
+    _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
+
+    curve = _load(tmp_path, "equity_curve_daily.json")
+    assert curve and curve.get("daily")
+    last_bar = curve["daily"][-1]
+    assert last_bar.get("accrual_source") == "fallback"
+
+
+def test_equity_bar_flagged_live_when_all_positions_live(tmp_path):
+    """N3(b): all deployed positions have live APY → bar accrual_source="live"."""
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04, "tier": 1},
+        "compound_v3": {"fallback_apy": 0.05, "tier": 1},
+    })
+    _write_positions(tmp_path, {"aave_v3": 40_000.0, "compound_v3": 30_000.0})
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    # Both deployed pools live from the orchestrator.
+    _run(tmp_path, orch_apy_map={"aave_v3": 4.0, "compound_v3": 5.0}, target_usd=target)
+
+    curve = _load(tmp_path, "equity_curve_daily.json")
+    assert curve and curve.get("daily")
+    last_bar = curve["daily"][-1]
+    assert last_bar.get("accrual_source") == "live"
 
 
 def test_weighted_apy_reflects_all_positions(tmp_path):
