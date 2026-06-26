@@ -370,15 +370,18 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           if(pass != null){ setText('tr-gates-pass', pass); }
           if(total != null){ setText('tr-gates-total', total); }
           if(pass != null && total != null){ setWidth('tr-gates-bar', (pass / total) * 100); }
-          // Pull the go-live target date from the time-gated track criterion.
-          var tgt = null;
-          if(Array.isArray(d.criteria)){
+          // Go-live target = the ONE honest evidenced-anchored value. Prefer the
+          // top-level target_date the gate now surfaces; fall back to the
+          // per-criterion target_date for older API payloads.
+          var tgt = d.target_date || null;
+          if(!tgt && Array.isArray(d.criteria)){
             for(var i = 0; i < d.criteria.length; i++){
               var c = d.criteria[i];
               if((c.name === 'min_track_days_30' || c.name === 'gap_monitor_30d') && c.target_date){ tgt = c.target_date; break; }
             }
           }
           if(tgt){ setText('tr-reset-target', tgt); setText('tr-days-target', tgt); }
+          if(d.evidenced_anchor){ setText('tr-reset-anchor', d.evidenced_anchor); }
         }).catch(function(){});
       }
 

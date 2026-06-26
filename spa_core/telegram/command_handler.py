@@ -153,11 +153,16 @@ class CommandHandler:
         gaps = gap.get("gap_count", 0)
         continuity = "✅ continuous" if gaps == 0 else f"⚠️ {gaps} gap(s)"
 
+        # Honest go-live target = the evidenced-anchored value the go-live checker
+        # surfaces (data/golive_status.json target_date). Fail-safe to "pending".
+        golive = atomic_load(f"{self.base_dir}/data/golive_status.json", default={})
+        target = golive.get("target_date") if isinstance(golive, dict) else None
+
         return (
             f"🧾 Evidence Progress\n"
             f"Track days: {days}/{target_days} ({pct}%)\n"
             f"Continuity: {continuity}\n"
-            f"Target go-live: 2026-08-01"
+            f"Target go-live: {target or 'pending'}"
         )
 
     def _cmd_strategy_tournament(self) -> str:

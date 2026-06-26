@@ -342,18 +342,21 @@ def main() -> None:
         eq_days = len(_real_bars) if _real_bars else eq.get("summary", {}).get("num_days", 0)
 
     # Honest anchor + go-live target, derived from golive_status (NOT hardcoded).
-    # The evidenced anchor lives in equity summary.evidenced_anchor; the go-live
-    # target is on the time-gated criteria details (target_date).
+    # Canonical source = the top-level evidenced_anchor / target_date fields the
+    # go-live checker now surfaces (one honest derived value). Fall back to the
+    # equity summary / per-criterion detail only for older status files.
     track_anchor = (
-        eq.get("summary", {}).get("evidenced_anchor")
+        golive.get("evidenced_anchor")
+        or eq.get("summary", {}).get("evidenced_anchor")
         or eq.get("summary", {}).get("first_real_date")
         or "2026-06-22"
     )
-    golive_target = "?"
-    for crit in golive.get("criteria", []):
-        if crit.get("name") in ("min_track_days_30", "gap_monitor_30d") and crit.get("target_date"):
-            golive_target = crit["target_date"]
-            break
+    golive_target = golive.get("target_date") or "?"
+    if golive_target == "?":
+        for crit in golive.get("criteria", []):
+            if crit.get("name") in ("min_track_days_30", "gap_monitor_30d") and crit.get("target_date"):
+                golive_target = crit["target_date"]
+                break
 
     golive_icon = "✅" if golive_ready else "⛔"
     agent_icon = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴"}.get(agent_status, "❓")

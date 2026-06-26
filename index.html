@@ -1966,7 +1966,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
     </p>
     <p style="font-size:13px;color:#444;line-height:1.7;margin-bottom:12px">
       This track graduates to live capital management after 30 verified days under <strong>ADR-002</strong>.
-      Go-Live target: <strong>2026-08-01</strong>.
+      Go-Live target: <strong>2026-07-21</strong> (evidenced anchor 2026-06-22 + 30 days).
     </p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <div style="background:#eaf3de;border-radius:8px;padding:7px 13px;font-size:12px;color:#3B6D11"><strong>✓ RiskPolicy v1.0</strong> · Deterministic</div>
@@ -3195,7 +3195,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
       <div class="stack-row"><span class="stack-label">2026-06-10 ✓</span><span class="stack-value">Dashboard v2 · Kanban · 800+ тестов</span></div>
       <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-1">~</span> ●</span><span class="stack-value">30 честных дней трека (ADR-002)</span></div>
       <div class="stack-row"><span class="stack-label"><span id="roadmap-track-ready-2">~</span></span><span class="stack-value">GoLiveChecker: 7 дней READY подряд</span></div>
-      <div class="stack-row"><span class="stack-label">Go-Live</span><span class="stack-value">~2026-08-01 · Реальный капитал (ADR-002)</span></div>
+      <div class="stack-row"><span class="stack-label">Go-Live</span><span class="stack-value">~2026-07-21 · Реальный капитал (ADR-002)</span></div>
       <div class="stack-row"><span class="stack-label">Капитал</span><span class="stack-value">$100K виртуальный (paper trading)</span></div>
     </div>
   </div>
@@ -3903,7 +3903,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:500" data-ru="Панель готовности к запуску">Go-Live Readiness Dashboard</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Checklist · Progress · Timeline · 2026-08-01</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Checklist · Progress · Timeline · 2026-07-21</div>
     </div>
     <button class="refresh-btn" onclick="loadGoLive()">↻ Refresh</button>
   </div>
@@ -3942,7 +3942,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
         <div class="day-progress-label">
           <span>2026-06-10 (paper start)</span>
           <span id="golive-day-today"></span>
-          <span>2026-08-01 (go-live)</span>
+          <span>2026-07-21 (go-live)</span>
         </div>
       </div>
       <div id="golive-rec" style="margin-top:14px;padding:12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#555;border-left:3px solid #ddd;display:none"></div>
@@ -4012,7 +4012,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
         <div style="text-align:center">
           <div style="width:22px;height:22px;border-radius:50%;background:#BA7517;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:white">🎯</div>
           <div style="font-size:11px;font-weight:600;color:#BA7517">Go-Live</div>
-          <div style="font-size:10px;color:#aaa">2026-08-01</div>
+          <div style="font-size:10px;color:#aaa" id="golive-timeline-target">2026-07-21</div>
         </div>
       </div>
     </div>
@@ -5235,7 +5235,7 @@ async function loadPerformance() {
     statusBarEl.innerHTML =
       `<span style="color:#3B6D11;font-weight:600">✅ Systems operational</span>` +
       `<span style="color:#888;font-size:12px;margin-left:14px">` + lastCycleStr + `</span>` +
-      `<span style="float:right;font-size:12px">Go-Live: <strong>${criteriaStr}</strong> · Target: <strong>2026-08-01</strong></span>`;
+      `<span style="float:right;font-size:12px">Go-Live: <strong>${criteriaStr}</strong> · Target: <strong>${(golive && golive.target_date) || META_GOLIVE}</strong></span>`;
   }
 
   // ── Strategy Race Preview (top 3) ──
@@ -6953,10 +6953,11 @@ async function loadDashboard() {
                      : (paperStatus.current_apy_pct != null ? paperStatus.current_apy_pct : paperStatus.apy);
         if (_apy != null) { _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%'; _heroDone(_heroEl('hero-apy')); }
         if (_heroEl('hero-golive')) {
-          // Go-live target: prefer the canonical target_date from golive_status
-          // time-gated criteria; fall back to META_GOLIVE (meta.json), then '—'.
-          let _gltgt = META_GOLIVE;
-          if (goliveStatus && Array.isArray(goliveStatus.criteria)) {
+          // Go-live target: prefer the canonical top-level target_date from
+          // golive_status (the ONE evidenced-anchored value), then the per-
+          // criterion target_date, then META_GOLIVE (meta.json), then '—'.
+          let _gltgt = (goliveStatus && goliveStatus.target_date) || META_GOLIVE;
+          if (!(goliveStatus && goliveStatus.target_date) && goliveStatus && Array.isArray(goliveStatus.criteria)) {
             const _c = goliveStatus.criteria.find(c => c && c.target_date &&
               (c.name === 'min_track_days_30' || c.name === 'gap_monitor_30d'));
             if (_c) _gltgt = _c.target_date;
@@ -10084,7 +10085,7 @@ const PHASE0_TRACK_DAYS = 56;
 // Defaults match CLAUDE.md; overridden at runtime by meta.json in loadDashboard()
 let META_PAPER_START = '2026-05-20';   // paper_cycle_start
 let META_TRACK_START = '2026-06-10';   // verified_track_start
-let META_GOLIVE      = '2026-08-01';   // golive_target (ADR-002)
+let META_GOLIVE      = '2026-07-21';   // golive_target (ADR-002): evidenced anchor 2026-06-22 + 30 days; live value comes from golive_status.target_date
 let META_TRACK_DAYS  = 30;             // track_window_days
 
 // P0-1a: global date helper (UTC-safe), used for roadmap + pe-ready-date
@@ -11674,7 +11675,7 @@ async function loadPaperEvidence() {
     const d = await fetch(BASE + '/paper_evidence.json?_=' + ts).then(r => r.json()).catch(() => null);
 
     const startDate   = (d && d.paper_start_date) || META_TRACK_START;
-    const goliveDate  = (d && d.golive_target)     || '2026-08-01';
+    const goliveDate  = (d && d.golive_target)     || META_GOLIVE;
     const minDays     = (d && d.min_days_required) || 30;
     const summary     = (d && d.summary)           || {};
     const nDays       = summary.n_days             || 0;
@@ -11713,7 +11714,7 @@ async function loadPaperEvidence() {
     setText('pe-sharpe',   '—');
     setText('pe-start-date',  META_TRACK_START);
     setText('pe-ready-date',  addDaysToDate(META_TRACK_START, META_TRACK_DAYS || 30));
-    setText('pe-golive-date', '2026-08-01');
+    setText('pe-golive-date', META_GOLIVE);
   }
 }
 
@@ -12350,7 +12351,7 @@ function initOffice() {
     data:     ['Fetching Aave APY…','DeFiLlama ✓ 7 pools','APY scan complete','Checking TVL…','Compound: 4.02%','Maple: 4.80%','9 protos active','Data pipeline OK'],
     strategy: ['Reviewing allocations…','Aave 40K @ 4.23%','Maple position stable','No rebalance needed','T2 budget: 50%','Cash buffer: 5%','Scoring protocols…','v1_passive running'],
     monitor:  ['Portfolio health OK','Drawdown: 0.0%','Concentration check ✓','VaR within limits','All positions safe','Kill switch: armed','No alerts active','Risk policy v1.0'],
-    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','daily cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-08-01','paper-v1 on track','Approving trades…'],
+    ceo:      ['Exporting pnl_history…','risk_alerts.json updated','daily cycle complete','Dashboard synced ✓','Week 0 baseline set','Go-live: ~2026-07-21','paper-v1 on track','Approving trades…'],
   };
   // Stagger so agents don't all talk at once (frames at 60fps)
   const BUBBLE_STAGGER = {data:20,strategy:120,monitor:220,ceo:320};

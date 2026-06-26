@@ -209,6 +209,11 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
         "golive_passed": golive.get("passed"),
         "golive_total": golive.get("total"),
         "golive_ready": golive.get("ready"),
+        # Honest evidenced anchor + go-live target (derived by golive_checker;
+        # fail-closed None until the first evidenced day). Canonical so every
+        # presentation surface mirrors the ONE value.
+        "evidenced_anchor": golive.get("evidenced_anchor"),
+        "go_live_target": golive.get("target_date"),
         "nav": nav.get("computed_nav_usd"),
         "nav_reconciliation_ok": nav.get("reconciliation_ok"),
     }

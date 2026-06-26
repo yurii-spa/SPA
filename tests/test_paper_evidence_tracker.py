@@ -64,7 +64,10 @@ class TestConstants:
         assert MIN_DAYS_REQUIRED == 30
 
     def test_golive_target_date(self):
-        assert GOLIVE_TARGET_DATE == date(2026, 8, 1)
+        # Honest fallback = the evidenced-anchored target (first evidenced day
+        # 2026-06-22 + 29 days). The live value is read from golive_status.json;
+        # this literal applies only when that file is missing.
+        assert GOLIVE_TARGET_DATE == date(2026, 7, 21)
 
     def test_base_capital(self):
         assert BASE_CAPITAL == 100_000.0
@@ -82,10 +85,10 @@ class TestConstants:
         assert MIN_SHARPE_DAYS == 14
 
     def test_golive_buffer(self):
-        """go-live target is at least 20 days after min ready date."""
+        """go-live target is on/after this tracker's 30-day ready date."""
         ready = PAPER_START_DATE + timedelta(days=MIN_DAYS_REQUIRED)
         buffer = (GOLIVE_TARGET_DATE - ready).days
-        assert buffer >= 20
+        assert buffer >= 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -279,10 +282,13 @@ class TestGoLiveStatus:
         status = t.get_golive_status()
         assert status["golive_target"] == GOLIVE_TARGET_DATE.isoformat()
 
-    def test_buffer_days_at_least_20(self, tmp_path):
+    def test_buffer_days_non_negative(self, tmp_path):
         t = make_tracker(tmp_path)
         status = t.get_golive_status()
-        assert status["buffer_days"] >= 20
+        # Honest target (evidenced-anchored ~2026-07-21) is on/after the 30-day
+        # ready date, so the buffer is non-negative (was a fixed ≥20 when the
+        # target was the stale 2026-08-01 literal).
+        assert status["buffer_days"] >= 0
 
     def test_min_days_check_fail(self, tmp_path):
         t = make_tracker(tmp_path)

@@ -417,6 +417,10 @@ def get_health_public():
         "source": "live",
         # Honest, evidenced track-day count (single source of truth = golive_checker).
         "real_track_days": real_track_days,
+        # Honest go-live anchor + target — the ONE derived value (golive_checker
+        # surfaces these top-level; fail-closed None until first evidenced day).
+        "evidenced_anchor": gl.get("evidenced_anchor"),
+        "go_live_target": gl.get("target_date"),
         # track_days is the DISPLAYED field — now the honest evidenced count, not
         # the padded days_running. Kept for backward-compat with existing consumers.
         "track_days": real_track_days,

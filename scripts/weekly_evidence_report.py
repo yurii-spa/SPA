@@ -24,9 +24,24 @@ from datetime import date, datetime, timedelta
 
 PAPER_START = date(2026, 6, 10)        # Day 0 of real paper trading
 PAPER_WINDOW_DAYS = 30                  # Evidence window
-GOLIVE_DATE = date(2026, 8, 1)         # ADR-002
+# Fallback only. Canonical go-live target = the evidenced-anchored value the
+# go-live checker derives (first evidenced day 2026-06-22 + 29 days). Read live
+# from data/golive_status.json so this report never drifts from the gate.
+GOLIVE_DATE = date(2026, 7, 21)        # ADR-002
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def _golive_target_iso() -> str:
+    """Honest go-live target = golive_status.target_date, else committed literal."""
+    try:
+        doc = _load_json(_REPO_ROOT / "data" / "golive_status.json")
+        tgt = doc.get("target_date") if isinstance(doc, dict) else None
+        if isinstance(tgt, str) and tgt:
+            return tgt
+    except Exception:  # noqa: BLE001 — report must never raise
+        pass
+    return GOLIVE_DATE.isoformat()
 
 
 # --------------------------------------------------------------------------- #
@@ -210,7 +225,7 @@ def _section_header(week_label: str) -> str:
         f"**Period:** {monday.isoformat()} → {sunday.isoformat()}  ",
         f"**Generated:** {today.isoformat()}  ",
         f"**Day of paper trading:** {paper_day}/{PAPER_WINDOW_DAYS}  ",
-        f"**Go-live target:** {GOLIVE_DATE.isoformat()}  ",
+        f"**Go-live target:** {_golive_target_iso()}  ",
         "",
     ]
     return "\n".join(lines)

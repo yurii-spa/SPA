@@ -32,8 +32,30 @@ MIN_DAYS_REQUIRED = 30
 MIN_APY_PCT = 7.0
 MIN_SHARPE = 0.80
 MAX_DRAWDOWN_PCT = -5.0   # Kill switch: drawdown >= -5% halts rebalance
-GOLIVE_TARGET_DATE = date(2026, 8, 1)
+# Fallback only. The canonical go-live target is the EVIDENCED-anchored value
+# the go-live checker derives (first evidenced day + 29 days = 2026-07-21). We
+# read it from data/golive_status.json so this tracker never drifts from the
+# gate; this literal applies only when that file is missing/unset.
+GOLIVE_TARGET_DATE = date(2026, 7, 21)
 EVIDENCE_FILE = "data/paper_evidence.json"
+GOLIVE_STATUS_FILE = "data/golive_status.json"
+
+
+def _golive_target_iso() -> str:
+    """Honest go-live target ISO date = golive_status.target_date, else fallback.
+
+    Single source of truth = the evidenced-anchored target surfaced by the
+    go-live checker. Fail-safe: any read error → the committed fallback literal.
+    """
+    try:
+        with open(GOLIVE_STATUS_FILE) as f:
+            doc = json.load(f)
+        tgt = doc.get("target_date") if isinstance(doc, dict) else None
+        if isinstance(tgt, str) and tgt:
+            return tgt
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+    return GOLIVE_TARGET_DATE.isoformat()
 SUMMARY_FILE = "data/paper_evidence_summary.json"
 BASE_CAPITAL = 100_000.0
 
@@ -68,7 +90,7 @@ class PaperEvidenceTracker:
             "schema_version": "1.0",
             "start_date": PAPER_START_DATE.isoformat(),
             "min_days_required": MIN_DAYS_REQUIRED,
-            "golive_target": GOLIVE_TARGET_DATE.isoformat(),
+            "golive_target": _golive_target_iso(),
             "base_capital": BASE_CAPITAL,
             "days": [],
             "strategies": {},
@@ -230,7 +252,15 @@ class PaperEvidenceTracker:
         days_needed = max(0, MIN_DAYS_REQUIRED - days_elapsed)
         ready_date = PAPER_START_DATE + timedelta(days=MIN_DAYS_REQUIRED)
         today = date.today()
-        days_to_target = (GOLIVE_TARGET_DATE - today).days
+        # Honest go-live target = evidenced-anchored value from golive_status
+        # (single source of truth), falling back to the committed literal.
+        golive_target_iso = _golive_target_iso()
+        try:
+            golive_target = date.fromisoformat(golive_target_iso)
+        except ValueError:
+            golive_target = GOLIVE_TARGET_DATE
+            golive_target_iso = GOLIVE_TARGET_DATE.isoformat()
+        days_to_target = (golive_target - today).days
 
         checks = {
             "min_days": {
@@ -270,9 +300,9 @@ class PaperEvidenceTracker:
             "days_elapsed": days_elapsed,
             "days_remaining": days_needed,
             "ready_date": ready_date.isoformat(),
-            "golive_target": GOLIVE_TARGET_DATE.isoformat(),
+            "golive_target": golive_target_iso,
             "days_to_golive": days_to_target,
-            "buffer_days": (GOLIVE_TARGET_DATE - ready_date).days,
+            "buffer_days": (golive_target - ready_date).days,
             "ready_for_golive": all_pass,
             "checks_passed": passes,
             "checks_total": len(checks),

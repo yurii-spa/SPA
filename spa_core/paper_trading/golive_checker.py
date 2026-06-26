@@ -99,6 +99,12 @@ class GoLiveResult:
     # Per-criterion rich status (name → {status, blocking, estimated_days_to_pass, …})
     details: dict[str, dict] = field(default_factory=dict)
     real_track_days: int = 0
+    # Honest go-live anchor + target, derived from the first EVIDENCED track day.
+    # ``evidenced_anchor`` = first day a real daily_cycle ran (2026-06-22 on the
+    # live track); ``target_date`` = anchor + (MIN_TRACK_DAYS - 1) (2026-07-21).
+    # Both None until at least one evidenced day exists (fail-closed).
+    evidenced_anchor: str | None = None
+    target_date: str | None = None
 
     def to_dict(self) -> dict:
         passed = sum(self.checks.values())
@@ -115,6 +121,10 @@ class GoLiveResult:
             ],
             "blockers": list(self.blockers),
             "real_track_days": self.real_track_days,
+            # Honest derived anchor + target — every consumer reads the ONE
+            # canonical value here instead of re-deriving or hardcoding it.
+            "evidenced_anchor": self.evidenced_anchor,
+            "target_date": self.target_date,
             "timestamp": self.timestamp,
             "source": "golive_checker",
             "version": "v6.0-29criteria",
@@ -292,18 +302,29 @@ class GoLiveChecker:
         except ValueError:
             return None
 
-    def _golive_target_date(self, daily: Any) -> str:
-        """Honest go-live target = first_evidenced + (MIN_TRACK_DAYS - 1) days.
+    def _target_date_from_anchor(self, daily: Any) -> str | None:
+        """Honest go-live target = first_evidenced + (MIN_TRACK_DAYS - 1) days, or None.
 
-        Anchored to the first EVIDENCED day so the target is a fixed calendar
-        date that does not drift day to day. Falls back to ``now + days_to_go``
-        only when no evidenced day exists yet.
+        Anchored STRICTLY to the first EVIDENCED day so the target is a fixed
+        calendar date that does not drift day to day. Fail-CLOSED: when no
+        evidenced day exists yet there is no honest anchor → returns None (the
+        criteria stay PENDING with no fabricated target). The 11 unevidenced
+        backfill days (2026-06-10..21) never anchor the target — only real
+        cycle-evidenced days do, so the live anchor is 2026-06-22 → 2026-07-21.
         """
         anchor = self._evidenced_anchor(daily)
-        if anchor is not None:
-            return (anchor + timedelta(days=MIN_TRACK_DAYS - 1)).isoformat()
-        days_to_go = max(0, MIN_TRACK_DAYS - self._real_track_days)
-        return (self.now.date() + timedelta(days=days_to_go)).isoformat()
+        if anchor is None:
+            return None
+        return (anchor + timedelta(days=MIN_TRACK_DAYS - 1)).isoformat()
+
+    def _golive_target_date(self, daily: Any) -> str:
+        """Display-string form of the honest target for blocker/criterion text.
+
+        Returns the evidenced-anchored target when available, else the literal
+        ``"pending"`` (no evidenced day yet → no honest calendar target).
+        """
+        target = self._target_date_from_anchor(daily)
+        return target if target is not None else "pending"
 
     # ══════════════════════════════════════════════════════════════════════════
     # Group 1: Data Integrity (6 checks — original MP-006 anti-demo gate)
@@ -855,11 +876,11 @@ class GoLiveChecker:
         """
         days_to_track = max(0, MIN_TRACK_DAYS - self._real_track_days)
         # Honest go-live target anchored to the first EVIDENCED day (fixed
-        # calendar date, does not drift). Falls back to now+days when no
-        # evidenced day exists yet.
+        # calendar date, does not drift). Fail-CLOSED: None when no evidenced
+        # day exists yet (criteria stay PENDING with no fabricated target).
         eq_doc = _read_json(self.data_dir / EQUITY_FILENAME)
         eq_daily = eq_doc.get("daily") if isinstance(eq_doc, dict) else None
-        target_date = self._golive_target_date(eq_daily)
+        target_date = self._target_date_from_anchor(eq_daily)
         details: dict[str, dict] = {}
         for name, ok in checks.items():
             if ok:
@@ -870,6 +891,7 @@ class GoLiveChecker:
                     "message": "ok",
                 }
             elif name in TIME_GATED_CRITERIA:
+                target_txt = target_date if target_date is not None else "pending"
                 details[name] = {
                     "status": "PENDING",
                     "blocking": True,
@@ -877,7 +899,7 @@ class GoLiveChecker:
                     "target_date": target_date,
                     "message": (
                         f"{self._real_track_days}/{MIN_TRACK_DAYS} honest track days — "
-                        f"{days_to_track} more needed (target {target_date})"
+                        f"{days_to_track} more needed (target {target_txt})"
                     ),
                 }
             else:
@@ -943,6 +965,11 @@ class GoLiveChecker:
         ready = all(checks.values())
         consecutive_days = self._compute_consecutive_ready_days(ready)
         details = self._build_details(checks, blockers)
+        # Honest derived anchor + target (fail-closed: None until first evidenced
+        # day). Surfaced as top-level fields so every consumer reads ONE value.
+        eq_doc = _read_json(self.data_dir / EQUITY_FILENAME)
+        eq_daily = eq_doc.get("daily") if isinstance(eq_doc, dict) else None
+        anchor = self._evidenced_anchor(eq_daily)
         result = GoLiveResult(
             ready=ready,
             checks=checks,
@@ -951,6 +978,8 @@ class GoLiveChecker:
             consecutive_ready_days=consecutive_days,
             details=details,
             real_track_days=self._real_track_days,
+            evidenced_anchor=anchor.isoformat() if anchor is not None else None,
+            target_date=self._target_date_from_anchor(eq_daily),
         )
         if write:
             _atomic_write_json(self.data_dir / STATUS_OUT_FILENAME, result.to_dict())

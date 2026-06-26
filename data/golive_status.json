@@ -245,7 +245,9 @@
     "min_track_days_30: 5/30 evidenced paper-trading days (anchor 2026-06-22; 25 more needed \u2014 target go-live ~2026-07-21)"
   ],
   "real_track_days": 5,
-  "timestamp": "2026-06-26T07:36:15.953416+00:00",
+  "evidenced_anchor": "2026-06-22",
+  "target_date": "2026-07-21",
+  "timestamp": "2026-06-26T08:41:34.411340+00:00",
   "source": "golive_checker",
   "version": "v6.0-29criteria",
   "consecutive_ready_days": 0

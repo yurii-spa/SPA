@@ -324,8 +324,12 @@ class TestGenerateReport:
         assert "ADR-002" in result
 
     def test_golive_target_date_in_header(self):
+        # Honest go-live target derives from data/golive_status.json
+        # (evidenced anchor 2026-06-22 + 30 days = 2026-07-21); falls back to
+        # the committed literal when that file is absent.
+        from weekly_evidence_report import _golive_target_iso
         result = generate_report("2026-W24", [], [], {}, {})
-        assert "2026-08-01" in result
+        assert _golive_target_iso() in result
 
     def test_volatile_regime_shows_warning(self):
         regime = {"regime": "VOLATILE", "recommendation": "reduce"}

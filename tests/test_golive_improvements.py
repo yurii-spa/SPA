@@ -210,12 +210,60 @@ def test_pending_carries_estimated_days(tmp_path):
 
 
 def test_pending_carries_target_date(tmp_path):
-    dates = _consecutive(datetime(2026, 6, 10, tzinfo=timezone.utc), 11)
+    # Operator-approved track reset: the first EVIDENCED day is 2026-06-22 (5
+    # evidenced cycle days). The 11 unevidenced backfill days (06-10..21) do NOT
+    # anchor the target — only the evidenced anchor does.
+    dates = _consecutive(datetime(2026, 6, 22, tzinfo=timezone.utc), 5)
     ddir = _full_data_dir(tmp_path, now=NOW, **{"equity_curve_daily.json": _equity(dates)})
     res = GoLiveChecker(data_dir=ddir, now=NOW, home_dir=_home_with_autopush(tmp_path)).check(write=False)
     det = res.details["min_track_days_30"]
-    expected = (NOW.date() + timedelta(days=19)).isoformat()
+    # target_date is ANCHORED to the first evidenced day so it does not drift
+    # day to day: first_evidenced (2026-06-22) + (MIN_TRACK_DAYS - 1) days
+    # == 2026-07-21.
+    anchor = datetime(2026, 6, 22, tzinfo=timezone.utc).date()
+    expected = (anchor + timedelta(days=MIN_TRACK_DAYS - 1)).isoformat()
+    assert expected == "2026-07-21"
     assert det["target_date"] == expected
+    # And the SAME honest value is surfaced at the top level of the status doc.
+    assert res.target_date == "2026-07-21"
+    assert res.evidenced_anchor == "2026-06-22"
+    assert res.to_dict()["target_date"] == "2026-07-21"
+    assert res.to_dict()["evidenced_anchor"] == "2026-06-22"
+
+
+def test_target_date_fail_closed_when_no_evidenced_day(tmp_path):
+    """Fail-CLOSED: no evidenced bars → no fabricated target (None / pending)."""
+    # All bars are pre-anchor (warmup) → zero evidenced days.
+    dates = _consecutive(datetime(2026, 5, 1, tzinfo=timezone.utc), 5)
+    ddir = _full_data_dir(tmp_path, now=NOW, **{"equity_curve_daily.json": _equity(dates)})
+    res = GoLiveChecker(data_dir=ddir, now=NOW, home_dir=_home_with_autopush(tmp_path)).check(write=False)
+    assert res.real_track_days == 0
+    assert res.target_date is None
+    assert res.evidenced_anchor is None
+    det = res.details["min_track_days_30"]
+    assert det["target_date"] is None
+    assert "pending" in det["message"]
+
+
+def test_target_date_consistent_across_surfaces(tmp_path):
+    """The anchored target is ONE value: result field == to_dict == per-criterion.
+
+    Mirrors the live reset (first evidenced 2026-06-22 → target 2026-07-21).
+    """
+    dates = _consecutive(datetime(2026, 6, 22, tzinfo=timezone.utc), 5)
+    ddir = _full_data_dir(tmp_path, now=NOW, **{"equity_curve_daily.json": _equity(dates)})
+    res = GoLiveChecker(data_dir=ddir, now=NOW, home_dir=_home_with_autopush(tmp_path)).check(write=False)
+    d = res.to_dict()
+    expected = "2026-07-21"
+    assert res.target_date == expected
+    assert d["target_date"] == expected
+    assert d["evidenced_anchor"] == "2026-06-22"
+    # Both time-gated criteria carry the identical anchored target.
+    for name in ("min_track_days_30", "gap_monitor_30d"):
+        assert res.details[name]["target_date"] == expected
+    # The blocker lines also reference the same honest target (not a stale one).
+    assert all("2026-07-09" not in b for b in res.blockers)
+    assert any(expected in b for b in res.blockers)
 
 
 def test_real_defect_is_fail_status(tmp_path):

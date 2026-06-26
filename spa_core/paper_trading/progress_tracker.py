@@ -57,7 +57,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 
 OUTPUT_FILENAME = "progress_tracker.json"
-GO_LIVE_TARGET_DATE = "2026-07-15"
+# Fallback only. The canonical go-live target is the EVIDENCED-anchored value
+# the go-live checker derives (first evidenced day + 29 days). We read it from
+# data/golive_status.json (top-level ``target_date``) so this tracker never
+# drifts from the gate; this literal is used only when that file is missing.
+GO_LIVE_TARGET_DATE = "2026-07-21"
 
 # Canonical real-track start date (ADR-002 / CLAUDE.md).
 # All demo data before this date is invalid after the 2026-06-10 teardown.
@@ -295,6 +299,16 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
         equity_doc = _read_json(equity_path, {})
         status_doc = _read_json(ddir / "paper_trading_status.json", {})
 
+        # Canonical go-live target = the evidenced-anchored target the go-live
+        # checker derives (data/golive_status.json top-level target_date). Fall
+        # back to the literal only when that file is missing/unset.
+        golive_doc = _read_json(ddir / "golive_status.json", {})
+        go_live_target = (
+            golive_doc.get("target_date")
+            if isinstance(golive_doc, dict) and golive_doc.get("target_date")
+            else GO_LIVE_TARGET_DATE
+        )
+
         # Derive core counters
         paper_days = _count_real_paper_days(equity_doc)
         # paper_start_date is None when the equity file doesn't exist yet
@@ -304,7 +318,7 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
         apy_today_pct = _extract_apy_today(equity_doc, status_doc)
 
         # Go-live countdown
-        days_to_golive = _days_between(today, GO_LIVE_TARGET_DATE)
+        days_to_golive = _days_between(today, go_live_target)
 
         # Build milestones
         milestones: List[Dict[str, Any]] = [
@@ -319,7 +333,7 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
             "paper_start_date": paper_start_date,
             "current_equity": round(current_equity, 2),
             "apy_today_pct": round(apy_today_pct, 4),
-            "go_live_target_date": GO_LIVE_TARGET_DATE,
+            "go_live_target_date": go_live_target,
             "days_to_golive": days_to_golive,
             "milestones": milestones,
             "summary_verdict": summary_verdict,
